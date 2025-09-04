@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer.MergeStrategy
 
 description = "Mirror Node Acceptance Test"
 
@@ -24,12 +25,9 @@ dependencies {
     testImplementation("io.grpc:grpc-inprocess")
     testImplementation("com.esaulpaugh:headlong")
     testImplementation("com.google.guava:guava")
-    // With 2.38.0, the SDK updated the headlong dependency from 10.0.0 to 12.1.0. Web3 is not ready
-    // for that yet.
-    testImplementation("com.hedera.hashgraph:sdk") {
-        exclude(group = "com.esaulpaugh", module = "headlong")
-    }
+    testImplementation("com.hedera.hashgraph:sdk")
     testImplementation(project(":common")) {
+        exclude("com.hedera.hashgraph", "hedera-protobuf-java-api")
         exclude("com.google.protobuf", "protobuf-java")
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
         exclude("org.web3j", "core")
@@ -80,6 +78,7 @@ tasks.build { dependsOn("shadowJar") }
 
 tasks.shadowJar {
     dependsOn(tasks.compileTestJava)
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from(sourceSets.main.get().output)
     from(sourceSets.test.get().output)
     configurations =
@@ -92,8 +91,8 @@ tasks.shadowJar {
     append("META-INF/spring.handlers")
     append("META-INF/spring.schemas")
     append("META-INF/spring.tooling")
-    val transformer = PropertiesFileTransformer()
-    transformer.mergeStrategy = "append"
+    val transformer = PropertiesFileTransformer(project.objects)
+    transformer.mergeStrategy = MergeStrategy.from("append")
     transformer.paths = listOf("META-INF/spring.factories")
     transform(transformer)
 }

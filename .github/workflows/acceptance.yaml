@@ -1,0 +1,188 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: End-to-end Tests
+
+on:
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+    paths:
+      - "test/**"
+  push:
+    branches:
+      - "main"
+      - "release/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  acceptance:
+    runs-on: hiero-mirror-node-linux-large
+    strategy:
+      fail-fast: false
+      matrix:
+        stream-type:
+          - RECORD
+          - BLOCK
+    timeout-minutes: 40
+    env:
+      CONSENSUS_VERSION: v0.65.0
+      BLOCK_NODE_CHART_VERSION: v0.17.0-rc2
+      SOLO_CLUSTER_NAME: test
+      SOLO_NAMESPACE: mirror
+      SOLO_CLUSTER_SETUP_NAMESPACE: solo
+      SOLO_DEPLOYMENT: solo-deployment
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      - name: Install Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+
+      - name: Setup Kind
+        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
+        with:
+          kubectl_version: v1.32.3
+
+      - name: Install JDK
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: "temurin"
+          java-version: 21
+
+      - name: Install Solo CLI via npm
+        run: npm install -g @hashgraph/solo@v0.43.0
+
+      - name: Build Mirror Node Test JAR
+        run: ./gradlew test:build -x test
+
+      - name: Build Mirror Node Test Docker image
+        run: |
+          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
+          docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
+
+      - name: Setup Solo Cluster
+        run: |
+          set -ex
+
+          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
+          kind create cluster -n "${SOLO_CLUSTER_NAME}"
+          solo init
+          solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
+          kind load docker-image gcr.io/mirrornode/hedera-mirror-test:${TAG} -n "${SOLO_CLUSTER_NAME}"
+          solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
+          solo deployment add-cluster --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1
+          solo cluster-ref setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
+
+          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
+            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
+          fi
+          solo node keys --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
+          solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
+          solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1
+
+          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
+          cat <<EOF > mirror.yaml
+          grpc:
+            image:
+              tag: ${TAG}
+          rest:
+            image:
+              tag: ${TAG}
+          restjava:
+            image:
+              tag: ${TAG}
+          web3:
+            image:
+              tag: ${TAG}
+          importer:
+            env:
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0.${SOLO_NAMESPACE}.svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_PORT: '40840'
+              SPRING_PROFILES_ACTIVE: 'blocknode'
+            image:
+              registry: docker.io
+              repository: xinatswirlds/importer
+              tag: e741ea2b2
+          test:
+            image:
+              tag: ${TAG}
+            cucumberTags: "@acceptance and not @accounts and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic and not @nftallowance and not @erc and not @cryptoallowance and not @tokenallowance and not @ethcall"
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+            enabled: true
+          EOF
+
+          else
+          cat <<EOF > mirror.yaml
+          global:
+            image:
+              tag: ${TAG}
+          test:
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+            enabled: true
+          EOF
+          fi
+
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger
+
+          echo "Solo cluster setup completed successfully!"
+
+      - name: Run acceptance tests
+        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+
+      - name: Show Pod Logs on Failure
+        continue-on-error: true
+        if: ${{ failure() }}
+        run: |
+          echo "--------------------------------------------------"
+          echo "Workflow failed. Collecting logs for debugging..."
+          echo "--------------------------------------------------"
+
+          echo "--- Describing all pods in namespace ${SOLO_NAMESPACE} ---"
+          kubectl describe pods -n "${SOLO_NAMESPACE}" || echo "Could not describe pods"
+
+          echo "--- Fetching logs for all pods in namespace ${SOLO_NAMESPACE} ---"
+          for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
+            if [ -n "$pod" ]; then
+              echo "--- Logs for pod: $pod ---"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=1000 || echo "Could not get logs for pod $pod"
+            fi
+          done
+
+      - name: Cleanup
+        continue-on-error: true
+        if: always()
+        run: kind delete cluster -n "${SOLO_CLUSTER_NAME}"

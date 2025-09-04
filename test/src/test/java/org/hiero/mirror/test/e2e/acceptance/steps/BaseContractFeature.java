@@ -3,14 +3,17 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
+    private Long nonceVal = 0L;
+    private final List<String> childContracts = new ArrayList<>();
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
@@ -26,9 +29,14 @@ public abstract class BaseContractFeature extends AbstractFeature {
         assertThat(mirrorContract.getFileId())
                 .isEqualTo(deployedParentContract.fileId().toString());
         String address = mirrorContract.getEvmAddress();
-        assertThat(address).isNotBlank().isNotEqualTo("0x").isNotEqualTo("0x0000000000000000000000000000000000000000");
+        assertThat(address)
+                .isNotBlank()
+                .isNotEqualTo(HEX_PREFIX)
+                .isNotEqualTo("0x0000000000000000000000000000000000000000");
         assertThat(mirrorContract.getTimestamp()).isNotNull();
         assertThat(mirrorContract.getTimestamp().getFrom()).isNotNull();
+        assertThat(mirrorContract.getNonce()).isNotNull();
+        nonceVal = mirrorContract.getNonce();
 
         if (contractClient
                 .getSdkClient()
@@ -89,6 +97,24 @@ public abstract class BaseContractFeature extends AbstractFeature {
                         .getMaxContractFunctionGas());
         assertThat(contractResult.getGasUsed()).isPositive();
         assertThat(contractResult.getTo())
-                .isEqualTo(FeatureInputHandler.evmAddress(deployedParentContract.contractId()));
+                .isEqualTo(HEX_PREFIX + deployedParentContract.contractId().toEvmAddress());
+    }
+
+    protected void verifyNonceForParentContract() {
+        var mirrorContract = verifyContractFromMirror(false);
+        assertThat(mirrorContract.getNonce()).isEqualTo(nonceVal);
+    }
+
+    protected void verifyNonceForChildContracts() {
+        var nonces = childContracts.stream()
+                .map(mirrorClient::getContractInfo)
+                .map(ContractResponse::getNonce)
+                .toList();
+        assertThat(nonces).containsOnly(1L);
+    }
+
+    protected void addChildContract(String childContract) {
+        nonceVal = nonceVal + 1;
+        childContracts.add(childContract);
     }
 }

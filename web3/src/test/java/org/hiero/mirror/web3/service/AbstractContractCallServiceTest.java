@@ -9,6 +9,7 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.utils.Constants.CALL_URI;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -59,6 +60,7 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
@@ -86,6 +88,7 @@ import org.web3j.utils.Numeric;
 public abstract class AbstractContractCallServiceTest extends Web3IntegrationTest {
 
     protected static final long DEFAULT_ACCOUNT_BALANCE = 100_000_000_000_000_000L;
+    protected static final long DEFAULT_SMALL_ACCOUNT_BALANCE = 1_000_000L;
     protected static final long DEFAULT_TOKEN_BALANCE = 100;
     protected static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
     protected static final List<BigInteger> DEFAULT_SERIAL_NUMBERS_LIST = List.of(DEFAULT_SERIAL_NUMBER);
@@ -137,7 +140,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * @param messageHash - message to be signed
-     * @param privateKey - private key used to sign the message
+     * @param privateKey  - private key used to sign the message
      */
     // Sign message with ECDSA private key
     protected static byte[] signMessageECDSA(final byte[] messageHash, byte[] privateKey) {
@@ -161,7 +164,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Signs message with ED25519 private key
      *
-     * @param msg - message to be signed
+     * @param msg        - message to be signed
      * @param privateKey - private key used to sign the message
      */
     protected static byte[] signBytesED25519(final byte[] msg, final PrivateKey privateKey)
@@ -216,6 +219,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .balance(treasuryEntity.getBalance()))
                 .persist();
         persistRewardAccounts();
+
+        EndpointContext.setCurrentEndpoint(CALL_URI);
     }
 
     @AfterEach
@@ -225,6 +230,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         }
 
         testWeb3jService.reset();
+        EndpointContext.clearCurrentEndpoint();
     }
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {
@@ -345,8 +351,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Persists entity of type token in the entity db table with a specified auto renew account.
-     * Entity table contains properties common for all entities on the network (tokens, accounts, smart contracts, topics)
+     * Persists entity of type token in the entity db table with a specified auto renew account. Entity table contains
+     * properties common for all entities on the network (tokens, accounts, smart contracts, topics)
      *
      * @param autoRenewAccount - the auto renew account to be set in the entity record
      */
@@ -359,6 +365,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Method used to persist  Token with no specific customization
+     *
      * @return Token object that is persisted in db
      */
     protected Token fungibleTokenPersist() {
@@ -376,8 +383,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist Token with token entity id and additional customization
-     * provided in the customizer
+     * Method used to persist Token with token entity id and additional customization provided in the customizer
      *
      * @param customizer - the consumer used to customize the token
      * @return Token object which is persisted in the database
@@ -396,9 +402,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Creates fungible token in the token db table.
-     * The token table stores the properties specific for tokens and each record refers to
-     * another one in the entity table, which has the properties common for all entities.
+     * Creates fungible token in the token db table. The token table stores the properties specific for tokens and each
+     * record refers to another one in the entity table, which has the properties common for all entities.
      *
      * @param tokenEntity     The entity from the entity db table related to the created token table record
      * @param treasuryAccount The account holding the initial token supply
@@ -415,7 +420,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     /**
      * Persists non-fungible token in the token db table.
      *
-     * @param tokenEntity The entity from the entity db table related to the token
+     * @param tokenEntity     The entity from the entity db table related to the token
      * @param treasuryAccount - The treasury account to be set in the token
      */
     protected Token nonFungibleTokenPersist(final Entity tokenEntity, final Entity treasuryAccount) {
@@ -429,6 +434,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Persists a non-fungible token entity.
+     *
      * @return Token object persisted in the database.
      */
     protected Token nonFungibleTokenPersist() {
@@ -446,8 +452,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist non-fungible token with token id and customization
-     * provided in the customizer object
+     * Method used to persist non-fungible token with token id and customization provided in the customizer object
      *
      * @param customizer the consumer used to customize the Token
      * @return Token object that is persisted in the database
@@ -480,12 +485,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist non-fungible Token with treasury account and
-     * Nft with account id, token id and spender as specific customization
+     * Method used to persist non-fungible Token with treasury account and Nft with account id, token id and spender as
+     * specific customization
      *
-     * @param treasury the treasury account with which the non-fungible token is persisted
+     * @param treasury  the treasury account with which the non-fungible token is persisted
      * @param accountId the account id with which the Nft is persisted
-     * @param spender the spender with which the Nft is persisted
+     * @param spender   the spender with which the Nft is persisted
      * @return Token object that is persisted in the database
      */
     protected Token nftPersist(final EntityId treasury, final EntityId accountId, final EntityId spender) {
@@ -496,8 +501,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Persists token allowance which allows an account(spender) to spend a specific amount
-     * of tokens on behalf of another account(owner)
+     * Persists token allowance which allows an account(spender) to spend a specific amount of tokens on behalf of
+     * another account(owner)
+     *
      * @param customizer the consumer used to customize the TokenAllowance
      * @return TokenAllowance object that is persisted in the database
      */
@@ -507,12 +513,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist TokenAllowance object with token id,
-     * spender id, DEFAULT_AMOUNT_GRANTED and owner id as specific customizations
+     * Method used to persist TokenAllowance object with token id, spender id, DEFAULT_AMOUNT_GRANTED and owner id as
+     * specific customizations
      *
      * @param spenderId the spender id with which the TokenAllowance is persisted
-     * @param ownerId the owner id with which the TokenAllowance is persisted
-     * @param tokenId the token id with which the TokenAllowance is persisted
+     * @param ownerId   the owner id with which the TokenAllowance is persisted
+     * @param tokenId   the token id with which the TokenAllowance is persisted
      */
     protected void tokenAllowancePersist(final long spenderId, final long ownerId, final long tokenId) {
         tokenAllowancePersistCustomizable(ta -> ta.tokenId(tokenId)
@@ -522,8 +528,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist NftAllowance with specific customization
-     * provided in the customizer object
+     * Method used to persist NftAllowance with specific customization provided in the customizer object
      *
      * @param customizer the consumer used to customize the NftAllowance
      */
@@ -536,7 +541,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * allows the spender to transfer NFTs on the owner's behalf.
      *
      * @param tokenId   the NFT tokenId for which the allowance is created
-     * @param owner   the account owning the NFT. In this case he is payer as well
+     * @param owner     the account owning the NFT. In this case he is payer as well
      * @param spenderId the account allowed to transfer the NFT on owner's behalf
      */
     protected void nftAllowancePersist(final long tokenId, final long spenderId, final EntityId owner) {
@@ -548,27 +553,27 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Creates entity of type account in the entity db table.
-     * The entity table stores the properties common for all type of entities.
+     * Creates entity of type account in the entity db table. The entity table stores the properties common for all type
+     * of entities.
      */
     protected Entity accountEntityPersist() {
+        final var accountBalance = getDefaultAccountBalance();
         return accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(accountBalance));
     }
 
     /**
-     * Method used to create an Entity of type account
-     * with DEFAULT_ACCOUNT_BALANCE
+     * Method used to create an Entity of type account with DEFAULT_ACCOUNT_BALANCE
      *
      * @return Entity that is persisted in the database
      */
     protected Entity accountEntityWithEvmAddressPersist() {
-        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var accountBalance = getDefaultAccountBalance();
+        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(accountBalance));
     }
 
     /**
-     * Method used to persist an Entity with customization
-     * provided in the customizer
+     * Method used to persist an Entity with customization provided in the customizer
      *
      * @param customizer - the consumer with which to customize the entity
      * @return Entity that is persisted in the database
@@ -593,10 +598,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to persist a TokenAccount with token id and account id
-     * as specific customizations
+     * Method used to persist a TokenAccount with token id and account id as specific customizations
      *
-     * @param tokenId the token id with which to persist the TokenAccount
+     * @param tokenId   the token id with which to persist the TokenAccount
      * @param accountId the account id with which to persist the TokenAccount
      * @return TokenAccount that is persisted in the database
      */
@@ -606,8 +610,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     /**
      * Creates a non-fungible token instance with a specific serial number(a record in the nft table is persisted). The
-     * instance is tied to a specific token in the token db table.
-     * ownerId with value null indicates that the nft instance holder is the treasury account
+     * instance is tied to a specific token in the token db table. ownerId with value null indicates that the nft
+     * instance holder is the treasury account
      *
      * @param token           the token entity that the nft instance is linked to by tokenId
      * @param nftSerialNumber the unique serial number of the nft instance
@@ -625,11 +629,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
-    /** This method adds a record to the account_balance table.
-     * When an account balance is updated during a consensus event, an account_balance record with the consensus_timestamp,
-     * account_id and balance is created.The balance_timestamp for the account entry is updated as well in the entity table.
+    /**
+     * This method adds a record to the account_balance table. When an account balance is updated during a consensus
+     * event, an account_balance record with the consensus_timestamp, account_id and balance is created.The
+     * balance_timestamp for the account entry is updated as well in the entity table.
      *
-     * @param account The account that the account_balance record is going to be created for
+     * @param account   The account that the account_balance record is going to be created for
      * @param timestamp The timestamp indicating the account balance update
      */
     protected void accountBalancePersist(final Entity account, long timestamp) {
@@ -641,10 +646,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Persists a record in the token_balance db table (consensus_timestamp, account_id, balance, token_id).
-     * Each record represents the fungible token balance that an account holds at a given consensus timestamp.
-     * No record for the token balance at a particular timestamp may result in INSUFFICIENT_TOKEN_BALANCE exception
-     * for a historical query with the same timestamp.
+     * Persists a record in the token_balance db table (consensus_timestamp, account_id, balance, token_id). Each record
+     * represents the fungible token balance that an account holds at a given consensus timestamp. No record for the
+     * token balance at a particular timestamp may result in INSUFFICIENT_TOKEN_BALANCE exception for a historical query
+     * with the same timestamp.
      */
     protected void tokenBalancePersist(final EntityId account, final EntityId token, final long timestamp) {
         domainBuilder
@@ -856,18 +861,30 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * Persist account with a specific public key and evm address
      *
      * @param evmAddress - the evm address to be set to the account
-     * @param publicKey - the public key to be set to the account
+     * @param publicKey  - the public key to be set to the account
      */
     protected Entity persistAccountWithEvmAddressAndPublicKey(byte[] evmAddress, byte[] publicKey) {
+        final var accountBalance = getDefaultAccountBalance();
         return accountEntityPersistCustomizable(e -> e.alias(evmAddress)
                 .evmAddress(evmAddress)
                 .key(publicKey)
                 .type(EntityType.ACCOUNT)
-                .balance(DEFAULT_ACCOUNT_BALANCE));
+                .balance(accountBalance));
     }
 
     protected EntityId getEntityId(final String address) {
         return entityIdFromEvmAddress(Address.fromHexString(address));
+    }
+
+    /**
+     * Returns the default account balance depending on override setting.
+     *
+     * @return the default account balance
+     */
+    private long getDefaultAccountBalance() {
+        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
+                ? DEFAULT_SMALL_ACCOUNT_BALANCE
+                : DEFAULT_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {

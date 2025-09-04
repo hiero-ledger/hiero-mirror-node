@@ -15,6 +15,7 @@ import static com.hedera.services.store.contracts.precompile.AbiConstants.ABI_ID
 import static com.hedera.services.store.contracts.precompile.AbiConstants.ABI_ID_REDIRECT_FOR_TOKEN;
 import static com.hedera.services.store.contracts.precompile.codec.DecodingFacade.convertAddressBytesToTokenID;
 import static com.hedera.services.store.contracts.precompile.codec.DecodingFacade.convertLeftPaddedAddressToAccountId;
+import static com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance;
 import static com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils.GasCostType.APPROVE;
 import static com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils.GasCostType.DELETE_NFT_APPROVE;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
@@ -78,6 +79,9 @@ import org.hyperledger.besu.evm.log.Log;
  *  7. All the necessary fields used in body method are extracted from ApproveParams
  *  8. Added {@link ApproveDecodedNftInfo} and decodeTokenIdAndSerialNum method in order to access tokenID from HtsPrecompiledContract and
  *     avoid passing Store unnecessarily
+ *  9. Substitute {@link TokenID.getDefaultInstance()} with
+ *     {@link com.hedera.services.store.contracts.precompile.utils.NonZeroShardAndRealmUtils.getDefaultTokenIDInstance()},
+ *     so that non-zero shard and realm numbers are respected
  */
 public class ApprovePrecompile extends AbstractWritePrecompile {
     private static final Function ERC_TOKEN_APPROVE_FUNCTION = new Function("approve(address,uint256)", BOOL);
@@ -291,7 +295,7 @@ public class ApprovePrecompile extends AbstractWritePrecompile {
             final boolean isFungible,
             final UnaryOperator<byte[]> aliasResolver) {
 
-        final var offset = impliedTokenId.equals(TokenID.getDefaultInstance()) ? 1 : 0;
+        final var offset = impliedTokenId.equals(getDefaultTokenIDInstance()) ? 1 : 0;
         final Tuple decodedArguments;
         final TokenID tokenId;
 
@@ -320,7 +324,7 @@ public class ApprovePrecompile extends AbstractWritePrecompile {
 
     public static ApproveDecodedNftInfo decodeTokenIdAndSerialNum(final Bytes input, final TokenID impliedTokenId) {
 
-        final var offset = impliedTokenId.equals(TokenID.getDefaultInstance()) ? 1 : 0;
+        final var offset = impliedTokenId.equals(getDefaultTokenIDInstance()) ? 1 : 0;
         final Tuple decodedArguments;
         final TokenID tokenId;
 

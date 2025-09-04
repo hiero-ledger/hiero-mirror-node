@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`parseTimestampFilters invalid bad range lower bound > higher bound gt lt 1`] = `"Timestamp range by the lower and upper bounds must be positive and within 7d"`;
 

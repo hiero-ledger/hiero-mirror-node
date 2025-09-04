@@ -33,7 +33,7 @@ public class TransactionExecutorFactory {
         return transactionExecutors.computeIfAbsent(version, this::create);
     }
 
-    private TransactionExecutor create(SemanticVersion evmVersion) {
+    private synchronized TransactionExecutor create(SemanticVersion evmVersion) {
         var appProperties = new HashMap<>(mirrorNodeEvmProperties.getTransactionProperties());
         appProperties.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
 

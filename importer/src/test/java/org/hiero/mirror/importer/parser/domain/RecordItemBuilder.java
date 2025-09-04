@@ -1253,6 +1253,12 @@ public class RecordItemBuilder {
         return ByteString.copyFrom(bytes);
     }
 
+    public byte[] randomBytes(int length) {
+        byte[] bytes = new byte[length];
+        random.nextBytes(bytes);
+        return bytes;
+    }
+
     // Helper methods
     private AccountAmount accountAmount(EntityId accountId, long amount) {
         return accountAmount(accountId.toAccountID(), amount);
@@ -1263,12 +1269,6 @@ public class RecordItemBuilder {
                 .setAccountID(accountID)
                 .setAmount(amount)
                 .build();
-    }
-
-    private byte[] randomBytes(int length) {
-        byte[] bytes = new byte[length];
-        random.nextBytes(bytes);
-        return bytes;
     }
 
     private TransactionSidecarRecord.Builder contractActions() {

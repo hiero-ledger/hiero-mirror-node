@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import com.google.common.collect.ImmutableMap;
+import com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
@@ -33,6 +34,7 @@ public final class StateRegistry {
                     V0540RecordCacheSchema.TXN_RECEIPT_QUEUE,
                     V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_KEY,
                     V0490ScheduleSchema.SCHEDULES_BY_EQUALITY_KEY,
+                    V0560BlockStreamSchema.BLOCK_STREAM_INFO_KEY,
                     V0570ScheduleSchema.SCHEDULED_COUNTS_KEY,
                     V0570ScheduleSchema.SCHEDULED_ORDERS_KEY,
                     V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_KEY,

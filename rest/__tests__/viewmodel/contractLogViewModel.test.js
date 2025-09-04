@@ -80,4 +80,22 @@ describe('ContractLogViewModel', () => {
       root_contract_id: null,
     });
   });
+
+  test('ContractLogViewModel - empty topic buffer is replaced with ZERO_UINT256', () => {
+    expect(
+      new ContractLogViewModel({
+        ...defaultContractLog,
+        topic0: Buffer.alloc(0), // empty buffer
+        topic1: null,
+        topic2: Buffer.alloc(0), // empty buffer
+        topic3: null,
+      })
+    ).toEqual({
+      ...defaultExpected,
+      topics: [
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+        '0x0000000000000000000000000000000000000000000000000000000000000000',
+      ],
+    });
+  });
 });

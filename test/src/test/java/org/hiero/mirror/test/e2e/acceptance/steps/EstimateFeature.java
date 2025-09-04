@@ -46,8 +46,8 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.Contrac
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.UPDATE_TYPE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.WRONG_METHOD_SIGNATURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.IS_TOKEN_SELECTOR;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.extractTransactionId;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -113,7 +113,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void createNewEstimateContract() {
         deployedContract = getContract(ESTIMATE_GAS);
         estimateGasContractId = deployedContract.contractId();
-        contractSolidityAddress = asHexAddress(deployedContract.contractId());
+        contractSolidityAddress = deployedContract.contractId().toEvmAddress();
         receiverAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.BOB);
         senderAccountId =
                 accountClient.getSdkClient().getExpandedOperatorAccountId().getAccountId();
@@ -138,7 +138,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Given("I successfully create ERC contract from contract bytes")
     public void createNewERCContract() {
         deployedERCContract = getContract(ERC);
-        ercSolidityAddress = asAddress(deployedERCContract.contractId()).toString();
+        ercSolidityAddress = deployedERCContract.contractId().toEvmAddress();
         ercContractId = deployedERCContract.contractId();
     }
 
@@ -633,7 +633,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddress.toString())
                 .addAddress(
-                        asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
+                        asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")).toString())
                 .addUint256(BigInteger.ONE);
 
         validateGasEstimation(
@@ -650,7 +650,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddress.toString())
                 .addAddress(
-                        asAddress(accountInfo.getEvmAddress().replace("0x", "")).toString())
+                        asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")).toString())
                 .addUint256(BigInteger.ONE);
 
         validateGasEstimation(
@@ -1012,7 +1012,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
             var fileId =
-                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst("0x", ""));
+                    persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
             try {
                 networkTransactionResponse =
                         contractClient.createContract(fileId, gas, Hbar.fromTinybars(6_000_000), null);

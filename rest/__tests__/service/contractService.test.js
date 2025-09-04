@@ -9,8 +9,36 @@ import integrationDomainOps from '../integrationDomainOps';
 import {setupIntegrationTest} from '../integrationUtils';
 import {TransactionResult, TransactionType} from '../../model';
 import {orderFilterValues} from '../../constants';
+import EntityId from '../../entityId';
+import entityId from '../../entityId';
 
 setupIntegrationTest();
+
+const entityId0 = EntityId.parseString('0');
+const entityId1 = EntityId.parseString('1');
+const entityId2 = EntityId.parseString('2');
+const entityId3 = EntityId.parseString('3');
+const entityId4 = EntityId.parseString('4');
+const entityId5 = EntityId.parseString('5');
+const entityId8 = EntityId.parseString('8');
+const entityId9 = EntityId.parseString('9');
+const entityId10 = EntityId.parseString('10');
+const entityId11 = EntityId.parseString('11');
+const entityId21 = EntityId.parseString('21');
+const entityId22 = EntityId.parseString('22');
+const entityId123 = EntityId.parseString('123');
+const entityId124 = EntityId.parseString('124');
+const entityId500 = EntityId.parseString('500');
+const entityId600 = EntityId.parseString('600');
+const entityId2000 = EntityId.parseString('2000');
+const entityId9000 = EntityId.parseString('9000');
+const entityId9999 = EntityId.parseString('9999');
+const entityId111278 = EntityId.parseString('111278');
+const entityId111168 = EntityId.parseString('111168');
+const entityId111169 = EntityId.parseString('111169');
+const entityId111276 = EntityId.parseString('111276');
+const entityId111481 = EntityId.parseString('111481');
+const entityId111482 = EntityId.parseString('111482');
 
 describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
   test('Verify simple query', async () => {
@@ -398,7 +426,7 @@ describe('ContractService.getContractResultsByIdAndFilters tests', () => {
   test('Row match', async () => {
     await integrationDomainOps.loadContractResults([
       {
-        contract_id: 2,
+        contract_id: entityId2.num,
         consensus_timestamp: 1,
         function_parameters: '0x0D',
         amount: 10,
@@ -409,7 +437,7 @@ describe('ContractService.getContractResultsByIdAndFilters tests', () => {
     const expectedContractResult = [
       {
         amount: 10,
-        contractId: 2,
+        contractId: entityId2.getEncodedId(),
         consensusTimestamp: 1,
         gasLimit: 1000,
         gasUsed: null,
@@ -432,7 +460,7 @@ describe('ContractService.getContractResultsByIdAndFilters tests', () => {
         transaction_nonce: 2,
       },
       {
-        contract_id: 2,
+        contract_id: entityId2.num,
         consensus_timestamp: 2,
         function_parameters: '0x0D',
         amount: 10,
@@ -444,81 +472,86 @@ describe('ContractService.getContractResultsByIdAndFilters tests', () => {
     const expectedContractResult = [
       {
         amount: 10,
-        contractId: 2,
+        contractId: entityId2.getEncodedId(),
         consensusTimestamp: 2,
         gasLimit: 1000,
         gasUsed: null,
-        payerAccountId: 123,
+        payerAccountId: entityId123.getEncodedId(),
         transactionNonce: 3,
       },
     ];
 
-    const response = await ContractService.getContractResultsByIdAndFilters(['contract_id = $1'], [2], 'asc', 1);
+    const response = await ContractService.getContractResultsByIdAndFilters(
+      ['contract_id = $1'],
+      [entityId2.getEncodedId()],
+      'asc',
+      1
+    );
     expect(response).toMatchObject(expectedContractResult);
   });
 
   test('All params match', async () => {
     await integrationDomainOps.loadContractResults([
       {
-        contract_id: 2,
+        contract_id: entityId2.num,
         consensus_timestamp: 1,
         function_parameters: '0x0D',
         amount: 10,
-        payer_account_id: 123,
+        payer_account_id: entityId123.num,
         transaction_nonce: 4,
       },
       {
-        contract_id: 2,
+        contract_id: entityId2.num,
         consensus_timestamp: 2,
         function_parameters: '0x0D',
         amount: 10,
-        payer_account_id: 123,
+        payer_account_id: entityId123.num,
         transaction_nonce: 5,
       },
       {
-        contract_id: 3,
+        contract_id: entityId3.num,
         consensus_timestamp: 3,
         function_parameters: '0x0D',
         amount: 10,
-        payer_account_id: 124,
+        payer_account_id: entityId124.num,
         transaction_nonce: 6,
       },
       {
-        contract_id: 3,
+        contract_id: entityId3.num,
         consensus_timestamp: 4,
         function_parameters: '0x0D',
         amount: 10,
-        payer_account_id: 124,
+        payer_account_id: entityId124.num,
         transaction_nonce: 7,
       },
       {
-        contract_id: 3,
+        contract_id: entityId3.num,
         consensus_timestamp: 5,
         function_parameters: '0x0D',
         amount: 10,
-        payer_account_id: 124,
+        payer_account_id: entityId124.num,
         transaction_nonce: 8,
       },
     ]);
 
     const expectedContractResult = [
       {
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         consensusTimestamp: 3,
-        payerAccountId: 124,
+        payerAccountId: entityId124.getEncodedId(),
         transactionNonce: 6,
       },
       {
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         consensusTimestamp: 4,
-        payerAccountId: 124,
+        payerAccountId: entityId124.getEncodedId(),
         transactionNonce: 7,
       },
     ];
 
     const response = await ContractService.getContractResultsByIdAndFilters(
       ['cr.contract_id = $1', 'cr.consensus_timestamp > $2', 'cr.payer_account_id = $3'],
-      [3, 2, 124],
+      [entityId3.getEncodedId(), 2, entityId124.getEncodedId()],
       'asc',
       2
     );
@@ -532,61 +565,61 @@ describe('ContractService.getContractLogsByTimestamps tests', () => {
   const input = [
     {
       consensus_timestamp: 1,
-      contract_id: 1,
+      contract_id: entityId1.num,
       data: '0x0012',
       index: 0,
-      root_contract_id: 1,
+      root_contract_id: entityId1.num,
       topic0: '0x000a',
     },
     {
       consensus_timestamp: 1,
-      contract_id: 2,
+      contract_id: entityId2.num,
       data: '0x0013',
       index: 1,
-      root_contract_id: 1,
+      root_contract_id: entityId1.num,
       topic0: '0x000b',
     },
     {
       consensus_timestamp: 2,
-      contract_id: 1,
+      contract_id: entityId1.num,
       data: '0x0014',
       index: 0,
-      root_contract_id: 1,
+      root_contract_id: entityId1.num,
       topic0: '0x000c',
     },
     {
       consensus_timestamp: 2,
-      contract_id: 3,
+      contract_id: entityId3.num,
       data: '0x0015',
       index: 1,
-      root_contract_id: 1,
+      root_contract_id: entityId1.num,
       topic0: '0x000d',
     },
   ];
   const expected = [
     {
       consensusTimestamp: 1,
-      contractId: 1,
+      contractId: entityId1.getEncodedId(),
       index: 0,
-      rootContractId: 1,
+      rootContractId: entityId1.getEncodedId(),
     },
     {
       consensusTimestamp: 1,
-      contractId: 2,
+      contractId: entityId2.getEncodedId(),
       index: 1,
-      rootContractId: 1,
+      rootContractId: entityId1.getEncodedId(),
     },
     {
       consensusTimestamp: 2,
-      contractId: 1,
+      contractId: entityId1.getEncodedId(),
       index: 0,
-      rootContractId: 1,
+      rootContractId: entityId1.getEncodedId(),
     },
     {
       consensusTimestamp: 2,
-      contractId: 3,
+      contractId: entityId3.getEncodedId(),
       index: 1,
-      rootContractId: 1,
+      rootContractId: entityId1.getEncodedId(),
     },
   ];
 
@@ -620,19 +653,19 @@ describe('ContractService.getContractLogsByTimestamps tests', () => {
 describe('ContractService.getContractResultsByTimestamps tests', () => {
   const input = [
     {
-      contract_id: 2,
+      contract_id: entityId2.num,
       consensus_timestamp: 2,
       function_parameters: '0x0D',
       amount: 10,
-      payer_account_id: '5',
+      payer_account_id: entityId5.num,
       transaction_nonce: 9,
     },
     {
-      contract_id: 3,
+      contract_id: entityId3.num,
       consensus_timestamp: 6,
       function_parameters: '0x0D',
       amount: 15,
-      payer_account_id: '5',
+      payer_account_id: entityId5.num,
       transaction_nonce: 10,
     },
   ];
@@ -641,24 +674,24 @@ describe('ContractService.getContractResultsByTimestamps tests', () => {
       amount: 10,
       callResult: null,
       consensusTimestamp: 2,
-      contractId: 2,
+      contractId: entityId2.getEncodedId(),
       createdContractIds: [],
       errorMessage: '',
       gasLimit: 1000,
       gasUsed: null,
-      payerAccountId: 5,
+      payerAccountId: entityId5.getEncodedId(),
       transactionNonce: 9,
     },
     {
       amount: 15,
       callResult: null,
       consensusTimestamp: 6,
-      contractId: 3,
+      contractId: entityId3.getEncodedId(),
       createdContractIds: [],
       errorMessage: '',
       gasLimit: 1000,
       gasUsed: null,
-      payerAccountId: 5,
+      payerAccountId: entityId5.getEncodedId(),
       transactionNonce: 10,
     },
   ];
@@ -730,7 +763,7 @@ describe('ContractService.getContractLogs tests', () => {
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 1,
-        contract_id: 2,
+        contract_id: entityId2.num,
         index: 0,
       },
     ]);
@@ -738,7 +771,7 @@ describe('ContractService.getContractLogs tests', () => {
     const expectedContractLog = [
       {
         consensusTimestamp: 1,
-        contractId: 2,
+        contractId: entityId2.getEncodedId(),
       },
     ];
 
@@ -750,50 +783,50 @@ describe('ContractService.getContractLogs tests', () => {
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 1,
-        contract_id: 2,
+        contract_id: entityId2.num,
         index: 0,
-        root_contract_id: 8,
+        root_contract_id: entityId8.num,
       },
       {
         consensus_timestamp: 1,
-        contract_id: 3,
+        contract_id: entityId3.num,
         index: 1,
-        root_contract_id: 8,
+        root_contract_id: entityId8.num,
       },
       {
         consensus_timestamp: 2,
-        contract_id: 3,
+        contract_id: entityId3.num,
         index: 0,
         root_contract_id: 9,
       },
       {
         consensus_timestamp: 2,
-        contract_id: 3,
+        contract_id: entityId3.num,
         index: 1,
-        root_contract_id: 9,
+        root_contract_id: entityId9.num,
       },
       {
         consensus_timestamp: 3,
-        contract_id: 4,
+        contract_id: entityId4.num,
         index: 0,
-        root_contract_id: 8,
+        root_contract_id: entityId8.num,
       },
     ]);
 
     const expectedContractLog = [
       {
         consensusTimestamp: 2,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         index: 1,
       },
       {
         consensusTimestamp: 2,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         index: 0,
       },
       {
         consensusTimestamp: 1,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         index: 1,
       },
     ];
@@ -801,7 +834,7 @@ describe('ContractService.getContractLogs tests', () => {
     const response = await ContractService.getContractLogs({
       ...defaultQuery,
       conditions: [contractLogContractIdWhereClause],
-      params: [3],
+      params: [entityId3.getEncodedId()],
     });
     expect(response).toMatchObject(expectedContractLog);
   });
@@ -810,9 +843,9 @@ describe('ContractService.getContractLogs tests', () => {
     await integrationDomainOps.loadContractLogs([
       {
         consensus_timestamp: 20,
-        contract_id: 2,
+        contract_id: entityId2.num,
         index: 0,
-        root_contract_id: 10,
+        root_contract_id: entityId10.num,
         topic0: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ea',
         topic1: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3eb',
         topic2: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ec',
@@ -820,9 +853,9 @@ describe('ContractService.getContractLogs tests', () => {
       },
       {
         consensus_timestamp: 20,
-        contract_id: 3,
+        contract_id: entityId3.num,
         index: 1,
-        root_contract_id: 10,
+        root_contract_id: entityId10.num,
         topic0: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ea',
         topic1: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3eb',
         topic2: 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ec',
@@ -830,16 +863,16 @@ describe('ContractService.getContractLogs tests', () => {
       },
       {
         consensus_timestamp: 2,
-        contract_id: 3,
+        contract_id: entityId3.num,
         index: 0,
-        root_contract_id: 10,
+        root_contract_id: entityId10.num,
       },
     ]);
 
     const expectedContractLog = [
       {
         consensusTimestamp: 20,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
       },
     ];
     const response = await ContractService.getContractLogs({
@@ -857,7 +890,7 @@ describe('ContractService.getContractLogs tests', () => {
       ],
       order: 'asc',
       params: [
-        3,
+        entityId3.getEncodedId(),
         Buffer.from('ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ea', 'hex'),
         Buffer.from('ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3eb', 'hex'),
         Buffer.from('ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ec', 'hex'),
@@ -874,14 +907,14 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
     await integrationDomainOps.loadContractStateChanges([
       {
         consensus_timestamp: 1,
-        contract_id: 3,
+        contract_id: entityId3.num,
         slot: '01',
         value_read: '0101',
         value_written: 'a1a1',
       },
       {
         consensus_timestamp: 1,
-        contract_id: 4,
+        contract_id: entityId4.num,
         migration: true,
         slot: '02',
         value_read: '0202',
@@ -889,14 +922,14 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
       },
       {
         consensus_timestamp: 2,
-        contract_id: 5,
+        contract_id: entityId5.num,
         slot: '0a',
         value_read: '0303',
         value_written: 'a3a3',
       },
       {
         consensus_timestamp: 2,
-        contract_id: 3,
+        contract_id: entityId3.num,
         migration: true,
         slot: '0b',
         value_read: '0404',
@@ -904,14 +937,14 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
       },
       {
         consensus_timestamp: 3,
-        contract_id: 4,
+        contract_id: entityId4.num,
         slot: '0c',
         value_read: '0505',
         value_written: 'a5a5',
       },
       {
         consensus_timestamp: 4,
-        contract_id: 5,
+        contract_id: entityId5.num,
         slot: '0d',
         value_read: '0606',
         value_written: 'a6a6',
@@ -928,7 +961,7 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
     const expected = [
       {
         consensusTimestamp: 1,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         slot: Buffer.from([0x1]),
         valueRead: Buffer.from([0x1, 0x1]),
         valueWritten: Buffer.from([0xa1, 0xa1]),
@@ -942,20 +975,20 @@ describe('ContractService.getContractStateChangesByTimestamps tests', () => {
     const expected = [
       {
         consensusTimestamp: 1,
-        contractId: 3,
+        contractId: entityId3.getEncodedId(),
         slot: Buffer.from([0x1]),
         valueRead: Buffer.from([0x1, 0x1]),
         valueWritten: Buffer.from([0xa1, 0xa1]),
       },
       {
         consensusTimestamp: 1,
-        contractId: 4,
+        contractId: entityId4.getEncodedId(),
         slot: Buffer.from([0x2]),
         valueRead: Buffer.from([0x2, 0x2]),
         valueWritten: Buffer.from([0xa2, 0xa2]),
       },
     ];
-    const response = await ContractService.getContractStateChangesByTimestamps('1', 4);
+    const response = await ContractService.getContractStateChangesByTimestamps('1', entityId4.getEncodedId());
     expect(response).toMatchObject(expected);
   });
 });
@@ -976,16 +1009,15 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570802912691212000,
         deleted: false,
         expiration_timestamp: null,
-        id: 111169,
+        id: entityId111169.num,
         key: "E'\\0x326C0A221220F7ECD392568A9ECE84097C4B3C04C74AE52653D54398E132747B498B287245610A221220FA34ADAC826D3F878CCA5E4B074C7060DAE76259611543D6A876FF4E4B8B5C3A0A2212201ADBD17C33C48D59D0961356D5C0B19B391760A6504C3FC78D3094266FA290D2'",
         memo: '',
-        num: 111169,
         public_key: null,
         proxy_account_id: null,
         realm: 0,
         shard: 0,
         timestamp_range: '[1570802912691212000,)',
-        file_id: 111168,
+        file_id: entityId111168.num,
         obtainer_id: null,
         type: 'CONTRACT',
         evm_address: evmAddress,
@@ -995,16 +1027,13 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570803115160698000,
         deleted: false,
         expiration_timestamp: null,
-        id: 111278,
+        id: entityId111278.num,
         key: "E'\\0x326C0A2212203053E42F8D8978BC5999080C4A625BBB1BF96CBCA6BAD6A4796808A6812564490A221220CC16FF9223B2E8F8151E8EFB054203CEF5EE9AF6171D2649D46734ECDD7F5A280A22122097C6975280B82DC1969ABA4E7DDE4F478E872E04CD6E0FE3849EAFB5D86315F1'",
         memo: '',
-        num: 111278,
         public_key: null,
         proxy_account_id: null,
-        realm: 0,
-        shard: 0,
         timestamp_range: '[1570803115160698000,)',
-        file_id: 111276,
+        file_id: entityId111276.num,
         obtainer_id: null,
         type: 'CONTRACT',
         evm_address: null,
@@ -1014,23 +1043,20 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570803584382787001,
         deleted: false,
         expiration_timestamp: 1581285572000000000,
-        id: 111482,
+        id: entityId111482.num,
         key: "E'\\0x326C0A221220A13DDC50A38C7ED4A7F64CFD05E364746B8DABC3DAE8B2AFBE9A94FF2105AB1F0A2212202CECF7F1A3EADBBD678EC9D62EED162893A2069D456A4E5061E86F96C95F4FFF0A221220C6C448A8B628C11C55F773A3366D8B75E8188EEF46A50A2CCDDDA6B3B4EF55E3'",
         memo: '',
-        num: 111482,
         public_key: null,
         proxy_account_id: null,
-        realm: 0,
-        shard: 0,
         timestamp_range: '[1570803587949346001,)',
-        file_id: 111481,
+        file_id: entityId111481.num,
         obtainer_id: null,
         type: 'CONTRACT',
         evm_address: evmAddress,
       },
     ]);
 
-    const evmAddressFilter = {shard: 0, realm: 0, create2_evm_address: evmAddress};
+    const evmAddressFilter = {create2_evm_address: evmAddress};
     await expect(() => ContractService.getContractIdByEvmAddress(evmAddressFilter)).rejects.toThrow(
       new Error(`More than one contract with the evm address 0x${evmAddress} have been found.`)
     );
@@ -1044,14 +1070,11 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570802912691212000,
         deleted: false,
         expiration_timestamp: null,
-        id: 111169,
+        id: entityId111169.num,
         key: "E'\\0x326C0A221220F7ECD392568A9ECE84097C4B3C04C74AE52653D54398E132747B498B287245610A221220FA34ADAC826D3F878CCA5E4B074C7060DAE76259611543D6A876FF4E4B8B5C3A0A2212201ADBD17C33C48D59D0961356D5C0B19B391760A6504C3FC78D3094266FA290D2'",
         memo: '',
-        num: 111169,
         public_key: null,
         proxy_account_id: null,
-        realm: 0,
-        shard: 0,
         timestamp_range: '[1570802912691212000,)',
         file_id: 111168,
         obtainer_id: null,
@@ -1063,16 +1086,13 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570803115160698000,
         deleted: false,
         expiration_timestamp: null,
-        id: 111278,
+        id: entityId111278.num,
         key: "E'\\0x326C0A2212203053E42F8D8978BC5999080C4A625BBB1BF96CBCA6BAD6A4796808A6812564490A221220CC16FF9223B2E8F8151E8EFB054203CEF5EE9AF6171D2649D46734ECDD7F5A280A22122097C6975280B82DC1969ABA4E7DDE4F478E872E04CD6E0FE3849EAFB5D86315F1'",
         memo: '',
-        num: 111278,
         public_key: null,
         proxy_account_id: null,
-        realm: 0,
-        shard: 0,
         timestamp_range: '[1570803115160698000,)',
-        file_id: 111276,
+        file_id: entityId111276.num,
         obtainer_id: null,
         type: 'CONTRACT',
         evm_address: null,
@@ -1082,16 +1102,13 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
         created_timestamp: 1570803584382787001,
         deleted: false,
         expiration_timestamp: 1581285572000000000,
-        id: 111482,
+        id: entityId111482.num,
         key: "E'\\0x326C0A221220A13DDC50A38C7ED4A7F64CFD05E364746B8DABC3DAE8B2AFBE9A94FF2105AB1F0A2212202CECF7F1A3EADBBD678EC9D62EED162893A2069D456A4E5061E86F96C95F4FFF0A221220C6C448A8B628C11C55F773A3366D8B75E8188EEF46A50A2CCDDDA6B3B4EF55E3'",
         memo: '',
-        num: 111482,
         public_key: null,
         proxy_account_id: null,
-        realm: 0,
-        shard: 0,
         timestamp_range: '[1570803587949346001,)',
-        file_id: 111481,
+        file_id: entityId111481.num,
         obtainer_id: null,
         type: 'CONTRACT',
         evm_address: null,
@@ -1099,11 +1116,9 @@ describe('ContractService.getContractIdByEvmAddress tests', () => {
     ]);
 
     const contractId = await ContractService.getContractIdByEvmAddress({
-      realm: 0,
-      shard: 0,
       create2_evm_address: evmAddress,
     });
-    expect(contractId.toString()).toEqual('111169');
+    expect(contractId.toString()).toEqual(`${entityId111169.getEncodedId()}`);
   });
 });
 
@@ -1121,12 +1136,12 @@ describe('ContractService.getContractActionsByConsensusTimestamp tests', () => {
 
   test('Multiple rows match', async () => {
     await integrationDomainOps.loadContractActions([
-      {consensus_timestamp: '1676540001234390005', payer_account_id: 2000},
-      {consensus_timestamp: '1676540001234390005', index: 2, payer_account_id: 2000},
+      {consensus_timestamp: '1676540001234390005', payer_account_id: entityId2000.num},
+      {consensus_timestamp: '1676540001234390005', index: 2, payer_account_id: entityId2000.num},
     ]);
     const res = await ContractService.getContractActionsByConsensusTimestamp(
       '1676540001234390005',
-      2000,
+      entityId2000.getEncodedId(),
       [],
       orderFilterValues.ASC,
       100
@@ -1136,12 +1151,12 @@ describe('ContractService.getContractActionsByConsensusTimestamp tests', () => {
 
   test('One row match', async () => {
     await integrationDomainOps.loadContractActions([
-      {consensus_timestamp: '1676540001234390005', payer_account_id: 2000},
-      {consensus_timestamp: '1676540001234390006', payer_account_id: 2000},
+      {consensus_timestamp: '1676540001234390005', payer_account_id: entityId2000.num},
+      {consensus_timestamp: '1676540001234390006', payer_account_id: entityId2000.num},
     ]);
     const res = await ContractService.getContractActionsByConsensusTimestamp(
       '1676540001234390005',
-      2000,
+      entityId2000.getEncodedId(),
       [],
       orderFilterValues.ASC,
       100
@@ -1152,35 +1167,35 @@ describe('ContractService.getContractActionsByConsensusTimestamp tests', () => {
 
 describe('ContractService.getContractStateByIdAndFilters tests', () => {
   const contractState = [
-    {contract_id: 9999, slot: '01', value: 10},
-    {contract_id: 9999, slot: '02', value: 20},
+    {contract_id: entityId9999.num, slot: '01', value: 10},
+    {contract_id: entityId9999.num, slot: '02', value: 20},
   ];
 
   const contractStateChanges = [
     {
       consensus_timestamp: 1,
-      contract_id: 4,
+      contract_id: entityId4.num,
       slot: Buffer.from([0x1]),
       value_read: '0101',
       value_written: 'a1a1',
     },
     {
       consensus_timestamp: 4,
-      contract_id: 4,
+      contract_id: entityId4.num,
       slot: Buffer.from([0x2]),
       value_read: '0202',
       value_written: 'a2a2',
     },
     {
       consensus_timestamp: 4,
-      contract_id: 4,
+      contract_id: entityId4.num,
       slot: Buffer.from([0x3]),
       value_read: '0202',
       value_written: 'a2a2',
     },
     {
       consensus_timestamp: 8,
-      contract_id: 4,
+      contract_id: entityId4.num,
       slot: Buffer.from([0x3]),
       value_read: 'a2a2',
       value_written: 'a222',
@@ -1195,7 +1210,9 @@ describe('ContractService.getContractStateByIdAndFilters tests', () => {
 
   test('Multiple rows match', async () => {
     await integrationDomainOps.loadContractStates(contractState);
-    const res = await ContractService.getContractStateByIdAndFilters([{query: 'contract_id =', param: 9999}]);
+    const res = await ContractService.getContractStateByIdAndFilters([
+      {query: 'contract_id =', param: entityId9999.getEncodedId()},
+    ]);
 
     expect(res.length).toEqual(2);
   });
@@ -1204,7 +1221,7 @@ describe('ContractService.getContractStateByIdAndFilters tests', () => {
     await integrationDomainOps.loadContractStateChanges(contractStateChanges);
     const res = await ContractService.getContractStateByIdAndFilters(
       [
-        {query: 'contract_id =', param: 4},
+        {query: 'contract_id =', param: entityId4.getEncodedId()},
         {query: 'consensus_timestamp <= ', param: 5},
       ],
       orderFilterValues.ASC,
@@ -1219,7 +1236,7 @@ describe('ContractService.getContractStateByIdAndFilters tests', () => {
     await integrationDomainOps.loadContractStateChanges(contractStateChanges);
     const res = await ContractService.getContractStateByIdAndFilters(
       [
-        {query: 'contract_id =', param: 4},
+        {query: 'contract_id =', param: entityId4.getEncodedId()},
         {query: 'consensus_timestamp <= ', param: 5},
         {query: 'slot =', param: Buffer.from('03', 'hex')},
       ],
@@ -1233,17 +1250,21 @@ describe('ContractService.getContractStateByIdAndFilters tests', () => {
 
   test('One row match by contract_id', async () => {
     await integrationDomainOps.loadContractStates([
-      {contract_id: 9999, slot: '01', value: 10},
-      {contract_id: 9000, slot: '02', value: 20},
+      {contract_id: entityId9999.num, slot: '01', value: 10},
+      {contract_id: entityId9000.num, slot: '02', value: 20},
     ]);
-    const res = await ContractService.getContractStateByIdAndFilters([{query: 'contract_id =', param: 9999}]);
+    const res = await ContractService.getContractStateByIdAndFilters([
+      {query: 'contract_id =', param: entityId9999.getEncodedId()},
+    ]);
 
     expect(res.length).toEqual(1);
   });
 
   test('Multiple rows match desc order', async () => {
     await integrationDomainOps.loadContractStates(contractState);
-    const res = await ContractService.getContractStateByIdAndFilters([{query: 'contract_id =', param: 9999}]);
+    const res = await ContractService.getContractStateByIdAndFilters([
+      {query: 'contract_id =', param: entityId9999.getEncodedId()},
+    ]);
 
     expect(res[0].slot.readInt8()).toEqual(1);
     expect(res[1].slot.readInt8()).toEqual(2);
@@ -1253,7 +1274,7 @@ describe('ContractService.getContractStateByIdAndFilters tests', () => {
   test('One row match (limit=1)', async () => {
     await integrationDomainOps.loadContractStates(contractState);
     const res = await ContractService.getContractStateByIdAndFilters(
-      [{query: 'contract_id =', param: 9999}],
+      [{query: 'contract_id =', param: entityId9999.getEncodedId()}],
       orderFilterValues.ASC,
       1
     );
@@ -1269,9 +1290,9 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
 
   test('No match', async () => {
     const expected = new Map([]);
-    await expect(ContractService.getEthereumTransactionsByPayerAndTimestampArray([10], [20])).resolves.toEqual(
-      expected
-    );
+    await expect(
+      ContractService.getEthereumTransactionsByPayerAndTimestampArray([entityId10.getEncodedId()], [20])
+    ).resolves.toEqual(expected);
   });
 
   test('All match', async () => {
@@ -1282,7 +1303,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
         max_fee_per_gas: '0x56',
         nonce: 10,
-        payer_account_id: 500,
+        payer_account_id: entityId500.num,
         value: [0xa0],
       },
       {
@@ -1291,11 +1312,11 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         hash: '0xd96ea0ca4474b1f92c73af999eb81b1a3df71e3c750124fbf940da5fd0ff87ab',
         max_fee_per_gas: '0x70',
         nonce: 6,
-        payer_account_id: 600,
+        payer_account_id: entityId600.num,
         value: [0xa6],
       },
     ]);
-    const payers = [500, 600];
+    const payers = [entityId500.getEncodedId(), entityId600.getEncodedId()];
     const timestamps = [1690086061111222333n, 1690086061111222555n];
     const expected = new Map([
       [
@@ -1356,7 +1377,7 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
   const inputContractResults = [
     {
       consensus_timestamp: 1,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: successTransactionResult,
       transaction_index: 1,
@@ -1366,7 +1387,7 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     },
     {
       consensus_timestamp: 2,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: duplicateTransactionResult,
       transaction_index: 1,
@@ -1376,7 +1397,7 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     },
     {
       consensus_timestamp: 3,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: wrongNonceTransactionResult,
       transaction_index: 1,
@@ -1386,7 +1407,7 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     },
     {
       consensus_timestamp: 4,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: successTransactionResult,
       transaction_index: 1,
@@ -1396,7 +1417,7 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     },
     {
       consensus_timestamp: 5,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: contractCreateType,
       transaction_hash: '96ecf2e0cf1c8f7e2294ec731b2ad1aff95d9736f4ba15b5bbace1ad2766cc1c',
       transaction_nonce: 15,
@@ -1407,27 +1428,31 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
   const expectedTransactionDetails = [
     {
       consensusTimestamp: 1,
-      entityId: 0,
+      entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
-      payerAccountId: 10,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
     {
       consensusTimestamp: 2,
-      entityId: 0,
+      entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
-      payerAccountId: 10,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(duplicateTransactionResult),
     },
     {
       consensusTimestamp: 3,
-      entityId: 0,
+      entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
-      payerAccountId: 10,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(wrongNonceTransactionResult),
     },
     {
       consensusTimestamp: 4,
-      entityId: 0,
+      entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
-      payerAccountId: 10,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
   ];
 
@@ -1443,31 +1468,88 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     expect(contractDetails).toHaveLength(0);
   });
 
-  test('Match earliest transaction by same hash', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer, [], 1);
-    expect(transactionDetails).toEqual([expectedTransactionDetails[0]]);
-  });
-
-  test('Match all transactions by same hash', async () => {
+  test('Match latest transaction by same hash', async () => {
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
-    expect(transactionDetails).toEqual(expectedTransactionDetails);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[3]]);
   });
 
-  test('Match all transactions with no duplicates and wrong nonces', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer, [
-      duplicateTransactionResult,
-      wrongNonceTransactionResult,
-    ]);
-    expect(transactionDetails).toEqual([expectedTransactionDetails[0], expectedTransactionDetails[3]]);
+  test('Match latest transaction with no duplicates and wrong nonces', async () => {
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[3]]);
+  });
+});
+
+describe('ContractService.getContractTransactionDetailsByHash negative tests', () => {
+  const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
+  const ethereumTxHashBuffer = Buffer.from(ethereumTxHash, 'hex');
+  const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');
+  const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
+  const consensusGasExhaustedTransactionResult = TransactionResult.getProtoId('CONSENSUS_GAS_EXHAUSTED');
+
+  const inputContractResults = [
+    {
+      consensus_timestamp: 1,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: duplicateTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 11,
+      gasLimit: 1000,
+    },
+    {
+      consensus_timestamp: 2,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: consensusGasExhaustedTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 12,
+      gasLimit: 1000,
+    },
+    {
+      consensus_timestamp: 3,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: consensusGasExhaustedTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 12,
+      gasLimit: 1000,
+    },
+  ];
+
+  const expectedTransactionDetails = [
+    {
+      consensusTimestamp: 1,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(duplicateTransactionResult),
+    },
+    {
+      consensusTimestamp: 2,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(consensusGasExhaustedTransactionResult),
+    },
+    {
+      consensusTimestamp: 3,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(consensusGasExhaustedTransactionResult),
+    },
+  ];
+
+  beforeEach(async () => {
+    await integrationDomainOps.loadContractResults(inputContractResults);
   });
 
-  test('Match the earliest non successful transaction', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(
-      ethereumTxHashBuffer,
-      [successTransactionResult],
-      1
-    );
-    expect(transactionDetails).toEqual([expectedTransactionDetails[1]]);
+  test('Match the latest non successful transaction', async () => {
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[2]]);
   });
 });
 
@@ -1481,8 +1563,8 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
   const inputContractResults = [
     {
       consensus_timestamp: 1,
-      contract_id: 1,
-      payer_account_id: 10,
+      contract_id: entityId1.num,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: successTransactionResult,
       transaction_index: 1,
@@ -1493,7 +1575,7 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
     {
       consensus_timestamp: 2,
       contract_id: 1,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: duplicateTransactionResult,
       transaction_index: 1,
@@ -1503,8 +1585,8 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
     },
     {
       consensus_timestamp: 3,
-      contract_id: 1,
-      payer_account_id: 10,
+      contract_id: entityId1.num,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: wrongNonceTransactionResult,
       transaction_index: 1,
@@ -1514,8 +1596,8 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
     },
     {
       consensus_timestamp: 4,
-      contract_id: 1,
-      payer_account_id: 10,
+      contract_id: entityId1.num,
+      payer_account_id: entityId10.num,
       type: ethereumTxType,
       transaction_result: successTransactionResult,
       transaction_index: 1,
@@ -1528,17 +1610,17 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
   const inputContractStateChanges = [
     {
       consensus_timestamp: 1,
-      contract_id: 10,
-      payer_account_id: 10,
+      contract_id: entityId10.num,
+      payer_account_id: entityId10.num,
       slot: '01',
       value_read: '0101',
       value_written: 'a1a1',
     },
     {
       consensus_timestamp: 1,
-      contract_id: 11,
+      contract_id: entityId11.num,
       migration: true,
-      payer_account_id: 10,
+      payer_account_id: entityId10.num,
       slot: '02',
       value_read: '0202',
       value_written: 'a2a2',
@@ -1548,20 +1630,20 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
   const inputContractLogs = [
     {
       consensus_timestamp: 1,
-      contract_id: 22,
+      contract_id: entityId22.num,
       data: '0x0012',
       index: 0,
-      payer_account_id: 10,
-      root_contract_id: 1,
+      payer_account_id: entityId10.num,
+      root_contract_id: entityId1.num,
       topic0: '0x000a',
     },
     {
       consensus_timestamp: 1,
-      contract_id: 21,
+      contract_id: entityId21.num,
       data: '0x0013',
       index: 1,
-      payer_account_id: 10,
-      root_contract_id: 1,
+      payer_account_id: entityId10.num,
+      root_contract_id: entityId1.num,
       topic0: '0x000b',
     },
   ];
@@ -1594,8 +1676,17 @@ describe('ContractService.getInvolvedContractsByTimestampAndContractId tests', (
   });
 
   test('Finds involved contract ids', async () => {
-    const transactionDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(1, 1);
-    const expected = [1, 21, 22, 11, 10];
+    const transactionDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(
+      1,
+      entityId1.getEncodedId()
+    );
+    const expected = [
+      entityId1.getEncodedId(),
+      entityId21.getEncodedId(),
+      entityId22.getEncodedId(),
+      entityId11.getEncodedId(),
+      entityId10.getEncodedId(),
+    ];
     expect(transactionDetails.contractIds).toIncludeSameMembers(expected);
   });
 });

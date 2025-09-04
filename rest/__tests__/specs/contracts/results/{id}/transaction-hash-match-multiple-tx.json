@@ -9,7 +9,7 @@
         "consensus_timestamp": "167654000123456",
         "contract_id": 5001,
         "created_contract_ids": [7001],
-        "error_message": "",
+        "error_message": "WRONG_NONCE",
         "function_parameters": [7, 7],
         "function_result": [8, 8],
         "gas_consumed": null,
@@ -17,7 +17,7 @@
         "gas_used": 123,
         "payer_account_id": 8001,
         "sender_id": 8001,
-        "transaction_result": 22,
+        "transaction_result": 312,
         "transaction_hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
         "transaction_index": 1,
         "transaction_nonce": 0
@@ -49,7 +49,7 @@
         "consensus_timestamp": "167654000123458",
         "contract_id": 5001,
         "created_contract_ids": [7001],
-        "error_message": "",
+        "error_message": "CONSENSUS_GAS_EXHAUSTED",
         "function_parameters": [7, 7],
         "function_result": [8, 8],
         "gas_consumed": null,
@@ -57,7 +57,7 @@
         "gas_used": 123,
         "payer_account_id": 8001,
         "sender_id": 8001,
-        "transaction_result": 312,
+        "transaction_result": 279,
         "transaction_hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
         "transaction_index": 1,
         "transaction_nonce": 0
@@ -79,7 +79,7 @@
         "transaction_hash": "519a008fabde4d",
         "type": 50,
         "valid_start_timestamp": 167654000123400,
-        "result": 22
+        "result": 312
       },
       {
         "consensus_timestamp": 167654000123457,
@@ -95,7 +95,7 @@
         "transaction_hash": "519a008fabde5d",
         "type": 50,
         "valid_start_timestamp": 167654000123402,
-        "result": 312
+        "result": 279
       },
       {
         "consensus_timestamp": 167654000123459,
@@ -174,7 +174,7 @@
     "s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b354",
     "state_changes": [],
     "status": "0x1",
-    "timestamp": "167654.000123456",
+    "timestamp": "167654.000123457",
     "to": "0x0000000000000000000000000000000000001389",
     "transaction_index": 1,
     "type": 2,

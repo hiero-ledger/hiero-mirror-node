@@ -20,6 +20,8 @@ public class CacheProperties {
 
     private boolean enabled = true;
 
+    private String evmAddress = "maximumSize=500000,recordStats";
+
     @NotBlank
     private String timePartition = "maximumSize=50,expireAfterWrite=1d,recordStats";
 

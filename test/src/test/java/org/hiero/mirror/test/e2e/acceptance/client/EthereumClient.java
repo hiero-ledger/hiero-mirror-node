@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
-
 import com.hedera.hashgraph.sdk.ContractExecuteTransaction;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractFunctionResult;
@@ -101,7 +98,7 @@ public class EthereumClient extends AbstractNetworkClient {
                                 acceptanceTestProperties.getNetwork().getChainId(),
                                 getNonce(signerKey),
                                 maxContractFunctionGas(),
-                                asHexAddress(contractId),
+                                contractId.toEvmAddress(),
                                 value,
                                 callData,
                                 BigInteger.valueOf(20000L), // maxPriorityGas
@@ -111,7 +108,7 @@ public class EthereumClient extends AbstractNetworkClient {
                                 acceptanceTestProperties.getNetwork().getChainId(),
                                 getNonce(signerKey),
                                 maxContractFunctionGas(),
-                                asAddress(contractId).toString(),
+                                contractId.toEvmAddress(),
                                 value,
                                 callData,
                                 BigInteger.valueOf(20000L), // maxPriorityGas

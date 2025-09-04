@@ -23,6 +23,7 @@ import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
@@ -113,7 +114,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
     }
 
     public static StreamFilename from(long blockNumber) {
-        return from(BlockFile.getBlockStreamFilename(blockNumber));
+        return from(BlockFile.getFilename(blockNumber, true));
     }
 
     public static StreamFilename from(String filePath) {
@@ -147,14 +148,6 @@ public class StreamFilename implements Comparable<StreamFilename> {
         }
 
         return StringUtils.joinWith(".", StringUtils.join(timestamp, suffix), extension);
-    }
-
-    public Instant getInstant() {
-        if (streamType == StreamType.BLOCK) {
-            throw new IllegalStateException("BLOCK stream file doesn't have instant in its filename");
-        }
-
-        return instant;
     }
 
     @SuppressWarnings("java:S3776")
@@ -206,15 +199,23 @@ public class StreamFilename implements Comparable<StreamFilename> {
     private static Instant extractInstant(String filename, String fullExtension, String sidecarId, String suffix) {
         try {
             String fullSuffix = StringUtils.join(suffix, ".", fullExtension);
-            String dateTime = StringUtils.removeEnd(filename, fullSuffix);
+            String dateTime = Strings.CS.removeEnd(filename, fullSuffix);
             if (StringUtils.isNotEmpty(sidecarId)) {
-                dateTime = StringUtils.removeEnd(dateTime, COMPATIBLE_TIME_SEPARATOR + sidecarId);
+                dateTime = Strings.CS.removeEnd(dateTime, COMPATIBLE_TIME_SEPARATOR + sidecarId);
             }
             dateTime = dateTime.replace(COMPATIBLE_TIME_SEPARATOR, STANDARD_TIME_SEPARATOR);
             return Instant.parse(dateTime);
         } catch (DateTimeParseException ex) {
             throw new InvalidStreamFileException("Invalid datetime string in filename " + filename, ex);
         }
+    }
+
+    public Instant getInstant() {
+        if (streamType == StreamType.BLOCK) {
+            throw new IllegalStateException("BLOCK stream file doesn't have instant in its filename");
+        }
+
+        return instant;
     }
 
     @Override
@@ -230,7 +231,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
      * @return the filename to mark files after this stream filename
      */
     public String getFilenameAfter() {
-        return StringUtils.remove(filename, "." + fullExtension) + COMPATIBLE_TIME_SEPARATOR;
+        return Strings.CS.remove(filename, "." + fullExtension) + COMPATIBLE_TIME_SEPARATOR;
     }
 
     public String getSidecarFilename(int id) {
@@ -242,7 +243,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
         String end = StringUtils.isEmpty(sidecarId)
                 ? "." + fullExtension
                 : StringUtils.join(COMPATIBLE_TIME_SEPARATOR, sidecarId, ".", fullExtension);
-        return String.format("%s_%02d.%s", StringUtils.removeEnd(filename, end), id, fullExtension);
+        return String.format("%s_%02d.%s", Strings.CS.removeEnd(filename, end), id, fullExtension);
     }
 
     public boolean isCompressed() {

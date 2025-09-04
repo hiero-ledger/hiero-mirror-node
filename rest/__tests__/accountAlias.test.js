@@ -18,50 +18,40 @@ describe('AccountAlias', () => {
           expected: new AccountAlias(null, null, 'AABBCC22'),
         },
         {
-          input: '0.AABBCC22',
-          expected: new AccountAlias(null, '0', 'AABBCC22'),
+          input: `${common.realm}.AABBCC22`,
+          expected: new AccountAlias(null, common.realm, 'AABBCC22'),
         },
         {
-          input: '0.0.AABBCC22',
-          expected: new AccountAlias('0', '0', 'AABBCC22'),
+          input: `${common.shard}.${common.realm}.AABBCC22`,
+          expected: new AccountAlias(common.shard, common.realm, 'AABBCC22'),
         },
         {
-          input: '0.1.AABBCC22',
+          input: `${common.shard}.${common.realm + 1n}.AABBCC22`,
           expected: InvalidArgumentError,
         },
         {
-          input: '99999.99999.AABBCC22',
+          input: `${common.shard + 1n}.${common.realm + 1n}.AABBCC22`,
           expected: InvalidArgumentError,
         },
         {
-          input: '0.0.AABBCC22',
+          input: `${common.shard + 1n}.${common.realm}.AABBCC22`,
           expected: InvalidArgumentError,
-          realm: 1,
-        },
-        {
-          input: '0.0.AABBCC22',
-          expected: InvalidArgumentError,
-          shard: 1,
         },
       ];
 
       testSpecs.forEach((spec) => {
         test(spec.input, () => {
-          const realmPrevious = common.realm;
-          const shardPrevious = common.shard;
-          if (spec.realm) {
-            common.realm = spec.realm;
-          }
-          if (spec.shard) {
-            common.shard = spec.shard;
-          }
           if (spec.expected instanceof AccountAlias) {
             expect(AccountAlias.fromString(spec.input)).toEqual(spec.expected);
           } else {
-            expect(() => AccountAlias.fromString(spec.input)).toThrowErrorMatchingSnapshot();
+            try {
+              AccountAlias.fromString(spec.input);
+              throw new Error('Expected an error to be thrown');
+            } catch (error) {
+              expect(error).toBeInstanceOf(InvalidArgumentError);
+              expect(error.message).toMatch(/^Invalid accountAlias string \d+\.\d+\.AABBCC22$/);
+            }
           }
-          common.realm = realmPrevious;
-          common.shard = shardPrevious;
         });
       });
     });
@@ -107,11 +97,11 @@ describe('AccountAlias', () => {
       expect(accountAlias.toString()).toBe('AABBCC22');
     });
     test('realm and alias', () => {
-      const accountAlias = new AccountAlias(null, '0', 'AABBCC22');
+      const accountAlias = new AccountAlias(null, common.realm, 'AABBCC22');
       expect(accountAlias.toString()).toBe('AABBCC22');
     });
     test('shard, realm and alias', () => {
-      const accountAlias = new AccountAlias('0', '0', 'AABBCC22');
+      const accountAlias = new AccountAlias(common.shard, common.realm, 'AABBCC22');
       expect(accountAlias.toString()).toBe('AABBCC22');
     });
   });

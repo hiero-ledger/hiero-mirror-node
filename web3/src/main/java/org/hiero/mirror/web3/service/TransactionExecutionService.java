@@ -36,8 +36,8 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -60,8 +60,8 @@ public class TransactionExecutionService {
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    private final OpcodeTracer opcodeTracer;
-    private final MirrorOperationTracer mirrorOperationTracer;
+    private final OpcodeActionTracer opcodeActionTracer;
+    private final MirrorOperationActionTracer mirrorOperationActionTracer;
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
@@ -259,8 +259,8 @@ public class TransactionExecutionService {
 
     private OperationTracer[] getOperationTracers() {
         return ContractCallContext.get().getOpcodeTracerOptions() != null
-                ? new OperationTracer[] {opcodeTracer}
-                : new OperationTracer[] {mirrorOperationTracer};
+                ? new OperationTracer[] {opcodeActionTracer}
+                : new OperationTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(
@@ -273,7 +273,8 @@ public class TransactionExecutionService {
             final var record = iterator.next().transactionRecord();
 
             final var status = record.receiptOrThrow().status();
-            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS
+                    || status == com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS) {
                 continue;
             }
 

@@ -12,7 +12,6 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -63,9 +62,12 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
     @BeforeEach
     void setup() {
         // Create migration object for each test case due to the cached earliestTimestamp
-        var mirrorProperties = new ImporterProperties();
-        migration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProperties, mirrorProperties, ownerJdbcTemplate);
+        migration = createMigration(dbProperties, entityProperties);
+    }
+
+    private FixCryptoAllowanceAmountMigration createMigration(DBProperties dbProps, EntityProperties entityProps) {
+        return new FixCryptoAllowanceAmountMigration(
+                dbProps, entityProps, new ImporterProperties(), objectProvider(ownerJdbcTemplate));
     }
 
     @Test
@@ -268,16 +270,10 @@ class FixCryptoAllowanceAmountMigrationTest extends AbstractAsyncJavaMigrationTe
         // given
         var entityProps = new EntityProperties(new SystemEntity(CommonProperties.getInstance()));
         entityProps.getPersist().setTrackAllowance(trackAllowance);
-        var allowanceAmountMigration = new FixCryptoAllowanceAmountMigration(
-                dbProperties, entityProps, new ImporterProperties(), ownerJdbcTemplate);
+        var allowanceAmountMigration = createMigration(dbProperties, entityProps);
         var configuration = new FluentConfiguration().target(allowanceAmountMigration.getMinimumVersion());
 
         // when, then
         assertThat(allowanceAmountMigration.skipMigration(configuration)).isEqualTo(!trackAllowance);
-    }
-
-    @SneakyThrows
-    private void runMigration() {
-        migration.doMigrate();
     }
 }

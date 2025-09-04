@@ -5,14 +5,12 @@ package org.hiero.mirror.importer.migration;
 import com.google.common.annotations.VisibleForTesting;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Data;
-import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -21,12 +19,12 @@ import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.util.Version;
 import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.support.TransactionOperations;
 
 @Named
@@ -152,22 +150,24 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
 
     private final AtomicBoolean executed = new AtomicBoolean(false);
     private final ImporterProperties importerProperties;
-    private final RecordFileRepository recordFileRepository;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
+    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
 
-    @Getter
-    private final TransactionOperations transactionOperations;
-
-    @Lazy
     public SyntheticCryptoTransferApprovalMigration(
             DBProperties dbProperties,
-            RecordFileRepository recordFileRepository,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider,
             ImporterProperties importerProperties,
-            NamedParameterJdbcTemplate jdbcTemplate,
-            TransactionOperations transactionOperations) {
-        super(importerProperties.getMigration(), jdbcTemplate, dbProperties.getSchema());
-        this.recordFileRepository = recordFileRepository;
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
         this.importerProperties = importerProperties;
-        this.transactionOperations = transactionOperations;
+        this.transactionOperationsProvider = transactionOperationsProvider;
+    }
+
+    @Override
+    public TransactionOperations getTransactionOperations() {
+        return transactionOperationsProvider.getObject();
     }
 
     @Override
@@ -201,7 +201,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                 .addValue("upper_bound", upperBound)
                 .addValue("grandfathered_id", GRANDFATHERED_ID);
         try {
-            var transfers = namedParameterJdbcTemplate.query(TRANSFER_SQL, params, ROW_MAPPER);
+            var transfers = getNamedParameterJdbcOperations().query(TRANSFER_SQL, params, ROW_MAPPER);
             for (var transfer : transfers) {
                 if (!isAuthorizedByContractKey(transfer, migrationErrors)) {
                     // set is_approval to true
@@ -220,7 +220,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
                         updateParams.addValue("sender", transfer.sender).addValue("token_id", transfer.tokenId);
                     }
 
-                    namedParameterJdbcTemplate.update(updateSql, updateParams);
+                    getNamedParameterJdbcOperations().update(updateSql, updateParams);
                     count++;
                 }
             }
@@ -244,15 +244,16 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
             // The services version 0.38.0 has the fixes this migration solves.
             if (streamFile.getHapiVersion().isGreaterThanOrEqualTo(HAPI_VERSION_0_38_0)
                     && executed.compareAndSet(false, true)) {
-                var previousFile = recordFileRepository.findLatestBefore(streamFile.getConsensusStart());
+                var previousFile =
+                        recordFileRepositoryProvider.getObject().findLatestBefore(streamFile.getConsensusStart());
                 if (previousFile
                         .filter(f -> f.getHapiVersion().isLessThan(HAPI_VERSION_0_38_0))
                         .isPresent()) {
                     log.info("Run migration after the first record file with HAPI {} is parsed", HAPI_VERSION_0_38_0);
-                    doMigrate();
+                    runMigrateAsync();
                 }
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("Error executing the migration again after consensus_timestamp {}", streamFile.getConsensusEnd());
         }
     }

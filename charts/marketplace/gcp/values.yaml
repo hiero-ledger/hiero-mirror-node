@@ -19,7 +19,7 @@ grpc:
       mirror:
         grpc:
           listener:
-            type: NOTIFY
+            type: SHARED_POLL
     management:
       endpoint:
         health:
@@ -29,8 +29,6 @@ grpc:
   hpa:
     enabled: false
   ingress:
-    enabled: false
-  rbac:
     enabled: false
   service:
     type: LoadBalancer
@@ -47,8 +45,6 @@ importer:
           parser:
             record:
               entity:
-                notify:
-                  enabled: true
                 redis:
                   enabled: false
     management:
@@ -57,8 +53,6 @@ importer:
           group:
             readiness:
               exclude: redis
-  rbac:
-    enabled: false
   replicas: 1
   resources:
     requests:
@@ -93,8 +87,6 @@ rest:
   ingress:
     enabled: false
   monitor:
-    enabled: false
-  rbac:
     enabled: false
   serviceAccount:
     create: false

@@ -123,6 +123,7 @@ The following parameters can be used to configure a web3 test:
 | ACCOUNT_ADDRESS                                           |         | 64 character hex encoded account address without `0x` prefix                                                                                                                      |
 | AMOUNT                                                    |         | 64 character hex encoded amount without `0x` prefix                                                                                                                               |
 | ASSOCIATED_ACCOUNT                                        |         | 64 character hex encoded account evm address without `0x` prefix - associated to TOKEN_ADDRESS and NON_FUNGIBLE_TOKEN_ADDRESS                                                     |
+| COMPLEX_FUNCTIONS_CONTRACT_ADDRESS                        |         | 40 character hex encoded contract address without `0x` prefix for `ComplexFunctions.sol`                                                                                          |
 | DEFAULT_ACCOUNT_ADDRESS                                   |         | 40 character hex encoded account address without `0x` prefix                                                                                                                      |
 | DEFAULT_CONTRACT_ADDRESS                                  |         | 40 character hex encoded contract address without `0x` prefix for `Parent.sol`                                                                                                    |
 | ERC_CONTRACT_ADDRESS                                      |         | 40 character hex encoded contract address without `0x` prefix for `ErcTestContract.sol`                                                                                           |
@@ -136,8 +137,9 @@ The following parameters can be used to configure a web3 test:
 | PAYER_ACCOUNT                                             |         | 40 character hex encoded account address without `0x` prefix - with a lot of balance that can be used for costy operations such as token create                                   |
 | PRECOMPILE_CONTRACT                                       |         | 40 character hex encoded contract address without `0x` prefix for `PrecompileTestContract.sol`                                                                                    |
 | RECEIVER_ADDRESS                                          |         | 64 character hex encoded account evm address without `0x` prefix - associated account                                                                                             |
-| RUN_ESTIMATE_TESTS                                        | true    | If set to true, estimate gas tests will be run.                                                                                                                                   |
-| RUN_MODIFICATION_TESTS                                    | true    | If set to true, modification tests will be run.                                                                                                                                   |
+| RUN_COMPLEX_TESTS                                         | true    | If set to false, complex function tests will not run.                                                                                                                             |
+| RUN_ESTIMATE_TESTS                                        | true    | If set to false, estimate gas tests will not run.                                                                                                                                 |
+| RUN_MODIFICATION_TESTS                                    | true    | If set to false, modification tests will not run.                                                                                                                                 |
 | RUN_WITH_VARIABLES                                        | true    | if set to false, tests will be run with data from modificationFunctions.json                                                                                                      |
 | SERIAL_NUMBER                                             |         | 64 character hex encoded nft serial number without `0x` prefix                                                                                                                    |
 | SPENDER_ADDRESS                                           |         | 64 character hex encoded account address without `0x` prefix                                                                                                                      |
@@ -226,3 +228,61 @@ source k6.env && k6 run src/rosetta/test/accountBalance.js
 ```
 
 When it completes, k6 will show a similar summary report. However, there will not be a report file generated.
+
+### Web3 Tests details:
+
+#### Complex functions
+
+Test complex scenarios by using a single smart contract function.
+
+1. Fungible Token Lifecycle
+
+Source: src/web3/test/complex-functions/contractCallComplexFunctionsTokenLifecycle.js.
+
+This test covers the lifecycle of a fungible token, including: token creation, association, grantKyC, transfer, freeze, unfreeze, pause, unpause, wipe. The test uses `tokenLifecycle(address firstReceiver, address secondReceiver, address treasury)` function from `ComplexFunctions.sol`.
+
+Test Parameters:
+
+- `COMPLEX_FUNCTIONS_CONTRACT_ADDRESS` - contract address for `ComplexFunctions.sol`
+- `RECEIVER_ADDRESS` - First account to be used in the test for the transfer. Not associated account
+- `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer. Not associated account
+- `PAYER_ACCOUNT` - Account to be used as a treasury of the token and for a payer of the transaction. It should have enough balance to pay for the token creation (at least 9.33 Hbars).
+
+2.  Non-Fungible Token Lifecycle
+
+Source: src/web3/test/complex-functions/contractCallComplexFunctionsNFTLifecycle.js.
+
+This test covers the lifecycle of a Non-fungible token, including: token creation, association, grantKyc, mint, transfer, freeze, unfreeze, pause, unpause, wipe. The test uses `nftLifecycle(address firstReceiver, address secondReceiver, address treasury, bytes[] memory metadata)` function from `ComplexFunctions.sol`.
+
+Test Parameters:
+
+- `COMPLEX_FUNCTIONS_CONTRACT_ADDRESS` - contract address for `ComplexFunctions.sol`
+- `RECEIVER_ADDRESS` - First account to be used in the test for the transfer. Not associated account
+- `SPENDER_ADDRESS` - Second account to be used in the test for the second transfer. Not associated account
+- `PAYER_ACCOUNT` - Account to be used as a treasury of the token and for a payer of the transaction. It should have enough balance to pay for the token creation (at least 9.33 Hbars).
+
+### Storage Load Test
+
+This test is designed to stress the EVM storage system by executing a smart contract function that performs thousands of SLOAD operations.
+It is useful for benchmarking and performance regression testing of `findStorage` calls.
+
+#### Overview
+
+**Test File:**
+`tools/k6/src/web3/test/contractCallEstimateReadStorage.js`
+
+#### Primary Contracts
+
+- **`SlotContract`**: Initializes 600 storage slots in a mapping during construction.
+- **`SlotContractCaller`**: The `heavyReadBothHalves()` method calls `readFirstHalf()` and `readSecondHalf()` from `SlotContract` **five times each**,
+  resulting in 3,000 total SLOAD operations (600 slots × 5 calls).
+
+#### General Storage Read Stress Test
+
+This test is not limited to a specific contract or method. You can stress-test any smart contract that performs heavy storage reads by updating the following parameters:
+
+- `STORAGE_SLOTS_CONTRACT`: Set this to the **contract address** you want to test.
+  **Example:** `0x00000000000000000000000000000000008f005f` (SlotContractCaller)
+
+- `STORAGE_SLOTS_CALLDATA`: Set this to the **method call data** you want to simulate.
+  **Example:** `0x523adad6` (`heavyReadBothHalves()` method selector from SlotContractCaller)

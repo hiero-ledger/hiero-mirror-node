@@ -281,9 +281,6 @@ prometheusRules:
       application: web3
       severity: warning
 
-rbac:
-  enabled: true
-
 readinessProbe:
   httpGet:
     path: /actuator/health/readiness
@@ -363,4 +360,4 @@ volumes:
   temp:
     emptyDir:
       medium: Memory
-      sizeLimit: 500Mi
+      sizeLimit: 100Mi

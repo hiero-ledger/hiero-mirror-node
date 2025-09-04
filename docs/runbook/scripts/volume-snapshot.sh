@@ -37,6 +37,7 @@ do
 done
 
 EPOCH_SECONDS=$(date +%s)
+CITUS_CLUSTERS=$(getCitusClusters)
 for diskName in "${DISK_NAMES[@]}"
 do
   DISK_NODE_ID=${diskName#"$DISK_PREFIX"-}

@@ -217,6 +217,13 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(100));
     }
 
+    @Test
+    void lookupContractNumInvalid() {
+        var contractId =
+                ContractID.newBuilder().setContractNum(1514739994982350848L).build();
+        assertThat(entityIdService.lookup(contractId)).isEmpty();
+    }
+
     @MethodSource("shardAndRealmData")
     @ParameterizedTest
     void lookupContractEvmAddress(long shard, long realm) {
@@ -234,7 +241,8 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         var contractId = ContractID.newBuilder()
                 .setEvmAddress(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(contractId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
+        assertThat(entityIdService.lookup(contractId))
+                .hasValue(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM));
     }
 
     @Test
@@ -408,7 +416,9 @@ class EntityIdServiceImplTest extends ImporterIntegrationTest {
         AccountID accountId = AccountID.newBuilder()
                 .setAlias(DomainUtils.fromBytes(PARSABLE_EVM_ADDRESS))
                 .build();
-        assertThat(entityIdService.lookup(accountId)).hasValue(EntityId.of(0, 0, EVM_ADDRESS_NUM));
+
+        assertThat(entityIdService.lookup(accountId))
+                .hasValue(EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), EVM_ADDRESS_NUM));
     }
 
     @Test

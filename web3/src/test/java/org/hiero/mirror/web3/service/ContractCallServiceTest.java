@@ -665,9 +665,11 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         assertGasLimit(serviceParameters);
     }
 
-    @Test
-    void transferExceedsBalance() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void transferExceedsBalance(boolean overridePayerBalance) {
         // Given
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var senderEntity = accountEntityWithEvmAddressPersist();
@@ -677,9 +679,14 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 getContractExecutionParametersWithValue(Bytes.EMPTY, senderAddress, receiverAddress, value);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+            if (mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
+                assertThat(contractExecutionService.processCall(serviceParameters))
+                        .isEqualTo(HEX_PREFIX);
+            } else {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+            }
         } else {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                     .isInstanceOf(MirrorEvmTransactionException.class)
@@ -688,6 +695,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                             toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
         }
         assertGasLimit(serviceParameters);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
     }
 
     @Test
@@ -762,7 +770,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
-        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
+        final var actualGas = 1413995L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -780,7 +788,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final var actualGas = mirrorNodeEvmProperties.isModularizedServices() ? 1413995L : 175242L;
+        final var actualGas = 1413995L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);

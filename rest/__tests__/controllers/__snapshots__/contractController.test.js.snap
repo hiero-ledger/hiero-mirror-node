@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`checkTimestampsForTopics topic0 param 1`] = `"Cannot search topics without a valid timestamp range: Not equals operator not supported for timestamp param"`;
 

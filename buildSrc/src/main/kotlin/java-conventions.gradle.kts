@@ -12,16 +12,14 @@ plugins {
 }
 
 configurations.all {
+    exclude(group = "com.nimbusds") // Unused and has a vulnerability
     exclude(group = "com.github.jnr") // Unused and has licensing issues
     exclude(group = "commons-logging", "commons-logging")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
 }
 
-repositories {
-    maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") }
-    maven { url = uri("https://artifacts.consensys.net/public/maven/maven/") }
-}
+repositories { maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") } }
 
 dependencyManagement {
     imports {
@@ -31,7 +29,7 @@ dependencyManagement {
     }
 }
 
-val mockitoAgent = configurations.create("mockitoAgent")
+val mockitoAgent = configurations.register("mockitoAgent")
 
 dependencies {
     annotationProcessor(platform(project(":")))
@@ -58,7 +56,7 @@ tasks.withType<Test>().configureEach {
     finalizedBy(tasks.jacocoTestReport)
     jvmArgs =
         listOf(
-            "-javaagent:${mockitoAgent.asPath}", // JDK 21 restricts libraries from attaching agents
+            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21 restricts libs attaching agents
             "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
         )
     maxHeapSize = "4096m"
@@ -82,5 +80,3 @@ tasks.jacocoTestReport {
         xml.required = true
     }
 }
-
-rootProject.tasks.named("sonarqube") { dependsOn(tasks.jacocoTestReport) }

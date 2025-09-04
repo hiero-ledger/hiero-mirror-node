@@ -34,7 +34,6 @@ import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -51,10 +50,7 @@ import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.convert.DataSizeUnit;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.unit.DataSize;
-import org.springframework.util.unit.DataUnit;
 import org.springframework.validation.annotation.Validated;
 
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
@@ -73,7 +69,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private final SystemEntity systemEntity;
 
-    @Value("${HIERO_MIRROR_WEB3_MODULARIZED_ALLOWLONGZEROADDRESS:false}")
+    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
     private boolean allowLongZeroAddresses = false;
 
     @Getter
@@ -129,15 +125,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Getter
     @Min(1)
     private int maxBatchSizeWipe = 10;
-
-    @Getter
-    @NotNull
-    @DataSizeUnit(DataUnit.KILOBYTES)
-    private DataSize maxDataSize = DataSize.ofKilobytes(128);
-
-    @Getter(lazy = true)
-    private final Pattern dataValidatorPattern =
-            Pattern.compile("^(0x)?[0-9a-fA-F]{0,%d}$".formatted(maxDataSize.toBytes() * 2L));
 
     private int maxCustomFeesAllowed = 10;
 
@@ -208,6 +195,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @Getter
     private long entityNumBuffer = 1000L;
+
+    @Getter
+    private long minimumAccountBalance = 100_000_000_000_000_000L;
+
+    @Getter
+    private boolean overridePayerBalanceValidation;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
@@ -354,10 +347,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("executor.disableThrottles", "true");
-        // The configured data in the request is currently 128 KB. In services, we have a property for the
-        // max signed transaction size. We put 1 KB more here to have a buffer because the transaction has other
-        // fields (apart from the data) that will increase the transaction size.
-        props.put("executor.maxSignedTxnSize", String.valueOf(maxDataSize.toBytes() + 1024));
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
@@ -377,6 +366,11 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     public boolean directTrafficThroughTransactionExecutionService() {
         return isModularizedServices()
                 && RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
+    }
+
+    @PostConstruct
+    public void init() {
+        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 
     @Getter
@@ -402,10 +396,5 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }
-    }
-
-    @PostConstruct
-    public void init() {
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 }

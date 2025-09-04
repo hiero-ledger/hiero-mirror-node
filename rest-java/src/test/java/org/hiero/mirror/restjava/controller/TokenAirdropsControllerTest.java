@@ -8,7 +8,10 @@ import static org.hiero.mirror.common.domain.token.TokenTypeEnum.NON_FUNGIBLE_UN
 
 import com.google.common.io.BaseEncoding;
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.hiero.mirror.common.domain.token.TokenAirdrop;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -16,8 +19,11 @@ import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.restjava.mapper.TokenAirdropMapper;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.function.ThrowingConsumer;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -46,31 +52,40 @@ class TokenAirdropsControllerTest extends ControllerTest {
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var sender = domainBuilder.entityNum(1000);
-            var tokenAirdrop = domainBuilder
+            domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
                     .customize(e -> e.senderAccountId(sender.getId()))
                     .persist();
             return uriSpec.uri("", sender.getNum());
         }
 
-        @ParameterizedTest
-        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
-        void entityId(String input, long num) {
-            // Given
-            var encodedId = domainBuilder.entityNum(num).getId();
-            var tokenAirdrop = domainBuilder
+        @TestFactory
+        Stream<DynamicTest> entityId() {
+            final var entityId = domainBuilder.entityNum(1000);
+            final var inputs = List.of(
+                    entityId.toString(),
+                    String.format("%d.%d", entityId.getRealm(), entityId.getNum()),
+                    Long.toString(entityId.getNum()));
+            final var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
-                    .customize(a -> a.senderAccountId(encodedId))
+                    .customize(a -> a.senderAccountId(entityId.getId()))
                     .persist();
+            final ThrowingConsumer<String> executor = input -> {
+                // When
+                final var response = restClient.get().uri("", input).retrieve().toEntity(TokenAirdropsResponse.class);
 
-            // When
-            var response = restClient.get().uri("", input).retrieve().toEntity(TokenAirdropsResponse.class);
+                // Then
+                assertThat(response.getBody())
+                        .extracting(
+                                TokenAirdropsResponse::getAirdrops, InstanceOfAssertFactories.list(TokenAirdrop.class))
+                        .first()
+                        .isEqualTo(mapper.map(tokenAirdrop));
+                // Based on application.yml response headers configuration
+                assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+                assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=1");
+            };
 
-            // Then
-            assertThat(response.getBody().getAirdrops().getFirst()).isEqualTo(mapper.map(tokenAirdrop));
-            // Based on application.yml response headers configuration
-            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
-            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=1");
+            return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
         }
 
         @Test
@@ -998,24 +1013,33 @@ class TokenAirdropsControllerTest extends ControllerTest {
             return uriSpec.uri("", receiverId.getNum());
         }
 
-        @ParameterizedTest
-        @CsvSource({"0.0.1000,1000", "0.1000,1000", "1000,1000"})
-        void entityId(String input, long num) {
-            // Given
-            var encodedId = domainBuilder.entityNum(num).getId();
-            var tokenAirdrop = domainBuilder
+        @TestFactory
+        Stream<DynamicTest> entityId() {
+            final var entityId = domainBuilder.entityNum(1000);
+            final var inputs = List.of(
+                    entityId.toString(),
+                    String.format("%d.%d", entityId.getRealm(), entityId.getNum()),
+                    Long.toString(entityId.getNum()));
+            final var tokenAirdrop = domainBuilder
                     .tokenAirdrop(FUNGIBLE_COMMON)
-                    .customize(a -> a.receiverAccountId(encodedId))
+                    .customize(a -> a.receiverAccountId(entityId.getId()))
                     .persist();
+            final ThrowingConsumer<String> executor = input -> {
+                // When
+                final var response = restClient.get().uri("", input).retrieve().toEntity(TokenAirdropsResponse.class);
 
-            // When
-            var response = restClient.get().uri("", input).retrieve().toEntity(TokenAirdropsResponse.class);
+                // Then
+                assertThat(response.getBody())
+                        .extracting(
+                                TokenAirdropsResponse::getAirdrops, InstanceOfAssertFactories.list(TokenAirdrop.class))
+                        .first()
+                        .isEqualTo(mapper.map(tokenAirdrop));
+                // Based on application.yml response headers configuration
+                assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
+                assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=1");
+            };
 
-            // Then
-            assertThat(response.getBody().getAirdrops().getFirst()).isEqualTo(mapper.map(tokenAirdrop));
-            // Based on application.yml response headers configuration
-            assertThat(response.getHeaders().getAccessControlAllowOrigin()).isEqualTo("*");
-            assertThat(response.getHeaders().getCacheControl()).isEqualTo("public, max-age=1");
+            return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
         }
 
         @Test

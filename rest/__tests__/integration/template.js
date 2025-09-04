@@ -32,6 +32,8 @@ import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integratio
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
+import {writeTableUsage} from '../tableUsage';
+import {transformShardRealmValues} from '../integrationUtils';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -95,7 +97,8 @@ const getSpecs = async () => {
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
           const specText = fs.readFileSync(f, 'utf8');
-          const spec = JSONParse(specText);
+          const spec =
+            f.indexOf('stateproof') > -1 ? JSONParse(specText) : transformShardRealmValues(JSONParse(specText));
           spec.name = path.basename(f);
           getResponseHeaders(spec, f);
 
@@ -324,6 +327,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     if (s3Ops) {
       await s3Ops.stop();
     }
+
+    await writeTableUsage(groupSpecPath);
   });
 
   afterEach(() => {

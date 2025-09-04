@@ -19,6 +19,8 @@ import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.RedirectTestContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
 class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractCallServiceTest {
@@ -311,8 +313,10 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
-    @Test
-    void ethCallBalanceOfStatic() throws Exception {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void ethCallBalanceOfStatic(boolean overridePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
         final var ownerEntityId = accountPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(ownerEntityId);
         final var tokenId = token.getTokenId();
@@ -324,8 +328,10 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
                         tokenAddress, toAddress(ownerEntityId).toHexString())
                 .send();
         final var functionCall = contract.send_balanceOf(tokenAddress, ownerAddress);
+
         assertThat(result).isEqualTo(BigInteger.valueOf(tokenAccount.getBalance()));
         verifyEthCallAndEstimateGas(functionCall, contract);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
     }
 
     @Test

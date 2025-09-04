@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {addAsync} from '@awaitjs/express';
 import {execSync} from 'child_process';
 import express from 'express';
 import fs from 'fs';
@@ -46,7 +45,7 @@ const createDbContainer = async (workerId) => {
       return container;
     } catch (e) {
       console.warn(
-        `Error start PostgreSQL container for worker ${workerId} during attempt #${maxRetries - retries}: ${e}`
+        `Error starting PostgreSQL container for worker ${workerId} during attempt #${maxRetries - retries}: ${e}`
       );
       await new Promise((resolve) => setTimeout(resolve, retryMsDelay));
     }
@@ -69,19 +68,21 @@ const initializeFlyway = () => {
 
   fs.mkdirSync(FLYWAY_DATA_PATH, {recursive: true});
   fs.writeFileSync(flywayConfigPath, JSON.stringify(flywayConfig));
+  const command = `node ${FLYWAY_EXE_PATH} -c ${flywayConfigPath} info`;
+  const options = {stdio: 'pipe'};
 
   let retries = 10;
   while (retries-- > 0) {
     try {
-      execSync(`node ${FLYWAY_EXE_PATH} -c ${flywayConfigPath} info`, {stdio: 'pipe'});
+      execSync(command, options);
       break;
     } catch (e) {
       const errMessage = e.stderr.toString();
       if (errMessage.includes('-1 not valid')) {
-        console.log(e.stdout.toString());
+        console.warn(e.stdout.toString());
         break;
       } else {
-        console.log(errMessage);
+        console.warn(errMessage);
       }
     }
   }
@@ -92,15 +93,14 @@ const initializeFlyway = () => {
 };
 
 const startDbContainerServer = () => {
-  const app = addAsync(express());
+  const app = express();
   app.use(express.json()); // process POST json body
   const server = app.listen();
   globalThis.__DB_CONTAINER_SERVER__ = server;
   globalThis.__DB_CONTAINERS__ = dbContainers;
   process.env.DB_CONTAINER_SERVER_URL = `http://localhost:${server.address().port}`;
-  console.log(`DB container server url: ${process.env.DB_CONTAINER_SERVER_URL}`);
 
-  app.postAsync('/connectionParams', async (req, res) => {
+  app.post('/connectionParams', async (req, res) => {
     if (Number.isNaN(req.body?.workerId)) {
       res.status(400).end();
       return;
@@ -113,7 +113,6 @@ const startDbContainerServer = () => {
       dbContainers.set(workerId, dbContainer);
     }
 
-    console.log(`Retrieved db container connection params for worker ${workerId}`);
     res.status(200).json({
       database: dbContainer.getDatabase(),
       host: dbContainer.getHost(),

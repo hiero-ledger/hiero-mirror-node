@@ -7,13 +7,13 @@ required software, environment setup, IDE configurations, project compilation, a
 
 To contribute to the mirror node project, you need to install the following software and tools:
 
-### 1. **Java 21**
+### Java 21
 
 Requires **Java 21** or a later version for development.
 
 - **Install Java 21**:
 
-  On Ubuntu and macOS:
+  On Ubuntu and macOS we recommend using [SDKMAN!](https://sdkman.io/) to manage JVM versions:
 
   ```bash
   curl -s "https://get.sdkman.io" | bash
@@ -35,32 +35,10 @@ Requires **Java 21** or a later version for development.
   sdk use java 21-tem
   ```
 
-### 2. **Docker**
+### Docker
 
-Docker is used to manage and run containerized services (such as databases) for the mirror node.
-
-- **Install Docker**:
-
-  On Ubuntu:
-
-  ```bash
-  sudo apt update
-  sudo apt install docker.io
-  sudo systemctl enable docker --now
-  sudo usermod -aG docker $USER  # Optional: allows non-root access
-  ```
-
-  On macOS:
-
-  ```bash
-  brew install --cask docker
-  open /Applications/Docker.app
-  ```
-
-- **Verify Installation**:
-  ```bash
-  docker --version
-  ```
+Docker is used to manage and run containerized services (such as databases) for the mirror node. To install Docker,
+follow the get started guide on [docker.com](https://docs.docker.com/get-started/get-docker/).
 
 ## Coding Standards
 
@@ -79,7 +57,7 @@ to follow:
 
 ## IDE Setup
 
-We recommend using **IntelliJ IDEA** or **Eclipse** for development.
+We recommend using **IntelliJ IDEA** for development.
 
 ### IntelliJ IDEA Setup
 
@@ -124,7 +102,8 @@ We recommend using **IntelliJ IDEA** or **Eclipse** for development.
 
 ## Compiling the Project
 
-This project uses [Gradle](https://gradle.org) for building and managing dependencies.
+This project uses [Gradle](https://gradle.org) for building and managing dependencies. It's not necessary to install
+Gradle locally as the project automatically downloads it via the Gradle Wrapper.
 
 1. **Clean and Build the Project**:
    Run the following command to clean and build the project:
@@ -197,31 +176,30 @@ defined in `docker-compose` files within the repository.
    docker compose down
    ```
 
-## Generating Artifacts (Images)
+## Container Images
 
-For production or deployment, you may need to generate Docker images.
+For production or deployment, you may need to generate container images.
 
-1. **Build Docker Images**:
-   You can build Docker images using Gradle and specify custom properties to control the platform, registry, and tag for
-   the Docker image.
+1. **Build Container Images**:
+   You can build container images using Gradle and specify custom properties to control the platform, registry, and tag.
 
    ```bash
    ./gradlew dockerBuild \
-   -PdockerPlatform=linux/amd64 \
-   -PdockerRegistry=docker.io \
-   -PdockerTag=1.0.0-SNAPSHOT
+   -PimagePlatform=linux/amd64 \
+   -PimageRegistry=docker.io/mydockerid \
+   -PimageTag=1.0.0-SNAPSHOT
    ```
 
-2. **Push Docker Images**:
-   After building the Docker image, you can push it to the specified Docker registry to make it available for use in a
+2. **Push Container Images**:
+   After building the container image, you can push it to the specified image registry to make it available for use in a
    remote Kubernetes environment.
 
    ```bash
       ./gradlew dockerPush \
-      -PdockerPlatform=linux/amd64 \
-      -PdockerRegistry=docker.io \
-      -PdockerTag=1.0.0-SNAPSHOT
+      -PimagePlatform=linux/amd64 \
+      -PimageRegistry=docker.io \
+      -PimageTag=1.0.0-SNAPSHOT
    ```
 
-   NB: Ensure you are logged into the Docker registry if authentication is required. This command will push the image
+   Note: Ensure you are logged into the image registry if authentication is required. This command will push the image
    with the specified tag to the registry.

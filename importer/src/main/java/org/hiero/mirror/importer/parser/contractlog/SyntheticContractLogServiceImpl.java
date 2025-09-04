@@ -41,6 +41,8 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         contractLog.setTopic3(log.getTopic3());
         contractLog.setTransactionIndex(log.getRecordItem().getTransactionIndex());
         contractLog.setTransactionHash(log.getRecordItem().getTransactionHash());
+        contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
+
         entityListener.onContractLog(contractLog);
     }
 

@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.viewmodel;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 public record BlockType(String name, long number) {
 
@@ -37,7 +38,7 @@ public record BlockType(String name, long number) {
 
         if (value.startsWith(HEX_PREFIX)) {
             radix = 16;
-            cleanedValue = StringUtils.removeStart(value, HEX_PREFIX);
+            cleanedValue = Strings.CS.removeStart(value, HEX_PREFIX);
         }
 
         if (cleanedValue.contains(NEGATIVE_NUMBER_PREFIX)) {

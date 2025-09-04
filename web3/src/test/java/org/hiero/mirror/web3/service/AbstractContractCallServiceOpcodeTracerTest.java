@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.isWithinExpectedGasRange;
@@ -24,6 +25,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -45,6 +47,8 @@ import org.web3j.tx.Contract;
 
 abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContractCallServiceHistoricalTest {
 
+    private static final String CALL_OPCODE_NAME = "CALL";
+
     @Resource
     protected ContractDebugService contractDebugService;
 
@@ -65,6 +69,10 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     @Resource
     private EntityDatabaseAccessor entityDatabaseAccessor;
+
+    protected static void setOpcodeEndpoint() {
+        EndpointContext.setCurrentEndpoint(OPCODES_URI);
+    }
 
     @BeforeEach
     void setUpArgumentCaptors() {
@@ -95,6 +103,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     protected void verifyOpcodeTracerCall(
             final String callData, final ContractFunctionProviderRecord functionProvider) {
+        setOpcodeEndpoint();
         final var callDataBytes = Bytes.fromHexString(callData);
         final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
 
@@ -108,6 +117,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodeTracerCall(final String callData, final Contract contract) {
+        setOpcodeEndpoint();
         ContractFunctionProviderRecord functionProvider = ContractFunctionProviderRecord.builder()
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
                 .build();
@@ -176,6 +186,11 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
         assertThat(opcodesResponse.getFailed()).isFalse();
         assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
+        // This assures that nested transactions are also being tracked
+        assertThat(opcodesResponse.getOpcodes().stream()
+                        .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
+                        .count())
+                .isGreaterThan(0);
     }
 
     private OpcodesResponse expectedOpcodesResponse(

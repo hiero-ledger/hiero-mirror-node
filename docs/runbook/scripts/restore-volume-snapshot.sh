@@ -123,7 +123,7 @@ function prepareDiskReplacement() {
   for namespace in "${NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
     kubectl delete sgshardedbackups.stackgres.io -n "${namespace}" --all
-    pauseCitus "${namespace}"
+    pauseCitus "${namespace}" "true"
   done
 
   # Spin down existing citus node pools
@@ -284,69 +284,6 @@ function configureShardedClusterResource() {
   doContinue
 }
 
-function markAndConfigurePrimaries() {
-  local pvcsInNamespace="${1}"
-  local shardedClusterName="${2}"
-  local namespace="${3}"
-
-  local primaryCoordinator=$(echo "${pvcsInNamespace}" |
-          jq -r 'map(select(.snapshotPrimary and .citusCluster.isCoordinator))|first')
-
-
-  local clusterGroups=$(echo "${pvcsInNamespace}" |
-    jq -r 'group_by(.citusCluster.clusterName)|
-                     map({
-                           (.[0].citusCluster.clusterName):
-                           .|sort_by(.citusCluster.podName)|
-                           map(
-                             {
-                                group: .citusCluster.citusGroup,
-                                isCoordinator: .citusCluster.isCoordinator,
-                                name: .citusCluster.podName,
-                                primary: .snapshotPrimary,
-                                shardedClusterName: .citusCluster.shardedClusterName
-                             }
-                          )
-                        }
-                    )|add')
-  local clusterNames=($(echo "${clusterGroups}" | jq -r 'keys[]'))
-
-  for clusterName in "${clusterNames[@]}"; do
-    local groupPods=$(echo "${clusterGroups}" | jq -r --arg clusterName "${clusterName}" '.[$clusterName]')
-    local clusterPatch=$(echo "${groupPods}" |
-      jq -r '{status: {podStatuses: map({name: .name, primary: .primary})}}')
-    local citusGroup=$(echo "${groupPods}" | jq -r '.[0].group')
-    local primaryPod=$(echo "${groupPods}" | jq -r 'map(select(.primary))|first|.name')
-    local endpointName="${HELM_RELEASE_NAME}-citus-${citusGroup}"
-    log "Marking primary on endpoint ${endpointName}"
-    kubectl annotate endpoints "${endpointName}" -n "${namespace}" leader="${primaryPod}" --overwrite
-    log "Waiting for patroni to mark primary"
-    sleep 10
-    local patroniClusterStatus=$(kubectl exec -n "${namespace}" -c patroni "${primaryPod}" \
-      -- patronictl list --group "${citusGroup}" -f json | jq -r 'map({primary: (.Role == "Leader"), name: .Member})')
-    local patroniPrimaryPod=$(echo "${patroniClusterStatus}" | jq -r 'map(select(.primary))|first|.name')
-    if [[ "${patroniPrimaryPod}" != "${primaryPod}" ]]; then
-      log "Primary pod ${primaryPod} is not the patroni primary ${patroniPrimaryPod} for ${shardedClusterName}
-group ${citusGroup}. Will failover"
-      kubectl exec -n "${namespace}" "${primaryPod}" -c patroni \
-        -- patronictl failover "${shardedClusterName}" --group "${citusGroup}" --candidate "${primaryPod}" --force
-      patroniPrimaryPod=$(echo "${patroniClusterStatus}" | jq -r 'map(select(.primary))|first|.name')
-      while [[ "${patroniPrimaryPod}" != "${primaryPod}" ]]; do
-        log "Waiting for failover to complete expecting ${primaryPod} to be primary but got ${patroniPrimaryPod}"
-        sleep 10
-        patroniClusterStatus=$(kubectl exec -n "${namespace}" -c patroni "${primaryPod}" \
-          -- patronictl list --group "${citusGroup}" -f json | jq -r 'map({primary: (.Role == "Leader"), name: .Member})')
-        patroniPrimaryPod=$(echo "${patroniClusterStatus}" | jq -r 'map(select(.primary))|first|.name')
-      done
-    fi
-    log "Patching cluster ${clusterName} in namespace ${namespace} with ${clusterPatch}"
-    kubectl patch sgclusters.stackgres.io -n "${namespace}" "${clusterName}" --type merge -p "${clusterPatch}"
-  done
-
-  waitForPatroniMasters "${namespace}"
-  updateStackgresCreds "${shardedClusterName}" "${namespace}"
-}
-
 function patchCitusClusters() {
   log "Patching Citus clusters in namespaces ${NAMESPACES[*]}"
   local pvcsByNamespace=$(echo -e "${SNAPSHOTS_TO_RESTORE}\n${ZFS_VOLUMES}" |
@@ -368,8 +305,8 @@ function patchCitusClusters() {
     local shardedClusterName=$(echo "${pvcsInNamespace}" | jq -r '.[0].citusCluster.shardedClusterName')
 
     configureShardedClusterResource "${pvcsInNamespace}" "${shardedClusterName}" "${namespace}"
-    unpauseCitus "${namespace}" "true" "false"
-    markAndConfigurePrimaries "${pvcsInNamespace}" "${shardedClusterName}" "${namespace}"
+    unpauseCitus "${namespace}" "true"
+    updateStackgresCreds "${shardedClusterName}" "${namespace}"
     routeTraffic "${namespace}"
   done
 }

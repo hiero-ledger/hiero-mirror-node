@@ -123,4 +123,25 @@ class EntityRepositoryTest extends ImporterIntegrationTest {
                 .extracting(Entity::getType)
                 .allMatch(e -> e == CONTRACT);
     }
+
+    @Test
+    void findEvmAddressByIds() {
+        final var entity = domainBuilder.entity().persist();
+        final var entity2 = domainBuilder.entity().persist();
+        final var noEvmAddressEntity =
+                domainBuilder.entity().customize(e -> e.evmAddress(null)).persist();
+
+        final var results = entityRepository.findEvmAddressesByIds(
+                List.of(entity.getId(), entity2.getId(), noEvmAddressEntity.getId()));
+        assertThat(results)
+                .hasSize(2)
+                .anySatisfy(e -> {
+                    assertThat(e.getId()).isEqualTo(entity.getId());
+                    assertThat(e.getEvmAddress()).isEqualTo(entity.getEvmAddress());
+                })
+                .anySatisfy(e -> {
+                    assertThat(e.getId()).isEqualTo(entity2.getId());
+                    assertThat(e.getEvmAddress()).isEqualTo(entity2.getEvmAddress());
+                });
+    }
 }

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -49,7 +49,7 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
     private final CryptoTransferRepository cryptoTransferRepository;
     private final EntityRepository entityRepository;
     private final ImporterProperties importerProperties;
-    private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
+    private final NamedParameterJdbcOperations namedParameterJdbcOperations;
     private final RecordFileRepository recordFileRepository;
     private final TransactionTemplate transactionTemplate;
 
@@ -67,12 +67,17 @@ class InitializeEntityBalanceMigrationTest extends ImporterIntegrationTest {
     @BeforeEach
     void beforeEach() {
         timestamp = new AtomicLong(0L);
+
+        var accountBalanceFileRepositoryProvider = objectProvider(accountBalanceFileRepository);
+        var namedParameterJdbcOperationsProvider = objectProvider(namedParameterJdbcOperations);
+        var recordFileRepositoryProvider = objectProvider(recordFileRepository);
+        var transactionTemplateProvider = objectProvider(transactionTemplate);
         migration = new InitializeEntityBalanceMigration(
-                accountBalanceFileRepository,
+                accountBalanceFileRepositoryProvider,
                 importerProperties,
-                namedParameterJdbcTemplate,
-                recordFileRepository,
-                transactionTemplate);
+                namedParameterJdbcOperationsProvider,
+                recordFileRepositoryProvider,
+                transactionTemplateProvider);
     }
 
     @Test

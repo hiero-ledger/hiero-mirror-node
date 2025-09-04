@@ -26,11 +26,11 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.EntityRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.io.Resource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
 public class HistoricalAccountInfoMigration extends RepeatableMigration {
@@ -38,8 +38,8 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
     static final Instant EXPORT_DATE = Instant.parse("2019-09-14T00:00:10Z");
 
     private final Set<Long> contractIds = new HashSet<>();
-    private final EntityRepository entityRepository;
-    private final NamedParameterJdbcTemplate jdbcOperations;
+    private final ObjectProvider<EntityRepository> entityRepositoryProvider;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
 
     @Value("classpath:accountInfoContracts.txt")
@@ -48,14 +48,13 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
     @Value("classpath:accountInfo.txt.gz")
     private Resource accountInfoPath;
 
-    @Lazy
     public HistoricalAccountInfoMigration(
-            EntityRepository entityRepository,
-            NamedParameterJdbcTemplate jdbcTemplate,
+            ObjectProvider<EntityRepository> entityRepositoryProvider,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties) {
         super(importerProperties.getMigration());
-        this.entityRepository = entityRepository;
-        this.jdbcOperations = jdbcTemplate;
+        this.entityRepositoryProvider = entityRepositoryProvider;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
     }
 
@@ -124,14 +123,18 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
     }
 
     private void fixContractEntities() {
-        int inserted = jdbcOperations.update(
-                "update entity set type = 'CONTRACT' where id in (:ids)",
-                new MapSqlParameterSource("ids", contractIds));
+        int inserted = jdbcOperationsProvider
+                .getObject()
+                .update(
+                        "update entity set type = 'CONTRACT' where id in (:ids)",
+                        new MapSqlParameterSource("ids", contractIds));
         log.info("Changed {} entity to be type contract", inserted);
 
-        inserted = jdbcOperations.update(
-                "update entity_history set type = 'CONTRACT' where id in (:ids)",
-                new MapSqlParameterSource("ids", contractIds));
+        inserted = jdbcOperationsProvider
+                .getObject()
+                .update(
+                        "update entity_history set type = 'CONTRACT' where id in (:ids)",
+                        new MapSqlParameterSource("ids", contractIds));
         log.info("Changed {} entity_history to be type contract", inserted);
     }
 
@@ -158,7 +161,7 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
         }
 
         EntityId entityId = EntityId.of(id);
-        Optional<Entity> currentEntity = entityRepository.findById(entityId.getId());
+        Optional<Entity> currentEntity = entityRepositoryProvider.getObject().findById(entityId.getId());
         boolean exists = currentEntity.isPresent();
 
         Entity entity = currentEntity.orElseGet(entityId::toEntity);
@@ -211,7 +214,7 @@ public class HistoricalAccountInfoMigration extends RepeatableMigration {
 
         if (updated) {
             log.info("Saving {} entity: {}", exists ? "existing" : "new", entity);
-            entityRepository.save(entity);
+            entityRepositoryProvider.getObject().save(entity);
         }
 
         return updated;

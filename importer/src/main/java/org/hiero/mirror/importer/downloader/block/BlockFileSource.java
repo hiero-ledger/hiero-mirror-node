@@ -20,13 +20,14 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
-final class BlockFileSource extends AbstractBlockStreamSource {
+final class BlockFileSource extends AbstractBlockSource {
 
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
@@ -41,7 +42,7 @@ final class BlockFileSource extends AbstractBlockStreamSource {
             CommonDownloaderProperties commonDownloaderProperties,
             ConsensusNodeService consensusNodeService,
             MeterRegistry meterRegistry,
-            BlockStreamProperties properties,
+            BlockProperties properties,
             StreamFileProvider streamFileProvider) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
         this.consensusNodeService = consensusNodeService;
@@ -63,6 +64,12 @@ final class BlockFileSource extends AbstractBlockStreamSource {
     @Override
     public void get() {
         long blockNumber = getNextBlockNumber();
+        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+
+        if (endBlockNumber != null && blockNumber > endBlockNumber) {
+            return;
+        }
+
         var nodes = getRandomizedNodes();
         var stopwatch = Stopwatch.createStarted();
         var streamFilename = StreamFilename.from(blockNumber);
@@ -94,6 +101,12 @@ final class BlockFileSource extends AbstractBlockStreamSource {
                 }
 
                 return;
+            } catch (TransientProviderException e) {
+                log.warn(
+                        "Trying next node after failing to download block file {} from node {}: {}",
+                        filename,
+                        nodeId,
+                        e.getMessage());
             } catch (Throwable t) {
                 log.error("Failed to process block file {} from node {}", filename, nodeId, t);
             }

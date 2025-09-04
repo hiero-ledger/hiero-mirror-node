@@ -6,10 +6,12 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_EXECU
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -44,6 +46,7 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
+import org.assertj.core.api.AssertionsForClassTypes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -104,7 +107,6 @@ import org.springframework.util.StringUtils;
 @WebMvcTest(controllers = OpcodesController.class)
 class OpcodesControllerTest {
 
-    private static final String OPCODES_URI = "/api/v1/contracts/results/{transactionIdOrHash}/opcodes";
     private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
     private final AtomicReference<OpcodesProcessingResult> opcodesResultCaptor = new AtomicReference<>();
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();
@@ -316,8 +318,9 @@ class OpcodesControllerTest {
                 .build());
 
         when(contractTransactionHashRepository.findByHash(hash)).thenReturn(Optional.of(contractTransactionHash));
-        when(transactionRepository.findByPayerAccountIdAndValidStartNs(payerAccountId, validStartNs))
-                .thenReturn(Optional.of(transaction));
+        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
+                        payerAccountId, validStartNs))
+                .thenReturn(List.of(transaction));
         when(ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
                         contractTransactionHash.getConsensusTimestamp(),
                         EntityId.of(contractTransactionHash.getPayerAccountId())))
@@ -432,9 +435,9 @@ class OpcodesControllerTest {
                     }
                     case TransactionIdParameter parameter -> {
                         reset(transactionRepository);
-                        when(transactionRepository.findByPayerAccountIdAndValidStartNs(
+                        when(transactionRepository.findByPayerAccountIdAndValidStartNsOrderByConsensusTimestampAsc(
                                         parameter.payerAccountId(), convertToNanosMax(parameter.validStart())))
-                                .thenReturn(Optional.empty());
+                                .thenReturn(Collections.emptyList());
                         yield new GenericErrorResponse(message, "Transaction not found: " + parameter);
                     }
                 };
@@ -575,6 +578,67 @@ class OpcodesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsTrueButModularizedNotEnabled(final TransactionProviderEnum providerEnum)
+            throws Exception {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsTrue(final TransactionProviderEnum providerEnum) throws Exception {
+        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(TransactionProviderEnum.class)
+    void testModularizedRequestIsFalse(final TransactionProviderEnum providerEnum) throws Exception {
+        if (!mirrorNodeEvmProperties.isModularizedServices()) {
+            return;
+        }
+
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "false"))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), entityDatabaseAccessor)));
+
+        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
+        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        final var capturedParams = paramsCaptor.getValue();
+
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
     }
 
     /**

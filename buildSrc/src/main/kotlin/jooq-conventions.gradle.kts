@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import io.spring.gradle.dependencymanagement.dsl.DependencyManagementExtension
+import org.flywaydb.core.Flyway
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.images.builder.Transferable
+import org.testcontainers.utility.DockerImageName
 
 plugins {
     id("java-conventions")
-    id("org.flywaydb.flyway")
     id("org.jooq.jooq-codegen-gradle")
 }
 
@@ -19,20 +20,16 @@ dependencies {
     jooqCodegen("org.jooq:jooq-postgres-extensions:$jooqVersion")
 }
 
-val dbContainerProvider =
-    project.gradle.sharedServices.registerIfAbsent("postgres", PostgresService::class.java) {
-        parameters.getRootDir().set(rootDir.absolutePath)
-    }
-val dbName = "mirror_node"
-val dbPassword = "mirror_node_pass"
-val dbSchema = "public"
-val dbUser = "mirror_node"
-val jooqTargetDir = "build/generated-sources/jooq"
-
-fun getJdbcUrl(container: PostgreSQLContainer<Nothing>): String {
-    val port = container.getMappedPort(5432).toString()
-    return "jdbc:postgresql://" + container.host + ":" + port + "/" + dbName
+object Database {
+    val name = "mirror_node"
+    val password = "mirror_node_pass"
+    val schema = "public"
+    val username = "mirror_node"
+    var url = "postgresql://localhost:5432/mirror_node"
 }
+
+val dbDir = "${rootDir.absolutePath}/importer/src/main/resources/db"
+val jooqTargetDir = "build/generated-sources/jooq"
 
 java.sourceSets["main"].java { srcDir(jooqTargetDir) }
 
@@ -48,7 +45,7 @@ jooq {
                     | .*_p\d+_\d+
                 """
                 includes = ".*"
-                inputSchema = dbSchema
+                inputSchema = Database.schema
                 isIncludeRoutines = false
                 isIncludeUDTs = false
                 name = "org.jooq.meta.postgres.PostgresDatabase"
@@ -58,85 +55,65 @@ jooq {
                 packageName = "org.hiero.mirror.restjava.jooq.domain"
             }
         }
+        jdbc {
+            driver = "org.postgresql.Driver"
+            password = Database.password
+            user = Database.username
+        }
     }
+    delayedConfiguration { jdbc { url = Database.url } }
 }
+
+val postgresqlContainer =
+    tasks.register("postgresqlContainer") {
+        val initSh = "${dbDir}/scripts/init.sh"
+        doLast {
+            val initScript = Transferable.of(File(initSh).readBytes())
+            var image =
+                DockerImageName.parse("docker.io/library/postgres:16.9-alpine")
+                    .asCompatibleSubstituteFor("postgres")
+            val container =
+                PostgreSQLContainer<Nothing>(image).apply {
+                    withCopyToContainer(initScript, "/docker-entrypoint-initdb.d/init.sh")
+                    withUsername("postgres")
+                    start()
+                }
+            val port = container.getMappedPort(5432)
+            Database.url = "jdbc:postgresql://${container.host}:$port/mirror_node"
+        }
+    }
 
 tasks.compileJava { dependsOn(tasks.jooqCodegen) }
 
-tasks.flywayMigrate {
-    locations =
-        arrayOf(
-            "filesystem:../importer/src/main/resources/db/migration/v1",
-            "filesystem:../importer/src/main/resources/db/migration/common",
-        )
-    password = dbPassword
-    placeholders =
-        mapOf(
-            "api-password" to "mirror_api_password",
-            "api-user" to "mirror_api_user",
-            "db-name" to dbName,
-            "db-user" to dbUser,
-            "partitionStartDate" to "'1970-01-01'",
-            "partitionTimeInterval" to "'100 years'",
-            "schema" to dbSchema,
-            "tempSchema" to "temporary",
-            "topicRunningHashV2AddedTimestamp" to "0",
-        )
-    user = dbUser
-
-    usesService(dbContainerProvider)
-
-    doFirst { url = getJdbcUrl(dbContainerProvider.get().getContainer()) }
-}
-
-tasks.jooqCodegen {
-    dependsOn(tasks.flywayMigrate)
-    usesService(dbContainerProvider)
-
-    doFirst {
-        jooq {
-            configuration {
-                jdbc {
-                    driver = "org.postgresql.Driver"
-                    password = dbPassword
-                    url = getJdbcUrl(dbContainerProvider.get().getContainer())
-                    user = dbUser
-                }
-            }
-        }
-    }
-}
-
-/** Build service for providing database container. */
-abstract class PostgresService : BuildService<PostgresService.Params>, AutoCloseable {
-    interface Params : BuildServiceParameters {
-        fun getRootDir(): Property<String>
-    }
-
-    private var container: PostgreSQLContainer<Nothing>
-
-    init {
-        val initScript =
-            Transferable.of(
-                File(
-                        parameters.getRootDir().get() +
-                            "/importer/src/main/resources/db/scripts/init.sh"
-                    )
-                    .readBytes()
+val flywayMigrate =
+    tasks.register("flywayMigrate") {
+        val config =
+            mutableMapOf("flyway.password" to Database.password, "flyway.user" to Database.username)
+        val migrationDir = "${dbDir}/migration"
+        val locations =
+            arrayOf("filesystem:${migrationDir}/v1", "filesystem:${migrationDir}/common")
+        val placeholders =
+            mapOf(
+                "api-password" to "mirror_api_password",
+                "api-user" to "mirror_api_user",
+                "db-name" to Database.name,
+                "db-user" to Database.username,
+                "partitionStartDate" to "'1970-01-01'",
+                "partitionTimeInterval" to "'100 years'",
+                "schema" to Database.schema,
+                "tempSchema" to "temporary",
+                "topicRunningHashV2AddedTimestamp" to "0",
             )
-        container =
-            PostgreSQLContainer<Nothing>("postgres:16-alpine").apply {
-                withCopyToContainer(initScript, "/docker-entrypoint-initdb.d/init.sh")
-                withUsername("postgres")
-                start()
-            }
+        doLast {
+            config["flyway.url"] = Database.url
+            Flyway.configure()
+                .configuration(config)
+                .locations(*locations)
+                .placeholders(placeholders)
+                .load()
+                .migrate()
+        }
+        dependsOn(postgresqlContainer)
     }
 
-    override fun close() {
-        container.stop()
-    }
-
-    fun getContainer(): PostgreSQLContainer<Nothing> {
-        return container
-    }
-}
+tasks.jooqCodegen { dependsOn(flywayMigrate) }

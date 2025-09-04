@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
@@ -20,8 +22,14 @@ import lombok.NonNull;
  */
 @Named
 public class ParserContext {
+    private Set<Long> evmAddressLookupIds = new HashSet<>();
 
     private final Map<Class<?>, DomainContext<?>> state = new ConcurrentSkipListMap<>(new DomainClassComparator());
+
+    public <T> void addTransient(T object) {
+        var domainContext = getDomainContext(object);
+        domainContext.getNonPersisted().add(object);
+    }
 
     public <T> void add(@NonNull T object) {
         add(object, null);
@@ -46,6 +54,7 @@ public class ParserContext {
 
     public void clear() {
         state.clear();
+        evmAddressLookupIds.clear();
     }
 
     public void forEach(@NonNull Consumer<Collection<?>> sink) {
@@ -62,6 +71,11 @@ public class ParserContext {
         return Collections.unmodifiableList(domainContext.getInserts());
     }
 
+    public <T> Collection<T> getTransient(@NonNull Class<T> domainClass) {
+        var domainContext = getDomainContext(domainClass);
+        return Collections.unmodifiableList(domainContext.getNonPersisted());
+    }
+
     public <T> void merge(@NonNull Object key, @NonNull T value, @NonNull BinaryOperator<T> mergeFunction) {
         var domainContext = getDomainContext(value);
         var merged = domainContext.getState().merge(key, value, mergeFunction);
@@ -74,6 +88,14 @@ public class ParserContext {
     public void remove(@NonNull Class<?> domainClass) {
         var domainContext = getDomainContext(domainClass);
         domainContext.clear();
+    }
+
+    public Collection<Long> getEvmAddressLookupIds() {
+        return Collections.unmodifiableSet(evmAddressLookupIds);
+    }
+
+    public void addEvmAddressLookupId(long id) {
+        evmAddressLookupIds.add(id);
     }
 
     @SuppressWarnings("unchecked")
@@ -95,9 +117,13 @@ public class ParserContext {
         @Getter(lazy = true)
         private final Map<Object, T> state = new HashMap<>();
 
+        @Getter
+        private final List<T> nonPersisted = new ArrayList<>();
+
         void clear() {
             getInserts().clear();
             getState().clear();
+            getNonPersisted().clear();
         }
     }
 }

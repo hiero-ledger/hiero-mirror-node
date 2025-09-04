@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import EntityId from '../entityId';
-import {filterKeys} from '../constants';
+import {filterKeys, ZERO_UINT256} from '../constants';
 import {toHexString} from '../utils';
 
 /**
@@ -26,7 +26,12 @@ class ContractResultLogViewModel {
   }
 
   _formatTopics(topics) {
-    return topics.filter((topic) => topic !== null).map((topic) => toHexString(topic, true, 64));
+    return topics
+      .filter((topic) => topic !== null)
+      .map((topic) => {
+        const hex = toHexString(topic, true, 64);
+        return hex === '0x' ? ZERO_UINT256 : hex;
+      });
   }
 }
 

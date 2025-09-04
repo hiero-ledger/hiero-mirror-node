@@ -1,4 +1,4 @@
-@contractbase @fullsuite
+@contractbase @fullsuite @crud
 Feature: Contract Base Coverage Feature
 
     @critical @release @acceptance
@@ -40,6 +40,7 @@ Feature: Contract Base Coverage Feature
         Then the mirror node REST API should return status <httpStatusCode> for the contract transaction
         And the mirror node REST API should retrieve the child contract when using evm address
         And the mirror node REST API should verify the account is no longer hollow
+        And the mirror node Rest API should verify the parent contract has correct nonce
         When I successfully delete the child contract by calling it and causing it to self destruct
         Then the mirror node REST API should return status <httpStatusCode> for the self destruct transaction
         When I successfully delete the parent contract

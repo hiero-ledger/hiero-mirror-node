@@ -16,6 +16,7 @@ class ContractTransactionHash {
     this.entityId = transactionHash[ContractTransactionHash.ENTITY_ID];
     this.hash = transactionHash[ContractTransactionHash.HASH];
     this.payerAccountId = transactionHash[ContractTransactionHash.PAYER_ACCOUNT_ID];
+    this.transactionResult = transactionHash[ContractTransactionHash.TRANSACTION_RESULT];
   }
 }
 

@@ -45,25 +45,4 @@ class SyntheticContractLogTest {
         assertThat(AbstractSyntheticContractLog.booleanToBytes(true)).isEqualTo(new byte[] {1});
         assertThat(AbstractSyntheticContractLog.booleanToBytes(false)).isEqualTo(new byte[] {0});
     }
-
-    @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-            12345600, 12345600
-            00123400, 123400
-            00003400, 3400
-            00000000, ''
-            '', ''
-            """)
-    void trim(String inputHex, String expectedHex) {
-        byte[] input = Hex.decode(inputHex);
-        byte[] expected = Hex.decode(expectedHex);
-        assertThat(AbstractSyntheticContractLog.trim(input)).isEqualTo(expected);
-    }
-
-    @Test
-    void trimNull() {
-        assertThat(AbstractSyntheticContractLog.trim(null)).isEqualTo(null);
-    }
 }

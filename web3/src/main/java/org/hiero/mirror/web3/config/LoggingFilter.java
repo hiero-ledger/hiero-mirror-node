@@ -16,7 +16,9 @@ import java.util.zip.GZIPOutputStream;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
@@ -53,7 +55,7 @@ class LoggingFilter extends OncePerRequestFilter {
 
     private void logRequest(HttpServletRequest request, HttpServletResponse response, long startTime, Exception e) {
         var uri = request.getRequestURI();
-        boolean actuator = StringUtils.startsWith(uri, ACTUATOR_PATH);
+        boolean actuator = Strings.CS.startsWith(uri, ACTUATOR_PATH);
 
         if (!log.isDebugEnabled() && actuator) {
             return;
@@ -114,6 +116,9 @@ class LoggingFilter extends OncePerRequestFilter {
         }
 
         if (request.getAttribute(ERROR_EXCEPTION_ATTRIBUTE) instanceof Exception ex) {
+            if (ex instanceof MirrorEvmTransactionException mirrorEvmTransactionException) {
+                return mirrorEvmTransactionException.getFullMessage();
+            }
             return ex.getMessage();
         }
 

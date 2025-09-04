@@ -23,7 +23,7 @@ fi
 
 annotation="com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
 bats_tag="1.11.1"
-postgresql_tag="16.6.0-debian-12-r3"
+postgresql_tag="17.6.0-debian-12-r2"
 registry="gcr.io/mirror-node-public/hedera-mirror-node"
 target_tag="${target_tag#v}" # Strip v prefix if present
 target_tag_minor="${target_tag%\.*}"

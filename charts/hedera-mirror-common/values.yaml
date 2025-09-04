@@ -2,6 +2,8 @@
 
 global:
   namespaceOverride: ""
+  security:
+    allowInsecureImages: true
 
 labels: {}
 
@@ -183,7 +185,15 @@ loki:
     replicas: 0
 
 minio:
+  console:
+    enabled: false
+  defaultInitContainers:
+    volumePermissions:
+      image:
+        repository: bitnamilegacy/os-shell
   enabled: false
+  image:
+    repository: bitnamilegacy/minio
   persistence:
     enabled: true
     size: 500Gi
@@ -648,6 +658,8 @@ traefik:
     type: ClusterIP
 
 zfs:
+  alloy:
+    enabled: false
   coordinator:
     initialDiskSize: 300GB
   enabled: false
@@ -673,6 +685,8 @@ zfs:
     serviceAccount:
       name: zfs-service-account
       iAmName: sa-name@project.iam.gserviceaccount.com
+  loki:
+    enabled: false
   lvm-localpv:
     enabled: false
   mayastor:

@@ -3,6 +3,7 @@
 package org.hiero.mirror.grpc.listener;
 
 import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
+import static org.hiero.mirror.grpc.domain.ReactiveDomainBuilder.TOPIC_ID;
 
 import java.time.Duration;
 import java.util.stream.LongStream;
@@ -31,7 +32,7 @@ public abstract class AbstractSharedTopicListenerTest extends AbstractTopicListe
         listenerProperties.setPrefetch(prefetch);
 
         TopicMessageFilter filterFast =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         // create a fast subscriber to keep the shared flux open. the fast subscriber should receive all messages
         var stepVerifierFast = topicListener
@@ -43,7 +44,7 @@ public abstract class AbstractSharedTopicListenerTest extends AbstractTopicListe
                 .verifyLater();
 
         TopicMessageFilter filterSlow =
-                TopicMessageFilter.builder().startTime(0).topicId(topicId).build();
+                TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
 
         // send the messages in two batches and wait 2 * polling interval between. Limit the first batch to
         // maxBufferSize messages so it definitely won't cause overflow with the SharedPollingTopicListener.

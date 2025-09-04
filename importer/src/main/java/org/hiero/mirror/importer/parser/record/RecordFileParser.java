@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
@@ -24,7 +25,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
-import org.hiero.mirror.importer.leader.Leader;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -98,7 +98,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
      * @param recordFile containing information about file to be processed
      */
     @Override
-    @Leader
     @Retryable(
             backoff =
                     @Backoff(
@@ -117,7 +116,6 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         }
     }
 
-    @Leader
     @Override
     @Retryable(
             backoff =
@@ -149,7 +147,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
         var aggregator = new RecordItemAggregator();
         var count = new AtomicLong(0L);
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
-
+        final var logIndex = new AtomicInteger(0);
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
                 logItem(recordItem);
@@ -158,6 +156,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             aggregator.accept(recordItem);
 
             if (dateRangeFilter.filter(recordItem.getConsensusTimestamp())) {
+                recordItem.setLogIndex(logIndex);
                 recordItemListener.onItem(recordItem);
                 recordMetrics(recordItem);
                 count.incrementAndGet();

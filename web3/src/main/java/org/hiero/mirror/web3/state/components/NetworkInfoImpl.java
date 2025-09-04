@@ -98,8 +98,8 @@ public class NetworkInfoImpl implements NetworkInfo {
             }
 
             @Override
-            public String hexEncodedPublicKey() {
-                return "";
+            public Bytes grpcCertHash() {
+                return Bytes.EMPTY;
             }
         };
     }

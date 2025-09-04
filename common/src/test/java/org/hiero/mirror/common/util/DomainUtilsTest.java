@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
@@ -25,7 +26,9 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.stream.Stream;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
@@ -35,6 +38,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class DomainUtilsTest {
 
@@ -435,5 +440,77 @@ class DomainUtilsTest {
         CommonProperties.getInstance().setRealm(realm);
         var address = hexAddress != null ? Hex.decodeHex(hexAddress) : null;
         assertThat(DomainUtils.isLongZeroAddress(address)).isEqualTo(result);
+    }
+
+    @CsvSource(
+            value = {
+                "AccountBalance, account_balance",
+                "accountBalance, account_balance",
+                "AccountBalanceSnapshot, account_balance_snapshot",
+                "accountBalanceSnapshot, account_balance_snapshot",
+            })
+    @ParameterizedTest
+    void toSnakeCaseConvertsCamelCaseToSnakeCase(final String input, final String expectedResult) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
+    }
+
+    @CsvSource(value = {"account_balance, account_balance", "account, account"})
+    @ParameterizedTest
+    void toSnakeCaseDoesNotChangeLowercaseOrSnakeCase(final String input, final String expectedResult) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(expectedResult);
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = {" ", "\t"})
+    void toSnakeCaseReturnsInputAsIsForBlankOrNull(final String input) {
+        assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(input);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideByteArraysForTrim")
+    void testTrim(byte[] input, byte[] expected) {
+        byte[] result = DomainUtils.trim(input);
+
+        if (input == null) {
+            assertNull(result);
+        } else {
+            assertArrayEquals(expected, result);
+        }
+    }
+
+    @ParameterizedTest
+    @SneakyThrows
+    @CsvSource({
+        ",",
+        "0000000000000000000000000000000000000001, 1",
+        "01, 1",
+        "0001, 1",
+        "00000000000000000000000000000000000000A0, 160",
+        "0000000000000000000000000000000000000100, 256",
+        "010203, 66051",
+        "000000000000000000000000000000000000FFFF, 65535"
+    })
+    void testFromTrimmedEvmAddress(String inputHex, Long expectedNum) {
+        var input = inputHex == null ? null : Hex.decodeHex(inputHex);
+
+        var result = DomainUtils.fromTrimmedEvmAddress(input);
+
+        if (expectedNum == null) {
+            assertNull(result);
+        } else {
+            assertThat(result.getNum()).isEqualTo(expectedNum);
+        }
+    }
+
+    private static Stream<Arguments> provideByteArraysForTrim() {
+        return Stream.of(
+                Arguments.of(null, null),
+                Arguments.of(new byte[0], ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
+                Arguments.of(new byte[] {0, 0, 0}, ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {0, 0, 1, 2}, new byte[] {1, 2}),
+                Arguments.of(new byte[] {0, 5, 6}, new byte[] {5, 6}),
+                Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 }

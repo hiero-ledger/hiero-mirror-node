@@ -11,6 +11,7 @@ import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.parser.balance.BalanceStreamFileListener;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -19,17 +20,17 @@ abstract class TimeSensitiveBalanceMigration extends RepeatableMigration
 
     private static final long EXECUTED = -1L;
     private static final long NO_BALANCE_FILE = 0L;
-    private final AccountBalanceFileRepository accountBalanceFileRepository;
-    private final RecordFileRepository recordFileRepository;
+    private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
+    private final ObjectProvider<RecordFileRepository> recordFileRepositoryProvider;
     private final AtomicLong firstConsensusTimestamp = new AtomicLong(NO_BALANCE_FILE);
 
     protected TimeSensitiveBalanceMigration(
             Map<String, MigrationProperties> migrationPropertiesMap,
-            AccountBalanceFileRepository accountBalanceFileRepository,
-            RecordFileRepository recordFileRepository) {
+            ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
+            ObjectProvider<RecordFileRepository> recordFileRepositoryProvider) {
         super(migrationPropertiesMap);
-        this.accountBalanceFileRepository = accountBalanceFileRepository;
-        this.recordFileRepository = recordFileRepository;
+        this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
+        this.recordFileRepositoryProvider = recordFileRepositoryProvider;
     }
 
     @Override
@@ -42,7 +43,8 @@ abstract class TimeSensitiveBalanceMigration extends RepeatableMigration
             // Check if this is the first account balance file after importer startup
             if (firstConsensusTimestamp.get() == NO_BALANCE_FILE) {
                 // Set current file timestamp to firstConsensusTimestamp.
-                if (accountBalanceFileRepository
+                if (accountBalanceFileRepositoryProvider
+                        .getObject()
                         .findLatestBefore(accountBalanceFile.getConsensusTimestamp())
                         .isEmpty()) {
                     firstConsensusTimestamp.set(accountBalanceFile.getConsensusTimestamp());
@@ -56,7 +58,8 @@ abstract class TimeSensitiveBalanceMigration extends RepeatableMigration
 
             // Check if at-least one recordFile after the account balance file has been parsed,the migration will then
             // update rows
-            if (recordFileRepository
+            if (recordFileRepositoryProvider
+                    .getObject()
                     .findLatest()
                     .map(RecordFile::getConsensusEnd)
                     .filter(timestamp -> timestamp >= firstConsensusTimestamp.get())

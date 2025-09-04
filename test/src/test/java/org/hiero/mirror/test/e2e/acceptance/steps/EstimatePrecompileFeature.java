@@ -116,7 +116,6 @@ import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferLi
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
@@ -138,7 +137,6 @@ import com.hedera.hashgraph.sdk.proto.ResponseCodeEnum;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
@@ -200,7 +198,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private String secondReceiverAddressString;
 
     @Given("I create estimate precompile contract with 0 balance")
-    public void createNewEstimateContract() throws IOException {
+    public void createNewEstimateContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_PRECOMPILE);
         estimatePrecompileContractId = deployedEstimatePrecompileContract.contractId();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
@@ -216,7 +214,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I create erc test contract with 0 balance")
     public void createNewERCContract() {
         deployedErcTestContract = getContract(ERC);
-        ercTestContractSolidityAddress = asHexAddress(deployedErcTestContract.contractId());
+        ercTestContractSolidityAddress = deployedErcTestContract.contractId().toEvmAddress();
         ercTestContractId = deployedErcTestContract.contractId();
     }
 
@@ -228,7 +226,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress = asHexAddress(deployedPrecompileContract.contractId());
+        precompileTestContractSolidityAddress = deployedPrecompileContract.contractId().toEvmAddress();
         precompileContractId = deployedPrecompileContract.contractId();
     }
 
@@ -821,7 +819,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void cryptoTransferHbarEstimateGas() throws ExecutionException, InterruptedException {
         var senderTransfer = accountAmount(adminAddressString, -10L, false);
         var receiverTransfer = accountAmount(receiverAccountAlias, 10L, false);
-        var args = Tuple.of((Object) new Tuple[] {senderTransfer, receiverTransfer});
+        var args = Tuple.from((Object) new Tuple[] {senderTransfer, receiverTransfer});
 
         var dataByteArray = encodeDataToByteArray(ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER_HBARS, args, EMPTY_TUPLE_ARRAY);
 
@@ -849,7 +847,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var dataByteArray = encodeDataToByteArray(
-                ESTIMATE_PRECOMPILE, methodInterface, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, methodInterface, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
 
         var estimateGasResult = mirrorClient.estimateGasQueryRawData(
                 estimatePrecompileContractId,
@@ -871,7 +869,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                     .build()
         };
         var dataByteArray = encodeDataToByteArray(
-                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.of((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
+                ESTIMATE_PRECOMPILE, CRYPTO_TRANSFER, Tuple.from((Object) EMPTY_TUPLE_ARRAY), tokenTransferList);
 
         var estimateGasResult = mirrorClient.estimateGasQueryRawData(
                 estimatePrecompileContractId,
@@ -2754,10 +2752,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimate gas that approves a FUNGIBLE token and transfers it")
     public void estimateGasApproveFungibleTokenTransferFromGetAllowanceGetBalance()
             throws ExecutionException, InterruptedException {
-        if (web3Properties.isModularizedServices()) {
-            // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
-            return;
-        }
+        final var methodInterface = getFlaggedValue(APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER);
+
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(receiverAccountAlias)
@@ -2765,18 +2761,16 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         validateGasEstimation(
                 precompileContractId,
-                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER.getSelector(),
+                methodInterface.getSelector(),
                 parameters,
                 senderAccountId,
-                APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER.getActualGas());
+                methodInterface.getActualGas());
     }
 
     @Then("I call estimate gas that approves a NFT token and transfers it")
     public void approveNftTokenTransferFromGetAllowanceGetBalance() throws ExecutionException, InterruptedException {
-        if (web3Properties.isModularizedServices()) {
-            // Needs a fix in the implementation that is not merged yet - the EntityId singleton.
-            return;
-        }
+        final var methodInterface = getFlaggedValue(APPROVE_NFT_TOKEN_AND_TRANSFER_FROM);
+
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddress(secondReceiverAddressString)
@@ -2784,10 +2778,10 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         validateGasEstimation(
                 precompileContractId,
-                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM.getSelector(),
+                methodInterface.getSelector(),
                 parameters,
                 senderAccountId,
-                APPROVE_NFT_TOKEN_AND_TRANSFER_FROM.getActualGas());
+                methodInterface.getActualGas());
     }
 
     @And("I approve and transfer NFT tokens to the precompile contract")
@@ -2989,8 +2983,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127),
         DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987),
         DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 785631),
-        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 797670);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 835000);
 
         private final String selector;
         private final int actualGas;
@@ -3033,7 +3027,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         TRANSFER_FROM_NFT("transferFromNFTExternal", 42745),
         BALANCE_OF("balanceOf", 30277),
         ALLOWANCE("allowanceExternal", 28778),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 800603);
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000);
 
         private final String selector;
         private final int actualGas;

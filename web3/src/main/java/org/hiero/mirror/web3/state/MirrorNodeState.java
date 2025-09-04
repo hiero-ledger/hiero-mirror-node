@@ -14,6 +14,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
+import com.hedera.node.app.blocks.BlockStreamService;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.ids.AppEntityIdFactory;
@@ -120,7 +121,8 @@ public class MirrorNodeState implements MerkleNodeState {
             List.of(),
             Bytes.EMPTY,
             List.of(),
-            true);
+            true,
+            Bytes.EMPTY);
     private static final Metrics NO_OP_METRICS = new NoOpMetrics();
 
     @PostConstruct
@@ -420,7 +422,8 @@ public class MirrorNodeState implements MerkleNodeState {
                         new FeeService(),
                         new CongestionThrottleService(),
                         new RecordCacheService(),
-                        new ScheduleServiceImpl(appContext))
+                        new ScheduleServiceImpl(appContext),
+                        new BlockStreamService())
                 .forEach(servicesRegistry::register);
     }
 

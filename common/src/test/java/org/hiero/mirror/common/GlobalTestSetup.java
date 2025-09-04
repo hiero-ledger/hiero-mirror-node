@@ -2,6 +2,11 @@
 
 package org.hiero.mirror.common;
 
+import java.util.function.Consumer;
+import org.hiero.mirror.common.tableusage.CsvReportGenerator;
+import org.hiero.mirror.common.tableusage.MarkdownReportGenerator;
+import org.hiero.mirror.common.tableusage.TestExecutionTracker;
+import org.hiero.mirror.common.util.CommonUtils;
 import org.junit.platform.engine.TestExecutionResult;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
@@ -10,11 +15,12 @@ import org.junit.platform.launcher.TestIdentifier;
 import org.junit.platform.launcher.TestPlan;
 
 public class GlobalTestSetup implements LauncherSessionListener, TestExecutionListener {
-    private CommonProperties originalCommonProperties;
+
+    private final CommonProperties originalCommonProperties = new CommonProperties();
 
     @Override
     public void launcherSessionOpened(LauncherSession session) {
-        session.getLauncher().registerTestExecutionListeners(this);
+        session.getLauncher().registerTestExecutionListeners(this, new TestExecutionTracker());
     }
 
     @Override
@@ -26,20 +32,34 @@ public class GlobalTestSetup implements LauncherSessionListener, TestExecutionLi
         try {
             CommonProperties.getInstance();
         } catch (IllegalStateException ex) {
-            new CommonProperties().init();
+            var commonProperties = new CommonProperties();
+            commonProperties.init();
+            setPropertyFromEnv("HIERO_MIRROR_COMMON_REALM", commonProperties::setRealm);
+            setPropertyFromEnv("HIERO_MIRROR_COMMON_SHARD", commonProperties::setShard);
         } finally {
-            var commonProperties = CommonProperties.getInstance();
-
-            originalCommonProperties = new CommonProperties();
-            originalCommonProperties.setShard(commonProperties.getShard());
-            originalCommonProperties.setRealm(commonProperties.getRealm());
+            CommonUtils.copyCommonProperties(CommonProperties.getInstance(), originalCommonProperties);
         }
     }
 
     @Override
     public void executionFinished(TestIdentifier testIdentifier, TestExecutionResult testExecutionResult) {
-        var commonProperties = CommonProperties.getInstance();
-        commonProperties.setShard(originalCommonProperties.getShard());
-        commonProperties.setRealm(originalCommonProperties.getRealm());
+        CommonUtils.copyCommonProperties(originalCommonProperties, CommonProperties.getInstance());
+    }
+
+    @Override
+    public void launcherSessionClosed(LauncherSession session) {
+        final var generateTableUsage = System.getenv().getOrDefault("GENERATE_TABLE_USAGE", "true");
+
+        if (Boolean.parseBoolean(generateTableUsage)) {
+            MarkdownReportGenerator.generateReport();
+            CsvReportGenerator.generateReport();
+        }
+    }
+
+    private void setPropertyFromEnv(String key, Consumer<Long> setter) {
+        var value = System.getenv(key);
+        if (value != null) {
+            setter.accept(Long.valueOf(value));
+        }
     }
 }

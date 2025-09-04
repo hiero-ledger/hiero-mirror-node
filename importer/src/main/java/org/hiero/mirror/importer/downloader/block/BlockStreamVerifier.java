@@ -22,7 +22,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 @Named
 public class BlockStreamVerifier {
 
-    private static final BlockFile EMPTY = BlockFile.builder().build();
+    static final BlockFile EMPTY = BlockFile.builder().build();
 
     private final BlockFileTransformer blockFileTransformer;
     private final RecordFileRepository recordFileRepository;
@@ -55,8 +55,20 @@ public class BlockStreamVerifier {
                 .register(meterRegistry);
     }
 
-    public Optional<Long> getLastBlockNumber() {
-        return getLastBlockFile().map(BlockFile::getIndex);
+    public Optional<BlockFile> getLastBlockFile() {
+        return lastBlockFile.get().or(() -> {
+            var last = recordFileRepository
+                    .findLatest()
+                    .map(r -> BlockFile.builder()
+                            .consensusStart(r.getConsensusStart())
+                            .hash(r.getHash())
+                            .index(r.getIndex())
+                            .name(r.getName())
+                            .build())
+                    .or(() -> Optional.of(EMPTY));
+            lastBlockFile.compareAndSet(Optional.empty(), last);
+            return last;
+        });
     }
 
     public void verify(@NotNull BlockFile blockFile) {
@@ -91,21 +103,6 @@ public class BlockStreamVerifier {
         return getLastBlockFile().map(BlockFile::getHash);
     }
 
-    private Optional<BlockFile> getLastBlockFile() {
-        return lastBlockFile.get().or(() -> {
-            var last = recordFileRepository
-                    .findLatest()
-                    .map(r -> BlockFile.builder()
-                            .hash(r.getHash())
-                            .index(r.getIndex())
-                            .consensusStart(r.getConsensusStart())
-                            .build())
-                    .or(() -> Optional.of(EMPTY));
-            lastBlockFile.compareAndSet(Optional.empty(), last);
-            return last;
-        });
-    }
-
     private void setLastBlockFile(BlockFile blockFile) {
         var copy = (BlockFile) blockFile.copy();
         copy.clear();
@@ -114,7 +111,7 @@ public class BlockStreamVerifier {
 
     private void verifyBlockNumber(BlockFile blockFile) {
         var blockNumber = blockFile.getIndex();
-        getLastBlockNumber().ifPresent(lastBlockNumber -> {
+        getLastBlockFile().map(BlockFile::getIndex).ifPresent(lastBlockNumber -> {
             if (blockNumber != lastBlockNumber + 1) {
                 throw new InvalidStreamFileException(String.format(
                         "Non-consecutive block number, previous = %d, current = %d", lastBlockNumber, blockNumber));

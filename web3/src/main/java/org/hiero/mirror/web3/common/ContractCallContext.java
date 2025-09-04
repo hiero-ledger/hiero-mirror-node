@@ -16,7 +16,6 @@ import lombok.Setter;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.store.CachingStateFrame;
 import org.hiero.mirror.web3.evm.store.StackedStateFrames;
@@ -41,14 +40,6 @@ public class ContractCallContext {
 
     @Setter
     private List<ContractAction> contractActions = List.of();
-
-    /**
-     * This is used to determine the contract action index of the current frame. It starts from {@code -1} because when
-     * the tracer receives the initial frame, it will increment this immediately inside
-     * {@link OpcodeTracer#traceContextEnter}.
-     */
-    @Setter
-    private int contractActionIndexOfCurrentFrame = -1;
 
     @Setter
     private OpcodeTracerOptions opcodeTracerOptions;
@@ -79,6 +70,12 @@ public class ContractCallContext {
      */
     @Setter
     private Optional<Long> timestamp = Optional.empty();
+
+    @Setter
+    private boolean isBalanceCall;
+
+    @Setter
+    private long gasRequirement;
 
     private ContractCallContext() {}
 
@@ -142,10 +139,6 @@ public class ContractCallContext {
             return callServiceParameters.getBlock() != BlockType.LATEST;
         }
         return recordFile != null; // Remove recordFile comparison after mono code deletion
-    }
-
-    public void incrementContractActionsCounter() {
-        this.contractActionIndexOfCurrentFrame++;
     }
 
     /**

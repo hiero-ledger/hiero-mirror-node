@@ -31,8 +31,8 @@ import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.TokenTransferRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -54,43 +54,40 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private static final long LAST_ACCOUNT_BALANCE_FILE_TIMESTAMP = 1666368000880378770L;
 
     @Value("classpath:errata/mainnet/balance-offsets.txt")
-    private final Resource balanceOffsets;
+    private Resource balanceOffsets;
 
-    private final AccountBalanceFileRepository accountBalanceFileRepository;
-    private final EntityRecordItemListener entityRecordItemListener;
+    private final ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider;
+    private final ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider;
     private final EntityProperties entityProperties;
-    private final NamedParameterJdbcOperations jdbcOperations;
+    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ImporterProperties importerProperties;
-    private final RecordStreamFileListener recordStreamFileListener;
-    private final TokenTransferRepository tokenTransferRepository;
-    private final TransactionOperations transactionOperations;
-    private final TransactionRepository transactionRepository;
+    private final ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider;
+    private final ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider;
+    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
+    private final ObjectProvider<TransactionRepository> transactionRepositoryProvider;
     private final Set<Long> timestamps = new HashSet<>();
 
-    @Lazy
     @SuppressWarnings("java:S107")
     public ErrataMigration(
-            Resource balanceOffsets,
-            AccountBalanceFileRepository accountBalanceFileRepository,
-            EntityRecordItemListener entityRecordItemListener,
+            ObjectProvider<AccountBalanceFileRepository> accountBalanceFileRepositoryProvider,
+            ObjectProvider<EntityRecordItemListener> entityRecordItemListenerProvider,
             EntityProperties entityProperties,
-            NamedParameterJdbcOperations jdbcOperations,
+            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
             ImporterProperties importerProperties,
-            RecordStreamFileListener recordStreamFileListener,
-            TokenTransferRepository tokenTransferRepository,
-            TransactionOperations transactionOperations,
-            TransactionRepository transactionRepository) {
+            ObjectProvider<RecordStreamFileListener> recordStreamFileListenerProvider,
+            ObjectProvider<TokenTransferRepository> tokenTransferRepositoryProvider,
+            ObjectProvider<TransactionOperations> transactionOperationsProvider,
+            ObjectProvider<TransactionRepository> transactionRepositoryProvider) {
         super(importerProperties.getMigration());
-        this.balanceOffsets = balanceOffsets;
-        this.accountBalanceFileRepository = accountBalanceFileRepository;
-        this.entityRecordItemListener = entityRecordItemListener;
+        this.accountBalanceFileRepositoryProvider = accountBalanceFileRepositoryProvider;
+        this.entityRecordItemListenerProvider = entityRecordItemListenerProvider;
         this.entityProperties = entityProperties;
-        this.jdbcOperations = jdbcOperations;
+        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.importerProperties = importerProperties;
-        this.recordStreamFileListener = recordStreamFileListener;
-        this.tokenTransferRepository = tokenTransferRepository;
-        this.transactionOperations = transactionOperations;
-        this.transactionRepository = transactionRepository;
+        this.recordStreamFileListenerProvider = recordStreamFileListenerProvider;
+        this.tokenTransferRepositoryProvider = tokenTransferRepositoryProvider;
+        this.transactionOperationsProvider = transactionOperationsProvider;
+        this.transactionRepositoryProvider = transactionRepositoryProvider;
     }
 
     @Override
@@ -109,7 +106,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
             if (shouldApplyFixedTimeOffset(consensusTimestamp)) {
                 accountBalanceFile.setTimeOffset(ACCOUNT_BALANCE_FILE_FIXED_TIME_OFFSET);
             }
-            accountBalanceFileRepository.save(accountBalanceFile);
+            accountBalanceFileRepositoryProvider.getObject().save(accountBalanceFile);
         }
     }
 
@@ -122,7 +119,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
             entityProperties.getPersist().setTrackBalance(false);
 
             try {
-                transactionOperations.executeWithoutResult(t -> {
+                transactionOperationsProvider.getObject().executeWithoutResult(t -> {
                     balanceFileAdjustment();
                     spuriousTransfers();
                     missingTransactions();
@@ -135,6 +132,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     }
 
     private void balanceFileAdjustment() {
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
         // Adjusts the balance file's consensus timestamp by -1 for use when querying transfers.
         String sql =
                 """
@@ -185,7 +183,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                         from spurious_transfer st
                         where ct.consensus_timestamp = st.consensus_timestamp and ct.amount = st.amount * -1
                         """;
-        int count = jdbcOperations.getJdbcOperations().update(sql);
+        int count = jdbcOperationsProvider.getObject().getJdbcOperations().update(sql);
         log.info("Updated {} spurious transfers", count * 2);
     }
 
@@ -216,8 +214,12 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                 long timestamp = recordItem.getConsensusTimestamp();
                 boolean inRange = dateRangeFilter.filter(timestamp);
 
-                if (transactionRepository.findById(timestamp).isEmpty() && inRange) {
-                    entityRecordItemListener.onItem(recordItem);
+                if (transactionRepositoryProvider
+                                .getObject()
+                                .findById(timestamp)
+                                .isEmpty()
+                        && inRange) {
+                    entityRecordItemListenerProvider.getObject().onItem(recordItem);
                     consensusTimestamps.add(timestamp);
                     log.info("Processed errata {} successfully", name);
                 } else if (inRange) {
@@ -235,8 +237,9 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
             return;
         }
 
-        recordStreamFileListener.onEnd(null);
+        recordStreamFileListenerProvider.getObject().onEnd(null);
         var ids = new MapSqlParameterSource("ids", consensusTimestamps);
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
         jdbcOperations.update("update crypto_transfer set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
         jdbcOperations.update("update transaction set errata = 'INSERT' where consensus_timestamp in (:ids)", ids);
 
@@ -256,13 +259,13 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
                 var accountId = EntityId.of(aa.getAccountID());
                 var id = new TokenTransfer.Id(recordItem.getConsensusTimestamp(), tokenId, accountId);
 
-                if (tokenTransferRepository.findById(id).isEmpty()) {
+                if (tokenTransferRepositoryProvider.getObject().findById(id).isEmpty()) {
                     TokenTransfer tokenTransfer = new TokenTransfer();
                     tokenTransfer.setAmount(aa.getAmount());
                     tokenTransfer.setId(id);
                     tokenTransfer.setIsApproval(false);
                     tokenTransfer.setPayerAccountId(recordItem.getPayerAccountId());
-                    tokenTransferRepository.save(tokenTransfer);
+                    tokenTransferRepositoryProvider.getObject().save(tokenTransfer);
                     count.incrementAndGet();
                 }
             });

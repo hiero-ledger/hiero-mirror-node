@@ -8,7 +8,7 @@ import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCALL;
 import static org.hiero.mirror.rest.model.TransactionTypes.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOCREATEACCOUNT;
 import static org.hiero.mirror.rest.model.TransactionTypes.CRYPTOTRANSFER;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asHexAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -34,7 +34,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -140,7 +139,7 @@ public class ContractFeature extends BaseContractFeature {
         }
 
         var from = contractClient.getClientAddress();
-        var to = asHexAddress(deployedParentContract.contractId());
+        var to = deployedParentContract.contractId().toEvmAddress();
 
         var contractCallRequestGetAccountBalance = ModelBuilder.contractCallRequest()
                 .data(GET_ACCOUNT_BALANCE_SELECTOR)
@@ -196,6 +195,8 @@ public class ContractFeature extends BaseContractFeature {
         var executeContractResult = executeGetEvmAddressTransaction(EVM_ADDRESS_SALT);
         create2ChildContractEvmAddress =
                 executeContractResult.contractFunctionResult().getAddress(0);
+        // Add child contract to verify nonce later
+        addChildContract(create2ChildContractEvmAddress);
         create2ChildContractAccountId = AccountId.fromEvmAddress(
                 create2ChildContractEvmAddress, commonProperties.getShard(), commonProperties.getRealm());
         create2ChildContractContractId = ContractId.fromEvmAddress(
@@ -270,10 +271,10 @@ public class ContractFeature extends BaseContractFeature {
         String childContractBytecodeFromParentHex = HexFormat.of().formatHex(childContractBytecodeFromParent);
         assertEquals(
                 childContractBytecodeFromParentHex,
-                mirrorContractResponse.getBytecode().replaceFirst("0x", ""));
+                mirrorContractResponse.getBytecode().replaceFirst(HEX_PREFIX, ""));
         assertEquals(
                 create2ChildContractEvmAddress,
-                mirrorContractResponse.getEvmAddress().replaceFirst("0x", ""));
+                mirrorContractResponse.getEvmAddress().replaceFirst(HEX_PREFIX, ""));
     }
 
     @And("the mirror node REST API should verify the account is no longer hollow")
@@ -281,6 +282,12 @@ public class ContractFeature extends BaseContractFeature {
         var mirrorAccountResponse = mirrorClient.getAccountDetailsUsingEvmAddress(create2ChildContractAccountId);
         assertNotNull(mirrorAccountResponse.getAccount());
         assertNotEquals(ACCOUNT_EMPTY_KEYLIST, mirrorAccountResponse.getKey().getKey());
+    }
+
+    @And("the mirror node Rest API should verify the parent contract has correct nonce")
+    public void verifyContractNonce() {
+        verifyNonceForParentContract();
+        verifyNonceForChildContracts();
     }
 
     @When("I successfully delete the child contract by calling it and causing it to self destruct")
@@ -291,7 +298,6 @@ public class ContractFeature extends BaseContractFeature {
     @Override
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract = super.verifyContractFromMirror(isDeleted);
-
         assertThat(mirrorContract.getAdminKey()).isNotNull();
         assertThat(mirrorContract.getAdminKey().getKey())
                 .isEqualTo(contractClient
@@ -303,7 +309,7 @@ public class ContractFeature extends BaseContractFeature {
     }
 
     private boolean isEmptyHex(String hexString) {
-        return !StringUtils.hasLength(hexString) || hexString.equals("0x");
+        return !StringUtils.hasLength(hexString) || hexString.equals(HEX_PREFIX);
     }
 
     @Override
@@ -315,10 +321,12 @@ public class ContractFeature extends BaseContractFeature {
                 : ContractExecutionStage.CALL;
 
         assertThat(contractResult.getFrom())
-                .isEqualTo(FeatureInputHandler.evmAddress(contractClient
-                        .getSdkClient()
-                        .getExpandedOperatorAccountId()
-                        .getAccountId()));
+                .isEqualTo(HEX_PREFIX
+                        + contractClient
+                                .getSdkClient()
+                                .getExpandedOperatorAccountId()
+                                .getAccountId()
+                                .toEvmAddress());
 
         var createdIds = contractResult.getCreatedContractIds();
         assertThat(createdIds).isNotEmpty();
@@ -350,7 +358,12 @@ public class ContractFeature extends BaseContractFeature {
         ContractFunctionParameters parameters =
                 new ContractFunctionParameters().addUint256(BigInteger.valueOf(transferAmount));
 
-        executeContractCallTransaction(deployedParentContract.contractId(), "createChild", parameters, null);
+        ExecuteContractResult executeContractResult =
+                executeContractCallTransaction(deployedParentContract.contractId(), "createChild", parameters, null);
+        String childAddress = executeContractResult.contractFunctionResult().getAddress(0);
+
+        // add contract Id to the list for verification of nonce on mirror node
+        addChildContract(childAddress);
     }
 
     private ExecuteContractResult executeGetChildContractBytecodeTransaction() {

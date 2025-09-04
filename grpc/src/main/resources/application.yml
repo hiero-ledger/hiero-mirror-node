@@ -24,8 +24,6 @@ logging:
     org.hiero.mirror.grpc: info
     io.grpc.netty.shaded.io.grpc.netty.NettyServerHandler: error
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
-    org.springframework.cloud.kubernetes.commons.config.ConfigUtils: error
-    org.springframework.cloud.kubernetes.fabric8.config: error
     # io.grpc: debug
     # org.hibernate.SQL: debug
     # org.hibernate.type.descriptor.sql.BasicBinder: trace
@@ -61,14 +59,6 @@ server:
 spring:
   application:
     name: grpc
-  cloud:
-    kubernetes:
-      reload:
-        enabled: true
-      secrets:
-        paths: /usr/etc/${spring.application.name}
-    discovery:
-      enabled: false
   datasource:
     name: ${hiero.mirror.grpc.db.name}
     password: ${hiero.mirror.grpc.db.password}
@@ -86,11 +76,6 @@ spring:
       validation-timeout: 3000
   jpa:
     database: PostgreSQL
-    properties:
-      hibernate.criteria.literal_handling_mode: BIND # Ensure Criteria API queries use bind parameters and not literals
-      hibernate.generate_statistics: true
-      hibernate.hbm2ddl.auto: none
-      hibernate.type.json_format_mapper: org.hiero.mirror.common.converter.CustomJsonFormatMapper
   lifecycle:
     timeout-per-shutdown-phase: 40s
   redis:

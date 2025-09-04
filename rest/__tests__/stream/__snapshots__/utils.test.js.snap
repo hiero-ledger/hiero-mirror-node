@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`readLengthAndBytes read from buffer with checksum error 1`] = `"Error reading length and bytes, expect checksum -1414812757 to be 85"`;
 

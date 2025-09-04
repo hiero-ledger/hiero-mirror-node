@@ -3,32 +3,32 @@
   "setup": {
     "tokens": [
       {
-        "token_id": "0.20.1",
+        "token_id": "0.0.1",
         "symbol": "TOKEN1",
         "created_timestamp": "1234567890000000001",
         "decimals": 1,
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.2",
+        "token_id": "0.0.2",
         "symbol": "TOKEN2",
         "created_timestamp": "1234567890000000002",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.3",
+        "token_id": "0.0.3",
         "symbol": "TOKEN3",
         "created_timestamp": "1234567890000000003",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.4",
+        "token_id": "0.0.4",
         "symbol": "TOKEN4",
         "created_timestamp": "1234567890000000004",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.5",
+        "token_id": "0.0.5",
         "symbol": "TOKEN5",
         "created_timestamp": "1234567890000000005",
         "type": "FUNGIBLE_COMMON"
@@ -76,12 +76,10 @@
         "balance": 444,
         "tokens": [
           {
-            "token_realm": 20,
             "token_num": 1,
             "balance": 4
           },
           {
-            "token_realm": 20,
             "token_num": 2,
             "balance": 44
           }
@@ -93,12 +91,10 @@
         "balance": 555,
         "tokens": [
           {
-            "token_realm": 20,
             "token_num": 1,
             "balance": 5
           },
           {
-            "token_realm": 20,
             "token_num": 2,
             "balance": 55
           }
@@ -110,12 +106,10 @@
         "balance": 666,
         "tokens": [
           {
-            "token_realm": 20,
             "token_num": 1,
             "balance": 6
           },
           {
-            "token_realm": 20,
             "token_num": 2,
             "balance": 66
           }
@@ -137,7 +131,6 @@
         "balance": 6,
         "tokens": [
           {
-            "token_realm": 20,
             "token_num": 1,
             "balance": 662
           }
@@ -156,7 +149,7 @@
       }
     ]
   },
-  "url": "/api/v1/tokens/0.20.1/balances?timestamp=gt:1566560003.000000000&timestamp=lt:1566560007.000000001",
+  "url": "/api/v1/tokens/0.0.1/balances?timestamp=gt:1566560003.000000000&timestamp=lt:1566560007.000000001",
   "responseStatus": 200,
   "responseJson": {
     "timestamp": "1566560007.000000000",

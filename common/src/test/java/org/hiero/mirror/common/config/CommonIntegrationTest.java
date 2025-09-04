@@ -8,6 +8,8 @@ import java.util.Collection;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.util.CommonUtils;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
@@ -18,7 +20,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.jdbc.Sql;
 
-@Import(CommonTestConfiguration.class)
+@Import({CommonTestConfiguration.class, TableUsageReportTestConfiguration.class})
 @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "classpath:cleanup.sql")
 @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "classpath:cleanup.sql")
 @SpringBootTest
@@ -41,17 +43,21 @@ public abstract class CommonIntegrationTest {
     @Autowired(required = false)
     private Collection<CacheManager> cacheManagers;
 
+    private final CommonProperties defaultCommonProperties = new CommonProperties();
+
     @BeforeEach
     void logTest(TestInfo testInfo) {
+        CommonUtils.copyCommonProperties(commonProperties, defaultCommonProperties);
         reset();
         log.info("Executing: {}", testInfo.getDisplayName());
     }
 
-    protected void reset() {
-        var defaultCommonProperties = new CommonProperties();
-        commonProperties.setRealm(defaultCommonProperties.getRealm());
-        commonProperties.setShard(defaultCommonProperties.getShard());
+    @AfterEach
+    void resetCommonProperties() {
+        CommonUtils.copyCommonProperties(defaultCommonProperties, commonProperties);
+    }
 
+    protected void reset() {
         if (cacheManagers != null) {
             cacheManagers.forEach(this::resetCacheManager);
         }

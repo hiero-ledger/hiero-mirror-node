@@ -49,7 +49,6 @@ import com.hedera.hashgraph.sdk.TokenId;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.util.List;
 import lombok.CustomLog;
@@ -119,7 +118,7 @@ public class CallFeature extends AbstractFeature {
     @Given("I successfully create ERC contract")
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
-        ercContractAddress = asHexAddress(deployedErcTestContract.contractId());
+        ercContractAddress = deployedErcTestContract.contractId().toEvmAddress();
     }
 
     @Given("I successfully create Precompile contract")
@@ -130,9 +129,10 @@ public class CallFeature extends AbstractFeature {
     }
 
     @Given("I successfully create EstimateGas contract")
-    public void createNewEstimateTestContract() throws IOException {
+    public void createNewEstimateTestContract() {
         deployedEstimatePrecompileContract = getContract(ESTIMATE_GAS);
-        estimateContractAddress = asHexAddress(deployedEstimatePrecompileContract.contractId());
+        estimateContractAddress =
+                deployedEstimatePrecompileContract.contractId().toEvmAddress();
         admin = tokenClient.getSdkClient().getExpandedOperatorAccountId();
         adminAddress = asAddress(admin);
         receiverAccountId = accountClient.getAccount(AccountNameEnum.ALICE);
@@ -657,7 +657,7 @@ public class CallFeature extends AbstractFeature {
                 asAddress(thirdReceiver),
                 new BigInteger("1"),
                 new BigInteger("0"));
-        var response = callContract(data, precompileContractAddress);
+        var response = callContract(data, precompileContractAddress, 2_000_000);
         var resultList = response.getResultAsListDecimal();
         var statusAfterAssociate = resultList.get(0);
         var statusAfterDissociate = resultList.get(1);
@@ -680,7 +680,7 @@ public class CallFeature extends AbstractFeature {
                 asAddress(secondReceiverAlias),
                 new BigInteger("0"),
                 new BigInteger("1"));
-        var response = callContract(data, precompileContractAddress);
+        var response = callContract(data, precompileContractAddress, 2_000_000);
         var resultList = response.getResultAsListDecimal();
         var statusAfterAssociate = resultList.get(0);
         var statusAfterDissociate = resultList.get(1);

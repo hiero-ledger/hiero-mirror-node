@@ -3,76 +3,66 @@
   "setup": {
     "accounts": [
       {
-        "num": 1,
-        "realm": 15
+        "num": 1
       },
       {
-        "num": 2,
-        "realm": 15
+        "num": 2
       },
       {
-        "num": 3,
-        "realm": 15
+        "num": 3
       },
       {
-        "num": 4,
-        "realm": 15
+        "num": 4
       },
       {
-        "num": 5,
-        "realm": 15
+        "num": 5
       },
       {
-        "num": 6,
-        "realm": 15
+        "num": 6
       },
       {
-        "num": 7,
-        "realm": 15
+        "num": 7
       },
       {
-        "num": 8,
-        "realm": 15
+        "num": 8
       },
       {
         "num": 9,
-        "realm": 15,
         "expiration_timestamp": "-9223372036854775808"
       },
       {
         "num": 10,
-        "realm": 15,
         "expiration_timestamp": "9223372036854775807"
       }
     ],
     "tokens": [
       {
-        "token_id": "0.20.1",
+        "token_id": "0.0.1",
         "symbol": "TOKEN1",
         "created_timestamp": "1234567890000000001",
         "decimals": 1,
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.2",
+        "token_id": "0.0.2",
         "symbol": "TOKEN2",
         "created_timestamp": "1234567890000000002",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.3",
+        "token_id": "0.0.3",
         "symbol": "TOKEN3",
         "created_timestamp": "1234567890000000003",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.4",
+        "token_id": "0.0.4",
         "symbol": "TOKEN4",
         "created_timestamp": "1234567890000000004",
         "type": "FUNGIBLE_COMMON"
       },
       {
-        "token_id": "0.20.5",
+        "token_id": "0.0.5",
         "symbol": "TOKEN5",
         "created_timestamp": "1234567890000000005",
         "type": "FUNGIBLE_COMMON"
@@ -80,39 +70,39 @@
     ],
     "tokenaccounts": [
       {
-        "token_id": "0.20.1",
-        "account_id": "0.15.1",
+        "token_id": "0.0.1",
+        "account_id": "0.0.1",
         "balance": 80,
         "balance_timestamp": 5427
       },
       {
-        "token_id": "0.20.1",
+        "token_id": "0.0.1",
         "account_id": "0.16.1",
         "balance": 150,
         "associated": false,
         "balance_timestamp": 5428
       },
       {
-        "token_id": "0.20.2",
-        "account_id": "0.15.1",
+        "token_id": "0.0.2",
+        "account_id": "0.0.1",
         "balance": 180,
         "balance_timestamp": 5429
       },
       {
-        "token_id": "0.20.1",
-        "account_id": "0.15.2",
+        "token_id": "0.0.1",
+        "account_id": "0.0.2",
         "balance": 1000,
         "balance_timestamp": 5430
       },
       {
-        "token_id": "0.20.2",
-        "account_id": "0.15.2",
+        "token_id": "0.0.2",
+        "account_id": "0.0.2",
         "balance": 1890,
         "balance_timestamp": 5432
       },
       {
-        "token_id": "0.20.6",
-        "account_id": "0.15.2",
+        "token_id": "0.0.6",
+        "account_id": "0.0.2",
         "balance": 2000,
         "balance_timestamp": 5555
       }
@@ -120,18 +110,18 @@
   },
   "tests": [
     {
-      "url": "/api/v1/tokens/0.20.1/balances",
+      "url": "/api/v1/tokens/0.0.1/balances",
       "responseStatus": 200,
       "responseJson": {
         "timestamp": "0.000005430",
         "balances": [
           {
-            "account": "0.15.2",
+            "account": "0.0.2",
             "balance": 1000,
             "decimals": 1
           },
           {
-            "account": "0.15.1",
+            "account": "0.0.1",
             "balance": 80,
             "decimals": 1
           }
@@ -142,13 +132,13 @@
       }
     },
     {
-      "url": "/api/v1/tokens/0.20.6/balances",
+      "url": "/api/v1/tokens/0.0.6/balances",
       "responseStatus": 200,
       "responseJson": {
         "timestamp": "0.000005555",
         "balances": [
           {
-            "account": "0.15.2",
+            "account": "0.0.2",
             "balance": 2000,
             "decimals": null
           }
