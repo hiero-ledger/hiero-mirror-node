@@ -29,15 +29,19 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hedera.node.app.service.contract.impl.state.StorageAccess;
 import com.hedera.node.app.service.contract.impl.state.StorageAccesses;
+import com.hedera.node.app.service.contract.impl.state.TxStorageUsage;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
@@ -104,6 +108,9 @@ class OpcodeActionTracerTest {
 
     @Mock
     private ProxyWorldUpdater worldUpdater;
+
+    @Mock
+    private RootProxyWorldUpdater rootProxyWorldUpdater;
 
     @Mock
     private MutableAccount recipientAccount;
@@ -345,8 +352,9 @@ class OpcodeActionTracerTest {
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
-
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
+        when(worldUpdater.parentUpdater()).thenReturn(Optional.of(rootProxyWorldUpdater));
+        when(rootProxyWorldUpdater.getTxStorageUsage())
+                .thenReturn(new TxStorageUsage(Collections.emptyList(), Collections.emptySet()));
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -362,7 +370,9 @@ class OpcodeActionTracerTest {
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
+        when(worldUpdater.parentUpdater()).thenReturn(Optional.of(rootProxyWorldUpdater));
+        when(rootProxyWorldUpdater.getTxStorageUsage())
+                .thenReturn(new TxStorageUsage(Collections.emptyList(), Collections.emptySet()));
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -381,7 +391,8 @@ class OpcodeActionTracerTest {
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
-        when(worldUpdater.pendingStorageUpdates()).thenThrow(new ModificationNotAllowedException());
+        when(worldUpdater.parentUpdater()).thenReturn(Optional.of(rootProxyWorldUpdater));
+        when(rootProxyWorldUpdater.getTxStorageUsage()).thenThrow(new ModificationNotAllowedException());
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -695,7 +706,7 @@ class OpcodeActionTracerTest {
         nestedStorageAccesses.add(nestedStorageAccess2);
         final var storageAccess = new StorageAccesses(ContractID.DEFAULT, nestedStorageAccesses);
         storageAccesses.add(storageAccess);
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(storageAccesses);
+        // when(worldUpdater.pendingStorageUpdates()).thenReturn(storageAccesses);
         return storage;
     }
 

@@ -59,4 +59,10 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
         }
         return EntityId.EMPTY;
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "ContractService";
+    }
 }

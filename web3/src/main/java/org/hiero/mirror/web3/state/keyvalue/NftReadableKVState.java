@@ -81,4 +81,10 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
         }
         return EntityIdUtils.toAccountId(accountId);
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "TokenService";
+    }
 }

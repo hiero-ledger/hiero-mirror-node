@@ -43,4 +43,10 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return "ContractService";
+    }
 }
