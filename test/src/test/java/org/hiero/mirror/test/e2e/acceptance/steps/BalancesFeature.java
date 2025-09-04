@@ -150,23 +150,6 @@ public class BalancesFeature extends AbstractFeature {
                 balancesResponse.getBalances().size());
     }
 
-    @Then("the mirror node REST API balance should match initial balance of {long}")
-    public void theMirrorNodeBalanceShouldMatchInitialBalanceOfInitialBalance(long initialBalance) {
-        String accountId = createdAccountId.getAccountId().toString();
-        log.info("Calling getBalances() to retrieve balances for account {}", createdAccountId.getAccountId());
-        var params = QueryParamsBuilder.builder()
-                .buildQueryParam("account.id", accountId)
-                .build();
-        balancesResponse = mirrorClient.getBalancesForQuery(params);
-        assertThat(balancesResponse).isNotNull();
-        assertThat(balancesResponse.getBalances()).isNotNull();
-        assertThat(balancesResponse.getLinks()).isNotNull();
-        // Unable to verify this as account balances are
-        // sometimes not available by the time this step is executed!
-        //        assertThat(balancesResponse.getBalances()).isNotEmpty();
-        //        assertThat(balancesResponse.getBalances().get(0).getBalance()).isEqualTo(initialBalance);
-    }
-
     private static final class QueryParamsBuilder {
 
         private String queryParam;
