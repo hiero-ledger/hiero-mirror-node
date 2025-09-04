@@ -331,7 +331,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas with request body that contains wrong method signature")
     public void wrongMethodSignatureEstimateCall() {
-        var mockContractId = ContractId.fromSolidityAddress(mockAddress);
+        var mockContractId = ContractId.fromEvmAddress(0, 0, mockAddress);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryWithoutParams(
                         mockContractId,
@@ -632,8 +632,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddress.toString())
-                .addAddress(
-                        asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")).toString())
+                .addAddress(asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, ""))
+                        .toString())
                 .addUint256(BigInteger.ONE);
 
         validateGasEstimation(
@@ -649,8 +649,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
         final var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddress.toString())
-                .addAddress(
-                        asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")).toString())
+                .addAddress(asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, ""))
+                        .toString())
                 .addUint256(BigInteger.ONE);
 
         validateGasEstimation(

@@ -226,7 +226,8 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Given("I successfully create Precompile contract with 0 balance")
     public void createNewPrecompileTestContract() {
         deployedPrecompileContract = getContract(PRECOMPILE);
-        precompileTestContractSolidityAddress = deployedPrecompileContract.contractId().toEvmAddress();
+        precompileTestContractSolidityAddress =
+                deployedPrecompileContract.contractId().toEvmAddress();
         precompileContractId = deployedPrecompileContract.contractId();
     }
 
@@ -2314,13 +2315,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(nonFungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId().toEvmAddress()),
                 2L);
 
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
+                .addAddress(asAddress(secondReceiverAccount.getAccountId().toEvmAddress())
                         .toString())
                 .addInt64(2L);
 
@@ -2458,13 +2459,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 TRANSFER_FROM,
                 asAddress(fungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId().toEvmAddress()),
                 new BigInteger("5"));
 
         var parameters = new ContractFunctionParameters()
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
+                .addAddress(asAddress(secondReceiverAccount.getAccountId().toEvmAddress())
                         .toString())
                 .addUint256(new BigInteger("5"));
 
@@ -2488,13 +2489,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 methodInterface,
                 asAddress(nonFungibleTokenId),
                 asAddress(admin),
-                asAddress(secondReceiverAccount.getAccountId().toSolidityAddress()),
+                asAddress(secondReceiverAccount.getAccountId().toEvmAddress()),
                 new BigInteger("3"));
 
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddress(adminAddressString)
-                .addAddress(asAddress(secondReceiverAccount.getAccountId().toSolidityAddress())
+                .addAddress(asAddress(secondReceiverAccount.getAccountId().toEvmAddress())
                         .toString())
                 .addUint256(new BigInteger("3"));
 
