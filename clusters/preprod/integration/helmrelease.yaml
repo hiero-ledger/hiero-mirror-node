@@ -59,6 +59,9 @@ spec:
           enabled: false
     postgresql:
       enabled: false
+    restjava:
+      routes:
+        networkStake: true
     rosetta:
       enabled: true
     test:
