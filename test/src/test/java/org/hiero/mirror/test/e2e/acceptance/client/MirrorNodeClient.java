@@ -442,28 +442,27 @@ public class MirrorNodeClient {
     }
 
     public AccountsResponse getAccounts() {
-        log.debug("Retrieving all accounts from Mirror Node");
-        return callRestEndpoint("/accounts", AccountsResponse.class);
+        return getAccounts(null);
     }
 
-    public AccountsResponse getAccounts(int limit) {
-        log.debug("Retrieving accounts with limit {} from Mirror Node", limit);
-        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
+    public AccountsResponse getAccounts(Integer limit) {
+        if (limit == null) {
+            return callRestEndpoint("/accounts", AccountsResponse.class);
+        } else {
+            return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
+        }
     }
 
-    public StakingRewardsResponse getAccountRewards(String accountId) {
-        log.debug("Retrieving staking rewards for account '{}' from Mirror Node", accountId);
-        return callRestEndpoint("/accounts/{accountId}/rewards", StakingRewardsResponse.class, accountId);
-    }
-
-    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
-        log.debug("Retrieving staking rewards for account '{}' with limit {} from Mirror Node", accountId, limit);
-        return callRestEndpoint(
-                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
+    public StakingRewardsResponse getAccountRewards(String accountId, Integer limit) {
+        if (limit == null) {
+            return callRestEndpoint("/accounts/{accountId}/rewards", StakingRewardsResponse.class, accountId);
+        } else {
+            return callRestEndpoint(
+                    "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
+        }
     }
 
     public BalancesResponse getBalancesForQuery(String queryParams) {
-        log.debug("Retrieving balances with query parameters from Mirror Node");
         String url = buildUrlWithParams("/balances", queryParams);
         return callRestEndpoint(url, BalancesResponse.class);
     }

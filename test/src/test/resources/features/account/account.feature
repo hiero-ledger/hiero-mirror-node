@@ -7,6 +7,7 @@ Feature: Account Coverage Feature
     Then the new balance should reflect cryptotransfer of <amount>
     And the mirror node REST API should return the accounts list
     When I stake the account to node <nodeId>
+    Then the mirror node REST API should return correct balance of <amount>
     Examples:
       | amount | nodeId |
       | 10     | 2      |
