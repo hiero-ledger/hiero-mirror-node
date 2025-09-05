@@ -13,9 +13,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.ModularizedOperation;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.MirrorNodeState;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 
 @Named
 @RequiredArgsConstructor
@@ -26,6 +30,16 @@ public class TransactionExecutorFactory {
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
     private final EntityIdFactory entityIdFactory;
+
+    @Async
+    @EventListener(ApplicationReadyEvent.class)
+    public void init() {
+        // Warmup the beans for all evm versions before the k8s readiness probe elapses.
+        ContractCallContext.run(ctx -> {
+            mirrorNodeEvmProperties.getEvmVersions().values().forEach(this::create);
+            return ctx;
+        });
+    }
 
     // Reuse TransactionExecutor across requests for the same EVM version
     public TransactionExecutor get() {
