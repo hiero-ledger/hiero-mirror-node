@@ -26,6 +26,7 @@ import java.math.BigInteger;
 import java.util.Comparator;
 import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.AssertionsForClassTypes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
@@ -298,6 +299,27 @@ public class ContractFeature extends BaseContractFeature {
     @When("I successfully delete the child contract by calling it and causing it to self destruct")
     public void deleteChildContractUsingSelfDestruct() {
         executeSelfDestructTransaction();
+    }
+
+    @And("I check contract logs")
+    public void checkContractLogs() {
+        var contractLogsPerSingleContract = mirrorClient.getContractLogsByContractId(
+                deployedParentContract.contractId().toString());
+        AssertionsForClassTypes.assertThat(contractLogsPerSingleContract).isNotNull();
+        AssertionsForClassTypes.assertThat(contractLogsPerSingleContract.getLogs())
+                .isNotNull();
+        AssertionsForClassTypes.assertThat(
+                        contractLogsPerSingleContract.getLogs().isEmpty())
+                .isFalse();
+
+        var contractLogs = mirrorClient.getContractLogs(
+                contractLogsPerSingleContract.getLogs().getFirst().getTimestamp());
+        AssertionsForClassTypes.assertThat(contractLogs.getLogs()).isNotNull();
+        AssertionsForClassTypes.assertThat(contractLogs.getLogs().size()).isGreaterThan(0);
+        AssertionsForClassTypes.assertThat(contractLogsPerSingleContract
+                        .getLogs()
+                        .contains(contractLogs.getLogs().getFirst()))
+                .isTrue();
     }
 
     @Override

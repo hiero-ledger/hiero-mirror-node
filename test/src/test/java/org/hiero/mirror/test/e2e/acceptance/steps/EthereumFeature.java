@@ -92,7 +92,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     public void verifyDeployedContractMirror() {
         verifyContractFromMirror(false);
         verifyContractExecutionResultsById();
-        verifyContractExecutionResultsByTransactionId();
+        var contractResultTimestamp = verifyContractExecutionResultsByTransactionId();
+        verifyContractExecutionResults(contractResultTimestamp);
     }
 
     @And("the mirror node Rest API should verify the contracts have correct nonce")
@@ -132,6 +133,17 @@ public class EthereumFeature extends AbstractEstimateFeature {
     public void verifyGasConsumedIsCorrect() {
         String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
         verifyGasConsumed(txId);
+    }
+
+    @Then("the mirror node contract results opcodes API should return a non-empty response")
+    public void verifyOpcodes() {
+        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+        assertThat(opcodes).isNotNull();
+        // Just verify that a list of opcodes is returned as any other static resource might get
+        // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
+        // stricter validation in the web3 module.
+        assertThat(opcodes.getOpcodes()).isNotEmpty();
     }
 
     public DeployedContract ethereumContractCreate(ContractResource contractResource) {

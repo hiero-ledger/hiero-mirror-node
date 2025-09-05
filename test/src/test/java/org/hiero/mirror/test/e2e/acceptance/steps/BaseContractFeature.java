@@ -63,6 +63,13 @@ public abstract class BaseContractFeature extends AbstractFeature {
         return mirrorContract;
     }
 
+    protected void verifyContractExecutionResults(String timestamp) {
+        List<ContractResult> contractResults =
+                mirrorClient.getContractResults(timestamp).getResults();
+
+        assertThat(contractResults).isNotEmpty().anySatisfy(this::verifyContractExecutionResults);
+    }
+
     protected void verifyContractExecutionResultsById() {
         List<ContractResult> contractResults = mirrorClient
                 .getContractResultsById(deployedParentContract.contractId().toString())
