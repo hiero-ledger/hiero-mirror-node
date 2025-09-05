@@ -46,6 +46,7 @@ jobs:
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
+      TAG: pr-changes
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
@@ -84,14 +85,12 @@ jobs:
 
       - name: Build Mirror Node Test Docker image
         run: |
-          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
           docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
 
       - name: Setup Solo Cluster
         run: |
           set -ex
 
-          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
           kind create cluster -n "${SOLO_CLUSTER_NAME}"
           solo init
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
@@ -110,18 +109,6 @@ jobs:
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
           cat <<EOF > mirror.yaml
-          grpc:
-            image:
-              tag: ${TAG}
-          rest:
-            image:
-              tag: ${TAG}
-          restjava:
-            image:
-              tag: ${TAG}
-          web3:
-            image:
-              tag: ${TAG}
           importer:
             env:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0.${SOLO_NAMESPACE}.svc.cluster.local'
@@ -144,10 +131,9 @@ jobs:
 
           else
           cat <<EOF > mirror.yaml
-          global:
+          test:
             image:
               tag: ${TAG}
-          test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
