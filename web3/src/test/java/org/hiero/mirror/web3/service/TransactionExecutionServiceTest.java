@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
@@ -58,6 +59,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({ContextExtension.class, MockitoExtension.class})
 class TransactionExecutionServiceTest {
@@ -277,6 +280,77 @@ class TransactionExecutionServiceTest {
                 .extracting("childTransactionErrors")
                 .asInstanceOf(collection(String.class))
                 .containsExactly(childResponseCode.protoName());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "0x,CONTRACT_REVERT_EXECUTED,'', SUCCESS",
+        "0x,CONTRACT_REVERT_EXECUTED,'', REVERTED_SUCCESS",
+        "0x,SUCCESS,'', REVERTED_SUCCESS"
+    })
+    @ExtendWith(OutputCaptureExtension.class)
+    @SuppressWarnings("unused")
+    void testExecuteContractCallWithChildTransactionErrors(
+            final String errorMessage,
+            final ResponseCodeEnum responseCode,
+            final String detail,
+            final ResponseCodeEnum childResponseCode,
+            final CapturedOutput capturedOutput) {
+        // Given
+        // Mock the SingleTransactionRecord and TransactionRecord
+        var singleTransactionRecord = mock(SingleTransactionRecord.class);
+        var transactionRecord = mock(TransactionRecord.class);
+        var transactionReceipt = mock(TransactionReceipt.class);
+
+        var childSingleTransactionRecord = mock(SingleTransactionRecord.class);
+        var childTransactionRecord = mock(TransactionRecord.class);
+        var childTransactionReceipt = mock(TransactionReceipt.class);
+
+        when(transactionReceipt.status()).thenReturn(responseCode);
+        when(transactionRecord.receiptOrThrow()).thenReturn(transactionReceipt);
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+
+        when(childTransactionReceipt.status()).thenReturn(childResponseCode);
+        when(childTransactionRecord.receiptOrThrow()).thenReturn(childTransactionReceipt);
+        when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
+
+        var contractFunctionResult = mock(ContractFunctionResult.class);
+
+        // Mock the executor to return a List with the mocked SingleTransactionRecord
+        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+                .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
+
+        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+
+        // Then
+        if (responseCode != SUCCESS) {
+            when(contractFunctionResult.errorMessage()).thenReturn(errorMessage);
+            when(transactionRecord.contractCallResult()).thenReturn(contractFunctionResult);
+
+            assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessageContaining(responseCode.name())
+                    .hasFieldOrPropertyWithValue("detail", detail)
+                    .hasFieldOrProperty("childTransactionErrors")
+                    .extracting("childTransactionErrors")
+                    .asInstanceOf(collection(String.class))
+                    .isEmpty();
+        } else {
+            when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
+            when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
+            // Mock the transactionRecord to return the contract call result
+            when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+
+            // When
+            var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
+
+            // Then
+            assertThat(result).isNotNull();
+            assertThat(result.getGasUsed()).isEqualTo(DEFAULT_GAS);
+            assertThat(result.getRevertReason()).isNotPresent();
+        }
+        // Validate no logs were produced
+        assertThat(capturedOutput.getOut()).doesNotContain("childTransactionErrors");
     }
 
     @SuppressWarnings("unused")

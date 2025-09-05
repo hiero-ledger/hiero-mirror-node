@@ -273,7 +273,8 @@ public class TransactionExecutionService {
             final var record = iterator.next().transactionRecord();
 
             final var status = record.receiptOrThrow().status();
-            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
+            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS
+                    || status == com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS) {
                 continue;
             }
 

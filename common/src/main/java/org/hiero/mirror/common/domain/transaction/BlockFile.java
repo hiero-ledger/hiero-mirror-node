@@ -35,8 +35,10 @@ public class BlockFile implements StreamFile<BlockTransaction> {
     private static final Predicate<String> STREAMED_FILENAME_PREDICATE =
             Pattern.compile("^\\d{36}.blk$").asPredicate();
 
+    @ToString.Exclude
     private BlockHeader blockHeader;
 
+    @ToString.Exclude
     private BlockProof blockProof;
 
     @ToString.Exclude

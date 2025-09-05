@@ -26,6 +26,7 @@ Feature: Schedule Base Coverage Feature
     And the mirror node REST API should return status <httpStatusCode> for the schedule transaction
     Then I wait until the schedule's expiration time
     And the mirror node REST API should verify the "EXECUTED" schedule entity with expiration time "25s" and wait for expiry "true"
+    Then the mirror node REST API should list all schedules
 
     Examples:
       | httpStatusCode |

@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`from v2 buffer check individual field from v2 buffer - toCompactObject - ["0.0.365299-1615141267-266970662"] 1`] = `"Unsupported operation"`;
 

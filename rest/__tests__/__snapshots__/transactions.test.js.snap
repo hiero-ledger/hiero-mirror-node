@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`extractSqlFromTransactionsByIdOrHashRequest invalidTransactionIdOrHash 0.1.x-1235234-5334 1`] = `"Invalid Transaction id. Please use "shard.realm.num-sss-nnn" format where sss are seconds and nnn are nanoseconds"`;
 

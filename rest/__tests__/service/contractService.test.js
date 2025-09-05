@@ -1431,24 +1431,28 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
     {
       consensusTimestamp: 2,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(duplicateTransactionResult),
     },
     {
       consensusTimestamp: 3,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(wrongNonceTransactionResult),
     },
     {
       consensusTimestamp: 4,
       entityId: entityId0.getEncodedId(),
       hash: ethereumTxHashBuffer,
       payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(successTransactionResult),
     },
   ];
 
@@ -1464,31 +1468,88 @@ describe('ContractService.getContractTransactionDetailsByHash tests', () => {
     expect(contractDetails).toHaveLength(0);
   });
 
-  test('Match earliest transaction by same hash', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer, [], 1);
-    expect(transactionDetails).toEqual([expectedTransactionDetails[0]]);
-  });
-
-  test('Match all transactions by same hash', async () => {
+  test('Match latest transaction by same hash', async () => {
     const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
-    expect(transactionDetails).toEqual(expectedTransactionDetails);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[3]]);
   });
 
-  test('Match all transactions with no duplicates and wrong nonces', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer, [
-      duplicateTransactionResult,
-      wrongNonceTransactionResult,
-    ]);
-    expect(transactionDetails).toEqual([expectedTransactionDetails[0], expectedTransactionDetails[3]]);
+  test('Match latest transaction with no duplicates and wrong nonces', async () => {
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[3]]);
+  });
+});
+
+describe('ContractService.getContractTransactionDetailsByHash negative tests', () => {
+  const ethereumTxHash = '4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392';
+  const ethereumTxHashBuffer = Buffer.from(ethereumTxHash, 'hex');
+  const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');
+  const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
+  const consensusGasExhaustedTransactionResult = TransactionResult.getProtoId('CONSENSUS_GAS_EXHAUSTED');
+
+  const inputContractResults = [
+    {
+      consensus_timestamp: 1,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: duplicateTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 11,
+      gasLimit: 1000,
+    },
+    {
+      consensus_timestamp: 2,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: consensusGasExhaustedTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 12,
+      gasLimit: 1000,
+    },
+    {
+      consensus_timestamp: 3,
+      payer_account_id: entityId10.num,
+      type: ethereumTxType,
+      transaction_result: consensusGasExhaustedTransactionResult,
+      transaction_index: 1,
+      transaction_hash: ethereumTxHash,
+      transaction_nonce: 12,
+      gasLimit: 1000,
+    },
+  ];
+
+  const expectedTransactionDetails = [
+    {
+      consensusTimestamp: 1,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(duplicateTransactionResult),
+    },
+    {
+      consensusTimestamp: 2,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(consensusGasExhaustedTransactionResult),
+    },
+    {
+      consensusTimestamp: 3,
+      entityId: entityId0.getEncodedId(),
+      hash: ethereumTxHashBuffer,
+      payerAccountId: entityId10.getEncodedId(),
+      transactionResult: Number.parseInt(consensusGasExhaustedTransactionResult),
+    },
+  ];
+
+  beforeEach(async () => {
+    await integrationDomainOps.loadContractResults(inputContractResults);
   });
 
-  test('Match the earliest non successful transaction', async () => {
-    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(
-      ethereumTxHashBuffer,
-      [successTransactionResult],
-      1
-    );
-    expect(transactionDetails).toEqual([expectedTransactionDetails[1]]);
+  test('Match the latest non successful transaction', async () => {
+    const transactionDetails = await ContractService.getContractTransactionDetailsByHash(ethereumTxHashBuffer);
+    expect(transactionDetails).toEqual([expectedTransactionDetails[2]]);
   });
 });
 

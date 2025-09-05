@@ -34,7 +34,7 @@ class NetworkInfoImplTest extends Web3IntegrationTest {
             assertThat(info.weight()).isZero();
             assertThat(info.sigCertBytes()).isEqualTo(Bytes.EMPTY);
             assertThat(info.gossipEndpoints()).isEmpty();
-            assertThat(info.hexEncodedPublicKey()).isEmpty();
+            assertThat(info.grpcCertHash()).isEqualTo(Bytes.EMPTY);
         });
     }
 

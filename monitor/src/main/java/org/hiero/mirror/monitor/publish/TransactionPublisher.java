@@ -137,15 +137,20 @@ public class TransactionPublisher implements AutoCloseable {
 
     @SneakyThrows
     private Client toClient(List<NodeProperties> nodes) {
-        AccountId operatorId =
-                AccountId.fromString(monitorProperties.getOperator().getAccountId());
-        PrivateKey operatorPrivateKey =
+        var operatorId = AccountId.fromString(monitorProperties.getOperator().getAccountId());
+        var operatorPrivateKey =
                 PrivateKey.fromString(monitorProperties.getOperator().getPrivateKey());
 
-        // setNetworkFromAddressBook() doesn't support in-process URIs so we have to set network too
+        // setNetworkFromAddressBook() doesn't support in-process URIs so we have to set network too.
+        // Fix issue #11908 when different nodes in address book have the same service endpoint(s).
         var network = nodes.stream()
-                .collect(Collectors.toMap(NodeProperties::getEndpoint, p -> AccountId.fromString(p.getAccountId())));
-        var nodeAddresses = nodes.stream().map(NodeProperties::toNodeAddress).toList();
+                .collect(Collectors.toMap(
+                        NodeProperties::getEndpoint, p -> AccountId.fromString(p.getAccountId()), (a, b) -> a));
+        var accountIds = network.values().stream().map(AccountId::toString).collect(Collectors.toSet());
+        var nodeAddresses = nodes.stream()
+                .filter(n -> accountIds.contains(n.getAccountId()))
+                .map(NodeProperties::toNodeAddress)
+                .toList();
         var nodeAddressBook = NodeAddressBook.newBuilder()
                 .addAllNodeAddress(nodeAddresses)
                 .build()

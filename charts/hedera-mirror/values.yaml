@@ -94,6 +94,8 @@ global:
   hostname: ""
   image: {}
   namespaceOverride: ""
+  security:
+    allowInsecureImages: true
   podAnnotations: {}
   useReleaseForNameLabel: false  # Set the name label to the release name for Marketplace
 
@@ -147,6 +149,8 @@ postgresql:
   enabled: true
   metrics:
     enabled: false
+    image:
+      repository: bitnamilegacy/postgres-exporter
     resources:
       limits:
         cpu: 50m
@@ -175,6 +179,7 @@ postgresql:
             key: PGPOOL_POSTGRES_CUSTOM_USERS
     image:
       debug: true
+      repository: bitnamilegacy/pgpool
     numInitChildren: 100
     podAntiAffinityPreset: soft
     podLabels:
@@ -194,7 +199,8 @@ postgresql:
     extraEnvVarsSecret: mirror-passwords
     image:
       debug: true
-      tag: 17.5.0-debian-12-r10
+      repository: bitnamilegacy/postgresql-repmgr
+      tag: 17.6.0-debian-12-r2
     initdbScriptsCM: "{{ .Release.Name }}-init"
     maxConnections: 200
     password: ""  # Randomly generated if left blank
@@ -217,7 +223,15 @@ redis:
     password: ""  # Randomly generated if left blank
   enabled: true
   host: "{{ .Release.Name }}-redis"
+  image:
+    repository: bitnamilegacy/redis
+  kubectl:
+    image:
+      repository: rancher/kubectl
+      tag: v1.33.4
   metrics:
+    image:
+      repository: bitnamilegacy/redis-exporter
     resources:
       limits:
         cpu: 100m
@@ -247,6 +261,8 @@ redis:
         memory: 1000Mi
   sentinel:
     enabled: true
+    image:
+      repository: bitnamilegacy/redis-sentinel
     masterSet: mirror
     persistence:
       enabled: true

@@ -20,6 +20,7 @@ extra.apply {
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.1.125.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.0")
     set("reactorGrpcVersion", "1.2.4")
@@ -48,7 +49,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.64.2")
+        api("com.hedera.hashgraph:app:0.64.3")
         api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:0.65.0")
         api("com.hedera.hashgraph:sdk:2.62.0")
@@ -85,7 +86,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.32.29")
+        api("software.amazon.awssdk:bom:2.33.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

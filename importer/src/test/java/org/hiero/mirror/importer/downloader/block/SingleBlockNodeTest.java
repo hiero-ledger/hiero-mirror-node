@@ -185,7 +185,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
 
     @Test
-    void exceptionIsThrownWhenSignedTxnItemIsBeforeEventHeaderItem() {
+    void exceptionIsThrownWhenEventTxnItemIsBeforeEventHeaderItem() {
         // given
         var generator = new BlockGenerator(0);
 
@@ -196,16 +196,16 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .filter(it -> it.getItemCase() == ItemCase.EVENT_HEADER)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing event header item"));
-        var blockOneSignedTxnItem = blockOneItems.stream()
+        var blockOneEventTxnItem = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
         int blockOneEventHeaderItemIndex = blockOneItems.indexOf(blockOneEventHeaderItem);
-        int blockOneSignedTxnItemIndex = blockOneItems.indexOf(blockOneSignedTxnItem);
+        int blockOneEventTxnItemIndex = blockOneItems.indexOf(blockOneEventTxnItem);
 
         var builder = BlockItemSet.newBuilder();
         var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
-        Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneSignedTxnItemIndex);
+        Collections.swap(wrongOrderBlockItems, blockOneEventHeaderItemIndex, blockOneEventTxnItemIndex);
         builder.addAllBlockItems(wrongOrderBlockItems);
         blocks.remove(1);
         blocks.add(builder.build());
@@ -224,14 +224,14 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     }
 
     @Test
-    void exceptionIsThrownWhenTheLastSignedTxnItemIsNotFollowedByTxnResultItem() {
+    void exceptionIsThrownWhenTheLastEventTxnItemIsNotFollowedByTxnResultItem() {
         // given
         var generator = new BlockGenerator(0);
 
         var blocks = new ArrayList<>(generator.next(2));
         var blockOne = blocks.get(1);
         var blockOneItems = blockOne.getBlockItemsList();
-        var blockOneLastSignedTxn = blockOneItems.stream()
+        var blockOneLastEventTxn = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
                 .reduce((first, second) -> second)
                 .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
@@ -239,12 +239,12 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing transaction result item"));
-        int blockOneSignedTxnIndex = blockOneItems.indexOf(blockOneLastSignedTxn);
+        int blockOneEventTxnIndex = blockOneItems.indexOf(blockOneLastEventTxn);
         int blockOneTxnResultIndex = blockOneItems.indexOf(blockOneTxnResult);
 
         var builder = BlockItemSet.newBuilder();
         var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
-        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneSignedTxnIndex);
+        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneEventTxnIndex);
         builder.addAllBlockItems(wrongOrderBlockItems);
         blocks.remove(1);
         blocks.add(builder.build());

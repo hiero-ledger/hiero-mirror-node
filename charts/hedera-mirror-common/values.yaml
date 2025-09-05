@@ -2,6 +2,8 @@
 
 global:
   namespaceOverride: ""
+  security:
+    allowInsecureImages: true
 
 labels: {}
 
@@ -185,7 +187,13 @@ loki:
 minio:
   console:
     enabled: false
+  defaultInitContainers:
+    volumePermissions:
+      image:
+        repository: bitnamilegacy/os-shell
   enabled: false
+  image:
+    repository: bitnamilegacy/minio
   persistence:
     enabled: true
     size: 500Gi
