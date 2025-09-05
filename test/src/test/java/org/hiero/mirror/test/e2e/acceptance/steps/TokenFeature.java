@@ -56,6 +56,7 @@ import org.hiero.mirror.rest.model.TokenRelationship;
 import org.hiero.mirror.rest.model.TokenRelationship.FreezeStatusEnum;
 import org.hiero.mirror.rest.model.TokenRelationship.KycStatusEnum;
 import org.hiero.mirror.rest.model.TokenRelationshipResponse;
+import org.hiero.mirror.rest.model.TokensResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionNftTransfersInner;
@@ -89,6 +90,10 @@ public class TokenFeature extends AbstractFeature {
     private TokenId tokenId;
 
     private TokenResponse tokenResponse;
+
+    private TokensResponse tokensWithTreasuryAccount;
+
+    private TokensResponse tokensAssociatedWithPublicKey;
 
     private TransactionDetail transactionDetail;
 
@@ -322,6 +327,11 @@ public class TokenFeature extends AbstractFeature {
 
     @Given("I successfully create a new unfrozen and granted kyc token")
     public void createNewToken() {
+        this.tokensWithTreasuryAccount = mirrorClient.getTokensWithTreasuryAccount(
+                tokenClient.getAccountId().toString());
+        this.tokensAssociatedWithPublicKey = mirrorClient.getTokensAssociatedWithPublicKey(
+                tokenClient.getAccountId().getPublicKey().toString());
+
         this.tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_KYC_UNFROZEN_2);
         this.tokenId = tokenResponse.tokenId();
         this.networkTransactionResponse = tokenResponse.response();
@@ -333,6 +343,37 @@ public class TokenFeature extends AbstractFeature {
         this.tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_AIRDROP);
         this.tokenId = tokenResponse.tokenId();
         this.networkTransactionResponse = tokenResponse.response();
+    }
+
+    @When("I verify the number of tokens with given treasury account")
+    public void getAllTokensForAccount() {
+        TokensResponse tokensByAccountId = mirrorClient.getTokensWithTreasuryAccount(
+                tokenClient.getAccountId().toString());
+        assertThat(tokensByAccountId.getTokens()).isNotNull();
+        assertThat(this.tokensWithTreasuryAccount.getTokens().size() + 1)
+                .isEqualTo(tokensByAccountId.getTokens().size());
+        assertThat(this.tokenResponse.tokenId().toString())
+                .isEqualTo(tokensByAccountId.getTokens().getLast().getTokenId());
+
+        TokensResponse tokensByPublicKey = mirrorClient.getTokensAssociatedWithPublicKey(
+                tokenClient.getAccountId().getPublicKey().toString());
+        assertThat(tokensByPublicKey.getTokens()).isNotNull();
+        assertThat(tokensByPublicKey.getTokens().stream()
+                        .filter(t -> t.getTokenId()
+                                .equals(this.tokensAssociatedWithPublicKey
+                                        .getTokens()
+                                        .getLast()
+                                        .getTokenId()))
+                        .findFirst())
+                .isNotNull();
+    }
+
+    @When("I verify the number of tokens associated with account")
+    public void getAllTokensByPublicKey() {
+        TokensResponse tokensAssociatedWithPubKey = mirrorClient.getTokensAssociatedWithPublicKey(
+                tokenClient.getAccountId().getPublicKey().toString());
+        assertThat(this.tokensAssociatedWithPublicKey.getTokens().size() + 1)
+                .isEqualTo(tokensAssociatedWithPubKey.getTokens().size());
     }
 
     @Given("I successfully create a new nft {token} with infinite supplyType")
