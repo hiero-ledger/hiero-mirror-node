@@ -10,6 +10,7 @@ Feature: EstimateGas Contract Base Coverage Feature
     Given I successfully create non fungible tokens
     Given I mint and verify a new nft
     Then the mirror node REST API should return status 200 for the HAPI transaction
+    Then I verify the mirror node REST API returns contract states for deployed contract
     And I set lower deviation at 5% and upper deviation at 20%
     Then I call estimateGas with associate function for fungible token
     Then I call estimateGas with associate function for NFT
