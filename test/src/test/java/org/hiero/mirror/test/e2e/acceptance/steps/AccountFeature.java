@@ -23,8 +23,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.AccountsResponse;
+import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.CryptoAllowance;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionTransfersInner;
@@ -32,6 +36,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.Cleanable;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.core.OrderComparator;
 import org.springframework.http.HttpStatus;
 
@@ -257,5 +262,115 @@ public class AccountFeature extends AbstractFeature {
                 accountClient.approveCryptoAllowance(spenderAccountId.getAccountId(), Hbar.fromTinybars(amount));
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then("the mirror node REST API should return the accounts list")
+    public void verifyAccountsList() {
+        AccountsResponse accountsResponse = mirrorClient.getAccounts();
+        assertThat(accountsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(AccountsResponse::getAccounts)
+                .isNotNull();
+    }
+
+    @Then("the mirror node REST API should return correct balance of {long}")
+    public void verifyAccountBalance(long initialBalance) {
+        String params = QueryParamsBuilder.builder()
+                .buildQueryParam("account.id", senderAccountId)
+                .buildQueryParam("limit", 1)
+                .buildQueryParam("order", "desc")
+                .build();
+
+        BalancesResponse balancesResponse = mirrorClient.getBalancesForQuery(params);
+
+        assertThat(balancesResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(BalancesResponse::getBalances)
+                .isNotNull()
+                .asInstanceOf(InstanceOfAssertFactories.LIST);
+    }
+
+    @And("the mirror node REST API should return the accounts list with limit {int}")
+    public void verifyAccountsListWithLimit(int limit) {
+        final var accountsResponse = mirrorClient.getAccounts(limit);
+        assertThat(accountsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(AccountsResponse::getAccounts)
+                .isNotNull()
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .hasSizeLessThanOrEqualTo(limit);
+    }
+
+    @Then("the mirror node REST API should return the staking rewards for the account")
+    public void verifyAccountStakingRewards() {
+        String accountId = senderAccountId.getAccountId().toString();
+        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, null);
+        assertThat(rewardsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(StakingRewardsResponse::getRewards)
+                .isNotNull();
+    }
+
+    @And("the mirror node REST API should return the staking rewards for the account with limit {int}")
+    public void verifyAccountStakingRewardsWithLimit(int limit) {
+        String accountId = senderAccountId.getAccountId().toString();
+        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, limit);
+        assertThat(rewardsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(StakingRewardsResponse::getRewards)
+                .isNotNull()
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .hasSizeLessThanOrEqualTo(limit);
+    }
+
+    @When("I stake the account to node {long}")
+    public void stakeAccountToNode(long nodeId) {
+        networkTransactionResponse = accountClient.stakeAccountToNode(senderAccountId, nodeId);
+        assertThat(networkTransactionResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
+                .extracting(NetworkTransactionResponse::getReceipt)
+                .isNotNull();
+    }
+
+    @When("I unstake the account")
+    public void unstakeAccount() {
+        networkTransactionResponse = accountClient.unstakeAccount(senderAccountId);
+        assertThat(networkTransactionResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
+                .extracting(NetworkTransactionResponse::getReceipt)
+                .isNotNull();
+    }
+
+    private static final class QueryParamsBuilder {
+
+        private String queryParam;
+
+        public static QueryParamsBuilder builder() {
+            return new QueryParamsBuilder();
+        }
+
+        public QueryParamsBuilder buildQueryParam(String key, Object value) {
+            if (key == null) {
+                return this;
+            }
+            final String newQueryParam = String.format("&%s=%s", key, value);
+            if (queryParam != null) {
+                queryParam += newQueryParam;
+            } else {
+                queryParam = newQueryParam;
+            }
+            return this;
+        }
+
+        public String build() {
+            return queryParam;
+        }
     }
 }
