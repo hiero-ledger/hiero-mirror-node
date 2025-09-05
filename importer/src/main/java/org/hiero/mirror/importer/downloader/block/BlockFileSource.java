@@ -62,14 +62,7 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     @Override
-    public void get() {
-        long blockNumber = getNextBlockNumber();
-        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
-
-        if (endBlockNumber != null && blockNumber > endBlockNumber) {
-            return;
-        }
-
+    protected void doGet(long blockNumber, Long endBlockNumber) {
         var nodes = getRandomizedNodes();
         var stopwatch = Stopwatch.createStarted();
         var streamFilename = StreamFilename.from(blockNumber);
@@ -123,6 +116,7 @@ final class BlockFileSource extends AbstractBlockSource {
             byte[] bytes = blockFileData.getBytes();
             return new BlockStream(
                     block.getItemsList(),
+                    System.currentTimeMillis(),
                     bytes,
                     blockFileData.getFilename(),
                     blockFileData.getStreamFilename().getTimestamp(),
