@@ -70,7 +70,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private final SystemEntity systemEntity;
 
     @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
-    private boolean allowLongZeroAddresses = false;
+    private boolean allowLongZeroAddresses = true;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -186,12 +186,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private int feesTokenTransferUsageMultiplier = 380;
 
     @Getter
-    private boolean modularizedServices;
+    private boolean modularizedServices = true;
 
     @Getter
     @DecimalMin("0.0")
     @DecimalMax("1.0")
-    private double modularizedTrafficPercent = 0.0;
+    private double modularizedTrafficPercent = 1.0;
 
     @Getter
     private long entityNumBuffer = 1000L;
@@ -200,7 +200,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private long minimumAccountBalance = 100_000_000_000_000_000L;
 
     @Getter
-    private boolean overridePayerBalanceValidation;
+    private boolean overridePayerBalanceValidation = true;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
