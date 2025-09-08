@@ -15,7 +15,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.17.0")
+    set("blockNodeVersion", "0.17.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
