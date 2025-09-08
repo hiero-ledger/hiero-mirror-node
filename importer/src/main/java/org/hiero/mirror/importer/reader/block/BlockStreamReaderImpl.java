@@ -21,7 +21,6 @@ import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
-import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -217,7 +216,7 @@ public class BlockStreamReaderImpl implements BlockStreamReader {
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
-        ReaderContext(@NotNull List<BlockItem> blockItems, @NotNull String filename) {
+        ReaderContext(@Nonnull List<BlockItem> blockItems, @Nonnull String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
             this.blockRootHashDigest = new BlockRootHashDigest();
