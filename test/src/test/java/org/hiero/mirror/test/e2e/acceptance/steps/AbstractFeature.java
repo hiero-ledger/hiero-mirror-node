@@ -77,6 +77,7 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
     }
 
     protected TransactionDetail verifyMirrorTransactionsResponse(MirrorNodeClient mirrorClient, int status) {
+        System.out.println("Test custom docker image");
         String transactionId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
         TransactionByIdResponse mirrorTransactionsResponse = mirrorClient.getTransactions(transactionId);
 

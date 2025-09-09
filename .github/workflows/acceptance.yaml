@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 40
     env:
       CONSENSUS_VERSION: v0.65.0
-      BLOCK_NODE_CHART_VERSION: v0.17.0-rc2
+      BLOCK_NODE_CHART_VERSION: v0.17.1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
@@ -84,8 +84,7 @@ jobs:
         run: ./gradlew test:build -x test
 
       - name: Build Mirror Node Test Docker image
-        run: |
-          docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
+        run: docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
 
       - name: Setup Solo Cluster
         run: |
@@ -117,11 +116,10 @@ jobs:
             image:
               registry: docker.io
               repository: xinatswirlds/importer
-              tag: e741ea2b2
+              tag: 8b691c40c
           test:
             image:
               tag: ${TAG}
-            cucumberTags: "@acceptance and not @accounts and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic and not @nftallowance and not @erc and not @cryptoallowance and not @tokenallowance and not @ethcall"
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
