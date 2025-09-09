@@ -41,7 +41,7 @@ jobs:
     timeout-minutes: 40
     env:
       CONSENSUS_VERSION: v0.65.0
-      MIRROR_NODE_VERSION: v0.139.0-SNAPSHOT
+      MIRROR_NODE_VERSION: v0.138.0
       BLOCK_NODE_CHART_VERSION: v0.17.1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
