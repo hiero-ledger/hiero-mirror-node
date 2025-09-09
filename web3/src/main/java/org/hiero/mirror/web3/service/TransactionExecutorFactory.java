@@ -34,11 +34,14 @@ public class TransactionExecutorFactory {
     @Async
     @EventListener(ApplicationReadyEvent.class)
     public void init() {
-        // Warmup the beans for all evm versions before the k8s readiness probe elapses.
-        ContractCallContext.run(ctx -> {
-            mirrorNodeEvmProperties.getEvmVersions().values().forEach(this::create);
-            return ctx;
-        });
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            // Create transaction executor for each EVM version, on startup, before the k8s
+            // readiness probe elapses, so we avoid slowing down the initial contract calls.
+            ContractCallContext.run(ctx -> {
+                mirrorNodeEvmProperties.getEvmVersions().values().forEach(this::create);
+                return ctx;
+            });
+        }
     }
 
     // Reuse TransactionExecutor across requests for the same EVM version
