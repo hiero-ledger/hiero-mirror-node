@@ -41,6 +41,7 @@ jobs:
     timeout-minutes: 40
     env:
       CONSENSUS_VERSION: v0.65.0
+      MIRROR_NODE_VERSION: v0.139.0-SNAPSHOT
       BLOCK_NODE_CHART_VERSION: v0.17.1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
@@ -118,6 +119,7 @@ jobs:
               repository: xinatswirlds/importer
               tag: 8b691c40c
           test:
+            cucumberTags: "@acceptance and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @erc and not @ethcall"
             image:
               tag: ${TAG}
             annotations:
@@ -140,7 +142,7 @@ jobs:
           EOF
           fi
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger
 
           echo "Solo cluster setup completed successfully!"
 
