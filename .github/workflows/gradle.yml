@@ -93,6 +93,7 @@ jobs:
         env:
           HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "false"
           HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "0.0"
+          HIERO_MIRROR_WEB3_EVM_OVERRIDEPAYERBALANCEVALIDATION: "false"
         if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         run: ./gradlew :${{ matrix.project }}:build
 
