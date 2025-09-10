@@ -1,4 +1,4 @@
-@contractbase @fullsuite
+@contractbase @fullsuite @crud
 Feature: Contract Base Coverage Feature
 
     @critical @release @acceptance

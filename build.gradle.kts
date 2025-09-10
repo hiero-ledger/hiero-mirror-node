@@ -15,11 +15,12 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.17.0")
+    set("blockNodeVersion", "0.17.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
+    set("netty.version", "4.1.125.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.0")
     set("reactorGrpcVersion", "1.2.4")
@@ -56,7 +57,7 @@ dependencies {
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.20.0")
-        api("io.cucumber:cucumber-bom:7.23.0")
+        api("io.cucumber:cucumber-bom:7.28.1")
         api("io.fabric8:kubernetes-client-bom:7.3.1")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
@@ -85,7 +86,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.33.0")
+        api("software.amazon.awssdk:bom:2.33.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
