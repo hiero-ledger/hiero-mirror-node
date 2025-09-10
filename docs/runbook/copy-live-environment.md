@@ -18,7 +18,7 @@ Need to copy live environment with zero downtime on source
 
 ## Steps
 
-1. Configure kubernetes context for source and target and set `K8S_SOURCE_CLUSTER_CONTEXT` and `K8S_TARGET_CLUSTER_CONTEXT`
+1. Configure kubernetes context for source and target by setting `K8S_SOURCE_CLUSTER_CONTEXT` and `K8S_TARGET_CLUSTER_CONTEXT`
 2. If you want to copy the environment, run k6 tests, and automatically tear down resources, set `WAIT_FOR_K6=true` and
    `DEFAULT_POOL_NAME`
 3. Run script and follow along with all prompts. To auto confirm destructive operations, set `AUTO_CONFIRM=true`

@@ -6,33 +6,6 @@ set -euo pipefail
 
 source ./utils.sh
 
-function waitUntilOutOfRecovery() {
-  local namespace="$1" pod="$2"
-
-  log "Waiting for ${pod} to exit recovery"
-
-  while true; do
-    local res
-    res="$(kubectl exec -n "${namespace}" "${pod}" -c postgres-util -- \
-      psql -U mirror_node -d mirror_node -Atc "select pg_is_in_recovery();" 2>/dev/null || true)"
-
-    case "${res}" in
-      f)
-        log "${pod} is out of recovery"
-        return 0
-        ;;
-      t)
-        log "${pod} still in recovery"
-        ;;
-      *)
-        log "Query failed or unexpected output: '${res:-<empty>}' (retrying)"
-        ;;
-    esac
-
-    sleep 60
-  done
-}
-
 function setupZfsVolumeForRecovery() {
   local namespace="${1}"  pvcName="${2}" backupLabel="${3}"
 
@@ -212,7 +185,7 @@ function snapshotCitusDisks() {
   local diskPrefix disksToSnapshot diskNames
 
   if [[ -z "${GCP_SNAPSHOT_PROJECT}" ]]; then
-    GCP_SNAPSHOT_PROJECT=$(promptGcpProject "source")
+    GCP_SNAPSHOT_PROJECT=$(promptGcpProject "snapshot source")
   fi
   setCitusNamespaces
   diskPrefix="$(getDiskPrefix)"
@@ -285,7 +258,7 @@ function getSnapshotsById() {
   fi
 
   if [[ -z "${SNAPSHOT_ID}" ]]; then
-    SNAPSHOT_ID="$(promptSnapshotId "${GCP_SNAPSHOT_PROJECT}")"
+    SNAPSHOT_ID="$(promptSnapshotId)"
   fi
 
   local snapshots
@@ -299,7 +272,7 @@ function getSnapshotsById() {
   })')
 
   if [[ -z "${snapshots}" || "${snapshots}" == "null" ]]; then
-    log "No snapshots found for snapshot id ${SNAPSHOT_ID} in project ${GCP_SNAPSHOT_PROJECT}. Exiting"
+    log "No snapshots found for snapshot id ${SNAPSHOT_ID} in project"
     exit 1
   fi
 
@@ -546,7 +519,7 @@ function replaceDiskFromSnapshot() {
   local snapshotFullName
   snapshotFullName="projects/${GCP_SNAPSHOT_PROJECT}/global/snapshots/${snapshotName}"
 
-  log "Recreating disk ${diskName} in ${GCP_TARGET_PROJECT} with snapshot ${snapshotFullName} in zone ${diskZone}"
+  log "Recreating disk ${diskName} using snapshot ${snapshotName} in zone ${diskZone}"
   watchInBackground "$$" gcloud compute disks create "${diskName}" --project "${GCP_TARGET_PROJECT}" --zone "${diskZone}" --source-snapshot "${snapshotFullName}" --type="${diskType}" --quiet &
   local pid=$!
   if [[ -n "${createPidRef}" ]]; then
@@ -637,7 +610,7 @@ function renameZfsVolumes() {
 function replaceDisks() {
   prepareCitusDisksForReplacement
   if [[ "${REPLACE_DISKS}" == "true" ]]; then
-    log "Will delete disks ${DISK_PREFIX}-(${UNIQUE_NODE_IDS[*]})-zfs in project ${GCP_TARGET_PROJECT}"
+    log "Will delete disks ${DISK_PREFIX}-(${UNIQUE_NODE_IDS[*]})-zfs"
     doContinue
     kubectl delete sgshardedbackups.stackgres.io -n "${namespace}" --all
     resizeCitusNodePools 0
@@ -764,15 +737,15 @@ function configureAndValidateSnapshotRestore() {
   fi
 
   if [[ -z "${GCP_K8S_TARGET_CLUSTER_REGION}" ]]; then
-    GCP_K8S_TARGET_CLUSTER_REGION="$(promptGcpClusterRegion "target" "${GCP_TARGET_PROJECT}")"
+    GCP_K8S_TARGET_CLUSTER_REGION="$(promptGcpClusterRegion)"
   fi
 
   if [[ -z "${GCP_K8S_TARGET_CLUSTER_NAME}" ]]; then
-    GCP_K8S_TARGET_CLUSTER_NAME="$(promptGcpClusterName "${GCP_TARGET_PROJECT}" "${GCP_K8S_TARGET_CLUSTER_REGION}" "target")"
+    GCP_K8S_TARGET_CLUSTER_NAME="$(promptGcpClusterName)"
   fi
 
   if [[ -z "${SNAPSHOT_ID}" ]]; then
-    SNAPSHOT_ID="$(promptSnapshotId "${GCP_SNAPSHOT_PROJECT}"))"
+    SNAPSHOT_ID="$(promptSnapshotId))"
   fi
 
   SNAPSHOTS_TO_RESTORE="$(getSnapshotsById "${SNAPSHOT_ID}")"

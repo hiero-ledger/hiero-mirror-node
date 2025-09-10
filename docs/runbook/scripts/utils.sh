@@ -242,7 +242,7 @@ function scaleDeployment() {
       log "No pods found for deployment ${deploymentLabel} in namespace ${namespace}"
       return
     else
-      log "Removing pods ${deploymentPods} in ${namespace} for ${CURRENT_CONTEXT}"
+      log "Removing pods ${deploymentPods} in ${namespace} for"
       doContinue
       kubectl scale deployment -n "${namespace}" -l "${deploymentLabel}" --replicas="${replicas}"
       log "Waiting for pods with label ${deploymentLabel} to be deleted"
@@ -454,7 +454,7 @@ function pauseCitus() {
   if [[ -z "${citusPods}" ]]; then
     log "Citus is not currently running"
   else
-    log "Removing pods (${citusPods}) in ${namespace} for ${CURRENT_CONTEXT}"
+    log "Removing pods (${citusPods}) in ${namespace}"
     doContinue
     checkPauseAnnotation "${namespace}"
     if [[ "${skipCleanShutdown}" != "true" ]]; then
@@ -611,7 +611,7 @@ function getZFSVolumes() {
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
-  log "Discovering node pools with label 'citus-role' in cluster ${GCP_K8S_TARGET_CLUSTER_NAME}, project ${GCP_TARGET_PROJECT}"
+  log "Discovering node pools with label 'citus-role'"
 
   local citusPools=()
   mapfile -t citusPools < <(gcloud container node-pools list \
@@ -767,7 +767,6 @@ AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
 CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
-CURRENT_CONTEXT="$(kubectl config current-context)"
 DISK_PREFIX=
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"

@@ -19,23 +19,17 @@ function promptGcpProject() {
 }
 
 function promptGcpClusterRegion() {
-  local purpose="$1"
-  local gcpProject="$2"
-
-  if [[ -z "${gcpProject}" ]]; then
-    gcpProject="$(promptGcpProject "${1}")"
-  fi
 
   local region
-  region="$(readUserInput "Enter cluster region for ${purpose}: ")"
+  region="$(readUserInput "Enter cluster region for target: ")"
 
   if [[ -z "${region}" ]]; then
     log "region is not set and is required. Exiting"
     exit 1
   fi
 
-  gcloud compute regions describe "${region}" --project "${gcpProject}" > /dev/null || {
-    log "Region '${region}' does not exist in project '${gcpProject}'. Exiting"
+  gcloud compute regions describe "${region}" --project "${GCP_TARGET_PROJECT}" > /dev/null || {
+    log "Region '${region}' does not exist in project. Exiting"
     exit 1
   }
 
@@ -43,17 +37,13 @@ function promptGcpClusterRegion() {
 }
 
 function promptGcpClusterName() {
-  local project="$1"
-  local region="$2"
-  local purpose="$3"
-
-  if [[ -z "${project}" || -z "${region}" ]]; then
-    log "Both GCP project and region must be provided. Exiting"
+  if [[ -z "${GCP_TARGET_PROJECT}" || -z "${GCP_K8S_TARGET_CLUSTER_REGION}" ]]; then
+    log "Both GCP_TARGET_PROJECT and GCP_K8S_TARGET_CLUSTER_REGION must be set. Exiting"
     exit 1
   fi
 
   local clusterName
-  clusterName="$(readUserInput "Enter cluster name for ${purpose}: ")"
+  clusterName="$(readUserInput "Enter cluster name for target: ")"
 
   if [[ -z "${clusterName}" ]]; then
     log "cluster name is not set and is required. Exiting"
@@ -61,10 +51,10 @@ function promptGcpClusterName() {
   fi
 
   gcloud container clusters describe \
-    --project "${project}" \
-    --region "${region}" \
+    --project "${GCP_TARGET_PROJECT}" \
+    --region "${GCP_K8S_TARGET_CLUSTER_REGION}" \
     "${clusterName}" > /dev/null || {
-      log "Cluster '${clusterName}' not found in project '${project}', region '${region}'. Exiting"
+      log "Cluster '${clusterName}' not found. Exiting"
       exit 1
     }
 
@@ -72,15 +62,13 @@ function promptGcpClusterName() {
 }
 
 function promptSnapshotId() {
-  local gcpProject="$1"
-
-  if [[ -z "${gcpProject}" ]]; then
-      log "GCP project must be provided as the first argument. Exiting"
+  if [[ -z "${GCP_SNAPSHOT_PROJECT}" ]]; then
+      log "GCP_SNAPSHOT_PROJECT must be set. Exiting"
       exit 1
   fi
-  log "Listing snapshots in project ${gcpProject}"
+  log "Listing snapshots in project"
   gcloud compute snapshots list \
-    --project "${gcpProject}" \
+    --project "${GCP_SNAPSHOT_PROJECT}" \
     --format="table(name, diskSizeGb, sourceDisk, description, creationTimestamp)" \
     --filter="name~.*[0-9]{10,}$" \
     --sort-by="~creationTimestamp"
@@ -89,7 +77,7 @@ function promptSnapshotId() {
   snapshotId="$(readUserInput "Enter snapshot id (the epoch suffix of the snapshot group): ")"
 
   if [[ -z "${snapshotId}" ]]; then
-    log "SNAPSHOT_ID is not set and is required. Please provide an identifier that is unique across all snapshots. Exiting"
+    log "snapshotId is not set and is required. Please provide an identifier that is unique across all snapshots."
     exit 1
   fi
   echo "${snapshotId}"

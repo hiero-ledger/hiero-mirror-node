@@ -327,7 +327,7 @@ function deleteSnapshots() {
   doContinue
   jq -r '.[].name' <<< "${snapshots}" | while read -r name; do
     [[ -z "${name}" ]] && continue
-    log "Deleting snapshot ${name} from project ${GCP_SNAPSHOT_PROJECT}"
+    log "Deleting snapshot ${name} from project"
     if ! gcloud compute snapshots delete "${name}" \
         --project "${GCP_SNAPSHOT_PROJECT}" \
         --quiet; then
