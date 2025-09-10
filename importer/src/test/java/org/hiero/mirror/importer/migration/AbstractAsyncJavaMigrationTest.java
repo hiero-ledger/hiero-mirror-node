@@ -44,7 +44,7 @@ abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> e
     }
 
     protected void waitForCompletion() {
-        await().atMost(Duration.ofSeconds(10))
+        await().atMost(Duration.ofSeconds(5))
                 .pollDelay(Duration.ofMillis(100))
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> assertThat(isMigrationCompleted()).isTrue());
