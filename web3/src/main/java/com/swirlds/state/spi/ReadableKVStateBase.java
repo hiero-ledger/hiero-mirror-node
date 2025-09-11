@@ -2,6 +2,7 @@
 
 package com.swirlds.state.spi;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Iterator;
@@ -18,6 +19,9 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  */
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
+
+    /** The service name, which cannot be null */
+    protected final String serviceName;
     /** The state key, which cannot be null */
     private final String stateKey;
 
@@ -28,8 +32,15 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      *
      * @param stateKey The state key. Cannot be null.
      */
-    protected ReadableKVStateBase(@Nonnull String stateKey) {
+    protected ReadableKVStateBase(@Nonnull String serviceName, @Nonnull String stateKey) {
+        this.serviceName = Objects.requireNonNull(serviceName);
         this.stateKey = Objects.requireNonNull(stateKey);
+    }
+
+    @NonNull
+    @Override
+    public String getServiceName() {
+        return ""; // TODO
     }
 
     /** {@inheritDoc} */

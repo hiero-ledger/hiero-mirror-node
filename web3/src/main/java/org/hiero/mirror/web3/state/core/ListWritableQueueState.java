@@ -21,7 +21,7 @@ public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
      * @param backingStore The backing store to use
      */
     public ListWritableQueueState(@Nonnull final String stateKey, @Nonnull final Queue<E> backingStore) {
-        super(stateKey);
+        super("", stateKey); // TODO
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 

@@ -58,7 +58,6 @@ import org.hyperledger.besu.evm.operation.BalanceOperation;
 import org.hyperledger.besu.evm.operation.ExtCodeHashOperation;
 import org.hyperledger.besu.evm.operation.OperationRegistry;
 import org.hyperledger.besu.evm.operation.SelfDestructOperation;
-import org.hyperledger.besu.evm.precompile.KZGPointEvalPrecompiledContract;
 import org.hyperledger.besu.evm.precompile.PrecompileContractRegistry;
 import org.hyperledger.besu.evm.processor.ContractCreationProcessor;
 import org.hyperledger.besu.evm.processor.MessageCallProcessor;
@@ -110,7 +109,8 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
+    public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_65;
     private final CacheProperties cacheProperties;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
     private final GasCalculatorHederaV22 gasCalculator;
@@ -262,7 +262,8 @@ public class EvmConfiguration {
             final ContractCreationProcessor contractCreationProcessor34,
             final ContractCreationProcessor contractCreationProcessor38,
             final ContractCreationProcessor contractCreationProcessor46,
-            final ContractCreationProcessor contractCreationProcessor50) {
+            final ContractCreationProcessor contractCreationProcessor50,
+            final ContractCreationProcessor contractCreationProcessor65) {
         Map<SemanticVersion, Provider<ContractCreationProcessor>> processorsMap = new HashMap<>();
         processorsMap.put(EVM_VERSION_0_30, () -> contractCreationProcessor30);
         processorsMap.put(EVM_VERSION_0_34, () -> contractCreationProcessor34);
@@ -270,6 +271,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_46, () -> contractCreationProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> contractCreationProcessor50);
         processorsMap.put(EVM_VERSION_0_51, () -> contractCreationProcessor50);
+        processorsMap.put(EVM_VERSION_0_65, () -> contractCreationProcessor65);
         return processorsMap;
     }
 
@@ -287,6 +289,7 @@ public class EvmConfiguration {
         processorsMap.put(EVM_VERSION_0_46, () -> mirrorEvmMessageCallProcessor46);
         processorsMap.put(EVM_VERSION_0_50, () -> mirrorEvmMessageCallProcessor50);
         processorsMap.put(EVM_VERSION_0_51, () -> mirrorEvmMessageCallProcessor50);
+        processorsMap.put(EVM_VERSION_0_65, () -> mirrorEvmMessageCallProcessor50);
         return processorsMap;
     }
 
@@ -384,7 +387,24 @@ public class EvmConfiguration {
             final HederaPrngSeedOperation prngSeedOperation,
             final HederaSelfDestructOperationV050 hederaSelfDestructOperationV050,
             final HederaBalanceOperationV038 hederaBalanceOperationV038) {
-        KZGPointEvalPrecompiledContract.init();
+        //        KZGPointEvalPrecompiledContract.init();
+        return evm(
+                gasCalculator,
+                mirrorNodeEvmProperties,
+                prngSeedOperation,
+                hederaBlockHashOperation,
+                hederaExtCodeHashOperationV038,
+                hederaSelfDestructOperationV050,
+                hederaBalanceOperationV038,
+                EvmSpecVersion.CANCUN,
+                MainnetEVMs::registerCancunOperations);
+    }
+
+    @Bean
+    EVM evm065(
+            final HederaPrngSeedOperation prngSeedOperation,
+            final HederaSelfDestructOperationV050 hederaSelfDestructOperationV050,
+            final HederaBalanceOperationV038 hederaBalanceOperationV038) {
         return evm(
                 gasCalculator,
                 mirrorNodeEvmProperties,
@@ -460,6 +480,11 @@ public class EvmConfiguration {
 
     @Bean
     public ContractCreationProcessor contractCreationProcessor50(@Qualifier("evm050") EVM evm) {
+        return contractCreationProcessor(evm);
+    }
+
+    @Bean
+    public ContractCreationProcessor contractCreationProcessor65(@Qualifier("evm065") EVM evm) {
         return contractCreationProcessor(evm);
     }
 

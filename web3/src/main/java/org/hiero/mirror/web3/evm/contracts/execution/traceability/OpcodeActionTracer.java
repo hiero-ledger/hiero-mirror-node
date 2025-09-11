@@ -3,12 +3,15 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
-import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.TxStorageUsage;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -84,8 +87,13 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
         }
 
         try {
-            final var updates = ((ProxyWorldUpdater) frame.getWorldUpdater()).pendingStorageUpdates();
-            return updates.stream()
+            final var updates = frame.getWorldUpdater()
+                    .parentUpdater()
+                    .filter(RootProxyWorldUpdater.class::isInstance)
+                    .map(RootProxyWorldUpdater.class::cast)
+                    .map(RootProxyWorldUpdater::getTxStorageUsage)
+                    .orElse(new TxStorageUsage(List.of(), Set.of()));
+            return updates.accesses().stream()
                     .flatMap(storageAccesses ->
                             storageAccesses.accesses().stream()) // Properly flatten the nested structure
                     .collect(Collectors.toMap(
@@ -93,7 +101,6 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
                             e -> Bytes.wrap(e.value().toArray()),
                             (v1, v2) -> v1, // in case of duplicates, keep the first value
                             TreeMap::new));
-
         } catch (final ModificationNotAllowedException e) {
             log.warn("Failed to retrieve storage contents", e);
             return Collections.emptyMap();

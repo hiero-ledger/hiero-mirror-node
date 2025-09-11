@@ -11,6 +11,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
 import com.google.common.collect.ImmutableSortedMap;
@@ -393,6 +394,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
             evmVersionsMap.put(60258042L, EVM_VERSION_0_46);
             evmVersionsMap.put(65435845L, EVM_VERSION_0_50);
             evmVersionsMap.put(66602102L, EVM_VERSION_0_51);
+            evmVersionsMap.put(66602103L, EVM_VERSION_0_65); // TODO: set the correct block
 
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }

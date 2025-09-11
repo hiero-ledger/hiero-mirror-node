@@ -31,6 +31,7 @@ import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSyst
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import com.hedera.node.app.service.contract.impl.state.StorageAccess;
 import com.hedera.node.app.service.contract.impl.state.StorageAccesses;
+import com.hedera.node.app.service.contract.impl.state.TxStorageUsage;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -38,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
@@ -346,7 +348,7 @@ class OpcodeActionTracerTest {
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
+        //        when(worldUpdater.getTxStorageUsage()).thenReturn(new ArrayList<>());
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -362,7 +364,7 @@ class OpcodeActionTracerTest {
         tracerOptions =
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
+        //        when(worldUpdater.pendingStorageUpdates()).thenReturn(new ArrayList<>());
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -381,7 +383,7 @@ class OpcodeActionTracerTest {
                 tracerOptions.toBuilder().storage(true).modularized(true).build();
         frame = setupInitialFrame(tracerOptions);
 
-        when(worldUpdater.pendingStorageUpdates()).thenThrow(new ModificationNotAllowedException());
+        //        when(worldUpdater.pendingStorageUpdates()).thenThrow(new ModificationNotAllowedException());
 
         // When
         final Opcode opcode = executeOperation(frame);
@@ -695,7 +697,8 @@ class OpcodeActionTracerTest {
         nestedStorageAccesses.add(nestedStorageAccess2);
         final var storageAccess = new StorageAccesses(ContractID.DEFAULT, nestedStorageAccesses);
         storageAccesses.add(storageAccess);
-        when(worldUpdater.pendingStorageUpdates()).thenReturn(storageAccesses);
+        final var txStorageUsage = new TxStorageUsage(storageAccesses, Set.of());
+        when(worldUpdater.getTxStorageUsage()).thenReturn(txStorageUsage);
         return storage;
     }
 

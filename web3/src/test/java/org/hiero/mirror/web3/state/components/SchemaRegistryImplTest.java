@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.state.merkle.SchemaApplicationType;
 import com.hedera.node.app.state.merkle.SchemaApplications;
@@ -135,11 +136,12 @@ class SchemaRegistryImplTest {
         when(schema.statesToCreate(config))
                 .thenReturn(Set.of(stateDefinitionSingleton, stateDefinitionQueue, stateDefinition));
 
-        when(stateRegistry.lookup(stateDefinitionSingleton))
+        when(stateRegistry.lookup(TokenService.NAME, stateDefinitionSingleton))
                 .thenReturn(new DefaultSingleton(V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY));
-        when(stateRegistry.lookup(stateDefinitionQueue)).thenReturn(new ConcurrentLinkedDeque<>());
-        when(stateRegistry.lookup(stateDefinition))
-                .thenReturn(new MapReadableKVState<>(AccountReadableKVState.KEY, new ConcurrentHashMap<>()));
+        when(stateRegistry.lookup(TokenService.NAME, stateDefinitionQueue)).thenReturn(new ConcurrentLinkedDeque<>());
+        when(stateRegistry.lookup(TokenService.NAME, stateDefinition))
+                .thenReturn(new MapReadableKVState<>(
+                        TokenService.NAME, AccountReadableKVState.KEY, new ConcurrentHashMap<>()));
 
         schemaRegistry.register(schema);
         schemaRegistry.migrate(
@@ -161,7 +163,7 @@ class SchemaRegistryImplTest {
         var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, true, false);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-        when(stateRegistry.lookup(stateDefinitionSingleton))
+        when(stateRegistry.lookup("service", stateDefinitionSingleton))
                 .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
@@ -187,7 +189,7 @@ class SchemaRegistryImplTest {
         var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, true);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-        when(stateRegistry.lookup(stateDefinitionSingleton))
+        when(stateRegistry.lookup("service", stateDefinitionSingleton))
                 .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
@@ -213,7 +215,7 @@ class SchemaRegistryImplTest {
         var stateDefinitionSingleton = new StateDefinition<>(stateKey, mockCodec, mockCodec, 123, false, false, false);
 
         when(schema.statesToCreate(config)).thenReturn(Set.of(stateDefinitionSingleton));
-        when(stateRegistry.lookup(stateDefinitionSingleton))
+        when(stateRegistry.lookup("service", stateDefinitionSingleton))
                 .thenThrow(new UnsupportedOperationException(UNSUPPORTED_STATE_KEY_MESSAGE + stateKey));
         schemaRegistry.register(schema);
         UnsupportedOperationException exception = assertThrows(
