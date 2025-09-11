@@ -257,13 +257,15 @@ public class MirrorNodeState implements MerkleNodeState {
                 if (state instanceof Queue<?> queue) {
                     data.put(
                             stateName,
-                            withAnyRegisteredListeners(serviceName, new ListWritableQueueState<>(stateName, queue)));
+                            withAnyRegisteredListeners(
+                                    serviceName, new ListWritableQueueState<>(serviceName, stateName, queue)));
                 } else if (state instanceof ReadableKVState<?, ?>) {
                     data.put(
                             stateName,
                             withAnyRegisteredListeners(
                                     serviceName,
                                     new MapWritableKVState<>(
+                                            serviceName,
                                             stateName,
                                             getReadableStates(serviceName).get(stateName))));
                 } else if (state instanceof SingletonState<?> ref) {
