@@ -411,7 +411,7 @@ public class RecordItemBuilder {
                 .setErrorMessage(text(10))
                 .setFunctionParameters(bytes(64))
                 .setGas(10_000L)
-                .setGasUsed(1000L)
+                .setGasUsed(100000L)
                 .addLogInfo(ContractLoginfo.newBuilder()
                         .setBloom(bytes(256))
                         .setContractID(contractId)

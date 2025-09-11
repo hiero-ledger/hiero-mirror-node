@@ -30,12 +30,14 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.util.Utility;
+import org.springframework.data.util.Version;
 
 @CustomLog
 @Named
@@ -45,6 +47,7 @@ public class ContractResultServiceImpl implements ContractResultService {
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
     private final EntityListener entityListener;
+    private final ImporterProperties importerProperties;
     private final SidecarContractMigration sidecarContractMigration;
     private final TransactionHandlerFactory transactionHandlerFactory;
 
@@ -248,8 +251,7 @@ public class ContractResultServiceImpl implements ContractResultService {
             contractResult.setErrorMessage(functionResult.getErrorMessage());
             contractResult.setFunctionResult(functionResult.toByteArray());
             contractResult.setGasUsed(functionResult.getGasUsed());
-
-            sidecarProcessingResult.updateGasConsumed(contractResult);
+            updateGasConsumed(contractResult, sidecarProcessingResult, recordItem);
 
             if (functionResult.hasSenderId()) {
                 var senderId = EntityId.of(functionResult.getSenderId());
@@ -427,6 +429,37 @@ public class ContractResultServiceImpl implements ContractResultService {
     }
 
     /**
+     * Updates gas consumed based on HAPI version and smart contract throttling version.
+     * If the RecordItem's HAPI version is equal or greater than the smart contract throttling version,
+     * uses the gas used field from {@link ContractResult}. Otherwise, uses the existing logic with manual calculation.
+     *
+     * @param contractResult The contract result to update
+     * @param sidecarProcessingResult The sidecar processing result containing gas usage information
+     * @param recordItem The record item being processed
+     */
+    private void updateGasConsumed(
+            ContractResult contractResult, SidecarProcessingResult sidecarProcessingResult, RecordItem recordItem) {
+        try {
+            Version throttlingVersion = Version.parse(importerProperties.getSmartContractThrottlingVersion());
+            Version hapiVersion = recordItem.getHapiVersion();
+
+            if (hapiVersion.isGreaterThanOrEqualTo(throttlingVersion)) {
+                // Use directly gas used field
+                contractResult.setGasConsumed(contractResult.getGasUsed());
+            } else {
+                // Use legacy logic for manual calculation of gas consumed for older HAPI versions
+                sidecarProcessingResult.calculateGasConsumed(contractResult);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Error parsing smart contract throttling version '{}', falling back to legacy logic: {}",
+                    importerProperties.getSmartContractThrottlingVersion(),
+                    e.getMessage());
+            sidecarProcessingResult.calculateGasConsumed(contractResult);
+        }
+    }
+
+    /**
      * Updates the contract entities in ContractCreateResult.CreatedContractIDs list. The method should only be called
      * for such contract entities in pre services 0.23 contract create transactions. Since services 0.23, the child
      * contract creation is externalized into its own synthesized contract create transaction and should be processed by
@@ -495,7 +528,7 @@ public class ContractResultServiceImpl implements ContractResultService {
         /**
          * Update the gas consumed for a contract transaction.
          */
-        void updateGasConsumed(ContractResult contractResult) {
+        void calculateGasConsumed(ContractResult contractResult) {
             if (totalGasUsed == null) {
                 return;
             }
