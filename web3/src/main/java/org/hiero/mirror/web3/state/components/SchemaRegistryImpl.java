@@ -178,7 +178,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final MirrorNodeState state) {
         final Map<String, Object> stateDataSources = new HashMap<>();
         schema.statesToCreate(configuration)
-                .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(def)));
+                .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(serviceName, def)));
 
         state.addService(serviceName, stateDataSources);
 
