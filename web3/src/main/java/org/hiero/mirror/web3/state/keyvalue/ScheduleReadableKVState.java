@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
 import com.hedera.hapi.node.state.schedule.Schedule;
 import com.hedera.hapi.node.transaction.TransactionBody;
+import com.hedera.node.app.service.schedule.ScheduleService;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -43,7 +44,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
             ScheduleRepository scheduleRepository,
             CommonEntityAccessor commonEntityAccessor,
             TransactionSignatureRepository transactionSignatureRepository) {
-        super(V0490ScheduleSchema.SCHEDULES_BY_ID_KEY);
+        super(ScheduleService.NAME, V0490ScheduleSchema.SCHEDULES_BY_ID_KEY);
         this.scheduleRepository = scheduleRepository;
         this.commonEntityAccessor = commonEntityAccessor;
         this.transactionSignatureRepository = transactionSignatureRepository;

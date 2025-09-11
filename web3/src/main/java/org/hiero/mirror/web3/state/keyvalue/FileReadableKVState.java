@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.node.app.service.file.FileService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
@@ -39,7 +40,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
             SystemFileLoader systemFileLoader) {
-        super(KEY);
+        super(FileService.NAME, KEY);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;

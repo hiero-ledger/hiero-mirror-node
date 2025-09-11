@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
 
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
+import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
@@ -27,7 +28,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
 
     protected ContractBytecodeReadableKVState(
             final ContractRepository contractRepository, CommonEntityAccessor commonEntityAccessor) {
-        super(KEY);
+        super(ContractService.NAME, KEY);
         this.contractRepository = contractRepository;
         this.commonEntityAccessor = commonEntityAccessor;
     }
