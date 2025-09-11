@@ -7,6 +7,7 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import com.hedera.hapi.node.base.PendingAirdropId;
 import com.hedera.hapi.node.base.PendingAirdropValue;
 import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
+import com.hedera.node.app.service.token.TokenService;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -19,7 +20,7 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
     private final TokenAirdropRepository tokenAirdropRepository;
 
     protected AirdropsReadableKVState(final TokenAirdropRepository tokenAirdropRepository) {
-        super(KEY);
+        super(TokenService.NAME, KEY);
         this.tokenAirdropRepository = tokenAirdropRepository;
     }
 

@@ -15,6 +15,7 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -61,7 +62,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
-        super(stateKey);
+        super(TokenService.NAME, stateKey);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
         this.nftAllowanceRepository = nftAllowanceRepository;

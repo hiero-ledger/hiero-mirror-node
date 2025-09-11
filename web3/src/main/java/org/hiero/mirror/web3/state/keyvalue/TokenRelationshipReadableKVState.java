@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
+import com.hedera.node.app.service.token.TokenService;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -43,7 +44,7 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
             final TokenAccountRepository tokenAccountRepository,
             final TokenBalanceRepository tokenBalanceRepository,
             final TokenRepository tokenRepository) {
-        super(KEY);
+        super(TokenService.NAME, KEY);
         this.nftRepository = nftRepository;
         this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;

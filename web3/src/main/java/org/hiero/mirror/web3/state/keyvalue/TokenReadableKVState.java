@@ -16,6 +16,7 @@ import com.hedera.hapi.node.transaction.CustomFee.FeeOneOfType;
 import com.hedera.hapi.node.transaction.FixedFee;
 import com.hedera.hapi.node.transaction.FractionalFee;
 import com.hedera.hapi.node.transaction.RoyaltyFee;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
@@ -51,7 +52,6 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     private final CommonEntityAccessor commonEntityAccessor;
     private final CustomFeeRepository customFeeRepository;
     private final TokenRepository tokenRepository;
-    private final EntityRepository entityRepository;
     private final NftRepository nftRepository;
     private final SystemEntity systemEntity;
 
@@ -62,11 +62,10 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final EntityRepository entityRepository,
             final NftRepository nftRepository,
             final SystemEntity systemEntity) {
-        super(KEY);
+        super(TokenService.NAME, KEY);
         this.commonEntityAccessor = commonEntityAccessor;
         this.customFeeRepository = customFeeRepository;
         this.tokenRepository = tokenRepository;
-        this.entityRepository = entityRepository;
         this.nftRepository = nftRepository;
         this.systemEntity = systemEntity;
     }
