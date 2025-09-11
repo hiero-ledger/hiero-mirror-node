@@ -71,7 +71,7 @@ public final class StateRegistry {
      * @return the existing state object or a default implementation if available
      * @throws UnsupportedOperationException if the state key is not registered and no default exists
      */
-    public Object lookup(StateDefinition<?, ?> definition) {
+    public Object lookup(final String serviceName, final StateDefinition<?, ?> definition) {
         final var stateKey = definition.stateKey();
 
         final var state = states.get(stateKey);
@@ -94,6 +94,6 @@ public final class StateRegistry {
             return new DefaultSingleton(stateKey);
         }
 
-        return new MapReadableKVState<>(stateKey, new ConcurrentHashMap<>());
+        return new MapReadableKVState<>(serviceName, stateKey, new ConcurrentHashMap<>());
     }
 }
