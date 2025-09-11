@@ -16,7 +16,6 @@ import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.services.ServicesRegistry.Registration;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.VersionConfig;
-import com.swirlds.metrics.api.Metrics;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.state.lifecycle.SchemaRegistry;
@@ -33,9 +32,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ServiceMigratorImplTest {
-
-    @Mock
-    private Metrics metrics;
 
     @Mock
     private MirrorNodeState mirrorNodeState;
@@ -96,7 +92,6 @@ class ServiceMigratorImplTest {
                 currentVersion,
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                metrics,
                 startupNetworks,
                 storeMetricsService,
                 configProvider,
@@ -122,7 +117,6 @@ class ServiceMigratorImplTest {
                 currentVersion,
                 new ConfigProviderImpl().getConfiguration(),
                 new ConfigProviderImpl().getConfiguration(),
-                metrics,
                 startupNetworks,
                 storeMetricsService,
                 configProvider,
@@ -153,7 +147,6 @@ class ServiceMigratorImplTest {
                     currentVersion,
                     configuration,
                     configuration,
-                    metrics,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
@@ -175,7 +168,6 @@ class ServiceMigratorImplTest {
                     currentVersion,
                     configuration,
                     configuration,
-                    metrics,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
@@ -197,7 +189,6 @@ class ServiceMigratorImplTest {
                     currentVersion,
                     configuration,
                     configuration,
-                    metrics,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
@@ -223,7 +214,6 @@ class ServiceMigratorImplTest {
                     currentVersion,
                     configuration,
                     configuration,
-                    metrics,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
