@@ -28,11 +28,13 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * pre-populate the map, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
+     * @param serviceName The service name for this state
      * @param stateKey The state key for this state
      * @param backingStore The backing store to use
      */
-    public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey);
+    public MapReadableKVState(
+            @Nonnull final String serviceName, @Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
+        super(serviceName, stateKey);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
