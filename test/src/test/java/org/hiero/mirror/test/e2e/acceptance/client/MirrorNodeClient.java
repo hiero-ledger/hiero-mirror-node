@@ -359,6 +359,11 @@ public class MirrorNodeClient {
         return callRestEndpoint("/tokens?publickey={publicKey}", TokensResponse.class, publicKey);
     }
 
+    public Nfts getTokenNFTs(String tokenId) {
+        log.debug("Get token nfts by tokenId '{}'", tokenId);
+        return callRestEndpoint("/tokens/{tokenId}/nfts", Nfts.class, tokenId);
+    }
+
     public Topic getTopic(String topicId) {
         return callRestJavaEndpoint("/topics/{topicId}", Topic.class, topicId);
     }
