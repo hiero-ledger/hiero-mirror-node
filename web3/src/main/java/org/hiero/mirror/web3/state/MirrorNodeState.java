@@ -223,7 +223,7 @@ public class MirrorNodeState implements MerkleNodeState {
                 final var stateName = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue queue) {
-                    data.put(stateName, new ListReadableQueueState(stateName, queue));
+                    data.put(stateName, new ListReadableQueueState(serviceName, stateName, queue));
                 } else if (state instanceof ReadableKVState<?, ?> kvState) {
                     final var readableKVState = readableKVStates.stream()
                             .filter(r -> r.getStateKey().equals(stateName))
