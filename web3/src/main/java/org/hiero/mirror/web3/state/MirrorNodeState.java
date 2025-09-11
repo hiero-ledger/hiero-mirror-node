@@ -35,12 +35,12 @@ import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.throttle.AppThrottleFactory;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.ThrottleAccumulator;
-import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.base.time.Time;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.crypto.MerkleCryptography;
+import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.state.StateChangeListener;
@@ -51,7 +51,6 @@ import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.KVChangeListener;
 import com.swirlds.state.spi.QueueChangeListener;
 import com.swirlds.state.spi.ReadableKVState;
-import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableKVStateBase;
 import com.swirlds.state.spi.WritableQueueStateBase;
@@ -84,6 +83,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
+import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
 import org.hiero.mirror.web3.state.core.ListWritableQueueState;
 import org.hiero.mirror.web3.state.core.MapReadableStates;
@@ -149,7 +149,6 @@ public class MirrorNodeState implements MerkleNodeState {
                     currentVersion,
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
-                    UnavailableMetrics.UNAVAILABLE_METRICS,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
@@ -159,7 +158,12 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
-    public void init(Time time, Metrics metrics, MerkleCryptography merkleCryptography, LongSupplier roundSupplier) {
+    public void init(
+            Time time,
+            Configuration configuration,
+            Metrics metrics,
+            MerkleCryptography merkleCryptography,
+            LongSupplier roundSupplier) {
         // No-op
     }
 
@@ -235,7 +239,7 @@ public class MirrorNodeState implements MerkleNodeState {
                         data.put(stateName, kvState);
                     }
                 } else if (state instanceof SingletonState<?> singleton) {
-                    data.put(stateName, new ReadableSingletonStateBase<>(stateName, singleton));
+                    data.put(stateName, new FunctionReadableSingletonState<>(serviceName, stateName, singleton));
                 }
             }
             return new MapReadableStates(data);
