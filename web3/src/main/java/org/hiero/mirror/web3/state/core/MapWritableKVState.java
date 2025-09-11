@@ -14,8 +14,10 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     private final ReadableKVState<K, V> readableBackingStore;
 
     public MapWritableKVState(
-            @Nonnull final String stateKey, @Nonnull final ReadableKVState<K, V> readableBackingStore) {
-        super(stateKey);
+            @Nonnull final String serviceName,
+            @Nonnull final String stateKey,
+            @Nonnull final ReadableKVState<K, V> readableBackingStore) {
+        super(serviceName, stateKey);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
