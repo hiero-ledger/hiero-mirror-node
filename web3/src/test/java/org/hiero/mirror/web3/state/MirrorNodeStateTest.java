@@ -270,7 +270,9 @@ class MirrorNodeStateTest {
                 .isEqualTo(new MapWritableStates(Map.of(
                         FileReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                FileReadableKVState.KEY, readableStates.get(FileReadableKVState.KEY)))));
+                                FileService.NAME,
+                                FileReadableKVState.KEY,
+                                readableStates.get(FileReadableKVState.KEY)))));
     }
 
     @Test
@@ -291,7 +293,9 @@ class MirrorNodeStateTest {
                 .isEqualTo(new MapWritableStates(Map.of(
                         FileReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                FileReadableKVState.KEY, readableStates.get(FileReadableKVState.KEY)))));
+                                FileService.NAME,
+                                FileReadableKVState.KEY,
+                                readableStates.get(FileReadableKVState.KEY)))));
     }
 
     @Test
@@ -308,10 +312,12 @@ class MirrorNodeStateTest {
                 .isEqualTo(new MapWritableStates(Map.of(
                         ContractBytecodeReadableKVState.KEY,
                         new MapWritableKVState<>(
+                                ContractService.NAME,
                                 ContractBytecodeReadableKVState.KEY,
                                 readableStates.get(ContractBytecodeReadableKVState.KEY)),
                         ContractStorageReadableKVState.KEY,
                         new MapWritableKVState<>(
+                                ContractService.NAME,
                                 ContractStorageReadableKVState.KEY,
                                 readableStates.get(ContractStorageReadableKVState.KEY)))));
     }
@@ -334,20 +340,30 @@ class MirrorNodeStateTest {
                 .isEqualTo(new MapWritableStates(Map.of(
                         AccountReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                AccountReadableKVState.KEY, readableStates.get(AccountReadableKVState.KEY)),
+                                TokenService.NAME,
+                                AccountReadableKVState.KEY,
+                                readableStates.get(AccountReadableKVState.KEY)),
                         AirdropsReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                AirdropsReadableKVState.KEY, readableStates.get(AirdropsReadableKVState.KEY)),
+                                TokenService.NAME,
+                                AirdropsReadableKVState.KEY,
+                                readableStates.get(AirdropsReadableKVState.KEY)),
                         AliasesReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                AliasesReadableKVState.KEY, readableStates.get(AliasesReadableKVState.KEY)),
+                                TokenService.NAME,
+                                AliasesReadableKVState.KEY,
+                                readableStates.get(AliasesReadableKVState.KEY)),
                         NftReadableKVState.KEY,
-                        new MapWritableKVState<>(NftReadableKVState.KEY, readableStates.get(NftReadableKVState.KEY)),
+                        new MapWritableKVState<>(
+                                TokenService.NAME, NftReadableKVState.KEY, readableStates.get(NftReadableKVState.KEY)),
                         TokenReadableKVState.KEY,
                         new MapWritableKVState<>(
-                                TokenReadableKVState.KEY, readableStates.get(TokenReadableKVState.KEY)),
+                                TokenService.NAME,
+                                TokenReadableKVState.KEY,
+                                readableStates.get(TokenReadableKVState.KEY)),
                         TokenRelationshipReadableKVState.KEY,
                         new MapWritableKVState<>(
+                                TokenService.NAME,
                                 TokenRelationshipReadableKVState.KEY,
                                 readableStates.get(TokenRelationshipReadableKVState.KEY)))));
     }
