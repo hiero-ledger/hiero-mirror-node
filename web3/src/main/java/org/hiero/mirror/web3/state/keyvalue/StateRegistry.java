@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import com.google.common.collect.ImmutableMap;
 import com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema;
+import com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
@@ -40,7 +41,9 @@ public final class StateRegistry {
                     V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_KEY,
                     V0570ScheduleSchema.SCHEDULED_USAGES_KEY,
                     V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY,
-                    V0610TokenSchema.NODE_REWARDS_KEY)
+                    V0610TokenSchema.NODE_REWARDS_KEY,
+                    V065ContractSchema.EVM_HOOK_STATES_KEY,
+                    V065ContractSchema.LAMBDA_STORAGE_KEY)
             .collect(Collectors.toSet());
 
     private final ImmutableMap<String, Object> states;
