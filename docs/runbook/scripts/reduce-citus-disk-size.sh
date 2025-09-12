@@ -24,30 +24,30 @@ SG_WEBHOOK_FILE="/tmp/sg-webhook-${EPOCH_SECONDS}.yaml"
 WORKER_DEFAULT_SIZE="${WORKER_DEFAULT_SIZE:-300Gi}"
 
 function configureAndValidate() {
-  GCP_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
-  if [[ -z "${GCP_PROJECT}" ]]; then
-    log "GCP_PROJECT is not set and is required. Exiting"
+  GCP_TARGET_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
+  if [[ -z "${GCP_TARGET_PROJECT}" ]]; then
+    log "GCP_TARGET_PROJECT is not set and is required. Exiting"
     exit 1
   else
-    gcloud projects describe "${GCP_PROJECT}" >/dev/null
+    gcloud projects describe "${GCP_TARGET_PROJECT}" >/dev/null
   fi
 
-  GCP_K8S_CLUSTER_REGION="$(readUserInput "Enter target cluster region: ")"
-  if [[ -z "${GCP_K8S_CLUSTER_REGION}" ]]; then
-    log "GCP_K8S_CLUSTER_REGION is not set and is required. Exiting"
+  GCP_K8S_TARGET_CLUSTER_REGION="$(readUserInput "Enter target cluster region: ")"
+  if [[ -z "${GCP_K8S_TARGET_CLUSTER_REGION}" ]]; then
+    log "GCP_K8S_TARGET_CLUSTER_REGION is not set and is required. Exiting"
     exit 1
   else
-    gcloud compute regions describe "${GCP_K8S_CLUSTER_REGION}" --project "${GCP_PROJECT}" >/dev/null
+    gcloud compute regions describe "${GCP_K8S_TARGET_CLUSTER_REGION}" --project "${GCP_TARGET_PROJECT}" >/dev/null
   fi
 
-  GCP_K8S_CLUSTER_NAME="$(readUserInput "Enter target cluster name: ")"
-  if [[ -z "${GCP_K8S_CLUSTER_NAME}" ]]; then
-    log "GCP_K8S_CLUSTER_NAME is not set and is required. Exiting"
+  GCP_K8S_TARGET_CLUSTER_NAME="$(readUserInput "Enter target cluster name: ")"
+  if [[ -z "${GCP_K8S_TARGET_CLUSTER_NAME}" ]]; then
+    log "GCP_K8S_TARGET_CLUSTER_NAME is not set and is required. Exiting"
     exit 1
   else
-    gcloud container clusters describe --project "${GCP_PROJECT}" \
-      --region="${GCP_K8S_CLUSTER_REGION}" \
-      "${GCP_K8S_CLUSTER_NAME}" >/dev/null
+    gcloud container clusters describe --project "${GCP_TARGET_PROJECT}" \
+      --region="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+      "${GCP_K8S_TARGET_CLUSTER_NAME}" >/dev/null
   fi
 
   DISK_PREFIX="$(kubectl get daemonsets \
@@ -81,7 +81,7 @@ function configureAndValidate() {
   fi
 
   AVAILABLE_DISKS="$(gcloud compute disks list \
-  --project "${GCP_PROJECT}" \
+  --project "${GCP_TARGET_PROJECT}" \
   --filter="name~${DISK_PREFIX}.*-zfs" \
   --format="json(name, sizeGb, users, zone)")"
   if [[ "${AVAILABLE_DISKS}" == "[]" ]]; then
@@ -101,7 +101,7 @@ function configureAndValidate() {
       DISK_NODE_ID=${DISK_NODE_ID%"-zfs"}
       DISK_ZONE=$(echo "${DISK_NODE_ID}" | cut -d '-' -f 2-4)
       gcloud compute disks describe "${disk}" \
-      --project="${GCP_PROJECT}" \
+      --project="${GCP_TARGET_PROJECT}" \
       --zone="${DISK_ZONE}" >/dev/null
 
       DISK_SIZE="$(readUserInput "Enter new disk size for ${disk} in GB: ")"
@@ -130,14 +130,14 @@ function reduceDiskSizes() {
     "${DISK_NODE_ID}" )"
     NEW_DISK_NAME="${DISK_NAME}-resize-${EPOCH_SECONDS}"
     gcloud compute disks create "${NEW_DISK_NAME}" \
-                    --project="${GCP_PROJECT}" \
+                    --project="${GCP_TARGET_PROJECT}" \
                     --type=pd-balanced \
                     --size="${DISK_SIZE}GB" \
                     --zone="${DISK_ZONE}"
     gcloud compute instances attach-disk "${INSTANCE_NAME}" \
     --disk "${NEW_DISK_NAME}" \
     --zone "${DISK_ZONE}" \
-    --project "${GCP_PROJECT}" \
+    --project "${GCP_TARGET_PROJECT}" \
     --device-name="${TEMP_DISK_DEVICE}"
     cat >"/tmp/${INSTANCE_NAME}.yaml" <<EOF
 apiVersion: apps/v1
@@ -241,30 +241,30 @@ EOF
        zpool export ${POOL_NAME}'"
 
     DISK_REGION=$(echo "${DISK_ZONE}" | cut -d '-' -f 1-2)
-    gcloud compute snapshots create "${NEW_DISK_NAME}" --project="${GCP_PROJECT}" --source-disk="${NEW_DISK_NAME}" \
+    gcloud compute snapshots create "${NEW_DISK_NAME}" --project="${GCP_TARGET_PROJECT}" --source-disk="${NEW_DISK_NAME}" \
     --source-disk-zone="${DISK_ZONE}" --storage-location="${DISK_REGION}" --description="Resize for ${DISK_NAME}" \
     --quiet
     gcloud compute instances detach-disk "${INSTANCE_NAME}" --disk="${DISK_NAME}" --zone="${DISK_ZONE}" \
-    --project="${GCP_PROJECT}" --quiet
+    --project="${GCP_TARGET_PROJECT}" --quiet
     gcloud compute disks delete "${DISK_NAME}" \
     --zone="${DISK_ZONE}" \
-    --project="${GCP_PROJECT}" \
+    --project="${GCP_TARGET_PROJECT}" \
     --quiet
     gcloud compute disks create "${DISK_NAME}" \
-    --project="${GCP_PROJECT}" \
+    --project="${GCP_TARGET_PROJECT}" \
     --zone="${DISK_ZONE}" \
-    --source-snapshot=projects/"${GCP_PROJECT}"/global/snapshots/"${NEW_DISK_NAME}" --type=pd-balanced
+    --source-snapshot=projects/"${GCP_TARGET_PROJECT}"/global/snapshots/"${NEW_DISK_NAME}" --type=pd-balanced
     gcloud compute instances detach-disk "${INSTANCE_NAME}" \
     --disk="${NEW_DISK_NAME}" --zone="${DISK_ZONE}" \
-    --project="${GCP_PROJECT}" --quiet
+    --project="${GCP_TARGET_PROJECT}" --quiet
     gcloud compute disks delete "${NEW_DISK_NAME}" \
     --zone="${DISK_ZONE}" \
-    --project="${GCP_PROJECT}" \
+    --project="${GCP_TARGET_PROJECT}" \
     --quiet
     gcloud compute instances attach-disk "${INSTANCE_NAME}" \
     --disk="${DISK_NAME}" \
     --zone="${DISK_ZONE}" \
-    --project="${GCP_PROJECT}" \
+    --project="${GCP_TARGET_PROJECT}" \
     --quiet \
     --device-name=sdb
 
