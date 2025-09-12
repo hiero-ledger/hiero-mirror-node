@@ -18,6 +18,7 @@ import com.esaulpaugh.headlong.abi.Tuple;
 import com.hedera.hapi.block.stream.trace.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.EvmTransactionLog;
 import com.hedera.hapi.block.stream.trace.SlotRead;
+import com.hedera.hapi.block.stream.trace.WrittenSlotKeys;
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.base.Duration;
@@ -326,21 +327,29 @@ public class ConversionUtils {
      * @return the list of slot usages
      */
     public static @Nullable List<ContractSlotUsage> asPbjSlotUsages(
-            @Nullable final List<StorageAccesses> storageAccesses) {
+            @Nullable final List<StorageAccesses> storageAccesses, final boolean traceExplicitWrites) {
         if (storageAccesses == null) {
             return null;
         }
         final List<ContractSlotUsage> slotUsages = new ArrayList<>();
         for (final var storageAccess : storageAccesses) {
             final List<SlotRead> reads = new ArrayList<>();
-            final List<com.hedera.pbj.runtime.io.buffer.Bytes> writes = new ArrayList<>();
+            final List<com.hedera.pbj.runtime.io.buffer.Bytes> writes = traceExplicitWrites ? new ArrayList<>() : null;
             for (final var access : storageAccess.accesses()) {
                 if (!access.isReadOnly()) {
-                    writes.add(access.trimmedKeyBytes());
-                    reads.add(SlotRead.newBuilder()
-                            .index(writes.size() - 1)
-                            .readValue(access.trimmedValueBytes())
-                            .build());
+                    if (writes != null) {
+                        writes.add(access.trimmedKeyBytes());
+                        reads.add(SlotRead.newBuilder()
+                                .index(writes.size() - 1)
+                                .readValue(access.trimmedValueBytes())
+                                .build());
+                    } else {
+                        // The block stream builder replaces the key with its index in the writes list once known
+                        reads.add(SlotRead.newBuilder()
+                                .key(tuweniToPbjBytes(access.key()))
+                                .readValue(access.trimmedValueBytes())
+                                .build());
+                    }
                 } else {
                     reads.add(SlotRead.newBuilder()
                             .key(access.trimmedKeyBytes())
@@ -348,7 +357,15 @@ public class ConversionUtils {
                             .build());
                 }
             }
-            slotUsages.add(new ContractSlotUsage(storageAccess.contractID(), writes, reads));
+            if (traceExplicitWrites) {
+                slotUsages.add(ContractSlotUsage.newBuilder()
+                        .contractId(storageAccess.contractID())
+                        .writtenSlotKeys(new WrittenSlotKeys(writes))
+                        .slotReads(reads)
+                        .build());
+            } else {
+                slotUsages.add(new ContractSlotUsage(storageAccess.contractID(), null, reads));
+            }
         }
         return slotUsages;
     }

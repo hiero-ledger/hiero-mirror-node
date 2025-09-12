@@ -68,4 +68,10 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     public int hashCode() {
         return Objects.hash(getStateKey(), readableBackingStore);
     }
+
+    @Nonnull
+    @Override
+    public String getServiceName() {
+        return super.getStateKey();
+    }
 }
