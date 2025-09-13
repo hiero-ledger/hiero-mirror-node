@@ -65,10 +65,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("spring.test.constructor.autowire.mode", "ALL")
     systemProperty("spring.main.cloud-platform", "NONE")
     useJUnitPlatform {}
-    if (
-        System.getenv().containsKey("CI") &&
-            !System.getenv().containsKey("HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES")
-    ) {
+    if (System.getenv().containsKey("CI")) {
         retry { maxRetries = 3 }
     }
 }
