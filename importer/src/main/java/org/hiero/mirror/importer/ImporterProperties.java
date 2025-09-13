@@ -68,6 +68,9 @@ public class ImporterProperties {
 
     private Long topicRunningHashV2AddedTimestamp;
 
+    @NotBlank
+    private String smartContractThrottlingVersion = "0.66.0";
+
     public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
         if (groupByDay) {
             return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));

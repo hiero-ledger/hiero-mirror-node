@@ -25,11 +25,13 @@ import lombok.SneakyThrows;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -37,19 +39,24 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.data.util.Version;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class ContractResultServiceImplTest {
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
+    private static final String DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = "0.66.0";
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
@@ -61,6 +68,9 @@ class ContractResultServiceImplTest {
 
     @Mock
     private EntityListener entityListener;
+
+    @Mock
+    private ImporterProperties importerProperties;
 
     @Mock
     private SidecarContractMigration sidecarContractMigration;
@@ -129,7 +139,12 @@ class ContractResultServiceImplTest {
     void beforeEach() {
         doReturn(transactionHandler).when(transactionHandlerFactory).get(any(TransactionType.class));
         contractResultService = new ContractResultServiceImpl(
-                entityProperties, entityIdService, entityListener, sidecarContractMigration, transactionHandlerFactory);
+                entityProperties,
+                entityIdService,
+                entityListener,
+                importerProperties,
+                sidecarContractMigration,
+                transactionHandlerFactory);
     }
 
     @ParameterizedTest
@@ -193,5 +208,65 @@ class ContractResultServiceImplTest {
             expectedTransaction.setContractIds(sorted);
         });
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expectedContractTransactions);
+    }
+
+    @Test
+    void gasConsumedWithInvalidThrottlingVersion() {
+        // Given
+        when(importerProperties.getSmartContractThrottlingVersion()).thenReturn("invalid.version");
+        var recordItem = recordItemBuilder.contractCall().build();
+        var transaction = domainBuilder.transaction().get();
+        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        var capturedContractResult = contractResultCaptor.getValue();
+        assertThat(capturedContractResult.getGasConsumed()).isLessThan(capturedContractResult.getGasUsed());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"66", "67"})
+    void gasConsumedWithEqualOrGreaterHapiVersionThanSmartContractThrottling(int hapiVersionMajor) {
+        // Given
+        when(importerProperties.getSmartContractThrottlingVersion())
+                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
+        var recordItem = recordItemBuilder
+                .contractCall(ContractID.newBuilder().setContractNum(1000).build())
+                .recordItem(r -> r.hapiVersion(new Version(0, hapiVersionMajor, 0)))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        var capturedContractResult = contractResultCaptor.getValue();
+        assertThat(capturedContractResult.getGasConsumed()).isEqualTo(capturedContractResult.getGasUsed());
+    }
+
+    @Test
+    void gasConsumedWithOlderHapiVersionThanSmartContractThrottling() {
+        // Given
+        when(importerProperties.getSmartContractThrottlingVersion())
+                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
+        var recordItem = recordItemBuilder
+                .contractCall(ContractID.newBuilder().setContractNum(1000).build())
+                .recordItem(r -> r.hapiVersion(new Version(0, 65, 0))) // Older HAPI version
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        var capturedContractResult = contractResultCaptor.getValue();
+        assertThat(capturedContractResult.getGasConsumed()).isLessThan(capturedContractResult.getGasUsed());
     }
 }
