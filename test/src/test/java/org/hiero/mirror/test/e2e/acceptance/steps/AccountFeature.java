@@ -267,57 +267,49 @@ public class AccountFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should return the accounts list")
     public void verifyAccountsList() {
-        AccountsResponse accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
-        assertThat(accountsResponse)
-                .isNotNull()
-                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(AccountsResponse::getAccounts)
-                .isNotNull();
-    }
-
-    @Then("the mirror node REST API should return correct balance of {long}")
-    public void verifyAccountBalance(long initialBalance) {
-        BalancesResponse balancesResponse = mirrorClient.getBalancesForAccountId(senderAccountId.toString());
-
-        assertThat(balancesResponse)
-                .isNotNull()
-                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(BalancesResponse::getBalances)
-                .isNotNull()
-                .asInstanceOf(InstanceOfAssertFactories.LIST);
-    }
-
-    @And("the mirror node REST API should return the accounts list with limit {int}")
-    public void verifyAccountsListWithLimit(int limit) {
-        final var accountsResponse = mirrorClient.getAccounts(limit);
+        final var accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
         assertThat(accountsResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
                 .extracting(AccountsResponse::getAccounts)
                 .isNotNull()
                 .asInstanceOf(InstanceOfAssertFactories.LIST)
-                .hasSizeBetween(1, limit);
+                .hasSizeBetween(1, DEFAULT_LIMIT);
     }
 
-    @Then("the mirror node REST API should return the staking rewards for the account")
-    public void verifyAccountStakingRewards() {
-        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
-        String accountId = senderAccountId.getAccountId().toString();
-        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, null);
-        assertThat(rewardsResponse)
+    @Then("the mirror node REST API should return the balances")
+    public void verifyAccountBalanceAPI() {
+        final var balancesResponse = mirrorClient.getBalancesForAccountId(senderAccountId.toString());
+
+        assertThat(balancesResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(StakingRewardsResponse::getRewards)
+                .extracting(BalancesResponse::getBalances)
                 .isNotNull();
     }
 
-    @Then("I stake the account to node {long}")
-    public void stakeAccountToNode(long nodeId) {
-        networkTransactionResponse = accountClient.stakeAccountToNode(senderAccountId, nodeId);
+    @When("I stake the account {string} to node {long}")
+    public void stakeAccountToNode(String accountName, long nodeId) {
+        senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+        networkTransactionResponse = accountClient.stakeAccountToNode(
+                senderAccountId, x -> x.setStakedNodeId(nodeId).setDeclineStakingReward(false));
         assertThat(networkTransactionResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
                 .extracting(NetworkTransactionResponse::getReceipt)
+                .isNotNull();
+    }
+
+    @Then("the mirror node REST API should return the staking rewards for the account {string}")
+    public void verifyAccountStakingRewardsAPI(String accountName) {
+        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
+        senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+        String accountId = senderAccountId.getAccountId().toString();
+        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, DEFAULT_LIMIT);
+        assertThat(rewardsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(StakingRewardsResponse::getRewards)
                 .isNotNull();
     }
 }

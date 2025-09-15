@@ -441,21 +441,13 @@ public class MirrorNodeClient {
         return partialStateSupplier.get();
     }
 
-    public AccountsResponse getAccounts(Integer limit) {
-        if (limit == null) {
-            return callRestEndpoint("/accounts", AccountsResponse.class);
-        } else {
-            return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
-        }
+    public AccountsResponse getAccounts(int limit) {
+        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
     }
 
-    public StakingRewardsResponse getAccountRewards(String accountId, Integer limit) {
-        if (limit == null) {
-            return callRestEndpoint("/accounts/{accountId}/rewards", StakingRewardsResponse.class, accountId);
-        } else {
-            return callRestEndpoint(
-                    "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
-        }
+    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
+        return callRestEndpoint(
+                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
     }
 
     public BalancesResponse getBalancesForAccountId(String accountId) {

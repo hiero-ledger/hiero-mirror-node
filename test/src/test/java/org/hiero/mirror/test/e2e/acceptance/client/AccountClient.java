@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
@@ -334,16 +335,16 @@ public class AccountClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse stakeAccountToNode(ExpandedAccountId accountId, long nodeId) {
-        var transaction = new AccountUpdateTransaction()
+    public NetworkTransactionResponse stakeAccountToNode(
+            ExpandedAccountId accountId, Consumer<AccountUpdateTransaction> transaction) {
+        final var accountUpdateTransaction = new AccountUpdateTransaction();
+        transaction.accept(accountUpdateTransaction);
+        accountUpdateTransaction
                 .setAccountId(accountId.getAccountId())
-                .setStakedNodeId(nodeId)
-                .setDeclineStakingReward(false)
                 .freezeWith(client)
                 .sign(accountId.getPrivateKey());
-
-        var response = executeTransactionAndRetrieveReceipt(transaction);
-        log.info("Staked account {} to node {} via {}", accountId.getAccountId(), nodeId, response.getTransactionId());
+        var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
+        log.info(" account updated via {}", response.getTransactionId());
         return response;
     }
 
