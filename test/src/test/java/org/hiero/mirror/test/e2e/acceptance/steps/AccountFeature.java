@@ -277,13 +277,7 @@ public class AccountFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should return correct balance of {long}")
     public void verifyAccountBalance(long initialBalance) {
-        String params = QueryParamsBuilder.builder()
-                .buildQueryParam("account.id", senderAccountId)
-                .buildQueryParam("limit", 1)
-                .buildQueryParam("order", "desc")
-                .build();
-
-        BalancesResponse balancesResponse = mirrorClient.getBalancesForQuery(params);
+        BalancesResponse balancesResponse = mirrorClient.getBalancesForAccountId(senderAccountId.toString());
 
         assertThat(balancesResponse)
                 .isNotNull()
@@ -325,31 +319,5 @@ public class AccountFeature extends AbstractFeature {
                 .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
                 .extracting(NetworkTransactionResponse::getReceipt)
                 .isNotNull();
-    }
-
-    private static final class QueryParamsBuilder {
-
-        private String queryParam;
-
-        public static QueryParamsBuilder builder() {
-            return new QueryParamsBuilder();
-        }
-
-        public QueryParamsBuilder buildQueryParam(String key, Object value) {
-            if (key == null) {
-                return this;
-            }
-            final String newQueryParam = String.format("&%s=%s", key, value);
-            if (queryParam != null) {
-                queryParam += newQueryParam;
-            } else {
-                queryParam = newQueryParam;
-            }
-            return this;
-        }
-
-        public String build() {
-            return queryParam;
-        }
     }
 }

@@ -458,9 +458,8 @@ public class MirrorNodeClient {
         }
     }
 
-    public BalancesResponse getBalancesForQuery(String queryParams) {
-        String url = buildUrlWithParams("/balances", queryParams);
-        return callRestEndpoint(url, BalancesResponse.class);
+    public BalancesResponse getBalancesForAccountId(String accountId) {
+        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
 
     private String buildUrlWithParams(String basePath, String params) {
