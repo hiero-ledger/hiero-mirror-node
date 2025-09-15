@@ -6,7 +6,7 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class TokenCreateTransformer extends AbstractBlockItemTransformer {
+final class TokenCreateTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {

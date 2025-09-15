@@ -42,11 +42,11 @@ public class BlockTransaction implements StreamItem {
     private final List<StateChanges> stateChanges;
     private final boolean successful;
     private final SignedTransaction signedTransaction;
+    private final List<TraceData> traceData;
     private final TransactionBody transactionBody;
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
     private final TransactionResult transactionResult;
 }
-
 ```
 
 #### BlockFile

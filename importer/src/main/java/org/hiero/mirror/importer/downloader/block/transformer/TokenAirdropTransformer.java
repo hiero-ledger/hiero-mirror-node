@@ -19,7 +19,7 @@ import java.util.Set;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
+final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {

@@ -17,6 +17,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -143,8 +144,9 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
                 }
 
-                while (context.readBlockItemFor(TRACE_DATA) != null) {
-                    // just for root hash calculation, parsing logic will come in future PRs
+                var traceDataList = new ArrayList<TraceData>();
+                while ((protoBlockItem = context.readBlockItemFor(TRACE_DATA)) != null) {
+                    traceDataList.add(protoBlockItem.getTraceData());
                 }
 
                 var stateChangesList = new ArrayList<StateChanges>();
@@ -164,6 +166,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 var blockTransaction = BlockTransaction.builder()
                         .previous(context.getLastBlockTransaction())
                         .stateChanges(Collections.unmodifiableList(stateChangesList))
+                        .traceData(Collections.unmodifiableList(traceDataList))
                         .transactionBody(transactionBody)
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))

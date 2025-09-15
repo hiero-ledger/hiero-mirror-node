@@ -9,7 +9,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 
 @Named
-final class CryptoCreateTransformer extends AbstractBlockItemTransformer {
+final class CryptoCreateTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {

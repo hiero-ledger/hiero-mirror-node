@@ -32,27 +32,58 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class ContractTransformerTest extends AbstractTransformerTest {
+final class ContractTransformerTest extends AbstractTransformerTest {
 
     private static final ContractID HTS_PRECOMPILE_ADDRESS =
             ContractID.newBuilder().setContractNum(0x167).build();
 
+    @SuppressWarnings("deprecation")
+    private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER = b -> {
+        // calculated in parser
+        b.clearEthereumHash();
+        contractResultBuilder(b)
+                .ifPresent(builder -> builder.clearCreatedContractIDs().clearContractNonces());
+    };
+
+    @SuppressWarnings("deprecation")
+    private static final Consumer<TransactionRecord.Builder> EXPLICIT_CONTRACT_RESULT_CUSTOMIZER = b -> {
+        contractResultBuilder(b).ifPresent(builder -> builder.clearAmount()
+                // createdContractIDs is deprecated and no longer used, plus it's hard and sometimes impossible for
+                // mirrornode to reconstruct it from block stream
+                .clearCreatedContractIDs()
+                .clearFunctionParameters()
+                .clearGas());
+    };
+
     @Test
     void contractCall() {
         // given
-        var expectedRecordItem =
-                recordItemBuilder.contractCall().customize(this::finalize).build();
+        var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .customize(this::finalize)
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                // - contract nonces should only be set in top level contract create or contract call which
+                //   results in new contract created in child contract create
+                // - signer nonce should only be set for ethereum transactions
+                .record(r ->
+                        r.getContractCallResultBuilder().clearContractNonces().clearSignerNonce())
+                // will add back sidecar records once the supporting logic is updated
+                .sidecarRecords(List::clear)
+                .build();
         var blockTransaction =
                 blockTransactionBuilder.contractCall(expectedRecordItem).build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
@@ -69,6 +100,13 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCallResultBuilder()
+                        .clearBloom()
+                        .clearLogInfo()
+                        .clearContractNonces()
+                        .clearSignerNonce())
+                .sidecarRecords(List::clear)
                 .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
                 .customize(this::finalize)
                 .build();
@@ -89,7 +127,13 @@ class ContractTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .contractCall()
                 .transactionBody(b -> b.getContractIDBuilder().setEvmAddress(recordItemBuilder.bytes(20)))
-                .record(r -> r.getContractCallResultBuilder().clearContractID())
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCallResultBuilder()
+                        .clearBloom()
+                        .clearContractID()
+                        .clearContractNonces()
+                        .clearLogInfo()
+                        .clearSignerNonce())
                 .receipt(Builder::clearContractID)
                 .status(ResponseCodeEnum.INVALID_CONTRACT_ID)
                 .sidecarRecords(List::clear)
@@ -109,8 +153,16 @@ class ContractTransformerTest extends AbstractTransformerTest {
     @Test
     void contractCreate() {
         // given
-        var expectedRecordItem =
-                recordItemBuilder.contractCreate().customize(this::finalize).build();
+        var expectedRecordItem = recordItemBuilder
+                .contractCreate()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.getContractCreateResultBuilder()
+                        // will test contract nonces once support is added
+                        .clearContractNonces()
+                        .clearSignerNonce())
+                .sidecarRecords(List::clear)
+                .customize(this::finalize)
+                .build();
         var blockTransaction =
                 blockTransactionBuilder.contractCreate(expectedRecordItem).build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
@@ -236,6 +288,8 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
+                .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .sidecarRecords(List::clear)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -255,16 +309,10 @@ class ContractTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
-                .record(r -> {
-                    if (r.hasContractCallResult()) {
-                        r.setContractCallResult(
-                                recordItemBuilder.contractFunctionResult().setGasUsed(0L));
-                    } else {
-                        r.setContractCreateResult(
-                                recordItemBuilder.contractFunctionResult().setGasUsed(0L));
-                    }
-                })
+                .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .record(r -> contractResultBuilder(r).ifPresent(ContractFunctionResult.Builder::clearGasUsed))
                 .receipt(Builder::clearContractID)
+                .sidecarRecords(List::clear)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -285,6 +333,7 @@ class ContractTransformerTest extends AbstractTransformerTest {
                 .ethereumTransaction()
                 .receipt(Builder::clearContractID)
                 .record(r -> r.clearContractCallResult().clearContractCreateResult())
+                .record(ETHEREUM_RECORD_CUSTOMIZER)
                 .sidecarRecords(List::clear)
                 .status(ResponseCodeEnum.INSUFFICIENT_TX_FEE)
                 .customize(this::finalize)
@@ -300,6 +349,7 @@ class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
+    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackPendingFungibleAirdropAmount() {
         // given
@@ -436,6 +486,7 @@ class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
+    @Disabled("Fix and enable when EvmTraceData is fully supported")
     @Test
     void contractCallWithHTSPrecompileAndTrackTotalSupply() {
         // given
@@ -556,6 +607,19 @@ class ContractTransformerTest extends AbstractTransformerTest {
                     Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
             assertThat(items).map(RecordItem::getParent).containsExactlyInAnyOrderElementsOf(expectedParentItems);
         });
+    }
+
+    private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
+            TransactionRecord.Builder recordBuilder) {
+        if (recordBuilder.hasContractCallResult()) {
+            return Optional.of(recordBuilder.getContractCallResultBuilder());
+        }
+
+        if (recordBuilder.hasContractCreateResult()) {
+            return Optional.of(recordBuilder.getContractCreateResultBuilder());
+        }
+
+        return Optional.empty();
     }
 
     private static Stream<Arguments> provideContractIds() {

@@ -13,14 +13,14 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.StreamFileTransformer;
-import org.hiero.mirror.importer.downloader.block.transformer.BlockItemTransformerFactory;
+import org.hiero.mirror.importer.downloader.block.transformer.BlockTransactionTransformerFactory;
 import org.springframework.data.util.Version;
 
 @Named
 @RequiredArgsConstructor
 public class BlockFileTransformer implements StreamFileTransformer<RecordFile, BlockFile> {
 
-    private final BlockItemTransformerFactory blockItemTransformerFactory;
+    private final BlockTransactionTransformerFactory blockTransactionTransformerFactory;
 
     @Override
     public RecordFile transform(BlockFile blockFile) {
@@ -89,7 +89,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                     .transaction(blockTransaction.getTransaction())
                     .transactionBody(blockTransaction.getTransactionBody())
                     .transactionIndex(index);
-            blockItemTransformerFactory.transform(blockTransaction, builder);
+            blockTransactionTransformerFactory.transform(blockTransaction, builder);
             builders.add(builder);
         }
 

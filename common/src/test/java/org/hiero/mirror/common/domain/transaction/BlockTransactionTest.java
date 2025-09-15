@@ -15,6 +15,10 @@ import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
+import com.hedera.hapi.block.stream.trace.protoc.AutoAssociateTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Timestamp;
@@ -27,6 +31,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +39,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class BlockTransactionTest {
+final class BlockTransactionTest {
 
     @ParameterizedTest
     @EnumSource(
@@ -246,8 +251,10 @@ class BlockTransactionTest {
                 .build();
 
         // when, then
-        assertThat(child.getStateChangeContext()).isSameAs(parent.getStateChangeContext());
-        assertThat(child.getStateChangeContext().getNewTokenId()).contains(tokenId);
+        assertThat(child.getStateChangeContext())
+                .isSameAs(parent.getStateChangeContext())
+                .extracting(StateChangeContext::getNewTokenId, InstanceOfAssertFactories.optional(TokenID.class))
+                .contains(tokenId);
         assertThat(failed.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
     }
 
@@ -286,6 +293,42 @@ class BlockTransactionTest {
                 .isEmpty();
     }
 
+    @Test
+    void allTraceData() {
+        // given
+        var blockTransaction = defaultBuilder()
+                .traceData(List.of(
+                        TraceData.newBuilder()
+                                .setAutoAssociateTraceData(AutoAssociateTraceData.getDefaultInstance())
+                                .build(),
+                        TraceData.newBuilder()
+                                .setEvmTraceData(EvmTraceData.getDefaultInstance())
+                                .build(),
+                        TraceData.newBuilder()
+                                .setSubmitMessageTraceData(SubmitMessageTraceData.getDefaultInstance())
+                                .build()))
+                .build();
+
+        // when, then
+        assertThat(blockTransaction)
+                .satisfies(
+                        b -> assertThat(b.getAutoAssociateTraceData()).isNotNull(),
+                        b -> assertThat(b.getEvmTraceData()).isNotNull(),
+                        b -> assertThat(b.getSubmitMessageTraceData()).isNotNull());
+    }
+
+    @Test
+    void noTraceData() {
+        // given
+        var blockTransaction = defaultBuilder().build();
+
+        // when, then
+        assertThat(blockTransaction)
+                .returns(null, BlockTransaction::getAutoAssociateTraceData)
+                .returns(null, BlockTransaction::getEvmTraceData)
+                .returns(null, BlockTransaction::getSubmitMessageTraceData);
+    }
+
     private BlockTransaction.BlockTransactionBuilder defaultBuilder() {
         var signedTransaction = SignedTransaction.getDefaultInstance();
         var transactionBody = TransactionBody.getDefaultInstance();
@@ -294,6 +337,7 @@ class BlockTransactionTest {
                 .signedTransaction(signedTransaction)
                 .signedTransactionBytes(signedTransaction.toByteArray())
                 .stateChanges(Collections.emptyList())
+                .traceData(Collections.emptyList())
                 .transactionOutputs(Collections.emptyMap())
                 .transactionResult(TransactionResult.getDefaultInstance());
     }

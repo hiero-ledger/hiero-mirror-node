@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
-interface BlockItemTransformer {
+interface BlockTransactionTransformer {
 
     void transform(BlockTransactionTransformation blockTransactionTransformation);
 

@@ -6,7 +6,7 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class DefaultTransformer extends AbstractBlockItemTransformer {
+final class DefaultTransformer extends AbstractBlockTransactionTransformer {
 
     /**
      * Any transaction type that has no operations for the updateTransactionRecord method can use this transformer

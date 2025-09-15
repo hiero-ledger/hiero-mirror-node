@@ -10,7 +10,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @CustomLog
 @Named
-final class UtilPrngTransformer extends AbstractBlockItemTransformer {
+final class UtilPrngTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {

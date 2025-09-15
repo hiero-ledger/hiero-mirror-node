@@ -10,7 +10,7 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {
+final class ScheduleCreateTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
     protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
