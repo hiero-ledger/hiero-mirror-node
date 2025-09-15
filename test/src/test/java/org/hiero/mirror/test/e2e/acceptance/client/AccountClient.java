@@ -335,7 +335,7 @@ public class AccountClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse stakeAccountToNode(
+    public NetworkTransactionResponse updateAccount(
             ExpandedAccountId accountId, Consumer<AccountUpdateTransaction> transaction) {
         final var accountUpdateTransaction = new AccountUpdateTransaction();
         transaction.accept(accountUpdateTransaction);

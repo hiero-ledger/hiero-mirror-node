@@ -291,7 +291,7 @@ public class AccountFeature extends AbstractFeature {
     @When("I stake the account {string} to node {long}")
     public void stakeAccountToNode(String accountName, long nodeId) {
         senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        networkTransactionResponse = accountClient.stakeAccountToNode(
+        networkTransactionResponse = accountClient.updateAccount(
                 senderAccountId, x -> x.setStakedNodeId(nodeId).setDeclineStakingReward(false));
         assertThat(networkTransactionResponse)
                 .isNotNull()
