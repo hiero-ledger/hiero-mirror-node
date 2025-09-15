@@ -462,14 +462,6 @@ public class MirrorNodeClient {
         return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
 
-    private String buildUrlWithParams(String basePath, String params) {
-        if (params == null || params.isBlank()) {
-            return basePath;
-        }
-
-        return basePath + "?" + params;
-    }
-
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         final var restResponse = callRestEndpoint(uri, classType, uriVariables);
 
