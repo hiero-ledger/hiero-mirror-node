@@ -441,10 +441,6 @@ public class MirrorNodeClient {
         return partialStateSupplier.get();
     }
 
-    public AccountsResponse getAccounts() {
-        return getAccounts(null);
-    }
-
     public AccountsResponse getAccounts(Integer limit) {
         if (limit == null) {
             return callRestEndpoint("/accounts", AccountsResponse.class);

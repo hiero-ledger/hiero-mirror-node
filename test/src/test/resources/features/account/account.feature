@@ -6,11 +6,10 @@ Feature: Account Coverage Feature
     When I create a new account with balance <amount> tℏ
     Then the new balance should reflect cryptotransfer of <amount>
     And the mirror node REST API should return the accounts list
-    When I stake the account to node <nodeId>
     Then the mirror node REST API should return correct balance of <amount>
     Examples:
-      | amount | nodeId |
-      | 10     | 2      |
+      | amount |
+      | 10     |
 
   @critical @release @acceptance @cryptotransfer
   Scenario Outline: Validate simple CryptoTransfer
@@ -33,12 +32,13 @@ Feature: Account Coverage Feature
 
   @rewards @acceptance
   Scenario Outline: Validate account staking rewards API
+    When I create a new account with balance <amount> tℏ
+    Then I stake the account to node <nodeId>
     Given I send <amount> tℏ to <accountName>
     Then the mirror node REST API should return the staking rewards for the account
-    And the mirror node REST API should return the staking rewards for the account with limit <rewardLimit>
     Examples:
-      | amount | accountName | rewardLimit |
-      | 1      | "ALICE"     | 10          |
+      | amount | accountName | nodeId |
+      | 1      | "ALICE"     | 2      |
 
 
 

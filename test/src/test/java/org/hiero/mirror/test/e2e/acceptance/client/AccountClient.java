@@ -347,19 +347,6 @@ public class AccountClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse unstakeAccount(ExpandedAccountId accountId) {
-        var transaction = new AccountUpdateTransaction()
-                .setAccountId(accountId.getAccountId())
-                .clearStakedAccountId()
-                .clearStakedNodeId()
-                .freezeWith(client)
-                .sign(accountId.getPrivateKey());
-
-        var response = executeTransactionAndRetrieveReceipt(transaction);
-        log.info("Unstaked account {} via {}", accountId.getAccountId(), response.getTransactionId());
-        return response;
-    }
-
     @RequiredArgsConstructor
     public enum AccountNameEnum {
         ALICE(false, Key.KeyCase.ED25519),

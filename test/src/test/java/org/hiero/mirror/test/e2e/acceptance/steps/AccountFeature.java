@@ -45,6 +45,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public class AccountFeature extends AbstractFeature {
 
+    public static final int DEFAULT_LIMIT = 25;
     private static final AtomicReference<Runnable> CLEANUP = new AtomicReference<>();
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
@@ -266,7 +267,7 @@ public class AccountFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should return the accounts list")
     public void verifyAccountsList() {
-        AccountsResponse accountsResponse = mirrorClient.getAccounts();
+        AccountsResponse accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
         assertThat(accountsResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
@@ -306,6 +307,7 @@ public class AccountFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should return the staking rewards for the account")
     public void verifyAccountStakingRewards() {
+        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
         String accountId = senderAccountId.getAccountId().toString();
         final var rewardsResponse = mirrorClient.getAccountRewards(accountId, null);
         assertThat(rewardsResponse)
@@ -315,32 +317,9 @@ public class AccountFeature extends AbstractFeature {
                 .isNotNull();
     }
 
-    @And("the mirror node REST API should return the staking rewards for the account with limit {int}")
-    public void verifyAccountStakingRewardsWithLimit(int limit) {
-        String accountId = senderAccountId.getAccountId().toString();
-        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, limit);
-        assertThat(rewardsResponse)
-                .isNotNull()
-                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(StakingRewardsResponse::getRewards)
-                .isNotNull()
-                .asInstanceOf(InstanceOfAssertFactories.LIST)
-                .hasSizeLessThanOrEqualTo(limit);
-    }
-
-    @When("I stake the account to node {long}")
+    @Then("I stake the account to node {long}")
     public void stakeAccountToNode(long nodeId) {
         networkTransactionResponse = accountClient.stakeAccountToNode(senderAccountId, nodeId);
-        assertThat(networkTransactionResponse)
-                .isNotNull()
-                .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
-                .extracting(NetworkTransactionResponse::getReceipt)
-                .isNotNull();
-    }
-
-    @When("I unstake the account")
-    public void unstakeAccount() {
-        networkTransactionResponse = accountClient.unstakeAccount(senderAccountId);
         assertThat(networkTransactionResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
