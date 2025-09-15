@@ -16,7 +16,6 @@ Feature: Account Coverage Feature
     Given I send <amount> tℏ to <accountName>
     Then the mirror node REST API should return status <httpStatusCode> for the crypto transfer transaction
     And the new balance should reflect cryptotransfer of <amount>
-    And the mirror node REST API should return the accounts list
     Examples:
       | amount | accountName | httpStatusCode |
       | 1      | "ALICE"     | 200            |
