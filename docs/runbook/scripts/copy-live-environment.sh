@@ -111,7 +111,7 @@ EOF
 
 function runBackupsForAllNamespaces() {
   if [[ "${CREATE_NEW_BACKUPS}"  != "true" ]]; then
-    retrun 0
+    return 0
   fi
 
   local shardedClusters

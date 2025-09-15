@@ -242,7 +242,7 @@ function scaleDeployment() {
       log "No pods found for deployment ${deploymentLabel} in namespace ${namespace}"
       return
     else
-      log "Removing pods ${deploymentPods} in ${namespace} for"
+      log "Removing pods ${deploymentPods} in ${namespace}"
       doContinue
       kubectl scale deployment -n "${namespace}" -l "${deploymentLabel}" --replicas="${replicas}"
       log "Waiting for pods with label ${deploymentLabel} to be deleted"

@@ -612,7 +612,7 @@ function replaceDisks() {
   if [[ "${REPLACE_DISKS}" == "true" ]]; then
     log "Will delete disks ${DISK_PREFIX}-(${UNIQUE_NODE_IDS[*]})-zfs"
     doContinue
-    kubectl delete sgshardedbackups.stackgres.io -n "${namespace}" --all
+    kubectl delete sgshardedbackups.stackgres.io --all -A
     resizeCitusNodePools 0
     for nodeId in "${UNIQUE_NODE_IDS[@]}"; do
       local nodeInfo diskName diskZone snapshotName snapshotFullName
@@ -745,7 +745,7 @@ function configureAndValidateSnapshotRestore() {
   fi
 
   if [[ -z "${SNAPSHOT_ID}" ]]; then
-    SNAPSHOT_ID="$(promptSnapshotId))"
+    SNAPSHOT_ID="$(promptSnapshotId)"
   fi
 
   SNAPSHOTS_TO_RESTORE="$(getSnapshotsById "${SNAPSHOT_ID}")"
@@ -754,6 +754,10 @@ function configureAndValidateSnapshotRestore() {
 
   DISK_PREFIX="$(getDiskPrefix)"
   log "Target disk prefix is ${DISK_PREFIX}"
+
+  ZFS_VOLUMES="$(getZFSVolumes)"
+  NODE_ID_MAP="$(getNodeIdToPvcSnapshotsMap)"
+  mapfile -t UNIQUE_NODE_IDS < <(echo "${NODE_ID_MAP}" | jq -r 'keys[]')
 
   for nodeId in "${UNIQUE_NODE_IDS[@]}"; do
     local diskName="${DISK_PREFIX}-${nodeId}-zfs"
@@ -771,9 +775,6 @@ function configureAndValidateSnapshotRestore() {
     fi
   done
 
-  ZFS_VOLUMES="$(getZFSVolumes)"
-  NODE_ID_MAP="$(getNodeIdToPvcSnapshotsMap)"
-  mapfile -t UNIQUE_NODE_IDS < <(echo "${NODE_ID_MAP}" | jq -r 'keys[]')
   setCitusNamespaces
 }
 
