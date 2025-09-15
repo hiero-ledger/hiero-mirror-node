@@ -16,7 +16,9 @@ public class VersionConverter implements ArgumentConverter {
         }
 
         if (input instanceof String inputString) {
-            return Version.parse(inputString);
+            String truncatedString =
+                    inputString.contains("-") ? inputString.substring(0, inputString.indexOf("-")) : inputString;
+            return Version.parse(truncatedString);
         } else {
             throw new ArgumentConversionException("Input " + input + " is not a string");
         }

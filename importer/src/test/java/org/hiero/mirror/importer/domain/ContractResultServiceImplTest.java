@@ -32,6 +32,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.converter.VersionConverter;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -42,6 +43,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -56,7 +58,7 @@ import org.springframework.data.util.Version;
 class ContractResultServiceImplTest {
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
-    private static final String DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = "0.66.0";
+    private static final Version DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = Version.parse("0.66.0");
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
@@ -138,6 +140,9 @@ class ContractResultServiceImplTest {
     @BeforeEach
     void beforeEach() {
         doReturn(transactionHandler).when(transactionHandlerFactory).get(any(TransactionType.class));
+        when(importerProperties.getSmartContractThrottlingVersion())
+                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
+
         contractResultService = new ContractResultServiceImpl(
                 entityProperties,
                 entityIdService,
@@ -210,32 +215,14 @@ class ContractResultServiceImplTest {
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expectedContractTransactions);
     }
 
-    @Test
-    void gasConsumedWithInvalidThrottlingVersion() {
-        // Given
-        when(importerProperties.getSmartContractThrottlingVersion()).thenReturn("invalid.version");
-        var recordItem = recordItemBuilder.contractCall().build();
-        var transaction = domainBuilder.transaction().get();
-        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
-
-        // When
-        contractResultService.process(recordItem, transaction);
-
-        // Then
-        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
-        var capturedContractResult = contractResultCaptor.getValue();
-        assertThat(capturedContractResult.getGasConsumed()).isLessThan(capturedContractResult.getGasUsed());
-    }
-
     @ParameterizedTest
-    @CsvSource({"66", "67"})
-    void gasConsumedWithEqualOrGreaterHapiVersionThanSmartContractThrottling(int hapiVersionMajor) {
+    @CsvSource({"0.66.0", "0.66.1", "0.66.0-rc.1", "0.67.0"})
+    void gasConsumedWithEqualOrGreaterHapiVersionThanSmartContractThrottling(
+            @ConvertWith(VersionConverter.class) Version hapiVersion) {
         // Given
-        when(importerProperties.getSmartContractThrottlingVersion())
-                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
         var recordItem = recordItemBuilder
                 .contractCall(ContractID.newBuilder().setContractNum(1000).build())
-                .recordItem(r -> r.hapiVersion(new Version(0, hapiVersionMajor, 0)))
+                .recordItem(r -> r.hapiVersion(hapiVersion))
                 .build();
         var transaction = domainBuilder.transaction().get();
         var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
@@ -252,11 +239,9 @@ class ContractResultServiceImplTest {
     @Test
     void gasConsumedWithOlderHapiVersionThanSmartContractThrottling() {
         // Given
-        when(importerProperties.getSmartContractThrottlingVersion())
-                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
         var recordItem = recordItemBuilder
                 .contractCall(ContractID.newBuilder().setContractNum(1000).build())
-                .recordItem(r -> r.hapiVersion(new Version(0, 65, 0))) // Older HAPI version
+                .recordItem(r -> r.hapiVersion(Version.parse("0.65.0"))) // Older HAPI version
                 .build();
         var transaction = domainBuilder.transaction().get();
         var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);

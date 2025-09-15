@@ -439,22 +439,14 @@ public class ContractResultServiceImpl implements ContractResultService {
      */
     private void updateGasConsumed(
             ContractResult contractResult, SidecarProcessingResult sidecarProcessingResult, RecordItem recordItem) {
-        try {
-            Version throttlingVersion = Version.parse(importerProperties.getSmartContractThrottlingVersion());
-            Version hapiVersion = recordItem.getHapiVersion();
+        Version throttlingVersion = importerProperties.getSmartContractThrottlingVersion();
+        Version hapiVersion = recordItem.getHapiVersion();
 
-            if (hapiVersion.isGreaterThanOrEqualTo(throttlingVersion)) {
-                // Use directly gas used field
-                contractResult.setGasConsumed(contractResult.getGasUsed());
-            } else {
-                // Use legacy logic for manual calculation of gas consumed for older HAPI versions
-                sidecarProcessingResult.calculateGasConsumed(contractResult);
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "Error parsing smart contract throttling version '{}', falling back to legacy logic: {}",
-                    importerProperties.getSmartContractThrottlingVersion(),
-                    e.getMessage());
+        if (hapiVersion.isGreaterThanOrEqualTo(throttlingVersion)) {
+            // Use directly gas used field
+            contractResult.setGasConsumed(contractResult.getGasUsed());
+        } else {
+            // Use legacy logic for manual calculation of gas consumed for older HAPI versions
             sidecarProcessingResult.calculateGasConsumed(contractResult);
         }
     }
