@@ -296,7 +296,7 @@ public class AccountFeature extends AbstractFeature {
                 .extracting(AccountsResponse::getAccounts)
                 .isNotNull()
                 .asInstanceOf(InstanceOfAssertFactories.LIST)
-                .hasSizeLessThanOrEqualTo(limit);
+                .hasSizeBetween(1, limit);
     }
 
     @Then("the mirror node REST API should return the staking rewards for the account")
