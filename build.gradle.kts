@@ -58,7 +58,7 @@ dependencies {
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.20.0")
         api("io.cucumber:cucumber-bom:7.23.0")
-        api("io.fabric8:kubernetes-client-bom:7.3.1")
+        api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
