@@ -96,6 +96,9 @@ global:
 hpa:
   behavior: {}
   enabled: false
+  gasUsed:
+    enabled: false
+    value: 2750k
   maxReplicas: 12
   metrics: |
     - type: Resource
@@ -104,6 +107,7 @@ hpa:
         target:
           type: Utilization
           averageUtilization: 80
+    {{- if .Values.hpa.gasUsed.enabled }}
     - type: Object
       object:
         describedObject:
@@ -114,7 +118,8 @@ hpa:
           name: avg_evm_gas_used_per_second
         target:
           type: Value
-          value: 2750k
+          value: {{ .Values.hpa.gasUsed.value }}
+    {{- end }}
   minReplicas: 1
 
 image:
