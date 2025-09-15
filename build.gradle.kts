@@ -46,7 +46,7 @@ dependencies {
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.4.8-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.0")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:0.64.3")
