@@ -40,17 +40,15 @@ jobs:
           - BLOCK
     timeout-minutes: 40
     env:
-      BLOCK_NODE_CHART_VERSION: v0.17.1
       CONSENSUS_VERSION: v0.65.0
-      MIRROR_NODE_VERSION: v0.138.0
+      BLOCK_NODE_CHART_VERSION: v0.17.0-rc2
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      TAG: pr-changes
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
         with:
           egress-policy: audit
 
@@ -60,7 +58,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
 
       - name: Setup Node
-        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
 
@@ -85,12 +83,15 @@ jobs:
         run: ./gradlew test:build -x test
 
       - name: Build Mirror Node Test Docker image
-        run: docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
+        run: |
+          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
+          docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
 
       - name: Setup Solo Cluster
         run: |
           set -ex
 
+          TAG=${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}
           kind create cluster -n "${SOLO_CLUSTER_NAME}"
           solo init
           solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
@@ -109,6 +110,18 @@ jobs:
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
           cat <<EOF > mirror.yaml
+          grpc:
+            image:
+              tag: ${TAG}
+          rest:
+            image:
+              tag: ${TAG}
+          restjava:
+            image:
+              tag: ${TAG}
+          web3:
+            image:
+              tag: ${TAG}
           importer:
             env:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0.${SOLO_NAMESPACE}.svc.cluster.local'
@@ -117,40 +130,33 @@ jobs:
             image:
               registry: docker.io
               repository: xinatswirlds/importer
-              tag: 8b691c40c
+              tag: e741ea2b2
           test:
-            cucumberTags: "@acceptance and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @erc and not @ethcall"
             image:
               tag: ${TAG}
+            cucumberTags: "@acceptance and not @accounts and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @filebase and not @schedulebase and not @token and not @topic and not @nftallowance and not @erc and not @cryptoallowance and not @tokenallowance and not @ethcall"
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
             enabled: true
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
           EOF
 
           else
           cat <<EOF > mirror.yaml
-          test:
+          global:
             image:
               tag: ${TAG}
+          test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
             enabled: true
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
           EOF
           fi
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger
+          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger
 
           echo "Solo cluster setup completed successfully!"
 

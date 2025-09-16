@@ -49,7 +49,6 @@ spec:
 EOF
       kubectl wait --for=condition=complete job/snap-marker-wiper --timeout=-1s
       kubectl delete job/snap-marker-wiper
-      kubectl wait --for=delete job snap-marker-wiper --timeout=-1s
     done
 }
 

@@ -43,7 +43,6 @@ Feature: Contract Base Coverage Feature
         And the mirror node Rest API should verify the parent contract has correct nonce
         When I successfully delete the child contract by calling it and causing it to self destruct
         Then the mirror node REST API should return status <httpStatusCode> for the self destruct transaction
-        And the mirror node contract logs REST API should return a non-empty response
         When I successfully delete the parent contract
         Then the mirror node REST API should return status <httpStatusCode> for the contract transaction
         And the mirror node REST API should verify the deleted contract entity

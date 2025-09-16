@@ -42,8 +42,6 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 public class TestUtil {
     public static final String HEX_PREFIX = "0x";
     public static final String ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-    public static final String IS_MODULARIZED_HEADER = "Is-Modularized";
-
     private static final BaseEncoding BASE32_ENCODER = BaseEncoding.base32().omitPadding();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final SecureRandom RANDOM = new SecureRandom();

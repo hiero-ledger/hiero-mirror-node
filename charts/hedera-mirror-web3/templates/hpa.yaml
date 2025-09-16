@@ -10,7 +10,7 @@ metadata:
 spec:
   behavior: {{ toYaml .Values.hpa.behavior | nindent 4 }}
   maxReplicas: {{ .Values.hpa.maxReplicas }}
-  metrics: {{ tpl .Values.hpa.metrics . | nindent 4 }}
+  metrics: {{ tpl (toYaml .Values.hpa.metrics) . | nindent 4 }}
   minReplicas: {{ .Values.hpa.minReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1
