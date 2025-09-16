@@ -23,10 +23,18 @@ public class Web3Properties {
 
     private boolean modularizedServices = true;
 
+    private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
+
     public String getBaseUrl() {
         if (baseUrl != null && !baseUrl.endsWith(URL_PREFIX)) {
             return baseUrl + URL_PREFIX;
         }
         return baseUrl;
+    }
+
+    @Data
+    public static class OpcodeTracerProperties {
+
+        private boolean enabled;
     }
 }

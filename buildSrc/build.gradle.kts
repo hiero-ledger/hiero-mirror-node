@@ -9,7 +9,7 @@ repositories {
 
 dependencies {
     val dockerJavaVersion = "3.6.0"
-    val jooqVersion = "3.20.6" // Always make the version in project root build.gradle.kts match
+    val jooqVersion = "3.20.7" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
     // embedded in the plugin being used by testcontainers-postgresql
@@ -21,7 +21,7 @@ dependencies {
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.2")
-    implementation("com.graphql-java-generator:graphql-gradle-plugin3:2.9")
+    implementation("com.graphql-java-generator:graphql-gradle-plugin3:3.0")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("io.freefair.gradle:lombok-plugin:8.14.2")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
