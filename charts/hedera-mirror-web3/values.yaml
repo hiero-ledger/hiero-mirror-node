@@ -96,14 +96,30 @@ global:
 hpa:
   behavior: {}
   enabled: false
+  gasUsed:
+    enabled: false
+    value: 2750k
   maxReplicas: 12
-  metrics:
+  metrics: |
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
           averageUtilization: 80
+    {{- if .Values.hpa.gasUsed.enabled }}
+    - type: Object
+      object:
+        describedObject:
+          apiVersion: v1
+          kind: Namespace
+          name: {{ include "hedera-mirror-web3.namespace" . }}
+        metric:
+          name: avg_evm_gas_used_per_second
+        target:
+          type: Value
+          value: {{ .Values.hpa.gasUsed.value }}
+    {{- end }}
   minReplicas: 1
 
 image:

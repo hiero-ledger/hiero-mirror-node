@@ -63,8 +63,14 @@ public abstract class BaseContractFeature extends AbstractFeature {
         return mirrorContract;
     }
 
+    protected final void verifyContractExecutionResults(String timestamp) {
+        final var contractResults = mirrorClient.getContractResults(timestamp).getResults();
+
+        assertThat(contractResults).isNotEmpty().anySatisfy(this::verifyContractExecutionResults);
+    }
+
     protected void verifyContractExecutionResultsById() {
-        List<ContractResult> contractResults = mirrorClient
+        final var contractResults = mirrorClient
                 .getContractResultsById(deployedParentContract.contractId().toString())
                 .getResults();
 
@@ -72,7 +78,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
     }
 
     protected void verifyContractExecutionResultByIdAndTimestamp(String timestamp) {
-        ContractResult contractResult = mirrorClient.getContractResultsByIdAndTimestamp(
+        final var contractResult = mirrorClient.getContractResultsByIdAndTimestamp(
                 deployedParentContract.contractId().toString(), timestamp);
 
         assertThat(contractResult).isNotNull();
@@ -82,7 +88,7 @@ public abstract class BaseContractFeature extends AbstractFeature {
     }
 
     protected String verifyContractExecutionResultsByTransactionId() {
-        ContractResult contractResult = mirrorClient.getContractResultByTransactionId(
+        final var contractResult = mirrorClient.getContractResultByTransactionId(
                 networkTransactionResponse.getTransactionIdStringNoCheckSum());
 
         verifyContractExecutionResults(contractResult);

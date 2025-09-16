@@ -7,13 +7,13 @@
     "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
   },
   "dependencies": {
-    "commander": "^14.0.0",
+    "commander": "^14.0.1",
     "json-bigint": "^1.0.0"
   },
   "description": "Generates a report showing an account's hbar transfers",
   "devDependencies": {
     "@fetch-mock/jest": "^0.2.17",
-    "jest": "^30.1.2"
+    "jest": "^30.1.3"
   },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
