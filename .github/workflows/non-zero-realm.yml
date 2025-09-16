@@ -28,7 +28,6 @@ jobs:
     env:
       HIERO_MIRROR_COMMON_REALM: 127
       HIERO_MIRROR_COMMON_SHARD: 113
-      HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "false"
     runs-on: hiero-mirror-node-linux-large
     strategy:
       fail-fast: false

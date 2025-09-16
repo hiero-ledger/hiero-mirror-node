@@ -69,7 +69,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private final SystemEntity systemEntity;
 
-    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
+    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":true}")
     private boolean allowLongZeroAddresses = true;
 
     @Getter
