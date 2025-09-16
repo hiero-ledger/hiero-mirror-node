@@ -171,47 +171,17 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    owner_id
-    bigint
-    not
-    null,
-    hook_id
-    bigint
-    not
-    null,
-    admin_key
-    bytea,
-    contract_id
-    bigint,
-    created_timestamp
-    bigint
-    not
-    null,
-    deleted
-    boolean
-    not
-    null
-    default
-    false,
-    extension_point
-    hook_extension_point
-    not
-    null,
-    type
-    hook_type
-    not
-    null,
+    owner_id           bigint                not null,
+    hook_id            bigint                not null,
+    admin_key          bytea,
+    contract_id        bigint,
+    created_timestamp  bigint                not null,
+    deleted            boolean               not null default false,
+    extension_point    hook_extension_point  not null,
+    type               hook_type             not null,
 
-    primary
-    key
-(
-    owner_id,
-    hook_id
-)
-    );
-
--- Index to support owner_id lookups (primary key already provides owner_id + hook_id lookups)
-create index if not exists hook__owner_id on hook (owner_id) where deleted = false;
+    primary key (owner_id, hook_id)
+);
 
 -- Distribute table for Citus using owner_id as distribution column
 select create_distributed_table('hook', 'owner_id');
