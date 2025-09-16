@@ -35,8 +35,9 @@ regressions are introduced.
 - [ ] New `routes.<apiName>` property added to `charts/hedera-mirror-rest-java/values.yaml` and defaulted to `false`
 - [ ] New route added to ingress conditional on routes property
 - [ ] New route added to gateway conditional on routes property
-- [ ] After rollout, manually enable in environments for a short period of time and watch metrics
-- [ ] Permanently enable in previewnet and testnet for a release
+- [ ] Enable route in integration environment before tagging and test it
+- [ ] Enable route in previewnet and watch metrics/logs
+- [ ] Enable route in both testnet clusters for a release and watch metrics/logs
 
 ## Phase Two
 
