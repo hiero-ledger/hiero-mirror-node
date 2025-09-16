@@ -30,6 +30,9 @@ import javax.inject.Inject;
  * making the final commit in the "base" {@link HandleHederaOperations}. These include validating storage size
  * limits, calculating and charging rent, and preserving per-contract linked lists. See the
  * {@link #commit()} implementation for more details.
+ *
+ * Change from the original class - added getEvmFrameState() method. It is needed for the opcode
+ * storage tracer to work. Otherwise, we don't have access to the storage changes.
  */
 @TransactionScope
 public class RootProxyWorldUpdater extends ProxyWorldUpdater {
@@ -120,6 +123,10 @@ public class RootProxyWorldUpdater extends ProxyWorldUpdater {
     @Override
     public @NonNull TxStorageUsage getTxStorageUsage() {
         return requireNonNull(txStorageUsage);
+    }
+
+    public EvmFrameState getEvmFrameState() {
+        return evmFrameState;
     }
 
     /**

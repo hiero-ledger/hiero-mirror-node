@@ -15,6 +15,13 @@ contract StorageContract {
         storedValue = value; // SSTORE operation
     }
 
+    function complexUpdate(uint256 value0, uint256 value1) public {
+        slot0 = value0; // SSTORE operation - set the first slot
+        slot1 = value1; // SSTORE operation - set the second slot
+        slot0 = value1; // SSTORE operation - update the value of the first slot
+        slot1 = 0; // SSTORE operation - delete the value of the second slot
+    }
+
     function setSlot0(uint256 value) public {
         slot0 = value;
     }
