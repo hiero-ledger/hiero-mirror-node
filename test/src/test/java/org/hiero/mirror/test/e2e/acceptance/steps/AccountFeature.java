@@ -265,7 +265,7 @@ public class AccountFeature extends AbstractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
-    @Then("the mirror node REST API should return the accounts list")
+    @Then("the mirror node REST API should return the list of accounts")
     public void verifyAccountsList() {
         final var accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
         assertThat(accountsResponse)
@@ -291,8 +291,10 @@ public class AccountFeature extends AbstractFeature {
     @When("I stake the account {string} to node {long}")
     public void stakeAccountToNode(String accountName, long nodeId) {
         senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        networkTransactionResponse = accountClient.updateAccount(
-                senderAccountId, x -> x.setStakedNodeId(nodeId).setDeclineStakingReward(false));
+        networkTransactionResponse =
+                accountClient.updateAccount(senderAccountId, x -> x.setStakedAccountId(senderAccountId.getAccountId())
+                        .setStakedNodeId(nodeId)
+                        .setDeclineStakingReward(false));
         assertThat(networkTransactionResponse)
                 .isNotNull()
                 .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
