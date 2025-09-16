@@ -37,7 +37,6 @@ import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.util.Utility;
-import org.springframework.data.util.Version;
 
 @CustomLog
 @Named
@@ -439,8 +438,8 @@ public class ContractResultServiceImpl implements ContractResultService {
      */
     private void updateGasConsumed(
             ContractResult contractResult, SidecarProcessingResult sidecarProcessingResult, RecordItem recordItem) {
-        Version throttlingVersion = importerProperties.getSmartContractThrottlingVersion();
-        Version hapiVersion = recordItem.getHapiVersion();
+        final var throttlingVersion = importerProperties.getSmartContractThrottlingVersion();
+        final var hapiVersion = recordItem.getHapiVersion();
 
         if (hapiVersion.isGreaterThanOrEqualTo(throttlingVersion)) {
             // Use directly gas used field

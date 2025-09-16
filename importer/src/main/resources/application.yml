@@ -40,7 +40,6 @@ hiero:
           entity:
             persist:
               syntheticContractLogEvmAddressLookup: true
-      smartContractThrottlingVersion: 0.66.0
 logging:
   level:
     root: warn
