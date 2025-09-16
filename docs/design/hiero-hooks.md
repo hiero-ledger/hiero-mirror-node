@@ -222,7 +222,6 @@ Create new domain classes:
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/Hook.java
 public class Hook {
-    @Id
     private HookId id;
 
     private byte[] adminKey;
@@ -232,10 +231,6 @@ public class Hook {
     private String extensionPoint;
     private String type;
 
-    @Data
-    @Embeddable
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class HookId implements Serializable {
         private Long ownerId;
         private Long hookId;
@@ -250,16 +245,11 @@ public class Hook {
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 public class HookStorage {
-    @Id
     private HookStorageId id;
 
     private byte[] value;
     private Long timestamp;
 
-    @Data
-    @Embeddable
-    @NoArgsConstructor
-    @AllArgsConstructor
     public static class HookStorageId implements Serializable {
         private Long hookId;
         private Long ownerId;
