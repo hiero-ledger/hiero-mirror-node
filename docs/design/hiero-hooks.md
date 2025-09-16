@@ -20,9 +20,6 @@ new REST APIs for hooks and hook storage.
 
 - Execute or validate hook logic (hooks are executed by consensus nodes)
 - Support real-time hook execution or simulation
-- Provide REST APIs for hook data
-- Store hook storage state
-- Support historical replay of hook executions
 
 ## Architecture
 
