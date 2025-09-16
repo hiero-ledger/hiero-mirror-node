@@ -340,21 +340,6 @@ public interface EntityListener {
 }
 ```
 
-Implement in `SqlEntityListener`:
-
-```java
-
-@Override
-public void onHook(Hook hook) {
-    hookRepository.save(hook);
-}
-
-@Override
-public void onHookStorage(HookStorage hookStorage) {
-    hookStorageRepository.save(hookStorage);
-}
-```
-
 ### 3.1. Hook Storage Updates Processing
 
 Hook storage updates can be delivered through two mechanisms, and the mirror node should support both:
