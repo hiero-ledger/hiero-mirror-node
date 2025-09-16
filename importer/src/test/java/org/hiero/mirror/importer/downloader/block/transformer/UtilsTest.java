@@ -107,7 +107,7 @@ final class UtilsTest {
         var bitSet = new BitSet(LogsBloomFilter.BYTE_SIZE * 8);
         bits.forEach(bitSet::set);
         var bloom = bitSet.toByteArray();
-        // the byte array from the BitSet will only contain bytes up to where the last set bit
+        // the byte array from the BitSet will only contain bytes up to the last set bit
         byte[] padded = new byte[LogsBloomFilter.BYTE_SIZE];
         System.arraycopy(bloom, 0, padded, 0, bloom.length);
         return padded;

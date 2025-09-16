@@ -15,6 +15,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
+    set("besuVersion", "24.3.3")
     set("blockNodeVersion", "0.17.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
@@ -31,6 +32,7 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
+        val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
@@ -79,8 +81,8 @@ dependencies {
         api("org.gaul:s3proxy:2.7.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
-        api("org.hyperledger.besu:evm:24.3.3")
-        api("org.hyperledger.besu:besu-datatypes:24.3.3")
+        api("org.hyperledger.besu:besu-datatypes:$besuVersion")
+        api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
