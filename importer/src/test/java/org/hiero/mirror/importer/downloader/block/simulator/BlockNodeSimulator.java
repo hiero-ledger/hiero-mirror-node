@@ -72,7 +72,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
             host = "localhost";
             serverBuilder = NettyServerBuilder.forPort(0);
         }
-        // only support InProcess channel now, will expand to http channel
+
         server = serverBuilder
                 .addService(new StatusService())
                 .addService(new StreamSubscribeService())
@@ -110,7 +110,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
-    public BlockNodeSimulator withOutOrder() {
+    public BlockNodeSimulator withOutOfOrder() {
         this.outOfOrder = true;
         return this;
     }

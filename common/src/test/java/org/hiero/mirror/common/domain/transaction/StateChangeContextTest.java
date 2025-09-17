@@ -44,9 +44,30 @@ import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 
-class StateChangeContextTest {
+final class StateChangeContextTest {
 
     private static long id = new SecureRandom().nextLong();
+
+    @Test
+    void accounts() {
+        // given
+        var accountId1 = getAccountId();
+        var accountId2 = getAccountId();
+        var accountId3 = getAccountId();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(accountId1))
+                .addStateChanges(accountMapUpdateChange(accountId2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getAccount(accountId1)).get().returns(accountId1, Account::getAccountId);
+        assertThat(context.getAccount(accountId2)).get().returns(accountId2, Account::getAccountId);
+        assertThat(context.getAccount(accountId3)).isEmpty();
+    }
 
     @Test
     void contractId() {
@@ -330,8 +351,7 @@ class StateChangeContextTest {
                 .build();
     }
 
-    private StateChange accountMapUpdateChange() {
-        var accountId = getAccountId();
+    private StateChange accountMapUpdateChange(AccountID accountId) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
@@ -340,6 +360,10 @@ class StateChangeContextTest {
                                 .setAccountValue(Account.newBuilder().setAccountId(accountId)))
                         .build())
                 .build();
+    }
+
+    private StateChange accountMapUpdateChange() {
+        return accountMapUpdateChange(getAccountId());
     }
 
     private StateChange contractMapUpdateChange(AccountID accountId, ByteString evmAddress) {

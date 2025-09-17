@@ -19,22 +19,23 @@ import java.util.Set;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
+final class TokenAirdropTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
         var pendingAirdrops = getPendingAirdrops(
-                blockItemTransformation.transactionBody().getTokenAirdrop(), blockItem.getTransactionResult());
+                blockTransactionTransformation.getTransactionBody().getTokenAirdrop(),
+                blockTransaction.getTransactionResult());
         for (var pendingAirdrop : pendingAirdrops) {
             var pendingAirdropId = pendingAirdrop.id();
             if (pendingAirdropId.hasFungibleTokenType()) {
-                blockItem
+                blockTransaction
                         .getStateChangeContext()
                         .trackPendingFungibleAirdrop(pendingAirdropId, pendingAirdrop.amount())
                         .ifPresentOrElse(
@@ -45,7 +46,7 @@ final class TokenAirdropTransformer extends AbstractBlockItemTransformer {
                                 () -> {
                                     log.warn(
                                             "Fungible pending airdrop not found in state at {}",
-                                            blockItem.getConsensusTimestamp());
+                                            blockTransaction.getConsensusTimestamp());
                                     recordBuilder.addNewPendingAirdrops(PendingAirdropRecord.newBuilder()
                                             .setPendingAirdropId(pendingAirdropId)
                                             .setPendingAirdropValue(PendingAirdropValue.newBuilder()

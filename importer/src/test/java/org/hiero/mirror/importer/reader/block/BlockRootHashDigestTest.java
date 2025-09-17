@@ -4,17 +4,19 @@ package org.hiero.mirror.importer.reader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.reader.block.BlockRootHashDigest.EMPTY_HASH;
 
+import com.hedera.hapi.block.stream.input.protoc.EventHeader;
+import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
+import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
-import org.bouncycastle.util.encoders.Hex;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import org.junit.jupiter.api.Test;
 
-class BlockRootHashDigestTest {
-
-    private static final byte[] EMPTY_HASH = Hex.decode(
-            "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b");
+final class BlockRootHashDigestTest {
 
     @Test
     void digest() {
@@ -22,11 +24,26 @@ class BlockRootHashDigestTest {
         var subject = new BlockRootHashDigest();
         subject.setPreviousHash(EMPTY_HASH);
         subject.setStartOfBlockStateHash(EMPTY_HASH);
-        subject.addInputBlockItem(BlockItem.newBuilder()
-                .setBlockHeader(BlockHeader.newBuilder().build())
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setBlockHeader(BlockHeader.getDefaultInstance())
                 .build());
-        subject.addOutputBlockItem(BlockItem.newBuilder()
-                .setStateChanges(StateChanges.newBuilder().build())
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setRoundHeader(RoundHeader.getDefaultInstance())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setEventHeader(EventHeader.getDefaultInstance())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setSignedTransaction(SignedTransaction.getDefaultInstance().toByteString())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setTransactionResult(TransactionResult.getDefaultInstance())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setStateChanges(StateChanges.getDefaultInstance())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setBlockProof(BlockProof.getDefaultInstance())
                 .build());
 
         // when
@@ -35,18 +52,24 @@ class BlockRootHashDigestTest {
         // then
         assertThat(actual)
                 .isEqualTo(
-                        "4183fa8f91550afb353aaef723a7375e5e8feefc0be04daa8c5d74731c425ddb3d92ef7309f3c71639ad35f7e02e913e");
+                        "650f9686bfd5374bb8711441e4127165bff805a189ef4fe38b1ba9a5b3b315ed8e325edb049c7a606c6d6a2771b4bf51");
 
         // digest again
         assertThatThrownBy(subject::digest).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    void digestWithEmptyInputOutputTrees() {
+    void digestWithEmptyBlock() {
         // given
         var subject = new BlockRootHashDigest();
         subject.setPreviousHash(EMPTY_HASH);
         subject.setStartOfBlockStateHash(EMPTY_HASH);
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setBlockHeader(BlockHeader.getDefaultInstance())
+                .build());
+        subject.addBlockItem(BlockItem.newBuilder()
+                .setBlockProof(BlockProof.getDefaultInstance())
+                .build());
 
         // when
         String actual = subject.digest();
@@ -54,37 +77,7 @@ class BlockRootHashDigestTest {
         // then
         assertThat(actual)
                 .isEqualTo(
-                        "f524650830c65a98cda4cbbc9b500c01cfb5aa86225a920b49fe69458ac52aa64e8028a095d5028e363447e27efa31a8");
-    }
-
-    @Test
-    void digestWithPadding() {
-        // given
-        var subject = new BlockRootHashDigest();
-        subject.setPreviousHash(EMPTY_HASH);
-        subject.setStartOfBlockStateHash(EMPTY_HASH);
-
-        var inputBlockItem = BlockItem.newBuilder()
-                .setBlockHeader(BlockHeader.newBuilder().build())
-                .build();
-        for (int i = 0; i < 3; i++) {
-            subject.addInputBlockItem(inputBlockItem);
-        }
-
-        var outputBlockItem = BlockItem.newBuilder()
-                .setStateChanges(StateChanges.newBuilder().build())
-                .build();
-        for (int i = 0; i < 11; i++) {
-            subject.addOutputBlockItem(outputBlockItem);
-        }
-
-        // when
-        String actual = subject.digest();
-
-        // then
-        assertThat(actual)
-                .isEqualTo(
-                        "1062c46277c5be0408165dd5eb4aba605b8193066fd66c9f05d92a2ba62150406a897104804e540deb3412657f208f13");
+                        "1d48b117e91005f0301626d27fa66efe0a05047ec7f16fe436912d184c492b4f3ee1dabb876da300aceb35c98ac98b48");
     }
 
     @Test
