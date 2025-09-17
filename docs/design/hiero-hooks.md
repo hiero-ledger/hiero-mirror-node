@@ -45,8 +45,9 @@ extension points. Hooks can be attached to accounts and contracts via:
 - `ContractCreateTransactionBody`
 - `ContractUpdateTransactionBody`
 
-The `LambdaSStoreTransactionBody` and `ContractCallTransactionBody` will include a `hook_id` field to indicate which
-hook is performing the operation.
+Hook execution will be identified through `ContractCallTransactionBody` transactions to system address `0x16d` that
+reference a parent transaction via `parent_consensus_timestamp`. The parent transaction will contain the hook context
+and hook_id information.
 
 ## API Requirements
 
@@ -108,6 +109,11 @@ parameter in the `links.next` URL uses the format `hook.id=lt:5` for pagination.
 GET /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks/{hook_id}/storage
 ```
 
+Returns the storage state for a hook (similar to `/api/v1/contracts/{contractIdOrAddress}/state`):
+
+- **Without timestamp parameter**: Returns current state from `hook_storage` table
+- **With timestamp parameter**: Returns historical state from `hook_storage_change` table
+
 Response format:
 
 ```json
@@ -117,8 +123,8 @@ Response format:
   "storage": [
     {
       "key": "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "timestamp": "1586567700.453054000",
-      "value": "0x00000000000000000000000000000000000000000000000000000000000003e8"
+      "value": "0x00000000000000000000000000000000000000000000000000000000000003e8",
+      "timestamp": "1726874345.123456789"
     }
   ],
   "links": {
@@ -129,16 +135,20 @@ Response format:
 
 #### Query Parameters
 
-| Parameter | Type    | Description                                                                                               | Default | Validation                                                                             |
-| --------- | ------- | --------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
-| `key`     | string  | Filter storage entries by storage key. Supports comparison operators: `eq:`, `gt:`, `gte:`, `lt:`, `lte:` | none    | Must be a valid 32-byte hex string (64 hex characters) when using comparison operators |
-| `limit`   | integer | Maximum number of storage entries to return                                                               | `25`    | Must be between 1 and 100                                                              |
-| `order`   | string  | Sort order for results                                                                                    | `asc`   | Must be either `asc` or `desc`                                                         |
+| Parameter   | Type    | Description                                                                                                                                                                                                                                                                                                                             | Default | Validation                                                                             |
+| ----------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------- |
+| `key`       | string  | Filter storage entries by storage key. Supports comparison operators: `eq:`, `gt:`, `gte:`, `lt:`, `lte:`                                                                                                                                                                                                                               | none    | Must be a valid 32-byte hex string (64 hex characters) when using comparison operators |
+| `timestamp` | string  | Query historical state at specific timestamp. If not provided, returns current state. Supports comparison operators: `eq:`, `gt:`, `gte:`, `lt:`, `lte:`. Examples: `1234567890`, `1234567890.000000100`, `eq:1234567890`, `gt:1234567890.000000400`, `gte:1234567890.000000500`, `lt:1234567890.000000600`, `lte:1234567890.000000700` | none    | Must be a valid timestamp in seconds.nanoseconds format                                |
+| `limit`     | integer | Maximum number of storage entries to return                                                                                                                                                                                                                                                                                             | `25`    | Must be between 1 and 100                                                              |
+| `order`     | string  | Sort order for results                                                                                                                                                                                                                                                                                                                  | `asc`   | Must be either `asc` or `desc`                                                         |
 
 **Examples:**
 
-- `/api/v1/accounts/0.0.123/hooks/1/storage` - Get all storage entries for hook
-- `/api/v1/accounts/0.0.123/hooks/1/storage?limit=10` - Get first 10 storage entries
+- `/api/v1/accounts/0.0.123/hooks/1/storage` - Get current storage state for hook
+- `/api/v1/accounts/0.0.123/hooks/1/storage?timestamp=eq:1726874345.123456789` - Get historical storage state at
+  specific
+  timestamp
+- `/api/v1/accounts/0.0.123/hooks/1/storage?limit=10` - Get first 10 current storage entries
 - `/api/v1/accounts/0.0.123/hooks/1/storage?key=eq:0x0000000000000000000000000000000000000000000000000000000000000001` -
   Get specific storage entry
 -
@@ -168,14 +178,14 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    owner_id           bigint                not null,
-    hook_id            bigint                not null,
-    admin_key          bytea,
-    contract_id        bigint,
-    created_timestamp  bigint                not null,
-    deleted            boolean               not null default false,
-    extension_point    hook_extension_point  not null,
-    type               hook_type             not null,
+    owner_id          bigint                not null,
+    hook_id           bigint                not null,
+    admin_key         bytea,
+    contract_id       bigint,
+    created_timestamp bigint                not null,
+    deleted           boolean               not null default false,
+    extension_point   hook_extension_point  not null,
+    type              hook_type             not null,
 
     primary key (owner_id, hook_id)
 );
@@ -184,13 +194,15 @@ create table if not exists hook
 select create_distributed_table('hook', 'owner_id');
 ```
 
-### 2. Hook Storage Table
+### 2. Hook Storage Tables
 
-For hook EVM storage data:
+For hook EVM storage data, we use a two-table approach similar to contract storage:
+
+#### 2.1. Hook Storage Change Table (Historical)
 
 ```sql
--- add_hook_storage_table.sql
-create table hook_storage
+-- add_hook_storage_change_table.sql
+create table hook_storage_change
 (
     hook_id             bigint not null,
     owner_id            bigint not null,
@@ -198,10 +210,30 @@ create table hook_storage
     value               bytea  not null,
     consensus_timestamp bigint not null,
 
-    primary key (hook_id, owner_id, key)
+    primary key (hook_id, owner_id, key, consensus_timestamp)
 );
 
-create index hook_storage__hook_timestamp on hook_storage (hook_id, owner_id, timestamp);
+create index hook_storage_change__hook_timestamp on hook_storage_change (hook_id, owner_id, consensus_timestamp);
+
+-- Distribute table for Citus using owner_id as distribution column (co-locate with hook table)
+select create_distributed_table('hook_storage_change', 'owner_id');
+```
+
+#### 2.2. Hook Storage Table (Current State)
+
+```sql
+-- add_hook_storage_table.sql
+create table hook_storage
+(
+    hook_id            bigint not null,
+    owner_id           bigint not null,
+    key                bytea  not null,
+    value              bytea  not null,
+    created_timestamp  bigint not null,
+    modified_timestamp bigint not null,
+
+    primary key (hook_id, owner_id, key)
+);
 
 -- Distribute table for Citus using owner_id as distribution column (co-locate with hook table)
 select create_distributed_table('hook_storage', 'owner_id');
@@ -236,20 +268,37 @@ public class Hook {
 }
 ```
 
-#### HookStorage.java
+#### HookStorage.java (Current State)
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 public class HookStorage {
     private HookStorageId id;
-
     private byte[] value;
-    private Long timestamp;
+    private Long createdTimestamp;
+    private Long modifiedTimestamp;
 
     public static class HookStorageId implements Serializable {
         private Long hookId;
         private Long ownerId;
         private byte[] key;
+    }
+}
+```
+
+#### HookStorageChange.java (Historical Changes)
+
+```java
+// common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorageChange.java
+public class HookStorageChange {
+    private HookStorageChangeId id;
+    private byte[] value;
+
+    public static class HookStorageChangeId implements Serializable {
+        private Long hookId;
+        private Long ownerId;
+        private byte[] key;
+        private Long consensusTimestamp;
     }
 }
 ```
@@ -276,7 +325,7 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
         - extension point from protobuf enum
         - hook type (PURE or LAMBDA)
         - admin key if present
-        - contract_id = transaction entity ID if ContractCreate/Update, null if CryptoCreate/Update
+        - contract_id
         - deleted = false
     save Hook via entityListener
 ```
@@ -293,55 +342,141 @@ public interface EntityListener {
     void onHook(Hook hook);
 
     void onHookStorage(HookStorage hookStorage);
+
+    void onHookStorageChange(HookStorageChange hookStorageChange);
 }
 ```
 
-### 3.1. Hook Storage Updates Processing
+### 3.1. Hook Execution Processing
 
-Hook storage updates can be delivered through two mechanisms, and the mirror node should support both:
+Hook execution appears in the record stream as `ContractCall` transactions to system contract `0.0.365` (EVM address `0x16d`) as children of the triggering transaction. These can be identified by checking `ContractCallTransactionBody.contractID == 0.0.365` and the presence of `parentConsensusTimestamp`. The execution order follows a specific sequence based on the `CryptoTransferTransactionBody` structure:
 
-1. **Dedicated Transaction Type**: `LambdaSStoreTransactionBody`
-2. **Transaction Record Sidecars**: Similar to contract state changes
+**Hook Execution Order:**
 
-#### Option 1: LambdaSStoreTransactionBody (Primary Method)
+1. **HBAR Transfers**: All hooks (pre/post) for accounts in `TransferList.accountAmounts`, in order
+2. **Fungible Token Transfers**: All hooks (pre/post) for `TokenTransferList` fungible transfers, in order
+3. **NFT Transfers**: All hooks (pre/post) for `TokenTransferList` NFT transfers, in order
+   - For NFT transfers with both sender and receiver hooks: sender hook executes first
+4. **Post Hook Execution**: Repeat steps 1-3 in the same order for any post-hook calls
 
-A new `LambdaSStoreTransactionHandler` will be created to process dedicated hook storage transactions. The handler will:
+**Record Stream Structure:**
 
-- Extract the hook_id and owner_id from the transaction body
-- Process all storage entries in the transaction
-- Create HookStorage entities for each entry with composite ID (hook_id, owner_id, key)
+- **Parent Transaction**: The original `CryptoTransfer` transaction
+- **Child Transactions**: Sequential `ContractCall` transactions to `0x16d`, one for each hook execution following the
+  above order
+- **Hook Storage Updates**: `ContractStateChanges` in sidecars targeting contract `0.0.365` represent hook storage
+  updates
 
 **Processing Logic:**
 
 ```
-for each storageEntry in transactionBody.storageUpdatesList:
-    create HookStorage entity with:
-        - composite ID (hook_id, owner_id, storage_key)
-        - storage value
-        - consensus timestamp
-    save HookStorage via entityListener
+if (transactionBody is ContractCallTransactionBody && recipient == 0x16d):
+    if (transactionRecord.hasParentConsensusTimestamp()):
+        parentTransaction = context.get(Transaction.class, parentConsensusTimestamp)
+        if (parentTransaction != null):
+            // Determine hook execution context using parent transaction body and child index
+            hookExecutionIndex = getChildTransactionIndex(transaction, parentTransaction)
+            hookContext = deriveHookFromCryptoTransferOrder(parentTransaction.body, hookExecutionIndex)
+
+            // Process sidecar ContractStateChanges for contract 0.0.365
+            for each stateChange in transaction.sidecars where contractId == 365:
+                create HookStorageChange entity with:
+                    - hook_id from hookContext
+                    - owner_id from hookContext
+                    - storage key and value from state change
+                    - consensus_timestamp from current transaction
+
+                // Also update current state table
+                create/update HookStorage entity for current state
 ```
 
-#### Option 2: Transaction Record Sidecars (Alternative Method)
+**Hook Context Derivation Logic:**
 
-Hook storage updates can also be delivered via transaction record sidecars, similar to how contract state changes are
-handled. The base `AbstractTransactionHandler` will be enhanced to process hook storage sidecars from any transaction
-type that includes them.
+The `deriveHookFromCryptoTransferOrder` function maps child transaction index to hook context based on the execution
+order:
 
-#### Implementation Strategy
+```
+deriveHookFromCryptoTransferOrder(cryptoTransferBody, hookExecutionIndex):
+    executionOrder = []
 
-The mirror node should support **both approaches** simultaneously:
+    // 1. Add HBAR transfer hooks (pre/post)
+    for each accountAmount in cryptoTransferBody.transfers.accountAmounts:
+        if (accountAmount.accountId has hooks):
+            executionOrder.add(HookContext(accountAmount.accountId, PRE_HOOK))
+            executionOrder.add(HookContext(accountAmount.accountId, POST_HOOK))
 
-1. **Primary Path**: `LambdaSStoreTransactionBody` for explicit hook storage operations
-2. **Secondary Path**: Sidecar records for hook storage updates that occur during other transactions (e.g., during
-   contract calls that trigger hooks)
+    // 2. Add fungible token transfer hooks (pre/post)
+    for each tokenTransferList in cryptoTransferBody.tokenTransfers:
+        if (tokenTransferList is fungible):
+            for each transfer in tokenTransferList.transfers:
+                if (transfer.accountId has hooks):
+                    executionOrder.add(HookContext(transfer.accountId, PRE_HOOK))
+                    executionOrder.add(HookContext(transfer.accountId, POST_HOOK))
 
-**Advantages of Dual Support:**
+    // 3. Add NFT transfer hooks (pre/post) - sender first for each NFT
+    for each tokenTransferList in cryptoTransferBody.tokenTransfers:
+        if (tokenTransferList is NFT):
+            for each nftTransfer in tokenTransferList.nftTransfers:
+                if (nftTransfer.senderAccountId has hooks):
+                    executionOrder.add(HookContext(nftTransfer.senderAccountId, PRE_HOOK))
+                    executionOrder.add(HookContext(nftTransfer.senderAccountId, POST_HOOK))
+                if (nftTransfer.receiverAccountId has hooks):
+                    executionOrder.add(HookContext(nftTransfer.receiverAccountId, PRE_HOOK))
+                    executionOrder.add(HookContext(nftTransfer.receiverAccountId, POST_HOOK))
 
-- **Flexibility**: Accommodates different hook execution patterns
-- **Consistency**: Aligns with existing contract state change handling
-- **Completeness**: Captures all storage updates regardless of trigger mechanism
-- **Future-proofing**: Supports evolution of hook execution models
+    return executionOrder[hookExecutionIndex]
+```
+
+### 3.2. Hook Storage Updates Processing
+
+Hook storage updates are delivered through `ContractStateChanges` in the sidecars of `ContractCall` transactions to
+system contract `0x16d`. Each hook execution creates storage changes targeting contract `0.0.365` that represent updates
+to that specific hook's storage.
+
+**Key Implementation Details:**
+
+1. **Hook Identification**: The specific hook being executed is determined by the order of child transactions and the
+   parent transaction context
+2. **Storage Contract**: All hook storage changes target contract ID `365` (`0x16d`)
+3. **Processing Order**: Child transactions are processed sequentially, maintaining hook execution order
+
+**Processing Logic:**
+
+```
+// In ContractCallTransactionHandler when recipient == 0x16d
+if (transactionRecord.hasParentConsensusTimestamp()):
+    parentTransaction = context.get(Transaction.class, parentConsensusTimestamp)
+    if (parentTransaction != null):
+        // Determine which hook this execution represents
+        hookExecutionIndex = getChildTransactionIndex(transaction, parentTransaction)
+        hookId = deriveHookIdFromContext(parentTransaction, hookExecutionIndex)
+        ownerId = extractOwnerIdFromParentContext(parentTransaction)
+
+        // Process contract state changes for system contract 0x16d
+        for each sidecar in transaction.sidecars:
+            for each stateChange in sidecar.contractStateChanges where contractId == 365:
+                // Create historical change record
+                create HookStorageChange entity with:
+                    - composite ID (hookId, ownerId, stateChange.slot, consensus_timestamp)
+                    - value from stateChange.valueWritten
+                save HookStorageChange via entityListener
+
+                // Update current state table
+                create/update HookStorage entity with:
+                    - composite ID (hookId, ownerId, stateChange.slot)
+                    - value from stateChange.valueWritten (latest)
+                save HookStorage via entityListener
+```
+
+**Implementation Strategy:**
+
+The mirror node will primarily rely on processing `ContractStateChanges` from hook execution sidecars, as this is the
+primary mechanism for hook storage updates. The existing contract state change processing infrastructure can be
+leveraged and extended to handle hook storage updates by:
+
+1. **Detecting Hook Context**: Identifying when `ContractStateChanges` target the hook system contract (`0.0.365`)
+2. **Hook Resolution**: Mapping the child transaction sequence to specific hook IDs using parent transaction context
+3. **Dual Storage**: Writing to both historical (`hook_storage_change`) and current state (`hook_storage`) tables
 
 ### 4. BlockItemTransformer Enhancement
 
