@@ -38,6 +38,7 @@ import com.hedera.hapi.block.stream.output.protoc.UtilPrngOutput;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
@@ -175,8 +176,8 @@ public class BlockTransactionBuilder {
                                                 .setAccountId(accountId)
                                                 .setSmartContract(true)))))
                 .build();
-        var evmTraceData = addLogs(EvmTraceData.newBuilder(), contractCallResult.getLogInfoList())
-                .build();
+        var evmTraceData =
+                new EvmTraceDataBuilder(contractCallResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
         var traceData = TraceData.newBuilder().setEvmTraceData(evmTraceData).build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -220,8 +221,8 @@ public class BlockTransactionBuilder {
                                                 .setAlias(evmAddress)
                                                 .setSmartContract(true)))))
                 .build();
-        var evmTraceData = addLogs(EvmTraceData.newBuilder(), contractCreateResult.getLogInfoList())
-                .build();
+        var evmTraceData =
+                new EvmTraceDataBuilder(contractCreateResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
         var traceData = TraceData.newBuilder().setEvmTraceData(evmTraceData).build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
@@ -296,9 +297,10 @@ public class BlockTransactionBuilder {
             setter.apply(evmTransactionResult);
 
             // TraceData
-            traceDataList.add(TraceData.newBuilder()
-                    .setEvmTraceData(addLogs(EvmTraceData.newBuilder(), contractResult.getLogInfoList()))
-                    .build());
+            var evmTraceData =
+                    new EvmTraceDataBuilder(contractResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
+            traceDataList.add(
+                    TraceData.newBuilder().setEvmTraceData(evmTraceData).build());
 
             // StateChanges
             var accountId = toAccountId(contractId);
@@ -780,12 +782,14 @@ public class BlockTransactionBuilder {
                 .setStatus(transactionRecord.getReceipt().getStatus());
     }
 
-    private static EvmTraceData.Builder addLogs(EvmTraceData.Builder builder, List<ContractLoginfo> logs) {
-        logs.forEach(log -> builder.addLogs(EvmTransactionLog.newBuilder()
-                .setContractId(log.getContractID())
-                .setData(log.getData())
-                .addAllTopics(log.getTopicList())
-                .build()));
+    private static EvmTraceData.Builder addContractActions(
+            EvmTraceData.Builder builder, List<TransactionSidecarRecord> sidecarRecords) {
+        for (var sidecarRecord : sidecarRecords) {
+            if (sidecarRecord.hasActions()) {
+                builder.addAllContractActions(sidecarRecord.getActions().getContractActionsList());
+            }
+        }
+
         return builder;
     }
 
@@ -875,6 +879,36 @@ public class BlockTransactionBuilder {
         public Builder transactionResult(Consumer<TransactionResult.Builder> consumer) {
             consumer.accept(transactionResultBuilder);
             return this;
+        }
+    }
+
+    @RequiredArgsConstructor
+    private static class EvmTraceDataBuilder {
+
+        private final EvmTraceData.Builder builder = EvmTraceData.newBuilder();
+        private final List<ContractLoginfo> contractLoginfos;
+        private final List<TransactionSidecarRecord> transactionSidecarRecords;
+
+        EvmTraceData build() {
+            addContractActions();
+            addLogs();
+            return builder.build();
+        }
+
+        void addContractActions() {
+            for (var sidecarRecord : transactionSidecarRecords) {
+                if (sidecarRecord.hasActions()) {
+                    builder.addAllContractActions(sidecarRecord.getActions().getContractActionsList());
+                }
+            }
+        }
+
+        void addLogs() {
+            contractLoginfos.forEach(log -> builder.addLogs(EvmTransactionLog.newBuilder()
+                    .setContractId(log.getContractID())
+                    .setData(log.getData())
+                    .addAllTopics(log.getTopicList())
+                    .build()));
         }
     }
 }
