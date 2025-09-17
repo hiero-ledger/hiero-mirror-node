@@ -15,7 +15,6 @@ plugins {
 }
 
 repositories {
-    maven { url = uri("https://dl.cloudsmith.io/public/consensys/maven/maven/") }
     // Temporary repository added for com.hedera.cryptography snapshot dependencies
     maven { url = uri("https://central.sonatype.com/repository/maven-snapshots") }
 }
@@ -37,7 +36,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.retry:spring-retry")
-    implementation("tech.pegasys:jc-kzg-4844")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("io.vertx:vertx-core")
