@@ -192,17 +192,16 @@ For hook EVM storage data:
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    hook_id   bigint not null,
-    owner_id  bigint not null,
-    key       bytea  not null,
-    value     bytea  not null,
-    timestamp bigint not null,
+    hook_id             bigint not null,
+    owner_id            bigint not null,
+    key                 bytea  not null,
+    value               bytea  not null,
+    consensus_timestamp bigint not null,
 
     primary key (hook_id, owner_id, key)
 );
 
 create index hook_storage__hook_timestamp on hook_storage (hook_id, owner_id, timestamp);
-create index hook_storage__timestamp on hook_storage (timestamp);
 
 -- Distribute table for Citus using owner_id as distribution column (co-locate with hook table)
 select create_distributed_table('hook_storage', 'owner_id');
@@ -225,8 +224,8 @@ public class Hook {
     private Long contractId;
     private Long createdTimestamp;
     private Boolean deleted;
-    private String extensionPoint;
-    private String type;
+    private ExtensionPoint extensionPoint;
+    private HookType type;
 
     public static class HookId implements Serializable {
         private Long ownerId;
@@ -345,6 +344,9 @@ The mirror node should support **both approaches** simultaneously:
 - **Future-proofing**: Supports evolution of hook execution models
 
 ### 4. BlockItemTransformer Enhancement
+
+**Note**: Block Stream–specific changes are currently unavailable in HIP. The following represents an initial draft of
+potential changes, which will be revisited once further details are confirmed.
 
 The `BlockItemTransformer` will be enhanced to handle hook-related block items during processing:
 
