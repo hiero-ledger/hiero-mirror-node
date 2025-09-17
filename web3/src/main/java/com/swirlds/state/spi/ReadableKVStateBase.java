@@ -20,7 +20,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
     /** The service name, which cannot be null */
-    protected final String serviceName;
+    private final String serviceName;
 
     /** The state key, which cannot be null */
     private final String stateKey;
@@ -30,6 +30,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     /**
      * Create a new StateBase.
      *
+     * @param serviceName The name of the service that owns the state. Cannot be null.
      * @param stateKey The state key. Cannot be null.
      */
     protected ReadableKVStateBase(@Nonnull String serviceName, @Nonnull String stateKey) {

@@ -70,6 +70,7 @@ public final class StateRegistry {
      * against default implementations, but the original key is still used when instantiating
      * the state object.
      *
+     * @param serviceName the name of the service with the state definition
      * @param definition the state definition containing the key and type information
      * @return the existing state object or a default implementation if available
      * @throws UnsupportedOperationException if the state key is not registered and no default exists
