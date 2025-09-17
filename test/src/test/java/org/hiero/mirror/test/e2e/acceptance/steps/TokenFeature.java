@@ -24,9 +24,11 @@ import com.hedera.hashgraph.sdk.TokenType;
 import com.hedera.hashgraph.sdk.TransactionReceipt;
 import com.hedera.hashgraph.sdk.proto.TokenFreezeStatus;
 import com.hedera.hashgraph.sdk.proto.TokenKycStatus;
+import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -96,6 +98,10 @@ public class TokenFeature extends AbstractFeature {
     private TokensResponse tokensAssociatedWithPublicKey;
 
     private TransactionDetail transactionDetail;
+
+    private List<@Valid Nft> tokenNFTsBeforeMint = List.of();
+
+    private byte[] metadata;
 
     @Given("I ensure token {token} has been created")
     public void createNamedToken(TokenNameEnum tokenName) {
@@ -603,15 +609,32 @@ public class TokenFeature extends AbstractFeature {
 
     @Given("I mint a serial number from the token")
     public void mintNftToken() {
-        var metadata = nextBytes(4);
-        networkTransactionResponse = tokenClient.mint(tokenId, metadata);
+        final var apiResponse = mirrorClient.getTokenNFTs(tokenId.toString());
+        assertThat(apiResponse.getNfts()).isNotNull();
+        this.tokenNFTsBeforeMint = apiResponse.getNfts(); // .size();
+
+        this.metadata = nextBytes(4);
+        networkTransactionResponse = tokenClient.mint(tokenId, this.metadata);
         assertNotNull(networkTransactionResponse.getTransactionId());
-        TransactionReceipt receipt = networkTransactionResponse.getReceipt();
+        final var receipt = networkTransactionResponse.getReceipt();
         assertNotNull(receipt);
         assertThat(receipt.serials.size()).isOne();
-        long serialNumber = receipt.serials.getFirst();
+        final long serialNumber = receipt.serials.getFirst();
         assertThat(serialNumber).isPositive();
-        tokenNftInfoMap.get(tokenId).add(new NftInfo(serialNumber, metadata));
+        tokenNftInfoMap.get(tokenId).add(new NftInfo(serialNumber, this.metadata));
+    }
+
+    @RetryAsserts
+    @And("I verify the number of minted NFTs for token is expected")
+    public void verifyNumOfMintedNFTsForToken() {
+        final var tokenNFTsAfterMint = mirrorClient.getTokenNFTs(tokenId.toString());
+        assertThat(tokenNFTsAfterMint.getNfts()).isNotNull();
+        assertThat(tokenNFTsAfterMint.getNfts().size()).isEqualTo(tokenNFTsBeforeMint.size() + 1);
+
+        final var first = tokenNFTsAfterMint.getNfts().stream()
+                .filter(afterMintToken -> Arrays.equals(afterMintToken.getMetadata(), this.metadata))
+                .findFirst();
+        assertThat(first).isNotEmpty();
     }
 
     @Given("I update the metadata for serial number indices {int} and {int}")

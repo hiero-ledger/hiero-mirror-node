@@ -63,6 +63,7 @@ Feature: HTS Base Coverage Feature
     And the mirror node REST API should return the transaction
     Then the mirror node REST API should return the token relationship for nft for ALICE
     Then I mint a serial number from the token
+    And I verify the number of minted NFTs for token is expected
     And the mirror node REST API should return the transaction for token serial number index 0 transaction flow
     Then I transfer serial number index 0 to ALICE
     And the mirror node REST API should return the transaction for token serial number index 0 full flow

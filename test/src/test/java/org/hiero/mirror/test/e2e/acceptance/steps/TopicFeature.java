@@ -39,6 +39,7 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.FixedCustomFee;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.Topic;
+import org.hiero.mirror.rest.model.TopicMessage;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -85,6 +86,7 @@ public class TopicFeature extends AbstractFeature {
     private String transactionId;
     private final CustomFeeLimit customFeeLimit = new CustomFeeLimit();
     private Long topicSequenceNumber;
+    private TopicMessage topicMessage;
 
     @Given("I successfully create a new topic id")
     public void createNewTopic() {
@@ -395,26 +397,22 @@ public class TopicFeature extends AbstractFeature {
 
     @Then("I verify the published message in mirror node REST API")
     public void verifyTopicMessage() {
-        var getTopicMessageResponse = mirrorClient.getTopicMessageBySequenceNumber(
+        this.topicMessage = mirrorClient.getTopicMessageBySequenceNumber(
                 consensusTopicId.toString(), String.valueOf(topicSequenceNumber));
-        assertThat(getTopicMessageResponse).isNotNull();
+        assertThat(this.topicMessage).isNotNull();
 
         var base64EncodedMessage =
                 Base64.getEncoder().encodeToString(FIXED_FEE_TOPIC_MESSAGE.getBytes(StandardCharsets.UTF_8));
-        assertThat(getTopicMessageResponse.getMessage()).isEqualTo(base64EncodedMessage);
+        assertThat(this.topicMessage.getMessage()).isEqualTo(base64EncodedMessage);
     }
 
     @Then("I verify the published message can be retrieved by consensus timestamp")
     public void getTopicMessageByTimestamp() {
-        var topicMsgBySeqNumber = mirrorClient.getTopicMessageBySequenceNumber(
-                consensusTopicId.toString(), String.valueOf(topicSequenceNumber));
-        assertThat(topicMsgBySeqNumber).isNotNull();
+        final var consensusTimestamp = this.topicMessage.getConsensusTimestamp();
 
-        String consensusTimestamp = topicMsgBySeqNumber.getConsensusTimestamp();
-
-        var topicMsgByConsTimestamp = mirrorClient.getTopicMessageByConsensusTimestamp(consensusTimestamp);
+        final var topicMsgByConsTimestamp = mirrorClient.getTopicMessageByConsensusTimestamp(consensusTimestamp);
         assertThat(topicMsgByConsTimestamp).isNotNull();
-        assertThat(topicMsgBySeqNumber).isEqualTo(topicMsgByConsTimestamp);
+        assertThat(this.topicMessage).isEqualTo(topicMsgByConsTimestamp);
     }
 
     @Then("I verify the publish message transaction from {account} in mirror node REST API")
