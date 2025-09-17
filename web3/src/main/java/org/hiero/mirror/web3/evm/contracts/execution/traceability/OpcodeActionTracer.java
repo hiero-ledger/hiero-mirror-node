@@ -88,7 +88,14 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
             while (worldUpdater.parentUpdater().isPresent()) {
                 worldUpdater = worldUpdater.parentUpdater().get();
             }
-            var rootProxyWorldUpdater = (RootProxyWorldUpdater) worldUpdater;
+
+            if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
+                // The storage updates are kept only in the RootProxyWorldUpdater.
+                // If we don't have one -> something unexpected happened and an attempt to
+                // get the storage changes from a ProxyWorldUpdater would result in a
+                // NullPointerException, so in this case just return an empty map.
+                return Map.of();
+            }
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
