@@ -41,8 +41,8 @@ jobs:
     timeout-minutes: 40
     env:
       BLOCK_NODE_CHART_VERSION: v0.17.1
-      CONSENSUS_VERSION: v0.65.0
-      MIRROR_NODE_VERSION: v0.138.0
+      CONSENSUS_VERSION: v0.65.1
+      MIRROR_NODE_VERSION: v0.139.0-rc2
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
@@ -126,8 +126,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"
           EOF
 
           else
@@ -144,8 +142,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"
           EOF
           fi
 
