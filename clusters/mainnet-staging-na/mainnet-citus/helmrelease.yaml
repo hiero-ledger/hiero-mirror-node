@@ -137,13 +137,24 @@ spec:
         HIERO_MIRROR_WEB3_EVM_NETWORK: MAINNET
         HIERO_MIRROR_WEB3_THROTTLE_REQUESTSPERSECOND: "1500"
       hpa:
-        metrics:
+        metrics: |
           - type: Resource
             resource:
               name: cpu
               target:
                 type: Utilization
                 averageUtilization: 40
+          - object:
+              describedObject:
+                apiVersion: v1
+                kind: Namespace
+                name: mainnet-citus
+              metric:
+                name: avg_evm_gas_used_per_second
+              target:
+                type: Value
+                value: 2750k
+            type: Object
       resources:
         requests:
           cpu: 2 # same as limits
