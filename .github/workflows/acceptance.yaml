@@ -126,8 +126,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"
           EOF
 
           else
@@ -144,8 +142,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-              HEDERA_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"
           EOF
           fi
 
