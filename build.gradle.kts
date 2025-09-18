@@ -21,11 +21,9 @@ extra.apply {
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.7") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.1.125.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.1")
     set("reactorGrpcVersion", "1.2.4")
-    set("spring-framework.version", "6.2.11") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
