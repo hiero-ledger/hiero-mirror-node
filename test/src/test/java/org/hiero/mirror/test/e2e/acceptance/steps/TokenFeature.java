@@ -143,18 +143,6 @@ public class TokenFeature extends AbstractFeature {
     }
 
     @RetryAsserts
-    @Given("I verify the number of nfts for token is expected")
-    public void verifyNumOfNFTsForToken() {
-        var apiResponse = mirrorClient.getTokenNFTs(tokenId.toString());
-        assertThat(apiResponse.getNfts()).isNotNull();
-
-        var nftsInitialSize = apiResponse.getNfts().size();
-
-        tokenClient.mint(tokenId, nextBytes(4));
-        assertThat(mirrorClient.getTokenNFTs(tokenId.toString()).getNfts()).hasSize(nftsInitialSize + 1);
-    }
-
-    @RetryAsserts
     @Given("I ensure token has the expected metadata and key")
     public void ensureTokenInfoProperties() {
         var tokenInfo = mirrorClient.getTokenInfo(tokenId.toString());
