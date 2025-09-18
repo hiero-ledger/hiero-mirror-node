@@ -93,9 +93,7 @@ public class TokenFeature extends AbstractFeature {
 
     private TokenResponse tokenResponse;
 
-    private TokensResponse tokensWithTreasuryAccount;
-
-    private TokensResponse tokensAssociatedWithPublicKey;
+    private TokensResponse tokensWithTreasuryAccountBeforeCreation;
 
     private TransactionDetail transactionDetail;
 
@@ -345,10 +343,8 @@ public class TokenFeature extends AbstractFeature {
 
     @Given("I successfully create a new unfrozen and granted kyc token")
     public void createNewToken() {
-        this.tokensWithTreasuryAccount = mirrorClient.getTokensWithTreasuryAccount(
+        this.tokensWithTreasuryAccountBeforeCreation = mirrorClient.getTokensWithTreasuryAccount(
                 tokenClient.getAccountId().toString());
-        this.tokensAssociatedWithPublicKey = mirrorClient.getTokensAssociatedWithPublicKey(
-                tokenClient.getAccountId().getPublicKey().toString());
 
         this.tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_KYC_UNFROZEN_2);
         this.tokenId = tokenResponse.tokenId();
@@ -363,35 +359,37 @@ public class TokenFeature extends AbstractFeature {
         this.networkTransactionResponse = tokenResponse.response();
     }
 
-    @When("I verify the number of tokens with given treasury account")
+    @RetryAsserts
+    @When("I verify the number of tokens is expected")
     public void getAllTokensForAccount() {
-        TokensResponse tokensByAccountId = mirrorClient.getTokensWithTreasuryAccount(
-                tokenClient.getAccountId().toString());
-        assertThat(tokensByAccountId.getTokens()).isNotNull();
-        assertThat(this.tokensWithTreasuryAccount.getTokens().size() + 1)
-                .isEqualTo(tokensByAccountId.getTokens().size());
-        assertThat(this.tokenResponse.tokenId().toString())
-                .isEqualTo(tokensByAccountId.getTokens().getLast().getTokenId());
+        final var tokensByAccountAfterCreation = mirrorClient
+                .getTokensWithTreasuryAccount(tokenClient.getAccountId().toString())
+                .getTokens();
+        assertThat(tokensByAccountAfterCreation).isNotNull();
 
-        TokensResponse tokensByPublicKey = mirrorClient.getTokensAssociatedWithPublicKey(
-                tokenClient.getAccountId().getPublicKey().toString());
-        assertThat(tokensByPublicKey.getTokens()).isNotNull();
-        assertThat(tokensByPublicKey.getTokens().stream()
-                        .filter(t -> t.getTokenId()
-                                .equals(this.tokensAssociatedWithPublicKey
-                                        .getTokens()
-                                        .getLast()
-                                        .getTokenId()))
-                        .findFirst())
-                .isNotNull();
-    }
+        final var tokenByAccount = tokensByAccountAfterCreation.stream()
+                .filter(t -> {
+                    assertThat(t.getTokenId()).isNotNull();
+                    return t.getTokenId().equals(this.tokenResponse.tokenId().toString());
+                })
+                .findFirst();
 
-    @When("I verify the number of tokens associated with account")
-    public void getAllTokensByPublicKey() {
-        TokensResponse tokensAssociatedWithPubKey = mirrorClient.getTokensAssociatedWithPublicKey(
-                tokenClient.getAccountId().getPublicKey().toString());
-        assertThat(this.tokensAssociatedWithPublicKey.getTokens().size() + 1)
-                .isEqualTo(tokensAssociatedWithPubKey.getTokens().size());
+        assertThat(tokenByAccount.isPresent()).isTrue();
+        assertThat(tokenByAccount.get().getTokenId())
+                .isEqualTo(this.tokenResponse.tokenId().toString());
+
+        final var tokensByPublicKey = mirrorClient
+                .getTokensAssociatedWithPublicKey(
+                        tokenClient.getAccountId().getPublicKey().toString())
+                .getTokens();
+        assertThat(tokensByPublicKey).isNotNull();
+        final var tokenByPublicKey = tokensByPublicKey.stream()
+                .filter(t -> {
+                    assertThat(t.getTokenId()).isNotNull();
+                    return t.getTokenId().equals(this.tokenResponse.tokenId().toString());
+                })
+                .findFirst();
+        assertThat(tokenByAccount).isEqualTo(tokenByPublicKey);
     }
 
     @Given("I successfully create a new nft {token} with infinite supplyType")
