@@ -21,7 +21,7 @@ public class Web3Properties {
 
     private boolean enabled = false;
 
-    private boolean modularizedServices;
+    private boolean modularizedServices = true;
 
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 

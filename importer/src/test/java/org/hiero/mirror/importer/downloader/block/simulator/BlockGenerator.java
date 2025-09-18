@@ -8,8 +8,8 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
-import com.hedera.hapi.platform.event.legacy.EventTransaction;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
@@ -20,14 +20,15 @@ import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
 
 public final class BlockGenerator {
+
     private static final byte[] ALL_ZERO_HASH = new byte[48];
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
-    private int blockNumber;
+    private long blockNumber;
     private byte[] previousBlockRootHash;
 
-    public BlockGenerator(int startBlockNumber) {
+    public BlockGenerator(long startBlockNumber) {
         blockNumber = startBlockNumber;
         if (blockNumber == 0) {
             previousBlockRootHash = ALL_ZERO_HASH;
@@ -49,18 +50,7 @@ public final class BlockGenerator {
         var blockRootHashDigest = new BlockRootHashDigest();
         blockRootHashDigest.setPreviousHash(previousBlockRootHash);
         blockRootHashDigest.setStartOfBlockStateHash(ALL_ZERO_HASH);
-
-        for (var blockItem : block.getBlockItemsList()) {
-            switch (blockItem.getItemCase()) {
-                case EVENT_HEADER, EVENT_TRANSACTION, ROUND_HEADER -> blockRootHashDigest.addInputBlockItem(blockItem);
-                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
-                    blockRootHashDigest.addOutputBlockItem(blockItem);
-                default -> {
-                    // other block items aren't considered input / output
-                }
-            }
-        }
-
+        block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
 
@@ -98,10 +88,12 @@ public final class BlockGenerator {
 
     private List<BlockItem> transactionUnit() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
+        var signedTransaction = SignedTransaction.newBuilder()
+                .setBodyBytes(recordItem.getTransaction().getSignedTransactionBytes())
+                .setSigMap(recordItem.getSignatureMap())
+                .build();
         var eventTransaction = BlockItem.newBuilder()
-                .setEventTransaction(EventTransaction.newBuilder()
-                        .setApplicationTransaction(recordItem.getTransaction().toByteString())
-                        .build())
+                .setSignedTransaction(signedTransaction.toByteString())
                 .build();
         var transactionResult = BlockItem.newBuilder()
                 .setTransactionResult(TransactionResult.newBuilder()
@@ -110,7 +102,7 @@ public final class BlockGenerator {
                         .setTransferList(recordItem.getTransactionRecord().getTransferList())
                         .build())
                 .build();
-        // for simplicity, no state changes
+        // for simplicity, no state changes / trace data
         return List.of(eventTransaction, transactionResult);
     }
 }

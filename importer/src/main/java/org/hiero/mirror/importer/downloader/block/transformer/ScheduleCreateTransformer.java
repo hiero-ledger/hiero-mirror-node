@@ -10,21 +10,21 @@ import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-final class ScheduleCreateTransformer extends AbstractBlockItemTransformer {
+final class ScheduleCreateTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()
-                && blockItem.getTransactionResult().getStatus() != IDENTICAL_SCHEDULE_ALREADY_CREATED) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()
+                && blockTransaction.getTransactionResult().getStatus() != IDENTICAL_SCHEDULE_ALREADY_CREATED) {
             return;
         }
 
-        var receiptBuilder = blockItemTransformation
+        var receiptBuilder = blockTransactionTransformation
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        var createSchedule = blockItem
+        var createSchedule = blockTransaction
                 .getTransactionOutput(TransactionCase.CREATE_SCHEDULE)
                 .map(TransactionOutput::getCreateSchedule)
                 .orElseThrow();

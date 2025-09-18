@@ -497,6 +497,34 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @ParameterizedTest
+    @CsvSource({"true, true", "false, true", "true, false", "false, false"})
+    void testComplexStorageUpdates(final boolean stack, final boolean memory) {
+        final var senderEntity = accountPersistWithAccountBalances();
+        final var contract = testWeb3jService.deploy(StorageContract::deploy);
+        final var options =
+                new OpcodeTracerOptions(stack, memory, true, mirrorNodeEvmProperties.isModularizedServices());
+        final var functionCall = contract.send_complexUpdate(BigInteger.ONE, BigInteger.TWO);
+
+        final var callData =
+                Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
+        final var transactionIdOrHash = setUp(
+                ETHEREUMTRANSACTION,
+                contract,
+                callData,
+                true,
+                true,
+                senderEntity.toEntityId(),
+                ZERO_AMOUNT,
+                domainBuilder.timestamp());
+
+        // When
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+
+        // Then
+        verifyOpcodesResponse(opcodesResponse, options);
+    }
+
+    @ParameterizedTest
     @CsvSource({
         "true, true, true",
         "false, true, true",

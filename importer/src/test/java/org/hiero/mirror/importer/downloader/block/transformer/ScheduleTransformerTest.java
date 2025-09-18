@@ -23,8 +23,9 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                         TransactionID.newBuilder().setAccountID(accountId).build()))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.scheduleCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.scheduleCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -48,8 +49,9 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.IDENTICAL_SCHEDULE_ALREADY_CREATED)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.scheduleCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.scheduleCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -66,8 +68,9 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearScheduleID().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.scheduleCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.scheduleCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -92,8 +95,9 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                 })
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.scheduleSign(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.scheduleSign(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -110,8 +114,9 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.scheduleSign(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.scheduleSign(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -129,11 +134,11 @@ class ScheduleTransformerTest extends AbstractTransformerTest {
                 .record(r -> r.setScheduleRef(scheduleId))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder
+        var blockTransaction = blockTransactionBuilder
                 .cryptoTransfer(expectedRecordItem)
                 .transactionResult(r -> r.setScheduleRef(scheduleId))
                 .build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

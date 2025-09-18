@@ -46,9 +46,6 @@ envFrom: []
 
 fullnameOverride: ""
 
-routes:
-  networkStake: false
-
 gateway:
   gcp:
     backendPolicy:
@@ -321,6 +318,9 @@ resources:
     memory: 1024Mi
 
 revisionHistoryLimit: 3
+
+routes:
+  networkStake: true
 
 securityContext:
   allowPrivilegeEscalation: false

@@ -29,6 +29,8 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.AccountsResponse;
+import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
@@ -54,6 +56,7 @@ import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.rest.model.Schedule;
 import org.hiero.mirror.rest.model.SchedulesResponse;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -476,6 +479,19 @@ public class MirrorNodeClient {
 
     public boolean hasPartialState() {
         return partialStateSupplier.get();
+    }
+
+    public AccountsResponse getAccounts(int limit) {
+        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
+    }
+
+    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
+        return callRestEndpoint(
+                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
+    }
+
+    public BalancesResponse getBalancesForAccountId(String accountId) {
+        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {

@@ -7,6 +7,7 @@ import com.hedera.hashgraph.sdk.AccountAllowanceApproveTransaction;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
@@ -330,6 +332,19 @@ public class AccountClient extends AbstractNetworkClient {
                 spender,
                 tokenId,
                 response.getTransactionId());
+        return response;
+    }
+
+    public NetworkTransactionResponse updateAccount(
+            ExpandedAccountId accountId, Consumer<AccountUpdateTransaction> transaction) {
+        final var accountUpdateTransaction = new AccountUpdateTransaction();
+        transaction.accept(accountUpdateTransaction);
+        accountUpdateTransaction
+                .setAccountId(accountId.getAccountId())
+                .freezeWith(client)
+                .sign(accountId.getPrivateKey());
+        var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
+        log.info(" account updated via {}", response.getTransactionId());
         return response;
     }
 

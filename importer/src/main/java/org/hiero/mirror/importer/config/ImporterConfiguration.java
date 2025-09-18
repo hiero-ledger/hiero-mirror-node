@@ -4,11 +4,14 @@ package org.hiero.mirror.importer.config;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import jakarta.annotation.PostConstruct;
 import javax.sql.DataSource;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
+import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -29,7 +32,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @AutoConfigureBefore(FlywayAutoConfiguration.class) // Since this configuration creates FlywayConfigurationCustomizer
 class ImporterConfiguration {
 
+    private final BlockProperties blockProperties;
     private final ImporterProperties importerProperties;
+    private final RecordDownloaderProperties recordDownloaderProperties;
 
     @Bean(defaultCandidate = false)
     @FlywayDataSource
@@ -59,6 +64,13 @@ class ImporterConfiguration {
             }
             configuration.getPlaceholders().put("topicRunningHashV2AddedTimestamp", timestamp.toString());
         };
+    }
+
+    @PostConstruct
+    void init() {
+        if (blockProperties.isEnabled() && recordDownloaderProperties.isEnabled()) {
+            throw new IllegalStateException("Cannot enable both block source and record downloader");
+        }
     }
 
     @Configuration

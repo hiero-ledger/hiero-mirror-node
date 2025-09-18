@@ -5,6 +5,8 @@ Feature: Account Coverage Feature
   Scenario Outline: Create crypto account
     When I create a new account with balance <amount> tℏ
     Then the new balance should reflect cryptotransfer of <amount>
+    And the mirror node REST API should return the list of accounts
+    Then the mirror node REST API should return the balances
     Examples:
       | amount |
       | 10     |
@@ -26,3 +28,15 @@ Feature: Account Coverage Feature
       | amount | keyType   |
       | 1      | "ED25519" |
       | 1      | "ECDSA"   |
+
+  @rewards @acceptance
+  Scenario Outline: Validate account staking rewards API
+    When I stake the account <accountName> to node <nodeId>
+    Given I send <amount> tℏ to <accountName>
+    Then the mirror node REST API should return the staking rewards for the account <accountName>
+    Examples:
+      | amount | accountName | nodeId |
+      | 10     | "ALICE"     | 0      |
+
+
+

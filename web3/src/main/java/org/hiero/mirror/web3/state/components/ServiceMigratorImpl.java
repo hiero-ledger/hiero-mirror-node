@@ -12,7 +12,6 @@ import com.hedera.node.app.services.ServiceMigrator;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.config.data.HederaConfig;
 import com.swirlds.config.api.Configuration;
-import com.swirlds.metrics.api.Metrics;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.state.lifecycle.StartupNetworks;
@@ -36,7 +35,6 @@ public class ServiceMigratorImpl implements ServiceMigrator {
             @Nonnull SemanticVersion currentVersion,
             @Nonnull Configuration appConfig,
             @Nonnull Configuration platformConfig,
-            @Nonnull Metrics metrics,
             @Nonnull StartupNetworks startupNetworks,
             @Nonnull StoreMetricsServiceImpl storeMetricsService,
             @Nonnull ConfigProviderImpl configProvider,
@@ -46,7 +44,6 @@ public class ServiceMigratorImpl implements ServiceMigrator {
         requireNonNull(currentVersion);
         requireNonNull(appConfig);
         requireNonNull(platformConfig);
-        requireNonNull(metrics);
 
         if (!(state instanceof MirrorNodeState mirrorNodeState)) {
             throw new IllegalArgumentException("Can only be used with MirrorNodeState instances");

@@ -89,10 +89,10 @@ jobs:
         if: ${{ matrix.schema == 'v1' && matrix.project != 'test' && always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
         run: ./gradlew :${{ matrix.project }}:uploadCoverage
 
-      - name: Build and test web3 with modularized code
+      - name: Build and test web3 with monolithic code
         env:
-          HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-          HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1.0"
+          HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "false"
+          HIERO_MIRROR_WEB3_EVM_OVERRIDEPAYERBALANCEVALIDATION: "false"
         if: ${{ matrix.project == 'web3' && matrix.schema == 'v1'}}
         run: ./gradlew :${{ matrix.project }}:build
 
