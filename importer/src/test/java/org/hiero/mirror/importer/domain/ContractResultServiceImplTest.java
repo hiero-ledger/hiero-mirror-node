@@ -58,7 +58,7 @@ import org.springframework.data.util.Version;
 class ContractResultServiceImplTest {
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
-    private static final Version DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = Version.parse("0.66.0");
+    private static final Version DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = Version.parse("0.67.0");
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
@@ -216,7 +216,7 @@ class ContractResultServiceImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"0.66.0", "0.66.1", "0.66.0-rc.1", "0.67.0"})
+    @CsvSource({"0.67.0", "0.67.1", "0.67.0-rc.1", "0.68.0"})
     void gasConsumedWithEqualOrGreaterHapiVersionThanSmartContractThrottling(
             @ConvertWith(VersionConverter.class) Version hapiVersion) {
         // Given
