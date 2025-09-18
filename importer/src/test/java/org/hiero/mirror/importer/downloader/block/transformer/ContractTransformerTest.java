@@ -82,7 +82,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 // - signer nonce should only be set for ethereum transactions
                 .record(r ->
                         r.getContractCallResultBuilder().clearContractNonces().clearSignerNonce())
-                // will add back contract bytecode and contract state change sidecar records once support is completed
+                // will add back contract bytecode and contract state change sidecar records once support is added
                 .sidecarRecords(this::filterSidecarRecords)
                 .build();
         var blockTransaction =
@@ -107,7 +107,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearLogInfo()
                         .clearContractNonces()
                         .clearSignerNonce())
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
                 .customize(this::finalize)
                 .build();
@@ -161,7 +161,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         // will test contract nonces once support is added
                         .clearContractNonces()
                         .clearSignerNonce())
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -290,7 +290,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -313,7 +313,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
                 .record(r -> contractResultBuilder(r).ifPresent(ContractFunctionResult.Builder::clearGasUsed))
                 .receipt(Builder::clearContractID)
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
