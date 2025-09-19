@@ -5,9 +5,13 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import com.esaulpaugh.headlong.util.Strings;
+import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
@@ -203,5 +207,45 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     private Long getGasConsumedByTransactionId(String transactionId) {
         ContractResult contractResult = mirrorClient.getContractResultByTransactionId(transactionId);
         return contractResult.getGasConsumed();
+    }
+
+    /**
+     * Helper method for read-only functions that performs gas estimation and then executes ContractCallLocal
+     * against consensus nodes using the estimated gas.
+     *
+     * @param data The encoded function call data
+     * @param contractMethods The contract method interface containing expected gas usage
+     * @param contractAddress The contract address to call
+     * @param deployedContract The deployed contract instance for ContractCallLocal
+     */
+    protected void validateGasEstimationAndExecuteContractCallLocal(
+            String data,
+            ContractMethodInterface contractMethods,
+            String contractAddress,
+            DeployedContract deployedContract) {
+
+        // First estimate gas
+        final var contractCallRequest = ModelBuilder.contractCallRequest(contractMethods.getActualGas())
+                .data(data)
+                .estimate(true)
+                .to(contractAddress);
+
+        final var gasEstimateResponse = mirrorClient.contractsCall(contractCallRequest);
+
+        assertNotNull(gasEstimateResponse.getResult(), "Gas estimate is missing response");
+        final long estimatedGas = Bytes.fromHexString(gasEstimateResponse.getResult())
+                .toBigInteger()
+                .longValueExact();
+
+        // Validate that the estimated gas is within acceptable deviation
+        assertWithinDeviation(contractMethods.getActualGas(), (int) estimatedGas, lowerDeviation, upperDeviation);
+
+        // Then validate gas is sufficient to execute ContractCallLocal
+        try {
+            contractClient.executeContractQuery(
+                    deployedContract.contractId(), contractMethods.getSelector(), estimatedGas, Strings.decode(data));
+        } catch (PrecheckStatusException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
