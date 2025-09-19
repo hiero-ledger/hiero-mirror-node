@@ -13,7 +13,7 @@ new REST APIs for hooks and hook storage.
 - Ingest hook creation, update, and deletion transactions from the record stream
 - Ingest hook storage updates via `LambdaSStoreTransactionBody` transactions and sidecars
 - Expose hook information via new REST APIs for account hooks and hook storage
-- Support efficient querying and pagination of hooks by owner, contract, and timestamp
+- Support efficient querying and pagination of hooks by owner and timestamp
 - Track hook usage in transactions for audit and analytics purposes
 
 ## Non-Goals
@@ -128,7 +128,7 @@ Response format:
     }
   ],
   "links": {
-    "next": "/api/v1/accounts/0.0.123/hooks/1/storage?key=gt:0x0000000000000000000000000000000000000000000000000000000000000001&limit=1"
+    "next": "/api/v1/accounts/0.0.123/hooks/1/storage?key=gt:0x0000000000000000000000000000000000000000000000000000000000000000&limit=1"
   }
 }
 ```
@@ -178,14 +178,14 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    owner_id          bigint                not null,
-    hook_id           bigint                not null,
-    admin_key         bytea,
     contract_id       bigint,
     created_timestamp bigint                not null,
-    deleted           boolean               not null default false,
+    hook_id           bigint                not null,
+    owner_id          bigint                not null,
     extension_point   hook_extension_point  not null,
     type              hook_type             not null,
+    deleted           boolean               not null default false,
+    admin_key         bytea,
 
     primary key (owner_id, hook_id)
 );
@@ -204,11 +204,11 @@ For hook EVM storage data, we use a two-table approach similar to contract stora
 -- add_hook_storage_change_table.sql
 create table hook_storage_change
 (
+    consensus_timestamp bigint not null,
     hook_id             bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
     value               bytea  not null,
-    consensus_timestamp bigint not null,
 
     primary key (hook_id, owner_id, key, consensus_timestamp)
 );
@@ -225,12 +225,11 @@ select create_distributed_table('hook_storage_change', 'owner_id');
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    hook_id            bigint not null,
-    owner_id           bigint not null,
-    key                bytea  not null,
-    value              bytea  not null,
-    created_timestamp  bigint not null,
-    modified_timestamp bigint not null,
+    consensus_timestamp bigint not null,
+    hook_id             bigint not null,
+    owner_id            bigint not null,
+    key                 bytea  not null,
+    value               bytea  not null,
 
     primary key (hook_id, owner_id, key)
 );
@@ -349,7 +348,11 @@ public interface EntityListener {
 
 ### 3.1. Hook Execution Processing
 
-Hook execution appears in the record stream as `ContractCall` transactions to system contract `0.0.365` (EVM address `0x16d`) as children of the triggering transaction. These can be identified by checking `ContractCallTransactionBody.contractID == 0.0.365` and the presence of `parentConsensusTimestamp`. The execution order follows a specific sequence based on the `CryptoTransferTransactionBody` structure:
+Hook execution appears in the record stream as `ContractCall` transactions to system contract `0.0.365` (EVM address
+`0x16d`) as children of the triggering transaction. These can be identified by checking
+`ContractCallTransactionBody.contractID == 0.0.365` and that `parentConsensusTimestamp` equals the `consensusTimestamp`
+of the triggering CryptoTransfer transaction. The execution order
+follows a specific sequence based on the `CryptoTransferTransactionBody` structure:
 
 **Hook Execution Order:**
 
@@ -373,7 +376,8 @@ Hook execution appears in the record stream as `ContractCall` transactions to sy
 if (transactionBody is ContractCallTransactionBody && recipient == 0x16d):
     if (transactionRecord.hasParentConsensusTimestamp()):
         parentTransaction = context.get(Transaction.class, parentConsensusTimestamp)
-        if (parentTransaction != null):
+        if (parentTransaction != null && parentTransaction.consensusTimestamp == transaction.parentConsensusTimestamp):
+            // Verify this is a direct hook execution, not a nested contract call
             // Determine hook execution context using parent transaction body and child index
             hookExecutionIndex = getChildTransactionIndex(transaction, parentTransaction)
             hookContext = deriveHookFromCryptoTransferOrder(parentTransaction.body, hookExecutionIndex)
@@ -595,33 +599,39 @@ domain entities and API responses.
 ```gherkin
 Feature: Hook Management
 
-  Scenario: Create account with hooks and retrieve via API
-    Given a transaction creates an account with hooks:
+  Scenario: Complete hook lifecycle testing
+    Given I create an account
+    When I create hooks on the account:
       | type   | extension_point        | admin_key |
       | LAMBDA | ACCOUNT_ALLOWANCE_HOOK | key123    |
       | PURE   | ACCOUNT_ALLOWANCE_HOOK | key456    |
-    When the mirror node processes the transactions
+    And the mirror node processes the transactions
     And I query "/api/v1/accounts/{account_id}/hooks"
     Then the response contains 2 hooks
     And both hooks have null contract_id since they belong to an account
     And one hook has type "LAMBDA"
     And one hook has type "PURE"
 
+    # Test hook filtering by ID
+    When I query "/api/v1/accounts/{account_id}/hooks?hook.id=eq:{lambda_hook_id}"
+    Then I receive 1 hook with type "LAMBDA"
 
-  Scenario: Hook pagination works correctly
-    Given consensus nodes create an account with 50 hooks
-    When the mirror node processes the transactions
-    And I query "/api/v1/accounts/{account_id}/hooks?limit=10"
-    Then I receive 10 hooks
+    # Test hook pagination with limit
+    When I query "/api/v1/accounts/{account_id}/hooks?limit=1&order=asc"
+    Then I receive 1 hook
     And the response includes a next page link
-    When I follow the next page link
-    Then I receive the next 10 hooks
 
-  Scenario: Hook filtering by hook_id
-    Given consensus nodes have assigned hook IDs to an account
-    When the mirror node processes the transactions
-    And I query "/api/v1/accounts/{account_id}/hooks?hook.id=gte:{some_hook_id}"
-    Then I receive only hooks with IDs greater than or equal to the specified value
+    # Test hook updates
+    When I update the LAMBDA hook with new admin key "newkey789"
+    And the mirror node processes the transactions
+    And I query "/api/v1/accounts/{account_id}/hooks?hook.id=eq:{lambda_hook_id}"
+    Then the hook has admin key "newkey789"
+
+    # Test hook deletion
+    When I delete both hooks
+    And the mirror node processes the transactions
+    And I query "/api/v1/accounts/{account_id}/hooks"
+    Then the response contains 2 hooks with deleted=true
 ```
 
 #### Hook Storage Management
@@ -631,29 +641,20 @@ Feature: Hook Management
 ```gherkin
 Feature: Hook Storage
 
-  Scenario: Hook storage updates via LambdaSStoreTransaction
-    Given a hook exists with owner_id 123 and hook_id 1
-    When a LambdaSStoreTransaction updates storage:
-      | key   | value |
-      | 0x001 | 0xabc |
-      | 0x002 | 0xdef |
-    Then the hook storage is persisted with correct timestamps
-    When I query "/api/v1/accounts/0.0.123/hooks/1/storage"
-    Then I receive 2 storage entries
+  Scenario: Complete hook storage lifecycle
+    Given I create a contract with for LAMBDA hook
+    Given I create a contract with for PURE hook
+    Given I update 'ALICE' to add LAMBDA hook
+    Given I update 'ALICE' to add PURE hook
+    # Test storage updates via hook execution during CryptoTransfer
+    When I perform a CryptoTransfer from 'ALICE' that triggers the hooks
+    And I verify mirror node receives 2 ContractCall transaction to address '0.0.135'
+    And I query "/api/v1/accounts/0.0.123/hooks/1/storage"
+    Then I receive storage entries
+    When I successfully update 'ALICE' to delete hooks
+    And I successfully delete the Hook contracts
 
-  Scenario: Hook storage updates via transaction sidecars
-    Given a hook exists with owner_id 123 and hook_id 1
-    When a ContractCall transaction includes hook storage sidecars:
-      | key   | value |
-      | 0x003 | 0x123 |
-    Then the storage is persisted from the sidecar
-    And it appears in the storage API response
 
-  Scenario: Hook storage pagination by key
-    Given a hook has 100 storage entries
-    When I query "/api/v1/accounts/{account_id}/hooks/{hook_id}/storage?limit=25"
-    Then I receive 25 storage entries ordered by key
-    And pagination links work correctly
 ```
 
 ### 4. Test Data
@@ -711,11 +712,3 @@ Feature: Hook Storage
 - Hook data ingestion must maintain the same reliability guarantees as existing transaction types
 - API availability must match existing REST API SLAs
 - Data consistency must be maintained across hook, hook_storage, and transaction tables
-
-## Open Questions
-
-1. **Indexing Strategy**: Which additional indexes might be needed for complex hook queries that we haven't identified
-   yet?
-
-2. **Protobuf Changes and Record Stream Timeline**: Check with Michael Tinker on the availability timeline for protobuf
-   changes and record stream implementation for hook support.
