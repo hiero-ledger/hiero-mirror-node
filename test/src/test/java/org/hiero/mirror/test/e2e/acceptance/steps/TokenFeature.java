@@ -28,7 +28,6 @@ import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
-import jakarta.validation.Valid;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,7 +57,6 @@ import org.hiero.mirror.rest.model.TokenRelationship;
 import org.hiero.mirror.rest.model.TokenRelationship.FreezeStatusEnum;
 import org.hiero.mirror.rest.model.TokenRelationship.KycStatusEnum;
 import org.hiero.mirror.rest.model.TokenRelationshipResponse;
-import org.hiero.mirror.rest.model.TokensResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionNftTransfersInner;
@@ -93,11 +91,9 @@ public class TokenFeature extends AbstractFeature {
 
     private TokenResponse tokenResponse;
 
-    private TokensResponse tokensWithTreasuryAccountBeforeCreation;
-
     private TransactionDetail transactionDetail;
 
-    private List<@Valid Nft> tokenNFTsBeforeMint = List.of();
+    private List<Nft> tokenNFTsBeforeMint = List.of();
 
     private byte[] metadata;
 
@@ -331,9 +327,6 @@ public class TokenFeature extends AbstractFeature {
 
     @Given("I successfully create a new unfrozen and granted kyc token")
     public void createNewToken() {
-        this.tokensWithTreasuryAccountBeforeCreation = mirrorClient.getTokensWithTreasuryAccount(
-                tokenClient.getAccountId().toString());
-
         this.tokenResponse = tokenClient.getToken(TokenNameEnum.FUNGIBLE_KYC_UNFROZEN_2);
         this.tokenId = tokenResponse.tokenId();
         this.networkTransactionResponse = tokenResponse.response();
@@ -349,7 +342,7 @@ public class TokenFeature extends AbstractFeature {
 
     @RetryAsserts
     @When("I verify the number of tokens is expected")
-    public void getAllTokensForAccount() {
+    public void verifyTokenRelationships() {
         final var tokensByAccountAfterCreation = mirrorClient
                 .getTokensWithTreasuryAccount(tokenClient.getAccountId().toString())
                 .getTokens();
