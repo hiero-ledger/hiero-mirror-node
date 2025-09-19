@@ -190,8 +190,7 @@ create table if not exists hook
     primary key (owner_id, hook_id)
 );
 
--- Distribute table for Citus using owner_id as distribution column
-select create_distributed_table('hook', 'owner_id');
+select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
 ```
 
 ### 2. Hook Storage Tables
@@ -208,15 +207,15 @@ create table hook_storage_change
     hook_id             bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
-    value               bytea  not null,
+    value_read          bytea  not null,
+    value_written       bytea,
 
     primary key (hook_id, owner_id, key, consensus_timestamp)
 );
 
 create index hook_storage_change__hook_timestamp on hook_storage_change (hook_id, owner_id, consensus_timestamp);
 
--- Distribute table for Citus using owner_id as distribution column (co-locate with hook table)
-select create_distributed_table('hook_storage_change', 'owner_id');
+select create_distributed_table('hook_storage_change', 'owner_id', colocate_with = > 'entity');
 ```
 
 #### 2.2. Hook Storage Table (Current State)
@@ -234,8 +233,7 @@ create table hook_storage
     primary key (hook_id, owner_id, key)
 );
 
--- Distribute table for Citus using owner_id as distribution column (co-locate with hook table)
-select create_distributed_table('hook_storage', 'owner_id');
+select create_distributed_table('hook_storage', 'owner_id', colocate_with = > 'entity');
 ```
 
 ## Importer Module Changes
@@ -250,6 +248,10 @@ Create new domain classes:
 // common/src/main/java/org/hiero/mirror/common/domain/entity/Hook.java
 public class Hook {
     private HookId id;
+
+    // Duplicate ID fields in outer class for JPA
+    private Long ownerId;
+    private Long hookId;
 
     private byte[] adminKey;
     private Long contractId;
@@ -273,6 +275,12 @@ public class Hook {
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 public class HookStorage {
     private HookStorageId id;
+
+    // Duplicate ID fields in outer class for JPA
+    private Long hookId;
+    private Long ownerId;
+    private byte[] key;
+
     private byte[] value;
     private Long createdTimestamp;
     private Long modifiedTimestamp;
@@ -291,7 +299,15 @@ public class HookStorage {
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorageChange.java
 public class HookStorageChange {
     private HookStorageChangeId id;
-    private byte[] value;
+
+    // Duplicate ID fields in outer class for JPA
+    private Long hookId;
+    private Long ownerId;
+    private byte[] key;
+    private Long consensusTimestamp;
+
+    private byte[] valueRead;      // Previous value before change
+    private byte[] valueWritten;   // New value written (nullable for read-only operations)
 
     public static class HookStorageChangeId implements Serializable {
         private Long hookId;
@@ -387,11 +403,15 @@ if (transactionBody is ContractCallTransactionBody && recipient == 0x16d):
                 create HookStorageChange entity with:
                     - hook_id from hookContext
                     - owner_id from hookContext
-                    - storage key and value from state change
+                    - storage key from state change
+                    - value_read from stateChange.valueRead
+                    - value_written from stateChange.valueWritten
                     - consensus_timestamp from current transaction
 
-                // Also update current state table
-                create/update HookStorage entity for current state
+                // Also update current state table with effective value
+                effectiveValue = valueWritten != null ? valueWritten : valueRead
+                create/update HookStorage entity with:
+                    - value = effectiveValue
 ```
 
 **Hook Context Derivation Logic:**
@@ -462,13 +482,15 @@ if (transactionRecord.hasParentConsensusTimestamp()):
                 // Create historical change record
                 create HookStorageChange entity with:
                     - composite ID (hookId, ownerId, stateChange.slot, consensus_timestamp)
-                    - value from stateChange.valueWritten
+                    - value_read from stateChange.valueRead
+                    - value_written from stateChange.valueWritten
                 save HookStorageChange via entityListener
 
-                // Update current state table
+                // Update current state table with effective value
+                effectiveValue = stateChange.valueWritten != null ? stateChange.valueWritten : stateChange.valueRead
                 create/update HookStorage entity with:
                     - composite ID (hookId, ownerId, stateChange.slot)
-                    - value from stateChange.valueWritten (latest)
+                    - value = effectiveValue
                 save HookStorage via entityListener
 ```
 
@@ -514,9 +536,19 @@ if (transactionBody has HookCreationDetails):
 
 if (transactionBody is LambdaSStoreTransactionBody):
     for each storageEntry in storageUpdatesList:
-        transform to HookStorage entity
-        set composite ID (hook_id, owner_id, key)
-        pass to EntityListener
+        // Create historical change record
+        create HookStorageChange entity with:
+            - composite ID (hook_id, owner_id, key, consensus_timestamp)
+            - value_read from storageEntry.previousValue (or null for new entries)
+            - value_written from storageEntry.newValue
+        save HookStorageChange via entityListener
+
+        // Update current state table with new value
+        create/update HookStorage entity with:
+            - composite ID (hook_id, owner_id, key)
+            - value = storageEntry.newValue
+            - modified_timestamp = consensus_timestamp
+        save HookStorage via entityListener
 ```
 
 ### 5. Repository Classes
