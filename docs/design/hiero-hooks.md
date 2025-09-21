@@ -343,6 +343,24 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
         - contract_id
         - deleted = false
     save Hook via entityListener
+
+    // Process initial storage updates from LambdaEvmHook.storage_updates
+    if (hookDetails.type == LAMBDA && hookDetails.lambdaEvmHook.storage_updates is not empty):
+        for each storageUpdate in hookDetails.lambdaEvmHook.storage_updates:
+            // Create historical change record for initial storage
+            create HookStorageChange entity with:
+                - composite ID (hook_id, owner_id, storageUpdate.slot, consensus_timestamp)
+                - value_read = null (new storage entry)
+                - value_written = storageUpdate.value
+            save HookStorageChange via entityListener
+
+            // Create current state record for initial storage
+            create HookStorage entity with:
+                - composite ID (hook_id, owner_id, storageUpdate.slot)
+                - value = storageUpdate.value
+                - created_timestamp = consensus_timestamp
+                - modified_timestamp = consensus_timestamp
+            save HookStorage via entityListener
 ```
 
 ### 3. Entity Listener Enhancement
