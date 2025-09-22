@@ -17,7 +17,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.888.0",
+    "@aws-sdk/client-s3": "^3.893.0",
     "@godaddy/terminus": "^4.12.1",
     "@hashgraph/proto": "^2.22.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
