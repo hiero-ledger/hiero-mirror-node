@@ -10,7 +10,7 @@ require (
 	github.com/go-playground/validator/v10 v10.27.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/hellofresh/health-go/v4 v4.7.0
-	github.com/hiero-ledger/hiero-sdk-go/v2 v2.69.0
+	github.com/hiero-ledger/hiero-sdk-go/v2 v2.70.0
 	github.com/jackc/pgtype v1.14.4
 	github.com/lib/pq v1.10.9
 	github.com/onrik/gorm-logrus v0.5.0
@@ -119,6 +119,6 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250721164621-a45f3dfb1074 // indirect
-	google.golang.org/grpc v1.75.0 // indirect
+	google.golang.org/grpc v1.75.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
