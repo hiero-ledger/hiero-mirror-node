@@ -81,7 +81,7 @@ class MirrorEvmTxProcessorTest {
     private static final int MAX_STACK_SIZE = 1024;
     private static final String EVM_ADDRESS = "0x6b175474e89094c44da98b954eedeac495271d0f";
     private static final String FUNCTION_HASH = "0x8070450f";
-    private final HederaEvmAccount sender = new HederaEvmAccount(Address.ALTBN128_ADD);
+    private final Address sender = Address.ALTBN128_ADD;
     private final HederaEvmAccount receiver = new HederaEvmAccount(Address.ALTBN128_MUL);
     private final Address receiverAddress = receiver.canonicalAddress();
     private final Address nativePrecompileAddress = Address.SHA256;
@@ -200,8 +200,7 @@ class MirrorEvmTxProcessorTest {
         when(evmProperties.getSemanticEvmVersion()).thenReturn(EVM_VERSION_0_34);
         given(hederaEvmContractAliases.resolveForEvm(receiverAddress)).willReturn(receiverAddress);
         given(pricesAndFeesProvider.currentGasPrice(any(), any())).willReturn(10L);
-        given(store.getAccount(sender.canonicalAddress(), OnMissing.DONT_THROW))
-                .willReturn(Account.getDummySenderAccount(sender.canonicalAddress()));
+        given(store.getAccount(sender, OnMissing.DONT_THROW)).willReturn(Account.getDummySenderAccount(sender));
 
         final var params = ContractExecutionParameters.builder()
                 .sender(sender)
@@ -227,10 +226,10 @@ class MirrorEvmTxProcessorTest {
         when(evmProperties.getSemanticEvmVersion()).thenReturn(EVM_VERSION);
         given(hederaEvmContractAliases.resolveForEvm(receiverAddress)).willReturn(receiverAddress);
         given(pricesAndFeesProvider.currentGasPrice(any(), any())).willReturn(10L);
-        given(store.getAccount(sender.canonicalAddress(), OnMissing.DONT_THROW)).willReturn(Account.getEmptyAccount());
+        given(store.getAccount(sender, OnMissing.DONT_THROW)).willReturn(Account.getEmptyAccount());
 
         final var params = ContractExecutionParameters.builder()
-                .sender(senderWithAlias)
+                .sender(senderWithAlias.canonicalAddress())
                 .receiver(receiver.canonicalAddress())
                 .gas(33_333L)
                 .value(1234L)
@@ -253,9 +252,9 @@ class MirrorEvmTxProcessorTest {
         final MessageFrame.Builder protoFrame = MessageFrame.builder()
                 .worldUpdater(updater)
                 .initialGas(1L)
-                .originator(sender.canonicalAddress())
+                .originator(sender)
                 .gasPrice(Wei.ZERO)
-                .sender(sender.canonicalAddress())
+                .sender(sender)
                 .value(Wei.ONE)
                 .apparentValue(Wei.ONE)
                 .blockValues(hederaBlockValues)
@@ -279,9 +278,9 @@ class MirrorEvmTxProcessorTest {
                 .maxStackSize(MAX_STACK_SIZE)
                 .worldUpdater(mock(WorldUpdater.class))
                 .initialGas(GAS_LIMIT)
-                .originator(sender.canonicalAddress())
+                .originator(sender)
                 .gasPrice(Wei.ZERO)
-                .sender(sender.canonicalAddress())
+                .sender(sender)
                 .value(oneWei)
                 .apparentValue(oneWei)
                 .blockValues(mock(BlockValues.class))
@@ -293,7 +292,7 @@ class MirrorEvmTxProcessorTest {
                 commonInitialFrame, receiver.canonicalAddress(), Bytes.EMPTY, 0L);
 
         // expect:
-        assertThat(sender.canonicalAddress()).isEqualTo(buildMessageFrame.getSenderAddress());
+        assertThat(sender).isEqualTo(buildMessageFrame.getSenderAddress());
         assertThat(oneWei).isEqualTo(buildMessageFrame.getApparentValue());
     }
 
@@ -311,9 +310,9 @@ class MirrorEvmTxProcessorTest {
                 .maxStackSize(MAX_STACK_SIZE)
                 .worldUpdater(mock(WorldUpdater.class))
                 .initialGas(GAS_LIMIT)
-                .originator(sender.canonicalAddress())
+                .originator(sender)
                 .gasPrice(Wei.ZERO)
-                .sender(sender.canonicalAddress())
+                .sender(sender)
                 .value(Wei.ZERO)
                 .apparentValue(Wei.ZERO)
                 .blockValues(mock(BlockValues.class))
@@ -325,7 +324,7 @@ class MirrorEvmTxProcessorTest {
         final MessageFrame buildMessageFrame = mirrorEvmTxProcessor.buildInitialFrame(
                 commonInitialFrame, nativePrecompileAddress, validPrecompilePayload, 0L);
 
-        assertThat(sender.canonicalAddress()).isEqualTo(buildMessageFrame.getSenderAddress());
+        assertThat(sender).isEqualTo(buildMessageFrame.getSenderAddress());
         assertThat(buildMessageFrame.getApparentValue()).isEqualTo(Wei.ZERO);
         assertThat(nativePrecompileAddress).isEqualTo(buildMessageFrame.getRecipientAddress());
     }
@@ -345,9 +344,9 @@ class MirrorEvmTxProcessorTest {
                 .maxStackSize(MAX_STACK_SIZE)
                 .worldUpdater(mock(WorldUpdater.class))
                 .initialGas(GAS_LIMIT)
-                .originator(sender.canonicalAddress())
+                .originator(sender)
                 .gasPrice(Wei.ZERO)
-                .sender(sender.canonicalAddress())
+                .sender(sender)
                 .value(Wei.ZERO)
                 .apparentValue(Wei.ZERO)
                 .blockValues(mock(BlockValues.class))

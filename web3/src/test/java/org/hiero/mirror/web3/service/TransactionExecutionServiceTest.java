@@ -19,7 +19,6 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -426,7 +425,7 @@ class TransactionExecutionServiceTest {
                 .isEstimate(false)
                 .isStatic(true)
                 .receiver(isContractCreate ? Address.ZERO : Address.fromHexString("0x1234"))
-                .sender(new HederaEvmAccount(senderAddress))
+                .sender(senderAddress)
                 .value(0)
                 .build();
     }
