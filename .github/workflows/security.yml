@@ -55,7 +55,7 @@ jobs:
           cache-read-only: false
 
       - name: Vulnerability check
-        run: ./gradlew dependencyCheckAggregate --ossIndexUsername=${{ secrets.SONATYPE_OSS_INDEX_UNAME }} --ossIndexPassword=${{ secrets.SONATYPE_OSS_INDEX_TOKEN }}
+        run: ./gradlew dependencyCheckAggregate -PossIndex.username=${{ secrets.SONATYPE_OSS_INDEX_UNAME }} -PossIndex.password=${{ secrets.SONATYPE_OSS_INDEX_TOKEN }}
         timeout-minutes: 20
 
       - name: Upload report
