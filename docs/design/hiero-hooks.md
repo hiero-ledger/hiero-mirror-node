@@ -178,7 +178,7 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    contract_id       bigint,
+    contract_id       bigint                not null,
     created_timestamp bigint                not null,
     hook_id           bigint                not null,
     owner_id          bigint                not null,
