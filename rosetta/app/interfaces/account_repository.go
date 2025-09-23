@@ -27,6 +27,7 @@ type AccountRepository interface {
 	RetrieveBalanceAtBlock(ctx context.Context, accountId types.AccountId, consensusEnd int64) (
 		types.AmountSlice,
 		string,
+		[]byte,
 		*rTypes.Error,
 	)
 }
