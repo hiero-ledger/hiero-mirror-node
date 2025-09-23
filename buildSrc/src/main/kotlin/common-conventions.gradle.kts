@@ -7,17 +7,22 @@ repositories { mavenCentral() }
 val resources = rootDir.resolve("buildSrc").resolve("src").resolve("main").resolve("resources")
 
 dependencyCheck {
-    if (System.getenv().containsKey("NVD_API_KEY")) {
-        nvd.apiKey = System.getenv("NVD_API_KEY")
-    }
+    val env = System.getenv()
 
-    failBuildOnCVSS = 8f
-    suppressionFile = resources.resolve("suppressions.xml").toString()
     analyzers {
         experimentalEnabled = true
         golangModEnabled = false // Too many vulnerabilities in transitive dependencies currently
+        ossIndex {
+            password = env.getOrDefault("SONATYPE_OSS_INDEX_TOKEN", "")
+            username = env.getOrDefault("SONATYPE_OSS_INDEX_UNAME", "")
+        }
     }
-    nvd { datafeedUrl = "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/" }
+    failBuildOnCVSS = 8f
+    nvd {
+        apiKey = env.getOrDefault("NVD_API_KEY", "")
+        datafeedUrl = "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/"
+    }
+    suppressionFile = resources.resolve("suppressions.xml").toString()
 }
 
 tasks.register<Exec>("uploadCoverage") {
