@@ -4,6 +4,8 @@ package services
 
 import (
 	"context"
+	"encoding/hex"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 
 	"github.com/coinbase/rosetta-sdk-go/server"
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -56,15 +58,19 @@ func (a *AccountAPIService) AccountBalance(
 		return nil, rErr
 	}
 
-	balances, accountIdString, rErr := a.accountRepo.RetrieveBalanceAtBlock(ctx, accountId, block.ConsensusEndNanos)
+	balances, accountIdString, publicKey, rErr := a.accountRepo.RetrieveBalanceAtBlock(ctx, accountId, block.ConsensusEndNanos)
 	if rErr != nil {
 		return nil, rErr
 	}
 
-	var metadata map[string]interface{}
+	metadata := make(map[string]interface{})
 	if accountId.HasAlias() && accountIdString != "" {
-		metadata = map[string]interface{}{"account_id": accountIdString}
+		metadata["account_id"] = accountIdString
 	}
+	if isEd25519PublicKey(publicKey) {
+		metadata["public_key"] = tools.SafeAddHexPrefix(hex.EncodeToString(publicKey))
+	}
+
 	return &rTypes.AccountBalanceResponse{
 		BlockIdentifier: block.GetRosettaBlockIdentifier(),
 		Balances:        balances.ToRosetta(),
@@ -77,4 +83,12 @@ func (a *AccountAPIService) AccountCoins(
 	_ *rTypes.AccountCoinsRequest,
 ) (*rTypes.AccountCoinsResponse, *rTypes.Error) {
 	return nil, errors.ErrNotImplemented
+}
+
+func isEd25519PublicKey(publicKey []byte) bool {
+	if len(publicKey) == 34 && publicKey[0] == 0x12 && publicKey[1] == 0x20 {
+		return true
+	}
+
+	return false
 }
