@@ -25,6 +25,7 @@ env:
 
 jobs:
   dependencies:
+    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
     name: Dependency Check
     runs-on: hiero-mirror-node-linux-large
     steps:
@@ -56,6 +57,10 @@ jobs:
       - name: Vulnerability check
         run: ./gradlew dependencyCheckAggregate
         timeout-minutes: 20
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          SONATYPE_OSS_INDEX_TOKEN: ${{ secrets.SONATYPE_OSS_INDEX_TOKEN }}
+          SONATYPE_OSS_INDEX_UNAME: ${{ secrets.SONATYPE_OSS_INDEX_UNAME }}
 
       - name: Upload report
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
