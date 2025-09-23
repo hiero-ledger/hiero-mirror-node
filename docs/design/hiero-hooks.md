@@ -178,16 +178,49 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    contract_id       bigint                not null,
-    created_timestamp bigint                not null,
-    hook_id           bigint                not null,
-    owner_id          bigint                not null,
-    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type              hook_type             not null default 'LAMBDA',
-    deleted           boolean               not null default false,
-    admin_key         bytea,
+    contract_id
+    bigint
+    not
+    null,
+    created_timestamp
+    bigint
+    not
+    null,
+    hook_id
+    bigint
+    not
+    null,
+    owner_id
+    bigint
+    not
+    null,
+    extension_point
+    hook_extension_point
+    not
+    null
+    default
+    'ACCOUNT_ALLOWANCE_HOOK',
+    type
+    hook_type
+    not
+    null
+    default
+    'LAMBDA',
+    deleted
+    boolean
+    not
+    null
+    default
+    false,
+    admin_key
+    bytea,
 
-    primary key (owner_id, hook_id)
+    primary
+    key
+(
+    owner_id,
+    hook_id
+)
     );
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
@@ -609,12 +642,11 @@ Feature: Hook Management
     Given I create a contract with for PURE hook
     Given I update 'ALICE' to add LAMBDA hook
     Given I update 'ALICE' to add PURE hook
-    # Test storage updates via hook execution during CryptoTransfer
-    When I perform a CryptoTransfer from 'ALICE' that triggers the hooks
+    Then I call function with transfer that returns the balance
     And I verify mirror node receives 2 ContractCall transaction to address '0.0.135'
-    And I query mirror node REST API tp get storage for account 'ALICE' hook 'LAMBDA'"
+    And I query mirror node REST API tp get storage for contract hook 'LAMBDA'"
     Then I receive storage entries
-    When I successfully update 'ALICE' to delete hooks
+    When I successfully update contract to delete hooks
     And I successfully delete the Hook contracts
 
 
