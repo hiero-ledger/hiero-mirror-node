@@ -182,13 +182,13 @@ create table if not exists hook
     created_timestamp bigint                not null,
     hook_id           bigint                not null,
     owner_id          bigint                not null,
-    extension_point   hook_extension_point  not null,
-    type              hook_type             not null,
+    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type              hook_type             not null default 'LAMBDA',
     deleted           boolean               not null default false,
     admin_key         bytea,
 
     primary key (owner_id, hook_id)
-);
+    );
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
 ```
@@ -210,7 +210,7 @@ create table hook_storage_change
     value_read          bytea  not null,
     value_written       bytea,
 
-    primary key (hook_id, owner_id, key, consensus_timestamp)
+    primary key (owner_id, hook_id, key, consensus_timestamp)
 );
 
 create index hook_storage_change__hook_timestamp on hook_storage_change (hook_id, owner_id, consensus_timestamp);
@@ -230,7 +230,7 @@ create table hook_storage
     key                 bytea  not null,
     value               bytea  not null,
 
-    primary key (hook_id, owner_id, key)
+    primary key (owner_id, hook_id, key)
 );
 
 select create_distributed_table('hook_storage', 'owner_id', colocate_with = > 'entity');
@@ -246,26 +246,22 @@ Create new domain classes:
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/Hook.java
+@IdClass(Hook.Id.class)
 public class Hook {
-    private HookId id;
-
-    // Duplicate ID fields in outer class for JPA
-    private Long ownerId;
-    private Long hookId;
 
     private byte[] adminKey;
-    private Long contractId;
-    private Long createdTimestamp;
-    private Boolean deleted;
+    private long contractId;
+    private long createdTimestamp;
+    private boolean deleted;
     private ExtensionPoint extensionPoint;
+    private Long hookId;
+    private Long ownerId;
     private HookType type;
 
-    public static class HookId implements Serializable {
-        private Long ownerId;
-        private Long hookId;
+    public static class Id implements Serializable {
+        private long hookId;
+        private long ownerId;
     }
-
-    // Getters, setters, and utility methods
 }
 ```
 
@@ -273,22 +269,24 @@ public class Hook {
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
+@IdClass(HookStorage.Id.class)
 public class HookStorage {
-    private HookStorageId id;
 
-    // Duplicate ID fields in outer class for JPA
-    private Long hookId;
-    private Long ownerId;
+    private long createdTimestamp;
+    private long hookId;
     private byte[] key;
-
+    private long modifiedTimestamp;
+    private long ownerId;
     private byte[] value;
-    private Long createdTimestamp;
-    private Long modifiedTimestamp;
 
-    public static class HookStorageId implements Serializable {
-        private Long hookId;
-        private Long ownerId;
+
+    @AllArgsConstructor
+    @Data
+    @NoArgsConstructor
+    public static class Id implements Serializable {
+        private long hookId;
         private byte[] key;
+        private long ownerId;
     }
 }
 ```
@@ -297,23 +295,23 @@ public class HookStorage {
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorageChange.java
+@IdClass(HookStorageChange.Id.class)
 public class HookStorageChange {
-    private HookStorageChangeId id;
 
-    // Duplicate ID fields in outer class for JPA
-    private Long hookId;
-    private Long ownerId;
+    private long consensusTimestamp;
+    private long hookId;
     private byte[] key;
-    private Long consensusTimestamp;
+    private long ownerId;
 
-    private byte[] valueRead;      // Previous value before change
-    private byte[] valueWritten;   // New value written (nullable for read-only operations)
+    private byte[] valueRead;
+    private byte[] valueWritten;
 
-    public static class HookStorageChangeId implements Serializable {
-        private Long hookId;
-        private Long ownerId;
+
+    public static class Id implements Serializable {
+        private long consensusTimestamp;
+        private long hookId;
         private byte[] key;
-        private Long consensusTimestamp;
+        private long ownerId;
     }
 }
 ```
@@ -354,13 +352,7 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
                 - value_written = storageUpdate.value
             save HookStorageChange via entityListener
 
-            // Create current state record for initial storage
-            create HookStorage entity with:
-                - composite ID (hook_id, owner_id, storageUpdate.slot)
-                - value = storageUpdate.value
-                - created_timestamp = consensus_timestamp
-                - modified_timestamp = consensus_timestamp
-            save HookStorage via entityListener
+            // HookStorage will be generated by SqlEntityListener when valueWritten is not null
 ```
 
 ### 3. Entity Listener Enhancement
@@ -373,8 +365,6 @@ public interface EntityListener {
     // ... existing methods ...
 
     void onHook(Hook hook);
-
-    void onHookStorage(HookStorage hookStorage);
 
     void onHookStorageChange(HookStorageChange hookStorageChange);
 }
@@ -416,8 +406,8 @@ if (transactionBody is ContractCallTransactionBody && recipient == 0x16d):
             hookExecutionIndex = getChildTransactionIndex(transaction, parentTransaction)
             hookContext = deriveHookFromCryptoTransferOrder(parentTransaction.body, hookExecutionIndex)
 
-            // Process sidecar ContractStateChanges for contract 0.0.365
-            for each stateChange in transaction.sidecars where contractId == 365:
+            // Process sidecar ContractStateChanges for hook storage
+            for each stateChange in transaction.sidecars:
                 create HookStorageChange entity with:
                     - hook_id from hookContext
                     - owner_id from hookContext
@@ -425,11 +415,9 @@ if (transactionBody is ContractCallTransactionBody && recipient == 0x16d):
                     - value_read from stateChange.valueRead
                     - value_written from stateChange.valueWritten
                     - consensus_timestamp from current transaction
+                save HookStorageChange via entityListener
 
-                // Also update current state table with effective value
-                effectiveValue = valueWritten != null ? valueWritten : valueRead
-                create/update HookStorage entity with:
-                    - value = effectiveValue
+                // HookStorage will be generated by SqlEntityListener when valueWritten is not null
 ```
 
 **Hook Context Derivation Logic:**
@@ -485,8 +473,8 @@ to that specific hook's storage.
 **Processing Logic:**
 
 ```
-// In ContractCallTransactionHandler when recipient == 0x16d
-if (transactionRecord.hasParentConsensusTimestamp()):
+// In ContractResultServiceImpl when processing sidecars for hook executions
+if (transactionRecord.hasParentConsensusTimestamp() && contractId == 365):
     parentTransaction = context.get(Transaction.class, parentConsensusTimestamp)
     if (parentTransaction != null):
         // Determine which hook this execution represents
@@ -494,22 +482,16 @@ if (transactionRecord.hasParentConsensusTimestamp()):
         hookId = deriveHookIdFromContext(parentTransaction, hookExecutionIndex)
         ownerId = extractOwnerIdFromParentContext(parentTransaction)
 
-        // Process contract state changes for system contract 0x16d
-        for each sidecar in transaction.sidecars:
-            for each stateChange in sidecar.contractStateChanges where contractId == 365:
-                // Create historical change record
-                create HookStorageChange entity with:
-                    - composite ID (hookId, ownerId, stateChange.slot, consensus_timestamp)
-                    - value_read from stateChange.valueRead
-                    - value_written from stateChange.valueWritten
-                save HookStorageChange via entityListener
+        // Process contract state changes for hook storage
+        for each stateChange in sidecar.contractStateChanges:
+            // Create historical change record
+            create HookStorageChange entity with:
+                - composite ID (hookId, ownerId, stateChange.slot, consensus_timestamp)
+                - value_read from stateChange.valueRead
+                - value_written from stateChange.valueWritten
+            save HookStorageChange via entityListener
 
-                // Update current state table with effective value
-                effectiveValue = stateChange.valueWritten != null ? stateChange.valueWritten : stateChange.valueRead
-                create/update HookStorage entity with:
-                    - composite ID (hookId, ownerId, stateChange.slot)
-                    - value = effectiveValue
-                save HookStorage via entityListener
+            // HookStorage will be generated by SqlEntityListener when valueWritten is not null
 ```
 
 **Implementation Strategy:**
@@ -522,54 +504,7 @@ leveraged and extended to handle hook storage updates by:
 2. **Hook Resolution**: Mapping the child transaction sequence to specific hook IDs using parent transaction context
 3. **Dual Storage**: Writing to both historical (`hook_storage_change`) and current state (`hook_storage`) tables
 
-### 4. BlockItemTransformer Enhancement
-
-**Note**: Block Stream–specific changes are currently unavailable in HIP. The following represents an initial draft of
-potential changes, which will be revisited once further details are confirmed.
-
-The `BlockItemTransformer` will be enhanced to handle hook-related block items during processing:
-
-**Hook Creation Processing:**
-
-- Process `HookCreationDetails` from account/contract creation and update transactions
-- Transform protobuf hook data into domain entities
-- Validate hook configuration and constraints
-
-**Hook Storage Processing:**
-
-- Extract hook storage updates from `LambdaSStoreTransactionBody` transactions
-- Process hook storage sidecars from various transaction types
-- Transform storage key-value pairs into `HookStorage` entities
-
-**Implementation Approach:**
-
-```
-if (transactionBody has HookCreationDetails):
-    for each hookDetails in hookCreationDetailsList:
-        transform hookDetails to Hook entity
-        set composite ID (owner_id, hook_id)
-        map extension point enum
-        extract admin key if present
-        pass to EntityListener
-
-if (transactionBody is LambdaSStoreTransactionBody):
-    for each storageEntry in storageUpdatesList:
-        // Create historical change record
-        create HookStorageChange entity with:
-            - composite ID (hook_id, owner_id, key, consensus_timestamp)
-            - value_read from storageEntry.previousValue (or null for new entries)
-            - value_written from storageEntry.newValue
-        save HookStorageChange via entityListener
-
-        // Update current state table with new value
-        create/update HookStorage entity with:
-            - composite ID (hook_id, owner_id, key)
-            - value = storageEntry.newValue
-            - modified_timestamp = consensus_timestamp
-        save HookStorage via entityListener
-```
-
-### 5. Repository Classes
+### 4. Repository Classes
 
 #### HookRepository.java
 
@@ -613,7 +548,7 @@ A `HookService` will implement the business logic for hook queries:
 - Query hooks by owner_id with deletion filtering
 - Apply hook.id comparison filters (eq, gt, lt, etc.)
 - Implement pagination using hook_id-based cursors
-- Build response with proper next page links
+- Return paginated data for controller to build response
 
 **Hook Storage Service Logic:**
 
@@ -621,7 +556,7 @@ A `HookService` will implement the business logic for hook queries:
 - Query storage entries by composite key (hook_id, owner_id)
 - Apply storage key comparison filters
 - Implement pagination using storage key cursors
-- Build response with historical timestamps
+- Return paginated storage data with timestamps for controller to build response
 
 ### 3. Response Models
 
@@ -651,45 +586,23 @@ Feature: Hook Management
 
   Scenario: Complete hook lifecycle testing
     Given I create an account
+    Given I creat a contract for hook
     When I create hooks on the account:
-      | type   | extension_point        | admin_key |
-      | LAMBDA | ACCOUNT_ALLOWANCE_HOOK | key123    |
-      | PURE   | ACCOUNT_ALLOWANCE_HOOK | key456    |
+      | type   | extension_point        |
+      | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
+      | PURE   | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
-    And I query "/api/v1/accounts/{account_id}/hooks"
+    And I query mirror node REST API for account hooks
     Then the response contains 2 hooks
-    And both hooks have null contract_id since they belong to an account
     And one hook has type "LAMBDA"
     And one hook has type "PURE"
 
-    # Test hook filtering by ID
-    When I query "/api/v1/accounts/{account_id}/hooks?hook.id=eq:{lambda_hook_id}"
-    Then I receive 1 hook with type "LAMBDA"
-
-    # Test hook pagination with limit
-    When I query "/api/v1/accounts/{account_id}/hooks?limit=1&order=asc"
-    Then I receive 1 hook
-    And the response includes a next page link
-
-    # Test hook updates
-    When I update the LAMBDA hook with new admin key "newkey789"
-    And the mirror node processes the transactions
-    And I query "/api/v1/accounts/{account_id}/hooks?hook.id=eq:{lambda_hook_id}"
-    Then the hook has admin key "newkey789"
 
     # Test hook deletion
     When I delete both hooks
     And the mirror node processes the transactions
-    And I query "/api/v1/accounts/{account_id}/hooks"
+    And I query mirror node REST API for account hooks
     Then the response contains 2 hooks with deleted=true
-```
-
-#### Hook Storage Management
-
-**Note**: Will not be part of first phase
-
-```gherkin
-Feature: Hook Storage
 
   Scenario: Complete hook storage lifecycle
     Given I create a contract with for LAMBDA hook
@@ -699,7 +612,7 @@ Feature: Hook Storage
     # Test storage updates via hook execution during CryptoTransfer
     When I perform a CryptoTransfer from 'ALICE' that triggers the hooks
     And I verify mirror node receives 2 ContractCall transaction to address '0.0.135'
-    And I query "/api/v1/accounts/0.0.123/hooks/1/storage"
+    And I query mirror node REST API tp get storage for account 'ALICE' hook 'LAMBDA'"
     Then I receive storage entries
     When I successfully update 'ALICE' to delete hooks
     And I successfully delete the Hook contracts
