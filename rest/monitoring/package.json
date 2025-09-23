@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-monitor",
-  "version": "0.139.0-rc3",
+  "version": "0.139.0",
   "description": "Mirror Node Monitor",
   "type": "module",
   "main": "server.js",
