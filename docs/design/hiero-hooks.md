@@ -178,49 +178,16 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    contract_id
-    bigint
-    not
-    null,
-    created_timestamp
-    bigint
-    not
-    null,
-    hook_id
-    bigint
-    not
-    null,
-    owner_id
-    bigint
-    not
-    null,
-    extension_point
-    hook_extension_point
-    not
-    null
-    default
-    'ACCOUNT_ALLOWANCE_HOOK',
-    type
-    hook_type
-    not
-    null
-    default
-    'LAMBDA',
-    deleted
-    boolean
-    not
-    null
-    default
-    false,
-    admin_key
-    bytea,
+    contract_id       bigint                not null,
+    created_timestamp bigint                not null,
+    hook_id           bigint                not null,
+    owner_id          bigint                not null,
+    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type              hook_type             not null default 'LAMBDA',
+    deleted           boolean               not null default false,
+    admin_key         bytea,
 
-    primary
-    key
-(
-    owner_id,
-    hook_id
-)
+    primary key (owner_id, hook_id)
     );
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
@@ -617,10 +584,10 @@ domain entities and API responses.
 ```gherkin
 Feature: Hook Management
 
-  Scenario: Complete hook lifecycle testing
+  Scenario: Complete hook lifecycle testing for account
     Given I create an account
     Given I creat a contract for hook
-    When I create hooks on the account:
+    When I update account 'ALICE' to add hooks on the account:
       | type   | extension_point        |
       | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
       | PURE   | ACCOUNT_ALLOWANCE_HOOK |
@@ -631,17 +598,14 @@ Feature: Hook Management
     And one hook has type "PURE"
 
 
-    # Test hook deletion
-    When I delete both hooks
+  Scenario: Complete hook lifecycle testing for contract
+    Given I create a contract
+    When I update contract to add hooks on the contract:
+      | type   | extension_point        |
+      | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
+      | PURE   | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
-    And I query mirror node REST API for account hooks
-    Then the response contains 2 hooks with deleted=true
-
-  Scenario: Complete hook storage lifecycle
-    Given I create a contract with for LAMBDA hook
-    Given I create a contract with for PURE hook
-    Given I update 'ALICE' to add LAMBDA hook
-    Given I update 'ALICE' to add PURE hook
+    And I query mirror node REST API for contract hooks
     Then I call function with transfer that returns the balance
     And I verify mirror node receives 2 ContractCall transaction to address '0.0.135'
     And I query mirror node REST API tp get storage for contract hook 'LAMBDA'"
