@@ -213,8 +213,6 @@ create table hook_storage_change
     primary key (owner_id, hook_id, key, consensus_timestamp)
 );
 
-create index hook_storage_change__hook_timestamp on hook_storage_change (hook_id, owner_id, consensus_timestamp);
-
 select create_distributed_table('hook_storage_change', 'owner_id', colocate_with = > 'entity');
 ```
 
@@ -253,9 +251,9 @@ public class Hook {
     private long contractId;
     private long createdTimestamp;
     private boolean deleted;
-    private ExtensionPoint extensionPoint;
-    private Long hookId;
-    private Long ownerId;
+    private HookExtensionPoint extensionPoint;
+    private long hookId;
+    private long ownerId;
     private HookType type;
 
     public static class Id implements Serializable {
@@ -348,7 +346,7 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
             // Create historical change record for initial storage
             create HookStorageChange entity with:
                 - composite ID (hook_id, owner_id, storageUpdate.slot, consensus_timestamp)
-                - value_read = null (new storage entry)
+                - value_read = storageUpdate.value (same as written for new entries)
                 - value_written = storageUpdate.value
             save HookStorageChange via entityListener
 
@@ -579,41 +577,33 @@ domain entities and API responses.
 
 ### 3. Acceptance Tests
 
-#### Hook Creation and Retrieval
+#### Hook Lifecycle Testing
 
 ```gherkin
 Feature: Hook Management
 
-  Scenario: Complete hook lifecycle testing for account
-    Given I create an account
-    Given I creat a contract for hook
-    When I update account 'ALICE' to add hooks on the account:
+  Scenario Outline: Complete hook lifecycle testing for <owner_type>
+    Given I create a <owner_type>
+    Given I create a contract for hook
+    When I update <owner_type> to add hooks:
       | type   | extension_point        |
       | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
       | PURE   | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
-    And I query mirror node REST API for account hooks
-    Then the response contains 2 hooks
-    And one hook has type "LAMBDA"
-    And one hook has type "PURE"
-
-
-  Scenario: Complete hook lifecycle testing for contract
-    Given I create a contract
-    When I update contract to add hooks on the contract:
-      | type   | extension_point        |
-      | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
-      | PURE   | ACCOUNT_ALLOWANCE_HOOK |
+    And I query mirror node REST API for <owner_type> hooks
+    Then the response contains 2 hooks with types "LAMBDA" and "PURE"
+    When I perform a CryptoTransfer that triggers hook execution for <owner_type>
     And the mirror node processes the transactions
-    And I query mirror node REST API for contract hooks
-    Then I call function with transfer that returns the balance
-    And I verify mirror node receives 2 ContractCall transaction to address '0.0.135'
-    And I query mirror node REST API tp get storage for contract hook 'LAMBDA'"
+    Then I verify mirror node receives 2 ContractCall transactions to address '0.0.365'
+    And I query mirror node REST API to get storage for <owner_type> hook 'LAMBDA'
     Then I receive storage entries
-    When I successfully update contract to delete hooks
-    And I successfully delete the Hook contracts
+    When I successfully update <owner_type> to delete hooks
+    And I successfully delete the hook contracts
 
-
+    Examples:
+      | owner_type |
+      | account    |
+      | contract   |
 ```
 
 ### 4. Test Data
