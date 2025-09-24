@@ -752,6 +752,15 @@ public class TokenFeature extends AbstractFeature {
         verifyNftTransactions(tokenId, serialNumber);
     }
 
+    @Then("I delete the allowance on first NFT {token} for recipient {account}")
+    public void deleteFirstNonFungibleTokenAllowance(
+            TokenClient.TokenNameEnum tokenName, AccountClient.AccountNameEnum recipient) {
+        var reExpandedAccountId = accountClient.getAccount(recipient);
+        final var nftInfo = tokenNftInfoMap.get(tokenId).getFirst();
+        networkTransactionResponse = verify(
+                accountClient.deleteAllowanceForNft(reExpandedAccountId, new NftId(tokenId, nftInfo.serialNumber)));
+    }
+
     @Then("I airdrop {int} tokens to {account}")
     public void airdropTokens(int amount, AccountNameEnum accountName) {
         var receiver = accountClient.getAccount(accountName);
