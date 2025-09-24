@@ -16,23 +16,32 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "abort-controller": "^3.0.0",
-    "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "express": "^5.1.0",
-    "extend": "^3.0.2",
-    "extensionless": "^1.9.9",
-    "lodash": "^4.17.21",
-    "log4js": "^6.9.1",
-    "mathjs": "^14.7.0",
-    "parse-duration": "^2.1.4",
-    "pretty-ms": "^9.3.0"
+    "abort-controller": "3.0.0",
+    "compression": "1.8.1",
+    "cors": "2.8.5",
+    "express": "5.1.0",
+    "extend": "3.0.2",
+    "extensionless": "1.9.9",
+    "lodash": "4.17.21",
+    "log4js": "6.9.1",
+    "mathjs": "14.7.0",
+    "parse-duration": "2.1.4",
+    "pretty-ms": "9.3.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.10"
+    "nodemon": "3.1.10"
+  },
+  "peerDependencies": {
+    "ansi-styles": "6.2.3",
+    "ansi-regex": "6.2.2",
+    "strip-ansi": "7.1.2",
+    "debug": "4.4.1",
+    "chalk": "5.6.2",
+    "wrap-ansi": "9.0.2",
+    "is-arrayish": "0.3.2"
   },
   "overrides": {
-    "cross-spawn": "^7.0.6",
-    "micromatch": "^4.0.8"
+    "cross-spawn": "7.0.6",
+    "micromatch": "4.0.8"
   }
 }
