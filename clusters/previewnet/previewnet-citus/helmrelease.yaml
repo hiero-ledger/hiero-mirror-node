@@ -72,11 +72,7 @@ spec:
           size: 90Gi
     test:
       enabled: true
-      env:
-        HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_MODULARIZEDSERVICES: "true"
     web3:
       enabled: true
       env:
         HIERO_MIRROR_WEB3_EVM_NETWORK: PREVIEWNET
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"

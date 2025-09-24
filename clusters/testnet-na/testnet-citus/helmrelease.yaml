@@ -67,9 +67,6 @@ spec:
         config:
           contract:
             contractId: "0.0.2664875"
-    restjava:
-      routes:
-        networkStake: true
     stackgres:
       coordinator:
         persistentVolume:
@@ -80,7 +77,3 @@ spec:
     test:
       cucumberTags: "@acceptance and not @estimateprecompile"
       enabled: true
-    web3:
-      env:
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES: "true"
-        HIERO_MIRROR_WEB3_EVM_MODULARIZEDTRAFFICPERCENT: "1"
