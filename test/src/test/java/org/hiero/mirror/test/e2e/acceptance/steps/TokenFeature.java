@@ -343,20 +343,20 @@ public class TokenFeature extends AbstractFeature {
     @RetryAsserts
     @When("I verify the number of tokens is expected")
     public void verifyTokenRelationships() {
-        final var tokensByAccountAfterCreation = mirrorClient
+        final var tokens = mirrorClient
                 .getTokensWithTreasuryAccount(tokenClient.getAccountId().toString())
                 .getTokens();
-        assertThat(tokensByAccountAfterCreation).isNotNull();
+        assertThat(tokens).isNotNull();
 
-        final var tokenByAccount = tokensByAccountAfterCreation.stream()
+        final var newToken = tokens.stream()
                 .filter(t -> {
                     assertThat(t.getTokenId()).isNotNull();
                     return t.getTokenId().equals(this.tokenResponse.tokenId().toString());
                 })
                 .findFirst();
 
-        assertThat(tokenByAccount.isPresent()).isTrue();
-        assertThat(tokenByAccount.get().getTokenId())
+        assertThat(newToken.isPresent()).isTrue();
+        assertThat(newToken.get().getTokenId())
                 .isEqualTo(this.tokenResponse.tokenId().toString());
 
         final var tokensByPublicKey = mirrorClient
@@ -370,7 +370,21 @@ public class TokenFeature extends AbstractFeature {
                     return t.getTokenId().equals(this.tokenResponse.tokenId().toString());
                 })
                 .findFirst();
-        assertThat(tokenByAccount).isEqualTo(tokenByPublicKey);
+        assertThat(newToken).isEqualTo(tokenByPublicKey);
+
+        final var tokensByName =
+                mirrorClient.getTokensByName(newToken.get().getName()).getTokens();
+        assertThat(tokensByName).isNotEmpty();
+
+        var tokenByName = tokensByName.stream()
+                .filter(t -> {
+                    assert t.getTokenId() != null;
+                    return t.getTokenId().equals(newToken.get().getTokenId());
+                })
+                .findFirst();
+
+        assertThat(tokenByName.isPresent()).isTrue();
+        assertThat(newToken).isEqualTo(tokenByName);
     }
 
     @Given("I successfully create a new nft {token} with infinite supplyType")

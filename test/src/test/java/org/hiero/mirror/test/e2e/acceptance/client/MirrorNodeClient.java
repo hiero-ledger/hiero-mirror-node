@@ -412,12 +412,17 @@ public class MirrorNodeClient {
 
     public TokensResponse getTokensWithTreasuryAccount(String accountId) {
         log.debug("Get tokens with treasury account id '{}'", accountId);
-        return callRestEndpoint("/tokens?account.id={accountId}", TokensResponse.class, accountId);
+        return callRestEndpoint("/tokens?account.id={accountId}&order=desc", TokensResponse.class, accountId);
+    }
+
+    public TokensResponse getTokensByName(String tokenName) {
+        log.debug("Get tokens by name '{}'", tokenName);
+        return callRestEndpoint("/tokens?name={tokenName}&order=desc", TokensResponse.class, tokenName);
     }
 
     public TokensResponse getTokensAssociatedWithPublicKey(String publicKey) {
         log.debug("Get tokens associated with publicKey '{}'", publicKey);
-        return callRestEndpoint("/tokens?publickey={publicKey}", TokensResponse.class, publicKey);
+        return callRestEndpoint("/tokens?publickey={publicKey}&order=desc", TokensResponse.class, publicKey);
     }
 
     public Nfts getTokenNFTs(String tokenId) {
