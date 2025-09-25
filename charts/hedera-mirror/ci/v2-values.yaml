@@ -27,6 +27,7 @@ rest:
   monitor:
     config:
       contract:
+        call: false  # Temporary until #12049
         logs: false
       freshness: false
       interval: 5

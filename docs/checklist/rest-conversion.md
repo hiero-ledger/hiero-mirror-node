@@ -45,6 +45,7 @@ Phase two enables the new route by default so that it rolls out to mainnet for t
 until we're confident there are no regressions.
 
 - [ ] Enable route by default in Ingress and Gateway
+- [ ] Update JavaScript monitor to use REST Java URL for route
 - [ ] Remove temporary enablement in previewnet and testnet so that default is used
 
 ## Phase Three
