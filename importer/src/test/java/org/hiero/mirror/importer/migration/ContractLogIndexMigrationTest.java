@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -19,6 +20,8 @@ import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 @Tag("migration")
+@DisablePartitionMaintenance
+@DisableRepeatableSqlMigration
 class ContractLogIndexMigrationTest extends AbstractAsyncJavaMigrationTest<ContractLogIndexMigration> {
 
     @Getter

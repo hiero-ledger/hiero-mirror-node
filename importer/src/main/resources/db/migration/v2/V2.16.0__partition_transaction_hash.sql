@@ -12,7 +12,7 @@ create table if not exists transaction_hash
 select create_distributed_table('transaction_hash', 'distribution_id', shard_count := ${hashShardCount});
 
 select create_time_partitions(table_name :='public.transaction_hash',
-                              partition_interval := '1 month',
+                              partition_interval := ${partitionTimeInterval},
                               start_from := ${partitionStartDate}::timestamptz,
                               end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
 
