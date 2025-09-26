@@ -35,12 +35,12 @@ import com.hedera.node.app.state.recordcache.RecordCacheService;
 import com.hedera.node.app.throttle.AppThrottleFactory;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.ThrottleAccumulator;
-import com.hedera.node.app.workflows.handle.metric.UnavailableMetrics;
 import com.hedera.node.config.data.VersionConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.base.time.Time;
 import com.swirlds.common.merkle.MerkleNode;
 import com.swirlds.common.merkle.crypto.MerkleCryptography;
+import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.state.StateChangeListener;
@@ -51,7 +51,6 @@ import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.KVChangeListener;
 import com.swirlds.state.spi.QueueChangeListener;
 import com.swirlds.state.spi.ReadableKVState;
-import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableKVStateBase;
 import com.swirlds.state.spi.WritableQueueStateBase;
@@ -84,6 +83,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
+import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
+import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
 import org.hiero.mirror.web3.state.core.ListWritableQueueState;
 import org.hiero.mirror.web3.state.core.MapReadableStates;
@@ -149,7 +150,6 @@ public class MirrorNodeState implements MerkleNodeState {
                     currentVersion,
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
                     mirrorNodeEvmProperties.getVersionedConfiguration(),
-                    UnavailableMetrics.UNAVAILABLE_METRICS,
                     startupNetworks,
                     storeMetricsService,
                     configProvider,
@@ -159,7 +159,12 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
-    public void init(Time time, Metrics metrics, MerkleCryptography merkleCryptography, LongSupplier roundSupplier) {
+    public void init(
+            Time time,
+            Configuration configuration,
+            Metrics metrics,
+            MerkleCryptography merkleCryptography,
+            LongSupplier roundSupplier) {
         // No-op
     }
 
@@ -185,6 +190,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
+    @Deprecated
     public <T extends MerkleNode> void putServiceStateIfAbsent(
             @Nonnull StateMetadata<?, ?> md, @Nonnull Supplier<T> nodeSupplier, @Nonnull Consumer<T> nodeInitializer) {}
 
@@ -223,7 +229,7 @@ public class MirrorNodeState implements MerkleNodeState {
                 final var stateName = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue queue) {
-                    data.put(stateName, new ListReadableQueueState(stateName, queue));
+                    data.put(stateName, new ListReadableQueueState(serviceName, stateName, queue));
                 } else if (state instanceof ReadableKVState<?, ?> kvState) {
                     final var readableKVState = readableKVStates.stream()
                             .filter(r -> r.getStateKey().equals(stateName))
@@ -235,7 +241,7 @@ public class MirrorNodeState implements MerkleNodeState {
                         data.put(stateName, kvState);
                     }
                 } else if (state instanceof SingletonState<?> singleton) {
-                    data.put(stateName, new ReadableSingletonStateBase<>(stateName, singleton));
+                    data.put(stateName, new FunctionReadableSingletonState<>(serviceName, stateName, singleton));
                 }
             }
             return new MapReadableStates(data);
@@ -257,13 +263,15 @@ public class MirrorNodeState implements MerkleNodeState {
                 if (state instanceof Queue<?> queue) {
                     data.put(
                             stateName,
-                            withAnyRegisteredListeners(serviceName, new ListWritableQueueState<>(stateName, queue)));
+                            withAnyRegisteredListeners(
+                                    serviceName, new ListWritableQueueState<>(serviceName, stateName, queue)));
                 } else if (state instanceof ReadableKVState<?, ?>) {
                     data.put(
                             stateName,
                             withAnyRegisteredListeners(
                                     serviceName,
                                     new MapWritableKVState<>(
+                                            serviceName,
                                             stateName,
                                             getReadableStates(serviceName).get(stateName))));
                 } else if (state instanceof SingletonState<?> ref) {
@@ -298,7 +306,7 @@ public class MirrorNodeState implements MerkleNodeState {
             @Nonnull final String serviceName,
             @Nonnull final String stateKey,
             @Nonnull final SingletonState<V> singleton) {
-        final var state = new WritableSingletonStateBase<>(stateKey, singleton, singleton::set);
+        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton, singleton::set);
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(SINGLETON)) {
                 registerSingletonListener(serviceName, state, listener);

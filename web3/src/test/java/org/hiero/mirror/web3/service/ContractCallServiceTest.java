@@ -36,7 +36,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import java.math.BigInteger;
@@ -1065,7 +1064,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
-                .sender(new HederaEvmAccount(Address.ZERO))
+                .sender(Address.ZERO)
                 .value(0L)
                 .build();
     }
@@ -1084,7 +1083,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
-                .sender(new HederaEvmAccount(Address.ZERO))
+                .sender(Address.ZERO)
                 .value(0L)
                 .build();
     }
@@ -1114,7 +1113,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
-                .sender(new HederaEvmAccount(senderAddress))
+                .sender(senderAddress)
                 .value(value)
                 .build();
     }

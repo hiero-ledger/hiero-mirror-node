@@ -214,10 +214,10 @@ public class TransactionExecutionService {
 
     private AccountID getSenderAccountID(final CallServiceParameters params) {
         // Set a default account to keep the sender parameter optional.
-        if (params.getSender().canonicalAddress().isZero() && params.getValue() == 0L) {
+        if (params.getSender().isZero() && params.getValue() == 0L) {
             return EntityIdUtils.toAccountId(systemEntity.treasuryAccount());
         }
-        final var senderAddress = params.getSender().canonicalAddress();
+        final var senderAddress = params.getSender();
         final var accountIDNum = getSenderAccountIDAsNum(senderAddress);
 
         final var account = accountReadableKVState.get(accountIDNum);

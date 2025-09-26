@@ -17,7 +17,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
-import org.hiero.mirror.importer.parser.domain.BlockItemBuilder;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.springframework.data.util.Version;
 
@@ -34,7 +34,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     protected BlockFileBuilder blockFileBuilder;
 
     @Resource
-    protected BlockItemBuilder blockItemBuilder;
+    protected BlockTransactionBuilder blockTransactionBuilder;
 
     @Resource
     protected BlockFileTransformer blockFileTransformer;

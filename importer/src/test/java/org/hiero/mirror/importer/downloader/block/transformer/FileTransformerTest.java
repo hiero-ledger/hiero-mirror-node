@@ -15,8 +15,9 @@ class FileTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.fileCreate().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.fileCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.fileCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -33,8 +34,9 @@ class FileTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearFileID().setStatus(ResponseCodeEnum.AUTHORIZATION_FAILED))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.fileCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.fileCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

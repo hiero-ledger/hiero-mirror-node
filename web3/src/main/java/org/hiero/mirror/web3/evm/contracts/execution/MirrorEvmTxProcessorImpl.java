@@ -81,15 +81,13 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
         final long gasPrice = gasPriceTinyBarsGiven(Instant.now());
 
         store.wrap();
-        if (store.getAccount(params.getSender().canonicalAddress(), OnMissing.DONT_THROW)
-                .isEmptyAccount()) {
+        if (store.getAccount(params.getSender(), OnMissing.DONT_THROW).isEmptyAccount()) {
 
             final Account senderAccount;
-            if (isMirror(params.getSender().canonicalAddress())) {
-                senderAccount = Account.getDummySenderAccount(params.getSender().canonicalAddress());
+            if (isMirror(params.getSender())) {
+                senderAccount = Account.getDummySenderAccount(params.getSender());
             } else {
-                senderAccount = Account.getDummySenderAccountWithAlias(
-                        params.getSender().canonicalAddress());
+                senderAccount = Account.getDummySenderAccountWithAlias(params.getSender());
             }
 
             store.updateAccount(senderAccount);

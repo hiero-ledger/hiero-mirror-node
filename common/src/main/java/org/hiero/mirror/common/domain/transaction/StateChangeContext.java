@@ -6,6 +6,8 @@ import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hederahashgraph.api.proto.java.Account;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
@@ -30,6 +32,7 @@ public final class StateChangeContext {
     private static final Comparator<TokenID> TOKEN_ID_COMPARATOR = Comparator.comparing(TokenID::getTokenNum);
     private static final Comparator<TopicID> TOPIC_ID_COMPARATOR = Comparator.comparing(TopicID::getTopicNum);
 
+    private final Map<AccountID, Account> accounts = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final List<Long> nodeIds = new LinkedList<>();
     private final List<FileID> fileIds = new LinkedList<>();
@@ -75,6 +78,10 @@ public final class StateChangeContext {
         nodeIds.sort(NODE_ID_COMPARATOR);
         tokenIds.sort(TOKEN_ID_COMPARATOR);
         topicIds.sort(TOPIC_ID_COMPARATOR);
+    }
+
+    public Optional<Account> getAccount(@Nonnull AccountID id) {
+        return Optional.ofNullable(accounts.get(id));
     }
 
     public Optional<ContractID> getContractId(@Nonnull ByteString evmAddress) {
@@ -168,6 +175,8 @@ public final class StateChangeContext {
         }
 
         var account = mapUpdate.getValue().getAccountValue();
+        accounts.putIfAbsent(account.getAccountId(), account);
+
         if (account.getSmartContract() && account.getAlias() != ByteString.EMPTY) {
             var accountId = account.getAccountId();
             contractIds.put(

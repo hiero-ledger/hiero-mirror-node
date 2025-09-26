@@ -19,15 +19,18 @@ class UtilTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.prng(range).customize(this::finalize).build();
-        var blockItem = blockItemBuilder.utilPrng(expectedRecordItem).build();
+        var blockTransaction =
+                blockTransactionBuilder.utilPrng(expectedRecordItem).build();
         var expectedRecordItemBytes = recordItemBuilder
                 .prng(range)
                 .recordItem(r -> r.transactionIndex(1))
                 .customize(this::finalize)
                 .build();
-        var blockItemBytes = blockItemBuilder.utilPrng(expectedRecordItemBytes).build();
-        var blockFile =
-                blockFileBuilder.items(List.of(blockItem, blockItemBytes)).build();
+        var blockItemBytes =
+                blockTransactionBuilder.utilPrng(expectedRecordItemBytes).build();
+        var blockFile = blockFileBuilder
+                .items(List.of(blockTransaction, blockItemBytes))
+                .build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -49,8 +52,9 @@ class UtilTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.utilPrng(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.utilPrng(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -46,7 +45,7 @@ public class ContractDebugParameters implements CallServiceParameters {
     Address receiver;
 
     @NotNull
-    HederaEvmAccount sender;
+    Address sender;
 
     @NotNull
     TracerType tracerType = TracerType.OPCODE;

@@ -31,8 +31,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 })
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.tokenAirdrop(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenAirdrop(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -50,8 +51,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.tokenAirdrop(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenAirdrop(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -65,8 +67,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.tokenBurn().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.tokenBurn(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenBurn(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -83,8 +86,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearNewTotalSupply().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.tokenBurn(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenBurn(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -98,8 +102,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.tokenCreate().customize(this::finalize).build();
-        var blockItem = blockItemBuilder.tokenCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -116,9 +121,10 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearTokenID().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.unsuccessfulTransaction(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .unsuccessfulTransaction(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -135,8 +141,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
         // given
         var expectedRecordItem =
                 recordItemBuilder.tokenMint(type).customize(this::finalize).build();
-        var blockItem = blockItemBuilder.tokenMint(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenMint(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -154,8 +161,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.tokenMint(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenMint(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -175,8 +183,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 ? builder.transactionBody(t -> t.setAmount(0).addSerialNumbers(2))
                         .build()
                 : builder.build();
-        var blockItem = blockItemBuilder.tokenWipe(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenWipe(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -196,8 +205,9 @@ class TokenTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearNewTotalSupply().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.tokenWipe(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.tokenWipe(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

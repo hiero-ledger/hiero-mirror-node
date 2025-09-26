@@ -20,6 +20,7 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.migration.MigrationProperties;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.data.util.Version;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -67,6 +68,9 @@ public class ImporterProperties {
     private Long startBlockNumber;
 
     private Long topicRunningHashV2AddedTimestamp;
+
+    @NotNull
+    private Version smartContractThrottlingVersion = Version.parse("0.67.0");
 
     public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
         if (groupByDay) {

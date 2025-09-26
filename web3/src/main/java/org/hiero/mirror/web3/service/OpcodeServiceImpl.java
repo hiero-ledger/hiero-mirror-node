@@ -8,7 +8,6 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import java.math.BigInteger;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -171,7 +170,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .isModularized(isModularized)
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
-                .sender(new HederaEvmAccount(getSenderAddress(contractResult)))
+                .sender(getSenderAddress(contractResult))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
     }

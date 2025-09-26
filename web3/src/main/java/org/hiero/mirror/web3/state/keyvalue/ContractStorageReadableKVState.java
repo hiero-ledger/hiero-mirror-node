@@ -6,6 +6,7 @@ import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
+import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
@@ -21,7 +22,7 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
     private final ContractStateService contractStateService;
 
     protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
-        super(KEY);
+        super(ContractService.NAME, KEY);
         this.contractStateService = contractStateService;
     }
 

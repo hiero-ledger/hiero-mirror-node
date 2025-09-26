@@ -15,12 +15,12 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.17.1")
+    set("besuVersion", "24.3.3")
+    set("blockNodeVersion", "0.18.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.7") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.1.125.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.17.1")
     set("protobufVersion", "4.32.1")
     set("reactorGrpcVersion", "1.2.4")
@@ -31,6 +31,7 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
+        val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
@@ -42,16 +43,16 @@ dependencies {
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.81")
+        api("org.bouncycastle:bcprov-jdk18on:1.82")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.4.8-jre")
+        api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.0")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.64.3")
+        api("com.hedera.hashgraph:app:0.65.1")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.66.0")
         api("com.hedera.hashgraph:sdk:2.63.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
@@ -79,14 +80,15 @@ dependencies {
         api("org.gaul:s3proxy:2.7.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
-        api("org.hyperledger.besu:evm:24.3.3")
+        api("org.hyperledger.besu:besu-datatypes:$besuVersion")
+        api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.33.9")
+        api("software.amazon.awssdk:bom:2.34.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

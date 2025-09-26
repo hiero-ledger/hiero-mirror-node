@@ -29,6 +29,8 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.AccountsResponse;
+import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
@@ -54,6 +56,7 @@ import org.hiero.mirror.rest.model.Nfts;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.rest.model.Schedule;
 import org.hiero.mirror.rest.model.SchedulesResponse;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -407,6 +410,26 @@ public class MirrorNodeClient {
         return callRestEndpoint("/tokens/?token.id={tokenId}", TokensResponse.class, tokenId);
     }
 
+    public TokensResponse getTokensWithTreasuryAccount(String accountId) {
+        log.debug("Get tokens with treasury account id '{}'", accountId);
+        return callRestEndpoint("/tokens?account.id={accountId}&order=desc", TokensResponse.class, accountId);
+    }
+
+    public TokensResponse getTokensByName(String tokenName) {
+        log.debug("Get tokens by name '{}'", tokenName);
+        return callRestEndpoint("/tokens?name={tokenName}&order=desc", TokensResponse.class, tokenName);
+    }
+
+    public TokensResponse getTokensAssociatedWithPublicKey(String publicKey) {
+        log.debug("Get tokens associated with publicKey '{}'", publicKey);
+        return callRestEndpoint("/tokens?publickey={publicKey}&order=desc", TokensResponse.class, publicKey);
+    }
+
+    public Nfts getTokenNFTs(String tokenId) {
+        log.debug("Get token nfts by tokenId '{}'", tokenId);
+        return callRestEndpoint("/tokens/{tokenId}/nfts", Nfts.class, tokenId);
+    }
+
     public Topic getTopic(String topicId) {
         return callRestJavaEndpoint("/topics/{topicId}", Topic.class, topicId);
     }
@@ -418,6 +441,11 @@ public class MirrorNodeClient {
     public TopicMessage getTopicMessageBySequenceNumber(String topicId, String sequenceNumber) {
         return callRestEndpoint(
                 "/topics/{topicId}/messages/{sequenceNumber}", TopicMessage.class, topicId, sequenceNumber);
+    }
+
+    public TopicMessage getTopicMessageByConsensusTimestamp(String timestamp) {
+        log.debug("Get topic message by consensus timestamp '{}'", timestamp);
+        return callRestEndpoint("/topics/messages/{timestamp}", TopicMessage.class, timestamp);
     }
 
     public TransactionsResponse getTransactionInfoByTimestamp(String timestamp) {
@@ -476,6 +504,19 @@ public class MirrorNodeClient {
 
     public boolean hasPartialState() {
         return partialStateSupplier.get();
+    }
+
+    public AccountsResponse getAccounts(int limit) {
+        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
+    }
+
+    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
+        return callRestEndpoint(
+                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
+    }
+
+    public BalancesResponse getBalancesForAccountId(String accountId) {
+        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
