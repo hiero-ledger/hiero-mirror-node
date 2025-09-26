@@ -105,6 +105,7 @@ spring:
       schema: ${hiero.mirror.importer.db.schema}
       shardCount: 16
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
+      transactionHashLookbackInterval: "'60 days'"
     target: latest
   jpa:
     properties:
