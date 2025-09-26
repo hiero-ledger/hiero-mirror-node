@@ -16,7 +16,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.17.1")
+    set("blockNodeVersion", "0.18.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.7") // Must match buildSrc/build.gradle.kts
@@ -43,11 +43,11 @@ dependencies {
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.81")
+        api("org.bouncycastle:bcprov-jdk18on:1.82")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.4.8-jre")
+        api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.0")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:0.65.1")
@@ -88,7 +88,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.33.9")
+        api("software.amazon.awssdk:bom:2.34.0")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
