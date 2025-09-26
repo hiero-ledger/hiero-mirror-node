@@ -59,9 +59,5 @@
   "jest-junit": {
     "outputDirectory": "build/test-results/test",
     "outputName": "TEST-jest.xml"
-  },
-  "overrides": {
-    "cross-spawn": "7.0.6",
-    "protobufjs": "7.2.4"
   }
 }
