@@ -32,6 +32,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hibernate.metamodel.model.domain.SingularPersistentAttribute;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -41,6 +42,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 @RequiredArgsConstructor
 public class EntityMetadataRegistry {
 
+    private final DBProperties dbProperties;
     private final EntityManager entityManager;
     private final Map<Class<?>, EntityMetadata> domainEntityMetadata = new ConcurrentHashMap<>();
     private final JdbcOperations jdbcOperations;
@@ -122,7 +124,8 @@ public class EntityMetadataRegistry {
         String sql =
                 """
                 select column_name, regexp_replace(column_default, '::.*', '') as column_default,
-                is_nullable = 'YES' as nullable from information_schema.columns where table_name = ?
+                is_nullable = 'YES' as nullable from information_schema.columns
+                where table_name = ? and table_schema = ?
                 """;
 
         var columnSchemas = jdbcOperations.query(
@@ -134,7 +137,8 @@ public class EntityMetadataRegistry {
                     columnSchema.setNullable(rs.getBoolean(3));
                     return columnSchema;
                 },
-                tableName);
+                tableName,
+                dbProperties.getSchema());
         var schema = columnSchemas.stream()
                 .collect(Collectors.toMap(InformationSchemaColumns::getColumnName, Function.identity()));
         if (schema.isEmpty()) {
