@@ -88,7 +88,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     private Path testPath;
 
     @SuppressWarnings("deprecation")
-    protected static NodeAddressBook addressBook(int size, int endPointSize) {
+    private static NodeAddressBook addressBook(int size, int endPointSize) {
         var builder = NodeAddressBook.newBuilder();
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
