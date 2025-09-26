@@ -88,7 +88,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     private Path testPath;
 
     @SuppressWarnings("deprecation")
-    private static NodeAddressBook addressBook(int size, int endPointSize) {
+    protected static NodeAddressBook addressBook(int size, int endPointSize) {
         var builder = NodeAddressBook.newBuilder();
         for (int i = 0; i < size; ++i) {
             long nodeId = 3 + i;
@@ -205,6 +205,17 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         assertEquals(
                 TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT + UPDATED.getNodeAddressCount(),
                 addressBookEntryRepository.count());
+    }
+
+    @Test
+    void updateFileWithoutFileCreateOrUpdate() {
+        byte[] addressBookBytes = UPDATED.toByteArray();
+        int index = addressBookBytes.length / 2;
+        byte[] addressBookPartial = Arrays.copyOfRange(addressBookBytes, 0, index);
+
+        assertDoesNotThrow(() -> append(addressBookPartial, 8L, true));
+        assertArrayEquals(
+                initialAddressBookBytes, addressBookService.getCurrent().getFileData());
     }
 
     @Test
