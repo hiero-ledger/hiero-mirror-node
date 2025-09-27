@@ -309,6 +309,10 @@ public class AddressBookServiceImpl implements AddressBookService {
         if (fileData.transactionTypeIsAppend()) {
             // concatenate bytes from partial address book file data in db
             addressBookBytes = combinePreviousFileDataContents(fileData);
+            if (addressBookBytes == null) {
+                log.info("Missing corresponding FileCreate/FileUpdate entry for fileData {}. skip parsing", fileData);
+                return null;
+            }
         } else {
             addressBookBytes = fileData.getFileData();
         }
@@ -349,9 +353,10 @@ public class AddressBookServiceImpl implements AddressBookService {
                         fileData.getConsensusTimestamp(),
                         fileData.getEntityId().getId(),
                         List.of(TransactionType.FILECREATE.getProtoId(), TransactionType.FILEUPDATE.getProtoId()))
-                .orElseThrow(() -> new IllegalStateException(
-                        "Missing FileData entry. FileAppend expects a corresponding  FileCreate/FileUpdate entry"));
-
+                .orElse(null);
+        if (firstPartialAddressBook == null) {
+            return null;
+        }
         List<FileData> appendFileDataEntries = fileDataRepository.findFilesInRange(
                 getAddressBookStartConsensusTimestamp(firstPartialAddressBook),
                 fileData.getConsensusTimestamp() - 1,
