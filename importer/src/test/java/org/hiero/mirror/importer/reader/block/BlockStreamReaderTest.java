@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.util.Lists;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
@@ -150,7 +151,8 @@ public final class BlockStreamReaderTest {
         var innerTransactionTimestamp1 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 1);
         var childTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 2);
         var innerTransactionTimestamp2 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 3);
-        var postBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 4);
+        var innerTransactionTimestamp3 = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 4);
+        var postBatchTransactionTimestamp = TestUtils.toTimestamp(now.getEpochSecond(), now.getNano() + 5);
 
         var preBatchTransactionResult = TransactionResult.newBuilder()
                 .setConsensusTimestamp(preBatchTransactionTimestamp)
@@ -186,6 +188,11 @@ public final class BlockStreamReaderTest {
                 .setParentConsensusTimestamp(batchTransactionTimestamp)
                 .build();
 
+        var innerTransactionResult3 = TransactionResult.newBuilder()
+                .setConsensusTimestamp(innerTransactionTimestamp3)
+                .setParentConsensusTimestamp(batchTransactionTimestamp)
+                .build();
+
         var postBatchTransactionResult = TransactionResult.newBuilder()
                 .setConsensusTimestamp(postBatchTransactionTimestamp)
                 .build();
@@ -210,6 +217,7 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction())
                 .addItems(BlockItem.newBuilder().setTransactionResult(childTransactionResult))
                 .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult2))
+                .addItems(BlockItem.newBuilder().setTransactionResult(innerTransactionResult3))
                 .addItems(eventHeader)
                 .addItems(signedTransaction())
                 .addItems(BlockItem.newBuilder().setTransactionResult(postBatchTransactionResult))
@@ -226,21 +234,20 @@ public final class BlockStreamReaderTest {
         var child = blockFile.getItems().get(4);
         var innerTransaction2 = blockFile.getItems().get(5);
 
-        var expectedParents = new ArrayList<BlockTransaction>();
+        var expectedParents = Lists.newArrayList(
+                null,
+                null,
+                batchParentItem,
+                batchParentItem,
+                innerTransaction1,
+                batchParentItem,
+                batchParentItem,
+                null);
         var expectedPrevious = new ArrayList<>(items);
-
         expectedPrevious.addFirst(null);
         expectedPrevious.removeLast();
 
-        expectedParents.add(null);
-        expectedParents.add(null);
-        expectedParents.add(batchParentItem);
-        expectedParents.add(batchParentItem);
-        expectedParents.add(innerTransaction1);
-        expectedParents.add(batchParentItem);
-        expectedParents.add(null);
-
-        assertThat(items).hasSize(7);
+        assertThat(items).hasSize(8);
         assertThat(TestUtils.toTimestamp(batchParentItem.getConsensusTimestamp()))
                 .isEqualTo(batchTransactionTimestamp);
         assertThat(items).map(BlockTransaction::getParent).containsExactlyElementsOf(expectedParents);
@@ -252,6 +259,11 @@ public final class BlockStreamReaderTest {
                 .isEqualTo(innerTransaction2.getStateChangeContext())
                 .isNotEqualTo(items.getFirst().getStateChangeContext())
                 .isNotEqualTo(items.getLast().getStateChangeContext());
+        var batchInnerLinks =
+                items.stream().map(BlockTransaction::getNextInBatch).toList();
+        List<BlockTransaction> expected =
+                Lists.newArrayList(null, null, null, items.get(5), null, items.get(6), null, null);
+        assertThat(batchInnerLinks).containsExactlyElementsOf(expected);
     }
 
     @Test
@@ -467,21 +479,15 @@ public final class BlockStreamReaderTest {
     }
 
     private BlockItem batchTransaction() {
-        var cryptoTransfer = SignedTransaction.newBuilder()
+        var cryptoTransferSignedBytes = SignedTransaction.newBuilder()
                 .setBodyBytes(TransactionBody.newBuilder()
                         .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
                         .build()
                         .toByteString())
                 .build()
                 .toByteString();
-        var cryptoTransfer2 = SignedTransaction.newBuilder()
-                .setBodyBytes(TransactionBody.newBuilder()
-                        .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
-                        .build()
-                        .toByteString())
-                .build()
-                .toByteString();
-        return batchTransaction(List.of(cryptoTransfer, cryptoTransfer2));
+        return batchTransaction(
+                List.of(cryptoTransferSignedBytes, cryptoTransferSignedBytes, cryptoTransferSignedBytes));
     }
 
     private BlockItem batchTransaction(List<ByteString> innerTransactions) {

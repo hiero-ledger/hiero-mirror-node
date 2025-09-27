@@ -6,8 +6,10 @@ import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.AUTO_
 import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.EVM_TRACE_DATA;
 import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.SUBMIT_MESSAGE_TRACE_DATA;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
+import static org.hiero.mirror.common.util.DomainUtils.normalize;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.MessageLite;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
@@ -19,6 +21,7 @@ import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.security.MessageDigest;
@@ -35,7 +38,10 @@ import lombok.Builder;
 import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import lombok.Value;
+import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.util.CollectionUtils;
@@ -50,7 +56,18 @@ public class BlockTransaction implements StreamItem {
 
     private final AutoAssociateTraceData autoAssociateTraceData;
     private final long consensusTimestamp;
+
+    @NonFinal
+    @Setter
+    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
+
     private final EvmTraceData evmTraceData;
+
+    @NonFinal
+    @Setter
+    @ToString.Exclude
+    private BlockTransaction nextInBatch;
+
     private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
     private final BlockTransaction previous;
@@ -121,6 +138,26 @@ public class BlockTransaction implements StreamItem {
                 .build();
     }
 
+    /**
+     * Get value written to the storage slot at {@link SlotKey} by the transaction. Returns the first read value in
+     * subsequent transactions, or the value in statechanges.
+     *
+     * @param slotKey - The contract storage's slot key
+     * @return The value written
+     */
+    public BytesValue getValueWritten(SlotKey slotKey) {
+        slotKey = normalize(slotKey);
+        for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
+            var valueRead = nextInner.getValueRead(slotKey);
+            if (valueRead != null) {
+                return BytesValue.of(valueRead);
+            }
+        }
+
+        // fall back to statechanges
+        return getStateChangeContext().getContractStorageValueWritten(slotKey);
+    }
+
     public Optional<TransactionOutput> getTransactionOutput(TransactionCase transactionCase) {
         return Optional.ofNullable(transactionOutputs.get(transactionCase));
     }
@@ -147,6 +184,10 @@ public class BlockTransaction implements StreamItem {
         return !CollectionUtils.isEmpty(stateChanges)
                 ? new StateChangeContext(stateChanges)
                 : StateChangeContext.EMPTY_CONTEXT;
+    }
+
+    private ByteString getValueRead(SlotKey slotKey) {
+        return contractStorageReads.get(slotKey);
     }
 
     private BlockTransaction parseParent() {

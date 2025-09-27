@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
@@ -17,6 +18,7 @@ import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.Trans
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.UTIL_PRNG;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.UInt64Value;
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.CreateAccountOutput;
@@ -35,8 +37,10 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.output.protoc.UtilPrngOutput;
+import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
@@ -53,6 +57,8 @@ import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Schedule;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.SlotKey;
+import com.hederahashgraph.api.proto.java.SlotValue;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -80,6 +86,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
+import org.springframework.util.CollectionUtils;
 
 /**
  * Generates typical protobuf request and response objects with all fields populated.
@@ -110,12 +117,12 @@ public class BlockTransactionBuilder {
                 .setMapUpdate(MapUpdateChange.newBuilder().build())
                 .build();
 
-        var fourtChange = StateChange.newBuilder()
+        var fourthChange = StateChange.newBuilder()
                 .setMapUpdate(mapUpdate)
                 .setStateId(StateIdentifier.STATE_ID_FILES_VALUE)
                 .build();
 
-        var changes = List.of(firstChange, secondChange, thirdChange, fourtChange);
+        var changes = List.of(firstChange, secondChange, thirdChange, fourthChange);
 
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
@@ -149,7 +156,16 @@ public class BlockTransactionBuilder {
         return StateChanges.newBuilder().addAllStateChanges(changes).build();
     }
 
-    public BlockTransactionBuilder.Builder contractCall(RecordItem recordItem) {
+    public BlockTransactionBuilder.Builder atomicBatch(RecordItem recordItem) {
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyMap(),
+                Collections.emptyList(),
+                Collections.emptyList());
+    }
+
+    public BlockTransactionBuilder.Builder contractCall(RecordItem recordItem, boolean skipStorageChange) {
         var contractCallResult = recordItem.getTransactionRecord().getContractCallResult();
         var evmTransactionResult = fromContractResult(contractCallResult);
         var transactionOutput = TransactionOutput.newBuilder()
@@ -166,7 +182,7 @@ public class BlockTransactionBuilder {
 
         var contractId = contractCallResult.getContractID();
         var accountId = toAccountId(contractId);
-        var stateChanges = StateChanges.newBuilder()
+        var stateChangesBuilder = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_ACCOUNTS_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
@@ -174,16 +190,19 @@ public class BlockTransactionBuilder {
                                 .setValue(MapChangeValue.newBuilder()
                                         .setAccountValue(Account.newBuilder()
                                                 .setAccountId(accountId)
-                                                .setSmartContract(true)))))
-                .build();
-        var evmTraceData =
-                new EvmTraceDataBuilder(contractCallResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
-        var traceData = TraceData.newBuilder().setEvmTraceData(evmTraceData).build();
+                                                .setSmartContract(true)))));
+        var evmTraceDataBuilder =
+                new EvmTraceDataBuilder(contractCallResult.getLogInfoList(), recordItem.getSidecarRecords()).partial();
+        if (!skipStorageChange) {
+            convertContractStateChanges(evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder);
+        }
+        var traceData =
+                TraceData.newBuilder().setEvmTraceData(evmTraceDataBuilder).build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CALL, transactionOutput),
-                List.of(stateChanges),
+                List.of(stateChangesBuilder.build()),
                 List.of(traceData));
     }
 
@@ -210,7 +229,7 @@ public class BlockTransactionBuilder {
         var evmAddress = contractCreateResult.hasEvmAddress()
                 ? contractCreateResult.getEvmAddress().getValue()
                 : ByteString.EMPTY;
-        var stateChanges = StateChanges.newBuilder()
+        var stateChangesBuilder = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
                         .setStateId(STATE_ID_ACCOUNTS_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
@@ -219,16 +238,18 @@ public class BlockTransactionBuilder {
                                         .setAccountValue(Account.newBuilder()
                                                 .setAccountId(accountId)
                                                 .setAlias(evmAddress)
-                                                .setSmartContract(true)))))
-                .build();
-        var evmTraceData =
-                new EvmTraceDataBuilder(contractCreateResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
-        var traceData = TraceData.newBuilder().setEvmTraceData(evmTraceData).build();
+                                                .setSmartContract(true)))));
+        var evmTraceDataBuilder = new EvmTraceDataBuilder(
+                        contractCreateResult.getLogInfoList(), recordItem.getSidecarRecords())
+                .partial();
+        convertContractStateChanges(evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder);
+        var traceData =
+                TraceData.newBuilder().setEvmTraceData(evmTraceDataBuilder).build();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CREATE, transactionOutput),
-                List.of(stateChanges),
+                List.of(stateChangesBuilder.build()),
                 List.of(traceData));
     }
 
@@ -297,15 +318,17 @@ public class BlockTransactionBuilder {
             setter.apply(evmTransactionResult);
 
             // TraceData
-            var evmTraceData =
-                    new EvmTraceDataBuilder(contractResult.getLogInfoList(), recordItem.getSidecarRecords()).build();
+            var evmTraceDataBuilder =
+                    new EvmTraceDataBuilder(contractResult.getLogInfoList(), recordItem.getSidecarRecords()).partial();
+            var stateChangesBuilder = StateChanges.newBuilder();
+            convertContractStateChanges(evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder);
             traceDataList.add(
-                    TraceData.newBuilder().setEvmTraceData(evmTraceData).build());
+                    TraceData.newBuilder().setEvmTraceData(evmTraceDataBuilder).build());
 
             // StateChanges
             var accountId = toAccountId(contractId);
             var senderId = contractResult.getSenderId();
-            var stateChanges = StateChanges.newBuilder()
+            var stateChanges = stateChangesBuilder
                     .addStateChanges(StateChange.newBuilder()
                             .setStateId(STATE_ID_ACCOUNTS_VALUE)
                             .setMapUpdate(MapUpdateChange.newBuilder()
@@ -691,17 +714,75 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    private Builder tokenSupplyStateChanges(RecordItem recordItem, TokenID tokenId) {
-        var receipt = recordItem.getTransactionRecord().getReceipt();
-        var stateChangesBuilder =
-                StateChanges.newBuilder().addStateChanges(getNewSupplyState(tokenId, receipt.getNewTotalSupply()));
-        stateChangesBuilder.addAllStateChanges(getSerialNumbersStateChanges(receipt.getSerialNumbersList(), tokenId));
-        return new BlockTransactionBuilder.Builder(
-                recordItem.getTransaction(),
-                transactionResult(recordItem),
-                Collections.emptyMap(),
-                List.of(stateChangesBuilder.build()),
-                Collections.emptyList());
+    private void convertContractStateChanges(
+            EvmTraceData.Builder evmTraceDataBuilder,
+            List<TransactionSidecarRecord> sidecarRecords,
+            StateChanges.Builder stateChangesBuilder) {
+        var contractStateChanges = sidecarRecords.stream()
+                .filter(TransactionSidecarRecord::hasStateChanges)
+                .findFirst()
+                .map(r -> r.getStateChanges().getContractStateChangesList())
+                .orElse(null);
+        if (CollectionUtils.isEmpty(contractStateChanges)) {
+            return;
+        }
+
+        // add an identical MapUpdateChange
+        stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setIdentical(true)
+                        .setKey(MapChangeKey.newBuilder()
+                                .setSlotKeyKey(SlotKey.newBuilder()
+                                        .setContractID(recordItemBuilder.contractId())
+                                        .setKey(recordItemBuilder.bytes(32))))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setSlotValueValue(SlotValue.newBuilder().setValue(recordItemBuilder.bytes(8))))));
+        var contractStorageSlotCounts = new HashMap<ContractID, Integer>();
+        for (var contractStateChange : contractStateChanges) {
+            var contractId = contractStateChange.getContractId();
+            var slotUsage = ContractSlotUsage.newBuilder().setContractId(contractId);
+
+            for (var storageChange : contractStateChange.getStorageChangesList()) {
+                if (!storageChange.hasValueWritten()) {
+                    // only read
+                    slotUsage.addSlotReads(SlotRead.newBuilder()
+                            .setKey(storageChange.getSlot())
+                            .setReadValue(storageChange.getValueRead())
+                            .build());
+                } else {
+                    int count = contractStorageSlotCounts.compute(contractId, (k, v) -> v == null ? 1 : v + 1);
+                    slotUsage.addSlotReads(SlotRead.newBuilder()
+                            .setIndex(count - 1)
+                            .setReadValue(storageChange.getValueRead())
+                            .build());
+                    var valueWritten = storageChange.getValueWritten();
+                    var mapChangeKey = MapChangeKey.newBuilder()
+                            .setSlotKeyKey(SlotKey.newBuilder()
+                                    .setContractID(contractId)
+                                    .setKey(storageChange.getSlot())
+                                    .build())
+                            .build();
+                    if (!BytesValue.getDefaultInstance().equals(storageChange.getValueWritten())) {
+                        stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setMapUpdate(MapUpdateChange.newBuilder()
+                                        .setKey(mapChangeKey)
+                                        .setValue(MapChangeValue.newBuilder()
+                                                .setSlotValueValue(
+                                                        SlotValue.newBuilder().setValue(valueWritten.getValue())))
+                                        .build()));
+                    } else {
+                        // deleted
+                        stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setMapDelete(MapDeleteChange.newBuilder().setKey(mapChangeKey)));
+                    }
+                }
+            }
+
+            evmTraceDataBuilder.addContractSlotUsages(slotUsage.build());
+        }
     }
 
     private List<StateChange> getSerialNumbersStateChanges(List<Long> serialNumbers, TokenID tokenId) {
@@ -756,6 +837,19 @@ public class BlockTransactionBuilder {
                 .build();
     }
 
+    private Builder tokenSupplyStateChanges(RecordItem recordItem, TokenID tokenId) {
+        var receipt = recordItem.getTransactionRecord().getReceipt();
+        var stateChangesBuilder =
+                StateChanges.newBuilder().addStateChanges(getNewSupplyState(tokenId, receipt.getNewTotalSupply()));
+        stateChangesBuilder.addAllStateChanges(getSerialNumbersStateChanges(receipt.getSerialNumbersList(), tokenId));
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyMap(),
+                List.of(stateChangesBuilder.build()),
+                Collections.emptyList());
+    }
+
     private TransactionResult transactionResult(RecordItem recordItem) {
         var transactionRecord = recordItem.getTransactionRecord();
         var timestamp = timestamp(recordItem.getConsensusTimestamp());
@@ -780,17 +874,6 @@ public class BlockTransactionBuilder {
                 .setTransferList(transactionRecord.getTransferList())
                 .setTransactionFeeCharged(transactionRecord.getTransactionFee())
                 .setStatus(transactionRecord.getReceipt().getStatus());
-    }
-
-    private static EvmTraceData.Builder addContractActions(
-            EvmTraceData.Builder builder, List<TransactionSidecarRecord> sidecarRecords) {
-        for (var sidecarRecord : sidecarRecords) {
-            if (sidecarRecord.hasActions()) {
-                builder.addAllContractActions(sidecarRecord.getActions().getContractActionsList());
-            }
-        }
-
-        return builder;
     }
 
     private static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {
@@ -861,6 +944,11 @@ public class BlockTransactionBuilder {
                     .build();
         }
 
+        public Builder traceData(Consumer<List<TraceData>> consumer) {
+            consumer.accept(traceDataList);
+            return this;
+        }
+
         public Builder previous(BlockTransaction previous) {
             this.previous = previous;
             return this;
@@ -882,20 +970,17 @@ public class BlockTransactionBuilder {
         }
     }
 
-    @RequiredArgsConstructor
-    private static class EvmTraceDataBuilder {
+    private record EvmTraceDataBuilder(
+            List<ContractLoginfo> contractLoginfos, List<TransactionSidecarRecord> transactionSidecarRecords) {
 
-        private final EvmTraceData.Builder builder = EvmTraceData.newBuilder();
-        private final List<ContractLoginfo> contractLoginfos;
-        private final List<TransactionSidecarRecord> transactionSidecarRecords;
-
-        EvmTraceData build() {
-            addContractActions();
-            addLogs();
-            return builder.build();
+        EvmTraceData.Builder partial() {
+            var builder = EvmTraceData.newBuilder();
+            addContractActions(builder);
+            addLogs(builder);
+            return builder;
         }
 
-        void addContractActions() {
+        void addContractActions(EvmTraceData.Builder builder) {
             for (var sidecarRecord : transactionSidecarRecords) {
                 if (sidecarRecord.hasActions()) {
                     builder.addAllContractActions(sidecarRecord.getActions().getContractActionsList());
@@ -903,7 +988,7 @@ public class BlockTransactionBuilder {
             }
         }
 
-        void addLogs() {
+        void addLogs(EvmTraceData.Builder builder) {
             contractLoginfos.forEach(log -> builder.addLogs(EvmTransactionLog.newBuilder()
                     .setContractId(log.getContractID())
                     .setData(log.getData())

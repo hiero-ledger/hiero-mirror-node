@@ -4,7 +4,14 @@ package org.hiero.mirror.common.domain.transaction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
+import com.google.common.primitives.Bytes;
+import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
@@ -21,6 +28,7 @@ import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -294,6 +302,125 @@ final class BlockTransactionTest {
     }
 
     @Test
+    void getValueWritten() {
+        // given, when
+        var contractIdA = getContractId();
+        var contractASlot1 = bytes(24);
+        var contractASlot1Padded =
+                DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(contractASlot1)));
+        var contractASlot1Value = bytes(8);
+        var contractASlot1IntermediateValue = bytes(10);
+        var contractASlot2 = bytes(32);
+        var contractIdB = getContractId();
+        var contractBSlot1 = bytes(32);
+        var contractBSlot2 = bytes(32);
+        var contractBSlot2Value = bytes(6);
+        var contractBSlot2IntermediateValue = bytes(12);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(contractStorageMapUpdateChange(contractIdA, contractASlot1Padded, contractASlot1Value))
+                .addStateChanges(makeIdentical(contractStorageMapUpdateChange(contractIdA, contractASlot2, bytes(2))))
+                .addStateChanges(contractStorageMapDeleteChange(contractIdB, contractBSlot1))
+                .addStateChanges(contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Value))
+                .build();
+        var parent = defaultBuilder()
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .stateChanges(List.of(stateChanges))
+                .build();
+
+        var parentConsensusTimestamp = parent.getTransactionResult().getConsensusTimestamp();
+        var previous = parent;
+        var inner1 = defaultBuilder()
+                .previous(previous)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(previous.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(parentConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+
+        previous = inner1;
+        var inner2 = defaultBuilder()
+                .previous(previous)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(previous.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(parentConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        var contractStorageReads = Map.of(
+                SlotKey.newBuilder()
+                        .setContractID(contractIdA)
+                        .setKey(contractASlot1)
+                        .build(),
+                contractASlot1IntermediateValue);
+        inner2.setContractStorageReads(contractStorageReads);
+        previous.setNextInBatch(inner2);
+
+        previous = inner2;
+        var inner3 = defaultBuilder()
+                .previous(previous)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(previous.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(parentConsensusTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        contractStorageReads = Map.of(
+                SlotKey.newBuilder()
+                        .setContractID(contractIdB)
+                        .setKey(contractBSlot2)
+                        .build(),
+                contractBSlot2IntermediateValue);
+        inner3.setContractStorageReads(contractStorageReads);
+        previous.setNextInBatch(inner3);
+
+        // then
+        var slotKey = SlotKey.newBuilder()
+                .setContractID(contractIdA)
+                .setKey(contractASlot1)
+                .build();
+        assertThat(inner1.getValueWritten(slotKey)).returns(contractASlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(
+                        slotKey.toBuilder().setKey(contractASlot1Padded).build()))
+                .returns(contractASlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(slotKey)).returns(contractASlot1Value, BytesValue::getValue);
+
+        // a deleted slot
+        slotKey = SlotKey.newBuilder()
+                .setContractID(contractIdB)
+                .setKey(contractBSlot1)
+                .build();
+        assertThat(inner1.getValueWritten(slotKey)).isEqualTo(BytesValue.getDefaultInstance());
+
+        // a slot not changed
+        slotKey = SlotKey.newBuilder()
+                .setContractID(contractIdA)
+                .setKey(contractASlot2)
+                .build();
+        assertThat(inner1.getValueWritten(slotKey)).isNull();
+
+        // a non-existent slot
+        slotKey = SlotKey.newBuilder()
+                .setContractID(contractIdA)
+                .setKey(bytes(32))
+                .build();
+        assertThat(inner2.getValueWritten(slotKey)).isNull();
+
+        slotKey = SlotKey.newBuilder()
+                .setContractID(contractIdB)
+                .setKey(contractBSlot2)
+                .build();
+        assertThat(inner2.getValueWritten(slotKey)).returns(contractBSlot2IntermediateValue, BytesValue::getValue);
+        assertThat(inner3.getValueWritten(slotKey)).returns(contractBSlot2Value, BytesValue::getValue);
+    }
+
+    @Test
     void allTraceData() {
         // given
         var blockTransaction = defaultBuilder()
@@ -340,6 +467,10 @@ final class BlockTransactionTest {
                 .traceData(Collections.emptyList())
                 .transactionOutputs(Collections.emptyMap())
                 .transactionResult(TransactionResult.getDefaultInstance());
+    }
+
+    private Timestamp nextTick(Timestamp previous) {
+        return Timestamp.newBuilder().setSeconds(previous.getSeconds() + 1).build();
     }
 
     @SneakyThrows
