@@ -233,6 +233,7 @@ func runFlywayMigration(pool *dockertest.Pool, network *dockertest.Network, para
 		"placeholders.db-name":                          dbName,
 		"placeholders.db-user":                          ownerUsername,
 		"placeholders.topicRunningHashV2AddedTimestamp": "0",
+		"placeholders.transactionHashLookbackInterval":  "'60 days'",
 		"target": "latest",
 		"url":    params.toJdbcUrl(getDbHostname(network.Network) + ":5432"),
 		"user":   ownerUsername,

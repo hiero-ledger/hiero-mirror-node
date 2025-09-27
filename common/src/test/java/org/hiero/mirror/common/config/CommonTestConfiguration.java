@@ -63,6 +63,7 @@ public class CommonTestConfiguration {
                 .put("shardCount", "2")
                 .put("tempSchema", "temporary")
                 .put("topicRunningHashV2AddedTimestamp", "0")
+                .put("transactionHashLookbackInterval", "'60 days'")
                 .build();
 
         var flywayProperties = new FlywayProperties();
