@@ -154,6 +154,9 @@ jobs:
       #      - name: Run acceptance tests
       #        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
 
+      - name: Setup k6
+        run: sudo apt install k6
+
       - name: Run k6 tests
         run: k6 run ../../../tools/k6/src/web3/apis.js
 
