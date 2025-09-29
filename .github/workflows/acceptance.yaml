@@ -132,7 +132,6 @@ jobs:
           else
           cat <<EOF > mirror.yaml
           test:
-            cucumberTags: "@estimateprecompile"
             image:
               tag: ${TAG}
             annotations:

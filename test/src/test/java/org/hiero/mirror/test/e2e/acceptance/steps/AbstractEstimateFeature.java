@@ -113,7 +113,6 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     private void validateGasViaContractCallLocal(
             String data, ContractMethodInterface method, DeployedContract contract, Long estimatedGas) {
         if (featureProperties.isContractCallLocalEstimate() && VIEW.equals(method.getFunctionType())) {
-            System.out.println("I invoke ContractCallLocal");
             try {
                 contractClient.executeContractQuery(
                         contract.contractId(), method.getSelector(), estimatedGas, Strings.decode(data));
