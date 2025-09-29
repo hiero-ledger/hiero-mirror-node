@@ -162,10 +162,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-          ls -R
-
       - name: Run k6 tests
-        run: k6 run ../../../tools/k6/src/web3/apis.js
+        run: k6 run tools/k6/src/web3/apis.js
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
