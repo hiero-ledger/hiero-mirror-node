@@ -26,7 +26,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hederahashgraph.api.proto.java.Key;
 import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -302,7 +301,7 @@ class OpcodesControllerTest {
 
         expectedCallServiceParameters.set(ContractDebugParameters.builder()
                 .consensusTimestamp(consensusTimestamp)
-                .sender(new HederaEvmAccount(senderAddress))
+                .sender(senderAddress)
                 .receiver(contractAddress)
                 .gas(provider.hasEthTransaction() ? ethTransaction.getGasLimit() : contractResult.getGasLimit())
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
@@ -468,8 +467,7 @@ class OpcodesControllerTest {
             }
 
             expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                    .sender(new HederaEvmAccount(
-                            entityAddress(providerEnum.getSenderEntity().get())))
+                    .sender(entityAddress(providerEnum.getSenderEntity().get()))
                     .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                     .build());
 

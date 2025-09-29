@@ -49,19 +49,27 @@ const (
                                       limit 1
                                     ) as bt`
 	selectCryptoEntityWithAliasById = "select alias, id from entity where id = @id"
-	selectCryptoEntityByAlias       = `select id, deleted, timestamp_range
+	selectCryptoEntityByAlias       = `select id, deleted, key, timestamp_range
                                  from entity
                                  where alias = @alias and timestamp_range @> @consensus_end
                                  union all
-                                 select id, deleted, timestamp_range
+                                 select id, deleted, key, timestamp_range
                                  from entity_history
                                  where alias = @alias and timestamp_range @> @consensus_end
                                  order by timestamp_range desc`
 	selectCurrentCryptoEntityByAlias = `select id from entity
                                  where alias = @alias and (deleted is null or deleted is false)`
-	selectCryptoEntityById = `select id, deleted, timestamp_range
+	selectCryptoEntityById = `select id, deleted, key, timestamp_range
                               from entity
-                              where type in ('ACCOUNT', 'CONTRACT') and id = @id`
+                              where type in ('ACCOUNT', 'CONTRACT') and id = @id and
+                                  timestamp_range @> @consensus_end
+                              union all
+                              select id, deleted, key, timestamp_range
+                              from entity_history
+                              where type in ('ACCOUNT', 'CONTRACT') and id = @id and
+                                  timestamp_range @> @consensus_end
+                              order by timestamp_range desc
+                              limit 1`
 	// select the lower bound of the second last partition whose lower bound is LTE @timestamp. It's possible that
 	// @timestamp is in a partition for which the first account balance snapshot is yet to be filled, thus the need
 	// to look back one more partition for account balance
@@ -154,15 +162,15 @@ func (ar *accountRepository) RetrieveBalanceAtBlock(
 	ctx context.Context,
 	accountId types.AccountId,
 	consensusEnd int64,
-) (types.AmountSlice, string, *rTypes.Error) {
+) (types.AmountSlice, string, []byte, *rTypes.Error) {
 	var entityIdString string
 	entity, err := ar.getCryptoEntity(ctx, accountId, consensusEnd)
 	if err != nil {
-		return nil, entityIdString, err
+		return nil, entityIdString, nil, err
 	}
 
 	if entity == nil && accountId.HasAlias() {
-		return types.AmountSlice{&types.HbarAmount{}}, entityIdString, nil
+		return types.AmountSlice{&types.HbarAmount{}}, entityIdString, nil, nil
 	}
 
 	balanceChangeEndTimestamp := consensusEnd
@@ -187,7 +195,7 @@ func (ar *accountRepository) RetrieveBalanceAtBlock(
 		balanceSnapshotEndTimestamp,
 	)
 	if err != nil {
-		return nil, entityIdString, err
+		return nil, entityIdString, nil, err
 	}
 
 	hbarValue, err := ar.getBalanceChange(
@@ -197,7 +205,7 @@ func (ar *accountRepository) RetrieveBalanceAtBlock(
 		balanceChangeEndTimestamp,
 	)
 	if err != nil {
-		return nil, entityIdString, err
+		return nil, entityIdString, nil, err
 	}
 
 	hbarAmount.Value += hbarValue
@@ -205,11 +213,13 @@ func (ar *accountRepository) RetrieveBalanceAtBlock(
 	amounts := make(types.AmountSlice, 0, 1)
 	amounts = append(amounts, hbarAmount)
 
+	var publicKey []byte
 	if entity != nil {
 		// return the entity id string in the format of 'shard.realm.num'
 		entityIdString = entity.Id.String()
+		publicKey = entity.Key
 	}
-	return amounts, entityIdString, nil
+	return amounts, entityIdString, publicKey, nil
 }
 
 func (ar *accountRepository) getCryptoEntity(ctx context.Context, accountId types.AccountId, consensusEnd int64) (
@@ -221,15 +231,19 @@ func (ar *accountRepository) getCryptoEntity(ctx context.Context, accountId type
 
 	var query string
 	var args []interface{}
+	consensusEndArg := sql.Named("consensus_end", getInclusiveInt8Range(consensusEnd, consensusEnd))
 	if accountId.HasAlias() {
 		query = selectCryptoEntityByAlias
 		args = []interface{}{
 			sql.Named("alias", accountId.GetAlias()),
-			sql.Named("consensus_end", getInclusiveInt8Range(consensusEnd, consensusEnd)),
+			consensusEndArg,
 		}
 	} else {
 		query = selectCryptoEntityById
-		args = []interface{}{sql.Named("id", accountId.GetId())}
+		args = []interface{}{
+			consensusEndArg,
+			sql.Named("id", accountId.GetId()),
+		}
 	}
 
 	entities := make([]domain.Entity, 0)

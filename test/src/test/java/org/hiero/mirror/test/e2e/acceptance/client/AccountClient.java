@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountAllowanceApproveTransaction;
+import com.hedera.hashgraph.sdk.AccountAllowanceDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
@@ -303,6 +304,19 @@ public class AccountClient extends AbstractNetworkClient {
                 "Approved spender {} an allowance for all serial numbers on {} via {}",
                 spender,
                 tokenId,
+                response.getTransactionId());
+        return response;
+    }
+
+    public NetworkTransactionResponse deleteAllowanceForNft(ExpandedAccountId spender, NftId nftId) {
+        var transaction =
+                new AccountAllowanceDeleteTransaction().deleteAllTokenNftAllowances(nftId, spender.getAccountId());
+        var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(spender.getPrivateKey()));
+        log.info(
+                "Deleted allowance for spender {} on NFT {} for serial {} via {}",
+                spender,
+                nftId.tokenId,
+                nftId.serial,
                 response.getTransactionId());
         return response;
     }

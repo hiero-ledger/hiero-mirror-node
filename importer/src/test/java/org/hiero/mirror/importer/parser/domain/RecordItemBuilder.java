@@ -424,7 +424,7 @@ public class RecordItemBuilder {
                 .setErrorMessage(text(10))
                 .setFunctionParameters(bytes(64))
                 .setGas(10_000L)
-                .setGasUsed(1000L)
+                .setGasUsed(100000L)
                 .addAllLogInfo(contractLogInfos)
                 .setSenderId(accountId())
                 .setSignerNonce(Int64Value.of(10));

@@ -40,7 +40,6 @@ hiero:
           entity:
             persist:
               syntheticContractLogEvmAddressLookup: true
-
 logging:
   level:
     root: warn

@@ -13,6 +13,7 @@ import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
@@ -81,8 +82,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 // - signer nonce should only be set for ethereum transactions
                 .record(r ->
                         r.getContractCallResultBuilder().clearContractNonces().clearSignerNonce())
-                // will add back sidecar records once the supporting logic is updated
-                .sidecarRecords(List::clear)
+                // will add back contract bytecode and contract state change sidecar records once support is added
+                .sidecarRecords(this::filterSidecarRecords)
                 .build();
         var blockTransaction =
                 blockTransactionBuilder.contractCall(expectedRecordItem).build();
@@ -106,7 +107,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearLogInfo()
                         .clearContractNonces()
                         .clearSignerNonce())
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
                 .customize(this::finalize)
                 .build();
@@ -160,7 +161,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         // will test contract nonces once support is added
                         .clearContractNonces()
                         .clearSignerNonce())
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -289,7 +290,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .ethereumTransaction(create)
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -312,7 +313,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
                 .record(r -> contractResultBuilder(r).ifPresent(ContractFunctionResult.Builder::clearGasUsed))
                 .receipt(Builder::clearContractID)
-                .sidecarRecords(List::clear)
+                .sidecarRecords(this::filterSidecarRecords)
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -637,8 +638,14 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 Arguments.of("create2 evm address", create2EvmAddress, contractId));
     }
 
-    private ContractFunctionResult htsPrecompileContractCallResult() {
-        return recordItemBuilder.contractFunctionResult(HTS_PRECOMPILE_ADDRESS).build();
+    private void filterSidecarRecords(List<TransactionSidecarRecord.Builder> sidecarRecords) {
+        var copy = List.copyOf(sidecarRecords);
+        sidecarRecords.clear();
+        for (var sidecarRecord : copy) {
+            if (sidecarRecord.hasActions()) {
+                sidecarRecords.add(sidecarRecord);
+            }
+        }
     }
 
     private Map<TransactionCase, TransactionOutput> callContractOutput(ContractFunctionResult contractFunctionResult) {
@@ -658,6 +665,10 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .setFungibleTokenType(tokenId))
                 .setPendingAirdropValue(PendingAirdropValue.newBuilder().setAmount(amount))
                 .build();
+    }
+
+    private ContractFunctionResult htsPrecompileContractCallResult() {
+        return recordItemBuilder.contractFunctionResult(HTS_PRECOMPILE_ADDRESS).build();
     }
 
     private StateChange tokenMapUpdate(boolean deleted, TokenID tokenId, long totalSupply) {

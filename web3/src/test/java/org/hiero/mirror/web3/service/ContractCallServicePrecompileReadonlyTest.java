@@ -19,7 +19,6 @@ import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.Heder
 import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.TokenKey;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
@@ -1059,7 +1058,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
-                .sender(new HederaEvmAccount(testWeb3jService.getSender()))
+                .sender(testWeb3jService.getSender())
                 .value(value)
                 .build();
     }

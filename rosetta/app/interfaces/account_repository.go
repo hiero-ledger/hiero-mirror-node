@@ -19,14 +19,15 @@ type AccountRepository interface {
 	// GetAccountId returns the `shard.realm.num` format of the account from its alias if exists
 	GetAccountId(ctx context.Context, accountId types.AccountId) (types.AccountId, *rTypes.Error)
 
-	// RetrieveBalanceAtBlock returns the hbar balance and token balances of the account at a given block (provided by
-	// consensusEnd timestamp).
+	// RetrieveBalanceAtBlock returns the hbar balance of the account at a given block (provided by consensusEnd
+	// timestamp).
 	// balance = balanceAtLatestBalanceSnapshot + balanceChangeBetweenSnapshotAndBlock
 	// if the account is deleted at T1 and T1 <= consensusEnd, the balance is calculated as
 	// balance = balanceAtLatestBalanceSnapshotBeforeT1 + balanceChangeBetweenSnapshotAndT1
 	RetrieveBalanceAtBlock(ctx context.Context, accountId types.AccountId, consensusEnd int64) (
 		types.AmountSlice,
 		string,
+		[]byte,
 		*rTypes.Error,
 	)
 }

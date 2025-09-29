@@ -200,7 +200,7 @@ postgresql:
     image:
       debug: true
       repository: bitnamilegacy/postgresql-repmgr
-      tag: 17.6.0-debian-12-r5
+      tag: 17.6.0-debian-12-r2
     initdbScriptsCM: "{{ .Release.Name }}-init"
     maxConnections: 200
     password: ""  # Randomly generated if left blank

@@ -86,6 +86,10 @@ public class TokenClient extends AbstractNetworkClient {
         return getToken(tokenNameEnum, List.of());
     }
 
+    public ExpandedAccountId getAccountId() {
+        return sdkClient.getExpandedOperatorAccountId();
+    }
+
     public TokenResponse getToken(TokenNameEnum tokenNameEnum, List<CustomFee> customFees) {
         // Create token only if it does not currently exist
         var tokenId = tokenMap.computeIfAbsent(tokenNameEnum, x -> {

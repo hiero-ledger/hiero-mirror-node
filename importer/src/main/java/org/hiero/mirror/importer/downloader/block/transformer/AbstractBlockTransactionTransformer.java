@@ -10,14 +10,20 @@ import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
+import com.hedera.services.stream.proto.ContractAction;
+import com.hedera.services.stream.proto.ContractActions;
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.EvmTransactionResult;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.ArrayList;
+import java.util.List;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.slf4j.Logger;
@@ -113,6 +119,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         var evmTraceData = blockTransaction.getEvmTraceData();
         transformEvmTransactionLogs(builder, evmTraceData);
+        transformSidecarRecords(transformation.recordItemBuilder(), evmTraceData);
     }
 
     protected EvmTransactionInfo getEvmTransactionInfo(BlockTransaction blockTransaction) {
@@ -154,6 +161,35 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         contractResultBuilder.setBloom(
                 DomainUtils.fromBytes(bloomForAll(bloomFilters).toArray()));
+    }
+
+    private TransactionSidecarRecord transformContractActions(
+            Timestamp consensusTimestamp, List<ContractAction> contractActions) {
+        if (contractActions.isEmpty()) {
+            return null;
+        }
+
+        return TransactionSidecarRecord.newBuilder()
+                .setConsensusTimestamp(consensusTimestamp)
+                .setActions(ContractActions.newBuilder()
+                        .addAllContractActions(contractActions)
+                        .build())
+                .build();
+    }
+
+    private void transformSidecarRecords(RecordItem.RecordItemBuilder recordItemBuilder, EvmTraceData evmTraceData) {
+        if (evmTraceData == null) {
+            return;
+        }
+
+        var consensusTimestamp = recordItemBuilder.transactionRecordBuilder().getConsensusTimestamp();
+        var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
+        var contractActions = transformContractActions(consensusTimestamp, evmTraceData.getContractActionsList());
+        if (contractActions != null) {
+            sidecarRecords.add(contractActions);
+        }
+
+        recordItemBuilder.sidecarRecords(sidecarRecords);
     }
 
     protected record EvmTransactionInfo(EvmTransactionResult evmTransactionResult, boolean isContractCreate) {

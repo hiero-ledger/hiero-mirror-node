@@ -7,6 +7,7 @@ Feature: HTS Base Coverage Feature
     Then the mirror node REST API should return the transaction
     Then I ensure token has the correct properties
     And I ensure token has the expected metadata and key
+    And I verify the number of tokens is expected
     Given I update the token metadata key
     Then the mirror node REST API should return the transaction
     And I ensure token has the expected metadata and key
@@ -60,6 +61,7 @@ Feature: HTS Base Coverage Feature
     And the mirror node REST API should return the transaction
     Then the mirror node REST API should return the token relationship for nft for ALICE
     Then I mint a serial number from the token
+    And I verify the number of minted NFTs for token is expected
     And the mirror node REST API should return the transaction for token serial number index 0 transaction flow
     Then I transfer serial number index 0 to ALICE
     And the mirror node REST API should return the transaction for token serial number index 0 full flow
