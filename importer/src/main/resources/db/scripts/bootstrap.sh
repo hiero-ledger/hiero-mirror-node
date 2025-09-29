@@ -18,6 +18,7 @@ exec 3>&2
 exec 2>/dev/null
 
 SCRIPT_TEMP_DIR="./temp"
+SCHEMA="public"
 
 rm -rf "$SCRIPT_TEMP_DIR"
 mkdir -p "$SCRIPT_TEMP_DIR"
@@ -469,7 +470,7 @@ load_manifest_to_db() {
   log "Successfully loaded ${inserted_count} manifest entries into ${PROGRESS_DB_TABLE}."
 
   local table_exists
-  table_exists=$(psql -X -q -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '${PROGRESS_DB_TABLE}');" | tr -d ' ')
+  table_exists=$(psql -X -q -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '${SCHEMA}' and table_name = '${PROGRESS_DB_TABLE}');" | tr -d ' ')
   log "After load_manifest_to_db, table exists: $table_exists" "DEBUG"
 
   if [[ "$table_exists" == "t" ]]; then
@@ -884,7 +885,7 @@ except Exception as e:
   log "Using $file column list from CSV header: $columns" "DEBUG"
 
   local db_columns
-  db_columns=$(psql -t -c "SELECT STRING_AGG(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_name = '$table' AND table_schema = 'public'")
+  db_columns=$(psql -t -c "SELECT STRING_AGG(column_name, ',' ORDER BY ordinal_position) FROM information_schema.columns WHERE table_name = '$table' AND table_schema = '${SCHEMA}'")
   db_query_exit_code=$?
 
   db_columns=$(echo "$db_columns" | tr -d ' ')
@@ -1125,7 +1126,7 @@ initialize_database() {
     fi
     checked_tables_map["$table"]=1
 
-    if ! psql -v ON_ERROR_STOP=1 -qt -c "SELECT 1 FROM pg_class WHERE relname = '$table' AND relnamespace = 'public'::regnamespace;" | grep -q 1; then
+    if ! psql -v ON_ERROR_STOP=1 -qt -c "SELECT 1 FROM pg_class WHERE relname = '$table' AND relnamespace = '${SCHEMA}'::regnamespace;" | grep -q 1; then
       missing_tables+=("$table")
       log "$table missing from database" "ERROR"
     else
@@ -1199,7 +1200,7 @@ monitor_progress() {
     fi
 
     local table_check
-    table_check=$(psql -X -q -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = '${PROGRESS_DB_TABLE}');" | tr -d ' ')
+    table_check=$(psql -X -q -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = '${SCHEMA}' and table_name = '${PROGRESS_DB_TABLE}');" | tr -d ' ')
 
     if [[ "$table_check" != "t" ]]; then
       log "Progress table ${PROGRESS_DB_TABLE} does not exist, creating an empty version" "WARN"

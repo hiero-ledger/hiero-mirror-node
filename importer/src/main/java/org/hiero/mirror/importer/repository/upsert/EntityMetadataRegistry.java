@@ -40,7 +40,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class EntityMetadataRegistry {
+public final class EntityMetadataRegistry {
 
     private final DBProperties dbProperties;
     private final EntityManager entityManager;
@@ -123,7 +123,7 @@ public class EntityMetadataRegistry {
     private Map<String, InformationSchemaColumns> getColumnSchema(String tableName) {
         String sql =
                 """
-                select column_name, regexp_replace(column_default, '::.*', '') as column_default,
+                select distinct column_name, regexp_replace(column_default, '::.*', '') as column_default,
                 is_nullable = 'YES' as nullable from information_schema.columns
                 where table_name = ? and table_schema = ?
                 """;

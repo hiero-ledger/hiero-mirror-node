@@ -47,6 +47,7 @@ import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.converter.JsonbToListConverter;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -93,6 +94,9 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
     @Resource
     private DateRangeCalculator dateRangeCalculator;
+
+    @Resource
+    private DBProperties dbProperties;
 
     @Resource
     private ImporterProperties importerProperties;
@@ -192,7 +196,10 @@ public abstract class ImporterIntegrationTest extends CommonIntegrationTest {
 
     protected Boolean tableExists(String name) {
         return jdbcOperations.queryForObject(
-                "select exists(select 1 from information_schema.tables where table_name = ?)", Boolean.class, name);
+                "select exists(select 1 from information_schema.tables where table_schema = ? and table_name = ?)",
+                Boolean.class,
+                dbProperties.getSchema(),
+                name);
     }
 
     private String getDefaultIdColumns(Class<?> entityClass) {
