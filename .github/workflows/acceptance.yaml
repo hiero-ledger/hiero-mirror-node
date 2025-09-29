@@ -151,8 +151,11 @@ jobs:
 
           echo "Solo cluster setup completed successfully!"
 
-      - name: Run acceptance tests
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+      #      - name: Run acceptance tests
+      #        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+
+      - name: Run k6 tests
+        run: k6 run ../../../tools/k6/src/web3/apis.js
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
