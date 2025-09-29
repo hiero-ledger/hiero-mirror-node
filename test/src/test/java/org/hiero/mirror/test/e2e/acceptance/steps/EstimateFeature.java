@@ -7,6 +7,10 @@ import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameE
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PAYABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.ADDRESS_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CALL_CODE_TO_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION;
@@ -66,6 +70,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.Assertions;
 import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
@@ -162,43 +167,34 @@ public class EstimateFeature extends AbstractEstimateFeature {
 
     @Then("I call estimateGas without arguments that multiplies two numbers")
     public void multiplyEstimateCall() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, MULTIPLY_NUMBERS),
-                MULTIPLY_NUMBERS,
-                contractSolidityAddress,
-                deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, MULTIPLY_NUMBERS), MULTIPLY_NUMBERS, deployedContract);
     }
 
     @Then("I call estimateGas with function msgSender")
     public void msgSenderEstimateCall() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, MESSAGE_SENDER), MESSAGE_SENDER, contractSolidityAddress, deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_SENDER), MESSAGE_SENDER, deployedContract);
     }
 
     @Then("I call estimateGas with function tx origin")
     public void txOriginEstimateCall() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, TX_ORIGIN), TX_ORIGIN, contractSolidityAddress, deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, TX_ORIGIN), TX_ORIGIN, deployedContract);
     }
 
     @Then("I call estimateGas with function messageValue")
     public void msgValueEstimateCall() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, MESSAGE_VALUE), MESSAGE_VALUE, contractSolidityAddress, deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_VALUE), MESSAGE_VALUE, deployedContract);
     }
 
     @Then("I call estimateGas with function messageSigner")
     public void msgSignerEstimateCall() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, MESSAGE_SIGNER), MESSAGE_SIGNER, contractSolidityAddress, deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, MESSAGE_SIGNER), MESSAGE_SIGNER, deployedContract);
     }
 
     @RetryAsserts
     @Then("I call estimateGas with function balance of address")
     public void addressBalanceEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, asAddress(contractSolidityAddress));
-        validateGasEstimationAndExecuteContractCallLocal(
-                data, ADDRESS_BALANCE, contractSolidityAddress, deployedContract);
+        validateGasEstimation(data, ADDRESS_BALANCE, deployedContract);
     }
 
     @Then("I call estimateGas with function that changes contract slot information"
@@ -220,19 +216,19 @@ public class EstimateFeature extends AbstractEstimateFeature {
          *    - Distinct gas cost (e.g, 36452) due to process of clearing the storage slot.
          */
         var data = encodeData(ESTIMATE_GAS, UPDATE_COUNTER, new BigInteger("100"));
-        validateGasEstimation(data, UPDATE_COUNTER, contractSolidityAddress);
+        validateGasEstimation(data, UPDATE_COUNTER, deployedContract);
     }
 
     @Then("I call estimateGas with function that successfully deploys a new smart contract via CREATE op code")
     public void deployContractViaCreateOpcodeEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
-        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_OPCODE, contractSolidityAddress);
+        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_OPCODE, deployedContract);
     }
 
     @Then("I call estimateGas with function that successfully deploys a new smart contract via CREATE2 op code")
     public void deployContractViaCreateTwoOpcodeEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
-        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE, contractSolidityAddress);
+        validateGasEstimation(data, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE, deployedContract);
     }
 
     @Then("I get mock contract address and getAddress selector")
@@ -245,33 +241,32 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with function that makes a static call to a method from a different contract")
     public void staticCallToContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, STATIC_CALL_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimationAndExecuteContractCallLocal(
-                data, STATIC_CALL_TO_CONTRACT, contractSolidityAddress, deployedContract);
+        validateGasEstimation(data, STATIC_CALL_TO_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a delegate call to a method from a different contract")
     public void delegateCallToContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, DELEGATE_CALL_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimation(data, DELEGATE_CALL_TO_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, DELEGATE_CALL_TO_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a call code to a method from a different contract")
     public void callCodeToContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, CALL_CODE_TO_CONTRACT, asAddress(mockAddress), addressSelector);
-        validateGasEstimation(data, CALL_CODE_TO_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, CALL_CODE_TO_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that performs LOG0, LOG1, LOG2, LOG3, LOG4 operations")
     public void logsEstimateCall() {
-        validateGasEstimation(encodeData(ESTIMATE_GAS, LOGS), LOGS, contractSolidityAddress);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, LOGS), LOGS, deployedContract);
     }
 
     @Then("I call estimateGas with function that performs self destruct")
     public void destroyEstimateCall() {
-        validateGasEstimation(
+        validateGasEstimationWithSender(
                 encodeData(ESTIMATE_GAS, DESTROY),
                 DESTROY,
-                contractSolidityAddress,
+                deployedContract.contractId().toEvmAddress(),
                 Optional.of(contractClient.getClientAddress()));
     }
 
@@ -310,26 +305,25 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with function that makes a call to invalid smart contract")
     public void callToInvalidSmartContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, CALL_TO_INVALID_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, CALL_TO_INVALID_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a delegate call to invalid smart contract")
     public void delegateCallToInvalidSmartContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, DELEGATE_CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, DELEGATE_CALL_TO_INVALID_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, DELEGATE_CALL_TO_INVALID_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a static call to invalid smart contract")
     public void staticCallToInvalidSmartContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, STATIC_CALL_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimationAndExecuteContractCallLocal(
-                data, STATIC_CALL_TO_INVALID_CONTRACT, contractSolidityAddress, deployedContract);
+        validateGasEstimation(data, STATIC_CALL_TO_INVALID_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a call code to invalid smart contract")
     public void callCodeToInvalidSmartContractEstimateCall() {
         var data = encodeData(ESTIMATE_GAS, CALL_CODE_TO_INVALID_CONTRACT, asAddress(RANDOM_ADDRESS));
-        validateGasEstimation(data, CALL_CODE_TO_INVALID_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, CALL_CODE_TO_INVALID_CONTRACT, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes call to an external contract function")
@@ -339,7 +333,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION,
                 new BigInteger("2"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, contractSolidityAddress);
+        validateGasEstimation(data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes delegate call to an external contract function")
@@ -349,7 +343,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION,
                 new BigInteger("3"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(data, DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, contractSolidityAddress);
+        validateGasEstimation(data, DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes call to an external contract view function")
@@ -359,15 +353,14 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW,
                 new BigInteger("1"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimationAndExecuteContractCallLocal(
-                data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW, contractSolidityAddress, deployedContract);
+        validateGasEstimation(data, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW, deployedContract);
     }
 
     @Then("I call estimateGas with function that makes a state update to a contract")
     public void stateUpdateContractFunction() {
         // making 5 times to state update
         var data = encodeData(ESTIMATE_GAS, STATE_UPDATE_OF_CONTRACT, new BigInteger("5"));
-        validateGasEstimation(data, STATE_UPDATE_OF_CONTRACT, contractSolidityAddress);
+        validateGasEstimation(data, STATE_UPDATE_OF_CONTRACT, deployedContract);
     }
 
     @Then(
@@ -391,13 +384,12 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void reentrancyCallAttackFunction() {
         var data = encodeData(
                 ESTIMATE_GAS, REENTRANCY_CALL_ATTACK, asAddress(RANDOM_ADDRESS), new BigInteger("10000000000"));
-        validateGasEstimation(data, REENTRANCY_CALL_ATTACK, contractSolidityAddress);
+        validateGasEstimation(data, REENTRANCY_CALL_ATTACK, deployedContract);
     }
 
     @Then("I call estimateGas with function that executes gasLeft")
     public void getGasLeftContractFunction() {
-        validateGasEstimationAndExecuteContractCallLocal(
-                encodeData(ESTIMATE_GAS, GET_GAS_LEFT), GET_GAS_LEFT, contractSolidityAddress, deployedContract);
+        validateGasEstimation(encodeData(ESTIMATE_GAS, GET_GAS_LEFT), GET_GAS_LEFT, deployedContract);
     }
 
     @Then("I call estimateGas with function that executes positive nested calls")
@@ -408,7 +400,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 new BigInteger("1"),
                 new BigInteger("10"),
                 asAddress(contractSolidityAddress));
-        validateGasEstimation(data, NESTED_CALLS_POSITIVE, contractSolidityAddress);
+        validateGasEstimation(data, NESTED_CALLS_POSITIVE, deployedContract);
     }
 
     @Then("I call estimateGas with function that executes limited nested calls")
@@ -482,7 +474,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                     fungibleTokenAddress,
                     asAddress(receiverAccountId),
                     new BigInteger("5"));
-            validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+            validateGasEstimation(data, IERC20_TOKEN_TRANSFER, deployedERCContract);
         }
     }
 
@@ -495,7 +487,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 fungibleTokenAddress,
                 asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
-        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, ercSolidityAddress);
+        validateGasEstimation(data, IERC20_TOKEN_TRANSFER, deployedERCContract);
     }
 
     @Then("I call estimateGas with IERC20 token approve using evm address as receiver")
@@ -507,7 +499,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 fungibleTokenAddress,
                 asAddress(accountInfo.getEvmAddress().replace(HEX_PREFIX, "")),
                 BigInteger.ONE);
-        validateGasEstimation(data, IERC20_TOKEN_APPROVE, ercSolidityAddress);
+        validateGasEstimation(data, IERC20_TOKEN_APPROVE, deployedERCContract);
     }
 
     @Then("I call estimateGas with IERC20 token associate using evm address as receiver")
@@ -525,13 +517,13 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with contract deploy with bytecode as data")
     public void contractDeployEstimateGas() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        validateGasEstimation(bytecodeData, DEPLOY_CONTRACT_VIA_BYTECODE_DATA, null);
+        validateGasEstimation(bytecodeData, DEPLOY_CONTRACT_VIA_BYTECODE_DATA, StringUtils.EMPTY);
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data with sender")
     public void contractDeployEstimateGasWithSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        validateGasEstimation(
+        validateGasEstimationWithSender(
                 bytecodeData, DEPLOY_CONTRACT_VIA_BYTECODE_DATA, null, Optional.of(contractClient.getClientAddress()));
     }
 
@@ -539,14 +531,14 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void contractDeployEstimateGasWithInvalidSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
         if (web3Properties.isModularizedServices()) {
-            assertThatThrownBy(() -> validateGasEstimation(
+            assertThatThrownBy(() -> validateGasEstimationWithSender(
                             bytecodeData,
                             DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
                             null,
                             Optional.of("0x0000000000000000000000000000000000000167")))
                     .isInstanceOf(HttpClientErrorException.BadRequest.class);
         } else {
-            validateGasEstimation(
+            validateGasEstimationWithSender(
                     bytecodeData,
                     DEPLOY_CONTRACT_VIA_BYTECODE_DATA,
                     null,
@@ -843,48 +835,52 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements ContractMethodInterface {
-        ADDRESS_BALANCE("addressBalance", 21735),
-        CALL_CODE_TO_CONTRACT("callCodeToContract", 25128),
-        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("callExternalFunctionNTimes", 25168),
-        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW("delegatecallExternalViewFunctionNTimes", 29809),
-        CALL_CODE_TO_INVALID_CONTRACT("callCodeToInvalidContract", 24486),
-        CALL_TO_INVALID_CONTRACT("callToInvalidContract", 24807),
-        DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("delegatecallExternalFunctionNTimes", 29334),
-        DELEGATE_CALL_TO_CONTRACT("delegateCallToContract", 25124),
-        DELEGATE_CALL_TO_INVALID_CONTRACT("delegateCallToInvalidContract", 24803),
-        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 140631),
-        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 140631),
-        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 2133605),
-        DEPLOY_NEW_INSTANCE("createClone", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        DEPLOY_AND_CALL_CONTRACT("deployAndCallMockContract", 0),
-        DEPLOY_AND_DESTROY("deployDestroy", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        DESTROY("destroy", 26300),
-        GET_GAS_LEFT("getGasLeft", 21313),
-        GET_MOCK_ADDRESS("getMockContractAddress", 0),
-        INCREMENT_COUNTER("incrementCounter", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        LOGS("logs", 28822),
-        MESSAGE_SENDER("msgSender", 21365),
-        MESSAGE_SIGNER("msgSig", 21361),
-        MESSAGE_VALUE("msgValue", 21265),
-        MULTIPLY_NUMBERS("pureMultiply", 21281),
-        NESTED_CALLS_LIMITED("nestedCalls", 175607),
-        NESTED_CALLS_POSITIVE("nestedCalls", 35975),
-        REENTRANCY_CALL_ATTACK("reentrancyWithCall", 56426),
-        STATIC_CALL_TO_CONTRACT("staticCallToContract", 25146),
-        STATIC_CALL_TO_INVALID_CONTRACT("staticCallToInvalidContract", 24826),
-        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 29000),
-        TX_ORIGIN("txOrigin", 21342),
-        UPDATE_COUNTER("updateCounter", 26538),
-        UPDATE_TYPE("updateType", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        WRONG_METHOD_SIGNATURE("ffffffff()", 0),
-        IERC20_TOKEN_TRANSFER("transfer", 43337),
-        IERC20_TOKEN_APPROVE("approve", 728550),
-        IERC20_TOKEN_ASSOCIATE("associate()", 728033),
-        IERC20_TOKEN_DISSOCIATE("dissociate()", 728033),
-        CREATE_CHILD("createChild", 0),
-        GET_BYTE_CODE("getBytecode", 0);
+        ADDRESS_BALANCE("addressBalance", 21735, VIEW),
+        CALL_CODE_TO_CONTRACT("callCodeToContract", 25128, MUTABLE),
+        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("callExternalFunctionNTimes", 25168, MUTABLE),
+        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW("delegatecallExternalViewFunctionNTimes", 29809, MUTABLE),
+        CALL_CODE_TO_INVALID_CONTRACT("callCodeToInvalidContract", 24486, MUTABLE),
+        CALL_TO_INVALID_CONTRACT("callToInvalidContract", 24807, MUTABLE),
+        DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("delegatecallExternalFunctionNTimes", 29334, MUTABLE),
+        DELEGATE_CALL_TO_CONTRACT("delegateCallToContract", 25124, MUTABLE),
+        DELEGATE_CALL_TO_INVALID_CONTRACT("delegateCallToInvalidContract", 24803, MUTABLE),
+        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 140631, MUTABLE),
+        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 140631, MUTABLE),
+        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 2133605, MUTABLE),
+        DEPLOY_NEW_INSTANCE(
+                "createClone", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        DEPLOY_AND_CALL_CONTRACT("deployAndCallMockContract", 0, MUTABLE),
+        DEPLOY_AND_DESTROY(
+                "deployDestroy", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        DESTROY("destroy", 26300, MUTABLE),
+        GET_GAS_LEFT("getGasLeft", 21313, VIEW),
+        GET_MOCK_ADDRESS("getMockContractAddress", 0, VIEW),
+        INCREMENT_COUNTER(
+                "incrementCounter", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        LOGS("logs", 28822, MUTABLE),
+        MESSAGE_SENDER("msgSender", 21365, VIEW),
+        MESSAGE_SIGNER("msgSig", 21361, PURE),
+        MESSAGE_VALUE("msgValue", 21265, PAYABLE),
+        MULTIPLY_NUMBERS("pureMultiply", 21281, PURE),
+        NESTED_CALLS_LIMITED("nestedCalls", 175607, MUTABLE),
+        NESTED_CALLS_POSITIVE("nestedCalls", 35975, MUTABLE),
+        REENTRANCY_CALL_ATTACK("reentrancyWithCall", 56426, MUTABLE),
+        STATIC_CALL_TO_CONTRACT("staticCallToContract", 25146, VIEW),
+        STATIC_CALL_TO_INVALID_CONTRACT("staticCallToInvalidContract", 24826, VIEW),
+        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 29000, MUTABLE),
+        TX_ORIGIN("txOrigin", 21342, VIEW),
+        UPDATE_COUNTER("updateCounter", 26538, MUTABLE),
+        UPDATE_TYPE("updateType", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        WRONG_METHOD_SIGNATURE("ffffffff()", 0, MUTABLE),
+        IERC20_TOKEN_TRANSFER("transfer", 43337, MUTABLE),
+        IERC20_TOKEN_APPROVE("approve", 728550, MUTABLE),
+        IERC20_TOKEN_ASSOCIATE("associate()", 728033, MUTABLE),
+        IERC20_TOKEN_DISSOCIATE("dissociate()", 728033, MUTABLE),
+        CREATE_CHILD("createChild", 0, MUTABLE),
+        GET_BYTE_CODE("getBytecode", 0, PURE);
 
         private final String selector;
         private final int actualGas;
+        private final FunctionType functionType;
     }
 }

@@ -120,6 +120,7 @@ jobs:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
             enabled: true
@@ -131,11 +132,13 @@ jobs:
           else
           cat <<EOF > mirror.yaml
           test:
+            cucumberTags: "@estimateprecompile"
             image:
               tag: ${TAG}
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
             enabled: true
