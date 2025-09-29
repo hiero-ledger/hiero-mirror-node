@@ -162,8 +162,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-      - name: Run k6 tests
-        run: k6 run tools/k6/src/web3/apis.js
+      - name: Run k6 web3 tests
+        run: |
+          DEFAULT_DURATION=1s \
+          DEFAULT_VUS=2 \
+          BASE_URL=http://$(kubectl get service mirror-web3 -n mirror -o jsonpath='{.spec.clusterIP}') \
+          k6 run tools/k6/src/web3/apis.js
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
