@@ -23,15 +23,13 @@ public class Utils {
     public static final Key DEFAULT_KEY = Key.newBuilder()
             .keyList(KeyList.newBuilder()
                     .keys(Key.newBuilder()
-                            .ecdsaSecp256k1(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(new byte[] {
+                            .ecdsaSecp256k1(Bytes.wrap(new byte[] {
                                 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                0, 0, 0, 0
+                                0, 0, 0, 0,
                             }))
                             .build())
                     .build())
             .build();
-    public static final Key HOLLOW_ACCOUNT_KEY =
-            Key.newBuilder().keyList(KeyList.DEFAULT).build();
 
     public static Key parseKey(final byte[] keyBytes) {
         try {

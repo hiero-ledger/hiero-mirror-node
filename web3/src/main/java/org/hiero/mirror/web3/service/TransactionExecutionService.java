@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL_KEY;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
-import static org.hiero.mirror.web3.state.Utils.HOLLOW_ACCOUNT_KEY;
 import static org.hiero.mirror.web3.state.Utils.isMirror;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
@@ -227,7 +227,7 @@ public class TransactionExecutionService {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
         } else if (account.smartContract()) {
             throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
-        } else if (!account.hasKey() || account.key().equals(HOLLOW_ACCOUNT_KEY)) {
+        } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {
             // If the account is hollow, complete it in the state as a workaround
             // as this happens in HandleWorkflow in hedera-app but calling the
             // transaction executor directly skips this account completion and
