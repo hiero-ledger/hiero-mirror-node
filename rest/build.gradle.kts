@@ -14,14 +14,16 @@ plugins {
 tasks.dockerBuild { dependsOn(":rest:monitoring:dockerBuild") }
 
 tasks.register<NpmTask>("testRestJava") {
+    val specPaths = listOf<String>()
+    val testFiles = listOf<String>()
+
     dependsOn(":rest-java:dockerBuild")
+    onlyIf { specPaths.isNotEmpty() && testFiles.isNotEmpty() }
 
     // Configure spec test(s) to run
-    val specPaths = listOf("network/stake")
     val includeRegex = specPaths.joinToString("|")
     environment.put("REST_JAVA_INCLUDE", includeRegex)
 
-    val testFiles = listOf("network.spec.test.js")
     val testPathPattern = testFiles.joinToString("|")
     args = listOf("test", "--testPathPattern", testPathPattern)
 }

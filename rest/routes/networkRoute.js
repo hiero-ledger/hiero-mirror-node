@@ -12,7 +12,6 @@ const resource = 'network';
 router.getExt('/exchangerate', NetworkController.getExchangeRate);
 router.getExt('/fees', NetworkController.getFees);
 router.getExt('/nodes', NetworkController.getNetworkNodes);
-router.getExt('/stake', NetworkController.getNetworkStake);
 router.getExt('/supply', NetworkController.getSupply);
 
 export default {

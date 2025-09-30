@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import BaseService from './baseService';
-import {
-  AddressBook,
-  AddressBookEntry,
-  AddressBookServiceEndpoint,
-  Node,
-  NetworkNode,
-  NetworkStake,
-  NodeStake,
-} from '../model';
+import {AddressBook, AddressBookEntry, AddressBookServiceEndpoint, Node, NetworkNode, NodeStake} from '../model';
 import {OrderSpec} from '../sql';
 import EntityId from '../entityId';
 
@@ -74,26 +66,6 @@ class NetworkNodeService extends BaseService {
     left join ${Node.tableAlias} on ${AddressBookEntry.getFullName(AddressBookEntry.NODE_ID)} =
       ${Node.getFullName(Node.NODE_ID)}`;
 
-  static networkStakeQuery = `select ${NetworkStake.MAX_STAKING_REWARD_RATE_PER_HBAR},
-         ${NetworkStake.MAX_STAKE_REWARDED},
-         ${NetworkStake.MAX_TOTAL_REWARD},
-         ${NetworkStake.NODE_REWARD_FEE_DENOMINATOR},
-         ${NetworkStake.NODE_REWARD_FEE_NUMERATOR},
-         ${NetworkStake.RESERVED_STAKING_REWARDS},
-         ${NetworkStake.REWARD_BALANCE_THRESHOLD},
-         ${NetworkStake.STAKE_TOTAL},
-         ${NetworkStake.STAKING_PERIOD},
-         ${NetworkStake.STAKING_PERIOD_DURATION},
-         ${NetworkStake.STAKING_PERIODS_STORED},
-         ${NetworkStake.STAKING_REWARD_FEE_DENOMINATOR},
-         ${NetworkStake.STAKING_REWARD_FEE_NUMERATOR},
-         ${NetworkStake.STAKING_REWARD_RATE},
-         ${NetworkStake.STAKING_START_THRESHOLD},
-         ${NetworkStake.UNRESERVED_STAKING_REWARD_BALANCE}
-      from ${NetworkStake.tableName}
-      where ${NetworkStake.CONSENSUS_TIMESTAMP} =
-            (select max(${NetworkStake.CONSENSUS_TIMESTAMP}) from ${NetworkStake.tableName})`;
-
   static unreleasedSupplyAccounts = (column) =>
     EntityId.systemEntity.unreleasedSupplyAccounts
       .map((range) => {
@@ -141,11 +113,6 @@ class NetworkNodeService extends BaseService {
     ].join('\n');
 
     return [query, params];
-  };
-
-  getNetworkStake = async () => {
-    const row = await super.getSingleRow(NetworkNodeService.networkStakeQuery, []);
-    return row && new NetworkStake(row);
   };
 
   getSupply = async (conditions, params) => {
