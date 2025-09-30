@@ -208,6 +208,17 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void appendFileWithoutFileCreateOrUpdate() {
+        byte[] addressBookBytes = UPDATED.toByteArray();
+        int index = addressBookBytes.length / 2;
+        byte[] addressBookPartial = Arrays.copyOfRange(addressBookBytes, 0, index);
+
+        assertDoesNotThrow(() -> append(addressBookPartial, 8L, true));
+        assertArrayEquals(
+                initialAddressBookBytes, addressBookService.getCurrent().getFileData());
+    }
+
+    @Test
     void updatePartialFile() {
         byte[] addressBookBytes = UPDATED.toByteArray();
         int index = addressBookBytes.length / 2;
