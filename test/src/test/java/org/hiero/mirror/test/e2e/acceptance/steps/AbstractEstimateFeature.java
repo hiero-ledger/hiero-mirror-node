@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
@@ -18,6 +19,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.hiero.mirror.rest.model.ContractAction;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
+import org.hiero.mirror.rest.model.ContractCallRequest;
 import org.hiero.mirror.rest.model.ContractCallResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
@@ -70,23 +72,60 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * This method estimates the gas cost for a given contract call, and then checks whether the actual gas used falls
      * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
      * then compares the estimated gas with the actual gas used.
-     *
-     * @param data            The function signature and method data of the contract call.
-     * @param method          The method we are going to call.
-     * @param contractEvmAddress        The address of the contract.
-     * @param sender          The sender's address (optional).
      * *
-     * @return the estimated gas
+     * If contract calls are enabled, the estimated gas is additionally checked via a direct call to network nodes.
+     *
+     * @param data            The function signature and method data of the gas estimate call.
+     * @param method          The method we are going to call.
+     * @param contract        The contract.
+     * @param sender          The sender address for the gas estimate call.
+     *
      * @throws AssertionError If the actual gas used is not within the acceptable deviation range.
+     * @throws RuntimeException If the ContractCallLocal execution has thrown an exception.
      */
-    protected long validateGasEstimationWithSender(
-            String data, ContractMethodInterface method, String contractEvmAddress, Optional<String> sender) {
+    protected void validateGasEstimationWithSender(
+            String data, ContractMethodInterface method, DeployedContract contract, String sender) {
+        var contractCallRequest = buildContractCallRequest(data, method, contract, Optional.of(sender));
+        validateGasEstimation(data, method, contract, contractCallRequest);
+    }
+
+    /**
+     * Validates the gas estimation for a specific contract call.
+     * <p>
+     * This method estimates the gas cost for a given contract call, and then checks whether the actual gas used falls
+     * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
+     * then compares the estimated gas with the actual gas used.
+     * *
+     * If contract calls are enabled, the estimated gas is additionally checked via a direct call to network nodes.
+     *
+     * @param data            The function signature and method data of the gas estimate call.
+     * @param method          The method we are going to call.
+     * @param contract        The contract.
+     *
+     * @throws AssertionError If the actual gas used is not within the acceptable deviation range.
+     * @throws RuntimeException If the ContractCallLocal execution has thrown an exception.
+     */
+    protected void validateGasEstimation(String data, ContractMethodInterface method, DeployedContract contract) {
+        var contractCallRequest = buildContractCallRequest(data, method, contract, Optional.empty());
+        validateGasEstimation(data, method, contract, contractCallRequest);
+    }
+
+    private ContractCallRequest buildContractCallRequest(
+            String data, ContractMethodInterface method, DeployedContract contract, Optional<String> sender) {
         var contractCallRequest = ModelBuilder.contractCallRequest(method.getActualGas())
                 .data(data)
                 .estimate(true)
-                .to(contractEvmAddress);
+                .to(contract != null ? contract.contractId().toEvmAddress() : null);
         sender.ifPresent(contractCallRequest::from);
 
+        return contractCallRequest;
+    }
+
+    private void validateGasEstimation(
+            String data,
+            ContractMethodInterface method,
+            DeployedContract contract,
+            ContractCallRequest contractCallRequest) {
         ContractCallResponse msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
         int estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
                 .toBigInteger()
@@ -94,42 +133,15 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
         assertWithinDeviation(method.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
 
-        return estimatedGas;
-    }
-
-    /**
-     * Validates the gas estimation using a ContractCallLocal query against the network node
-     * <p>
-     * This method receives an estimated gas value made by eth_estimateGas and validates that it is sufficient to execute
-     * a real network call using ContractCallLocal. This validation is only performed for view functions
-     *
-     * @param data            The function signature and method data of the contract call.
-     * @param method          The method we are going to call.
-     * @param contract        The contract object
-     * @param estimatedGas          The estimated gas to use for the ContractCallLocal execution
-     * *
-     * @throws RuntimeException If the ContractCallLocal execution has thrown an exception.
-     */
-    private void validateGasViaContractCallLocal(
-            String data, ContractMethodInterface method, DeployedContract contract, Long estimatedGas) {
-        if (featureProperties.isContractCallLocalEstimate() && VIEW.equals(method.getFunctionType())) {
+        if (featureProperties.isContractCallLocalEstimate()
+                && (VIEW.equals(method.getFunctionType()) || PURE.equals(method.getFunctionType()))) {
             try {
                 contractClient.executeContractQuery(
-                        contract.contractId(), method.getSelector(), estimatedGas, Strings.decode(data));
+                        contract.contractId(), method.getSelector(), (long) estimatedGas, Strings.decode(data));
             } catch (PrecheckStatusException | TimeoutException e) {
                 throw new RuntimeException(e);
             }
         }
-    }
-
-    protected void validateGasEstimation(String data, ContractMethodInterface method, DeployedContract contract) {
-        final var estimatedGas = validateGasEstimationWithSender(
-                data, method, contract.contractId().toEvmAddress(), Optional.empty());
-        validateGasViaContractCallLocal(data, method, contract, estimatedGas);
-    }
-
-    protected void validateGasEstimation(String data, ContractMethodInterface method, String contractEvmAddress) {
-        validateGasEstimationWithSender(data, method, contractEvmAddress, Optional.empty());
     }
 
     protected void validateGasEstimationNestedCalls(
