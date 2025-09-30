@@ -61,6 +61,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -419,7 +420,8 @@ class ContractControllerTest {
         contractCall(request).andExpect(status().isOk());
     }
 
-    @NullAndEmptySource
+    @NullSource
+    @ValueSource(strings = {"", "0x"})
     @ParameterizedTest
     void callSuccessWithNullAndEmptyData(String data) throws Exception {
         final var request = request();

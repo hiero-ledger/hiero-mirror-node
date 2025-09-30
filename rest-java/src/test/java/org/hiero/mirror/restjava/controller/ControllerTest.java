@@ -22,7 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -96,6 +98,24 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
          * parameters for the parent class to run its common set of tests.
          */
         protected abstract RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec);
+
+        @Test
+        void etagHeader() {
+            // Given
+            final var request = defaultRequest(restClient.get());
+
+            // When
+            final var etag = request.retrieve().toBodilessEntity().getHeaders().getETag();
+
+            // Then
+            assertThat(etag).isNotBlank();
+            assertThat(request.header(HttpHeaders.IF_NONE_MATCH, etag)
+                            .retrieve()
+                            .toBodilessEntity())
+                    .returns(etag, r -> r.getHeaders().getETag())
+                    .returns(null, ResponseEntity::getBody)
+                    .returns(HttpStatus.NOT_MODIFIED, ResponseEntity::getStatusCode);
+        }
 
         @Test
         void headers() {

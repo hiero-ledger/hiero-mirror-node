@@ -16,6 +16,7 @@ class HexValidatorTest {
     @ParameterizedTest
     @CsvSource({
         "0,0,''",
+        "0,40,0x",
         "1,3,0xa",
         "1,3,0xa1D",
         "1,3,a",
@@ -34,7 +35,6 @@ class HexValidatorTest {
     @ParameterizedTest
     @CsvSource({
         "0,0,1",
-        "0,0,0x",
         "1,3,''",
         "1,3,0xa1D4",
         "2,3,a",
