@@ -19,6 +19,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -243,6 +244,28 @@ class DomainUtilsTest {
     @MethodSource("paddingByteProvider")
     void leftPadBytes(byte[] bytes, int paddingLength, byte[] expected) {
         assertThat(DomainUtils.leftPadBytes(bytes, paddingLength)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            1234, 1234
+            00, ''
+            00001234, 1234
+            1234567890000000000000000000000000, 1234567890000000000000000000000000
+            """)
+    void normalize(String input, String trimmed) {
+        var contractId = ContractID.newBuilder().setContractNum(1000).build();
+        var slotKey = SlotKey.newBuilder()
+                .setContractID(contractId)
+                .setKey(ByteString.fromHex(input))
+                .build();
+        var expected = SlotKey.newBuilder()
+                .setContractID(contractId)
+                .setKey(ByteString.fromHex(trimmed))
+                .build();
+        assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
     }
 
     @Test

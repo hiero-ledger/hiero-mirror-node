@@ -24,7 +24,7 @@
     "extensionless": "^1.9.9",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
-    "mathjs": "^14.7.0",
+    "mathjs": "^14.8.1",
     "parse-duration": "^2.1.4",
     "pretty-ms": "^9.3.0"
   },

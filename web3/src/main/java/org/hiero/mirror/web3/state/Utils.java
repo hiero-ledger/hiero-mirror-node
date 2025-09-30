@@ -20,6 +20,16 @@ public class Utils {
     public static final int EVM_ADDRESS_LEN = 20;
     public static final Key EMPTY_KEY_LIST =
             Key.newBuilder().keyList(KeyList.DEFAULT).build();
+    public static final Key DEFAULT_KEY = Key.newBuilder()
+            .keyList(KeyList.newBuilder()
+                    .keys(Key.newBuilder()
+                            .ecdsaSecp256k1(Bytes.wrap(new byte[] {
+                                2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                0, 0, 0, 0,
+                            }))
+                            .build())
+                    .build())
+            .build();
 
     public static Key parseKey(final byte[] keyBytes) {
         try {

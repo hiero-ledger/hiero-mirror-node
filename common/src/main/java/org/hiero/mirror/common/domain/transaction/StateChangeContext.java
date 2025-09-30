@@ -2,7 +2,10 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import static org.hiero.mirror.common.util.DomainUtils.normalize;
+
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
@@ -11,9 +14,11 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import jakarta.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -34,6 +39,8 @@ public final class StateChangeContext {
 
     private final Map<AccountID, Account> accounts = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
+    private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
+    private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final List<Long> nodeIds = new LinkedList<>();
     private final List<FileID> fileIds = new LinkedList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
@@ -54,22 +61,27 @@ public final class StateChangeContext {
     StateChangeContext(List<StateChanges> stateChangesList) {
         for (var stateChanges : stateChangesList) {
             for (var stateChange : stateChanges.getStateChangesList()) {
-                if (!stateChange.hasMapUpdate()) {
-                    continue;
-                }
-
-                var mapUpdate = stateChange.getMapUpdate();
-                switch (stateChange.getStateId()) {
-                    case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
-                    case StateIdentifier.STATE_ID_FILES_VALUE ->
-                        fileIds.add(mapUpdate.getKey().getFileIdKey());
-                    case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
-                    case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE -> processPendingAirdropStateChange(mapUpdate);
-                    case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
-                    case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
-                    default -> {
-                        // do nothing
+                if (stateChange.hasMapUpdate()) {
+                    var mapUpdate = stateChange.getMapUpdate();
+                    switch (stateChange.getStateId()) {
+                        case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_FILES_VALUE ->
+                            fileIds.add(mapUpdate.getKey().getFileIdKey());
+                        case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE ->
+                            processPendingAirdropStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
+                        default -> {
+                            // do nothing
+                        }
                     }
+                } else if (stateChange.hasMapDelete()
+                        && stateChange.getMapDelete().getKey().hasSlotKeyKey()) {
+                    var slotKey = stateChange.getMapDelete().getKey().getSlotKeyKey();
+                    // use the default BytesValue instance when the storage slot is deleted
+                    processContractStorageChange(slotKey, BytesValue.getDefaultInstance());
                 }
             }
         }
@@ -86,6 +98,23 @@ public final class StateChangeContext {
 
     public Optional<ContractID> getContractId(@Nonnull ByteString evmAddress) {
         return Optional.ofNullable(contractIds.get(evmAddress));
+    }
+
+    public SlotValue getContractStorageChange(@Nonnull ContractID contractId, int index) {
+        if (index < 0) {
+            return null;
+        }
+
+        var indexed = contractStorageChangesIndexed.get(contractId);
+        if (indexed == null || index >= indexed.size()) {
+            return null;
+        }
+
+        return indexed.get(index);
+    }
+
+    public BytesValue getContractStorageValueWritten(@Nonnull SlotKey slotKey) {
+        return contractStorageChanges.get(normalize(slotKey));
     }
 
     public Optional<FileID> getNewFileId() {
@@ -189,6 +218,24 @@ public final class StateChangeContext {
         }
     }
 
+    private void processContractStorageChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasSlotKeyKey() || mapUpdate.getIdentical()) {
+            return;
+        }
+
+        var slotKey = mapUpdate.getKey().getSlotKeyKey();
+        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
+        processContractStorageChange(slotKey, BytesValue.of(valueWritten));
+    }
+
+    private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
+        slotKey = normalize(slotKey);
+        contractStorageChanges.put(slotKey, valueWritten);
+        contractStorageChangesIndexed
+                .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
+                .add(new SlotValue(slotKey.getKey(), valueWritten));
+    }
+
     private void processNodeStateChange(MapUpdateChange mapUpdate) {
         if (!mapUpdate.getKey().hasEntityNumberKey()) {
             return;
@@ -228,4 +275,6 @@ public final class StateChangeContext {
                             .build());
         }
     }
+
+    public record SlotValue(ByteString slot, BytesValue valueWritten) {}
 }

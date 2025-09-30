@@ -17,6 +17,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class FeatureProperties {
 
+    private boolean contractCallLocalEstimate = false;
+
     @Min(1)
     @Max(10_000_000)
     private long maxContractFunctionGas = 5_250_000;
