@@ -89,7 +89,7 @@ public class ContractFeature extends BaseContractFeature {
                 deployedParentContract.contractId(),
                 contractClient.getSdkClient().getExpandedOperatorAccountId().getAccountId(),
                 null);
-        // Just some change to trigger the acceptance workflow run.
+
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
     }
