@@ -63,6 +63,8 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.hiero.mirror.test.e2e.acceptance.util.env.EnvVarWriter;
+import org.hiero.mirror.test.e2e.acceptance.util.env.K6EnvProperties;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.web.client.HttpClientErrorException;
@@ -77,6 +79,7 @@ public class CallFeature extends AbstractFeature {
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
     private final Web3Properties web3Properties;
+    private final EnvVarWriter envVarWriter;
     private DeployedContract deployedErcTestContract;
     private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
@@ -121,6 +124,7 @@ public class CallFeature extends AbstractFeature {
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
         ercContractAddress = deployedErcTestContract.contractId().toEvmAddress();
+        envVarWriter.appendParameter(K6EnvProperties.ERC_CONTRACT_ADDRESS, ercContractAddress);
     }
 
     @Given("I successfully create Precompile contract")

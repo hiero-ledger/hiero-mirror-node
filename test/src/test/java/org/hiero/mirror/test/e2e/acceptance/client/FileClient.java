@@ -25,6 +25,11 @@ public class FileClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
+        if (Boolean.parseBoolean(System.getenv("CI"))) {
+            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
+            log.warn("Acceptance tests running in CI -> skip cleanup.");
+            return;
+        }
         log.info("Deleting {} files", fileIds.size());
         deleteAll(fileIds, this::deleteFile);
     }

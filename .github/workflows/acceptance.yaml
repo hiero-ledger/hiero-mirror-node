@@ -48,6 +48,7 @@ jobs:
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
       TAG: pr-changes
+      CI: true
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
@@ -152,9 +153,10 @@ jobs:
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
+        id: acceptance
         run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
 
-      - name: Setup k6
+      - name: Install k6
         uses: grafana/setup-k6-action@v1
 
       - name: Run k6 web3 tests
@@ -162,6 +164,14 @@ jobs:
           DEFAULT_DURATION=1s \
           DEFAULT_VUS=2 \
           BASE_URL=http://$(kubectl get service mirror-web3 -n mirror -o jsonpath='{.spec.clusterIP}') \
+          AMOUNT=0000000000000000000000000000000000000000000000000000000000000001 \
+          KEY_TYPE=0000000000000000000000000000000000000000000000000000000000000001 \
+          RUN_ESTIMATE_TESTS=true \
+          RUN_MODIFICATION_TESTS=true \
+          RUN_WITH_VARIABLES=true \
+          SERIAL_NUMBER=0000000000000000000000000000000000000000000000000000000000000001 \
+          ERC_CONTRACT_ADDRESS=${{ steps.acceptance.outputs.ERC_CONTRACT_ADDRESS }} \
+          TOKEN_ADDRESS=${{ steps.acceptance.outputs.TOKEN_ADDRESS }} \
           k6 run tools/k6/src/web3/apis.js --quiet
 
       - name: Show Pod Logs on Failure
