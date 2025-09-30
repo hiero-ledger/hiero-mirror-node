@@ -151,23 +151,18 @@ jobs:
 
           echo "Solo cluster setup completed successfully!"
 
-      #      - name: Run acceptance tests
-      #        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+      - name: Run acceptance tests
+        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
 
       - name: Setup k6
-        run: |
-          sudo gpg -k
-          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
-          sudo apt-get update
-          sudo apt-get install k6
+        uses: grafana/setup-k6-action@v1
 
       - name: Run k6 web3 tests
         run: |
           DEFAULT_DURATION=1s \
           DEFAULT_VUS=2 \
           BASE_URL=http://$(kubectl get service mirror-web3 -n mirror -o jsonpath='{.spec.clusterIP}') \
-          k6 run tools/k6/src/web3/apis.js
+          k6 run tools/k6/src/web3/apis.js --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
