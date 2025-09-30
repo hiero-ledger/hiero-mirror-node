@@ -3,7 +3,7 @@
 import config from '../config';
 import {Cache} from '../cache';
 import integrationContainerOps from './integrationContainerOps';
-import {defaultBeforeAllTimeoutMillis} from './integrationUtils';
+import {slowStepTimeoutMillis} from './integrationUtils';
 
 let cache;
 let redisContainer;
@@ -13,19 +13,19 @@ beforeAll(async () => {
   redisContainer = await integrationContainerOps.startRedisContainer();
   config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
   logger.info('Started Redis container');
-}, defaultBeforeAllTimeoutMillis);
+}, slowStepTimeoutMillis);
 
 afterAll(async () => {
   await cache.stop();
   await redisContainer.stop({signal: 'SIGKILL', timeout: 3000});
   logger.info('Stopped Redis container');
   config.redis.enabled = false;
-});
+}, slowStepTimeoutMillis);
 
 beforeEach(async () => {
   cache = new Cache();
   await cache.clear();
-});
+}, slowStepTimeoutMillis);
 
 const loader = (keys) => keys.map((key) => `v${key}`);
 const keyMapper = (key) => `k${key}`;
