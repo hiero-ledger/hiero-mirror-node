@@ -56,6 +56,7 @@ import org.springframework.data.util.Version;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class ContractResultServiceImplTest {
+
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
     private static final Version DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = Version.parse("0.67.0");
@@ -64,6 +65,9 @@ class ContractResultServiceImplTest {
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
     private final EntityProperties entityProperties = new EntityProperties(systemEntity);
     private final DomainBuilder domainBuilder = new DomainBuilder();
+
+    @Mock
+    private ContractInitcodeService contractInitcodeService;
 
     @Mock(strictness = LENIENT)
     private EntityIdService entityIdService;
@@ -144,6 +148,7 @@ class ContractResultServiceImplTest {
                 .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
 
         contractResultService = new ContractResultServiceImpl(
+                contractInitcodeService,
                 entityProperties,
                 entityIdService,
                 entityListener,

@@ -38,6 +38,7 @@ public final class StateChangeContext {
     private static final Comparator<TopicID> TOPIC_ID_COMPARATOR = Comparator.comparing(TopicID::getTopicNum);
 
     private final Map<AccountID, Account> accounts = new HashMap<>();
+    private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
@@ -65,6 +66,7 @@ public final class StateChangeContext {
                     var mapUpdate = stateChange.getMapUpdate();
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
                         case StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
@@ -94,6 +96,10 @@ public final class StateChangeContext {
 
     public Optional<Account> getAccount(@Nonnull AccountID id) {
         return Optional.ofNullable(accounts.get(id));
+    }
+
+    public Optional<ByteString> getContractBytecode(@Nonnull ContractID id) {
+        return Optional.ofNullable(contractBytecodes.get(id));
     }
 
     public Optional<ContractID> getContractId(@Nonnull ByteString evmAddress) {
@@ -216,6 +222,16 @@ public final class StateChangeContext {
                             .setContractNum(accountId.getAccountNum())
                             .build());
         }
+    }
+
+    private void processContractBytecode(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getValue().hasBytecodeValue()) {
+            return;
+        }
+
+        var contractId = mapUpdate.getKey().getContractIdKey();
+        var bytecode = mapUpdate.getValue().getBytecodeValue();
+        contractBytecodes.put(contractId, bytecode.getCode());
     }
 
     private void processContractStorageChange(MapUpdateChange mapUpdate) {

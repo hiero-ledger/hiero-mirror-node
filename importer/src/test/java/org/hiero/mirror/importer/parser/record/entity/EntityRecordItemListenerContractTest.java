@@ -127,6 +127,11 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                             .setMaxAutomaticTokenAssociations(-1)
                             .setStakedAccountId(stakedAccountId);
                 })
+                .sidecarRecords(sidecars -> {
+                    if (!bytecodeSourceFileId) {
+                        sidecars.get(2).getBytecodeBuilder().clearInitcode();
+                    }
+                })
                 .build();
         var txnRecord = recordItem.getTransactionRecord();
         var transactionBody = recordItem.getTransactionBody().getContractCreateInstance();
@@ -1105,11 +1110,10 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 break;
             }
         }
-        byte[] expectedInitcode =
-                sidecarBytecode != null ? sidecarBytecode.getInitcode().toByteArray() : null;
-        expectedInitcode = transactionBody.getInitcode() != ByteString.EMPTY
-                ? DomainUtils.toBytes(transactionBody.getInitcode())
-                : expectedInitcode;
+        var initcode = !transactionBody.getInitcode().isEmpty()
+                ? transactionBody.getInitcode()
+                : (sidecarBytecode != null ? sidecarBytecode.getInitcode() : null);
+        byte[] expectedInitcode = initcode != null ? DomainUtils.toBytes(initcode) : null;
 
         assertThat(transaction).isNotNull().returns(transactionBody.getInitialBalance(), t -> t.getInitialBalance());
 

@@ -115,6 +115,17 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
+    void readFile() {
+        var filename = "000000000000000000000000000062369320.blk.gz";
+        var file = TestUtils.getResource("data/blockstreams/" + filename);
+        var streamFileData = StreamFileData.from(file);
+        byte[] bytes = streamFileData.getBytes();
+        var blockStream = createBlockStream(getBlock(streamFileData), bytes, filename);
+        var blockFile = reader.read(blockStream);
+        assertThat(blockFile).isNotNull();
+    }
+
+    @Test
     void readRecordFileItem() {
         // given
         var block = Block.newBuilder()

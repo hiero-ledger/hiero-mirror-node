@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,6 +23,20 @@ final class Utils {
 
     static Address asAddress(ContractID contractId) {
         return Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(contractId)));
+    }
+
+    static ByteString asInitcode(InitcodeBookends initcodeBookends, ByteString runtimeBytecode) {
+        var initcode = runtimeBytecode;
+
+        if (!initcodeBookends.getDeployBytecode().isEmpty()) {
+            initcode = initcodeBookends.getDeployBytecode().concat(initcode);
+        }
+
+        if (!initcodeBookends.getMetadataBytecode().isEmpty()) {
+            initcode = initcode.concat(initcodeBookends.getMetadataBytecode());
+        }
+
+        return initcode;
     }
 
     static LogsBloomFilter bloomFor(EvmTransactionLog log) {
