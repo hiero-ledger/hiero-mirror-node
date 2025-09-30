@@ -976,10 +976,12 @@ const addTransaction = async (transaction) => {
 };
 
 const addTransactionHash = async (transactionHash) => {
-  transactionHash.hash = valueToBuffer(transactionHash.hash);
-  transactionHash.distribution_id = transactionHash.hash.readInt16BE();
-  transactionHash.payer_account_id = EntityId.parse(transactionHash.payer_account_id).getEncodedId();
-  await insertDomainObject('transaction_hash', Object.keys(transactionHash), transactionHash);
+  const hashCopy = {...transactionHash};
+  const hashBuffer = valueToBuffer(hashCopy.hash);
+  hashCopy.hash = hashBuffer.subarray(0, 32);
+  hashCopy.hash_suffix = hashBuffer.length > 32 ? hashBuffer.subarray(32) : null;
+  hashCopy.payer_account_id = EntityId.parse(hashCopy.payer_account_id).getEncodedId();
+  await insertDomainObject('transaction_hash', Object.keys(hashCopy), hashCopy);
 };
 
 const insertTransfers = async (

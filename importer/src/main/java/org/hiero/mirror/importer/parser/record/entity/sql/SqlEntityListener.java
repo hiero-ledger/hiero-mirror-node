@@ -364,7 +364,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
-            context.add(transaction.toTransactionHash());
+            var hash = transaction.toTransactionHash();
+            if (hash != null && hash.hashIsValid()) {
+                context.add(hash);
+            }
         }
 
         onNftTransferList(transaction);

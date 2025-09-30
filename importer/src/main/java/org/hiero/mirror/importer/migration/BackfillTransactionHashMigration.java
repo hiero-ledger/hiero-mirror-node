@@ -34,22 +34,30 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
 
     private static final String BACKFILL_ETHEREUM_TRANSACTION_HASH_SQL =
             """
-            insert into %s (consensus_timestamp, distribution_id, hash, payer_account_id)
+            insert into %s (consensus_timestamp, hash, hash_suffix, payer_account_id)
             select
               consensus_timestamp,
-              ('x' || encode(substring(hash from 1 for 2), 'hex'))::bit(32)::int >> 16,
-              hash,
+              substring(hash from 1 for 32) as hash,
+              case
+                  when octet_length(hash) > 32
+                      then substring(hash from 33)
+                  else null::bytea
+                  end as hash_suffix,
               payer_account_id
             from %%s
             where length(hash) > 0 and consensus_timestamp >= :startTimestamp and consensus_timestamp < :endTimestamp;
             """;
     private static final String BACKFILL_TRANSACTION_HASH_SQL =
             """
-            insert into %s (consensus_timestamp, distribution_id, hash, payer_account_id)
+            insert into %s (consensus_timestamp, hash, hash_suffix, payer_account_id)
             select
               consensus_timestamp,
-              ('x' || encode(substring(transaction_hash from 1 for 2), 'hex'))::bit(32)::int >> 16,
-              transaction_hash,
+              substring(transaction_hash from 1 for 32) as hash,
+              case
+                  when octet_length(transaction_hash) > 32
+                      then substring(transaction_hash from 33)
+                  else null::bytea
+                  end as hash_suffix,
               payer_account_id
             from %%s
             where consensus_timestamp >= :startTimestamp and consensus_timestamp < :endTimestamp %s;

@@ -34,8 +34,8 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
 
     private static final String INSERT_TRANSACTION_HASH_SQL =
             """
-            insert into transaction_hash (consensus_timestamp, distribution_id, hash, payer_account_id)
-            values (?, ?, ?, ?)
+            insert into transaction_hash (consensus_timestamp, hash, payer_account_id)
+            values (?, ?, ?)
             """;
     private static final ParameterizedPreparedStatementSetter<MigrationEthereumTransaction> PSS = (ps, transaction) -> {
         ps.setBytes(1, transaction.getHash());
@@ -168,9 +168,8 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
             jdbcOperations.batchUpdate(
                     INSERT_TRANSACTION_HASH_SQL, transactionHashes, transactionHashes.size(), (ps, transactionHash) -> {
                         ps.setLong(1, transactionHash.getConsensusTimestamp());
-                        ps.setShort(2, transactionHash.getDistributionId());
-                        ps.setBytes(3, transactionHash.getHash());
-                        ps.setLong(4, transactionHash.getPayerAccountId());
+                        ps.setBytes(2, transactionHash.getHash());
+                        ps.setLong(3, transactionHash.getPayerAccountId());
                     });
         }
     }
