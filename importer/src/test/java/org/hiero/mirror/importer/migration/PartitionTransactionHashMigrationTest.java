@@ -21,11 +21,9 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
-import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.util.StreamUtils;
 
-@ContextConfiguration(initializers = TopicCustomFeesMigrationTest.Initializer.class)
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
