@@ -3,6 +3,8 @@
 name: GKE WIF Smoke Test
 
 on:
+  push:
+    branches: [jtn-copy-live-env]
   workflow_dispatch:
     inputs:
       main_cluster_location:
