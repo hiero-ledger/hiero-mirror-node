@@ -35,6 +35,8 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContrac
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
+import org.hiero.mirror.test.e2e.acceptance.util.env.EnvVarWriter;
+import org.hiero.mirror.test.e2e.acceptance.util.env.K6EnvProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -54,6 +56,7 @@ public class ContractFeature extends BaseContractFeature {
     private final MirrorNodeClient mirrorClient;
     private final Web3Properties web3Properties;
     private final CommonProperties commonProperties;
+    private final EnvVarWriter envVarWriter;
 
     private String create2ChildContractEvmAddress;
     private String create2ChildContractEntityId;
@@ -68,6 +71,9 @@ public class ContractFeature extends BaseContractFeature {
     @Given("I successfully create a contract from the parent contract bytes with 10000000 balance")
     public void createNewContract() {
         deployedParentContract = getContract(ContractResource.PARENT_CONTRACT);
+        envVarWriter.appendParameter(
+                K6EnvProperties.DEFAULT_CONTRACT_ADDRESS,
+                deployedParentContract.contractId().toEvmAddress());
     }
 
     @Given("I successfully call the contract")
