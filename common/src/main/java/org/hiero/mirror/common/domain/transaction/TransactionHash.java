@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import java.util.Arrays;
@@ -9,11 +10,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.springframework.data.domain.Persistable;
 
 @Data
 @Entity
 @NoArgsConstructor
-public class TransactionHash {
+public class TransactionHash implements Persistable<byte[]> {
     public static final int V1_SHARD_COUNT = 32;
 
     private long consensusTimestamp;
@@ -30,6 +32,18 @@ public class TransactionHash {
         this.consensusTimestamp = consensusTimestamp;
         setHash(hash);
         this.payerAccountId = payerAccountId;
+    }
+
+    @JsonIgnore
+    @Override
+    public byte[] getId() {
+        return hash;
+    }
+
+    @JsonIgnore
+    @Override
+    public boolean isNew() {
+        return true; // Since we never update and use a natural ID, avoid Hibernate querying before insert
     }
 
     public int calculateV1Shard() {
