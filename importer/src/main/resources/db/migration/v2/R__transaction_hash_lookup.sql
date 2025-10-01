@@ -20,7 +20,7 @@ return query
 select t.consensus_timestamp, (t.hash || coalesce(t.hash_suffix, ''::bytea)) as hash, t.payer_account_id
 from transaction_hash t
 where t.consensus_timestamp >= cutoff_ts_ns
-  and hash = shortHash;
+  and t.hash = shortHash;
 
 get diagnostics recent_rows = row_count;
 
@@ -29,7 +29,7 @@ if recent_rows = 0 then
     select t.consensus_timestamp, (t.hash || coalesce(t.hash_suffix, ''::bytea)) as hash, t.payer_account_id
     from transaction_hash t
     where t.consensus_timestamp < cutoff_ts_ns
-      and hash = shortHash;
+      and t.hash = shortHash;
 end if;
 end
 $$;
