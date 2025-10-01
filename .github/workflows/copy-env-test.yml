@@ -63,6 +63,7 @@ jobs:
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.SA_EMAIL }}
+          audience: "//iam.googleapis.com/${{ env.WIF_PROVIDER }}"
 
       - name: Setup gcloud + GKE auth plugin
         uses: google-github-actions/setup-gcloud@v2
