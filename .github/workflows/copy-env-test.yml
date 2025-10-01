@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: GKE WIF Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      main_cluster_location:
+        description: "Main: GKE location (zone or region)"
+        required: true
+      main_cluster_name:
+        description: "Main: GKE cluster name"
+        required: true
+      staging_cluster_location:
+        description: "Staging: GKE location (zone or region) — leave blank to skip"
+        required: false
+      staging_cluster_name:
+        description: "Staging: GKE cluster name — leave blank to skip"
+        required: false
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  smoke-main:
+    name: Smoke (main)
+    runs-on: ubuntu-22.04
+    env:
+      GCP_CLUSTER_LOCATION: ${{ inputs.main_cluster_location }}
+      GCP_CLUSTER_NAME: ${{ inputs.main_cluster_name }}
+      GCP_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+    steps:
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud + GKE auth plugin
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Fetch GKE credentials (main)
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: ${{ env.GCP_CLUSTER_NAME }}
+          location: ${{ env.GCP_CLUSTER_LOCATION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          start=$(date +%s); timeout=300
+          while true; do
+            if kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1; then
+              echo "API is READY"
+              break
+            fi
+            (( $(date +%s) - start > timeout )) && { echo "Timed out waiting for apiserver"; exit 1; }
+            sleep 5
+          done
+
+      - name: Verify kubectl access
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "kubectl version:"
+          kubectl version --short
+          echo
+          echo "RBAC check (list pods across namespaces):"
+          kubectl auth can-i list pods --all-namespaces
+          echo
+          echo "Sample pods (first 50):"
+          kubectl get pods --all-namespaces --no-headers | head -50
+
+  smoke-staging:
+    name: Smoke (staging)
+    runs-on: ubuntu-22.04
+    if: ${{ inputs.staging_cluster_name != '' && inputs.staging_cluster_location != '' }}
+    env:
+      GCP_CLUSTER_LOCATION: ${{ inputs.staging_cluster_location }}
+      GCP_CLUSTER_NAME: ${{ inputs.staging_cluster_name }}
+      GCP_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+    steps:
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup gcloud + GKE auth plugin
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: gke-gcloud-auth-plugin
+
+      - name: Fetch GKE credentials (staging)
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          cluster_name: ${{ env.GCP_CLUSTER_NAME }}
+          location: ${{ env.GCP_CLUSTER_LOCATION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Wait for API readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          start=$(date +%s); timeout=300
+          while true; do
+            if kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1; then
+              echo "API is READY"
+              break
+            fi
+            (( $(date +%s) - start > timeout )) && { echo "Timed out waiting for apiserver"; exit 1; }
+            sleep 5
+          done
+
+      - name: Verify kubectl access
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "kubectl version:"
+          kubectl version --short
+          echo
+          echo "RBAC check (list pods across namespaces):"
+          kubectl auth can-i list pods --all-namespaces
+          echo
+          echo "Sample pods (first 50):"
+          kubectl get pods --all-namespaces --no-headers | head -50
