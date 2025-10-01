@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       main_cluster_location:
-        description: "Main: GKE location (zone or region)"
+        description: "Main: GKE location (zone or region) "
         required: true
       main_cluster_name:
         description: "Main: GKE cluster name"
