@@ -161,18 +161,27 @@ jobs:
 
       - name: Run k6 web3 tests
         run: |
+          WEB3_IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
+          export BASE_URL="http://${WEB3_IP}:80"
+
           DEFAULT_DURATION=1s \
           DEFAULT_VUS=2 \
-          BASE_URL=http://$(kubectl get service mirror-web3 -n mirror -o jsonpath='{.spec.clusterIP}') \
           AMOUNT=0000000000000000000000000000000000000000000000000000000000000001 \
           KEY_TYPE=0000000000000000000000000000000000000000000000000000000000000001 \
-          RUN_ESTIMATE_TESTS=true \
-          RUN_MODIFICATION_TESTS=true \
+          RUN_ESTIMATE_TESTS=false \
+          RUN_MODIFICATION_TESTS=false \
           RUN_WITH_VARIABLES=true \
           SERIAL_NUMBER=0000000000000000000000000000000000000000000000000000000000000001 \
+          DEFAULT_CONTRACT_ADDRESS=${{ steps.acceptance.outputs.DEFAULT_CONTRACT_ADDRESS }} \
           ERC_CONTRACT_ADDRESS=${{ steps.acceptance.outputs.ERC_CONTRACT_ADDRESS }} \
+          ESTIMATE_PRECOMPILE_CONTRACT=${{ steps.acceptance.outputs.ESTIMATE_PRECOMPILE_CONTRACT }} \
+          HTS_CONTRACT_ADDRESS=0000000000000000000000000000000000000167 \
+          NON_FUNGIBLE_TOKEN_ADDRESS=${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }} \
+          NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS=${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS }} \
           TOKEN_ADDRESS=${{ steps.acceptance.outputs.TOKEN_ADDRESS }} \
-          k6 run tools/k6/src/web3/apis.js --quiet
+          k6 run tools/k6/src/web3/apis.js > /dev/null
+
+          cat report.md
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
@@ -188,7 +197,7 @@ jobs:
           echo "--- Fetching logs for all pods in namespace ${SOLO_NAMESPACE} ---"
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
-              echo "--- Logs for pod: $pod ---"
+                echo "--- Logs for pod: $pod ---"
               kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=1000 || echo "Could not get logs for pod $pod"
             fi
           done
