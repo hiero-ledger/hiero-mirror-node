@@ -23,10 +23,6 @@ public class MirrorNodeProperties {
 
     private RestProperties restJava;
 
-    public RestProperties getRestJava() {
-        return restJava != null ? restJava : rest;
-    }
-
     @Data
     @Validated
     public static class GrpcProperties {

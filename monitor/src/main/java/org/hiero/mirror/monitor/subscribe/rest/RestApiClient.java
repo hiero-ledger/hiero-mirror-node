@@ -27,8 +27,10 @@ public class RestApiClient {
     private final WebClient webClientRestJava;
 
     public RestApiClient(MonitorProperties monitorProperties, WebClient.Builder webClientBuilder) {
-        String restUrl = monitorProperties.getMirrorNode().getRest().getBaseUrl();
-        String restJavaUrl = monitorProperties.getMirrorNode().getRestJava().getBaseUrl();
+        final var rest = monitorProperties.getMirrorNode().getRest();
+        final var restJava = monitorProperties.getMirrorNode().getRestJava();
+        final var restUrl = rest.getBaseUrl();
+        final var restJavaUrl = restJava != null ? restJava.getBaseUrl() : rest.getBaseUrl();
         webClientRest = webClientBuilder
                 .baseUrl(restUrl)
                 .defaultHeaders(h -> h.setAccept(List.of(MediaType.APPLICATION_JSON)))
@@ -36,7 +38,8 @@ public class RestApiClient {
         webClientRestJava = Objects.equals(restUrl, restJavaUrl)
                 ? webClientRest
                 : webClientRest.mutate().baseUrl(restJavaUrl).build();
-        log.info("Connecting to mirror node {}", restUrl);
+        log.info("Connecting to mirror node REST API {}", restUrl);
+        log.info("Connecting to mirror node REST Java API {}", restJavaUrl);
     }
 
     public <T> Mono<T> retrieve(Class<T> responseClass, String uri, Object... parameters) {
