@@ -25,115 +25,80 @@ permissions:
   contents: read
 
 jobs:
-  smoke-main:
-    name: Smoke (main)
+  run:
     runs-on: ubuntu-22.04
     env:
-      GCP_CLUSTER_LOCATION: ${{ inputs.main_cluster_location }}
-      GCP_CLUSTER_NAME: ${{ inputs.main_cluster_name }}
-      GCP_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
-      GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+      WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
+      SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+      MAIN_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
+      STAGING_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      CONFIG_PATH: ${{ vars.COPY_ENV_CONFIG_PATH || '.github/workflows/copy-env.config.json' }}
     steps:
-      - name: Authenticate to Google Cloud via Workload Identity Federation
-        id: auth
+      - uses: actions/checkout@v4
+
+      - name: Ensure jq is available
+        run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
+
+      - name: Load config
+        id: cfg
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$CONFIG_PATH" || { echo "Config not found: $CONFIG_PATH"; exit 1; }
+          main_loc=$(jq -r '.main.location' "$CONFIG_PATH")
+          main_name=$(jq -r '.main.cluster_name' "$CONFIG_PATH")
+          stg_enabled=$(jq -r '.staging.enabled // false' "$CONFIG_PATH")
+          stg_loc=$(jq -r '.staging.location // ""' "$CONFIG_PATH")
+          stg_name=$(jq -r '.staging.cluster_name // ""' "$CONFIG_PATH")
+          {
+            echo "MAIN_LOCATION=$main_loc"
+            echo "MAIN_NAME=$main_name"
+            echo "STG_ENABLED=$stg_enabled"
+            echo "STG_LOCATION=$stg_loc"
+            echo "STG_NAME=$stg_name"
+          } >> "$GITHUB_ENV"
+
+      - name: Authenticate via WIF
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.SA_EMAIL }}
 
       - name: Setup gcloud + GKE auth plugin
         uses: google-github-actions/setup-gcloud@v2
         with:
           install_components: gke-gcloud-auth-plugin
 
-      - name: Fetch GKE credentials (main)
+      - name: Get GKE credentials (main)
         uses: google-github-actions/get-gke-credentials@v3
         with:
-          cluster_name: ${{ env.GCP_CLUSTER_NAME }}
-          location: ${{ env.GCP_CLUSTER_LOCATION }}
-          project_id: ${{ env.GCP_PROJECT_ID }}
+          project_id: ${{ env.MAIN_PROJECT }}
+          location: ${{ env.MAIN_LOCATION }}
+          cluster_name: ${{ env.MAIN_NAME }}
 
-      - name: Wait for API readiness
+      - name: Verify kubectl (main)
         shell: bash
         run: |
           set -euo pipefail
-          start=$(date +%s); timeout=300
-          while true; do
-            if kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1; then
-              echo "API is READY"
-              break
-            fi
-            (( $(date +%s) - start > timeout )) && { echo "Timed out waiting for apiserver"; exit 1; }
-            sleep 5
-          done
-
-      - name: Verify kubectl access
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "kubectl version:"
           kubectl version --short
-          echo
-          echo "RBAC check (list pods across namespaces):"
+          kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
-          echo
-          echo "Sample pods (first 50):"
           kubectl get pods --all-namespaces --no-headers | head -50
 
-  smoke-staging:
-    name: Smoke (staging)
-    runs-on: ubuntu-22.04
-    if: ${{ inputs.staging_cluster_name != '' && inputs.staging_cluster_location != '' }}
-    env:
-      GCP_CLUSTER_LOCATION: ${{ inputs.staging_cluster_location }}
-      GCP_CLUSTER_NAME: ${{ inputs.staging_cluster_name }}
-      GCP_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
-      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
-      GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
-    steps:
-      - name: Authenticate to Google Cloud via Workload Identity Federation
-        id: auth
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
-
-      - name: Setup gcloud + GKE auth plugin
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          install_components: gke-gcloud-auth-plugin
-
-      - name: Fetch GKE credentials (staging)
+      - name: Get GKE credentials (staging)
+        if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
         uses: google-github-actions/get-gke-credentials@v3
         with:
-          cluster_name: ${{ env.GCP_CLUSTER_NAME }}
-          location: ${{ env.GCP_CLUSTER_LOCATION }}
-          project_id: ${{ env.GCP_PROJECT_ID }}
+          project_id: ${{ env.STAGING_PROJECT }}
+          location: ${{ env.STG_LOCATION }}
+          cluster_name: ${{ env.STG_NAME }}
 
-      - name: Wait for API readiness
+      - name: Verify kubectl (staging)
+        if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
         shell: bash
         run: |
           set -euo pipefail
-          start=$(date +%s); timeout=300
-          while true; do
-            if kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1; then
-              echo "API is READY"
-              break
-            fi
-            (( $(date +%s) - start > timeout )) && { echo "Timed out waiting for apiserver"; exit 1; }
-            sleep 5
-          done
-
-      - name: Verify kubectl access
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "kubectl version:"
           kubectl version --short
-          echo
-          echo "RBAC check (list pods across namespaces):"
+          kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
-          echo
-          echo "Sample pods (first 50):"
           kubectl get pods --all-namespaces --no-headers | head -50

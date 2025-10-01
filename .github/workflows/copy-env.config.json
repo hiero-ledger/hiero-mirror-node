@@ -1,0 +1,11 @@
+{
+  "main": {
+    "location": "us-central1",
+    "cluster_name": "mirrornode"
+  },
+  "staging": {
+    "enabled": true,
+    "location": "us-central1",
+    "cluster_name": "mainnet-staging-na"
+  }
+}
