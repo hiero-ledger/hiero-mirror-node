@@ -179,9 +179,8 @@ jobs:
           NON_FUNGIBLE_TOKEN_ADDRESS=${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }} \
           NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS=${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS }} \
           TOKEN_ADDRESS=${{ steps.acceptance.outputs.TOKEN_ADDRESS }} \
-          k6 run tools/k6/src/web3/apis.js > /dev/null
-
-          cat report.md
+          k6 run tools/k6/src/web3/apis.js --quiet
+        timeout-minutes: 10
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
