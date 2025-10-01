@@ -81,10 +81,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl version --short
+          kubectl version
           kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
           kubectl get pods --all-namespaces --no-headers | head -50
+          which gcloud
 
       - name: Get GKE credentials (staging)
         if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
@@ -99,7 +100,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl version --short
+          kubectl version
           kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
           kubectl get pods --all-namespaces --no-headers | head -50
