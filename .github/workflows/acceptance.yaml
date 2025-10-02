@@ -162,7 +162,7 @@ jobs:
       - name: Get web3 base url
         id: web3-base-url
         run: |
-          WEB3_IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
+          export WEB3_IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
           echo "WEB3_IP=$WEB3_IP" >> $GITHUB_OUTPUT
 
       - name: Run k6 web3 tests
@@ -170,6 +170,7 @@ jobs:
         env:
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
+          BASE_URL: "http://${{ steps.web3-base-url.outputs.WEB3_IP }}:80"
           AMOUNT: 0000000000000000000000000000000000000000000000000000000000000001
           KEY_TYPE: 0000000000000000000000000000000000000000000000000000000000000001
           RUN_ESTIMATE_TESTS: false
