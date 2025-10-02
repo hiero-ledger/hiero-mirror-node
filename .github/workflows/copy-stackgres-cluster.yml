@@ -82,13 +82,6 @@ jobs:
         with:
           install_components: gke-gcloud-auth-plugin
 
-      - name: Add source context to pinned kube config
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp "$KUBECONFIG" "$PINNED_KUBECONFIG"
-          echo "KUBECONFIG=$PINNED_KUBECONFIG" >> "$GITHUB_ENV"
-
       - name: Get GKE credentials (source)
         uses: google-github-actions/get-gke-credentials@v3
         with:
@@ -96,6 +89,13 @@ jobs:
           context_name: ${{ env.K8S_SOURCE_CLUSTER_CONTEXT }}
           location: ${{ env.GCP_K8S_SOURCE_CLUSTER_REGION }}
           project_id: ${{ env.GCP_SNAPSHOT_PROJECT }}
+
+      - name: Add source context to pinned kube config
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp "$KUBECONFIG" "$PINNED_KUBECONFIG"
+          echo "KUBECONFIG=$PINNED_KUBECONFIG" >> "$GITHUB_ENV"
 
       - name: Get GKE credentials (target)
         uses: google-github-actions/get-gke-credentials@v3
