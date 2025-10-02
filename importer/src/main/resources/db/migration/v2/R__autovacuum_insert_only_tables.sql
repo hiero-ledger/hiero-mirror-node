@@ -52,6 +52,8 @@ select apply_vacuum_settings_for_partitioned_table('token_transfer'::regclass, '
 select apply_vacuum_settings_for_partitioned_table('topic_message'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=6000000');
 -- autovacuum every 10 minutes at 10K TPS
 select apply_vacuum_settings_for_partitioned_table('transaction'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=6000000');
+-- autovacuum every 10 minutes at 10K TPS
+select apply_vacuum_settings_for_partitioned_table('transaction_hash'::regclass, 'autovacuum_vacuum_insert_scale_factor=0, autovacuum_vacuum_insert_threshold=6000000');
 
 drop function apply_vacuum_settings_for_partitioned_table;
 -- Vacuum settings for non-partitioned tables
