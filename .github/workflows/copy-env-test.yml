@@ -84,7 +84,7 @@ jobs:
           kubectl version
           kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
-          kubectl get pods --all-namespaces --no-headers | head -50
+          kubectl get pods --all-namespaces --no-headers
 
       - name: Get GKE credentials (staging)
         if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
@@ -102,4 +102,22 @@ jobs:
           kubectl version
           kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
           kubectl auth can-i list pods --all-namespaces
-          kubectl get pods --all-namespaces --no-headers | head -50
+          kubectl get pods --all-namespaces --no-headers
+      - name: Get GKE credentials (staging)
+        if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
+        uses: google-github-actions/get-gke-credentials@v3
+        with:
+          project_id: ${{ env.STAGING_PROJECT }}
+          location: ${{ env.STG_LOCATION }}
+          cluster_name: "large-entity-testing"
+
+      - name: Verify kubectl (test cluster)
+        if: ${{ env.STG_ENABLED == 'true' && env.STG_LOCATION != '' && env.STG_NAME != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl version
+          kubectl --request-timeout=5s get --raw='/readyz' >/dev/null 2>&1 && echo "API ready"
+          kubectl auth can-i list pods --all-namespaces
+          kubectl get pods --all-namespaces --no-headers
+      
