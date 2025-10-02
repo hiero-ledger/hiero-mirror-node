@@ -355,7 +355,7 @@ public class MirrorNodeClient {
 
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
-        return callConvertedRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+        return callRestJavaEndpoint(stakeEndpoint, NetworkStakeResponse.class);
     }
 
     public NetworkFeesResponse getNetworkFees() {

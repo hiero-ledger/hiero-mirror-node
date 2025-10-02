@@ -24,7 +24,7 @@ public @interface Hex {
     /**
      * @return maxLength the element must be less than or equal to
      */
-    long maxLength() default Long.MAX_VALUE;
+    long maxLength() default 1048576L;
 
     /**
      * @return minLength the element must be greater than or equal to

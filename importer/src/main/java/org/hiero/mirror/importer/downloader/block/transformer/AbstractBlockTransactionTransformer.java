@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static org.hiero.mirror.common.util.DomainUtils.normalize;
 import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomFor;
 import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomForAll;
 
@@ -9,21 +10,32 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
+import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
+import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActions;
+import com.hedera.services.stream.proto.ContractStateChange;
+import com.hedera.services.stream.proto.ContractStateChanges;
+import com.hedera.services.stream.proto.StorageChange;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.EvmTransactionResult;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.slf4j.Logger;
@@ -69,59 +81,6 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         // do nothing
     }
 
-    protected void transformSmartContractResult(BlockTransactionTransformation transformation) {
-        var blockTransaction = transformation.blockTransaction();
-        var evmTransactionInfo = getEvmTransactionInfo(blockTransaction);
-        if (evmTransactionInfo == null) {
-            return;
-        }
-
-        var evmTransactionResult = evmTransactionInfo.evmTransactionResult();
-        var transactionRecordBuilder = transformation.recordItemBuilder().transactionRecordBuilder();
-        var builder = evmTransactionInfo.isContractCreate()
-                ? transactionRecordBuilder.getContractCreateResultBuilder()
-                : transactionRecordBuilder.getContractCallResultBuilder();
-
-        builder.setContractCallResult(evmTransactionResult.getResultData())
-                .setErrorMessage(evmTransactionResult.getErrorMessage())
-                .setGasUsed(evmTransactionResult.getGasUsed());
-
-        if (evmTransactionResult.hasContractId()) {
-            builder.setContractID(evmTransactionResult.getContractId());
-            transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
-        }
-
-        if (evmTransactionResult.hasSenderId()) {
-            builder.setSenderId(evmTransactionResult.getSenderId());
-        }
-
-        if (evmTransactionInfo.isContractCreate() && evmTransactionResult.hasContractId()) {
-            var contractId = evmTransactionResult.getContractId();
-            var accountId = AccountID.newBuilder()
-                    .setShardNum(contractId.getShardNum())
-                    .setRealmNum(contractId.getRealmNum())
-                    .setAccountNum(contractId.getContractNum())
-                    .build();
-            blockTransaction
-                    .getStateChangeContext()
-                    .getAccount(accountId)
-                    .map(Account::getAlias)
-                    .filter(a -> a != ByteString.EMPTY)
-                    .ifPresent(evmAddress -> builder.setEvmAddress(BytesValue.of(evmAddress)));
-        }
-
-        if (evmTransactionResult.hasInternalCallContext()) {
-            var internalCallContext = evmTransactionResult.getInternalCallContext();
-            builder.setAmount(internalCallContext.getValue())
-                    .setFunctionParameters(internalCallContext.getCallData())
-                    .setGas(internalCallContext.getGas());
-        }
-
-        var evmTraceData = blockTransaction.getEvmTraceData();
-        transformEvmTransactionLogs(builder, evmTraceData);
-        transformSidecarRecords(transformation.recordItemBuilder(), evmTraceData);
-    }
-
     protected EvmTransactionInfo getEvmTransactionInfo(BlockTransaction blockTransaction) {
         return blockTransaction
                 .getTransactionOutput(TransactionCase.CONTRACT_CALL)
@@ -139,14 +98,103 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 .orElse(null);
     }
 
-    private void transformEvmTransactionLogs(
-            ContractFunctionResult.Builder contractResultBuilder, EvmTraceData evmTraceData) {
-        if (evmTraceData == null || evmTraceData.getLogsList().isEmpty()) {
+    private SlotValue resolveIndexedSlotValue(
+            BlockTransaction blockTransaction, ContractID contractId, int index, List<ByteString> writtenSlotKeys) {
+        if (index < 0) {
+            return null;
+        }
+
+        if (!writtenSlotKeys.isEmpty()) {
+            // key is explicitly stored in the writtenSlotKeys list
+            if (index >= writtenSlotKeys.size()) {
+                return null;
+            }
+
+            var slotKey = normalize(SlotKey.newBuilder()
+                    .setContractID(contractId)
+                    .setKey(writtenSlotKeys.get(index))
+                    .build());
+            return new SlotValue(slotKey.getKey(), blockTransaction.getValueWritten(slotKey));
+        } else {
+            // implicit, get it from statechanges
+            return blockTransaction.getStateChangeContext().getContractStorageChange(contractId, index);
+        }
+    }
+
+    private void transformEvmTraceData(
+            BlockTransaction blockTransaction,
+            ContractFunctionResult.Builder contractResultBuilder,
+            RecordItem.RecordItemBuilder recordItemBuilder) {
+        var evmTraceData = blockTransaction.getEvmTraceData();
+        if (evmTraceData == null) {
             return;
         }
 
-        var bloomFilters = new ArrayList<LogsBloomFilter>(evmTraceData.getLogsCount());
-        for (var evmTransactionLog : evmTraceData.getLogsList()) {
+        transformEvmTransactionLogs(contractResultBuilder, evmTraceData.getLogsList());
+        transformSidecarRecords(blockTransaction, evmTraceData, recordItemBuilder);
+    }
+
+    private void transformSmartContractResult(BlockTransactionTransformation transformation) {
+        var blockTransaction = transformation.blockTransaction();
+        var evmTransactionInfo = getEvmTransactionInfo(blockTransaction);
+        if (evmTransactionInfo == null) {
+            return;
+        }
+
+        var evmTransactionResult = evmTransactionInfo.evmTransactionResult();
+        var transactionRecordBuilder = transformation.recordItemBuilder().transactionRecordBuilder();
+        var contractResultbuilder = evmTransactionInfo.isContractCreate()
+                ? transactionRecordBuilder.getContractCreateResultBuilder()
+                : transactionRecordBuilder.getContractCallResultBuilder();
+
+        contractResultbuilder
+                .setContractCallResult(evmTransactionResult.getResultData())
+                .setErrorMessage(evmTransactionResult.getErrorMessage())
+                .setGasUsed(evmTransactionResult.getGasUsed());
+
+        if (evmTransactionResult.hasContractId()) {
+            contractResultbuilder.setContractID(evmTransactionResult.getContractId());
+            transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
+        }
+
+        if (evmTransactionResult.hasSenderId()) {
+            contractResultbuilder.setSenderId(evmTransactionResult.getSenderId());
+        }
+
+        if (evmTransactionInfo.isContractCreate() && evmTransactionResult.hasContractId()) {
+            var contractId = evmTransactionResult.getContractId();
+            var accountId = AccountID.newBuilder()
+                    .setShardNum(contractId.getShardNum())
+                    .setRealmNum(contractId.getRealmNum())
+                    .setAccountNum(contractId.getContractNum())
+                    .build();
+            blockTransaction
+                    .getStateChangeContext()
+                    .getAccount(accountId)
+                    .map(Account::getAlias)
+                    .filter(a -> a != ByteString.EMPTY)
+                    .ifPresent(evmAddress -> contractResultbuilder.setEvmAddress(BytesValue.of(evmAddress)));
+        }
+
+        if (evmTransactionResult.hasInternalCallContext()) {
+            var internalCallContext = evmTransactionResult.getInternalCallContext();
+            contractResultbuilder
+                    .setAmount(internalCallContext.getValue())
+                    .setFunctionParameters(internalCallContext.getCallData())
+                    .setGas(internalCallContext.getGas());
+        }
+
+        transformEvmTraceData(blockTransaction, contractResultbuilder, transformation.recordItemBuilder());
+    }
+
+    private void transformEvmTransactionLogs(
+            ContractFunctionResult.Builder contractResultBuilder, List<EvmTransactionLog> evmTransactionLogs) {
+        if (evmTransactionLogs.isEmpty()) {
+            return;
+        }
+
+        var bloomFilters = new ArrayList<LogsBloomFilter>(evmTransactionLogs.size());
+        for (var evmTransactionLog : evmTransactionLogs) {
             var bloomFilter = bloomFor(evmTransactionLog);
             bloomFilters.add(bloomFilter);
             var logInfo = ContractLoginfo.newBuilder()
@@ -155,7 +203,6 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setData(evmTransactionLog.getData())
                     .addAllTopic(evmTransactionLog.getTopicsList())
                     .build();
-            ;
             contractResultBuilder.addLogInfo(logInfo);
         }
 
@@ -163,31 +210,131 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 DomainUtils.fromBytes(bloomForAll(bloomFilters).toArray()));
     }
 
-    private TransactionSidecarRecord transformContractActions(
-            Timestamp consensusTimestamp, List<ContractAction> contractActions) {
+    private void transformContractActions(
+            Timestamp consensusTimestamp,
+            List<ContractAction> contractActions,
+            List<TransactionSidecarRecord> sidecarRecords) {
         if (contractActions.isEmpty()) {
-            return null;
+            return;
         }
 
-        return TransactionSidecarRecord.newBuilder()
+        var contractActionSidecarRecord = TransactionSidecarRecord.newBuilder()
                 .setConsensusTimestamp(consensusTimestamp)
                 .setActions(ContractActions.newBuilder()
                         .addAllContractActions(contractActions)
                         .build())
                 .build();
+        sidecarRecords.add(contractActionSidecarRecord);
     }
 
-    private void transformSidecarRecords(RecordItem.RecordItemBuilder recordItemBuilder, EvmTraceData evmTraceData) {
-        if (evmTraceData == null) {
+    private void transformContractSlotUsage(
+            BlockTransaction blockTransaction,
+            ContractSlotUsage contractSlotUsage,
+            List<ContractStateChange> contractStateChanges,
+            Map<SlotKey, ByteString> contractStorageReads) {
+        var contractId = contractSlotUsage.getContractId();
+        var missingIndices = new ArrayList<Integer>();
+        boolean missingValueWritten = false;
+        var storageChanges = new ArrayList<StorageChange>();
+        var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
+
+        for (var slotRead : contractSlotUsage.getSlotReadsList()) {
+            ByteString slot = null;
+            var valueRead = slotRead.getReadValue();
+            var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
+            if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
+                int index = slotRead.getIndex();
+                var slotValue = resolveIndexedSlotValue(blockTransaction, contractId, index, writtenSlotKeys);
+                if (slotValue != null) {
+                    slot = slotValue.slot();
+                    if (slotValue.valueWritten() != null) {
+                        storageChanges.add(storageChangeBuilder
+                                .setSlot(slotValue.slot())
+                                .setValueWritten(slotValue.valueWritten())
+                                .build());
+                    } else {
+                        missingValueWritten = true;
+                    }
+                } else {
+                    missingIndices.add(index);
+                }
+            } else if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.KEY) {
+                slot = slotRead.getKey();
+                storageChanges.add(storageChangeBuilder.setSlot(slot).build());
+            }
+
+            if (slot != null) {
+                var slotKey = normalize(SlotKey.newBuilder()
+                        .setContractID(contractId)
+                        .setKey(slot)
+                        .build());
+                contractStorageReads.put(slotKey, valueRead);
+            }
+        }
+
+        if (!storageChanges.isEmpty()) {
+            contractStateChanges.add(ContractStateChange.newBuilder()
+                    .setContractId(contractId)
+                    .addAllStorageChanges(storageChanges)
+                    .build());
+        }
+
+        if (!missingIndices.isEmpty()) {
+            log.warn(
+                    "Unable to resolve the following storage slot indices for contract {} at {}: {}",
+                    contractId,
+                    blockTransaction.getConsensusTimestamp(),
+                    missingIndices);
+        }
+
+        if (missingValueWritten) {
+            log.warn(
+                    "Unable to find value written for at least one slot for contract {} at {}",
+                    contractId,
+                    blockTransaction.getConsensusTimestamp());
+        }
+    }
+
+    private void transformContractStateChanges(
+            BlockTransaction blockTransaction,
+            List<ContractSlotUsage> contractSlotUsages,
+            List<TransactionSidecarRecord> sidecarRecords) {
+        if (contractSlotUsages.isEmpty()) {
             return;
         }
 
-        var consensusTimestamp = recordItemBuilder.transactionRecordBuilder().getConsensusTimestamp();
-        var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
-        var contractActions = transformContractActions(consensusTimestamp, evmTraceData.getContractActionsList());
-        if (contractActions != null) {
-            sidecarRecords.add(contractActions);
+        var contractStateChanges = new ArrayList<ContractStateChange>();
+        // The contract storages read by this transaction. Note some reads may have its key pointed by SlotRead.index,
+        // and the map stores the resolved slot key. The constructed map is stored in BlockTransaction and due to
+        // the fact the transactions are processed in descending order by consensus timestamp, a preceding transaction
+        // can resolve the value it writes to a storage slot by looking for the value read in subsequent transactions
+        var contractStorageReads = new HashMap<SlotKey, ByteString>();
+
+        for (var contractSlotUsage : contractSlotUsages) {
+            transformContractSlotUsage(blockTransaction, contractSlotUsage, contractStateChanges, contractStorageReads);
         }
+
+        if (!contractStateChanges.isEmpty()) {
+            sidecarRecords.add(TransactionSidecarRecord.newBuilder()
+                    .setConsensusTimestamp(
+                            blockTransaction.getTransactionResult().getConsensusTimestamp())
+                    .setStateChanges(ContractStateChanges.newBuilder()
+                            .addAllContractStateChanges(contractStateChanges)
+                            .build())
+                    .build());
+        }
+
+        blockTransaction.setContractStorageReads(contractStorageReads);
+    }
+
+    private void transformSidecarRecords(
+            BlockTransaction blockTransaction,
+            EvmTraceData evmTraceData,
+            RecordItem.RecordItemBuilder recordItemBuilder) {
+        var consensusTimestamp = blockTransaction.getTransactionResult().getConsensusTimestamp();
+        var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
+        transformContractActions(consensusTimestamp, evmTraceData.getContractActionsList(), sidecarRecords);
+        transformContractStateChanges(blockTransaction, evmTraceData.getContractSlotUsagesList(), sidecarRecords);
 
         recordItemBuilder.sidecarRecords(sidecarRecords);
     }

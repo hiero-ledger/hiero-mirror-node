@@ -16,7 +16,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.18.0")
+    set("blockNodeVersion", "0.19.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
     set("jooq.version", "3.20.7") // Must match buildSrc/build.gradle.kts
@@ -69,7 +69,7 @@ dependencies {
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
-        api("net.java.dev.jna:jna:5.17.0")
+        api("net.java.dev.jna:jna:5.18.0")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -87,8 +87,8 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.34.0")
+        api("org.web3j:core:5.0.1")
+        api("software.amazon.awssdk:bom:2.34.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

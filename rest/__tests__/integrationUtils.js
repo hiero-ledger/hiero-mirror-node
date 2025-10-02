@@ -10,9 +10,9 @@ import {getMirrorConfig} from '../config.js';
 import EntityId from '../entityId.js';
 import {apiPrefix} from '../constants.js';
 
-// set a large timeout for beforeAll as downloading docker image if not exists can take quite some time. Note
-// it's 12 minutes for CI to workaround possible DockerHub rate limit.
-const defaultBeforeAllTimeoutMillis = process.env.CI ? 12 * 60 * 1000 : 4 * 60 * 1000;
+// a large timeout for any before / after hooks with slow steps. e.g., downloading docker image if not exists can take
+// quite some time. Note it's 12 minutes for CI to workaround possible DockerHub rate limit.
+const slowStepTimeoutMillis = process.env.CI ? 12 * 60 * 1000 : 4 * 60 * 1000;
 
 const {
   common: {realm: systemRealm, shard: systemShard},
@@ -126,7 +126,7 @@ const setupIntegrationTest = () => {
 
   beforeAll(async () => {
     return await integrationContainerOps.initializeContainers();
-  }, defaultBeforeAllTimeoutMillis);
+  }, slowStepTimeoutMillis);
 
   afterAll(async () => {
     await ownerPool?.end();
@@ -142,9 +142,9 @@ const setupIntegrationTest = () => {
 
 export {
   applyResponseJsonMatrix,
-  defaultBeforeAllTimeoutMillis,
   encodedIdFromSpecValue,
   isDockerInstalled,
   setupIntegrationTest,
+  slowStepTimeoutMillis,
   transformShardRealmValues,
 };

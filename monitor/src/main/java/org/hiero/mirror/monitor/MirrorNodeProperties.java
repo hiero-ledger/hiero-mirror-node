@@ -21,6 +21,8 @@ public class MirrorNodeProperties {
     @NotNull
     private RestProperties rest = new RestProperties();
 
+    private RestProperties restJava;
+
     @Data
     @Validated
     public static class GrpcProperties {

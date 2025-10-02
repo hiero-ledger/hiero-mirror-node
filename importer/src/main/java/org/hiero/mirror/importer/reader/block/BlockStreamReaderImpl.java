@@ -126,10 +126,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
     private void readSignedTransactions(ReaderContext context) {
         BlockItem protoBlockItem;
-        byte[] signedTransactionBytes;
+        SignedTransactionInfo signedTransactionInfo;
         try {
-            while ((signedTransactionBytes = context.getSignedTransaction()) != null) {
-                var signedTransaction = SignedTransaction.parseFrom(signedTransactionBytes);
+            while ((signedTransactionInfo = context.getSignedTransaction()) != null) {
+                var signedTransaction = SignedTransaction.parseFrom(signedTransactionInfo.signedTransaction());
                 var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
                 var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
@@ -171,10 +171,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .signedTransaction(signedTransaction)
-                        .signedTransactionBytes(signedTransactionBytes)
+                        .signedTransactionBytes(signedTransactionInfo.signedTransaction())
                         .build();
                 context.getBlockFile().item(blockTransaction);
-                context.setLastBlockTransaction(blockTransaction);
+                context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(
@@ -229,6 +229,12 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private BlockTransaction lastBlockTransaction;
 
         @NonFinal
+        private BlockTransaction lastUserTransactionInBatch;
+
+        @NonFinal
+        private BlockTransaction lastInnerTransaction; // last inner transaction in a batch
+
+        @NonFinal
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
@@ -239,14 +245,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             this.filename = filename;
         }
 
-        public byte[] getSignedTransaction() {
+        SignedTransactionInfo getSignedTransaction() {
             var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
             if (blockItemProto != null) {
-                return DomainUtils.toBytes(blockItemProto.getSignedTransaction());
+                return new SignedTransactionInfo(false, DomainUtils.toBytes(blockItemProto.getSignedTransaction()));
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                return DomainUtils.toBytes(batchBody.getTransactions(batchIndex++));
+                return new SignedTransactionInfo(true, DomainUtils.toBytes(batchBody.getTransactions(batchIndex++)));
             }
 
             return null;
@@ -258,7 +264,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
          * @param itemCase - block item case
          * @return The matching block item, or null
          */
-        public BlockItem readBlockItemFor(BlockItem.ItemCase itemCase) {
+        BlockItem readBlockItemFor(BlockItem.ItemCase itemCase) {
             if (index >= blockItems.size()) {
                 return null;
             }
@@ -274,13 +280,30 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             return blockItem;
         }
 
-        public void setLastBlockTransaction(BlockTransaction lastBlockTransaction) {
+        void setLastBlockTransaction(BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
+            if (userTransactionInBatch) {
+                if (lastUserTransactionInBatch != null
+                        && batchBody != null
+                        && batchIndex <= batchBody.getTransactionsCount()) {
+                    // link user transactions in a batch for intermediate contract storage changes. That is,
+                    // given smart contract transactions X and Y in the same batch where X executes before Y, and
+                    // a contract storage slot (C, K) written by both X and Y, the value written to the slot by X is the
+                    // value read by Y, and the value written by Y is in the state changes externalized for the top
+                    // level atomic batch transaction
+                    lastUserTransactionInBatch.setNextInBatch(lastBlockTransaction);
+                }
+                lastUserTransactionInBatch = lastBlockTransaction;
+            }
+
             this.lastBlockTransaction = lastBlockTransaction;
             if (lastBlockTransaction != null
                     && lastBlockTransaction.getTransactionBody().hasAtomicBatch()) {
                 this.batchIndex = 0;
                 this.batchBody = lastBlockTransaction.getTransactionBody().getAtomicBatch();
+                this.lastUserTransactionInBatch = null;
             }
         }
     }
+
+    private record SignedTransactionInfo(boolean userTransactionInBatch, byte[] signedTransaction) {}
 }

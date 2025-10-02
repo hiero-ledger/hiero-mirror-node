@@ -130,7 +130,6 @@ hiero:
               { "cache-control": "public, max-age=60" }
             /api/v1/network/fees: { "cache-control": "public, max-age=60" }
             /api/v1/network/nodes: { "cache-control": "public, max-age=60" }
-            /api/v1/network/stake: { "cache-control": "public, max-age=60" }
             /api/v1/network/supply: { "cache-control": "public, max-age=60" }
             /api/v1/schedules: { "cache-control": "public, max-age=10" }
             /api/v1/tokens: { "cache-control": "public, max-age=10" }

@@ -249,6 +249,15 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
 
     public interface SelectorInterface {
         String getSelector();
+
+        FunctionType getFunctionType();
+
+        enum FunctionType {
+            VIEW,
+            PAYABLE,
+            PURE,
+            MUTABLE
+        }
     }
 
     public interface ContractMethodInterface extends SelectorInterface {
