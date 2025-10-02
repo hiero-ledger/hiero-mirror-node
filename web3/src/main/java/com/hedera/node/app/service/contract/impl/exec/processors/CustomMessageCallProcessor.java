@@ -30,6 +30,7 @@ import com.hedera.node.app.service.contract.impl.exec.FeatureFlags;
 import com.hedera.node.app.service.contract.impl.exec.metrics.ContractMetrics;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.exec.tracers.AddOnEvmActionTracer;
+import com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils;
 import com.hedera.node.app.service.contract.impl.state.ProxyEvmContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -232,6 +233,14 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         } else {
             frame.decrementRemainingGas(gasRequirement);
 
+            final var opsDurationCounter = FrameUtils.opsDurationCounter(frame);
+            final var opsDurationSchedule = opsDurationCounter.schedule();
+            final var opsDurationCost = gasRequirement
+                    * opsDurationSchedule.precompileGasBasedDurationMultiplier()
+                    / opsDurationSchedule.multipliersDenominator();
+            opsDurationCounter.recordOpsDurationUnitsConsumed(opsDurationCost);
+            contractMetrics.opsDurationMetrics().recordPrecompileOpsDuration(precompile.getName(), opsDurationCost);
+
             result = precompile.computePrecompile(frame.getInputData(), frame);
             if (result.isRefundGas()) {
                 frame.incrementRemainingGas(gasRequirement);
@@ -275,6 +284,17 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             if (!fullResult.isRefundGas()) {
                 frame.decrementRemainingGas(gasRequirement);
             }
+
+            final var opsDurationCounter = FrameUtils.opsDurationCounter(frame);
+            final var opsDurationSchedule = opsDurationCounter.schedule();
+            final var opsDurationCost = gasRequirement
+                    * opsDurationSchedule.systemContractGasBasedDurationMultiplier()
+                    / opsDurationSchedule.multipliersDenominator();
+            opsDurationCounter.recordOpsDurationUnitsConsumed(opsDurationCost);
+            contractMetrics
+                    .opsDurationMetrics()
+                    .recordSystemContractOpsDuration(
+                            systemContract.getName(), systemContractAddress.toHexString(), opsDurationCost);
 
             result = fullResult.result();
         }
@@ -344,7 +364,7 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             @NonNull final MessageFrame frame,
             @NonNull final ExceptionalHaltReason reason,
             @Nullable final OperationTracer operationTracer,
-            @NonNull final CustomMessageCallProcessor.ForLazyCreation forLazyCreation) {
+            @NonNull final ForLazyCreation forLazyCreation) {
         frame.setState(EXCEPTIONAL_HALT);
         frame.setExceptionalHaltReason(Optional.of(reason));
         if (forLazyCreation == ForLazyCreation.YES) {
