@@ -38,12 +38,18 @@ jobs:
       GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-      KUBECONFIG: ${{ runner.temp }}/kubeconfig
       CONFIG_PATH: ${{ vars.COPY_ENV_CONFIG_PATH || '.github/workflows/copy-env2.config.json' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Prepare kubeconfig
+        shell: bash
+        run: |
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          : > "$RUNNER_TEMP/kubeconfig"
+          echo "Using KUBECONFIG=$RUNNER_TEMP/kubeconfig"
 
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
