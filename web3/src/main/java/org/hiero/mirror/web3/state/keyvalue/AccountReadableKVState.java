@@ -29,6 +29,8 @@ import org.hiero.mirror.web3.state.CommonEntityAccessor;
 public class AccountReadableKVState extends AbstractAliasedAccountReadableKVState<AccountID, Account> {
 
     public static final String KEY = "ACCOUNTS";
+    public static final int SYS_ACCOUNT_NUMBER_LOWER_LIMIT = 1;
+    public static final int SYS_ACCOUNT_NUMBER_UPPER_LIMIT = 1000;
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -61,7 +63,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     @Override
     protected Account readFromDataSource(@Nonnull AccountID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
-        return commonEntityAccessor
+        final var acc = commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() != TOKEN)
                 .map(entity -> {
@@ -73,5 +75,20 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return account;
                 })
                 .orElse(null);
+        // In case a system account doesn't exist in a historical contract call
+        // return a dummy account to avoid errors like
+        // "Non-zero net hbar change when handling body"
+        if (acc == null && isSystemAccount(key)) {
+            return Account.newBuilder().accountId(key).tinybarBalance(1000000).build();
+        }
+        return acc;
+    }
+
+    private boolean isSystemAccount(AccountID key) {
+        if (key.hasAccountNum()) {
+            return key.accountNum() >= SYS_ACCOUNT_NUMBER_LOWER_LIMIT
+                    && key.accountNum() <= SYS_ACCOUNT_NUMBER_UPPER_LIMIT;
+        }
+        return false;
     }
 }
