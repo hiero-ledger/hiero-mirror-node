@@ -12,6 +12,7 @@ import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -93,6 +94,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
         var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
         var protoEndpoint = nodeCreate.getGrpcProxyEndpoint();
         var expectedNode = Node.builder()
+                .accountId(EntityId.of(nodeCreate.getAccountId()))
                 .adminKey(nodeCreate.getAdminKey().toByteArray())
                 .createdTimestamp(recordItem.getConsensusTimestamp())
                 .declineReward(false)
@@ -134,10 +136,15 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
                 .persist();
 
         var expectedNode = Node.builder()
+                .accountId(EntityId.of(nodeUpdate.getAccountId()))
                 .adminKey(nodeUpdate.getAdminKey().toByteArray())
                 .createdTimestamp(node.getCreatedTimestamp())
-                .declineReward(true)
-                .grpcProxyEndpoint(node.getGrpcProxyEndpoint())
+                .declineReward(nodeUpdate.getDeclineReward().getValue())
+                .grpcProxyEndpoint(ServiceEndpoint.builder()
+                        .domainName(nodeUpdate.getGrpcProxyEndpoint().getDomainName())
+                        .ipAddressV4("")
+                        .port(nodeUpdate.getGrpcProxyEndpoint().getPort())
+                        .build())
                 .nodeId(node.getNodeId())
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
@@ -161,7 +168,8 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
     void nodeUpdateUnsetGrpcProxyEndpoint() {
         var recordItem = recordItemBuilder
                 .nodeUpdate()
-                .transactionBody(b -> b.clearAdminKey()
+                .transactionBody(b -> b.clearAccountId()
+                        .clearAdminKey()
                         .setGrpcProxyEndpoint(com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()))
                 .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
@@ -190,6 +198,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
     void nodeUpdateNoChange() {
         var recordItem = recordItemBuilder
                 .nodeUpdate()
+                .transactionBody(NodeUpdateTransactionBody.Builder::clearAccountId)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearAdminKey)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearDeclineReward)
                 .transactionBody(NodeUpdateTransactionBody.Builder::clearGrpcProxyEndpoint)
@@ -204,12 +213,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
                         .timestampRange(Range.atLeast(timestamp)))
                 .persist();
 
-        var expectedNode = Node.builder()
-                .adminKey(node.getAdminKey())
-                .createdTimestamp(node.getCreatedTimestamp())
-                .declineReward(node.getDeclineReward())
-                .grpcProxyEndpoint(node.getGrpcProxyEndpoint())
-                .nodeId(node.getNodeId())
+        var expectedNode = node.toBuilder()
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                 .build();
 

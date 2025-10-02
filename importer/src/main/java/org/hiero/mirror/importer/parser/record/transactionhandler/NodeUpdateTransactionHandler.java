@@ -8,13 +8,17 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 class NodeUpdateTransactionHandler extends AbstractNodeTransactionHandler {
 
-    public NodeUpdateTransactionHandler(EntityListener entityListener) {
+    private final EntityIdService entityIdService;
+
+    public NodeUpdateTransactionHandler(EntityListener entityListener, EntityIdService entityIdService) {
         super(entityListener);
+        this.entityIdService = entityIdService;
     }
 
     @Override
@@ -33,9 +37,16 @@ class NodeUpdateTransactionHandler extends AbstractNodeTransactionHandler {
             return null;
         }
 
-        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
-        long consensusTimestamp = recordItem.getConsensusTimestamp();
-        var node = new Node();
+        final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var node = new Node();
+
+        if (nodeUpdate.hasAccountId()) {
+            entityIdService
+                    .lookup(nodeUpdate.getAccountId())
+                    .filter(e -> !EntityId.isEmpty(e))
+                    .ifPresent(node::setAccountId);
+        }
 
         if (nodeUpdate.hasAdminKey()) {
             node.setAdminKey(nodeUpdate.getAdminKey().toByteArray());
