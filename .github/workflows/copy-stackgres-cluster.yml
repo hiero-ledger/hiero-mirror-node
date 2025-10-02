@@ -26,13 +26,6 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
-  GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
-  K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
-  K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-  KUBECONFIG: ${{ runner.temp }}/kubeconfig
-
 jobs:
   run-copy:
     name: Copy Citus from SOURCE ➜ TARGET
@@ -41,8 +34,11 @@ jobs:
       WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
-      #GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }} # TODO
+      #GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
       GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
+      K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
+      KUBECONFIG: ${{ runner.temp }}/kubeconfig
       CONFIG_PATH: ${{ vars.COPY_ENV_CONFIG_PATH || '.github/workflows/copy-env2.config.json' }}
 
     steps:
