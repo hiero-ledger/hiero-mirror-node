@@ -138,3 +138,24 @@ jobs:
           cd ./docs/runbook/scripts/
           ./copy-live-environment.sh
 
+      - name: Cleanup pinned kubeconfig
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "KUBECONFIG=${KUBECONFIG:-<unset>}"
+          echo "PINNED_KUBECONFIG=${PINNED_KUBECONFIG:-<unset>}"
+
+          # Remove files if they exist
+          for f in "${PINNED_KUBECONFIG:-}" "${KUBECONFIG:-}"; do
+            if [[ -n "$f" && -f "$f" ]]; then
+              rm -f "$f"
+              echo "Removed $f"
+            fi
+          done
+
+          # Best-effort: remove the .kube dir if empty
+          if [[ -n "${PINNED_KUBECONFIG:-}" ]]; then
+            rmdir "$(dirname "$PINNED_KUBECONFIG")" 2>/dev/null || true
+          fi
+
