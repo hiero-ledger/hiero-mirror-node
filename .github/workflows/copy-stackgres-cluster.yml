@@ -135,5 +135,6 @@ jobs:
         run: |
           set -euo pipefail
           echo "Running: script to copy stackgres cluster"
-          ./docs/runbook/scripts/copy-live-environment.sh
+          cd ./docs/runbook/scripts/
+          ./copy-live-environment.sh
 
