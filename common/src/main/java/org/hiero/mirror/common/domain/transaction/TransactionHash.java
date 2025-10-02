@@ -3,14 +3,12 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.primitives.Shorts;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import lombok.AccessLevel;
+import java.util.Arrays;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.data.domain.Persistable;
 
@@ -22,11 +20,10 @@ public class TransactionHash implements Persistable<byte[]> {
 
     private long consensusTimestamp;
 
-    @Setter(value = AccessLevel.NONE)
-    private short distributionId;
-
     @Id
     private byte[] hash;
+
+    private byte[] hashSuffix;
 
     private long payerAccountId;
 
@@ -54,13 +51,15 @@ public class TransactionHash implements Persistable<byte[]> {
     }
 
     public boolean hashIsValid() {
-        return this.hash != null && hash.length > 0;
+        return this.hash != null && (hash.length == 32 || hash.length == 48);
     }
 
     public void setHash(byte[] hash) {
-        this.hash = hash;
-        if (ArrayUtils.isNotEmpty(hash) && hash.length >= 2) {
-            this.distributionId = Shorts.fromByteArray(hash);
+        if (ArrayUtils.isNotEmpty(hash) && hash.length == 32) {
+            this.hash = hash;
+        } else if (ArrayUtils.isNotEmpty(hash) && hash.length == 48) {
+            this.hash = Arrays.copyOfRange(hash, 0, 32);
+            this.hashSuffix = Arrays.copyOfRange(hash, 32, hash.length);
         }
     }
 }

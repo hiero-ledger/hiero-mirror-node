@@ -1491,6 +1491,22 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void onTransactionHashInvalidHash() {
+        // given
+        entityProperties.getPersist().setTransactionHashTypes(Collections.emptySet());
+        var cryptoTransfer = domainBuilder.transaction().get();
+        cryptoTransfer.setTransactionHash(Arrays.copyOfRange(cryptoTransfer.getTransactionHash(), 0, 31));
+
+        // when
+        sqlEntityListener.onTransaction(cryptoTransfer);
+        completeFileAndCommit();
+
+        // then
+        assertThat(transactionRepository.findAll()).containsExactlyInAnyOrder(cryptoTransfer);
+        assertThat(transactionHashRepository.findAll()).isEmpty();
+    }
+
+    @Test
     void onNft() {
         // create token first
         EntityId tokenId1 = EntityId.of("0.0.1");
