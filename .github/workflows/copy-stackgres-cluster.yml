@@ -31,6 +31,7 @@ env:
   GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
   K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
   K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
+  KUBECONFIG: ${{ runner.temp }}/kubeconfig
 
 jobs:
   run-copy:
