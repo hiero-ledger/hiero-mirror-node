@@ -64,6 +64,17 @@ jobs:
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install ksd (Go)
+        run: |
+          go install github.com/mfuentesg/ksd@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          ksd -h
+
       - name: Prepare pinned kubeconfig
         run: |
           mkdir -p "$(dirname "$PINNED_KUBECONFIG")"
@@ -133,7 +144,7 @@ jobs:
           AUTO_CONFIRM: "true"
           WAIT_FOR_K6: "false" #${{ inputs.teardown_target && 'true' || 'false' }}
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           echo "Running: script to copy stackgres cluster"
           cd ./docs/runbook/scripts/
           ./copy-live-environment.sh

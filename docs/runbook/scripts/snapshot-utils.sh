@@ -216,6 +216,8 @@ function snapshotCitusDisks() {
     diskNodeId="${diskName#"$diskPrefix"-}"
     diskNodeId="${diskNodeId%"-zfs"}"
     snapshotName="${diskName}-${epochSeconds}"
+    # GCP snapshot name limit is 63 and must start with alpha char
+    snapshotName="$(sed -E 's/^[^a-z]/a/' <<< "${snapshotName: -63}")"
     snapshotRegion=$(echo "${diskNodeId}" | cut -d '-' -f 2-3)
     diskZone=$(echo "${diskNodeId}" | cut -d '-' -f 2-4)
     nodeVolumes=$(echo "${zfsVolumes}" | jq -r --arg diskNodeId "${diskNodeId}" 'map(select(.nodeId == $diskNodeId))')
@@ -578,7 +580,9 @@ function deleteZfsSnapshots() {
     log "No snapshots found for ${ZFS_POOL_NAME} on node ${nodeId}"
   else
     log "Deleting all snapshots for ${ZFS_POOL_NAME} on node ${nodeId}"
-    kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r ${snapshots}
+    while IFS= read -r snap; do
+          kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r "$snap"
+    done <<< "${snapshots}"
   fi
 }
 

@@ -5,5 +5,6 @@
 set -euo pipefail
 
 source ./utils.sh
+source ./input-utils.sh
 source ./snapshot-utils.sh
 snapshotCitusDisks
