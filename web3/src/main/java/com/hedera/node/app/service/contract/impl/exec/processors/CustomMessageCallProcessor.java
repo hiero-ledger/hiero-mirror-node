@@ -7,7 +7,6 @@ import static com.hedera.hapi.streams.ContractActionType.SYSTEM;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INSUFFICIENT_CHILD_RECORDS;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INVALID_CONTRACT_ID;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INVALID_SIGNATURE;
-import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.OPS_DURATION_LIMIT_REACHED;
 import static com.hedera.node.app.service.contract.impl.exec.systemcontracts.hts.create.CreateCommons.createMethodsSet;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.acquiredSenderAuthorizationViaDelegateCall;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.alreadyHalted;
@@ -30,6 +29,7 @@ import com.hedera.node.app.service.contract.impl.exec.AddressChecks;
 import com.hedera.node.app.service.contract.impl.exec.FeatureFlags;
 import com.hedera.node.app.service.contract.impl.exec.metrics.ContractMetrics;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
+import com.hedera.node.app.service.contract.impl.exec.tracers.AddOnEvmActionTracer;
 import com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils;
 import com.hedera.node.app.service.contract.impl.state.ProxyEvmContract;
 import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
@@ -238,15 +238,12 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             final var opsDurationCost = gasRequirement
                     * opsDurationSchedule.precompileGasBasedDurationMultiplier()
                     / opsDurationSchedule.multipliersDenominator();
-            if (!opsDurationCounter.tryConsumeOpsDurationUnits(opsDurationCost)) {
-                result = PrecompileContractResult.halt(Bytes.EMPTY, Optional.of(OPS_DURATION_LIMIT_REACHED));
-            } else {
-                contractMetrics.opsDurationMetrics().recordPrecompileOpsDuration(precompile.getName(), opsDurationCost);
+            opsDurationCounter.recordOpsDurationUnitsConsumed(opsDurationCost);
+            contractMetrics.opsDurationMetrics().recordPrecompileOpsDuration(precompile.getName(), opsDurationCost);
 
-                result = precompile.computePrecompile(frame.getInputData(), frame);
-                if (result.isRefundGas()) {
-                    frame.incrementRemainingGas(gasRequirement);
-                }
+            result = precompile.computePrecompile(frame.getInputData(), frame);
+            if (result.isRefundGas()) {
+                frame.incrementRemainingGas(gasRequirement);
             }
         }
         // We must always call tracePrecompileResult() to ensure the tracer is in a consistent
@@ -293,15 +290,13 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             final var opsDurationCost = gasRequirement
                     * opsDurationSchedule.systemContractGasBasedDurationMultiplier()
                     / opsDurationSchedule.multipliersDenominator();
-            if (!opsDurationCounter.tryConsumeOpsDurationUnits(opsDurationCost)) {
-                result = PrecompileContractResult.halt(Bytes.EMPTY, Optional.of(OPS_DURATION_LIMIT_REACHED));
-            } else {
-                contractMetrics
-                        .opsDurationMetrics()
-                        .recordSystemContractOpsDuration(
-                                systemContract.getName(), systemContractAddress.toHexString(), opsDurationCost);
-                result = fullResult.result();
-            }
+            opsDurationCounter.recordOpsDurationUnitsConsumed(opsDurationCost);
+            contractMetrics
+                    .opsDurationMetrics()
+                    .recordSystemContractOpsDuration(
+                            systemContract.getName(), systemContractAddress.toHexString(), opsDurationCost);
+
+            result = fullResult.result();
         }
         finishPrecompileExecution(frame, result, SYSTEM, (ActionSidecarContentTracer) tracer);
     }
