@@ -162,15 +162,23 @@ jobs:
       - name: Get web3 base url
         id: web3-base-url
         run: |
-          export WEB3_IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
-          echo "WEB3_IP=$WEB3_IP" >> $GITHUB_OUTPUT
+          export BASE_URL=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
+          echo "BASE_URL=BASE_URL" >> $GITHUB_OUTPUT
+
+      - name: Web3 endpoint access check
+        run: |
+          echo "Port forwarding"
+          kubectl port-forward "service/mirror-web3" -n mirror 80:80 &
+
+          echo "Test after port forwarding: "
+          curl -sL -H "Content-Type: application/json" -X POST -d '{"from": "0x0000000000000000000000000000000002edec80","to": "0x0000000000000000000000000000000002edec81","value": 500,"gas": 0,"gasPrice": 0}' "http://${WEB3_IP:-127.0.0.1}:80/api/v1/contracts/call"
 
       - name: Run k6 web3 tests
         uses: grafana/run-k6-action@v1
         env:
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
-          BASE_URL: "http://${{ steps.web3-base-url.outputs.WEB3_IP }}:80"
+          BASE_URL: http://${WEB3_IP:-127.0.0.1}:80
           AMOUNT: 0000000000000000000000000000000000000000000000000000000000000001
           KEY_TYPE: 0000000000000000000000000000000000000000000000000000000000000001
           RUN_ESTIMATE_TESTS: false
