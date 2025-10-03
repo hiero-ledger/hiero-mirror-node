@@ -9,10 +9,10 @@ source ./utils/utils.sh
 normalizeGceSnapshotName() {
   local s="$1" max=63
 
-  s="${s,,}"                       # lowercase
-  s="${s//[^a-z0-9-]/-}"           # only [a-z0-9-]
-  (( ${#s} > max )) && s="${s: -max}"  # last 63
-  [[ $s =~ ^[a-z] ]] || s="a${s#?}"    # start with letter
+  s="${s,,}"                                   # lowercase
+  s="${s//[^a-z0-9-]/-}"                       # only [a-z0-9-]
+  (( ${#s} > max )) && s="${s: -max}"          # last 63
+  [[ $s =~ ^[a-z] ]] || s="a${s#?}"            # start with letter
   while [[ $s == -* ]]; do s="${s::-1}"; done  # no trailing '-'
   printf '%s' "$s"
 }

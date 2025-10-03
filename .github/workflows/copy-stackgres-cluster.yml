@@ -12,7 +12,7 @@ on:
         description: "Source: GKE cluster name"
         required: true
       source_project:
-        description: "Source GCP project"
+        description: "Source: GCP project"
         type: choice
         options: [prod, nonprod]
         default: nonprod
@@ -24,10 +24,10 @@ on:
         description: "Target: GKE cluster name"
         required: true
       target_default_pool:
-        description: "Target default pool name"
+        description: "Target: default pool name"
         required: true
       target_project:
-        description: "Target GCP project"
+        description: "Target: GCP project"
         type: choice
         options: [prod, nonprod]
         default: nonprod
@@ -133,8 +133,8 @@ jobs:
         shell: bash
         env:
           AUTO_CONFIRM: "true"
-          WAIT_FOR_K6: ${{ inputs.teardown_target && 'true' || 'false' }}
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          WAIT_FOR_K6: ${{ inputs.teardown_target && 'true' || 'false' }}
         run: |
           set -Eeuo pipefail
           echo "Running: script to copy stackgres cluster"
