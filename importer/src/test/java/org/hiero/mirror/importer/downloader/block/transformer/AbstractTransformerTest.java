@@ -92,6 +92,6 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     protected void finalize(RecordItemBuilder.Builder<?> builder) {
         builder.contractTransactionPredicate(null)
                 .entityTransactionPredicate(null)
-                .recordItem(r -> r.hapiVersion(HAPI_VERSION));
+                .recordItem(r -> r.blockstream(true).hapiVersion(HAPI_VERSION));
     }
 }

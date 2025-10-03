@@ -61,6 +61,7 @@ public class RecordItem implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    private final boolean blockstream;
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;

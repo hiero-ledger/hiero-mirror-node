@@ -26,12 +26,14 @@ import com.hedera.hapi.block.stream.trace.protoc.AutoAssociateTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +42,7 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -266,6 +269,72 @@ final class BlockTransactionTest {
         assertThat(failed.getStateChangeContext()).isSameAs(EMPTY_CONTEXT);
     }
 
+    @Test
+    void getTopicMessageFromTraceData() {
+        // given
+        var runningHash = StateChangeTestUtils.bytes(48);
+        var topicId = StateChangeTestUtils.getTopicId();
+        var expected = TopicMessage.builder()
+                .runningHash(DomainUtils.toBytes(runningHash))
+                .sequenceNumber(1L)
+                .build();
+        var transactionBody = TransactionBody.newBuilder()
+                .setConsensusSubmitMessage(
+                        ConsensusSubmitMessageTransactionBody.newBuilder().setTopicID(topicId))
+                .build();
+        var submitMessageTraceData = SubmitMessageTraceData.newBuilder()
+                .setRunningHash(runningHash)
+                .setSequenceNumber(1L)
+                .build();
+        var blockTransaction = defaultBuilder()
+                .transactionBody(transactionBody)
+                .traceData(List.of(TraceData.newBuilder()
+                        .setSubmitMessageTraceData(submitMessageTraceData)
+                        .build()))
+                .build();
+
+        // when, then
+        assertThat(blockTransaction)
+                .returns(topicId, BlockTransaction::getTopicId)
+                .returns(expected, BlockTransaction::getTopicMessage);
+    }
+
+    @Test
+    void getTopicMessageFromStateChanges() {
+        var runningHash = StateChangeTestUtils.bytes(48);
+        var topicId = StateChangeTestUtils.getTopicId();
+        var expected = TopicMessage.builder()
+                .runningHash(DomainUtils.toBytes(runningHash))
+                .sequenceNumber(1L)
+                .build();
+        var transactionBody = TransactionBody.newBuilder()
+                .setConsensusSubmitMessage(
+                        ConsensusSubmitMessageTransactionBody.newBuilder().setTopicID(topicId))
+                .build();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(StateIdentifier.STATE_ID_TOPICS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setTopicValue(Topic.newBuilder()
+                                                .setTopicId(topicId)
+                                                .setRunningHash(runningHash)
+                                                .setSequenceNumber(1)))))
+                .build();
+        var blockTransaction = defaultBuilder()
+                .stateChanges(List.of(stateChanges))
+                .transactionBody(transactionBody)
+                .build();
+
+        // when, then
+        assertThat(blockTransaction)
+                .returns(topicId, BlockTransaction::getTopicId)
+                .returns(expected, BlockTransaction::getTopicMessage);
+        // get again, should return cached value
+        assertThat(blockTransaction.getTopicMessage()).isEqualTo(expected);
+    }
+
     @MethodSource("provideTransactionHashTestArguments")
     @ParameterizedTest(name = "{0}")
     @SneakyThrows
@@ -423,7 +492,13 @@ final class BlockTransactionTest {
     @Test
     void allTraceData() {
         // given
+        var topicId = StateChangeTestUtils.getTopicId();
+        var transactionBody = TransactionBody.newBuilder()
+                .setConsensusSubmitMessage(
+                        ConsensusSubmitMessageTransactionBody.newBuilder().setTopicID(topicId))
+                .build();
         var blockTransaction = defaultBuilder()
+                .transactionBody(transactionBody)
                 .traceData(List.of(
                         TraceData.newBuilder()
                                 .setAutoAssociateTraceData(AutoAssociateTraceData.getDefaultInstance())
@@ -441,7 +516,7 @@ final class BlockTransactionTest {
                 .satisfies(
                         b -> assertThat(b.getAutoAssociateTraceData()).isNotNull(),
                         b -> assertThat(b.getEvmTraceData()).isNotNull(),
-                        b -> assertThat(b.getSubmitMessageTraceData()).isNotNull());
+                        b -> assertThat(b.getTopicMessage()).isNotNull());
     }
 
     @Test
@@ -453,7 +528,7 @@ final class BlockTransactionTest {
         assertThat(blockTransaction)
                 .returns(null, BlockTransaction::getAutoAssociateTraceData)
                 .returns(null, BlockTransaction::getEvmTraceData)
-                .returns(null, BlockTransaction::getSubmitMessageTraceData);
+                .returns(null, BlockTransaction::getTopicMessage);
     }
 
     private BlockTransaction.BlockTransactionBuilder defaultBuilder() {

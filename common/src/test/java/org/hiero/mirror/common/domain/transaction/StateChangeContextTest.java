@@ -384,20 +384,13 @@ final class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
         var topicIds = List.of(context.getNewTopicId(), context.getNewTopicId(), context.getNewTopicId());
         var topic1Message = context.getTopicMessage(topicId1);
-        var topic2Messages = List.of(
-                context.getTopicMessage(topicId2),
-                context.getTopicMessage(topicId2),
-                context.getTopicMessage(topicId2));
+        var topic2Messages = List.of(context.getTopicMessage(topicId2), context.getTopicMessage(topicId2));
 
         // then
         var expectedTopic2Messages = List.of(
                 Optional.of(TopicMessage.builder()
                         .runningHash(DomainUtils.toBytes(topic2RunningHash))
                         .sequenceNumber(2L)
-                        .build()),
-                Optional.of(TopicMessage.builder()
-                        .runningHash(DomainUtils.EMPTY_BYTE_ARRAY)
-                        .sequenceNumber(1L)
                         .build()),
                 Optional.<TopicMessage>empty());
         assertThat(topicIds).containsExactly(Optional.of(topicId2), Optional.of(topicId1), Optional.empty());
