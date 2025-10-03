@@ -72,6 +72,10 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
 
     @Override
     protected Token readFromDataSource(@Nonnull TokenID key) {
+        if (key.tokenNum() < 0) {
+            return null;
+        }
+
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var entity = commonEntityAccessor.get(key, timestamp).orElse(null);
 

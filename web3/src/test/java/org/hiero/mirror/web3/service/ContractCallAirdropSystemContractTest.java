@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -106,6 +107,29 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // Then
         verifyContractCall(functionCall, contract);
+    }
+
+    @Test
+    void airdropTokenWithInvalidTokenAddress() {
+        // Given
+        final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+        final var sender = accountEntityPersist();
+        final var receiver = persistAirdropReceiver(EntityType.ACCOUNT, e -> {});
+
+        final var tokenId = fungibleTokenSetup(sender);
+        tokenAccountPersist(tokenId, receiver.getId());
+        final var invalidTokenAddress = "0xa7d9ddbe1f17865597fbd27ec712455208b6b76d";
+
+        // When
+        final var functionCall = contract.send_tokenAirdrop(
+                invalidTokenAddress,
+                getAddressFromEntity(sender),
+                toAddress(receiver).toHexString(),
+                DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                DEFAULT_TINYBAR_VALUE);
+
+        // Then
+        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
     }
 
     @ParameterizedTest(name = "Airdrop non-fungible token to a(an) {0} that is already associated to it")
