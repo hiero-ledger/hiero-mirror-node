@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
 
 normalizeGceSnapshotName() {
   local s="$1" max=63
