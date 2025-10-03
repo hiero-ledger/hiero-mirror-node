@@ -51,6 +51,8 @@ import org.hiero.mirror.test.e2e.acceptance.client.TopicClient;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
+import org.hiero.mirror.test.e2e.acceptance.util.env.EnvVarWriter;
+import org.hiero.mirror.test.e2e.acceptance.util.env.K6EnvProperties;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 
@@ -69,6 +71,7 @@ public class TopicFeature extends AbstractFeature {
     private final CommonProperties commonProperties;
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
+    private final EnvVarWriter envVarWriter;
 
     private int messageSubscribeCount;
     private long latency;
@@ -112,6 +115,7 @@ public class TopicFeature extends AbstractFeature {
         fungibleToken = fungibleTokenResponse.tokenId();
         networkTransactionResponse = fungibleTokenResponse.response();
         privateKey = PrivateKey.generateED25519();
+        envVarWriter.appendParameter(K6EnvProperties.TOKEN_ADDRESS, fungibleToken.toEvmAddress());
     }
 
     @Given("I successfully create a new topic with fixed HTS and HBAR fee")

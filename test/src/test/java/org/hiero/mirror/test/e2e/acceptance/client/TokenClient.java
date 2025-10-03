@@ -71,6 +71,11 @@ public class TokenClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
+        if (Boolean.parseBoolean(System.getenv("CI"))) {
+            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
+            log.warn("Acceptance tests running in CI -> skip cleanup.");
+            return;
+        }
         var admin = sdkClient.getExpandedOperatorAccountId();
         log.info("Deleting {} tokens and dissociating {} token relationships", tokenIds.size(), associations.size());
         deleteAll(tokenIds, tokenId -> delete(admin, tokenId));
