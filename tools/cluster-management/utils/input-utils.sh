@@ -70,8 +70,8 @@ function promptSnapshotId() {
   gcloud compute snapshots list \
     --project "${GCP_SNAPSHOT_PROJECT}" \
     --format="table(name, diskSizeGb, sourceDisk, description, creationTimestamp)" \
-    --filter="name~.*[0-9]{10,}$" \
-    --sort-by="~creationTimestamp"
+    --filter="name~.*[0-9]{10,}\$" \
+    --sort-by="~creationTimestamp"  >& 2
 
   local snapshotId
   snapshotId="$(readUserInput "Enter snapshot id (the epoch suffix of the snapshot group): ")"

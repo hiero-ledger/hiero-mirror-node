@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
 
 ONE_GI_BYTES=1073741824
 EPOCH_SECONDS=$(date +%s)

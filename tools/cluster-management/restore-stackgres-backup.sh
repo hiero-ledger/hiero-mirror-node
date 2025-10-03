@@ -4,7 +4,7 @@
 
 set -euox pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
 
 BACKUP_TO_RESTORE=
 CLUSTER=

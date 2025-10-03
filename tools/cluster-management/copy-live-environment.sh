@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
-source ./utils.sh
-source ./input-utils.sh
-source ./snapshot-utils.sh
+source ./utils/utils.sh
+source ./utils/input-utils.sh
+source ./utils/snapshot-utils.sh
 
 CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"

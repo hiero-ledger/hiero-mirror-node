@@ -13,7 +13,7 @@ Need to copy live environment with zero downtime on source
   snapshot. You can't decrease the size of a pvc. If needed, you can delete the existing cluster in the `target cluster`
   and redeploy the `hedera-mirror` chart with the default disk sizes.
 - If you have multiple Citus clusters in the `target cluster`, you will need to restore all of them
-- All bash commands assume your working directory is `docs/runbook/scripts`
+- All bash commands assume your working directory is `tools/cluster-management`
 - Only a single citus cluster is installed per namespace
 
 ## Steps

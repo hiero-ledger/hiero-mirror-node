@@ -12,6 +12,12 @@ function backgroundErrorHandler() {
   exit 1
 }
 
+mask() {
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "$1" ]]; then
+    printf '::add-mask::%s\n' "$1"
+  fi
+}
+
 trap backgroundErrorHandler INT
 
 function watchInBackground() {
@@ -652,6 +658,8 @@ function updateStackgresCreds() {
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
     ksd |
     jq -r '.stringData')
+  mask "${sgPasswords}"
+
   local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]')
   local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]')
   local replicationUsername=$(echo "${sgPasswords}" | jq -r '.["replication-username"]')
@@ -659,10 +667,19 @@ function updateStackgresCreds() {
   local authenticatorUsername=$(echo "${sgPasswords}" | jq -r '.["authenticator-username"]')
   local authenticatorPassword=$(echo "${sgPasswords}" | jq -r '.["authenticator-password"]')
 
+  mask "${superuserUsername}"
+  mask "${superuserPassword}"
+  mask "${replicationUsername}"
+  mask "${replicationPassword}"
+  mask "${authenticatorUsername}"
+  mask "${authenticatorPassword}"
+
   # Mirror Node Passwords
   local mirrorNodePasswords=$(kubectl get secret -n "${namespace}" "${HELM_RELEASE_NAME}-passwords" -o json |
     ksd |
     jq -r '.stringData')
+  mask "${mirrorNodePasswords}"
+
   local graphqlUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_USERNAME')
   local graphqlPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_PASSWORD')
   local grpcUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRPC_DB_USERNAME')
@@ -680,6 +697,24 @@ function updateStackgresCreds() {
   local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME')
   local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD')
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME')
+
+  mask "${graphqlUsername}"
+  mask "${graphqlPassword}"
+  mask "${grpcUsername}"
+  mask "${grpcPassword}"
+  mask "${importerUsername}"
+  mask "${importerPassword}"
+  mask "${ownerUsername}"
+  mask "${ownerPassword}"
+  mask "${restUsername}"
+  mask "${restPassword}"
+  mask "${restJavaUsername}"
+  mask "${restJavaPassword}"
+  mask "${rosettaUsername}"
+  mask "${rosettaPassword}"
+  mask "${web3Username}"
+  mask "${web3Password}"
+
   local sql=$(
     cat <<EOF
 alter user ${superuserUsername} with password '${superuserPassword}';
@@ -714,7 +749,11 @@ EOF
   for pod in $(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name); do
     waitUntilOutOfRecovery "${namespace}" "${pod}"
     log "Updating passwords and pg_dist_authinfo for ${pod}"
-    echo "$sql" | kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- psql -U "${superuserUsername}" -f -
+    if ! kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- \
+       psql -v ON_ERROR_STOP=1 -U "${superuserUsername}" -f - <<< "${sql}"; then
+       log "Failed to update passwords in pod ${pod}"
+       exit 1
+     fi
   done
 }
 
@@ -722,7 +761,7 @@ function pauseClustersIfNeeded() {
   if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
     for namespace in "${CITUS_NAMESPACES[@]}"; do
       unrouteTraffic "${namespace}"
-      pauseCluster "${namespace}"
+      pauseCitus "${namespace}"
     done
   fi
 }
