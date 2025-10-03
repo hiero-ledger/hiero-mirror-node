@@ -894,13 +894,15 @@ public class BlockTransactionBuilder {
     }
 
     public static class Builder {
+
+        private BlockTransaction previous;
         private final SignedTransaction signedTransaction;
         private final byte[] signedTransactionBytes;
-        private final Map<TransactionCase, TransactionOutput> transactionOutputs;
-        private final TransactionResult.Builder transactionResultBuilder;
         private final List<StateChanges> stateChanges;
         private final List<TraceData> traceDataList;
-        private BlockTransaction previous;
+        private final Map<TransactionCase, TransactionOutput> transactionOutputs;
+        private final TransactionResult.Builder transactionResultBuilder;
+        private BlockTransaction trigger;
 
         @SneakyThrows
         @SuppressWarnings({"java:S1640", "deprecation"})
@@ -941,6 +943,7 @@ public class BlockTransactionBuilder {
                     .transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
                     .transactionResult(transactionResultBuilder.build())
                     .transactionOutputs(transactionOutputs)
+                    .trigger(trigger)
                     .build();
         }
 
@@ -966,6 +969,11 @@ public class BlockTransactionBuilder {
 
         public Builder transactionResult(Consumer<TransactionResult.Builder> consumer) {
             consumer.accept(transactionResultBuilder);
+            return this;
+        }
+
+        public Builder trigger(BlockTransaction trigger) {
+            this.trigger = trigger;
             return this;
         }
     }
