@@ -7,6 +7,7 @@ import static org.hiero.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSIO
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTransformer {
@@ -26,7 +27,7 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTr
 
         var topicMessage = blockTransaction.getTopicMessage();
         if (topicMessage == null) {
-            log.warn(
+            Utility.handleRecoverableError(
                     "Missing topic message runningHash and sequence number at {}",
                     blockTransaction.getConsensusTimestamp());
             return;

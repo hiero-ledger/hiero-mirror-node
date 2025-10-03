@@ -7,7 +7,6 @@ import static org.hiero.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSIO
 
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import jakarta.inject.Named;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
@@ -16,8 +15,8 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.util.Utility;
 
-@CustomLog
 @Named
 @RequiredArgsConstructor
 final class ConsensusSubmitMessageTransactionHandler extends AbstractTransactionHandler {
@@ -55,17 +54,16 @@ final class ConsensusSubmitMessageTransactionHandler extends AbstractTransaction
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getConsensusSubmitMessage();
-        var transactionRecord = recordItem.getTransactionRecord();
-        var receipt = transactionRecord.getReceipt();
+        var receipt = recordItem.getTransactionRecord().getReceipt();
         if (recordItem.isBlockstream() && receipt.getTopicRunningHash().isEmpty()) {
-            log.warn(
+            Utility.handleRecoverableError(
                     "Skip topic message from blockstream due to missing runningHash at {}",
                     recordItem.getConsensusTimestamp());
             return;
         }
 
         var topicMessage = new TopicMessage();
+        var transactionBody = recordItem.getTransactionBody().getConsensusSubmitMessage();
 
         // Only persist the value if it is not the default
         if (receipt.getTopicRunningHashVersion() != DEFAULT_RUNNING_HASH_VERSION) {
