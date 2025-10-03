@@ -26,7 +26,9 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTr
 
         var topicMessage = blockTransaction.getTopicMessage();
         if (topicMessage == null) {
-            log.warn("Missing topic message runningHash and sequence at {}", blockTransaction.getConsensusTimestamp());
+            log.warn(
+                    "Missing topic message runningHash and sequence number at {}",
+                    blockTransaction.getConsensusTimestamp());
             return;
         }
 
