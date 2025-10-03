@@ -18,18 +18,20 @@ final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTr
             return;
         }
 
-        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
-        var topicMessage = blockTransaction
-                .getStateChangeContext()
-                .getTopicMessage(blockTransactionTransformation
-                        .getTransactionBody()
-                        .getConsensusSubmitMessage()
-                        .getTopicID())
-                .orElseThrow();
-        recordBuilder
+        var receiptBuilder = blockTransactionTransformation
+                .recordItemBuilder()
+                .transactionRecordBuilder()
                 .getReceiptBuilder()
+                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION);
+
+        var topicMessage = blockTransaction.getTopicMessage();
+        if (topicMessage == null) {
+            log.warn("Missing topic message runningHash and sequence at {}", blockTransaction.getConsensusTimestamp());
+            return;
+        }
+
+        receiptBuilder
                 .setTopicRunningHash(DomainUtils.fromBytes(topicMessage.getRunningHash()))
-                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION)
                 .setTopicSequenceNumber(topicMessage.getSequenceNumber());
     }
 
