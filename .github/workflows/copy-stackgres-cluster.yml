@@ -3,8 +3,6 @@
 name: Copy StackGres Citus Cluster
 
 on:
-  push:
-    branches: [jtn-copy-live-env]
   workflow_dispatch:
     inputs:
       source_cluster_location:
@@ -47,15 +45,14 @@ permissions:
 jobs:
   run-copy:
     name: Copy Citus from SOURCE ➜ TARGET
-    runs-on: ubuntu-22.04
+    runs-on: hiero-mirror-node-linux-medium
     env:
-      CONFIG_PATH: ${{ vars.COPY_ENV_CONFIG_PATH || '.github/workflows/copy-env2.config.json' }}
-      GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }} #  ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
-      GCP_K8S_SOURCE_CLUSTER_NAME: "mainnet-staging-na" #${{ inputs.source_cluster_name }}
-      GCP_K8S_SOURCE_CLUSTER_REGION: "us-central1" #${{ inputs.source_cluster_location }}
-      GCP_K8S_TARGET_CLUSTER_NAME: "large-entity-testing" #${{ inputs.target_cluster_name }}
-      GCP_K8S_TARGET_CLUSTER_REGION: "us-central1" #${{ inputs.target_cluster_location }}
-      GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }} #  ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
+      GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
+      GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
+      GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
+      GCP_K8S_TARGET_CLUSTER_NAME: ${{ inputs.target_cluster_name }}
+      GCP_K8S_TARGET_CLUSTER_REGION: ${{ inputs.target_cluster_location }}
+      GCP_TARGET_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
       PINNED_KUBECONFIG: ${{ github.workspace }}/.kube/config
@@ -132,24 +129,12 @@ jobs:
           mv "${PINNED_KUBECONFIG}.merged" "$PINNED_KUBECONFIG"
           echo "KUBECONFIG=$PINNED_KUBECONFIG" >> "$GITHUB_ENV"
 
-      - name: Show contexts (debug)
-        shell: bash
-        run: |
-          kubectl config get-contexts
-          echo "K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT}"
-          echo "K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT}"
-
-          echo "Source cluster pods:"
-          kubectl --context "${K8S_SOURCE_CLUSTER_CONTEXT}" get pods --all-namespaces
-          echo "Target cluster pods:"
-          kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get pods --all-namespaces
-
       - name: Execute copy script
         shell: bash
         env:
           AUTO_CONFIRM: "true"
-          WAIT_FOR_K6: "false" #${{ inputs.teardown_target && 'true' || 'false' }}
-          DEFAULT_POOL_NAME: "default-pool" #${{ inputs.target_default_pool }}
+          WAIT_FOR_K6: ${{ inputs.teardown_target && 'true' || 'false' }}
+          DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
         run: |
           set -Eeuo pipefail
           echo "Running: script to copy stackgres cluster"
@@ -164,7 +149,6 @@ jobs:
           echo "KUBECONFIG=${KUBECONFIG:-<unset>}"
           echo "PINNED_KUBECONFIG=${PINNED_KUBECONFIG:-<unset>}"
 
-          # Remove files if they exist
           for f in "${PINNED_KUBECONFIG:-}" "${KUBECONFIG:-}"; do
             if [[ -n "$f" && -f "$f" ]]; then
               rm -f "$f"
@@ -172,7 +156,6 @@ jobs:
             fi
           done
 
-          # Best-effort: remove the .kube dir if empty
           if [[ -n "${PINNED_KUBECONFIG:-}" ]]; then
             rmdir "$(dirname "$PINNED_KUBECONFIG")" 2>/dev/null || true
           fi
