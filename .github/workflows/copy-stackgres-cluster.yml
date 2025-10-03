@@ -11,22 +11,20 @@ on:
       source_cluster_name:
         description: "Source: GKE cluster name"
         required: true
+      source_project:
+        description: "Source GCP project"
+        type: choice
+        options: [prod, nonprod]
+        default: nonprod
+        required: true
       target_cluster_location:
         description: "Target: GKE location (zone or region)"
         required: true
       target_cluster_name:
         description: "Target: GKE cluster name"
         required: true
-      teardown_target:
-        description: "Tear down target cluster after k6 tests run"
-        required: true
-        default: true
-        type: boolean
-      source_project:
-        description: "Source GCP project"
-        type: choice
-        options: [prod, nonprod]
-        default: nonprod
+      target_default_pool:
+        description: "Target default pool name"
         required: true
       target_project:
         description: "Target GCP project"
@@ -34,6 +32,11 @@ on:
         options: [prod, nonprod]
         default: nonprod
         required: true
+      teardown_target:
+        description: "Tear down target cluster after k6 tests run"
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   id-token: write
@@ -99,6 +102,7 @@ jobs:
           context_name: ${{ env.K8S_SOURCE_CLUSTER_CONTEXT }}
           location: ${{ env.GCP_K8S_SOURCE_CLUSTER_REGION }}
           project_id: ${{ env.GCP_SNAPSHOT_PROJECT }}
+          use_auth_provider: true
 
       - name: Add source context to pinned kube config
         shell: bash
@@ -114,6 +118,7 @@ jobs:
           context_name: ${{ env.K8S_TARGET_CLUSTER_CONTEXT }}
           location: ${{ env.GCP_K8S_TARGET_CLUSTER_REGION }}
           project_id: ${{ env.GCP_TARGET_PROJECT }}
+          use_auth_provider: true
 
       - name: Add target context to pinned kube config
         shell: bash
@@ -143,6 +148,7 @@ jobs:
         env:
           AUTO_CONFIRM: "true"
           WAIT_FOR_K6: "false" #${{ inputs.teardown_target && 'true' || 'false' }}
+          DEFAULT_POOL_NAME: "default-pool" #${{ inputs.target_default_pool }}
         run: |
           set -Eeuo pipefail
           echo "Running: script to copy stackgres cluster"
