@@ -232,9 +232,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         private BlockTransaction lastUserTransactionInBatch;
 
         @NonFinal
-        private BlockTransaction lastInnerTransaction; // last inner transaction in a batch
-
-        @NonFinal
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
@@ -248,11 +245,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         SignedTransactionInfo getSignedTransaction() {
             var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
             if (blockItemProto != null) {
-                return new SignedTransactionInfo(false, DomainUtils.toBytes(blockItemProto.getSignedTransaction()));
+                return new SignedTransactionInfo(DomainUtils.toBytes(blockItemProto.getSignedTransaction()), false);
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                return new SignedTransactionInfo(true, DomainUtils.toBytes(batchBody.getTransactions(batchIndex++)));
+                return new SignedTransactionInfo(DomainUtils.toBytes(batchBody.getTransactions(batchIndex++)), true);
             }
 
             return null;
@@ -305,5 +302,5 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         }
     }
 
-    private record SignedTransactionInfo(boolean userTransactionInBatch, byte[] signedTransaction) {}
+    private record SignedTransactionInfo(byte[] signedTransaction, boolean userTransactionInBatch) {}
 }

@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.domain;
 
 import com.google.common.base.Stopwatch;
-import com.google.protobuf.ByteString;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hedera.services.stream.proto.ContractBytecode;
@@ -43,6 +42,7 @@ import org.hiero.mirror.importer.util.Utility;
 @RequiredArgsConstructor
 public class ContractResultServiceImpl implements ContractResultService {
 
+    private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
     private final EntityListener entityListener;
@@ -381,7 +381,7 @@ public class ContractResultServiceImpl implements ContractResultService {
         var stopwatch = Stopwatch.createStarted();
 
         Long topLevelActionSidecarGasUsed = null;
-        ByteString payloadBytes = null;
+        byte[] payloadBytes = null;
         boolean isContractCreation = false;
 
         for (final var sidecarRecord : sidecarRecords) {
@@ -405,7 +405,7 @@ public class ContractResultServiceImpl implements ContractResultService {
                 if (migration) {
                     contractBytecodes.add(sidecarRecord.getBytecode());
                 } else {
-                    payloadBytes = sidecarRecord.getBytecode().getInitcode();
+                    payloadBytes = contractInitcodeService.get(sidecarRecord.getBytecode(), recordItem);
                     isContractCreation = true;
                 }
             }
@@ -423,8 +423,7 @@ public class ContractResultServiceImpl implements ContractResultService {
                     stopwatch);
         }
 
-        return new SidecarProcessingResult(
-                DomainUtils.toBytes(payloadBytes), isContractCreation, topLevelActionSidecarGasUsed);
+        return new SidecarProcessingResult(payloadBytes, isContractCreation, topLevelActionSidecarGasUsed);
     }
 
     /**

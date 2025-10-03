@@ -37,6 +37,11 @@ public class FileData implements Persistable<Long> {
     }
 
     @JsonIgnore
+    public int getDataSize() {
+        return fileData == null ? 0 : fileData.length;
+    }
+
+    @JsonIgnore
     @Override
     public Long getId() {
         return consensusTimestamp;

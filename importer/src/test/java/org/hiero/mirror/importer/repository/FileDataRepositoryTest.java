@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 
 import com.google.common.primitives.Bytes;
-import jakarta.annotation.Resource;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -16,10 +16,10 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class FileDataRepositoryTest extends ImporterIntegrationTest {
+@RequiredArgsConstructor
+final class FileDataRepositoryTest extends ImporterIntegrationTest {
 
-    @Resource
-    private FileDataRepository fileDataRepository;
+    private final FileDataRepository fileDataRepository;
 
     private long addressBook101;
     private long addressBook102;
@@ -120,7 +120,7 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
                 .consensusTimestamp(create.getConsensusTimestamp())
                 .entityId(create.getEntityId())
                 .fileData(create.getFileData())
-                .transactionType(null)
+                .transactionType(TransactionType.FILECREATE.getProtoId())
                 .build();
         softly.assertThat(fileDataRepository.getFileAtTimestamp(entityId, create.getConsensusTimestamp()))
                 .contains(expected);
@@ -157,6 +157,7 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
                 .contains(expected);
         expected.setConsensusTimestamp(updateContent.getConsensusTimestamp());
         expected.setFileData(updateContent.getFileData());
+        expected.setTransactionType(TransactionType.FILEUPDATE.getProtoId());
         softly.assertThat(fileDataRepository.getFileAtTimestamp(entityId, updateContent.getConsensusTimestamp()))
                 .contains(expected);
     }

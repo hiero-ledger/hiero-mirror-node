@@ -7,5 +7,7 @@ import org.hiero.mirror.importer.exception.ImporterException;
 
 public interface StreamFileListener<T extends StreamFile<?>> {
 
-    void onEnd(T streamFile) throws ImporterException;
+    default void onEnd(T streamFile) throws ImporterException {}
+
+    default void onStart(T streamFile) {}
 }

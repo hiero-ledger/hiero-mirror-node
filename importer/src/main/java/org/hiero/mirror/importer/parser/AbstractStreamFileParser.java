@@ -87,6 +87,7 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                 return;
             }
 
+            streamFileListener.onStart(streamFile);
             doParse(streamFile);
             doFlush(streamFile);
 

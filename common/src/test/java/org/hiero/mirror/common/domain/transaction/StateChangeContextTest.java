@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -36,6 +37,7 @@ import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
+import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.File;
 import com.hederahashgraph.api.proto.java.NftID;
@@ -110,6 +112,28 @@ final class StateChangeContextTest {
                 .returns(contractId2.getAccountNum(), ContractID::getContractNum)
                 .returns(false, ContractID::hasEvmAddress);
         assertThat(context.getContractId(evmAddress())).isEmpty();
+    }
+
+    @Test
+    void contractBytecode() {
+        // given
+        var contractId = getContractId();
+        var bytecode = bytes(128);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setBytecodeValue(Bytecode.newBuilder().setCode(bytecode)))))
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractBytecode(contractId)).contains(bytecode);
+        assertThat(context.getContractBytecode(getContractId())).isEmpty();
     }
 
     @Test

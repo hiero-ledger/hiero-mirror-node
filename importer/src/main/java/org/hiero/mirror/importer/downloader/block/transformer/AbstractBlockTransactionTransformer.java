@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.hiero.mirror.common.util.DomainUtils.normalize;
+import static org.hiero.mirror.importer.downloader.block.transformer.Utils.asInitcode;
 import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomFor;
 import static org.hiero.mirror.importer.downloader.block.transformer.Utils.bloomForAll;
 
@@ -13,9 +14,11 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.ExecutedInitcode;
 import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActions;
+import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.ContractStateChange;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.StorageChange;
@@ -131,7 +134,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         transformEvmTransactionLogs(contractResultBuilder, evmTraceData.getLogsList());
-        transformSidecarRecords(blockTransaction, evmTraceData, recordItemBuilder);
+        transformSidecarRecords(
+                blockTransaction, contractResultBuilder.getContractID(), evmTraceData, recordItemBuilder);
     }
 
     private void transformSmartContractResult(BlockTransactionTransformation transformation) {
@@ -225,6 +229,41 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                         .build())
                 .build();
         sidecarRecords.add(contractActionSidecarRecord);
+    }
+
+    private void transformContractBytecode(
+            BlockTransaction blockTransaction,
+            Timestamp consnsusTimestamp,
+            ContractID contractId,
+            ExecutedInitcode executedInitcode,
+            List<TransactionSidecarRecord> sidecarRecords) {
+        if (!blockTransaction.getTransactionBody().hasContractCreateInstance()) {
+            return;
+        }
+
+        blockTransaction.getStateChangeContext().getContractBytecode(contractId).ifPresent(runtimeBytecode -> {
+            var contractBytecode =
+                    ContractBytecode.newBuilder().setContractId(contractId).setRuntimeBytecode(runtimeBytecode);
+            if (!executedInitcode.equals(ExecutedInitcode.getDefaultInstance())) {
+                var initcodeCase = executedInitcode.getInitcodeCase();
+                switch (initcodeCase) {
+                    case EXPLICIT_INITCODE -> contractBytecode.setInitcode(executedInitcode.getExplicitInitcode());
+                    case INITCODE_BOOKENDS ->
+                        contractBytecode.setInitcode(
+                                asInitcode(executedInitcode.getInitcodeBookends(), runtimeBytecode));
+                    default ->
+                        log.warn(
+                                "Unknown initcode case {} at {}",
+                                initcodeCase,
+                                blockTransaction.getConsensusTimestamp());
+                }
+            }
+
+            sidecarRecords.add(TransactionSidecarRecord.newBuilder()
+                    .setConsensusTimestamp(consnsusTimestamp)
+                    .setBytecode(contractBytecode)
+                    .build());
+        });
     }
 
     private void transformContractSlotUsage(
@@ -329,11 +368,15 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
     private void transformSidecarRecords(
             BlockTransaction blockTransaction,
+            ContractID contractId,
             EvmTraceData evmTraceData,
             RecordItem.RecordItemBuilder recordItemBuilder) {
         var consensusTimestamp = blockTransaction.getTransactionResult().getConsensusTimestamp();
         var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
+
         transformContractActions(consensusTimestamp, evmTraceData.getContractActionsList(), sidecarRecords);
+        transformContractBytecode(
+                blockTransaction, consensusTimestamp, contractId, evmTraceData.getExecutedInitcode(), sidecarRecords);
         transformContractStateChanges(blockTransaction, evmTraceData.getContractSlotUsagesList(), sidecarRecords);
 
         recordItemBuilder.sidecarRecords(sidecarRecords);

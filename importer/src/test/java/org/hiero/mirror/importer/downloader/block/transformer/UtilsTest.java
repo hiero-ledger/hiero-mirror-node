@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hederahashgraph.api.proto.java.ContractID;
 import java.util.BitSet;
 import java.util.Collections;
@@ -38,6 +39,24 @@ final class UtilsTest {
                 .setContractNum(num)
                 .build();
         assertThat(Utils.asAddress(contractId).toHexString()).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            ab, ef, deadbeef, abdeadbeefef
+            '', ef, deadbeef, deadbeefef
+            ab, '', deadbeef, abdeadbeef
+            '', '', deadbeef, deadbeef
+            """)
+    void asInitcode(String deployBytecode, String metaBytecode, String runtimeBytecode, String expected) {
+        var initcodeBookends = InitcodeBookends.newBuilder()
+                .setDeployBytecode(ByteString.fromHex(deployBytecode))
+                .setMetadataBytecode(ByteString.fromHex(metaBytecode))
+                .build();
+        assertThat(Utils.asInitcode(initcodeBookends, ByteString.fromHex(runtimeBytecode)))
+                .isEqualTo(ByteString.fromHex(expected));
     }
 
     @ParameterizedTest
