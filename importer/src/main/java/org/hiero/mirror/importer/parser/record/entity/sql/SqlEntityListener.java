@@ -638,9 +638,22 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
         current.setCreatedTimestamp(previous.getCreatedTimestamp());
 
+        if (current.getAccountId() == null) {
+            current.setAccountId(previous.getAccountId());
+        }
+
         if (current.getAdminKey() == null) {
             current.setAdminKey(previous.getAdminKey());
         }
+
+        if (current.getDeclineReward() == null) {
+            current.setDeclineReward(previous.getDeclineReward());
+        }
+
+        if (current.getGrpcProxyEndpoint() == null) {
+            current.setGrpcProxyEndpoint(previous.getGrpcProxyEndpoint());
+        }
+
         return current;
     }
 

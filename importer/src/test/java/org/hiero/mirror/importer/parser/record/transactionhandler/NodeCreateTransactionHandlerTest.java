@@ -5,10 +5,13 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.NodeCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
@@ -18,7 +21,7 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new NodeCreateTransactionHandler(entityListener);
+        return new NodeCreateTransactionHandler(entityListener, entityIdService);
     }
 
     @Override
@@ -39,7 +42,10 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         // given
         var recordItem = recordItemBuilder.nodeCreate().build();
         var transaction = domainBuilder.transaction().get();
-        var endpoint = recordItem.getTransactionBody().getNodeCreate().getGrpcProxyEndpoint();
+        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
+        var endpoint = nodeCreate.getGrpcProxyEndpoint();
+        var accountId = EntityId.of(nodeCreate.getAccountId());
+        when(entityIdService.lookup(nodeCreate.getAccountId())).thenReturn(Optional.of(accountId));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -51,9 +57,9 @@ class NodeCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         assertThat(transaction.getTransactionBytes()).containsExactly(transactionBytes);
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
-        var nodeCreate = recordItem.getTransactionBody().getNodeCreate();
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
+                .returns(accountId, Node::getAccountId)
                 .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
                 .returns(recordItem.getTransactionRecord().getReceipt().getNodeId(), Node::getNodeId)
                 .returns(nodeCreate.getAdminKey().toByteArray(), Node::getAdminKey)
