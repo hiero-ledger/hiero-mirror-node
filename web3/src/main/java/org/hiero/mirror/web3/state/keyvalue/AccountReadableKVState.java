@@ -63,25 +63,25 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     @Override
     protected Account readFromDataSource(@Nonnull AccountID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
-        final var acc = commonEntityAccessor
+        final var account = commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() != TOKEN)
                 .map(entity -> {
-                    final var account = accountFromEntity(entity, timestamp);
+                    final var acc = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
-                    if (account.alias().length() > 0) {
-                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
+                    if (acc.alias().length() > 0) {
+                        aliasedAccountCacheManager.putAccountAlias(acc.alias(), key);
                     }
-                    return account;
+                    return acc;
                 })
                 .orElse(null);
         // In case a system account doesn't exist in a historical contract call
         // return a dummy account to avoid errors like
         // "Non-zero net hbar change when handling body"
-        if (acc == null && isSystemAccount(key)) {
-            return Account.newBuilder().accountId(key).tinybarBalance(1000000).build();
+        if (account == null && isSystemAccount(key)) {
+            return Account.newBuilder().accountId(key).tinybarBalance(0).build();
         }
-        return acc;
+        return account;
     }
 
     private boolean isSystemAccount(AccountID key) {
