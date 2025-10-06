@@ -74,6 +74,10 @@ public class TokenClient extends AbstractNetworkClient {
         if (Boolean.parseBoolean(System.getenv("CI"))) {
             // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
             log.warn("Acceptance tests running in CI -> skip cleanup.");
+            for (var tokenName : tokenMap.keySet()) {
+                log.info("Skipping cleanup of token [" + tokenName.getSymbol() + "] at address "
+                        + tokenMap.get(tokenName).tokenId().toEvmAddress());
+            }
             return;
         }
         var admin = sdkClient.getExpandedOperatorAccountId();

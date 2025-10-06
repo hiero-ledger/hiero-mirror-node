@@ -37,7 +37,11 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMet
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.STATE_UPDATE_N_TIMES_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.UPDATE_COUNTER_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,8 +67,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
-import org.hiero.mirror.test.e2e.acceptance.util.env.EnvVarWriter;
-import org.hiero.mirror.test.e2e.acceptance.util.env.K6EnvProperties;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.web.client.HttpClientErrorException;
@@ -79,7 +81,6 @@ public class CallFeature extends AbstractFeature {
     private final MirrorNodeClient mirrorClient;
     private final TokenClient tokenClient;
     private final Web3Properties web3Properties;
-    private final EnvVarWriter envVarWriter;
     private DeployedContract deployedErcTestContract;
     private DeployedContract deployedEstimatePrecompileContract;
     private String ercContractAddress;
@@ -124,7 +125,6 @@ public class CallFeature extends AbstractFeature {
     public void createNewERCtestContract() {
         deployedErcTestContract = getContract(ERC);
         ercContractAddress = deployedErcTestContract.contractId().toEvmAddress();
-        envVarWriter.appendParameter(K6EnvProperties.ERC_CONTRACT_ADDRESS, ercContractAddress);
     }
 
     @Given("I successfully create Precompile contract")

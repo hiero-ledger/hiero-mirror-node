@@ -48,7 +48,6 @@ jobs:
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
       TAG: pr-changes
-      CI: true
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
@@ -124,6 +123,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              CI: "true"
             enabled: true
           web3:
             env:
@@ -141,6 +141,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              CI: "true"
             enabled: true
           web3:
             env:
@@ -153,8 +154,48 @@ jobs:
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        id: acceptance
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+        run: |
+          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m | tee output_log.txt
+          mv output_log.txt ${{ github.workspace }}/output_log.txt
+
+      - name: Parse acceptance tests logs and set k6 environment variables
+        id: log-variables
+        run: |
+          LOG_FILE="${{ github.workspace }}/output_log.txt"
+          ERC_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract [ERC]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '\n\r')
+
+          echo "ERC_CONTRACT_ADDRESS=$ERC_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
+
+          DEFAULT_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract [PARENT]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '\n\r')
+
+          echo "DEFAULT_CONTRACT_ADDRESS=$DEFAULT_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
+
+          ESTIMATE_PRECOMPILE_CONTRACT=$(grep "Skipping cleanup of contract [ESTIMATE_PRECOMPILE]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '\n\r')
+
+          echo "ESTIMATE_PRECOMPILE=$ESTIMATE_PRECOMPILE" >> $GITHUB_OUTPUT
+
+          NON_FUNGIBLE_TOKEN_ADDRESS=$(grep "Skipping cleanup of token [non_fungible]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '\n\r')
+
+          echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS" >> $GITHUB_OUTPUT
+
+          TOKEN_ADDRESS=$(grep "Skipping cleanup of token [fungible]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '\n\r')
+
+          echo "TOKEN_ADDRESS=$TOKEN_ADDRESS" >> $GITHUB_OUTPUT
 
       - name: Install k6
         uses: grafana/setup-k6-action@v1
@@ -183,13 +224,12 @@ jobs:
           RUN_MODIFICATION_TESTS: false
           RUN_WITH_VARIABLES: true
           SERIAL_NUMBER: 0000000000000000000000000000000000000000000000000000000000000001
-          DEFAULT_CONTRACT_ADDRESS: ${{ steps.acceptance.outputs.DEFAULT_CONTRACT_ADDRESS }}
-          ERC_CONTRACT_ADDRESS: ${{ steps.acceptance.outputs.ERC_CONTRACT_ADDRESS }}
-          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.acceptance.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
+          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
+          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
+          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
           HTS_CONTRACT_ADDRESS: 0000000000000000000000000000000000000167
-          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
-          NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS: ${{ steps.acceptance.outputs.NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS }}
-          TOKEN_ADDRESS: ${{ steps.acceptance.outputs.TOKEN_ADDRESS }}
+          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
+          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
         with:
           path: |
             ./tools/k6/src/web3/apis.js

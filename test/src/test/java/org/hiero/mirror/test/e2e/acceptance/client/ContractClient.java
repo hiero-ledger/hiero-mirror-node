@@ -17,9 +17,9 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.TransactionRecord;
 import jakarta.inject.Named;
-import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -28,7 +28,7 @@ import org.springframework.retry.support.RetryTemplate;
 @Named
 public class ContractClient extends AbstractNetworkClient {
 
-    private final Collection<ContractId> contractIds = new CopyOnWriteArrayList<>();
+    private final Map<String, ContractId> contractIds = new ConcurrentHashMap<>();
 
     public ContractClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
         super(sdkClient, retryTemplate);
@@ -39,15 +39,23 @@ public class ContractClient extends AbstractNetworkClient {
         if (Boolean.parseBoolean(System.getenv("CI"))) {
             // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
             log.warn("Acceptance tests running in CI -> skip cleanup.");
+            for (var contractName : contractIds.keySet()) {
+                log.info("Skipping cleanup of contract [" + contractName + "] at address "
+                        + contractIds.get(contractName).toEvmAddress());
+            }
             return;
         }
         log.info("Deleting {} contracts", contractIds.size());
-        deleteAll(contractIds, id -> deleteContract(id, client.getOperatorAccountId(), null));
+        deleteAll(contractIds.values(), id -> deleteContract(id, client.getOperatorAccountId(), null));
     }
 
     public NetworkTransactionResponse createContract(
-            FileId fileId, long gas, Hbar payableAmount, ContractFunctionParameters contractFunctionParameters) {
-        var memo = getMemo("Create contract");
+            String contractName,
+            FileId fileId,
+            long gas,
+            Hbar payableAmount,
+            ContractFunctionParameters contractFunctionParameters) {
+        var memo = getMemo(String.format("Create contract %s", contractName));
         ContractCreateTransaction contractCreateTransaction = new ContractCreateTransaction()
                 .setAdminKey(sdkClient.getExpandedOperatorAccountId().getPublicKey())
                 .setBytecodeFileId(fileId)
@@ -69,7 +77,7 @@ public class ContractClient extends AbstractNetworkClient {
 
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
-        contractIds.add(contractId);
+        contractIds.put(contractName, contractId);
 
         return response;
     }
@@ -187,19 +195,6 @@ public class ContractClient extends AbstractNetworkClient {
         return functionResult;
     }
 
-    private void logContractFunctionResult(String functionName, ContractFunctionResult contractFunctionResult) {
-        if (contractFunctionResult == null) {
-            return;
-        }
-
-        log.trace(
-                "ContractFunctionResult for function {}, contractId: {}, gasUsed: {}, logCount: {}",
-                functionName,
-                contractFunctionResult.contractId,
-                contractFunctionResult.gasUsed,
-                contractFunctionResult.logs.size());
-    }
-
     @RequiredArgsConstructor
     public enum NodeNameEnum {
         CONSENSUS("consensus"),
@@ -222,4 +217,17 @@ public class ContractClient extends AbstractNetworkClient {
 
     public record ExecuteContractResult(
             ContractFunctionResult contractFunctionResult, NetworkTransactionResponse networkTransactionResponse) {}
+
+    private void logContractFunctionResult(String functionName, ContractFunctionResult contractFunctionResult) {
+        if (contractFunctionResult == null) {
+            return;
+        }
+
+        log.trace(
+                "ContractFunctionResult for function {}, contractId: {}, gasUsed: {}, logCount: {}",
+                functionName,
+                contractFunctionResult.contractId,
+                contractFunctionResult.gasUsed,
+                contractFunctionResult.logs.size());
+    }
 }

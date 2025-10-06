@@ -115,7 +115,14 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeatu
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_ACCOUNT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.WIPE_TOKEN_ACCOUNT;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.TokenTransferListBuilder;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.accountAmount;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddressArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nftAmount;
 
 import com.esaulpaugh.headlong.abi.Address;
 import com.esaulpaugh.headlong.abi.Tuple;
@@ -158,8 +165,6 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
-import org.hiero.mirror.test.e2e.acceptance.util.env.EnvVarWriter;
-import org.hiero.mirror.test.e2e.acceptance.util.env.K6EnvProperties;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -170,7 +175,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private final TokenClient tokenClient;
     private final AccountClient accountClient;
     private final Web3Properties web3Properties;
-    private final EnvVarWriter envVarWriter;
     private TokenId fungibleKycUnfrozenTokenId;
     private TokenId nonFungibleKycUnfrozenTokenId;
     private Address fungibleKycUnfrozenTokenAddress;
@@ -206,8 +210,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         secondReceiverAccountAddress = asAddress(secondReceiverAccount);
         receiverAccountAlias = receiverAccount.getPublicKey().toEvmAddress().toString();
         receiverAccountAliasAddress = asAddress(receiverAccountAlias);
-        envVarWriter.appendParameter(
-                K6EnvProperties.ESTIMATE_PRECOMPILE_CONTRACT, estimatePrecompileContractSolidityAddress);
     }
 
     @Given("I create erc test contract with 0 balance")
@@ -242,9 +244,6 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         nonFungibleTokenId = tokenClient.getToken(NFT).tokenId();
         nonFungibleKycUnfrozenTokenAddress = asAddress(nonFungibleKycUnfrozenTokenId);
         nonFungibleTokenAddress = asAddress(nonFungibleTokenId);
-        envVarWriter.appendParameter(K6EnvProperties.NON_FUNGIBLE_TOKEN_ADDRESS, nonFungibleTokenAddress.toString());
-        envVarWriter.appendParameter(
-                K6EnvProperties.NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS, nonFungibleTokenAddress.toString());
     }
 
     @Given("I mint and verify a new nft")
