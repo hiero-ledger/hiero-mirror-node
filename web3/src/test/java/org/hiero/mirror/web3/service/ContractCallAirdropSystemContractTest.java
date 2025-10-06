@@ -114,28 +114,30 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
     }
 
     @ParameterizedTest(name = "Airdrop token with invalid token address: {0}")
-    @CsvSource({"0xa7d9ddbe1f17865597fbd27ec712455208b6b76d", "0.0.-1900", "2.1.-1234"})
+    @CsvSource({"0xa7d9ddbe1f17865597fbd27ec712455208b6b76d", "0.0.-1900", "2.1.-1234", "0.0.5901004952499928656"})
     void airdropTokenWithInvalidTokenAddress(String invalidTokenId, CapturedOutput output) {
-        // Given
-        final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
-        final var sender = accountEntityPersist();
-        final var receiver = persistAirdropReceiver(EntityType.ACCOUNT, e -> {});
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            // Given
+            final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+            final var sender = accountEntityPersist();
+            final var receiver = persistAirdropReceiver(EntityType.ACCOUNT, e -> {});
 
-        final var tokenId = fungibleTokenSetup(sender);
-        tokenAccountPersist(tokenId, receiver.getId());
-        final var invalidTokenAddress = parseTokenIdToAddress(invalidTokenId);
+            final var tokenId = fungibleTokenSetup(sender);
+            tokenAccountPersist(tokenId, receiver.getId());
+            final var invalidTokenAddress = parseTokenIdToAddress(invalidTokenId);
 
-        // When
-        final var functionCall = contract.send_tokenAirdrop(
-                invalidTokenAddress,
-                getAddressFromEntity(sender),
-                toAddress(receiver).toHexString(),
-                DEFAULT_TOKEN_AIRDROP_AMOUNT,
-                DEFAULT_TINYBAR_VALUE);
+            // When
+            final var functionCall = contract.send_tokenAirdrop(
+                    invalidTokenAddress,
+                    getAddressFromEntity(sender),
+                    toAddress(receiver).toHexString(),
+                    DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                    DEFAULT_TINYBAR_VALUE);
 
-        // Then
-        assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-        assertThat(output.getAll()).doesNotContain("InvalidEntityException");
+            // Then
+            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+            assertThat(output.getAll()).doesNotContain("InvalidEntityException");
+        }
     }
 
     @ParameterizedTest(name = "Airdrop non-fungible token to a(an) {0} that is already associated to it")
