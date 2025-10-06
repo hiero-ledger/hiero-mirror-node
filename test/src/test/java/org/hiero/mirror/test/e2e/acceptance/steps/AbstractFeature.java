@@ -193,16 +193,6 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
                 node, false, from, getContract(contractResource), method, data, returnTupleType));
     }
 
-    protected ContractCallResponseWrapper estimateContract(String data, int actualGas, String contractAddress) {
-        var contractCallRequest = ModelBuilder.contractCallRequest(actualGas)
-                .data(data)
-                .estimate(true)
-                .from(contractClient.getClientAddress())
-                .to(contractAddress);
-
-        return ContractCallResponseWrapper.of(mirrorClient.contractsCall(contractCallRequest));
-    }
-
     protected String encodeData(ContractResource resource, SelectorInterface method, Object... args) {
         String json;
         try (var in = getResourceAsStream(resource.getPath())) {
@@ -249,6 +239,15 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
 
     public interface SelectorInterface {
         String getSelector();
+
+        FunctionType getFunctionType();
+
+        enum FunctionType {
+            VIEW,
+            PAYABLE,
+            PURE,
+            MUTABLE
+        }
     }
 
     public interface ContractMethodInterface extends SelectorInterface {

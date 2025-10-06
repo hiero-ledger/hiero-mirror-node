@@ -2,18 +2,18 @@
 
 import config from '../config';
 import {Cache} from '../cache';
-import {defaultBeforeAllTimeoutMillis} from './integrationUtils';
+import {slowStepTimeoutMillis} from './integrationUtils';
 
 let cache;
 
 beforeAll(async () => {
   config.redis.enabled = false;
   logger.info('Redis disabled');
-}, defaultBeforeAllTimeoutMillis);
+}, slowStepTimeoutMillis);
 
 beforeEach(async () => {
   cache = new Cache();
-});
+}, slowStepTimeoutMillis);
 
 const loader = (keys) => keys.map((key) => `v${key}`);
 const keyMapper = (key) => `k${key}`;

@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import lombok.Builder;
 import lombok.Value;
 import org.apache.tuweni.bytes.Bytes;
@@ -21,7 +20,7 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final boolean isModularized;
     private final boolean isStatic;
     private final Address receiver;
-    private final HederaEvmAccount sender;
+    private final Address sender;
     private final TracerType tracerType = TracerType.OPERATION;
     private final long value;
 }

@@ -9,8 +9,8 @@ import java.util.Iterator;
 
 public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
 
-    protected AbstractReadableKVState(@Nonnull String stateKey) {
-        super(stateKey);
+    protected AbstractReadableKVState(@Nonnull String serviceName, @Nonnull String stateKey) {
+        super(serviceName, stateKey);
     }
 
     @Nonnull

@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.common.PrecompileContext.PRECOMPILE_CONTEXT;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmMutableWorldState;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import java.time.Instant;
 import java.util.Map;
@@ -82,7 +81,7 @@ public class HederaEvmTxProcessor {
      */
     @SuppressWarnings("java:S107")
     public HederaEvmTransactionProcessingResult execute(
-            final HederaEvmAccount sender,
+            final Address sender,
             final Address receiver,
             final long gasPrice,
             final boolean isEstimate,
@@ -100,7 +99,6 @@ public class HederaEvmTxProcessor {
         final var valueAsWei = Wei.of(value);
         final var updater = worldState.updater();
         final var stackedUpdater = updater.updater();
-        final var senderEvmAddress = sender.canonicalAddress();
         final var precompileContext = new PrecompileContext();
         precompileContext.setEstimate(isEstimate);
 
@@ -108,9 +106,9 @@ public class HederaEvmTxProcessor {
                 .maxStackSize(MAX_STACK_SIZE)
                 .worldUpdater(stackedUpdater)
                 .initialGas(gasAvailable)
-                .originator(senderEvmAddress)
+                .originator(sender)
                 .gasPrice(Wei.of(gasPrice))
-                .sender(senderEvmAddress)
+                .sender(sender)
                 .value(valueAsWei)
                 .apparentValue(valueAsWei)
                 .blockValues(blockValues)

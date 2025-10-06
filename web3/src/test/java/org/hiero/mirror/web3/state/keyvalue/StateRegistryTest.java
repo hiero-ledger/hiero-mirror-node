@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class StateRegistryTest {
     private static final int MAX_KEYS_HINT = 123;
+    private static final String SERVICE_NAME = "SERVICE_NAME";
     private static final String READABLE_KV_STATE_KEY = "KV_KEY";
     private static final String SINGLETON_KEY = "SINGLETON_KEY";
 
@@ -64,7 +65,7 @@ class StateRegistryTest {
     void returnsExistingKVState() {
         final var stateDefinition =
                 new StateDefinition<>(READABLE_KV_STATE_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, true, false, false);
-        assertSame(kvState, registry.lookup(stateDefinition));
+        assertSame(kvState, registry.lookup(SERVICE_NAME, stateDefinition));
     }
 
     @Test
@@ -72,7 +73,7 @@ class StateRegistryTest {
     void returnsExistingSingleton() {
         final var stateDefinition =
                 new StateDefinition<>(SINGLETON_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
-        assertSame(singleton, registry.lookup(stateDefinition));
+        assertSame(singleton, registry.lookup(SERVICE_NAME, stateDefinition));
     }
 
     @ParameterizedTest(
@@ -87,7 +88,7 @@ class StateRegistryTest {
         final var stateKey = "UPGRADE_DATA[FileID[shardNum=0, realmNum=0, fileNum=150]]";
         final var stateDefinition =
                 new StateDefinition<>(stateKey, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var state = registry.lookup(stateDefinition);
+        final var state = registry.lookup(SERVICE_NAME, stateDefinition);
         assertThat(state).isNotNull().isInstanceOf(type);
     }
 
@@ -97,7 +98,8 @@ class StateRegistryTest {
         final var stateKey = "MISSING_KEY";
         final var stateDefinition =
                 new StateDefinition<>(stateKey, mockCodec, mockCodec, MAX_KEYS_HINT, false, true, false);
-        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(stateDefinition));
+        final var exception =
+                assertThrows(UnsupportedOperationException.class, () -> registry.lookup(SERVICE_NAME, stateDefinition));
         assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + stateKey);
     }
 
@@ -110,7 +112,8 @@ class StateRegistryTest {
         registry = new StateRegistry(List.of(), List.of());
         final var stateDefinition = new StateDefinition<>(
                 READABLE_KV_STATE_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var exception = assertThrows(UnsupportedOperationException.class, () -> registry.lookup(stateDefinition));
+        final var exception =
+                assertThrows(UnsupportedOperationException.class, () -> registry.lookup(SERVICE_NAME, stateDefinition));
         assertThat(exception.getMessage()).isEqualTo("Unsupported state key: " + READABLE_KV_STATE_KEY);
     }
 
@@ -127,7 +130,7 @@ class StateRegistryTest {
         registry = new StateRegistry(List.of(), List.of());
         final var stateDefinition = new StateDefinition<>(
                 V0490TokenSchema.STAKING_INFO_KEY, mockCodec, mockCodec, MAX_KEYS_HINT, isOnDisk, isSingleton, isQueue);
-        final var result = registry.lookup(stateDefinition);
+        final var result = registry.lookup(SERVICE_NAME, stateDefinition);
         assertThat(result).isInstanceOf(type);
     }
 }

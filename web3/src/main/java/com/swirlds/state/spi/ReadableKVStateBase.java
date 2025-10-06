@@ -18,6 +18,10 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  */
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
+
+    /** The service name, which cannot be null */
+    private final String serviceName;
+
     /** The state key, which cannot be null */
     private final String stateKey;
 
@@ -26,10 +30,19 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     /**
      * Create a new StateBase.
      *
+     * @param serviceName The name of the service that owns the state. Cannot be null.
      * @param stateKey The state key. Cannot be null.
      */
-    protected ReadableKVStateBase(@Nonnull String stateKey) {
+    protected ReadableKVStateBase(@Nonnull String serviceName, @Nonnull String stateKey) {
+        this.serviceName = Objects.requireNonNull(serviceName);
         this.stateKey = Objects.requireNonNull(stateKey);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @Nonnull
+    public final String getServiceName() {
+        return serviceName;
     }
 
     /** {@inheritDoc} */
@@ -95,9 +108,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     protected abstract Iterator<K> iterateFromDataSource();
 
     /**
-     * Records the given key and associated value were read. {@link WritableKVStateBase} will call
-     * this method in some cases when a key is read as part of a modification (for example, with
-     * {@link WritableKVStateBase#getForModify}).
+     * Records the given key and associated value were read.
      *
      * @param key The key
      * @param value The value

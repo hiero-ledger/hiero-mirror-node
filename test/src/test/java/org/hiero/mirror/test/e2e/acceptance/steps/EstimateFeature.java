@@ -7,6 +7,10 @@ import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameE
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PAYABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.ADDRESS_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CALL_CODE_TO_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimateFeature.ContractMethods.CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION;
@@ -53,7 +57,6 @@ import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.esaulpaugh.headlong.abi.Address;
-import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
@@ -210,12 +213,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void addressBalanceEstimateCall() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters().addAddress(contractSolidityAddress);
 
-        validateGasEstimation(
-                estimateGasContractId,
-                ADDRESS_BALANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                ADDRESS_BALANCE.getActualGas());
+        validateGasEstimation(estimateGasContractId, ADDRESS_BALANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that changes contract slot information"
@@ -240,12 +238,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addAddress(contractSolidityAddress)
                 .addUint256(new BigInteger("100"));
 
-        validateGasEstimation(
-                estimateGasContractId,
-                UPDATE_COUNTER.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_COUNTER.getActualGas());
+        validateGasEstimation(estimateGasContractId, UPDATE_COUNTER, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that successfully deploys a new smart contract via CREATE op code")
@@ -280,12 +273,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(mockAddress).toString())
                 .addBytes4(addressSelector);
 
-        validateGasEstimation(
-                estimateGasContractId,
-                STATIC_CALL_TO_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                STATIC_CALL_TO_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, STATIC_CALL_TO_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a delegate call to a method from a different contract")
@@ -294,12 +282,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(mockAddress).toString())
                 .addBytes4(addressSelector);
 
-        validateGasEstimation(
-                estimateGasContractId,
-                DELEGATE_CALL_TO_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                DELEGATE_CALL_TO_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, DELEGATE_CALL_TO_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a call code to a method from a different contract")
@@ -308,20 +291,14 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(mockAddress).toString())
                 .addBytes4(addressSelector);
 
-        validateGasEstimation(
-                estimateGasContractId,
-                CALL_CODE_TO_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                CALL_CODE_TO_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, CALL_CODE_TO_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that performs LOG0, LOG1, LOG2, LOG3, LOG4 operations")
     public void logsEstimateCall() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters().addAddress(contractSolidityAddress);
 
-        validateGasEstimation(
-                estimateGasContractId, LOGS.getSelector(), parameters, senderAccountId, LOGS.getActualGas());
+        validateGasEstimation(estimateGasContractId, LOGS, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that performs self destruct")
@@ -370,12 +347,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(RANDOM_ADDRESS).toString());
 
-        validateGasEstimation(
-                estimateGasContractId,
-                CALL_TO_INVALID_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                CALL_TO_INVALID_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, CALL_TO_INVALID_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a delegate call to invalid smart contract")
@@ -383,12 +355,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(RANDOM_ADDRESS).toString());
 
-        validateGasEstimation(
-                estimateGasContractId,
-                DELEGATE_CALL_TO_INVALID_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                DELEGATE_CALL_TO_INVALID_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, DELEGATE_CALL_TO_INVALID_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a static call to invalid smart contract")
@@ -396,12 +363,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(RANDOM_ADDRESS).toString());
 
-        validateGasEstimation(
-                estimateGasContractId,
-                STATIC_CALL_TO_INVALID_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                STATIC_CALL_TO_INVALID_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, STATIC_CALL_TO_INVALID_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a call code to invalid smart contract")
@@ -409,12 +371,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(asAddress(RANDOM_ADDRESS).toString());
 
-        validateGasEstimation(
-                estimateGasContractId,
-                CALL_CODE_TO_INVALID_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                CALL_CODE_TO_INVALID_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, CALL_CODE_TO_INVALID_CONTRACT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes call to an external contract function")
@@ -423,11 +380,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 new ContractFunctionParameters().addUint256(BigInteger.TWO).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
-                estimateGasContractId,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getSelector(),
-                parameters,
-                senderAccountId,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getActualGas());
+                estimateGasContractId, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes delegate call to an external contract function")
@@ -436,11 +389,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 new ContractFunctionParameters().addUint256(new BigInteger("3")).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
-                estimateGasContractId,
-                DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getSelector(),
-                parameters,
-                senderAccountId,
-                DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION.getActualGas());
+                estimateGasContractId, DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes call to an external contract view function")
@@ -449,11 +398,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 new ContractFunctionParameters().addUint256(BigInteger.ONE).addAddress(contractSolidityAddress);
 
         validateGasEstimation(
-                estimateGasContractId,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW.getSelector(),
-                parameters,
-                senderAccountId,
-                CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW.getActualGas());
+                estimateGasContractId, CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that makes a state update to a contract")
@@ -461,12 +406,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
         // making 5 times to state update
         final var parameters = new ContractFunctionParameters().addUint256(new BigInteger("5"));
 
-        validateGasEstimation(
-                estimateGasContractId,
-                STATE_UPDATE_OF_CONTRACT.getSelector(),
-                parameters,
-                senderAccountId,
-                STATE_UPDATE_OF_CONTRACT.getActualGas());
+        validateGasEstimation(estimateGasContractId, STATE_UPDATE_OF_CONTRACT, parameters, senderAccountId);
     }
 
     @Then(
@@ -475,21 +415,11 @@ public class EstimateFeature extends AbstractEstimateFeature {
         // making 5 times to state update
         final var firstParams = new ContractFunctionParameters().addUint256(new BigInteger("5"));
         var firstResponse = mirrorClient.estimateGasQueryTopLevelCall(
-                estimateGasContractId,
-                STATE_UPDATE_OF_CONTRACT.getSelector(),
-                firstParams,
-                senderAccountId,
-                STATE_UPDATE_OF_CONTRACT.getActualGas(),
-                Optional.empty());
+                estimateGasContractId, STATE_UPDATE_OF_CONTRACT, firstParams, senderAccountId, Optional.empty());
         // making 10 times to state update
         final var secondParams = new ContractFunctionParameters().addUint256(BigInteger.TEN);
         var secondResponse = mirrorClient.estimateGasQueryTopLevelCall(
-                estimateGasContractId,
-                STATE_UPDATE_OF_CONTRACT.getSelector(),
-                secondParams,
-                senderAccountId,
-                STATE_UPDATE_OF_CONTRACT.getActualGas(),
-                Optional.empty());
+                estimateGasContractId, STATE_UPDATE_OF_CONTRACT, secondParams, senderAccountId, Optional.empty());
 
         assertTrue(secondResponse > firstResponse);
     }
@@ -500,12 +430,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(RANDOM_ADDRESS).toString())
                 .addUint256(new BigInteger("10000000000"));
 
-        validateGasEstimation(
-                estimateGasContractId,
-                REENTRANCY_CALL_ATTACK.getSelector(),
-                parameters,
-                senderAccountId,
-                REENTRANCY_CALL_ATTACK.getActualGas());
+        validateGasEstimation(estimateGasContractId, REENTRANCY_CALL_ATTACK, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that executes gasLeft")
@@ -521,12 +446,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.TEN)
                 .addAddress(contractSolidityAddress);
 
-        validateGasEstimation(
-                estimateGasContractId,
-                NESTED_CALLS_POSITIVE.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_CALLS_POSITIVE.getActualGas());
+        validateGasEstimation(estimateGasContractId, NESTED_CALLS_POSITIVE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with function that executes limited nested calls")
@@ -590,7 +510,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I associate ERC contract with the FT")
-    public void associateTokensWithContract() throws InvalidProtocolBufferException {
+    public void associateTokensWithContract() {
         // In order to execute Approve, approveNFT, ercApprove we need to associate the contract with the token
         tokenClient.associate(deployedERCContract.contractId(), fungibleTokenId);
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -618,12 +538,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                     .addAddress(asAddress(receiverAccountId).toString())
                     .addUint256(new BigInteger("5"));
 
-            validateGasEstimation(
-                    ercContractId,
-                    IERC20_TOKEN_TRANSFER.getSelector(),
-                    parameters,
-                    senderAccountId,
-                    IERC20_TOKEN_TRANSFER.getActualGas());
+            validateGasEstimation(ercContractId, IERC20_TOKEN_TRANSFER, parameters, senderAccountId);
         }
     }
 
@@ -636,12 +551,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
                         .toString())
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                ercContractId,
-                IERC20_TOKEN_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                IERC20_TOKEN_TRANSFER.getActualGas());
+        validateGasEstimation(ercContractId, IERC20_TOKEN_TRANSFER, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with IERC20 token approve using evm address as receiver")
@@ -653,16 +563,11 @@ public class EstimateFeature extends AbstractEstimateFeature {
                         .toString())
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                ercContractId,
-                IERC20_TOKEN_APPROVE.getSelector(),
-                parameters,
-                senderAccountId,
-                IERC20_TOKEN_APPROVE.getActualGas());
+        validateGasEstimation(ercContractId, IERC20_TOKEN_APPROVE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with IERC20 token associate using evm address as receiver")
-    public void ierc20AssociateWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
+    public void ierc20AssociateWithEvmAddressForReceiver() {
         var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_ASSOCIATE.getActualGas())
                 .data(encodeData(IERC20_TOKEN_ASSOCIATE))
                 .estimate(true)
@@ -678,7 +583,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with IERC20 token dissociate using evm address as receiver")
-    public void ierc20DissociateWithEvmAddressForReceiver() throws ExecutionException, InterruptedException {
+    public void ierc20DissociateWithEvmAddressForReceiver() {
         var contractCallRequest = ModelBuilder.contractCallRequest(IERC20_TOKEN_DISSOCIATE.getActualGas())
                 .data(encodeData(IERC20_TOKEN_DISSOCIATE))
                 .estimate(true)
@@ -694,7 +599,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data")
-    public void contractDeployEstimateGas() throws ExecutionException, InterruptedException {
+    public void contractDeployEstimateGas() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
         var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
                 .data(bytecodeData)
@@ -710,7 +615,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     }
 
     @Then("I call estimateGas with contract deploy with bytecode as data with sender")
-    public void contractDeployEstimateGasWithSender() throws ExecutionException, InterruptedException {
+    public void contractDeployEstimateGasWithSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
 
         var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
@@ -946,7 +851,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute create operation with complex contract and lower gas limit and verify gasConsumed")
     public void deployEstimateContractWithLowGas() {
         var contractPath = ESTIMATE_GAS.getPath();
-        var txId = createContractAndReturnTransactionId(contractPath, 5_250_000L);
+        var txId = createContractAndReturnTransactionId(contractPath, 2150000L);
         var transactions =
                 Objects.requireNonNull(mirrorClient.getTransactions(txId).getTransactions());
         var contractId = transactions.getFirst().getEntityId();
@@ -1043,48 +948,52 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements ContractMethodInterface {
-        ADDRESS_BALANCE("addressBalance", 21735),
-        CALL_CODE_TO_CONTRACT("callCodeToContract", 25128),
-        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("callExternalFunctionNTimes", 25168),
-        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW("delegatecallExternalViewFunctionNTimes", 29809),
-        CALL_CODE_TO_INVALID_CONTRACT("callCodeToInvalidContract", 24486),
-        CALL_TO_INVALID_CONTRACT("callToInvalidContract", 24807),
-        DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("delegatecallExternalFunctionNTimes", 29334),
-        DELEGATE_CALL_TO_CONTRACT("delegateCallToContract", 25124),
-        DELEGATE_CALL_TO_INVALID_CONTRACT("delegateCallToInvalidContract", 24803),
-        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 140000),
-        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 140000),
-        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 2000000),
-        DEPLOY_NEW_INSTANCE("createClone", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        DEPLOY_AND_CALL_CONTRACT("deployAndCallMockContract", 0),
-        DEPLOY_AND_DESTROY("deployDestroy", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        DESTROY("destroy", 26300),
-        GET_GAS_LEFT("getGasLeft", 21313),
-        GET_MOCK_ADDRESS("getMockContractAddress", 0),
-        INCREMENT_COUNTER("incrementCounter", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        LOGS("logs", 28822),
-        MESSAGE_SENDER("msgSender", 21365),
-        MESSAGE_SIGNER("msgSig", 21361),
-        MESSAGE_VALUE("msgValue", 21265),
-        MULTIPLY_NUMBERS("pureMultiply", 21281),
-        NESTED_CALLS_LIMITED("nestedCalls", 175607),
-        NESTED_CALLS_POSITIVE("nestedCalls", 35975),
-        REENTRANCY_CALL_ATTACK("reentrancyWithCall", 56426),
-        STATIC_CALL_TO_CONTRACT("staticCallToContract", 25146),
-        STATIC_CALL_TO_INVALID_CONTRACT("staticCallToInvalidContract", 24826),
-        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 29000),
-        TX_ORIGIN("txOrigin", 21342),
-        UPDATE_COUNTER("updateCounter", 26538),
-        UPDATE_TYPE("updateType", 0), // Set actual gas to 0; unnecessary for gasConsumed test validation.
-        WRONG_METHOD_SIGNATURE("ffffffff()", 0),
-        IERC20_TOKEN_TRANSFER("transfer", 43337),
-        IERC20_TOKEN_APPROVE("approve", 728550),
-        IERC20_TOKEN_ASSOCIATE("associate()", 728033),
-        IERC20_TOKEN_DISSOCIATE("dissociate()", 728033),
-        CREATE_CHILD("createChild", 0),
-        GET_BYTE_CODE("getBytecode", 0);
+        ADDRESS_BALANCE("addressBalance", 21735, VIEW),
+        CALL_CODE_TO_CONTRACT("callCodeToContract", 25128, MUTABLE),
+        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("callExternalFunctionNTimes", 25168, MUTABLE),
+        CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION_VIEW("delegatecallExternalViewFunctionNTimes", 29809, MUTABLE),
+        CALL_CODE_TO_INVALID_CONTRACT("callCodeToInvalidContract", 24486, MUTABLE),
+        CALL_TO_INVALID_CONTRACT("callToInvalidContract", 24807, MUTABLE),
+        DELEGATE_CALL_CODE_TO_EXTERNAL_CONTRACT_FUNCTION("delegatecallExternalFunctionNTimes", 29334, MUTABLE),
+        DELEGATE_CALL_TO_CONTRACT("delegateCallToContract", 25124, MUTABLE),
+        DELEGATE_CALL_TO_INVALID_CONTRACT("delegateCallToInvalidContract", 24803, MUTABLE),
+        DEPLOY_CONTRACT_VIA_CREATE_OPCODE("deployViaCreate", 140631, MUTABLE),
+        DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE("deployViaCreate2", 140631, MUTABLE),
+        DEPLOY_CONTRACT_VIA_BYTECODE_DATA("", 2133605, MUTABLE),
+        DEPLOY_NEW_INSTANCE(
+                "createClone", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        DEPLOY_AND_CALL_CONTRACT("deployAndCallMockContract", 0, MUTABLE),
+        DEPLOY_AND_DESTROY(
+                "deployDestroy", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        DESTROY("destroy", 26300, MUTABLE),
+        GET_GAS_LEFT("getGasLeft", 21313, VIEW),
+        GET_MOCK_ADDRESS("getMockContractAddress", 0, VIEW),
+        INCREMENT_COUNTER(
+                "incrementCounter", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        LOGS("logs", 28822, MUTABLE),
+        MESSAGE_SENDER("msgSender", 21365, VIEW),
+        MESSAGE_SIGNER("msgSig", 21361, PURE),
+        MESSAGE_VALUE("msgValue", 21265, PAYABLE),
+        MULTIPLY_NUMBERS("pureMultiply", 21281, PURE),
+        NESTED_CALLS_LIMITED("nestedCalls", 175607, MUTABLE),
+        NESTED_CALLS_POSITIVE("nestedCalls", 35975, MUTABLE),
+        REENTRANCY_CALL_ATTACK("reentrancyWithCall", 56426, MUTABLE),
+        STATIC_CALL_TO_CONTRACT("staticCallToContract", 25146, VIEW),
+        STATIC_CALL_TO_INVALID_CONTRACT("staticCallToInvalidContract", 24826, VIEW),
+        STATE_UPDATE_OF_CONTRACT("updateStateNTimes", 29000, MUTABLE),
+        TX_ORIGIN("txOrigin", 21342, VIEW),
+        UPDATE_COUNTER("updateCounter", 26538, MUTABLE),
+        UPDATE_TYPE("updateType", 0, MUTABLE), // Set actual gas to 0; unnecessary for gasConsumed test validation.
+        WRONG_METHOD_SIGNATURE("ffffffff()", 0, MUTABLE),
+        IERC20_TOKEN_TRANSFER("transfer", 43337, MUTABLE),
+        IERC20_TOKEN_APPROVE("approve", 728550, MUTABLE),
+        IERC20_TOKEN_ASSOCIATE("associate()", 728033, MUTABLE),
+        IERC20_TOKEN_DISSOCIATE("dissociate()", 728033, MUTABLE),
+        CREATE_CHILD("createChild", 0, MUTABLE),
+        GET_BYTE_CODE("getBytecode", 0, PURE);
 
         private final String selector;
         private final int actualGas;
+        private final FunctionType functionType;
     }
 }

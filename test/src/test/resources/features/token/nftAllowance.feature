@@ -11,6 +11,7 @@ Feature: Account NFT Allowance Coverage Feature
     And the mirror node REST API should confirm the approved allowance of NFT <tokenName> and <spender> when owner is "false"
     Given <spender> transfers NFT <tokenName> to <recipient> with approval=true
     Then the mirror node REST API should confirm the NFT transfer and confirm the new owner is <recipient>
+    Then I delete the allowance on first NFT <tokenName> for recipient <recipient>
     When I delete the allowance on NFT <tokenName> for spender <spender>
     Then the mirror node REST API should confirm the approved allowance for NFT <tokenName> and <spender> is no longer available
     Examples:

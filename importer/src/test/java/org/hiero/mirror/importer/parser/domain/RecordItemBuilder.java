@@ -159,22 +159,31 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties.PersistProperties;
 import org.hiero.mirror.importer.util.Utility;
+import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.log.Log;
+import org.hyperledger.besu.evm.log.LogTopic;
+import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -398,9 +407,13 @@ public class RecordItemBuilder {
 
     @SuppressWarnings("deprecation")
     public ContractFunctionResult.Builder contractFunctionResult(ContractID contractId) {
+        var logsBloomAggregator = new LogsBloomAggregator();
+        var contractLogInfos = List.of(contractLoginfo(contractId), contractLoginfo(contractId()));
+        contractLogInfos.forEach(loginfo -> logsBloomAggregator.aggregate(DomainUtils.toBytes(loginfo.getBloom())));
+
         return ContractFunctionResult.newBuilder()
                 .setAmount(5_000L)
-                .setBloom(bytes(256))
+                .setBloom(DomainUtils.fromBytes(logsBloomAggregator.getBloom()))
                 .setContractCallResult(bytes(16))
                 .setContractID(contractId)
                 .addContractNonces(ContractNonceInfo.newBuilder()
@@ -411,25 +424,8 @@ public class RecordItemBuilder {
                 .setErrorMessage(text(10))
                 .setFunctionParameters(bytes(64))
                 .setGas(10_000L)
-                .setGasUsed(1000L)
-                .addLogInfo(ContractLoginfo.newBuilder()
-                        .setBloom(bytes(256))
-                        .setContractID(contractId)
-                        .setData(bytes(128))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .build())
-                .addLogInfo(ContractLoginfo.newBuilder()
-                        .setBloom(bytes(256))
-                        .setContractID(contractId())
-                        .setData(bytes(128))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .addTopic(bytes(32))
-                        .build())
+                .setGasUsed(100000L)
+                .addAllLogInfo(contractLogInfos)
                 .setSenderId(accountId())
                 .setSignerNonce(Int64Value.of(10));
     }
@@ -1271,6 +1267,17 @@ public class RecordItemBuilder {
                 .build();
     }
 
+    private ByteString bloomFor(ContractID contractId, List<ByteString> topics) {
+        var address = Address.wrap(
+                Bytes.wrap(Hex.decode(StringUtils.leftPad(Long.toHexString(contractId.getContractNum()), 40, '0'))));
+        var logTopics = topics.stream()
+                .map(topic -> LogTopic.wrap(Bytes.wrap(DomainUtils.toBytes(topic))))
+                .toList();
+        var log = new Log(address, Bytes.EMPTY, logTopics);
+        return DomainUtils.fromBytes(
+                LogsBloomFilter.builder().insertLog(log).build().toArray());
+    }
+
     private TransactionSidecarRecord.Builder contractActions() {
         return TransactionSidecarRecord.newBuilder()
                 .setActions(ContractActions.newBuilder()
@@ -1306,6 +1313,16 @@ public class RecordItemBuilder {
                 .setInitcode(bytes(2048))
                 .setRuntimeBytecode(bytes(3048));
         return TransactionSidecarRecord.newBuilder().setBytecode(contractBytecode);
+    }
+
+    private ContractLoginfo contractLoginfo(ContractID contractId) {
+        var topics = IntStream.range(0, 4).mapToObj(x -> bytes(32)).toList();
+        return ContractLoginfo.newBuilder()
+                .setBloom(bloomFor(contractId, topics))
+                .setContractID(contractId)
+                .setData(bytes(128))
+                .addAllTopic(topics)
+                .build();
     }
 
     private TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {

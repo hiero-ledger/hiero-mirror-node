@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
-import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
@@ -84,13 +84,31 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
         }
 
         try {
-            final var updates = ((ProxyWorldUpdater) frame.getWorldUpdater()).pendingStorageUpdates();
+            var worldUpdater = frame.getWorldUpdater();
+            while (worldUpdater.parentUpdater().isPresent()) {
+                worldUpdater = worldUpdater.parentUpdater().get();
+            }
+
+            if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
+                // The storage updates are kept only in the RootProxyWorldUpdater.
+                // If we don't have one -> something unexpected happened and an attempt to
+                // get the storage changes from a ProxyWorldUpdater would result in a
+                // NullPointerException, so in this case just return an empty map.
+                return Map.of();
+            }
+            final var updates = rootProxyWorldUpdater
+                    .getEvmFrameState()
+                    .getTxStorageUsage(true)
+                    .accesses();
             return updates.stream()
                     .flatMap(storageAccesses ->
                             storageAccesses.accesses().stream()) // Properly flatten the nested structure
                     .collect(Collectors.toMap(
                             e -> Bytes.wrap(e.key().toArray()),
-                            e -> Bytes.wrap(e.value().toArray()),
+                            e -> Bytes.wrap(
+                                    e.writtenValue() != null
+                                            ? e.writtenValue().toArray()
+                                            : e.value().toArray()),
                             (v1, v2) -> v1, // in case of duplicates, keep the first value
                             TreeMap::new));
 

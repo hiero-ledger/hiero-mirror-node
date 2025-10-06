@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.NftID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.token.Nft;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.Nonnull;
@@ -32,7 +33,7 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     private final TokenRepository tokenRepository;
 
     public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
-        super(KEY);
+        super(TokenService.NAME, KEY);
         this.nftRepository = nftRepository;
         this.tokenRepository = tokenRepository;
     }

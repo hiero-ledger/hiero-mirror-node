@@ -364,7 +364,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
-            context.add(transaction.toTransactionHash());
+            var hash = transaction.toTransactionHash();
+            if (hash != null && hash.hashIsValid()) {
+                context.add(hash);
+            }
         }
 
         onNftTransferList(transaction);
@@ -635,9 +638,22 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
         current.setCreatedTimestamp(previous.getCreatedTimestamp());
 
+        if (current.getAccountId() == null) {
+            current.setAccountId(previous.getAccountId());
+        }
+
         if (current.getAdminKey() == null) {
             current.setAdminKey(previous.getAdminKey());
         }
+
+        if (current.getDeclineReward() == null) {
+            current.setDeclineReward(previous.getDeclineReward());
+        }
+
+        if (current.getGrpcProxyEndpoint() == null) {
+            current.setGrpcProxyEndpoint(previous.getGrpcProxyEndpoint());
+        }
+
         return current;
     }
 

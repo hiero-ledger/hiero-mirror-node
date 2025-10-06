@@ -15,13 +15,14 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.17.0")
+    set("besuVersion", "24.3.3")
+    set("blockNodeVersion", "0.19.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.75.0")
-    set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.7") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.17.1")
-    set("protobufVersion", "4.32.0")
+    set("protobufVersion", "4.32.1")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
 }
@@ -30,6 +31,7 @@ extra.apply {
 // using a dependency
 dependencies {
     constraints {
+        val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
@@ -41,33 +43,33 @@ dependencies {
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.81")
+        api("org.bouncycastle:bcprov-jdk18on:1.82")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.4.8-jre")
+        api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.64.3")
+        api("com.hedera.hashgraph:app:0.65.1")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
-        api("com.hedera.hashgraph:sdk:2.62.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.66.0")
+        api("com.hedera.hashgraph:sdk:2.63.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.20.0")
         api("io.cucumber:cucumber-bom:7.23.0")
-        api("io.fabric8:kubernetes-client-bom:7.3.1")
+        api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
-        api("io.projectreactor:reactor-core-micrometer:1.2.9")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.11.0")
+        api("io.projectreactor:reactor-core-micrometer:1.2.11")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.16") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
-        api("net.java.dev.jna:jna:5.17.0")
+        api("net.java.dev.jna:jna:5.18.0")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -78,14 +80,15 @@ dependencies {
         api("org.gaul:s3proxy:2.7.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
-        api("org.hyperledger.besu:evm:24.3.3")
+        api("org.hyperledger.besu:besu-datatypes:$besuVersion")
+        api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.33.0")
+        api("org.web3j:core:5.0.1")
+        api("software.amazon.awssdk:bom:2.34.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

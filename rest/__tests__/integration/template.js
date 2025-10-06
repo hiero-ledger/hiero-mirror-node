@@ -28,7 +28,7 @@ import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
 import {JSONParse} from '../../utils';
-import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import {slowStepTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
@@ -321,7 +321,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     }
 
     configClone = _.cloneDeep(config);
-  }, defaultBeforeAllTimeoutMillis);
+  }, slowStepTimeoutMillis);
 
   afterAll(async () => {
     if (s3Ops) {

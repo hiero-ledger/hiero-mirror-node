@@ -5,6 +5,7 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.IS_MODULARIZED_HEADER;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -38,14 +39,19 @@ import org.awaitility.Awaitility;
 import org.awaitility.Durations;
 import org.hiero.mirror.rest.model.AccountBalanceTransactions;
 import org.hiero.mirror.rest.model.AccountInfo;
+import org.hiero.mirror.rest.model.AccountsResponse;
+import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.Block;
 import org.hiero.mirror.rest.model.BlocksResponse;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
 import org.hiero.mirror.rest.model.ContractCallResponse;
+import org.hiero.mirror.rest.model.ContractLogsResponse;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.ContractResultsResponse;
+import org.hiero.mirror.rest.model.ContractStateResponse;
+import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
@@ -57,8 +63,10 @@ import org.hiero.mirror.rest.model.Nft;
 import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.hiero.mirror.rest.model.NftTransactionHistory;
 import org.hiero.mirror.rest.model.Nfts;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.rest.model.Schedule;
 import org.hiero.mirror.rest.model.SchedulesResponse;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.hiero.mirror.rest.model.TokenAllowancesResponse;
 import org.hiero.mirror.rest.model.TokenBalancesResponse;
@@ -75,6 +83,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
+import org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractMethodInterface;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
@@ -266,14 +275,19 @@ public class MirrorNodeClient {
                 spenderId);
     }
 
+    public ContractsResponse getContracts(String contractId) {
+        log.debug("Verify contract '{}' is returned by Mirror Node", contractId);
+        return callRestEndpoint("/contracts?contract.id={contractId}", ContractsResponse.class, contractId);
+    }
+
     public ContractResponse getContractInfo(String contractId) {
         log.debug("Verify contract '{}' is returned by Mirror Node", contractId);
         return callRestEndpoint("/contracts/{contractId}", ContractResponse.class, contractId);
     }
 
-    public ContractResponse getContractInfoWithNotFound(String contractId) {
-        log.debug("Verify contract '{}' is not found", contractId);
-        return callRestEndpointNoRetry("/contracts/{contractId}", ContractResponse.class, contractId);
+    public ContractResultsResponse getContractResults(String timestamp) {
+        log.debug("Verify contract results are returned by Mirror Node for timestamp '{}'", timestamp);
+        return callRestEndpoint("/contracts/results?timestamp={timestamp}", ContractResultsResponse.class, timestamp);
     }
 
     public ContractResultsResponse getContractResultsById(String contractId) {
@@ -281,14 +295,44 @@ public class MirrorNodeClient {
         return callRestEndpoint("/contracts/{contractId}/results", ContractResultsResponse.class, contractId);
     }
 
+    public ContractResult getContractResultsByIdAndTimestamp(String contractId, String timestamp) {
+        log.debug("Verify contract results '{}' is returned by Mirror Node", contractId);
+        return callRestEndpoint(
+                "/contracts/{contractId}/results/{timestamp}", ContractResult.class, contractId, timestamp);
+    }
+
     public ContractResult getContractResultByTransactionId(String transactionId) {
         log.debug("Verify contract result '{}' is returned by Mirror Node", transactionId);
         return callRestEndpoint("/contracts/results/{transactionId}", ContractResult.class, transactionId);
     }
 
+    public ContractStateResponse getContractStatesById(String contractId, int limit) {
+        log.debug("Verify contract states '{}' are returned by Mirror Node", contractId);
+        return callRestEndpoint(
+                "/contracts/{contractId}/state?limit={limit}", ContractStateResponse.class, contractId, limit);
+    }
+
     public ContractActionsResponse getContractResultActionsByTransactionId(String transactionId) {
         log.debug("Verify contract result '{}' is returned by Mirror Node", transactionId);
         return callRestEndpoint("/contracts/results/{id}/actions", ContractActionsResponse.class, transactionId);
+    }
+
+    public ContractLogsResponse getContractLogsByContractId(String contractId) {
+        log.debug("Verify contract logs '{}' is returned by Mirror Node", contractId);
+        return callRestEndpoint("/contracts/{id}/results/logs", ContractLogsResponse.class, contractId);
+    }
+
+    public ContractLogsResponse getContractLogs(String timestamp) {
+        log.debug("Verify contract logs are returned by Mirror Node for timestamp '{}'", timestamp);
+        return callRestEndpoint("/contracts/results/logs?timestamp={timestamp}", ContractLogsResponse.class, timestamp);
+    }
+
+    public OpcodesResponse getContractResultsOpcodes(String transactionId) {
+        log.debug("Verify contract result opcodes '{}' is returned by Mirror Node", transactionId);
+        final var headers =
+                Collections.singletonMap(IS_MODULARIZED_HEADER, String.valueOf(web3Properties.isModularizedServices()));
+        return callWeb3GetRestEndpoint(
+                "/contracts/results/{id}/opcodes", OpcodesResponse.class, headers, transactionId);
     }
 
     public NetworkExchangeRateSetResponse getExchangeRates() {
@@ -297,8 +341,8 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
-        Map<String, String> headers =
-                Collections.singletonMap("Is-Modularized", String.valueOf(web3Properties.isModularizedServices()));
+        final var headers =
+                Collections.singletonMap(IS_MODULARIZED_HEADER, String.valueOf(web3Properties.isModularizedServices()));
         return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request, headers);
     }
 
@@ -332,7 +376,7 @@ public class MirrorNodeClient {
 
     public NetworkStakeResponse getNetworkStake() {
         String stakeEndpoint = "/network/stake";
-        return callConvertedRestEndpoint(stakeEndpoint, NetworkStakeResponse.class);
+        return callRestJavaEndpoint(stakeEndpoint, NetworkStakeResponse.class);
     }
 
     public NetworkFeesResponse getNetworkFees() {
@@ -387,6 +431,26 @@ public class MirrorNodeClient {
         return callRestEndpoint("/tokens/?token.id={tokenId}", TokensResponse.class, tokenId);
     }
 
+    public TokensResponse getTokensWithTreasuryAccount(String accountId) {
+        log.debug("Get tokens with treasury account id '{}'", accountId);
+        return callRestEndpoint("/tokens?account.id={accountId}&order=desc", TokensResponse.class, accountId);
+    }
+
+    public TokensResponse getTokensByName(String tokenName) {
+        log.debug("Get tokens by name '{}'", tokenName);
+        return callRestEndpoint("/tokens?name={tokenName}&order=desc", TokensResponse.class, tokenName);
+    }
+
+    public TokensResponse getTokensAssociatedWithPublicKey(String publicKey) {
+        log.debug("Get tokens associated with publicKey '{}'", publicKey);
+        return callRestEndpoint("/tokens?publickey={publicKey}&order=desc", TokensResponse.class, publicKey);
+    }
+
+    public Nfts getTokenNFTs(String tokenId) {
+        log.debug("Get token nfts by tokenId '{}'", tokenId);
+        return callRestEndpoint("/tokens/{tokenId}/nfts", Nfts.class, tokenId);
+    }
+
     public Topic getTopic(String topicId) {
         return callRestJavaEndpoint("/topics/{topicId}", Topic.class, topicId);
     }
@@ -398,6 +462,11 @@ public class MirrorNodeClient {
     public TopicMessage getTopicMessageBySequenceNumber(String topicId, String sequenceNumber) {
         return callRestEndpoint(
                 "/topics/{topicId}/messages/{sequenceNumber}", TopicMessage.class, topicId, sequenceNumber);
+    }
+
+    public TopicMessage getTopicMessageByConsensusTimestamp(String timestamp) {
+        log.debug("Get topic message by consensus timestamp '{}'", timestamp);
+        return callRestEndpoint("/topics/messages/{timestamp}", TopicMessage.class, timestamp);
     }
 
     public TransactionsResponse getTransactionInfoByTimestamp(String timestamp) {
@@ -458,6 +527,19 @@ public class MirrorNodeClient {
         return partialStateSupplier.get();
     }
 
+    public AccountsResponse getAccounts(int limit) {
+        return callRestEndpoint("/accounts?limit={limit}", AccountsResponse.class, limit);
+    }
+
+    public StakingRewardsResponse getAccountRewards(String accountId, int limit) {
+        return callRestEndpoint(
+                "/accounts/{accountId}/rewards?limit={limit}", StakingRewardsResponse.class, accountId, limit);
+    }
+
+    public BalancesResponse getBalancesForAccountId(String accountId) {
+        return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
+    }
+
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         final var restResponse = callRestEndpoint(uri, classType, uriVariables);
 
@@ -503,14 +585,19 @@ public class MirrorNodeClient {
 
     public long estimateGasQueryTopLevelCall(
             final ContractId contractId,
-            final String functionName,
+            final ContractMethodInterface method,
             final ContractFunctionParameters params,
             final AccountId sender,
-            final int actualGas,
             final Optional<Long> value)
             throws ExecutionException, InterruptedException {
         return estimateGasQuery(
-                contractId, functionName, params, sender, actualGas, value, DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
+                contractId,
+                method.getSelector(),
+                params,
+                sender,
+                method.getActualGas(),
+                value,
+                DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED);
     }
 
     private long estimateGasQuery(
@@ -599,6 +686,16 @@ public class MirrorNodeClient {
 
     private long calculateGasLimit(int actualGas, int percentage) {
         return Math.round(actualGas * (1 + (percentage / 100.0)));
+    }
+
+    private <T> T callWeb3GetRestEndpoint(
+            String uri, Class<T> classType, Map<String, String> headers, Object... uriVariables) {
+        final var normalizedUri = normalizeUri(uri);
+        return retryTemplate.execute(x -> {
+            final var requestSpec = web3Client.get().uri(normalizedUri, uriVariables);
+            headers.forEach(requestSpec::header);
+            return requestSpec.retrieve().body(classType);
+        });
     }
 
     private String normalizeUri(String uri) {

@@ -20,9 +20,9 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
                 .consensusCreateTopic()
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.consensusCreateTopic(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.consensusCreateTopic(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -40,9 +40,9 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.consensusCreateTopic(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.consensusCreateTopic(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -67,9 +67,10 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
                 })
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.consensusSubmitMessage(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .consensusSubmitMessage(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -88,9 +89,10 @@ class ConsensusTransformerTest extends AbstractTransformerTest {
                 .status(ResponseCodeEnum.INVALID_TRANSACTION)
                 .customize(this::finalize)
                 .build();
-        var blockItem =
-                blockItemBuilder.consensusSubmitMessage(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction = blockTransactionBuilder
+                .consensusSubmitMessage(expectedRecordItem)
+                .build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

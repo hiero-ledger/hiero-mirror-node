@@ -37,8 +37,9 @@ class CryptoTransformerTest extends AbstractTransformerTest {
                 .transactionBody(b -> b.setAlias(alias))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.cryptoCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.cryptoCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -55,8 +56,9 @@ class CryptoTransformerTest extends AbstractTransformerTest {
                 .receipt(r -> r.clearAccountID().setStatus(ResponseCodeEnum.INVALID_TRANSACTION))
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.cryptoCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.cryptoCreate(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
@@ -78,8 +80,10 @@ class CryptoTransformerTest extends AbstractTransformerTest {
                 .recordItem(r -> r.transactionIndex(1))
                 .customize(this::finalize)
                 .build();
-        var blockItem1 = blockItemBuilder.cryptoTransfer(expectedRecordItem).build();
-        var blockItem2 = blockItemBuilder.cryptoTransfer(expectedRecordItem2).build();
+        var blockItem1 =
+                blockTransactionBuilder.cryptoTransfer(expectedRecordItem).build();
+        var blockItem2 =
+                blockTransactionBuilder.cryptoTransfer(expectedRecordItem2).build();
         var blockFile = blockFileBuilder.items(List.of(blockItem1, blockItem2)).build();
 
         // when
@@ -100,8 +104,9 @@ class CryptoTransformerTest extends AbstractTransformerTest {
                 .useTransactionBodyBytesAndSigMap(true)
                 .customize(this::finalize)
                 .build();
-        var blockItem = blockItemBuilder.cryptoTransfer(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockItem)).build();
+        var blockTransaction =
+                blockTransactionBuilder.cryptoTransfer(expectedRecordItem).build();
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);

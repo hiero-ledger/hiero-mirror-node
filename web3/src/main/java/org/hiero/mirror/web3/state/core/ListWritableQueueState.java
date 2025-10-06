@@ -17,11 +17,13 @@ public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
      * pre-populate the queue, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
+     * @param serviceName The service name for this state
      * @param stateKey The state key for this state
      * @param backingStore The backing store to use
      */
-    public ListWritableQueueState(@Nonnull final String stateKey, @Nonnull final Queue<E> backingStore) {
-        super(stateKey);
+    public ListWritableQueueState(
+            @Nonnull final String serviceName, @Nonnull final String stateKey, @Nonnull final Queue<E> backingStore) {
+        super(serviceName, stateKey);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 

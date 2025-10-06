@@ -130,6 +130,7 @@ const flywayMigrate = async (connectionParams) => {
       "placeholders.partitionStartDate": "'1970-01-01'",
       "placeholders.partitionTimeInterval": "'10 years'",
       "placeholders.topicRunningHashV2AddedTimestamp": 0,
+      "placeholders.transactionHashLookbackInterval":  "'60 days'",
       "placeholders.schema": "public",
       "placeholders.shardCount": 2,
       "placeholders.tempSchema": "temporary",

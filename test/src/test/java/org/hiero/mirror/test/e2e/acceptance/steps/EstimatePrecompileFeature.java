@@ -3,6 +3,7 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.NFT;
@@ -10,6 +11,9 @@ import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameE
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_PRECOMPILE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PAYABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.ALLOWANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.ALLOWANCE_ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.APPROVE;
@@ -260,6 +264,13 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, status);
     }
 
+    @Then("I verify the mirror node REST API returns contract states for deployed contract")
+    public void verifyContractStatesAPIResponse() {
+        var contractStates = mirrorClient.getContractStatesById(
+                deployedEstimatePrecompileContract.contractId().toString(), 15);
+        assertThat(contractStates.getState().size()).isEqualTo(11);
+    }
+
     @And("I set lower deviation at {int}% and upper deviation at {int}%")
     public void setDeviations(int lower, int upper) {
         lowerDeviation = lower;
@@ -271,12 +282,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                ASSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                ASSOCIATE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, ASSOCIATE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with associate function for NFT")
@@ -284,28 +290,18 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(nonFungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                ASSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                ASSOCIATE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, ASSOCIATE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with dissociate token function without association for fungible token")
-    public void dissociateFunctionEstimateGasNegative() throws ExecutionException, InterruptedException {
+    public void dissociateFunctionEstimateGasNegative() {
         // attempt to call dissociate function without having association
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(fungibleTokenAddressString);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DISSOCIATE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DISSOCIATE_TOKEN.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, DISSOCIATE_TOKEN, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -318,12 +314,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleTokenAddressString);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DISSOCIATE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DISSOCIATE_TOKEN.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, DISSOCIATE_TOKEN, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -337,12 +328,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleTokenAddressString);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        NESTED_ASSOCIATE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        NESTED_ASSOCIATE.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, NESTED_ASSOCIATE, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -356,12 +342,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleTokenAddressString);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        NESTED_ASSOCIATE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        NESTED_ASSOCIATE.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, NESTED_ASSOCIATE, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -377,12 +358,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_TOKEN, parameters, senderAccountId);
     }
 
     @And("I associate the receiver account with the NFT")
@@ -397,12 +373,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addAddress(nonFungibleTokenAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKEN.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with dissociate and associate nested function for fungible token")
@@ -412,12 +383,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(fungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_AND_ASSOCIATE.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_AND_ASSOCIATE.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_AND_ASSOCIATE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with dissociate and associate nested function for NFT")
@@ -427,12 +393,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(receiverAccountAlias)
                 .addAddress(nonFungibleTokenAddressString);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_AND_ASSOCIATE.selector,
-                parameters,
-                senderAccountId,
-                DISSOCIATE_AND_ASSOCIATE.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_AND_ASSOCIATE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with approve function without association")
@@ -443,12 +404,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.TEN);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        APPROVE.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        APPROVE.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, APPROVE, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -462,10 +418,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
-                        SET_APPROVAL_FOR_ALL.getSelector(),
+                        SET_APPROVAL_FOR_ALL,
                         parameters,
                         senderAccountId,
-                        SET_APPROVAL_FOR_ALL.getActualGas(),
                         Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
@@ -479,12 +434,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ONE);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        APPROVE_NFT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        APPROVE_NFT.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, APPROVE_NFT, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -512,8 +462,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(BigInteger.TEN);
 
-        validateGasEstimation(
-                ercTestContractId, APPROVE_ERC.selector, parameters, senderAccountId, APPROVE_ERC.getActualGas());
+        validateGasEstimation(ercTestContractId, APPROVE_ERC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with setApprovalForAll function")
@@ -522,12 +471,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias)
                 .addBool(true);
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                SET_APPROVAL_FOR_ALL.selector,
-                parameters,
-                senderAccountId,
-                SET_APPROVAL_FOR_ALL.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, SET_APPROVAL_FOR_ALL, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with transferFrom function without approval")
@@ -539,12 +483,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("5"));
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, TRANSFER_FROM, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -558,12 +497,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.TEN);
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        ercTestContractId,
-                        TRANSFER_FROM_ERC.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_ERC.getActualGas(),
-                        Optional.empty()))
+                        ercTestContractId, TRANSFER_FROM_ERC, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -583,12 +517,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias)
                 .addUint256(new BigInteger("5"));
-        validateGasEstimation(
-                ercTestContractId,
-                TRANSFER_FROM_ERC.selector,
-                parameters,
-                senderAccountId,
-                TRANSFER_FROM_ERC.getActualGas());
+        validateGasEstimation(ercTestContractId, TRANSFER_FROM_ERC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with transferFrom function with more than the approved allowance")
@@ -600,12 +529,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("500"));
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, TRANSFER_FROM, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -619,12 +543,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("500"));
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        ercTestContractId,
-                        TRANSFER_FROM_ERC.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_ERC.getActualGas(),
-                        Optional.empty()))
+                        ercTestContractId, TRANSFER_FROM_ERC, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -644,12 +563,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("50"));
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        TRANSFER_FROM_NFT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        TRANSFER_FROM_NFT.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, TRANSFER_FROM_NFT, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -663,12 +577,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addInt64(1L);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @And("I approve the receiver account to use fungible token and transfer fungible token to the erc contract")
@@ -689,12 +598,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(new BigInteger("5"));
 
-        validateGasEstimation(
-                ercTestContractId,
-                TRANSFER_ERC.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_ERC.getActualGas());
+        validateGasEstimation(ercTestContractId, TRANSFER_ERC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with associateTokens function for fungible tokens")
@@ -704,12 +608,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(secondReceiverAddressString)
                 .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with associateTokens function for NFTs")
@@ -718,12 +617,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         final var parameters = new ContractFunctionParameters()
                 .addAddress(secondReceiverAddressString)
                 .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @And("I associate the fungible_kyc_unfrozen token with the receiver account")
@@ -737,12 +631,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addAddressArray(new String[] {fungibleTokenAddressString, fungibleKycUnfrozenTokenIdAddressString});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKENS.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_TOKENS, parameters, senderAccountId);
     }
 
     @And("I associate the nft_kyc_unfrozen with the receiver account")
@@ -756,12 +645,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addAddressArray(new String[] {nonFungibleKycUnfrozenAddressString, nonFungibleTokenAddressString});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DISSOCIATE_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_TOKENS.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DISSOCIATE_TOKENS, parameters, senderAccountId);
     }
 
     @And("I associate and approve the second receiver to use the fungible_kyc_unfrozen token")
@@ -778,12 +662,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddressArray(new String[] {adminAddressString, receiverAccountAlias, secondReceiverAddressString})
                 .addInt64Array(new long[] {-6L, 3L, 3L});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                TRANSFER_TOKENS.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_TOKENS.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, TRANSFER_TOKENS, parameters, senderAccountId);
     }
 
     @And("I mint a new NFT and approve second receiver account to all serial numbers")
@@ -808,12 +687,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddressArray(new String[] {receiverAccountAlias, secondReceiverAddressString})
                 .addInt64Array(new long[] {1, 2});
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                TRANSFER_NFTS.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_NFTS.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, TRANSFER_NFTS, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with cryptoTransfer function for hbars")
@@ -888,12 +762,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(1L)
                 .addInt64Array(asLongArray(new ArrayList<>()));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                BURN_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, BURN_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with burnToken function for NFT")
@@ -903,12 +772,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(0L)
                 .addInt64Array(asLongArray(List.of(1L)));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                BURN_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, BURN_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with CreateFungibleToken function")
@@ -919,10 +783,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             try {
                 validateGasEstimation(
                         estimatePrecompileContractId,
-                        CREATE_FUNGIBLE_TOKEN.getSelector(),
+                        CREATE_FUNGIBLE_TOKEN,
                         parameters,
                         senderAccountId,
-                        CREATE_FUNGIBLE_TOKEN.getActualGas(),
                         Optional.of(calculateCreateTokenFee(1, current)));
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -940,10 +803,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             try {
                 validateGasEstimation(
                         estimatePrecompileContractId,
-                        CREATE_NFT.getSelector(),
+                        CREATE_NFT,
                         parameters,
                         senderAccountId,
-                        CREATE_NFT.getActualGas(),
                         Optional.of(calculateCreateTokenFee(1, current)));
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -963,10 +825,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             try {
                 validateGasEstimation(
                         estimatePrecompileContractId,
-                        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES.getSelector(),
+                        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES,
                         parameters,
                         senderAccountId,
-                        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES.getActualGas(),
                         Optional.of(calculateCreateTokenFee(2, current)));
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -984,10 +845,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             try {
                 validateGasEstimation(
                         estimatePrecompileContractId,
-                        CREATE_NFT_WITH_CUSTOM_FEES.getSelector(),
+                        CREATE_NFT_WITH_CUSTOM_FEES,
                         parameters,
                         senderAccountId,
-                        CREATE_NFT_WITH_CUSTOM_FEES.getActualGas(),
                         Optional.of(calculateCreateTokenFee(2, current)));
             } catch (ExecutionException | InterruptedException e) {
                 throw new RuntimeException(e);
@@ -1010,12 +870,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addInt64(1L);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                WIPE_TOKEN_ACCOUNT.getSelector(),
-                parameters,
-                senderAccountId,
-                WIPE_TOKEN_ACCOUNT.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, WIPE_TOKEN_ACCOUNT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with WipeTokenAccount function with invalid amount")
@@ -1027,10 +882,9 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
                         estimatePrecompileContractId,
-                        WIPE_TOKEN_ACCOUNT.getSelector(),
+                        WIPE_TOKEN_ACCOUNT,
                         parameters,
                         senderAccountId,
-                        WIPE_TOKEN_ACCOUNT.getActualGas(),
                         Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
@@ -1055,12 +909,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addInt64Array(asLongArray(List.of(1L)));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                WIPE_NFT_ACCOUNT.getSelector(),
-                parameters,
-                senderAccountId,
-                WIPE_NFT_ACCOUNT.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, WIPE_NFT_ACCOUNT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with WipeNFTAccount function with invalid serial number")
@@ -1071,12 +920,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64Array(asLongArray(List.of(66L)));
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        WIPE_NFT_ACCOUNT.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        WIPE_NFT_ACCOUNT.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, WIPE_NFT_ACCOUNT, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -1087,12 +931,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                GRANT_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                GRANT_KYC.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, GRANT_KYC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with GrantKYC function for NFT")
@@ -1101,12 +940,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                GRANT_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                GRANT_KYC.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, GRANT_KYC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with RevokeTokenKYC function for fungible token")
@@ -1115,12 +949,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                REVOKE_KYC.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, REVOKE_KYC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with RevokeTokenKYC function for NFT")
@@ -1129,12 +958,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                REVOKE_KYC.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, REVOKE_KYC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with Grant and Revoke KYC nested function")
@@ -1143,12 +967,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_GRANT_REVOKE_KYC.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_GRANT_REVOKE_KYC.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, NESTED_GRANT_REVOKE_KYC, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with Freeze function for fungible token")
@@ -1157,12 +976,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                FREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                FREEZE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, FREEZE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with Freeze function for NFT")
@@ -1171,12 +985,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                FREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                FREEZE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, FREEZE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with Unfreeze function for fungible token")
@@ -1185,12 +994,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNFREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNFREEZE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UNFREEZE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with Unfreeze function for NFT")
@@ -1199,12 +1003,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNFREEZE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNFREEZE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UNFREEZE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with nested Freeze and Unfreeze function for fungible token")
@@ -1213,12 +1012,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_FREEZE_UNFREEZE.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_FREEZE_UNFREEZE.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, NESTED_FREEZE_UNFREEZE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with nested Freeze and Unfreeze function for NFT")
@@ -1227,24 +1021,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                NESTED_FREEZE_UNFREEZE.getSelector(),
-                parameters,
-                senderAccountId,
-                NESTED_FREEZE_UNFREEZE.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, NESTED_FREEZE_UNFREEZE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with delete function for Fungible token")
     public void deleteFungibleEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DELETE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                DELETE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DELETE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with delete function for NFT")
@@ -1252,12 +1036,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                DELETE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                DELETE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, DELETE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with delete function for invalid token address")
@@ -1272,12 +1051,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 new ContractFunctionParameters().addAddress(asAddress(address).toString());
 
         assertThatThrownBy(() -> mirrorClient.estimateGasQueryTopLevelCall(
-                        estimatePrecompileContractId,
-                        DELETE_TOKEN.getSelector(),
-                        parameters,
-                        senderAccountId,
-                        DELETE_TOKEN.getActualGas(),
-                        Optional.empty()))
+                        estimatePrecompileContractId, DELETE_TOKEN, parameters, senderAccountId, Optional.empty()))
                 .isInstanceOf(ExecutionException.class)
                 .hasMessageContaining(ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.toString());
     }
@@ -1286,72 +1060,42 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     public void pauseFungibleTokenPositiveEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, PAUSE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with pause function for NFT")
     public void pauseNFTPositiveEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, PAUSE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with unpause function for fungible token")
     public void unpauseFungibleTokenPositiveEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNPAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNPAUSE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UNPAUSE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with unpause function for NFT")
     public void unpauseNFTPositiveEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UNPAUSE_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                UNPAUSE_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UNPAUSE_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas for nested pause and unpause function")
     public void pauseUnpauseFungibleTokenNestedCallEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, PAUSE_UNPAUSE_NESTED_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas for nested pause, unpause NFT function")
     public void pauseUnpauseNFTNestedCallEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_NESTED_TOKEN.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, PAUSE_UNPAUSE_NESTED_TOKEN, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with updateTokenExpiryInfo function")
@@ -1360,12 +1104,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_EXPIRY.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_EXPIRY.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UPDATE_TOKEN_EXPIRY, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with updateTokenInfo function")
@@ -1374,24 +1113,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UPDATE_TOKEN_INFO, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with updateTokenKeys function")
     public void updateTokenKeysEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                UPDATE_TOKEN_KEYS.getSelector(),
-                parameters,
-                senderAccountId,
-                UPDATE_TOKEN_KEYS.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, UPDATE_TOKEN_KEYS, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenExpiryInfo function")
@@ -1400,12 +1129,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isToken function")
@@ -1413,12 +1137,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var methodInterface = getFlaggedValue(IS_TOKEN);
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for supply")
@@ -1429,12 +1148,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(new BigInteger("16"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for KYC")
@@ -1444,12 +1158,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(BigInteger.TWO);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for freeze")
@@ -1459,12 +1168,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(new BigInteger("4"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for admin")
@@ -1474,12 +1178,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for wipe")
@@ -1489,12 +1188,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(new BigInteger("8"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for fee")
@@ -1504,12 +1198,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(new BigInteger("32"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenKey function for pause")
@@ -1519,12 +1208,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addUint256(new BigInteger("64"));
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with ERC allowance function for fungible token")
@@ -1535,12 +1219,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getApproved function for NFT")
@@ -1551,12 +1230,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with ERC getApproved function for NFT")
@@ -1567,12 +1241,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isApprovedForAll function")
@@ -1584,12 +1253,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with ERC isApprovedForAll function")
@@ -1601,12 +1265,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with name function for fungible token")
@@ -1614,7 +1273,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(ercTestContractId, NAME.getSelector(), parameters, senderAccountId, NAME.getActualGas());
+        validateGasEstimation(ercTestContractId, NAME, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with name function for NFT")
@@ -1623,12 +1282,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with symbol function for fungible token")
@@ -1637,12 +1291,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with symbol function for NFT")
@@ -1651,12 +1300,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with decimals function for fungible token")
@@ -1665,12 +1309,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with totalSupply function for fungible token")
@@ -1679,12 +1318,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with totalSupply function for NFT")
@@ -1693,12 +1327,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with ownerOf function for NFT")
@@ -1709,12 +1338,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with tokenURI function for NFT")
@@ -1725,24 +1349,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(ercTestContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getFungibleTokenInfo function")
     public void getFungibleTokenInfoEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_FUNGIBLE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_FUNGIBLE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(precompileContractId, GET_FUNGIBLE_TOKEN_INFO, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getNonFungibleTokenInfo function")
@@ -1751,12 +1365,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addInt64(1L);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_NON_FUNGIBLE_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_NON_FUNGIBLE_TOKEN_INFO.getActualGas());
+        validateGasEstimation(precompileContractId, GET_NON_FUNGIBLE_TOKEN_INFO, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenInfo function for fungible")
@@ -1764,24 +1373,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_TOKEN_INFO.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_TOKEN_INFO.getActualGas());
+        validateGasEstimation(precompileContractId, GET_TOKEN_INFO, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenInfo function for NFT")
     public void getTokenInfoNonFungibleEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                GET_TOKEN_INFO_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                GET_TOKEN_INFO_NFT.getActualGas());
+        validateGasEstimation(precompileContractId, GET_TOKEN_INFO_NFT, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenDefaultFreezeStatus function for fungible token")
@@ -1790,12 +1389,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenDefaultFreezeStatus function for NFT")
@@ -1804,12 +1398,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenDefaultKycStatus function for fungible token")
@@ -1818,12 +1407,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenDefaultKycStatus function for NFT")
@@ -1832,12 +1416,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isKyc function for fungible token")
@@ -1848,12 +1427,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isKyc function for NFT")
@@ -1864,12 +1438,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isFrozen function for fungible token")
@@ -1880,12 +1449,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with isFrozen function for NFT")
@@ -1896,12 +1460,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenType function for fungible token")
@@ -1910,12 +1469,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with getTokenType function for NFT")
@@ -1924,12 +1478,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect balanceOf function")
@@ -1939,36 +1488,21 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleKycUnfrozenTokenIdAddressString)
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_BALANCE_OF.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_BALANCE_OF.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_BALANCE_OF, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect name function")
     public void redirectNameEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_NAME.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_NAME.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_NAME, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect symbol function")
     public void redirectSymbolEstimateGas() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_SYMBOL, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect name function for NFT")
@@ -1976,12 +1510,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_NAME.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_NAME.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_NAME, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect symbol function for NFT")
@@ -1989,12 +1518,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleKycUnfrozenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SYMBOL.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_SYMBOL, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect decimals function")
@@ -2002,12 +1526,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addAddress(fungibleKycUnfrozenTokenIdAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_DECIMALS.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_DECIMALS.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_DECIMALS, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect allowance function")
@@ -2017,12 +1536,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(adminAddressString)
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_ALLOWANCE.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_ALLOWANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect getOwnerOf function")
@@ -2031,12 +1545,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_GET_OWNER_OF.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_GET_OWNER_OF.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_GET_OWNER_OF, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect tokenURI function")
@@ -2045,12 +1554,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleKycUnfrozenAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TOKEN_URI.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TOKEN_URI.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_TOKEN_URI, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect isApprovedForAll function")
@@ -2061,11 +1565,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias);
 
         validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL.getActualGas());
+                precompileContractId, REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL, parameters, senderAccountId);
     }
 
     @And("I transfer fungible token to the precompile contract")
@@ -2085,12 +1585,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(new BigInteger("5"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TRANSFER.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_TRANSFER, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect transferFrom function")
@@ -2101,12 +1596,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(new BigInteger("5"));
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_TRANSFER_FROM.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_TRANSFER_FROM.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_TRANSFER_FROM, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect approve function")
@@ -2116,12 +1606,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(BigInteger.TEN);
 
-        validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_APPROVE.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_APPROVE.getActualGas());
+        validateGasEstimation(precompileContractId, REDIRECT_FOR_TOKEN_APPROVE, parameters, senderAccountId);
     }
 
     @And("I approve for all nft for precompile contract")
@@ -2139,12 +1624,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(BigInteger.TWO);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with redirect setApprovalForAll function")
@@ -2155,11 +1635,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addBool(true);
 
         validateGasEstimation(
-                precompileContractId,
-                REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL.getSelector(),
-                parameters,
-                senderAccountId,
-                REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL.getActualGas());
+                precompileContractId, REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with pseudo random seed")
@@ -2167,12 +1643,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters();
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                PSEUDO_RANDOM_SEED.getSelector(),
-                parameters,
-                senderAccountId,
-                PSEUDO_RANDOM_SEED.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, PSEUDO_RANDOM_SEED, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with pseudo random number")
@@ -2181,12 +1652,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
 
         var parameters = new ContractFunctionParameters().addUint32(500).addUint32(1000);
 
-        validateGasEstimation(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(estimatePrecompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with exchange rate tinycents to tinybars")
@@ -2194,11 +1660,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters().addUint256(new BigInteger("100"));
 
         validateGasEstimation(
-                estimatePrecompileContractId,
-                EXCHANGE_RATE_TINYCENTS_TO_TINYBARS.getSelector(),
-                parameters,
-                senderAccountId,
-                EXCHANGE_RATE_TINYCENTS_TO_TINYBARS.getActualGas());
+                estimatePrecompileContractId, EXCHANGE_RATE_TINYCENTS_TO_TINYBARS, parameters, senderAccountId);
     }
 
     @Then("I call estimateGas with exchange rate tinybars to tinycents")
@@ -2206,18 +1668,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
         var parameters = new ContractFunctionParameters().addUint256(new BigInteger("100"));
 
         validateGasEstimation(
-                estimatePrecompileContractId,
-                EXCHANGE_RATE_TINYBARS_TO_TINYCENTS.getSelector(),
-                parameters,
-                senderAccountId,
-                EXCHANGE_RATE_TINYBARS_TO_TINYCENTS.getActualGas());
+                estimatePrecompileContractId, EXCHANGE_RATE_TINYBARS_TO_TINYCENTS, parameters, senderAccountId);
     }
 
     private void executeContractTransaction(
-            DeployedContract deployedContract, long gas, ContractMethodInterface contractMethods, byte[] parameters) {
+            DeployedContract deployedContract, long gas, ContractMethodInterface method, byte[] parameters) {
 
         ExecuteContractResult executeContractResult = contractClient.executeContract(
-                deployedContract.contractId(), gas, contractMethods.getSelector(), parameters, null);
+                deployedContract.contractId(), gas, method.getSelector(), parameters, null);
 
         networkTransactionResponse = executeContractResult.networkTransactionResponse();
         verifyMirrorTransactionsResponse(mirrorClient, 200);
@@ -2235,12 +1693,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(asAddress(tokenId).toString())
                 .addAddress(adminAddressString);
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                ercTestContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
+                ercTestContractId, methodInterface, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedErcTestContract, estimateGasResult, methodInterface, data);
@@ -2291,12 +1744,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(5L);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                TRANSFER_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_TOKEN.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, TRANSFER_TOKEN, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(TRANSFER_TOKEN.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, TRANSFER_TOKEN, data);
@@ -2326,12 +1774,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64(2L);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, methodInterface, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
@@ -2362,12 +1805,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, methodInterface, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
@@ -2389,12 +1827,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, methodInterface, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
@@ -2415,12 +1848,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.TEN);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                APPROVE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, APPROVE, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(APPROVE.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, APPROVE, data);
@@ -2441,12 +1869,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ONE);
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                APPROVE_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_NFT.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, APPROVE_NFT, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(APPROVE_NFT.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, APPROVE_NFT, data);
@@ -2470,12 +1893,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("5"));
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                TRANSFER_FROM.getSelector(),
-                parameters,
-                senderAccountId,
-                TRANSFER_FROM.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, TRANSFER_FROM, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(TRANSFER_FROM.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, TRANSFER_FROM, data);
@@ -2500,12 +1918,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(new BigInteger("3"));
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, methodInterface, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(methodInterface.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, methodInterface, data);
@@ -2522,12 +1935,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addBytesArray(new byte[][] {})
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that mints NFT token and gets the total supply and balance")
@@ -2540,12 +1948,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addBytesArray(asByteArray(List.of("0x02")))
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getActualGas());
+        validateGasEstimation(precompileContractId, MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that burns FUNGIBLE token and gets the total supply and balance")
@@ -2559,12 +1962,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64Array(asLongArray(List.of()))
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that burns NFT token and returns the total supply and balance of treasury")
@@ -2577,12 +1975,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64Array(asLongArray(List.of(1L)))
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE.getActualGas());
+        validateGasEstimation(precompileContractId, BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that wipes FUNGIBLE token and gets the total supply and balance")
@@ -2596,12 +1989,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64Array(asLongArray(List.of()))
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that wipes NFT token and gets the total supply and balance")
@@ -2615,12 +2003,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addInt64Array(asLongArray(List.of(1L)))
                 .addAddress(receiverAccountAlias);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that pauses FUNGIBLE token, unpauses and gets the token status")
@@ -2628,24 +2011,14 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
             throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(fungibleTokenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                PAUSE_UNPAUSE_GET_STATUS.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_GET_STATUS.getActualGas());
+        validateGasEstimation(precompileContractId, PAUSE_UNPAUSE_GET_STATUS, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that pauses NFT token, unpauses and gets the token status")
     public void estimateGasPauseNFTTokenGetStatusUnpauseGetStatus() throws ExecutionException, InterruptedException {
         var parameters = new ContractFunctionParameters().addAddress(nonFungibleTokenAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                PAUSE_UNPAUSE_GET_STATUS.getSelector(),
-                parameters,
-                senderAccountId,
-                PAUSE_UNPAUSE_GET_STATUS.getActualGas());
+        validateGasEstimation(precompileContractId, PAUSE_UNPAUSE_GET_STATUS, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that freezes FUNGIBLE token, unfreezes and gets freeze status")
@@ -2657,12 +2030,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(fungibleTokenAddressString)
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that freezes NFT token, unfreezes and gets freeze status")
@@ -2674,12 +2042,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(nonFungibleTokenAddressString)
                 .addAddress(adminAddressString);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that approves FUNGIBLE token and gets allowance")
@@ -2691,12 +2054,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ONE)
                 .addUint256(BigInteger.ZERO);
 
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_FUNGIBLE_GET_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_FUNGIBLE_GET_ALLOWANCE.getActualGas());
+        validateGasEstimation(precompileContractId, APPROVE_FUNGIBLE_GET_ALLOWANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that approves NFT token and gets allowance")
@@ -2707,12 +2065,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ZERO)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                APPROVE_NFT_GET_ALLOWANCE.getSelector(),
-                parameters,
-                senderAccountId,
-                APPROVE_NFT_GET_ALLOWANCE.getActualGas());
+        validateGasEstimation(precompileContractId, APPROVE_NFT_GET_ALLOWANCE, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that associates FUNGIBLE token dissociates and fails token transfer")
@@ -2726,11 +2079,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ZERO);
 
         validateGasEstimation(
-                precompileContractId,
-                DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER.getActualGas());
+                precompileContractId, DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that associates NFT token dissociates and fails token transfer")
@@ -2742,12 +2091,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addUint256(BigInteger.ZERO)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                DISSOCIATE_NFT_AND_TRANSFER.getSelector(),
-                parameters,
-                senderAccountId,
-                DISSOCIATE_NFT_AND_TRANSFER.getActualGas());
+        validateGasEstimation(precompileContractId, DISSOCIATE_NFT_AND_TRANSFER, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that approves a FUNGIBLE token and transfers it")
@@ -2760,12 +2104,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(receiverAccountAlias)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @Then("I call estimate gas that approves a NFT token and transfers it")
@@ -2777,12 +2116,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addAddress(secondReceiverAddressString)
                 .addUint256(BigInteger.ONE);
 
-        validateGasEstimation(
-                precompileContractId,
-                methodInterface.getSelector(),
-                parameters,
-                senderAccountId,
-                methodInterface.getActualGas());
+        validateGasEstimation(precompileContractId, methodInterface, parameters, senderAccountId);
     }
 
     @And("I approve and transfer NFT tokens to the precompile contract")
@@ -2809,12 +2143,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addBytesArray(asByteArray(new ArrayList<>()));
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                MINT_TOKEN.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_TOKEN.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, MINT_TOKEN, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(MINT_TOKEN.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, MINT_TOKEN, data);
@@ -2831,12 +2160,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 .addBytesArray(asByteArray(List.of("0x02")));
 
         var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                estimatePrecompileContractId,
-                MINT_NFT.getSelector(),
-                parameters,
-                senderAccountId,
-                MINT_NFT.getActualGas(),
-                Optional.empty());
+                estimatePrecompileContractId, MINT_NFT, parameters, senderAccountId, Optional.empty());
         assertWithinDeviation(MINT_NFT.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
 
         executeContractTransaction(deployedEstimatePrecompileContract, estimateGasResult, MINT_NFT, data);
@@ -2879,159 +2203,161 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements ContractMethodInterface {
-        ALLOWANCE("allowanceExternal", 25399),
-        ALLOWANCE_ERC("allowance", 27481),
-        APPROVE("approveExternal", 729571),
-        APPROVE_NFT("approveNFTExternal", 729569),
-        APPROVE_ERC("approve", 731632),
-        ASSOCIATE_TOKEN("associateTokenExternal", 729374),
-        ASSOCIATE_TOKENS("associateTokensExternal", 730641),
-        BALANCE_OF("balanceOf", 27270),
-        BALANCE_OF_NFT("balanceOfIERC721", 27228),
-        BURN_TOKEN("burnTokenExternal", 40247),
-        CREATE_FUNGIBLE_TOKEN("createFungibleTokenPublic", 192752),
-        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES("createFungibleTokenWithCustomFeesPublic", 176628),
-        CREATE_NFT("createNonFungibleTokenPublic", 192472),
-        CREATE_NFT_WITH_CUSTOM_FEES("createNonFungibleTokenWithCustomFeesPublic", 195579),
-        CRYPTO_TRANSFER("cryptoTransferExternal", 47206),
-        CRYPTO_TRANSFER_HBARS("cryptoTransferExternal", 31819),
-        CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 60258),
-        DECIMALS("decimals", 27143),
-        DELETE_TOKEN("deleteTokenExternal", 39095),
-        DISSOCIATE_AND_ASSOCIATE("dissociateAndAssociateTokenExternal", 1434814),
-        DISSOCIATE_TOKEN("dissociateTokenExternal", 729428),
-        DISSOCIATE_TOKENS("dissociateTokensExternal", 730641),
-        EXCHANGE_RATE_TINYCENTS_TO_TINYBARS("tinycentsToTinybars", 24833),
-        EXCHANGE_RATE_TINYBARS_TO_TINYCENTS("tinybarsToTinycents", 24811),
-        FREEZE_TOKEN("freezeTokenExternal", 39339),
-        GET_APPROVED("getApprovedExternal", 25192),
-        GET_APPROVED_ERC("getApproved", 27393),
-        GET_FUNGIBLE_TOKEN_INFO("getInformationForFungibleToken", 56456),
-        GET_NON_FUNGIBLE_TOKEN_INFO("getInformationForNonFungibleToken", 59159),
-        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 25191),
-        GET_TOKEN_DEFAULT_KYC_STATUS("getTokenDefaultKyc", 25267),
-        GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 25617),
-        GET_TOKEN_INFO("getInformationForToken", 55815),
-        GET_TOKEN_INFO_NFT("getInformationForToken", 56523),
-        GET_TOKEN_KEY("getTokenKeyExternal", 27024),
-        GET_TOKEN_TYPE("getType", 25223),
-        GRANT_KYC("grantTokenKycExternal", 39311),
-        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 25483),
-        IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 27520),
-        IS_TOKEN("isTokenExternal", 25100),
-        IS_FROZEN("isTokenFrozen", 25473),
-        IS_KYC("isKycGranted", 25417),
-        MINT_TOKEN("mintTokenExternal", 40700),
-        MINT_NFT("mintTokenExternal", 309748),
-        NAME("name", 27976),
-        NAME_NFT("nameIERC721", 27837),
-        NESTED_ASSOCIATE("nestedAssociateTokenExternal", 0),
-        NESTED_FREEZE_UNFREEZE("nestedFreezeUnfreezeTokenExternal", 54548),
-        NESTED_GRANT_REVOKE_KYC("nestedGrantAndRevokeTokenKYCExternal", 54516),
-        OWNER_OF("getOwnerOf", 27271),
-        PSEUDO_RANDOM_SEED("getPseudorandomSeed", 36270),
-        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 36729),
-        REVOKE_KYC("revokeTokenKycExternal", 39324),
-        REDIRECT_FOR_TOKEN_ALLOWANCE("allowanceRedirect", 33182),
-        REDIRECT_FOR_TOKEN_APPROVE("approveRedirect", 737257),
-        REDIRECT_FOR_TOKEN_BALANCE_OF("balanceOfRedirect", 32806),
-        REDIRECT_FOR_TOKEN_DECIMALS("decimalsRedirect", 32411),
-        REDIRECT_FOR_TOKEN_GET_APPROVED("getApprovedRedirect", 23422),
-        REDIRECT_FOR_TOKEN_GET_OWNER_OF("getOwnerOfRedirect", 32728),
-        REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL("isApprovedForAllRedirect", 33204),
-        REDIRECT_FOR_TOKEN_NAME("nameNFTRedirect", 33615),
-        REDIRECT_FOR_TOKEN_SYMBOL("symbolNFTRedirect", 33681),
-        REDIRECT_FOR_TOKEN_NAME_NFT("nameRedirect", 23422),
-        REDIRECT_FOR_TOKEN_SYMBOL_NFT("symbolRedirect", 23422),
-        REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL("setApprovalForAllRedirect", 737243),
-        REDIRECT_FOR_TOKEN_TOTAL_SUPPLY("totalSupplyRedirect", 23422),
-        REDIRECT_FOR_TOKEN_TOKEN_URI("tokenURIRedirect", 33997),
-        REDIRECT_FOR_TOKEN_TRANSFER("transferRedirect", 47842),
-        REDIRECT_FOR_TOKEN_TRANSFER_FROM("transferFromRedirect", 48274),
-        REDIRECT_FOR_TOKEN_TRANSFER_FROM_NFT("transferFromNFTRedirect", 62336),
-        SET_APPROVAL_FOR_ALL("setApprovalForAllExternal", 729608),
-        SYMBOL("symbol", 27815),
-        SYMBOL_NFT("symbolIERC721", 27814),
-        TOTAL_SUPPLY("totalSupply", 27100),
-        TOTAL_SUPPLY_NFT("totalSupplyIERC721", 27078),
-        TOKEN_URI("tokenURI", 27856),
-        TRANSFER_ERC("transfer", 42138),
-        TRANSFER_FROM("transferFromExternal", 41307),
-        TRANSFER_FROM_ERC("transferFrom", 42475),
-        TRANSFER_FROM_NFT("transferFromNFTExternal", 55478),
-        TRANSFER_NFT("transferNFTExternal", 54596),
-        TRANSFER_NFTS("transferNFTsExternal", 58999),
-        TRANSFER_TOKEN("transferTokenExternal", 39666),
-        TRANSFER_TOKENS("transferTokensExternal", 48326),
-        UNFREEZE_TOKEN("unfreezeTokenExternal", 39323),
-        WIPE_TOKEN_ACCOUNT("wipeTokenAccountExternal", 39496),
-        WIPE_NFT_ACCOUNT("wipeTokenAccountNFTExternal", 40394),
-        PAUSE_TOKEN("pauseTokenExternal", 39112),
-        PAUSE_UNPAUSE_NESTED_TOKEN("nestedPauseUnpauseTokenExternal", 54237),
-        UNPAUSE_TOKEN("unpauseTokenExternal", 39112),
-        UPDATE_TOKEN_EXPIRY("updateTokenExpiryInfoExternal", 39699),
-        UPDATE_TOKEN_INFO("updateTokenInfoExternal", 74920),
-        UPDATE_TOKEN_KEYS("updateTokenKeysExternal", 60427),
-        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 68127),
-        MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 335855),
-        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 66908),
-        BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 66886),
-        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 88477),
-        WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 88970),
-        PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus", 98345),
-        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 57387),
-        APPROVE_FUNGIBLE_GET_ALLOWANCE("approveTokenGetAllowance", 733080),
-        APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127),
-        DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987),
-        DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000),
-        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 835000);
+        ALLOWANCE("allowanceExternal", 25399, MUTABLE),
+        ALLOWANCE_ERC("allowance", 27481, VIEW),
+        APPROVE("approveExternal", 729571, MUTABLE),
+        APPROVE_NFT("approveNFTExternal", 729569, MUTABLE),
+        APPROVE_ERC("approve", 731632, MUTABLE),
+        ASSOCIATE_TOKEN("associateTokenExternal", 729374, MUTABLE),
+        ASSOCIATE_TOKENS("associateTokensExternal", 730641, MUTABLE),
+        BALANCE_OF("balanceOf", 27270, VIEW),
+        BALANCE_OF_NFT("balanceOfIERC721", 27228, VIEW),
+        BURN_TOKEN("burnTokenExternal", 40247, MUTABLE),
+        CREATE_FUNGIBLE_TOKEN("createFungibleTokenPublic", 192752, PAYABLE),
+        CREATE_FUNGIBLE_TOKEN_WITH_CUSTOM_FEES("createFungibleTokenWithCustomFeesPublic", 176628, PAYABLE),
+        CREATE_NFT("createNonFungibleTokenPublic", 192472, PAYABLE),
+        CREATE_NFT_WITH_CUSTOM_FEES("createNonFungibleTokenWithCustomFeesPublic", 195579, PAYABLE),
+        CRYPTO_TRANSFER("cryptoTransferExternal", 47206, MUTABLE),
+        CRYPTO_TRANSFER_HBARS("cryptoTransferExternal", 31819, MUTABLE),
+        CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 60258, MUTABLE),
+        DECIMALS("decimals", 27143, VIEW),
+        DELETE_TOKEN("deleteTokenExternal", 39095, MUTABLE),
+        DISSOCIATE_AND_ASSOCIATE("dissociateAndAssociateTokenExternal", 1434814, MUTABLE),
+        DISSOCIATE_TOKEN("dissociateTokenExternal", 729428, MUTABLE),
+        DISSOCIATE_TOKENS("dissociateTokensExternal", 730641, MUTABLE),
+        EXCHANGE_RATE_TINYCENTS_TO_TINYBARS("tinycentsToTinybars", 24833, MUTABLE),
+        EXCHANGE_RATE_TINYBARS_TO_TINYCENTS("tinybarsToTinycents", 24811, MUTABLE),
+        FREEZE_TOKEN("freezeTokenExternal", 39339, MUTABLE),
+        GET_APPROVED("getApprovedExternal", 25192, MUTABLE),
+        GET_APPROVED_ERC("getApproved", 27393, VIEW),
+        GET_FUNGIBLE_TOKEN_INFO("getInformationForFungibleToken", 56456, VIEW),
+        GET_NON_FUNGIBLE_TOKEN_INFO("getInformationForNonFungibleToken", 59159, MUTABLE),
+        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 25191, MUTABLE),
+        GET_TOKEN_DEFAULT_KYC_STATUS("getTokenDefaultKyc", 25267, MUTABLE),
+        GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 25617, MUTABLE),
+        GET_TOKEN_INFO("getInformationForToken", 55815, MUTABLE),
+        GET_TOKEN_INFO_NFT("getInformationForToken", 56523, MUTABLE),
+        GET_TOKEN_KEY("getTokenKeyExternal", 27024, MUTABLE),
+        GET_TOKEN_TYPE("getType", 25223, MUTABLE),
+        GRANT_KYC("grantTokenKycExternal", 39311, MUTABLE),
+        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 25483, MUTABLE),
+        IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 27520, VIEW),
+        IS_TOKEN("isTokenExternal", 25100, MUTABLE),
+        IS_FROZEN("isTokenFrozen", 25473, MUTABLE),
+        IS_KYC("isKycGranted", 25417, MUTABLE),
+        MINT_TOKEN("mintTokenExternal", 40700, MUTABLE),
+        MINT_NFT("mintTokenExternal", 309748, MUTABLE),
+        NAME("name", 27976, VIEW),
+        NAME_NFT("nameIERC721", 27837, VIEW),
+        NESTED_ASSOCIATE("nestedAssociateTokenExternal", 0, MUTABLE),
+        NESTED_FREEZE_UNFREEZE("nestedFreezeUnfreezeTokenExternal", 54548, MUTABLE),
+        NESTED_GRANT_REVOKE_KYC("nestedGrantAndRevokeTokenKYCExternal", 54516, MUTABLE),
+        OWNER_OF("getOwnerOf", 27271, VIEW),
+        PSEUDO_RANDOM_SEED("getPseudorandomSeed", 36270, MUTABLE),
+        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 36729, MUTABLE),
+        REVOKE_KYC("revokeTokenKycExternal", 39324, MUTABLE),
+        REDIRECT_FOR_TOKEN_ALLOWANCE("allowanceRedirect", 33182, MUTABLE),
+        REDIRECT_FOR_TOKEN_APPROVE("approveRedirect", 737257, MUTABLE),
+        REDIRECT_FOR_TOKEN_BALANCE_OF("balanceOfRedirect", 32806, MUTABLE),
+        REDIRECT_FOR_TOKEN_DECIMALS("decimalsRedirect", 32411, MUTABLE),
+        REDIRECT_FOR_TOKEN_GET_APPROVED("getApprovedRedirect", 23422, MUTABLE),
+        REDIRECT_FOR_TOKEN_GET_OWNER_OF("getOwnerOfRedirect", 32728, MUTABLE),
+        REDIRECT_FOR_TOKEN_IS_APPROVED_FOR_ALL("isApprovedForAllRedirect", 33204, MUTABLE),
+        REDIRECT_FOR_TOKEN_NAME("nameNFTRedirect", 33615, MUTABLE),
+        REDIRECT_FOR_TOKEN_SYMBOL("symbolNFTRedirect", 33681, MUTABLE),
+        REDIRECT_FOR_TOKEN_NAME_NFT("nameRedirect", 23422, MUTABLE),
+        REDIRECT_FOR_TOKEN_SYMBOL_NFT("symbolRedirect", 23422, MUTABLE),
+        REDIRECT_FOR_TOKEN_SET_APPROVAL_FOR_ALL("setApprovalForAllRedirect", 737243, MUTABLE),
+        REDIRECT_FOR_TOKEN_TOTAL_SUPPLY("totalSupplyRedirect", 23422, MUTABLE),
+        REDIRECT_FOR_TOKEN_TOKEN_URI("tokenURIRedirect", 33997, MUTABLE),
+        REDIRECT_FOR_TOKEN_TRANSFER("transferRedirect", 47842, MUTABLE),
+        REDIRECT_FOR_TOKEN_TRANSFER_FROM("transferFromRedirect", 48274, MUTABLE),
+        REDIRECT_FOR_TOKEN_TRANSFER_FROM_NFT("transferFromNFTRedirect", 62336, MUTABLE),
+        SET_APPROVAL_FOR_ALL("setApprovalForAllExternal", 729608, MUTABLE),
+        SYMBOL("symbol", 27815, VIEW),
+        SYMBOL_NFT("symbolIERC721", 27814, VIEW),
+        TOTAL_SUPPLY("totalSupply", 27100, VIEW),
+        TOTAL_SUPPLY_NFT("totalSupplyIERC721", 27078, VIEW),
+        TOKEN_URI("tokenURI", 27856, VIEW),
+        TRANSFER_ERC("transfer", 42138, MUTABLE),
+        TRANSFER_FROM("transferFromExternal", 41307, MUTABLE),
+        TRANSFER_FROM_ERC("transferFrom", 42475, MUTABLE),
+        TRANSFER_FROM_NFT("transferFromNFTExternal", 55478, MUTABLE),
+        TRANSFER_NFT("transferNFTExternal", 54596, MUTABLE),
+        TRANSFER_NFTS("transferNFTsExternal", 58999, MUTABLE),
+        TRANSFER_TOKEN("transferTokenExternal", 39666, MUTABLE),
+        TRANSFER_TOKENS("transferTokensExternal", 48326, MUTABLE),
+        UNFREEZE_TOKEN("unfreezeTokenExternal", 39323, MUTABLE),
+        WIPE_TOKEN_ACCOUNT("wipeTokenAccountExternal", 39496, MUTABLE),
+        WIPE_NFT_ACCOUNT("wipeTokenAccountNFTExternal", 40394, MUTABLE),
+        PAUSE_TOKEN("pauseTokenExternal", 39112, MUTABLE),
+        PAUSE_UNPAUSE_NESTED_TOKEN("nestedPauseUnpauseTokenExternal", 54237, MUTABLE),
+        UNPAUSE_TOKEN("unpauseTokenExternal", 39112, MUTABLE),
+        UPDATE_TOKEN_EXPIRY("updateTokenExpiryInfoExternal", 39699, MUTABLE),
+        UPDATE_TOKEN_INFO("updateTokenInfoExternal", 74920, MUTABLE),
+        UPDATE_TOKEN_KEYS("updateTokenKeysExternal", 60427, MUTABLE),
+        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 68127, MUTABLE),
+        MINT_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 335855, MUTABLE),
+        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 66908, MUTABLE),
+        BURN_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 66886, MUTABLE),
+        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 88477, MUTABLE),
+        WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 88970, MUTABLE),
+        PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus", 98345, MUTABLE),
+        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 57387, MUTABLE),
+        APPROVE_FUNGIBLE_GET_ALLOWANCE("approveTokenGetAllowance", 733080, MUTABLE),
+        APPROVE_NFT_GET_ALLOWANCE("approveTokenGetAllowance", 733127, MUTABLE),
+        DISSOCIATE_FUNGIBLE_TOKEN_AND_TRANSFER("associateTokenDissociateFailTransfer", 1482987, MUTABLE),
+        DISSOCIATE_NFT_AND_TRANSFER("associateTokenDissociateFailTransfer", 1525177, MUTABLE),
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000, MUTABLE),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 835000, MUTABLE);
 
         private final String selector;
         private final int actualGas;
+        private final FunctionType functionType;
     }
 
     @Getter
     @RequiredArgsConstructor
     enum ContractMethodsModularizedServices implements ContractMethodInterface {
-        TRANSFER_NFT("transferNFTExternal", 41571),
-        ASSOCIATE_TOKENS("associateTokensExternal", 1336847),
-        CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 47372),
-        GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 28607),
-        IS_TOKEN("isTokenExternal", 27977),
-        GET_TOKEN_KEY("getTokenKeyExternal", 30778),
-        ALLOWANCE_ERC("allowance", 30724),
-        GET_APPROVED("getApprovedExternal", 28200),
-        GET_APPROVED_ERC("getApproved", 30256),
-        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 28860),
-        IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 30763),
-        NAME_NFT("nameIERC721", 30764),
-        SYMBOL("symbol", 30742),
-        SYMBOL_NFT("symbolIERC721", 30741),
-        DECIMALS("decimals", 29998),
-        TOTAL_SUPPLY("totalSupply", 29955),
-        TOTAL_SUPPLY_NFT("totalSupplyIERC721", 29933),
-        OWNER_OF("getOwnerOf", 30266),
-        TOKEN_URI("tokenURI", 30923),
-        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 27980),
-        GET_TOKEN_DEFAULT_KYC_STATUS("getTokenDefaultKyc", 28011),
-        IS_KYC("isKycGranted", 28542),
-        IS_FROZEN("isTokenFrozen", 28575),
-        GET_TOKEN_TYPE("getType", 27991),
-        REDIRECT_FOR_TOKEN_TRANSFER_FROM_NFT("transferFromNFTRedirect", 47116),
-        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 76875),
-        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 76413),
-        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101170),
-        WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101792),
-        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 65626),
-        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 40666),
-        TRANSFER_FROM_NFT("transferFromNFTExternal", 42745),
-        BALANCE_OF("balanceOf", 30277),
-        ALLOWANCE("allowanceExternal", 28778),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000),
-        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000);
+        TRANSFER_NFT("transferNFTExternal", 41571, MUTABLE),
+        ASSOCIATE_TOKENS("associateTokensExternal", 1336847, MUTABLE),
+        CRYPTO_TRANSFER_NFT("cryptoTransferExternal", 47372, MUTABLE),
+        GET_TOKEN_EXPIRY_INFO("getTokenExpiryInfoExternal", 28607, MUTABLE),
+        IS_TOKEN("isTokenExternal", 27977, MUTABLE),
+        GET_TOKEN_KEY("getTokenKeyExternal", 30778, MUTABLE),
+        ALLOWANCE_ERC("allowance", 30724, VIEW),
+        GET_APPROVED("getApprovedExternal", 28200, MUTABLE),
+        GET_APPROVED_ERC("getApproved", 30256, VIEW),
+        IS_APPROVED_FOR_ALL("isApprovedForAllExternal", 28860, MUTABLE),
+        IS_APPROVED_FOR_ALL_ERC("isApprovedForAll", 30763, VIEW),
+        NAME_NFT("nameIERC721", 30764, VIEW),
+        SYMBOL("symbol", 30742, VIEW),
+        SYMBOL_NFT("symbolIERC721", 30741, VIEW),
+        DECIMALS("decimals", 29998, VIEW),
+        TOTAL_SUPPLY("totalSupply", 29955, VIEW),
+        TOTAL_SUPPLY_NFT("totalSupplyIERC721", 29933, VIEW),
+        OWNER_OF("getOwnerOf", 30266, VIEW),
+        TOKEN_URI("tokenURI", 30923, VIEW),
+        GET_TOKEN_DEFAULT_FREEZE_STATUS("getTokenDefaultFreeze", 27980, MUTABLE),
+        GET_TOKEN_DEFAULT_KYC_STATUS("getTokenDefaultKyc", 28011, MUTABLE),
+        IS_KYC("isKycGranted", 28542, MUTABLE),
+        IS_FROZEN("isTokenFrozen", 28575, MUTABLE),
+        GET_TOKEN_TYPE("getType", 27991, MUTABLE),
+        REDIRECT_FOR_TOKEN_TRANSFER_FROM_NFT("transferFromNFTRedirect", 47116, MUTABLE),
+        MINT_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", 76875, MUTABLE),
+        BURN_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", 76413, MUTABLE),
+        WIPE_FUNGIBLE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101170, MUTABLE),
+        WIPE_NFT_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", 101792, MUTABLE),
+        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", 65626, MUTABLE),
+        PSEUDO_RANDOM_NUMBER("getPseudorandomNumber", 40666, MUTABLE),
+        TRANSFER_FROM_NFT("transferFromNFTExternal", 42745, MUTABLE),
+        BALANCE_OF("balanceOf", 30277, VIEW),
+        ALLOWANCE("allowanceExternal", 28778, MUTABLE),
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", 840000, MUTABLE),
+        APPROVE_NFT_TOKEN_AND_TRANSFER_FROM("approveNftAndTransfer", 830000, MUTABLE);
 
         private final String selector;
         private final int actualGas;
+        private final FunctionType functionType;
     }
 }

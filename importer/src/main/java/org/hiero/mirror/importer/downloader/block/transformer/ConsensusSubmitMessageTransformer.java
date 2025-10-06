@@ -9,20 +9,20 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 
 @Named
-final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {
+final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var topicMessage = blockItem
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
+        var topicMessage = blockTransaction
                 .getStateChangeContext()
-                .getTopicMessage(blockItemTransformation
-                        .transactionBody()
+                .getTopicMessage(blockTransactionTransformation
+                        .getTransactionBody()
                         .getConsensusSubmitMessage()
                         .getTopicID())
                 .orElseThrow();

@@ -19,6 +19,7 @@ import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_USED_METRIC;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ESTIMATE_GAS_ERROR_MESSAGE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EVM_V_34_BLOCK;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
@@ -36,7 +37,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import java.math.BigInteger;
@@ -1026,6 +1026,35 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         return gasUsedBeforeExecution;
     }
 
+    @Test
+    void erc20TransferWithHollowAccountSender() {
+        // Given
+        final var fungibleToken = fungibleTokenCustomizable(t -> t.kycKey(ECDSA_KEY));
+        final var senderAccount = hollowAccountPersist();
+        final var receiverAccount = hollowAccountPersist();
+        final var tokenAddress = toAddress(fungibleToken.getTokenId());
+
+        final var tokenAmount = 4096;
+        final var tokenAmountHex = Integer.toHexString(tokenAmount);
+        final var ercTransferFuncSignature = "0xa9059cbb";
+        final var receiverAlias = getAliasFromEntity(receiverAccount).substring(HEX_PREFIX.length());
+        final var hexData = String.format(
+                "%s000000000000000000000000%s000000000000000000000000000000000000000000000000000000000000%s",
+                ercTransferFuncSignature, receiverAlias, tokenAmountHex);
+
+        tokenAccount(ta -> ta.accountId(senderAccount.getId())
+                .tokenId(fungibleToken.getTokenId())
+                .balance(tokenAmount));
+
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                Bytes.fromHexString(hexData), toAddress(senderAccount.getId()), tokenAddress, 0L);
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
+
+        // Then
+        assertThat(result).isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000001");
+    }
+
     private void assertGasUsedIsPositive(final double gasUsedBeforeExecution, final CallType callType) {
         final var counter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
                 .filter(c -> callType.name().equals(c.getId().getTag("type")))
@@ -1065,7 +1094,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
-                .sender(new HederaEvmAccount(Address.ZERO))
+                .sender(Address.ZERO)
                 .value(0L)
                 .build();
     }
@@ -1084,7 +1113,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
-                .sender(new HederaEvmAccount(Address.ZERO))
+                .sender(Address.ZERO)
                 .value(0L)
                 .build();
     }
@@ -1114,7 +1143,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(receiverAddress)
-                .sender(new HederaEvmAccount(senderAddress))
+                .sender(senderAddress)
                 .value(value)
                 .build();
     }

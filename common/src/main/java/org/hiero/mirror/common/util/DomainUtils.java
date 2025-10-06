@@ -14,6 +14,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import jakarta.annotation.Nullable;
@@ -296,6 +297,18 @@ public class DomainUtils {
         var padding = new byte[EVM_ADDRESS_LENGTH - evmAddress.length];
 
         return fromEvmAddress(Bytes.concat(padding, evmAddress));
+    }
+
+    public static SlotKey normalize(SlotKey slotKey) {
+        var key = slotKey.getKey();
+        var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
+        if (normalizedBytes.length == key.size()) {
+            return slotKey;
+        }
+
+        return slotKey.toBuilder()
+                .setKey(DomainUtils.fromBytes(normalizedBytes))
+                .build();
     }
 
     public static byte[] trim(final byte[] data) {

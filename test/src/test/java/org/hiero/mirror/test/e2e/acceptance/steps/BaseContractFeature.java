@@ -63,22 +63,40 @@ public abstract class BaseContractFeature extends AbstractFeature {
         return mirrorContract;
     }
 
+    protected final void verifyContractExecutionResults(String timestamp) {
+        final var contractResults = mirrorClient.getContractResults(timestamp).getResults();
+
+        assertThat(contractResults).isNotEmpty().anySatisfy(this::verifyContractExecutionResults);
+    }
+
     protected void verifyContractExecutionResultsById() {
-        List<ContractResult> contractResults = mirrorClient
+        final var contractResults = mirrorClient
                 .getContractResultsById(deployedParentContract.contractId().toString())
                 .getResults();
 
         assertThat(contractResults).isNotEmpty().allSatisfy(this::verifyContractExecutionResults);
     }
 
-    protected void verifyContractExecutionResultsByTransactionId() {
-        ContractResult contractResult = mirrorClient.getContractResultByTransactionId(
+    protected void verifyContractExecutionResultByIdAndTimestamp(String timestamp) {
+        final var contractResult = mirrorClient.getContractResultsByIdAndTimestamp(
+                deployedParentContract.contractId().toString(), timestamp);
+
+        assertThat(contractResult).isNotNull();
+        assertThat(contractResult.getContractId())
+                .isEqualTo(deployedParentContract.contractId().toString());
+        assertThat(contractResult.getTimestamp()).isEqualTo(timestamp);
+    }
+
+    protected String verifyContractExecutionResultsByTransactionId() {
+        final var contractResult = mirrorClient.getContractResultByTransactionId(
                 networkTransactionResponse.getTransactionIdStringNoCheckSum());
 
         verifyContractExecutionResults(contractResult);
         assertThat(contractResult.getBlockHash()).isNotBlank();
         assertThat(contractResult.getBlockNumber()).isPositive();
         assertThat(contractResult.getHash()).isNotBlank();
+
+        return contractResult.getTimestamp();
     }
 
     protected void verifyContractExecutionResults(ContractResult contractResult) {

@@ -65,7 +65,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         simulator = new BlockNodeSimulator()
                 .withBlocks(generator.next(10))
                 .withHttpChannel()
-                .withOutOrder()
+                .withOutOfOrder()
                 .start();
         subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
 
@@ -197,9 +197,9 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("The block is missing event header item"));
         var blockOneEventTxnItem = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.EVENT_TRANSACTION)
+                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("The block is missing event transaction item"));
+                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
         int blockOneEventHeaderItemIndex = blockOneItems.indexOf(blockOneEventHeaderItem);
         int blockOneEventTxnItemIndex = blockOneItems.indexOf(blockOneEventTxnItem);
 
@@ -232,9 +232,9 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         var blockOne = blocks.get(1);
         var blockOneItems = blockOne.getBlockItemsList();
         var blockOneLastEventTxn = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.EVENT_TRANSACTION)
+                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
                 .reduce((first, second) -> second)
-                .orElseThrow(() -> new IllegalStateException("The block is missing event transaction item"));
+                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
         var blockOneTxnResult = blockOneItems.stream()
                 .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
                 .findFirst()

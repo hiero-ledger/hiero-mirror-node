@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
@@ -17,7 +18,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
-import org.hiero.mirror.importer.parser.domain.BlockItemBuilder;
+import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.springframework.data.util.Version;
 
@@ -28,13 +29,14 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields("parent", "previous", "transactionBody", "signatureMap")
                     .withEqualsForType(Object::equals, TransactionRecord.class)
+                    .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
                     .build();
 
     @Resource
     protected BlockFileBuilder blockFileBuilder;
 
     @Resource
-    protected BlockItemBuilder blockItemBuilder;
+    protected BlockTransactionBuilder blockTransactionBuilder;
 
     @Resource
     protected BlockFileTransformer blockFileTransformer;

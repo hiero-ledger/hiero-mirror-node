@@ -6,7 +6,6 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -59,7 +58,6 @@ class ContractController {
     private ContractExecutionParameters constructServiceParameters(
             ContractCallRequest request, final String isModularizedHeader) {
         final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
-        final var sender = new HederaEvmAccount(fromAddress);
 
         Address receiver;
 
@@ -103,7 +101,7 @@ class ContractController {
                 .isModularized(isModularized)
                 .isStatic(isStaticCall)
                 .receiver(receiver)
-                .sender(sender)
+                .sender(fromAddress)
                 .value(request.getValue())
                 .build();
     }

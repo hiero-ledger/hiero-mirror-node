@@ -4,23 +4,26 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
+import com.esaulpaugh.headlong.util.Strings;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
+import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.hiero.mirror.rest.model.ContractAction;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractResult;
-import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.HttpClientErrorException;
 
 abstract class AbstractEstimateFeature extends BaseContractFeature {
@@ -31,9 +34,6 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     protected int lowerDeviation;
     protected int upperDeviation;
     protected Object gasConsumedSelector;
-
-    @Autowired
-    protected MirrorNodeClient mirrorClient;
 
     /**
      * Checks if the estimatedGas is within the specified range of the actualGas.
@@ -65,46 +65,55 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      * within an acceptable deviation range. It utilizes the provided call endpoint to perform the contract call and
      * then compares the estimated gas with the actual gas used.
      * @param contractId The ID of the contract to call.
-     * @param functionName The name of the function to call.
+     * @param method The method to call.
      * @param params The parameters to pass to the function.
      * @param sender The account ID of the sender.
-     * @param actualGas The actual gas used for the call.
      */
     protected void validateGasEstimation(
             final ContractId contractId,
-            final String functionName,
+            final ContractMethodInterface method,
             final ContractFunctionParameters params,
-            final AccountId sender,
-            final int actualGas)
+            final AccountId sender)
             throws ExecutionException, InterruptedException {
-        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(
-                contractId, functionName, params, sender, actualGas, Optional.empty());
+        var estimateGasResult =
+                mirrorClient.estimateGasQueryTopLevelCall(contractId, method, params, sender, Optional.empty());
 
-        assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
+        assertWithinDeviation(method.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+
+        if (contractClient
+                        .getSdkClient()
+                        .getAcceptanceTestProperties()
+                        .getFeatureProperties()
+                        .isContractCallLocalEstimate()
+                && (VIEW.equals(method.getFunctionType()) || PURE.equals(method.getFunctionType()))) {
+            try {
+                var data = params.toBytes(method.getSelector()).toByteArray();
+                System.out.printf("Performing ContractCallLocal with data: " + Strings.encode(data) + "\n");
+                contractClient.executeContractQuery(contractId, method.getSelector(), estimateGasResult, data);
+            } catch (PrecheckStatusException | TimeoutException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
-    //
     /**
      * Validates the gas estimation for a specific contract call with value
      * @param contractId The ID of the contract to call.
-     * @param functionName The name of the function to call.
+     * @param method The method to call.
      * @param params The parameters to pass to the function.
      * @param sender The account ID of the sender.
-     * @param actualGas The actual gas used for the call.
      * @param value The value to send with the call.
      */
     protected void validateGasEstimation(
             final ContractId contractId,
-            final String functionName,
+            final ContractMethodInterface method,
             final ContractFunctionParameters params,
             final AccountId sender,
-            final int actualGas,
             final Optional<java.lang.Long> value)
             throws ExecutionException, InterruptedException {
-        var estimateGasResult =
-                mirrorClient.estimateGasQueryTopLevelCall(contractId, functionName, params, sender, actualGas, value);
+        var estimateGasResult = mirrorClient.estimateGasQueryTopLevelCall(contractId, method, params, sender, value);
 
-        assertWithinDeviation(actualGas, (int) estimateGasResult, lowerDeviation, upperDeviation);
+        assertWithinDeviation(method.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
     }
 
     /**

@@ -131,9 +131,9 @@ public class BlockFileTransformer {
       // Update built record items to
       RecordItem.builder()
               .hapiVersion(hapiVersion)
-              .signatureMap(blockItem.getSignatureMap())
-              .transaction(blockItem.getTransaction())
-              .transactionBody(blockItem.getTransactionBody())
+              .signatureMap(blockTransaction.getSignatureMap())
+              .transaction(blockTransaction.getTransaction())
+              .transactionBody(blockTransaction.getTransactionBody())
               .transactionIndex(index);
     }
 }
@@ -144,7 +144,7 @@ Update
 ```pseudo
 public class ProtoBlockFileReader implements BlockFileReader {
     private void readEventTransactions(ReaderContext context) {
-      While transaction = context.getApplicationTransaction != null)
+      While transaction = context.getSignedTransaction() != null)
         CURRENT LOGIC
       End While
     }
@@ -153,22 +153,20 @@ public class ProtoBlockFileReader implements BlockFileReader {
       private int batchInnerIndex;
       private AtomicBatchTransactionBody atomicBatchTransactionBody;
 
-      public void setLastBlockItem(BlockItem blockItem) {
-        this.lastBlockItem = blockItem;
-        if (blockItem.getTransactionBody().hasAtomicBatchBody()) {
-          this.atomicBatchTransactionBody = blockItem.getTransactionBody().getAtomicBatchBody();
+      public void setLastBlockTransaction(BlockTransaction blockTransaction) {
+        this.lastBlockTransaction = blockTransaction;
+        if (blockTransaction.getTransactionBody().hasAtomicBatchBody()) {
+          this.atomicBatchTransactionBody = blockTransaction.getTransactionBody().getAtomicBatchBody();
           this.batchInnerIndex = 0;
         }
       }
 
-      public Transaction getApplicationTransaction() {
-          Read Event transaction
+      public byte[] getSignedTransaction() {
+          Read signed transaction block item
           If present
-             Create Transaction from event transaction bytes
-             Return Transaction
+             return signed transacion bytes
           Else If atomicBatchTransactionBody is not null && batchInnerIndex < atomicBatchTransactionBody.getTransactionsList().size()
-            Create Transaction from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
-            Return Transaction
+            return signed transaction bytes from atomicBatchTransactionBody.getTransactionsList().get(batchInnerIndex++)
           Else
             Return null
       }

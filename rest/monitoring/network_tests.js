@@ -203,7 +203,7 @@ const runTests = async (server, testResult) => {
     runTest(getNetworkExchangeRate),
     runTest(getNetworkFees),
     runTest(getNetworkNodes),
-    runTest(getNetworkStake),
+    runTest(getNetworkStake, 'REST_JAVA'),
     runTest(getNetworkSupply),
   ]);
 };

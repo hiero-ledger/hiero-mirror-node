@@ -36,7 +36,7 @@ func (m *MockAccountRepository) RetrieveBalanceAtBlock(
 	ctx context.Context,
 	accountId types.AccountId,
 	consensusEnd int64,
-) (types.AmountSlice, string, *rTypes.Error) {
+) (types.AmountSlice, string, []byte, *rTypes.Error) {
 	args := m.Called()
-	return args.Get(0).(types.AmountSlice), args.Get(1).(string), args.Get(2).(*rTypes.Error)
+	return args.Get(0).(types.AmountSlice), args.Get(1).(string), args.Get(2).([]byte), args.Get(3).(*rTypes.Error)
 }

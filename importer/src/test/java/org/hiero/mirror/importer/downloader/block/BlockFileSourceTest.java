@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -324,7 +325,8 @@ class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(argThat(b -> b.getIndex() == block0.getIndex() && b.getNodeId() == 0L));
+        verify(blockStreamVerifier)
+                .verify(argThat(b -> Objects.equals(b.getIndex(), block0.getIndex()) && b.getNodeId() == 0L));
         verify(consensusNodeService).getNodes();
         verify(recordFileRepository).findLatest();
     }

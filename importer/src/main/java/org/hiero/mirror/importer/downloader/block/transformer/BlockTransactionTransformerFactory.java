@@ -8,30 +8,30 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @Named
-public class BlockItemTransformerFactory {
+public class BlockTransactionTransformerFactory {
 
-    private final BlockItemTransformer defaultTransformer;
-    private final Map<TransactionType, BlockItemTransformer> transformers;
+    private final BlockTransactionTransformer defaultTransformer;
+    private final Map<TransactionType, BlockTransactionTransformer> transformers;
 
-    BlockItemTransformerFactory(List<BlockItemTransformer> transformers) {
+    BlockTransactionTransformerFactory(List<BlockTransactionTransformer> transformers) {
         this.transformers = transformers.stream()
-                .collect(Collectors.toUnmodifiableMap(BlockItemTransformer::getType, Function.identity()));
+                .collect(Collectors.toUnmodifiableMap(BlockTransactionTransformer::getType, Function.identity()));
         this.defaultTransformer = this.transformers.get(TransactionType.UNKNOWN);
     }
 
-    public void transform(BlockItem blockItem, RecordItem.RecordItemBuilder builder) {
-        var transactionBody = blockItem.getTransactionBody();
+    public void transform(BlockTransaction blockTransaction, RecordItem.RecordItemBuilder builder) {
+        var transactionBody = blockTransaction.getTransactionBody();
         var blockItemTransformer = get(transactionBody);
         // pass transactionBody for performance
-        blockItemTransformer.transform(new BlockItemTransformation(blockItem, builder, transactionBody));
+        blockItemTransformer.transform(new BlockTransactionTransformation(blockTransaction, builder));
     }
 
-    private BlockItemTransformer get(TransactionBody transactionBody) {
+    private BlockTransactionTransformer get(TransactionBody transactionBody) {
         var transactionType = TransactionType.of(transactionBody.getDataCase().getNumber());
         return transformers.getOrDefault(transactionType, defaultTransformer);
     }

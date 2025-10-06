@@ -15,7 +15,6 @@ import CryptoAllowanceViewModel from './cryptoAllowanceViewModel';
 import ExchangeRateSetViewModel from './exchangeRateSetViewModel';
 import ExchangeRateViewModel from './exchangeRateViewModel';
 import NetworkNodeViewModel from './networkNodeViewModel';
-import NetworkStakeViewModel from './networkStakeViewModel';
 import NetworkSupplyViewModel from './networkSupplyViewModel';
 import NftTransactionHistoryViewModel from './nftTransactionHistoryViewModel';
 import NftTransferViewModel from './nftTransferViewModel';
@@ -45,7 +44,6 @@ export {
   ExchangeRateSetViewModel,
   ExchangeRateViewModel,
   NetworkNodeViewModel,
-  NetworkStakeViewModel,
   NetworkSupplyViewModel,
   NftTransactionHistoryViewModel,
   NftTransferViewModel,

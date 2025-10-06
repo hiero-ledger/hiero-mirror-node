@@ -17,7 +17,34 @@ trap backgroundErrorHandler INT
 function watchInBackground() {
   local -ir pid="$1"
   shift
-  "$@" || kill -INT -- -"$pid"
+  "$@" 1>&2 || kill -INT -- -"$pid"
+}
+
+function waitUntilOutOfRecovery() {
+  local namespace="$1" pod="$2"
+
+  log "Waiting for ${pod} to exit recovery"
+
+  while true; do
+    local res
+    res="$(kubectl exec -n "${namespace}" "${pod}" -c postgres-util -- \
+      psql -U mirror_node -d mirror_node -Atc "select pg_is_in_recovery();" 2>/dev/null || true)"
+
+    case "${res}" in
+      f)
+        log "${pod} is writable (pg_is_in_recovery = f)"
+        return 0
+        ;;
+      t)
+        log "${pod} still in recovery"
+        ;;
+      *)
+        log "Query failed or unexpected output: '${res:-<empty>}' (retrying)"
+        ;;
+    esac
+
+    sleep 60
+  done
 }
 
 function getCitusClusters() {
@@ -179,6 +206,10 @@ function checkCitusMetadataSyncStatus() {
 }
 
 function doContinue() {
+  if [[ "${AUTO_CONFIRM}" == "true" ]]; then
+    log "Skipping confirm"
+    return 0
+  fi
   while true; do
     read -p "Continue? (Y/N): " confirm && [[ $confirm == [yY] || $confirm == [yY][eE][sS] ]] && return ||
       { [[ -n "$confirm" ]] && exit 1 || true; }
@@ -186,7 +217,7 @@ function doContinue() {
 }
 
 function log() {
-  echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}"
+  echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >& 2
 }
 
 function readUserInput() {
@@ -211,7 +242,7 @@ function scaleDeployment() {
       log "No pods found for deployment ${deploymentLabel} in namespace ${namespace}"
       return
     else
-      log "Removing pods ${deploymentPods} in ${namespace} for ${CURRENT_CONTEXT}"
+      log "Removing pods ${deploymentPods} in ${namespace}"
       doContinue
       kubectl scale deployment -n "${namespace}" -l "${deploymentLabel}" --replicas="${replicas}"
       log "Waiting for pods with label ${deploymentLabel} to be deleted"
@@ -237,19 +268,29 @@ function unrouteTraffic() {
   scaleDeployment "${namespace}" 0 "app.kubernetes.io/component=importer"
 }
 
-function routeTraffic() {
+function runTestQueries() {
   local namespace="${1}"
 
-  checkCitusMetadataSyncStatus "${namespace}"
+  until \
+    kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
+      psql -P pager=off -U mirror_rest -d mirror_node -c "select * from transaction limit 10" \
+    && \
+    kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- \
+      psql -P pager=off -U mirror_node -d mirror_node -c "select * from transaction limit 10"
+  do
+    log "queries not succeeding. Retrying..."
+    sleep 5
+  done
 
-  log "Running test queries"
-  kubectl exec -it -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- psql -P pager=off -U mirror_rest -d mirror_node -c "select * from transaction limit 10"
-  kubectl exec -it -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- psql -P pager=off -U mirror_node -d mirror_node -c "select * from transaction limit 10"
   doContinue
-  scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
+}
+
+function waitForRecordStreamSync() {
+  local namespace="${1}"
+
   while true; do
-    local statusQuery="select $(date +%s) - (max(consensus_end) / 1000000000) from record_file"
-    local status=$(kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- psql -q --csv -t -U mirror_rest -d mirror_node -c "select $(date +%s) - (max(consensus_end) / 1000000000) from record_file" | tail -n 1)
+    local status
+    status=$(kubectl exec -n "${namespace}" "${HELM_RELEASE_NAME}-citus-coord-0" -c postgres-util -- psql -q --csv -t -U mirror_rest -d mirror_node -c "select $(date +%s) - (max(consensus_end) / 1000000000) from record_file" | tail -n 1)
     if [[ "${status}" -lt 10 ]]; then
       log "Importer is caught up with the source"
       break
@@ -258,6 +299,16 @@ function routeTraffic() {
       sleep 10
     fi
   done
+}
+
+function routeTraffic() {
+  local namespace="${1}"
+
+  checkCitusMetadataSyncStatus "${namespace}"
+  runTestQueries "${namespace}"
+  scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=importer"
+  waitForRecordStreamSync "${namespace}"
+
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null; then
       log "Resuming helm release ${HELM_RELEASE_NAME} in namespace ${namespace}.
@@ -403,7 +454,7 @@ function pauseCitus() {
   if [[ -z "${citusPods}" ]]; then
     log "Citus is not currently running"
   else
-    log "Removing pods (${citusPods}) in ${namespace} for ${CURRENT_CONTEXT}"
+    log "Removing pods (${citusPods}) in ${namespace}"
     doContinue
     checkPauseAnnotation "${namespace}"
     if [[ "${skipCleanShutdown}" != "true" ]]; then
@@ -525,12 +576,16 @@ function unpauseCitus() {
 }
 
 function getDiskPrefix() {
-  DISK_PREFIX=$(kubectl_common get daemonsets -l 'app=zfs-init' -o json |
+  local diskPrefix
+  diskPrefix=$(kubectl_common get daemonsets -l 'app=zfs-init' -o json |
     jq -r '.items[0].spec.template.spec.initContainers[0].env[] | select (.name == "DISK_PREFIX") | .value')
-  if [[ -z "${DISK_PREFIX}" ]]; then
+
+  if [[ -z "${diskPrefix}" ]]; then
     log "DISK_PREFIX can not be empty. Exiting"
     exit 1
   fi
+
+  echo "${diskPrefix}"
 }
 
 function getZFSVolumes() {
@@ -556,13 +611,13 @@ function getZFSVolumes() {
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
-  log "Discovering node pools with label 'citus-role' in cluster ${GCP_K8S_CLUSTER_NAME}, project ${GCP_PROJECT}"
+  log "Discovering node pools with label 'citus-role'"
 
   local citusPools=()
   mapfile -t citusPools < <(gcloud container node-pools list \
-    --project="${GCP_PROJECT}" \
-    --location="${GCP_K8S_CLUSTER_REGION}" \
-    --cluster="${GCP_K8S_CLUSTER_NAME}" \
+    --project="${GCP_TARGET_PROJECT}" \
+    --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+    --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --format="value(name)" \
     --filter="config.labels.citus-role:*")
 
@@ -574,11 +629,11 @@ function resizeCitusNodePools() {
   for pool in "${citusPools[@]}"; do
     log "Scaling pool ${pool} to ${numNodes} nodes"
 
-    gcloud container clusters resize "${GCP_K8S_CLUSTER_NAME}" \
+    gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
       --node-pool="${pool}" \
       --num-nodes="${numNodes}" \
-      --location="${GCP_K8S_CLUSTER_REGION}" \
-      --project="${GCP_PROJECT}" --quiet &
+      --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+      --project="${GCP_TARGET_PROJECT}" --quiet &
   done
 
   log "Waiting for resize operations to complete"
@@ -657,17 +712,66 @@ EOF
 
   log "Fixing passwords and pg_dist_authinfo for all pods in the cluster"
   for pod in $(kubectl get pods -n "${namespace}" -l "${STACKGRES_MASTER_LABELS}" -o name); do
+    waitUntilOutOfRecovery "${namespace}" "${pod}"
     log "Updating passwords and pg_dist_authinfo for ${pod}"
     echo "$sql" | kubectl exec -n "${namespace}" -i "${pod}" -c postgres-util -- psql -U "${superuserUsername}" -f -
   done
 }
 
+function pauseClustersIfNeeded() {
+  if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
+    for namespace in "${CITUS_NAMESPACES[@]}"; do
+      unrouteTraffic "${namespace}"
+      pauseCluster "${namespace}"
+    done
+  fi
+}
+
+function resumeClustersIfNeeded() {
+  if [[ "${PAUSE_CLUSTER}" == "true" ]]; then
+    for namespace in "${CITUS_NAMESPACES[@]}"; do
+      log "Resuming Citus in namespace ${namespace}"
+      unpauseCitus "${namespace}" true
+      routeTraffic "${namespace}"
+    done
+  fi
+}
+
+function waitForZfsPodsReady() {
+  log "Waiting for zfs pods to be ready"
+  kubectl_common wait --for=condition=Ready pod -l 'component=openebs-zfs-node' --timeout=-1s
+}
+
+function buildNodeIdToPodMap() {
+  local zfsNodePods zfsNodes
+  zfsNodePods=$(kubectl get pods -A -o wide -o json -l 'component=openebs-zfs-node' |
+    jq -r '.items | map({node: (.spec.nodeName), podName: (.metadata.name)})')
+  zfsNodes=$(kubectl get zfsnodes.zfs.openebs.io -A -o json |
+    jq -r '.items | map({nodeId: .metadata.name, node: .metadata.ownerReferences[0].name})')
+
+  echo -e "${zfsNodePods}\n${zfsNodes}" | jq -s '
+    .[0] as $pods |
+    .[1] | map(.node as $nodeName |
+      { (.nodeId): ($pods[] | select(.node == $nodeName).podName) }
+    ) | add'
+}
+
+function setCitusNamespaces() {
+  mapfile -t CITUS_NAMESPACES < <(
+      kubectl get sgshardedclusters -A \
+        -o jsonpath='{range .items[*]}{.metadata.namespace}{"\n"}{end}'
+    )
+}
+
+AUTO_CONFIRM="${AUTO_CONFIRM:-false}"
 AUTO_UNROUTE="${AUTO_UNROUTE:-true}"
+CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
-CURRENT_CONTEXT="$(kubectl config current-context)"
 DISK_PREFIX=
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
-STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
+PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
+STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"
+ZFS_POOL_NAME="${ZFS_POOL_NAME:-zfspv-pool}"
 
 alias kubectl_common="kubectl -n ${COMMON_NAMESPACE}"

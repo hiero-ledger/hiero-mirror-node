@@ -4,6 +4,12 @@ package org.hiero.mirror.grpc.controller;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.api.proto.AddressBookQuery;
+import com.hedera.mirror.api.proto.Fee.EstimateMode;
+import com.hedera.mirror.api.proto.Fee.FeeEstimate;
+import com.hedera.mirror.api.proto.Fee.FeeEstimateQuery;
+import com.hedera.mirror.api.proto.Fee.FeeEstimateResponse;
+import com.hedera.mirror.api.proto.Fee.FeeExtra;
+import com.hedera.mirror.api.proto.Fee.NetworkFee;
 import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
@@ -26,7 +32,33 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceImplBase {
 
+    static final FeeEstimateResponse STUB_RESPONSE = stubResponse();
+
     private final NetworkService networkService;
+
+    private static FeeEstimateResponse stubResponse() {
+        final var feeExtra = FeeExtra.newBuilder()
+                .setCharged(0)
+                .setCount(1)
+                .setFeePerUnit(0L)
+                .setIncluded(1)
+                .setName("Test data")
+                .setSubtotal(0L);
+        final var feeEstimate = FeeEstimate.newBuilder().setBase(0L).addExtras(feeExtra);
+        return FeeEstimateResponse.newBuilder()
+                .addNotes("This API is not yet implemented and only returns stubbed test data")
+                .setMode(EstimateMode.STATE)
+                .setNetwork(NetworkFee.newBuilder().setMultiplier(1).setSubtotal(0L))
+                .setNode(feeEstimate)
+                .setService(feeEstimate)
+                .setTotal(0)
+                .build();
+    }
+
+    @Override
+    public Mono<FeeEstimateResponse> getFeeEstimate(FeeEstimateQuery request) {
+        return Mono.just(STUB_RESPONSE);
+    }
 
     @Override
     public Flux<NodeAddress> getNodes(Mono<AddressBookQuery> request) {

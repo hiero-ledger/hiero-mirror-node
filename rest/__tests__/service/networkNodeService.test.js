@@ -220,49 +220,6 @@ const defaultInputServiceEndpointBooks = [
   },
 ];
 
-const defaultNetworkStakes = [
-  {
-    consensus_timestamp: 1,
-    epoch_day: 1,
-    max_stake_rewarded: 10,
-    max_staking_reward_rate_per_hbar: 17807,
-    max_total_reward: 20,
-    node_reward_fee_denominator: 0,
-    node_reward_fee_numerator: 100,
-    reserved_staking_rewards: 30,
-    reward_balance_threshold: 40,
-    stake_total: 35000000000000000n,
-    staking_period: 1654991999999999999n,
-    staking_period_duration: 1440,
-    staking_periods_stored: 365,
-    staking_reward_fee_denominator: 100,
-    staking_reward_fee_numerator: 100,
-    staking_reward_rate: 100000000000,
-    staking_start_threshold: 25000000000000000,
-    unreserved_staking_reward_balance: 50,
-  },
-  {
-    consensus_timestamp: 2,
-    epoch_day: 2,
-    max_stake_rewarded: 10,
-    max_staking_reward_rate_per_hbar: 17808,
-    max_total_reward: 20,
-    node_reward_fee_denominator: 0,
-    node_reward_fee_numerator: 100,
-    reserved_staking_rewards: 30,
-    reward_balance_threshold: 40,
-    stake_total: 35000000000000000n,
-    staking_period: 1654991999999999999n,
-    staking_period_duration: 1440,
-    staking_periods_stored: 365,
-    staking_reward_fee_denominator: 100,
-    staking_reward_fee_numerator: 100,
-    staking_reward_rate: 100000000000,
-    staking_start_threshold: 25000000000000000,
-    unreserved_staking_reward_balance: 50,
-  },
-];
-
 const defaultNodeStakes = [
   {
     consensus_timestamp: 1,
@@ -616,31 +573,6 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
         5
       )
     ).resolves.toMatchObject(expectedNetworkNode102);
-  });
-});
-
-describe('NetworkNodeService.getNetworkStake tests', () => {
-  const expectedNetworkStake = {
-    maxStakingRewardRatePerHbar: 17808,
-    nodeRewardFeeDenominator: 0,
-    nodeRewardFeeNumerator: 100,
-    stakeTotal: 35000000000000000n,
-    stakingPeriod: 1654991999999999999n,
-    stakingPeriodDuration: 1440,
-    stakingPeriodsStored: 365,
-    stakingRewardFeeDenominator: 100,
-    stakingRewardFeeNumerator: 100,
-    stakingRewardRate: 100000000000,
-    stakingStartThreshold: 25000000000000000n,
-  };
-
-  test('valid data', async () => {
-    await integrationDomainOps.loadNetworkStakes(defaultNetworkStakes);
-    await expect(NetworkNodeService.getNetworkStake()).resolves.toMatchObject(expectedNetworkStake);
-  });
-
-  test('empty', async () => {
-    await expect(NetworkNodeService.getNetworkStake()).resolves.toBeNull();
   });
 });
 

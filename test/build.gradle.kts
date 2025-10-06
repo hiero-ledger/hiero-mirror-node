@@ -35,11 +35,6 @@ dependencies {
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("io.cucumber:cucumber-spring")
     testImplementation("io.grpc:grpc-okhttp")
-    testImplementation(
-        group = "io.netty",
-        name = "netty-resolver-dns-native-macos",
-        classifier = "osx-aarch_64",
-    )
     testImplementation("jakarta.inject:jakarta.inject-api")
     testImplementation("net.java.dev.jna:jna")
     testImplementation("org.apache.commons:commons-lang3")

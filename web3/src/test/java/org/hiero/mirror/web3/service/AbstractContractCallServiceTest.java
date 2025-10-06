@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
@@ -324,7 +323,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .isModularized(isModularized)
                 .isStatic(false)
                 .receiver(receiverAddress)
-                .sender(new HederaEvmAccount(senderAddress))
+                .sender(senderAddress)
                 .value(value)
                 .build();
     }
@@ -735,6 +734,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .persist();
     }
 
+    protected Entity hollowAccountPersist() {
+        return domainBuilder
+                .entity()
+                .customize(e -> e.key(null).maxAutomaticTokenAssociations(10).receiverSigRequired(false))
+                .persist();
+    }
+
     protected String getAddressFromEntity(final Entity entity) {
         return EvmTokenUtils.toAddress(entity.toEntityId()).toHexString();
     }
@@ -764,7 +770,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .gas(TRANSACTION_GAS_LIMIT)
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
-                .sender(new HederaEvmAccount(functionProvider.sender()))
+                .sender(functionProvider.sender())
                 .value(functionProvider.value())
                 .build();
     }

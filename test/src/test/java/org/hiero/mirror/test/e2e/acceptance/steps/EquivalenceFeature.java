@@ -7,6 +7,8 @@ import static org.hiero.mirror.test.e2e.acceptance.client.NetworkAdapter.BIG_INT
 import static org.hiero.mirror.test.e2e.acceptance.client.NetworkAdapter.BYTES_TUPLE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.EQUIVALENCE_CALL;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.EQUIVALENCE_DESTRUCT;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.COPY_CODE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.DESTROY_CONTRACT;
 import static org.hiero.mirror.test.e2e.acceptance.steps.EquivalenceFeature.ContractMethods.GET_BALANCE;
@@ -164,12 +166,13 @@ public class EquivalenceFeature extends AbstractFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements SelectorInterface {
-        GET_BALANCE("getBalance"),
-        DESTROY_CONTRACT("destroyContract"),
-        COPY_CODE("copyCode"),
-        GET_CODE_SIZE("getCodeSize"),
-        GET_CODE_HASH("getCodeHash");
+        GET_BALANCE("getBalance", VIEW),
+        DESTROY_CONTRACT("destroyContract", MUTABLE),
+        COPY_CODE("copyCode", VIEW),
+        GET_CODE_SIZE("getCodeSize", VIEW),
+        GET_CODE_HASH("getCodeHash", VIEW);
 
         private final String selector;
+        private final FunctionType functionType;
     }
 }

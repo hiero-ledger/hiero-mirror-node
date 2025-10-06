@@ -23,8 +23,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.rest.model.AccountsResponse;
+import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.CryptoAllowance;
+import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.rest.model.TransactionTransfersInner;
@@ -32,6 +36,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.AccountClient;
 import org.hiero.mirror.test.e2e.acceptance.client.Cleanable;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.core.OrderComparator;
 import org.springframework.http.HttpStatus;
 
@@ -40,6 +45,7 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public class AccountFeature extends AbstractFeature {
 
+    public static final int DEFAULT_LIMIT = 25;
     private static final AtomicReference<Runnable> CLEANUP = new AtomicReference<>();
     private final AccountClient accountClient;
     private final MirrorNodeClient mirrorClient;
@@ -257,5 +263,55 @@ public class AccountFeature extends AbstractFeature {
                 accountClient.approveCryptoAllowance(spenderAccountId.getAccountId(), Hbar.fromTinybars(amount));
         assertNotNull(networkTransactionResponse.getTransactionId());
         assertNotNull(networkTransactionResponse.getReceipt());
+    }
+
+    @Then("the mirror node REST API should return the list of accounts")
+    public void verifyAccountsList() {
+        final var accountsResponse = mirrorClient.getAccounts(DEFAULT_LIMIT);
+        assertThat(accountsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(AccountsResponse::getAccounts)
+                .isNotNull()
+                .asInstanceOf(InstanceOfAssertFactories.LIST)
+                .hasSizeBetween(1, DEFAULT_LIMIT);
+    }
+
+    @Then("the mirror node REST API should return the balances")
+    public void verifyAccountBalanceAPI() {
+        final var balancesResponse = mirrorClient.getBalancesForAccountId(senderAccountId.toString());
+
+        assertThat(balancesResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(BalancesResponse::getBalances)
+                .isNotNull();
+    }
+
+    @When("I stake the account {string} to node {long}")
+    public void stakeAccountToNode(String accountName, long nodeId) {
+        senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+        networkTransactionResponse =
+                accountClient.updateAccount(senderAccountId, x -> x.setStakedAccountId(senderAccountId.getAccountId())
+                        .setStakedNodeId(nodeId)
+                        .setDeclineStakingReward(false));
+        assertThat(networkTransactionResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getTransactionId()).isNotNull())
+                .extracting(NetworkTransactionResponse::getReceipt)
+                .isNotNull();
+    }
+
+    @Then("the mirror node REST API should return the staking rewards for the account {string}")
+    public void verifyAccountStakingRewardsAPI(String accountName) {
+        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
+        senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+        String accountId = senderAccountId.getAccountId().toString();
+        final var rewardsResponse = mirrorClient.getAccountRewards(accountId, DEFAULT_LIMIT);
+        assertThat(rewardsResponse)
+                .isNotNull()
+                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
+                .extracting(StakingRewardsResponse::getRewards)
+                .isNotNull();
     }
 }

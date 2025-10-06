@@ -12,6 +12,7 @@ import java.net.ConnectException;
 import java.time.Duration;
 import java.util.List;
 import org.hiero.mirror.monitor.MirrorNodeProperties;
+import org.hiero.mirror.monitor.MirrorNodeProperties.RestProperties;
 import org.hiero.mirror.monitor.MonitorProperties;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkNode;
@@ -117,6 +118,27 @@ class RestApiClientTest {
 
     @Test
     void getNetworkStakeStatusCode() {
+        when(exchangeFunction.exchange(isA(ClientRequest.class)))
+                .thenReturn(Mono.just(
+                        ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE).build()));
+
+        StepVerifier.withVirtualTime(() -> restApiClient.getNetworkStakeStatusCode())
+                .thenAwait(WAIT)
+                .expectNext(HttpStatusCode.valueOf(503))
+                .expectComplete()
+                .verify(WAIT);
+
+        verify(exchangeFunction).exchange(isA(ClientRequest.class));
+    }
+
+    @Test
+    void restJava() {
+        var restJavaProperties = new RestProperties();
+        restJavaProperties.setHost("rest-java");
+        monitorProperties.getMirrorNode().setRestJava(restJavaProperties);
+        var builder = WebClient.builder().exchangeFunction(exchangeFunction);
+        restApiClient = new RestApiClient(monitorProperties, builder);
+
         when(exchangeFunction.exchange(isA(ClientRequest.class)))
                 .thenReturn(Mono.just(
                         ClientResponse.create(HttpStatus.SERVICE_UNAVAILABLE).build()));

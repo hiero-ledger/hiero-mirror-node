@@ -21,7 +21,6 @@ import {
   ExchangeRateSetViewModel,
   FeeScheduleViewModel,
   NetworkNodeViewModel,
-  NetworkStakeViewModel,
   NetworkSupplyViewModel,
 } from '../viewmodel';
 import EntityId from '../entityId';
@@ -259,23 +258,6 @@ class NetworkController extends BaseController {
     }
 
     res.locals[responseDataLabel] = response;
-  };
-
-  /**
-   * Handler function for /network/stake API.
-   * @param {Request} _req HTTP request object
-   * @param {Response} res HTTP response object
-   * @return {Promise<void>}
-   */
-  getNetworkStake = async (_req, res) => {
-    utils.validateReq(_req);
-    const networkStake = await NetworkNodeService.getNetworkStake();
-
-    if (networkStake === null) {
-      throw new NotFoundError({data: null, detail: 'No network stake data found', message: 'Not Found'});
-    }
-
-    res.locals[responseDataLabel] = new NetworkStakeViewModel(networkStake);
   };
 
   /**

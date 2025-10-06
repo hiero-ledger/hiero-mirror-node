@@ -30,6 +30,11 @@ func (b *EntityBuilder) Historical(historical bool) *EntityBuilder {
 	return b
 }
 
+func (b *EntityBuilder) Key(key []byte) *EntityBuilder {
+	b.entity.Key = key
+	return b
+}
+
 func (b *EntityBuilder) ModifiedAfter(delta int64) *EntityBuilder {
 	b.entity.TimestampRange = getTimestampRangeWithLower(*b.entity.CreatedTimestamp + delta)
 	return b
