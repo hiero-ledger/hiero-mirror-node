@@ -326,6 +326,13 @@ alter table transaction_hash add constraint fk_transaction_hash_consensus_timest
 alter table transaction_hash add constraint fk_transaction_hash_payer_account_id foreign key (payer_account_id) references entity (id);
 alter table transaction_signature add constraint fk_transaction_signature_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
 alter table transaction_signature add constraint fk_transaction_signature_entity_id foreign key (entity_id) references entity (id);
+alter table hook add constraint fk_hook_contract_id foreign key (contract_id) references entity (id);
+alter table hook add constraint fk_hook_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
+alter table hook add constraint fk_hook_owner_id foreign key (owner_id) references entity (id);
+alter table hook_storage add constraint fk_hook_storage_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
+alter table hook_storage add constraint fk_hook_storage_hook_id_owner_id foreign key (owner_id, hook_id) references hook (owner_id, hook_id);
+alter table hook_storage_change add constraint fk_hook_storage_change_consensus_timestamp foreign key (consensus_timestamp) references transaction (consensus_timestamp);
+alter table hook_storage_change add constraint fk_hook_storage_change_hook_id_owner_id foreign key (owner_id, hook_id) references hook (owner_id, hook_id);
 -- ====================================================================================
 -- STEP 5: BIGINT[] ARRAY FOREIGN KEYS
 -- Note: PostgreSQL doesn't directly support foreign keys on array elements
