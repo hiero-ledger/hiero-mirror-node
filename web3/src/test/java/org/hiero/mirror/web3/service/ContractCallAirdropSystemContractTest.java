@@ -28,13 +28,17 @@ import org.hiero.mirror.web3.web3j.generated.Airdrop;
 import org.hiero.mirror.web3.web3j.generated.ClaimAirdrop;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
+@ExtendWith({OutputCaptureExtension.class})
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
     private static final BigInteger DEFAULT_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(100_000_000L);
@@ -109,8 +113,9 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         verifyContractCall(functionCall, contract);
     }
 
-    @Test
-    void airdropTokenWithInvalidTokenAddress() {
+    @ParameterizedTest(name = "Airdrop token with invalid token address: {0}")
+    @CsvSource({"0xa7d9ddbe1f17865597fbd27ec712455208b6b76d", "0.0.-1900", "2.1.-1234"})
+    void airdropTokenWithInvalidTokenAddress(String invalidTokenId, CapturedOutput output) {
         // Given
         final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
         final var sender = accountEntityPersist();
@@ -118,7 +123,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         final var tokenId = fungibleTokenSetup(sender);
         tokenAccountPersist(tokenId, receiver.getId());
-        final var invalidTokenAddress = "0xa7d9ddbe1f17865597fbd27ec712455208b6b76d";
+        final var invalidTokenAddress = parseTokenIdToAddress(invalidTokenId);
 
         // When
         final var functionCall = contract.send_tokenAirdrop(
@@ -130,6 +135,7 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // Then
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+        assertThat(output.getAll()).doesNotContain("InvalidEntityException");
     }
 
     @ParameterizedTest(name = "Airdrop non-fungible token to a(an) {0} that is already associated to it")
@@ -891,5 +897,27 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         } else {
             assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
+    }
+
+    /**
+     * Parses a token ID to string
+     *
+     * @param tokenId the token ID in format "shard.realm.num" or EVM address
+     * @return the token address string
+     */
+    private String parseTokenIdToAddress(String tokenId) {
+        if (tokenId.startsWith("0x")) {
+            return tokenId;
+        }
+
+        // Parse shard.realm.num format
+        String[] parts = tokenId.split("\\.");
+
+        long shard = Long.parseLong(parts[0]);
+        long realm = Long.parseLong(parts[1]);
+        long num = Long.parseLong(parts[2]);
+
+        // Convert to hex address format
+        return String.format("0x%08x%016x%016x", (int) shard, realm, num);
     }
 }
