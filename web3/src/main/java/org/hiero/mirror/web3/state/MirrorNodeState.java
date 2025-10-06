@@ -306,7 +306,7 @@ public class MirrorNodeState implements MerkleNodeState {
             @Nonnull final String serviceName,
             @Nonnull final String stateKey,
             @Nonnull final SingletonState<V> singleton) {
-        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton, singleton::set);
+        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton);
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(SINGLETON)) {
                 registerSingletonListener(serviceName, state, listener);
