@@ -29,9 +29,9 @@ public class HookStorage {
     private static final int KEY_BYTE_LENGTH = 32;
 
     @Column(updatable = false)
-    private long consensusTimestamp;
-
     private long createdTimestamp;
+
+    private long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long hookId;
@@ -39,8 +39,6 @@ public class HookStorage {
     @jakarta.persistence.Id
     @ToString.Exclude
     private byte[] key;
-
-    private long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long ownerId;

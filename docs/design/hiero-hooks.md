@@ -179,7 +179,7 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 create table if not exists hook
 (
     contract_id       bigint                not null,
-    created_timestamp bigint                not null,
+    created_timestamp bigint,
     hook_id           bigint                not null,
     owner_id          bigint                not null,
     extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
@@ -250,7 +250,7 @@ public class Hook {
 
     private byte[] adminKey;
     private long contractId;
-    private long createdTimestamp;
+    private Long createdTimestamp;
     private boolean deleted;
     private HookExtensionPoint extensionPoint;
     private long hookId;

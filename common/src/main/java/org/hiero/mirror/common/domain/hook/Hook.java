@@ -32,7 +32,7 @@ public class Hook implements Persistable<Hook.Id> {
     private EntityId contractId;
 
     @Column(updatable = false)
-    private long createdTimestamp;
+    private Long createdTimestamp;
 
     private boolean deleted;
 

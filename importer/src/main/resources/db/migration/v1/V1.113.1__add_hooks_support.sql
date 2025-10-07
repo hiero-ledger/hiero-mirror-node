@@ -9,7 +9,7 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 create table if not exists hook
 (
     contract_id       bigint                not null,
-    created_timestamp bigint                not null,
+    created_timestamp bigint,
     hook_id           bigint                not null,
     owner_id          bigint                not null,
     extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
@@ -32,16 +32,15 @@ create table if not exists hook_storage_change
     value_written       bytea,
 
     primary key (owner_id, hook_id, key, consensus_timestamp)
-);
+) partition by range (consensus_timestamp);
 comment on table hook_storage_change is 'Historical changes to hook storage state';
 
-select create_time_partitions('hook_storage_change', 'consensus_timestamp', true);
 
 -- Hook storage table (current state)
 create table if not exists hook_storage
 (
-    consensus_timestamp bigint not null,
     created_timestamp   bigint not null,
+    modified_timestamp  bigint not null,
     hook_id             bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
