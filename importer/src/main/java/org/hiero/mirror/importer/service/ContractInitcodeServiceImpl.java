@@ -21,15 +21,15 @@ public final class ContractInitcodeServiceImpl implements ContractInitcodeServic
             return null;
         }
 
-        if (contractBytecode != null && !contractBytecode.getInitcode().isEmpty()) {
-            return DomainUtils.toBytes(contractBytecode.getInitcode());
-        }
-
         var contractCreate = recordItem.getTransactionBody().getContractCreateInstance();
         if (contractCreate.hasInitcode()) {
             return DomainUtils.toBytes(contractCreate.getInitcode());
         } else if (contractCreate.hasFileID() && recordItem.isBlockstream()) {
             return fileDataService.get(recordItem.getConsensusTimestamp(), EntityId.of(contractCreate.getFileID()));
+        }
+
+        if (contractBytecode != null) {
+            return DomainUtils.toBytes(contractBytecode.getInitcode());
         }
 
         return null;

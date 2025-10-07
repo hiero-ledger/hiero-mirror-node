@@ -6,13 +6,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.services.stream.proto.ContractBytecode;
 import lombok.RequiredArgsConstructor;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.converter.ArgumentConversionException;
+import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.params.converter.TypedArgumentConverter;
+import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
 final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
@@ -21,8 +25,12 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
     private final ContractInitcodeService service;
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void childContractCreateMissingInitcode(boolean sidecarExists) {
+    @CsvSource(textBlock = """
+            true, ''
+            false,
+            """)
+    void childContractCreateMissingInitcode(
+            boolean sidecarExists, @ConvertWith(HexToByteArrayConverter.class) byte[] expected) {
         // given
         var contractId = recordItemBuilder.contractId();
         var contractBytecode = sidecarExists
@@ -39,7 +47,7 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
                 .build();
 
         // when, then
-        assertThat(service.get(contractBytecode, contractCreate)).isNull();
+        assertThat(service.get(contractBytecode, contractCreate)).isEqualTo(expected);
     }
 
     @Test
@@ -75,8 +83,11 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void missing(boolean sidecarExists) {
+    @CsvSource(textBlock = """
+            true, ''
+            false,
+            """)
+    void missing(boolean sidecarExists, @ConvertWith(HexToByteArrayConverter.class) byte[] expected) {
         // given: contractcreate recordItem from recordstream, contract created from file, however no bytecode sidecar
         // or no initcode in the sidecar record
         var contractId = recordItemBuilder.contractId();
@@ -89,7 +100,7 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
         var contractCreate = recordItemBuilder.contractCreate(contractId).build();
 
         // when, then
-        assertThat(service.get(contractBytecode, contractCreate)).isNull();
+        assertThat(service.get(contractBytecode, contractCreate)).isEqualTo(expected);
     }
 
     @Test
@@ -136,5 +147,21 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
 
         // when, then
         assertThat(service.get(contractBytecode, recordItem)).isNull();
+    }
+
+    private static class HexToByteArrayConverter extends TypedArgumentConverter<String, byte[]> {
+
+        HexToByteArrayConverter() {
+            super(String.class, byte[].class);
+        }
+
+        @Override
+        protected byte[] convert(String source) throws ArgumentConversionException {
+            if (source == null) {
+                return null;
+            }
+
+            return Hex.decode(source);
+        }
     }
 }
