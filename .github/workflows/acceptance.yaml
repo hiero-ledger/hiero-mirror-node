@@ -158,6 +158,7 @@ jobs:
         run: |
           touch output_log.txt
           helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m >> output_log.txt
+          cat output_log.txt
 
       - name: Parse acceptance tests logs and set k6 environment variables
         id: log-variables
@@ -234,7 +235,7 @@ jobs:
         with:
           path: |
             ./tools/k6/src/web3/apis.js
-          debug: true
+          debug: false
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
