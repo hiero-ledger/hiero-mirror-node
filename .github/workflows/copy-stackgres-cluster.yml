@@ -6,36 +6,41 @@ on:
   workflow_dispatch:
     inputs:
       source_cluster_location:
+        default: "us-central1"
         description: "Source: GKE location (zone or region)"
         required: true
       source_cluster_name:
         description: "Source: GKE cluster name"
+        default: "mainnet-na"
         required: true
       source_project:
-        description: "Source: GCP project"
-        type: choice
-        options: [prod, nonprod]
         default: nonprod
+        description: "Source: GCP project"
+        options: [prod, nonprod]
         required: true
+        type: choice
       target_cluster_location:
+        default: "us-central1"
         description: "Target: GKE location (zone or region)"
         required: true
       target_cluster_name:
+        default: "mainnet-staging-na"
         description: "Target: GKE cluster name"
         required: true
       target_default_pool:
+        default: "mainnet-staging-na"
         description: "Target: default pool name"
         required: true
       target_project:
-        description: "Target: GCP project"
-        type: choice
-        options: [prod, nonprod]
         default: nonprod
+        description: "Target: GCP project"
+        options: [prod, nonprod]
         required: true
+        type: choice
       teardown_target:
+        default: true
         description: "Tear down target cluster after k6 tests run"
         required: true
-        default: true
         type: boolean
 
 permissions:
@@ -47,12 +52,12 @@ jobs:
     name: Copy Citus from SOURCE ➜ TARGET
     runs-on: hiero-mirror-node-linux-medium
     env:
-      GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
+      GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
       GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
       GCP_K8S_TARGET_CLUSTER_NAME: ${{ inputs.target_cluster_name }}
       GCP_K8S_TARGET_CLUSTER_REGION: ${{ inputs.target_cluster_location }}
-      GCP_TARGET_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJ
+      GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
       PINNED_KUBECONFIG: ${{ github.workspace }}/.kube/config
@@ -62,41 +67,25 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-
-      - name: Install ksd (Go)
-        run: |
-          go install github.com/mfuentesg/ksd@latest
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-          ksd -h
-
-      - name: Prepare pinned kubeconfig
-        run: |
-          mkdir -p "$(dirname "$PINNED_KUBECONFIG")"
-          : > "$PINNED_KUBECONFIG"
-
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
           workload_identity_provider: ${{ env.WIF_PROVIDER }}
           service_account: ${{ env.SA_EMAIL }}
           audience: "//iam.googleapis.com/${{ env.WIF_PROVIDER }}"
 
       - name: Setup gcloud + GKE auth plugin
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
         with:
           install_components: gke-gcloud-auth-plugin
 
       - name: Get GKE credentials (source)
-        uses: google-github-actions/get-gke-credentials@v3
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395
         with:
           cluster_name: ${{ env.GCP_K8S_SOURCE_CLUSTER_NAME }}
           context_name: ${{ env.K8S_SOURCE_CLUSTER_CONTEXT }}
@@ -107,11 +96,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "$(dirname "$PINNED_KUBECONFIG")"
+          : > "$PINNED_KUBECONFIG"
           cp "$KUBECONFIG" "$PINNED_KUBECONFIG"
           echo "KUBECONFIG=$PINNED_KUBECONFIG" >> "$GITHUB_ENV"
 
       - name: Get GKE credentials (target)
-        uses: google-github-actions/get-gke-credentials@v3
+        uses: google-github-actions/get-gke-credentials@3da1e46a907576cefaa90c484278bb5b259dd395
         with:
           cluster_name: ${{ env.GCP_K8S_TARGET_CLUSTER_NAME }}
           context_name: ${{ env.K8S_TARGET_CLUSTER_CONTEXT }}
@@ -135,27 +126,4 @@ jobs:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
           WAIT_FOR_K6: ${{ inputs.teardown_target && 'true' || 'false' }}
-        run: |
-          set -Eeuo pipefail
-          echo "Running: script to copy stackgres cluster"
-          cd ./tools/cluster-management/
-          ./copy-live-environment.sh
-
-      - name: Cleanup pinned kubeconfig
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "KUBECONFIG=${KUBECONFIG:-<unset>}"
-          echo "PINNED_KUBECONFIG=${PINNED_KUBECONFIG:-<unset>}"
-
-          for f in "${PINNED_KUBECONFIG:-}" "${KUBECONFIG:-}"; do
-            if [[ -n "$f" && -f "$f" ]]; then
-              rm -f "$f"
-              echo "Removed $f"
-            fi
-          done
-
-          if [[ -n "${PINNED_KUBECONFIG:-}" ]]; then
-            rmdir "$(dirname "$PINNED_KUBECONFIG")" 2>/dev/null || true
-          fi
+        run: cd ./tools/cluster-management/ && ./copy-live-environment.sh

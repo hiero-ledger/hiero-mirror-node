@@ -656,16 +656,15 @@ function updateStackgresCreds() {
   local cluster="${1}"
   local namespace="${2}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
-    ksd |
-    jq -r '.stringData')
+    jq -r '.data')
   mask "${sgPasswords}"
 
-  local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]')
-  local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]')
-  local replicationUsername=$(echo "${sgPasswords}" | jq -r '.["replication-username"]')
-  local replicationPassword=$(echo "${sgPasswords}" | jq -r '.["replication-password"]')
-  local authenticatorUsername=$(echo "${sgPasswords}" | jq -r '.["authenticator-username"]')
-  local authenticatorPassword=$(echo "${sgPasswords}" | jq -r '.["authenticator-password"]')
+  local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]' | base64 -d)
+  local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]'| base64 -d)
+  local replicationUsername=$(echo "${sgPasswords}" | jq -r '.["replication-username"]'| base64 -d)
+  local replicationPassword=$(echo "${sgPasswords}" | jq -r '.["replication-password"]'| base64 -d)
+  local authenticatorUsername=$(echo "${sgPasswords}" | jq -r '.["authenticator-username"]'| base64 -d)
+  local authenticatorPassword=$(echo "${sgPasswords}" | jq -r '.["authenticator-password"]'| base64 -d)
 
   mask "${superuserUsername}"
   mask "${superuserPassword}"
@@ -676,27 +675,26 @@ function updateStackgresCreds() {
 
   # Mirror Node Passwords
   local mirrorNodePasswords=$(kubectl get secret -n "${namespace}" "${HELM_RELEASE_NAME}-passwords" -o json |
-    ksd |
-    jq -r '.stringData')
+    jq -r '.data')
   mask "${mirrorNodePasswords}"
 
-  local graphqlUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_USERNAME')
-  local graphqlPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_PASSWORD')
-  local grpcUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRPC_DB_USERNAME')
-  local grpcPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRPC_DB_PASSWORD')
-  local importerUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_USERNAME')
-  local importerPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_PASSWORD')
-  local ownerUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_OWNER')
-  local ownerPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD')
-  local restUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_REST_DB_USERNAME')
-  local restPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_REST_DB_PASSWORD')
-  local restJavaUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_RESTJAVA_DB_USERNAME')
-  local restJavaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_RESTJAVA_DB_PASSWORD')
-  local rosettaUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_USERNAME')
-  local rosettaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_PASSWORD')
-  local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME')
-  local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD')
-  local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME')
+  local graphqlUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_USERNAME'| base64 -d)
+  local graphqlPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_PASSWORD'| base64 -d)
+  local grpcUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRPC_DB_USERNAME'| base64 -d)
+  local grpcPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRPC_DB_PASSWORD'| base64 -d)
+  local importerUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_USERNAME'| base64 -d)
+  local importerPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_PASSWORD'| base64 -d)
+  local ownerUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_OWNER'| base64 -d)
+  local ownerPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD'| base64 -d)
+  local restUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_REST_DB_USERNAME'| base64 -d)
+  local restPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_REST_DB_PASSWORD'| base64 -d)
+  local restJavaUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_RESTJAVA_DB_USERNAME'| base64 -d)
+  local restJavaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_RESTJAVA_DB_PASSWORD'| base64 -d)
+  local rosettaUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_USERNAME'| base64 -d)
+  local rosettaPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_ROSETTA_DB_PASSWORD'| base64 -d)
+  local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME'| base64 -d)
+  local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD'| base64 -d)
+  local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME'| base64 -d)
 
   mask "${graphqlUsername}"
   mask "${graphqlPassword}"
