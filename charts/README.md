@@ -227,6 +227,20 @@ release:
 kubectl delete $(kubectl get pvc -o name)
 ```
 
+## Development
+
+The Helm charts use Bitnami for various chart components. Newer Bitnami images are no longer freely available, so we
+need to periodically build their images from source and publish them to our own registry. After building the images
+using the below steps, update the `values.yaml` to use the newly built images.
+
+```bash
+export REDIS_VERSION="8.2.2"
+git checkout https://github.com/bitnami/containers.git
+cd containers/bitnami/
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis:${REDIS_VERSION} --provenance false --push redis/8.2/debian-12
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis-sentinel:${REDIS_VERSION} --provenance false --push redis-sentinel/8.2/debian-12
+```
+
 ## Troubleshooting
 
 To troubleshoot a pod, you can view its log and describe the pod to see its status. See the
@@ -238,7 +252,9 @@ kubectl logs -f --tail=100 "${POD_NAME}"
 kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 ```
 
-To change an application's properties, create a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files) and mount it into the container by specifying `volumes`
+To change an application's properties, create
+a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
+and mount it into the container by specifying `volumes`
 and `volumeMounts` in your custom values.yaml. Create the ConfigMap from a properties file:
 
 ```shell script
