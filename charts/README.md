@@ -236,10 +236,9 @@ using the below steps, update the `values.yaml` to use the newly built images.
 ```bash
 export REDIS_VERSION="8.2.2"
 git checkout https://github.com/bitnami/containers.git
-cd containers/bitnami/redis/8.2/debian-12
-docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis:${REDIS_VERSION} --provenance false --push .
-cd ../../../redis-sentinel/8.2/debian-12
-buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis-sentinel:${REDIS_VERSION} --provenance false --push .
+cd containers/bitnami/
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis:${REDIS_VERSION} --provenance false --push redis/8.2/debian-12
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis-sentinel:${REDIS_VERSION} --provenance false --push redis-sentinel/8.2/debian-12
 ```
 
 ## Troubleshooting
