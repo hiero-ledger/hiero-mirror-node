@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import java.util.Optional;
 import java.util.function.Predicate;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -68,32 +69,36 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     @Override
     protected Account readFromDataSource(@Nonnull AccountID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
-        final var account = commonEntityAccessor
+        return commonEntityAccessor
                 .get(key, timestamp)
                 .filter(entity -> entity.getType() != TOKEN)
                 .map(entity -> {
-                    final var acc = accountFromEntity(entity, timestamp);
+                    final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
-                    if (acc.alias().length() > 0) {
-                        aliasedAccountCacheManager.putAccountAlias(acc.alias(), key);
+                    if (account.alias().length() > 0) {
+                        aliasedAccountCacheManager.putAccountAlias(account.alias(), key);
                     }
-                    return acc;
+                    return account;
                 })
+                .or(() -> getDummySystemAccountIfApplicable(key))
                 .orElse(null);
-        // In case a system account doesn't exist in a historical contract call
-        // return a dummy account to avoid errors like
-        // "Non-zero net hbar change when handling body"
-        if (account == null) {
-            try {
-                final var accountAddress =
-                        EvmTokenUtils.toAddress(EntityId.of(key.shardNum(), key.realmNum(), key.accountNumOrThrow()));
-                if (strictSystemAccountDetector.test(accountAddress)) {
-                    return Account.newBuilder().accountId(key).tinybarBalance(0).build();
-                }
-            } catch (Exception ex) {
-                return null;
+    }
+
+    /**
+     * In case a system account doesn't exist, in a historical contract
+     * call for example, return a dummy account to avoid errors like
+     * "Non-zero net hbar change when handling body"
+     */
+    private Optional<Account> getDummySystemAccountIfApplicable(AccountID key) {
+        try {
+            final var accountAddress =
+                    EvmTokenUtils.toAddress(EntityId.of(key.shardNum(), key.realmNum(), key.accountNumOrThrow()));
+            if (strictSystemAccountDetector.test(accountAddress)) {
+                return Optional.of(Account.newBuilder().accountId(key).build());
             }
+        } catch (Exception ignored) {
+            return Optional.empty();
         }
-        return account;
+        return Optional.empty();
     }
 }
