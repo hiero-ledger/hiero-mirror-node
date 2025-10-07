@@ -112,7 +112,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class SqlEntityListenerTest extends ImporterIntegrationTest {
+final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
     private final AssessedCustomFeeRepository assessedCustomFeeRepository;
     private final ContractActionRepository contractActionRepository;
@@ -562,12 +562,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var cryptoAllowanceCreate2 = cryptoAllowanceCreate1.toBuilder()
                 .amount(amount)
                 .amountGranted(amount)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         var cryptoAllowanceRevoke = cryptoAllowanceCreate1.toBuilder()
                 .amount(0)
                 .amountGranted(0L)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
 
         // when
@@ -1036,7 +1036,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         nonHistoryUpdate.setType(ACCOUNT);
         var historyUpdate = entityId.toEntity();
         historyUpdate.setMemo("Update entity memo");
-        historyUpdate.setTimestampRange(Range.atLeast(domainBuilder.timestamp()));
+        historyUpdate.setTimestampRange(domainBuilder.timestampRange());
         historyUpdate.setType(CONTRACT); // Correct type
         var expectedEntity = TestUtils.clone(historyUpdate);
         expectedEntity.setBalance(0L);
@@ -1149,12 +1149,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var entity1 = domainBuilder.entity().persist();
         var entity1Update = entity1.toBuilder()
                 .createdTimestamp(null)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         var entity2Create = domainBuilder.entity().get();
         var entity2Update = entity2Create.toBuilder()
                 .createdTimestamp(null)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
 
         // when
@@ -1213,7 +1213,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var updateAdminKey = Topic.builder()
                 .adminKey(domainBuilder.bytes(16))
                 .id(create.getId())
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         sqlEntityListener.onTopic(updateAdminKey);
         var expectedHistory = new ArrayList<Topic>();
@@ -1232,7 +1232,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var updateFeeScheduleKey = Topic.builder()
                 .feeScheduleKey(domainBuilder.bytes(16))
                 .id(create.getId())
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         sqlEntityListener.onTopic(updateFeeScheduleKey);
         expectedHistory.add(current.toBuilder()
@@ -1249,7 +1249,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var updateFeeExemptKeyList = Topic.builder()
                 .feeExemptKeyList(domainBuilder.bytes(16))
                 .id(create.getId())
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         sqlEntityListener.onTopic(updateFeeExemptKeyList);
         expectedHistory.add(current.toBuilder()
@@ -1267,7 +1267,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var updateSubmitKey = Topic.builder()
                 .id(create.getId())
                 .submitKey(domainBuilder.bytes(16))
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         sqlEntityListener.onTopic(updateSubmitKey);
         expectedHistory.add(current.toBuilder()
@@ -1897,71 +1897,51 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
     @Test
     void onNodeMerge() {
         // given
-        var node1 = domainBuilder.node().get();
-        var node2 = domainBuilder
-                .node()
-                .customize(node -> node.adminKey(null).nodeId(node1.getNodeId()))
-                .get();
+        var nodeCreate = domainBuilder.node().get();
+        var nodeUpdate = Node.builder()
+                .nodeId(nodeCreate.getNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
 
         // when
-        sqlEntityListener.onNode(node1);
-        sqlEntityListener.onNode(node2);
+        sqlEntityListener.onNode(nodeCreate);
+        sqlEntityListener.onNode(nodeUpdate);
         completeFileAndCommit();
 
-        node1.setTimestampUpper(node2.getTimestampLower());
-        node2.setCreatedTimestamp(node1.getCreatedTimestamp());
-        node2.setAdminKey(node1.getAdminKey());
+        nodeCreate.setTimestampUpper(nodeUpdate.getTimestampLower());
+        var nodeUpdateExpected = nodeCreate.toBuilder()
+                .timestampRange(nodeUpdate.getTimestampRange())
+                .build();
 
         // then
-        assertThat(nodeRepository.findAll()).containsExactly(node2);
-        assertThat(findHistory(Node.class)).containsExactly(node1);
+        assertThat(nodeRepository.findAll()).containsExactly(nodeUpdateExpected);
+        assertThat(findHistory(Node.class)).containsExactly(nodeCreate);
     }
 
     @Test
     void onNodeMergeWithDelete() {
         // given
-        var node1 = domainBuilder.node().get();
-        var node2 = domainBuilder
-                .node()
-                .customize(node ->
-                        node.adminKey(null).createdTimestamp(null).deleted(true).nodeId(node1.getNodeId()))
-                .get();
+        var nodeCreate = domainBuilder.node().get();
+        var nodeDelete = Node.builder()
+                .deleted(true)
+                .nodeId(nodeCreate.getNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
 
         // when
-        sqlEntityListener.onNode(node1);
-        sqlEntityListener.onNode(node2);
+        sqlEntityListener.onNode(nodeCreate);
+        sqlEntityListener.onNode(nodeDelete);
         completeFileAndCommit();
 
-        node1.setTimestampUpper(node2.getTimestampLower());
-        node2.setCreatedTimestamp(node1.getCreatedTimestamp());
-        node2.setAdminKey(node1.getAdminKey());
+        nodeCreate.setTimestampUpper(nodeDelete.getTimestampLower());
+        var nodeDeleteExpected = nodeCreate.toBuilder()
+                .deleted(true)
+                .timestampRange(nodeDelete.getTimestampRange())
+                .build();
 
         // then
-        assertThat(nodeRepository.findAll()).containsExactly(node2);
-        assertThat(findHistory(Node.class)).containsExactly(node1);
-    }
-
-    @Test
-    void onNodeMergeUpdateAdminKey() {
-        // given
-        var node1 = domainBuilder.node().get();
-        var node2 = domainBuilder
-                .node()
-                .customize(node -> node.createdTimestamp(null))
-                .customize(node -> node.nodeId(node1.getNodeId()))
-                .get();
-
-        // when
-        sqlEntityListener.onNode(node1);
-        sqlEntityListener.onNode(node2);
-        completeFileAndCommit();
-
-        node1.setTimestampUpper(node2.getTimestampLower());
-        node2.setCreatedTimestamp(node1.getCreatedTimestamp());
-
-        // then
-        assertThat(nodeRepository.findAll()).containsExactly(node2);
-        assertThat(findHistory(Node.class)).containsExactly(node1);
+        assertThat(nodeRepository.findAll()).containsExactly(nodeDeleteExpected);
+        assertThat(findHistory(Node.class)).containsExactly(nodeCreate);
     }
 
     @Test
@@ -1969,18 +1949,25 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         // given
         var nodeCreate = domainBuilder.node().get();
         var nodeUpdate = nodeCreate.toBuilder()
+                .accountId(domainBuilder.entityId())
                 .adminKey(domainBuilder.key())
                 .createdTimestamp(null)
+                .declineReward(true)
                 .grpcProxyEndpoint(new ServiceEndpoint("", "127.0.0.1", 8080))
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
-        var nodeDelete = nodeUpdate.toBuilder()
-                .createdTimestamp(null)
+        var nodeDelete = Node.builder()
                 .deleted(true)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .nodeId(nodeCreate.getNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
+        var nodeDeleteExpected = nodeUpdate.toBuilder()
+                .createdTimestamp(nodeCreate.getCreatedTimestamp())
+                .deleted(true)
+                .timestampRange(nodeDelete.getTimestampRange())
                 .build();
 
-        // when create the node
+        // when the node is created
         sqlEntityListener.onNode(nodeCreate);
         completeFileAndCommit();
 
@@ -1988,7 +1975,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(nodeRepository.findAll()).containsExactly(nodeCreate);
         assertThat(findHistory(Node.class)).isEmpty();
 
-        // when update the node
+        // when the node is updated
         var mergedUpdate = nodeCreate.toBuilder().build();
         mergedUpdate.setTimestampUpper(nodeUpdate.getTimestampLower());
         sqlEntityListener.onNode(nodeUpdate);
@@ -2003,13 +1990,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var mergedUpdate2 = nodeUpdate.toBuilder().build();
         mergedUpdate2.setTimestampUpper(nodeDelete.getTimestampLower());
 
-        // when delete the node
+        // when the node is deleted
         sqlEntityListener.onNode(nodeDelete);
         completeFileAndCommit();
 
-        nodeDelete.setCreatedTimestamp(nodeCreate.getCreatedTimestamp());
         // then
-        assertThat(nodeRepository.findAll()).containsExactlyInAnyOrder(nodeDelete);
+        assertThat(nodeRepository.findAll()).containsExactlyInAnyOrder(nodeDeleteExpected);
         assertThat(findHistory(Node.class)).containsExactlyInAnyOrder(mergedUpdate, mergedUpdate2);
     }
 
@@ -2291,7 +2277,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .metadata(domainBuilder.bytes(16))
                 .metadataKey(domainBuilder.key())
                 .pauseStatus(TokenPauseStatusEnum.PAUSED)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .tokenId(tokenCreate.getTokenId())
                 .build();
         sqlEntityListener.onToken(tokenUpdate);
@@ -2317,7 +2303,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         sqlEntityListener.onToken(tokenCreate);
 
         var tokenUpdate = Token.builder()
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .tokenId(tokenCreate.getTokenId())
                 .build();
         sqlEntityListener.onToken(tokenUpdate);
@@ -2565,10 +2551,10 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
             nullValues = "null",
             textBlock =
                     """
-                    false, false
-                    true, false
-                    true, null
-                    """)
+                            false, false
+                            true, false
+                            true, null
+                            """)
     @ParameterizedTest
     void onTokenAccountClaimNoExistingAssociated(boolean database, Boolean associated) {
         var tokenAccountDissociate = domainBuilder
@@ -2603,10 +2589,10 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
             nullValues = "null",
             textBlock =
                     """
-                    false, true
-                    false, null
-                    true, true
-                    """)
+                            false, true
+                            false, null
+                            true, true
+                            """)
     @ParameterizedTest
     void onTokenAccountClaimExistingAssociated(boolean database, Boolean associated) {
         var tokenAccountAssociate = domainBuilder
@@ -2964,7 +2950,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                         .receiverAccountId(tokenAirdrop.getReceiverAccountId())
                         .senderAccountId(tokenAirdrop.getSenderAccountId())
                         .tokenId(tokenAirdrop.getTokenId())
-                        .timestampRange(Range.atLeast(domainBuilder.timestamp())))
+                        .timestampRange(domainBuilder.timestampRange()))
                 .get();
         sqlEntityListener.onTokenAirdrop(updatedAmountAirdrop);
         completeFileAndCommit();
@@ -3010,7 +2996,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                         .receiverAccountId(tokenAirdrop.getReceiverAccountId())
                         .senderAccountId(tokenAirdrop.getSenderAccountId())
                         .tokenId(tokenAirdrop.getTokenId())
-                        .timestampRange(Range.atLeast(domainBuilder.timestamp())))
+                        .timestampRange(domainBuilder.timestampRange()))
                 .get();
         var nftAirdropUpdateState = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
@@ -3019,7 +3005,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                         .senderAccountId(nftAirdrop.getSenderAccountId())
                         .serialNumber(nftAirdrop.getSerialNumber())
                         .tokenId(nftAirdrop.getTokenId())
-                        .timestampRange(Range.atLeast(domainBuilder.timestamp())))
+                        .timestampRange(domainBuilder.timestampRange()))
                 .get();
         sqlEntityListener.onTokenAirdrop(tokenAirdropUpdateState);
         sqlEntityListener.onTokenAirdrop(nftAirdropUpdateState);
@@ -3056,7 +3042,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                         .receiverAccountId(tokenAirdrop.getReceiverAccountId())
                         .senderAccountId(tokenAirdrop.getSenderAccountId())
                         .tokenId(tokenAirdrop.getTokenId())
-                        .timestampRange(Range.atLeast(domainBuilder.timestamp())))
+                        .timestampRange(domainBuilder.timestampRange()))
                 .get();
         var nftAirdropUpdateState = domainBuilder
                 .tokenAirdrop(TokenTypeEnum.NON_FUNGIBLE_UNIQUE)
@@ -3065,7 +3051,7 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
                         .senderAccountId(nftAirdrop.getSenderAccountId())
                         .serialNumber(nftAirdrop.getSerialNumber())
                         .tokenId(nftAirdrop.getTokenId())
-                        .timestampRange(Range.atLeast(domainBuilder.timestamp())))
+                        .timestampRange(domainBuilder.timestampRange()))
                 .get();
         sqlEntityListener.onTokenAirdrop(tokenAirdropUpdateState);
         sqlEntityListener.onTokenAirdrop(nftAirdropUpdateState);
@@ -3196,12 +3182,12 @@ class SqlEntityListenerTest extends ImporterIntegrationTest {
         var tokenAllowanceCreate2 = tokenAllowanceCreate1.toBuilder()
                 .amount(amount)
                 .amountGranted(amount)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
         var tokenAllowanceRevoke = tokenAllowanceCreate1.toBuilder()
                 .amount(0)
                 .amountGranted(0L)
-                .timestampRange(Range.atLeast(domainBuilder.timestamp()))
+                .timestampRange(domainBuilder.timestampRange())
                 .build();
 
         // when

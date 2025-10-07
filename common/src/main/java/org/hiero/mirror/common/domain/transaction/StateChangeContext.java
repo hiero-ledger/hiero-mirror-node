@@ -156,19 +156,7 @@ public final class StateChangeContext {
     }
 
     public Optional<TopicMessage> getTopicMessage(@Nonnull TopicID topicId) {
-        return Optional.ofNullable(topicState.remove(topicId)).map(topicMessage -> {
-            if (topicMessage.getSequenceNumber() > 1) {
-                // running hash is lost for any earlier message, set it to an empty bytearray
-                // since null is not allowed
-                topicState.put(
-                        topicId,
-                        TopicMessage.builder()
-                                .runningHash(DomainUtils.EMPTY_BYTE_ARRAY)
-                                .sequenceNumber(topicMessage.getSequenceNumber() - 1)
-                                .build());
-            }
-            return topicMessage;
-        });
+        return Optional.ofNullable(topicState.remove(topicId));
     }
 
     /**

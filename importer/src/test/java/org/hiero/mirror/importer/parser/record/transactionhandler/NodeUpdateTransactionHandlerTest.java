@@ -5,10 +5,13 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
@@ -18,7 +21,7 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new NodeUpdateTransactionHandler(entityListener);
+        return new NodeUpdateTransactionHandler(entityListener, entityIdService);
     }
 
     @Override
@@ -38,7 +41,10 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
     void nodeUpdate() {
         // given
         var recordItem = recordItemBuilder.nodeUpdate().build();
+        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var transaction = domainBuilder.transaction().get();
+        var accountId = EntityId.of(nodeUpdate.getAccountId());
+        when(entityIdService.lookup(nodeUpdate.getAccountId())).thenReturn(Optional.of(accountId));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -50,11 +56,11 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         assertThat(transaction.getTransactionBytes()).containsExactly(transactionBytes);
         assertThat(transaction.getTransactionRecordBytes()).containsExactly(transactionRecordBytes);
 
-        var adminKey =
-                recordItem.getTransactionBody().getNodeUpdate().getAdminKey().toByteArray();
+        var adminKey = nodeUpdate.getAdminKey().toByteArray();
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
-                .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
+                .returns(nodeUpdate.getNodeId(), Node::getNodeId)
+                .returns(accountId, Node::getAccountId)
                 .returns(adminKey, Node::getAdminKey)
                 .returns(null, Node::getCreatedTimestamp)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)
@@ -90,16 +96,19 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
                 .record(b -> b.setTransactionID(transactionId))
                 .build();
         var transaction = domainBuilder.transaction().get();
+        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
+        var accountId = EntityId.of(nodeUpdate.getAccountId());
+        when(entityIdService.lookup(nodeUpdate.getAccountId())).thenReturn(Optional.of(accountId));
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         var adminKey = nodeUpdate.getAdminKey().toByteArray();
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
-                .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
+                .returns(nodeUpdate.getNodeId(), Node::getNodeId)
+                .returns(accountId, Node::getAccountId)
                 .returns(adminKey, Node::getAdminKey)
                 .returns(nodeUpdate.getDeclineReward().getValue(), Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getCreatedTimestamp)
@@ -131,6 +140,7 @@ final class NodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerT
         verify(entityListener, times(1)).onNode(assertArg(t -> assertThat(t)
                 .isNotNull()
                 .returns(recordItem.getTransactionBody().getNodeUpdate().getNodeId(), Node::getNodeId)
+                .returns(null, Node::getAccountId)
                 .returns(null, Node::getAdminKey)
                 .returns(null, Node::getDeclineReward)
                 .returns(recordItem.getConsensusTimestamp(), Node::getTimestampLower)

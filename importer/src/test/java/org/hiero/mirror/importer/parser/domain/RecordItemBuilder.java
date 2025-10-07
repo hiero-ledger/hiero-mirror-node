@@ -1475,6 +1475,9 @@ public class RecordItemBuilder {
 
     public class Builder<T extends GeneratedMessage.Builder<T>> {
 
+        private static final BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> NOOP_INCREMENTER =
+                (b, r) -> {};
+
         private final TransactionType type;
         private final T transactionBody;
         private final SignatureMap.Builder signatureMap;
@@ -1486,7 +1489,7 @@ public class RecordItemBuilder {
 
         private Predicate<EntityId> entityTransactionPredicate = persistProperties::shouldPersistEntityTransaction;
         private Predicate<EntityId> contractTransactionPredicate = e -> persistProperties.isContractTransaction();
-        private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = (b, r) -> {};
+        private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = NOOP_INCREMENTER;
         private boolean useTransactionBodyBytesAndSigMap;
 
         private Builder(TransactionType type, T transactionBody) {
@@ -1561,6 +1564,11 @@ public class RecordItemBuilder {
 
         public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
             this.entityTransactionPredicate = entityTransactionPredicate;
+            return this;
+        }
+
+        public Builder<T> clearIncrementer() {
+            this.incrementer = NOOP_INCREMENTER;
             return this;
         }
 
