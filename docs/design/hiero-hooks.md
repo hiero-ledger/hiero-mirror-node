@@ -222,8 +222,8 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    consensus_timestamp bigint not null,
     created_timestamp   bigint not null,
+    modified_timestamp  bigint not null,
     hook_id             bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
