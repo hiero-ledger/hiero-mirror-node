@@ -15,10 +15,11 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
-class ConsensusSubmitMessageTransactionHandler extends AbstractTransactionHandler {
+final class ConsensusSubmitMessageTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
@@ -53,10 +54,16 @@ class ConsensusSubmitMessageTransactionHandler extends AbstractTransactionHandle
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody().getConsensusSubmitMessage();
-        var transactionRecord = recordItem.getTransactionRecord();
-        var receipt = transactionRecord.getReceipt();
+        var receipt = recordItem.getTransactionRecord().getReceipt();
+        if (recordItem.isBlockstream() && receipt.getTopicRunningHash().isEmpty()) {
+            Utility.handleRecoverableError(
+                    "Skip topic message from blockstream due to missing runningHash at {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
         var topicMessage = new TopicMessage();
+        var transactionBody = recordItem.getTransactionBody().getConsensusSubmitMessage();
 
         // Only persist the value if it is not the default
         if (receipt.getTopicRunningHashVersion() != DEFAULT_RUNNING_HASH_VERSION) {
