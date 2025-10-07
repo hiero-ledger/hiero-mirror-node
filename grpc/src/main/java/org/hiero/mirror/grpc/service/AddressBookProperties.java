@@ -29,6 +29,11 @@ public class AddressBookProperties {
     @Min(0)
     private long nodeStakeCacheSize = 5L;
 
+    private Duration nodeAccountCacheExpiry = Duration.ofSeconds(2);
+
+    @Min(0)
+    private long nodeAccountCacheSize = 5L;
+
     @DurationMin(millis = 100L)
     @NotNull
     private Duration maxPageDelay = Duration.ofMillis(250L);
