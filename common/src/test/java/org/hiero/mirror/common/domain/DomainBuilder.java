@@ -366,7 +366,7 @@ public class DomainBuilder {
                 .owner(id())
                 .payerAccountId(spender)
                 .spender(spender.getId())
-                .timestampRange(Range.atLeast(timestamp()));
+                .timestampRange(timestampRange());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -399,7 +399,7 @@ public class DomainBuilder {
                 .fixedFees(List.of(fixedFee()))
                 .fractionalFees(List.of(fractionalFee()))
                 .royaltyFees(List.of(royaltyFee()))
-                .timestampRange(Range.atLeast(timestamp()))
+                .timestampRange(timestampRange())
                 .entityId(entityId().getId());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -507,7 +507,7 @@ public class DomainBuilder {
                 .stakedNodeIdStart(-1L)
                 .stakedToMe(0L)
                 .stakeTotalStart(0L)
-                .timestampRange(Range.atLeast(timestamp()));
+                .timestampRange(timestampRange());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -643,7 +643,7 @@ public class DomainBuilder {
                 .owner(entityId().getId())
                 .payerAccountId(entityId())
                 .spender(entityId().getId())
-                .timestampRange(Range.atLeast(timestamp()))
+                .timestampRange(timestampRange())
                 .tokenId(entityId().getId());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -676,14 +676,14 @@ public class DomainBuilder {
         long timestamp = timestamp();
 
         var builder = Node.builder()
+                .accountId(entityId())
                 .adminKey(key())
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
                 .grpcProxyEndpoint(ServiceEndpoint.builder()
-                        .domainName("node1.hedera.com")
-                        .ipAddressV4("")
-                        .port(80)
+                        .ipAddressV4("127.0.0.1")
+                        .port(443)
                         .build())
                 .nodeId(number())
                 .timestampRange(Range.atLeast(timestamp));
@@ -694,14 +694,14 @@ public class DomainBuilder {
     public DomainWrapper<NodeHistory, NodeHistory.NodeHistoryBuilder<?, ?>> nodeHistory() {
         long timestamp = timestamp();
         var builder = NodeHistory.builder()
+                .accountId(entityId())
                 .adminKey(key())
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
                 .grpcProxyEndpoint(ServiceEndpoint.builder()
-                        .domainName("node1.hedera.com")
-                        .ipAddressV4("")
-                        .port(80)
+                        .ipAddressV4("127.0.0.1")
+                        .port(443)
                         .build())
                 .nodeId(number())
                 .timestampRange(Range.closedOpen(timestamp, timestamp + 10));
@@ -962,7 +962,7 @@ public class DomainBuilder {
                 .owner(id())
                 .payerAccountId(spender)
                 .spender(spender.getId())
-                .timestampRange(Range.atLeast(timestamp()))
+                .timestampRange(timestampRange())
                 .tokenId(id());
         return new DomainWrapperImpl<>(builder, builder::build);
     }
@@ -1247,6 +1247,10 @@ public class DomainBuilder {
 
     public long timestamp() {
         return timestampNoOffset() + timestampOffset;
+    }
+
+    public Range<Long> timestampRange() {
+        return Range.atLeast(timestamp());
     }
 
     private long tinybar() {

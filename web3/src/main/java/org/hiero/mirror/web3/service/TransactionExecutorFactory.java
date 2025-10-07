@@ -3,10 +3,10 @@
 package org.hiero.mirror.web3.service;
 
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.node.app.spi.ids.EntityIdFactory;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors.Properties;
-import com.swirlds.state.lifecycle.EntityIdFactory;
 import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.Map;

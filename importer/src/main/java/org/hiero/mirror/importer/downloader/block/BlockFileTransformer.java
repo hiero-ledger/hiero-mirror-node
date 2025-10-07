@@ -84,6 +84,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
         for (int index = blockTransactions.size() - 1; index >= 0; index--) {
             var blockTransaction = blockTransactions.get(index);
             var builder = RecordItem.builder()
+                    .blockstream(true)
                     .hapiVersion(hapiVersion)
                     .signatureMap(blockTransaction.getSignedTransaction().getSigMap())
                     .transaction(blockTransaction.getTransaction())

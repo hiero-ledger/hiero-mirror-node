@@ -17,11 +17,11 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.AutoAssociateTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
-import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
+import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.security.MessageDigest;
@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -43,6 +44,7 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.StreamItem;
+import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.util.CollectionUtils;
 
@@ -74,13 +76,16 @@ public class BlockTransaction implements StreamItem {
     private final List<StateChanges> stateChanges;
     private final SignedTransaction signedTransaction;
     private final byte[] signedTransactionBytes;
+    private final TopicID topicId; // for consensus submit message transaction
     private final BlockTransaction trigger;
+
+    @Getter(AccessLevel.NONE)
+    private final AtomicReference<TopicMessage> topicMessage = new AtomicReference<>();
 
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     private final StateChangeContext stateChangeContext = createStateChangeContext();
 
-    private final SubmitMessageTraceData submitMessageTraceData;
     private final boolean successful;
     private final List<TraceData> traceData;
     private final TransactionBody transactionBody;
@@ -125,8 +130,31 @@ public class BlockTransaction implements StreamItem {
         autoAssociateTraceData =
                 getTraceDataItem(traceDataMap, AUTO_ASSOCIATE_TRACE_DATA, TraceData::getAutoAssociateTraceData);
         evmTraceData = getTraceDataItem(traceDataMap, EVM_TRACE_DATA, TraceData::getEvmTraceData);
-        submitMessageTraceData =
+
+        var submitMessageTraceData =
                 getTraceDataItem(traceDataMap, SUBMIT_MESSAGE_TRACE_DATA, TraceData::getSubmitMessageTraceData);
+        if (submitMessageTraceData != null) {
+            topicMessage.set(TopicMessage.builder()
+                    .runningHash(DomainUtils.toBytes(submitMessageTraceData.getRunningHash()))
+                    .sequenceNumber(submitMessageTraceData.getSequenceNumber())
+                    .build());
+        }
+
+        topicId = transactionBody.hasConsensusSubmitMessage()
+                ? transactionBody.getConsensusSubmitMessage().getTopicID()
+                : null;
+    }
+
+    public TopicMessage getTopicMessage() {
+        if (topicId == null) {
+            return null;
+        }
+
+        if (topicMessage.get() == null) {
+            topicMessage.set(getStateChangeContext().getTopicMessage(topicId).orElse(null));
+        }
+
+        return topicMessage.get();
     }
 
     public Transaction getTransaction() {
