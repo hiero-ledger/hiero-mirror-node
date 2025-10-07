@@ -35,12 +35,13 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.hiero.mirror.importer.util.Utility;
 
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class ContractResultServiceImpl implements ContractResultService {
+public final class ContractResultServiceImpl implements ContractResultService {
 
     private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.domain;
+package org.hiero.mirror.importer.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

@@ -18,10 +18,10 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.domain.ContractInitcodeService;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.hiero.mirror.importer.util.Utility;
 
 @CustomLog

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.domain;
+package org.hiero.mirror.importer.service;
 
 import com.hedera.services.stream.proto.ContractBytecode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;

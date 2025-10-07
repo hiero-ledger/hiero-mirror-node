@@ -39,6 +39,7 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +56,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.util.Version;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class ContractResultServiceImplTest {
+final class ContractResultServiceImplTest {
 
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";

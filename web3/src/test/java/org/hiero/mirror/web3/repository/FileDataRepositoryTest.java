@@ -13,11 +13,12 @@ import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class FileDataRepositoryTest extends Web3IntegrationTest {
+final class FileDataRepositoryTest extends Web3IntegrationTest {
 
     private static final long EXPIRY = 1_234_567_890L;
     private static final byte[] EXCHANGE_RATES_SET = ExchangeRateSet.newBuilder()
@@ -91,25 +92,16 @@ class FileDataRepositoryTest extends Web3IntegrationTest {
                 .fileData()
                 .customize(f -> f.fileData(EXCHANGE_RATES_SET_300)
                         .entityId(exchangeRateFileId)
-                        .consensusTimestamp(300L))
+                        .consensusTimestamp(300L)
+                        .transactionType(TransactionType.FILEUPDATE.getProtoId()))
                 .persist();
 
         assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 301))
-                .get()
-                .usingRecursiveComparison()
-                .ignoringFields("transactionType")
-                .isEqualTo(expected2);
+                .contains(expected2);
         assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 300))
-                .get()
-                .usingRecursiveComparison()
-                .ignoringFields("transactionType")
-                .isEqualTo(expected2);
-
+                .contains(expected2);
         assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 299))
-                .get()
-                .usingRecursiveComparison()
-                .ignoringFields("transactionType")
-                .isEqualTo(expected1);
+                .contains(expected1);
         assertThat(fileDataRepository.getFileAtTimestamp(exchangeRateFileId.getId(), 199))
                 .isEmpty();
     }

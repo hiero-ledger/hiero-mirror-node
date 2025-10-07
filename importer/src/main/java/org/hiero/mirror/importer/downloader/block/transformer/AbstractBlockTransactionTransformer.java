@@ -40,6 +40,7 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.util.Utility;
 import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -252,7 +253,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                         contractBytecode.setInitcode(
                                 asInitcode(executedInitcode.getInitcodeBookends(), runtimeBytecode));
                     default ->
-                        log.warn(
+                        Utility.handleRecoverableError(
                                 "Unknown initcode case {} at {}",
                                 initcodeCase,
                                 blockTransaction.getConsensusTimestamp());
@@ -319,7 +320,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         if (!missingIndices.isEmpty()) {
-            log.warn(
+            Utility.handleRecoverableError(
                     "Unable to resolve the following storage slot indices for contract {} at {}: {}",
                     contractId,
                     blockTransaction.getConsensusTimestamp(),
@@ -327,8 +328,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         if (missingValueWritten) {
-            log.warn(
-                    "Unable to find value written for at least one slot for contract {} at {}",
+            Utility.handleRecoverableError(
+                    "Unable to find value written for at least one storage slot for contract {} at {}",
                     contractId,
                     blockTransaction.getConsensusTimestamp());
         }

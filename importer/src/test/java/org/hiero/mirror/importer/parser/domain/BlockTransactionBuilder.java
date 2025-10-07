@@ -91,7 +91,6 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -106,7 +105,6 @@ import org.springframework.util.CollectionUtils;
 public class BlockTransactionBuilder {
 
     private final RecordItemBuilder recordItemBuilder;
-    private final SidecarContractMigration sidecarContractMigration;
 
     private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
         var fileId = recordItem.getTransactionRecord().getReceipt().getFileID();
