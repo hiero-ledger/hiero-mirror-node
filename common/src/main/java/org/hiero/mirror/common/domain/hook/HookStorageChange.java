@@ -64,7 +64,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = -2847639184756392847L;
 
         private long consensusTimestamp;
         private long hookId;

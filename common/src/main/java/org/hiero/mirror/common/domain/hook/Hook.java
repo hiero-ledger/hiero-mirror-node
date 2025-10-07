@@ -51,10 +51,7 @@ public class Hook implements Persistable<Hook.Id> {
     @Override
     @JsonIgnore
     public Id getId() {
-        Id id = new Id();
-        id.setHookId(hookId);
-        id.setOwnerId(ownerId);
-        return id;
+        return new Id(hookId, ownerId);
     }
 
     @JsonIgnore
@@ -72,7 +69,7 @@ public class Hook implements Persistable<Hook.Id> {
     @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = -8745629837592847563L;
 
         private long hookId;
         private long ownerId;

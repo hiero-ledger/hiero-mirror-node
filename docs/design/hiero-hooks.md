@@ -223,6 +223,7 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 create table hook_storage
 (
     consensus_timestamp bigint not null,
+    created_timestamp   bigint not null,
     hook_id             bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
@@ -268,8 +269,10 @@ public class Hook {
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 @IdClass(HookStorage.Id.class)
+@Upsertable
 public class HookStorage {
 
+    private long consensusTimestamp;
     private long createdTimestamp;
     private long hookId;
     private byte[] key;

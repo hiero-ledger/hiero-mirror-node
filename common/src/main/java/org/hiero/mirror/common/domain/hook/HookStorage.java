@@ -31,12 +31,16 @@ public class HookStorage {
     @Column(updatable = false)
     private long consensusTimestamp;
 
+    private long createdTimestamp;
+
     @jakarta.persistence.Id
     private long hookId;
 
     @jakarta.persistence.Id
     @ToString.Exclude
     private byte[] key;
+
+    private long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long ownerId;
@@ -62,7 +66,7 @@ public class HookStorage {
     @NoArgsConstructor
     public static class Id implements Serializable {
         @Serial
-        private static final long serialVersionUID = 1L;
+        private static final long serialVersionUID = 4567832945612847391L;
 
         private long hookId;
         private byte[] key;

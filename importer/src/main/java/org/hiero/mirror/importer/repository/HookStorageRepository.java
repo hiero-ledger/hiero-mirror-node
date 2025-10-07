@@ -4,7 +4,5 @@ package org.hiero.mirror.importer.repository;
 
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
 public interface HookStorageRepository extends CrudRepository<HookStorage, HookStorage.Id> {}
