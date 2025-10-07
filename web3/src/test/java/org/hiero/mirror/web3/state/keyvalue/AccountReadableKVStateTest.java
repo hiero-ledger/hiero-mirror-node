@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -34,6 +35,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
@@ -55,6 +57,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -144,6 +147,9 @@ class AccountReadableKVStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @Mock
+    private Predicate<Address> systemAccountDetector;
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -637,7 +643,7 @@ class AccountReadableKVStateTest {
     @Test
     void returnsNullForNonSystemAccountWhenNotFound() {
         final var nonSystemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 2000L));
-        when(commonEntityAccessor.get(nonSystemKey, any())).thenReturn(Optional.empty());
+        when(commonEntityAccessor.get(eq(nonSystemKey), any())).thenReturn(Optional.empty());
 
         assertThat(accountReadableKVState.readFromDataSource(nonSystemKey)).isNull();
     }
@@ -646,6 +652,7 @@ class AccountReadableKVStateTest {
     void returnsDummyAccountForSystemAccountWhenNotFound() {
         final var systemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
         when(commonEntityAccessor.get(systemKey, Optional.empty())).thenReturn(Optional.empty());
+        when(systemAccountDetector.test(any())).thenReturn(true);
 
         assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
                 .isNotNull()
