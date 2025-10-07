@@ -15,12 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.FixedFee;
 import org.hiero.mirror.common.domain.token.FractionalFee;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
@@ -915,11 +917,8 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         // Parse shard.realm.num format
         String[] parts = tokenId.split("\\.");
 
-        long shard = Long.parseLong(parts[0]);
-        long realm = Long.parseLong(parts[1]);
         long num = Long.parseLong(parts[2]);
 
-        // Convert to hex address format
-        return String.format("0x%08x%016x%016x", (int) shard, realm, num);
+        return Bytes.wrap(DomainUtils.toEvmAddress(num)).toHexString();
     }
 }
