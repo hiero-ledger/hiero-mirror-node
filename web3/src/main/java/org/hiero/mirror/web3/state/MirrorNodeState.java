@@ -46,7 +46,6 @@ import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.lifecycle.StartupNetworks;
 import com.swirlds.state.lifecycle.StateMetadata;
-import com.swirlds.state.lifecycle.info.NodeInfo;
 import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.KVChangeListener;
 import com.swirlds.state.spi.QueueChangeListener;
@@ -115,7 +114,7 @@ public class MirrorNodeState implements MerkleNodeState {
     private final ConfigProviderImpl configProvider;
 
     private static final CommonProperties commonProperties = CommonProperties.getInstance();
-    private static final NodeInfo DEFAULT_NODE_INFO = new NodeInfoImpl(
+    private static final NodeInfoImpl DEFAULT_NODE_INFO = new NodeInfoImpl(
             0L,
             asAccount(commonProperties.getShard(), commonProperties.getRealm(), 3L),
             10L,
@@ -306,7 +305,7 @@ public class MirrorNodeState implements MerkleNodeState {
             @Nonnull final String serviceName,
             @Nonnull final String stateKey,
             @Nonnull final SingletonState<V> singleton) {
-        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton, singleton::set);
+        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton);
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(SINGLETON)) {
                 registerSingletonListener(serviceName, state, listener);

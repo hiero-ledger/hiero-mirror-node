@@ -345,6 +345,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
         props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
         props.put("contracts.sidecars", "");
+        props.put("contracts.throttle.throttleByOpsDuration", "false");
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("executor.disableThrottles", "true");
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
