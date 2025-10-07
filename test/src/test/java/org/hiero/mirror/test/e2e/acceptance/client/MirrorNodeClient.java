@@ -30,7 +30,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.NonNull;
@@ -113,7 +112,7 @@ public class MirrorNodeClient {
             RestClient.Builder restClientBuilder,
             RestJavaProperties restJavaProperties,
             Web3Properties web3Properties)
-            throws InterruptedException, TimeoutException, URISyntaxException {
+            throws InterruptedException, URISyntaxException {
         defaultOperator = new ExpandedAccountId(
                 acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
         this.acceptanceTestProperties = acceptanceTestProperties;

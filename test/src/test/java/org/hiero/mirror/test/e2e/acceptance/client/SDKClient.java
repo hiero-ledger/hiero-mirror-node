@@ -44,6 +44,7 @@ import lombok.Value;
 import org.apache.commons.lang3.Strings;
 import org.awaitility.Durations;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties.HederaNetwork;
 import org.hiero.mirror.test.e2e.acceptance.config.SdkProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.NodeProperties;
@@ -141,7 +142,7 @@ public class SDKClient implements Cleanable {
 
         if (!CollectionUtils.isEmpty(customNodes)) {
             log.debug("Creating SDK client for {} network with nodes: {}", network, customNodes);
-            return toClient(getNetworkMap(customNodes), null);
+            return toClient(getNetworkMap(customNodes), getLedgerId(network));
         }
 
         if (acceptanceTestProperties.isRetrieveAddressBook()) {
@@ -152,7 +153,7 @@ public class SDKClient implements Cleanable {
                         .pollDelay(Duration.ofMillis(100))
                         .pollInterval(Durations.FIVE_SECONDS)
                         .until(this::getAddressBook, ab -> ab.getNodeAddressCount() > 0);
-                return toClient(addressBook, LedgerId.fromString(network.name().toLowerCase()));
+                return toClient(addressBook, getLedgerId(network));
             } catch (Exception e) {
                 log.warn("Error retrieving address book", e);
             }
@@ -162,8 +163,7 @@ public class SDKClient implements Cleanable {
             throw new IllegalArgumentException("nodes must not be empty when network is OTHER");
         }
 
-        return configureClient(Client.forName(network.toString().toLowerCase())
-                .setLedgerId(LedgerId.fromString(network.name().toLowerCase())));
+        return configureClient(Client.forName(network.toString().toLowerCase()).setLedgerId(getLedgerId(network)));
     }
 
     private NodeAddressBook getNetworkMap(Set<NodeProperties> nodes) {
@@ -343,5 +343,11 @@ public class SDKClient implements Cleanable {
 
         log.info("Obtained address book with {} nodes and {} endpoints", nodes.size(), endpoints);
         return nodeAddressBook.build();
+    }
+
+    private LedgerId getLedgerId(HederaNetwork network) {
+        return HederaNetwork.OTHER.equals(network)
+                ? LedgerId.fromString(HederaNetwork.TESTNET.name().toLowerCase())
+                : LedgerId.fromString(network.name().toLowerCase());
     }
 }
