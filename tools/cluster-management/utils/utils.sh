@@ -13,9 +13,28 @@ function backgroundErrorHandler() {
 }
 
 mask() {
-  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "$1" ]]; then
+  set +x
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]]; then
     printf '::add-mask::%s\n' "$1"
   fi
+}
+
+maskJsonValues() {
+  set +x
+  local json input
+  json="${1:-}"
+
+  [[ -z "$json" ]] && return 0
+
+  while IFS= read -r value; do
+    mask "$value"
+
+    if decoded="$(printf '%s' "$value" | base64 -d 2>/dev/null)"; then
+      if [[ "$decoded" != *$'\x00'* && "$decoded" == *[[:print:]]* ]]; then
+        mask "$decoded"
+      fi
+    fi
+  done < <(jq -r '.. | strings' <<< "$json")
 }
 
 trap backgroundErrorHandler INT
@@ -595,23 +614,26 @@ function getDiskPrefix() {
 }
 
 function getZFSVolumes() {
-  kubectl get pv -o json |
-    jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \
-      '.items|
-         map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
-                    .status.phase == "Bound")|
-            (.spec.claimRef.name) as $pvcName |
-            (.spec.claimRef.namespace) as $pvcNamespace |
-            {
-              namespace: ($pvcNamespace),
-              volumeName: (.metadata.name),
-              pvcName: ($pvcName),
-              pvcSize: (.spec.capacity.storage),
-              nodeId: (.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]),
-              citusCluster: ($CITUS_CLUSTERS | fromjson | map(select(.pvcName == $pvcName and
-                                                              .namespace == $pvcNamespace))|first)
-            }
-        )'
+  local volumes
+  volumes=$(kubectl get pv -o json |
+                jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \
+                  '.items|
+                     map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
+                                .status.phase == "Bound")|
+                        (.spec.claimRef.name) as $pvcName |
+                        (.spec.claimRef.namespace) as $pvcNamespace |
+                        {
+                          namespace: ($pvcNamespace),
+                          volumeName: (.metadata.name),
+                          pvcName: ($pvcName),
+                          pvcSize: (.spec.capacity.storage),
+                          nodeId: (.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]),
+                          citusCluster: ($CITUS_CLUSTERS | fromjson | map(select(.pvcName == $pvcName and
+                                                                          .namespace == $pvcNamespace))|first)
+                        }
+                    )')
+  maskJsonValues "${volumes}"
+  echo "${volumes}"
 }
 
 function resizeCitusNodePools() {
@@ -657,7 +679,7 @@ function updateStackgresCreds() {
   local namespace="${2}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
     jq -r '.data')
-  mask "${sgPasswords}"
+  maskJsonValues "${sgPasswords}"
 
   local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]' | base64 -d)
   local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]'| base64 -d)
@@ -666,17 +688,10 @@ function updateStackgresCreds() {
   local authenticatorUsername=$(echo "${sgPasswords}" | jq -r '.["authenticator-username"]'| base64 -d)
   local authenticatorPassword=$(echo "${sgPasswords}" | jq -r '.["authenticator-password"]'| base64 -d)
 
-  mask "${superuserUsername}"
-  mask "${superuserPassword}"
-  mask "${replicationUsername}"
-  mask "${replicationPassword}"
-  mask "${authenticatorUsername}"
-  mask "${authenticatorPassword}"
-
   # Mirror Node Passwords
   local mirrorNodePasswords=$(kubectl get secret -n "${namespace}" "${HELM_RELEASE_NAME}-passwords" -o json |
     jq -r '.data')
-  mask "${mirrorNodePasswords}"
+  maskJsonValues "${mirrorNodePasswords}"
 
   local graphqlUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_USERNAME'| base64 -d)
   local graphqlPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_PASSWORD'| base64 -d)
@@ -695,23 +710,6 @@ function updateStackgresCreds() {
   local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME'| base64 -d)
   local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD'| base64 -d)
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME'| base64 -d)
-
-  mask "${graphqlUsername}"
-  mask "${graphqlPassword}"
-  mask "${grpcUsername}"
-  mask "${grpcPassword}"
-  mask "${importerUsername}"
-  mask "${importerPassword}"
-  mask "${ownerUsername}"
-  mask "${ownerPassword}"
-  mask "${restUsername}"
-  mask "${restPassword}"
-  mask "${restJavaUsername}"
-  mask "${restJavaPassword}"
-  mask "${rosettaUsername}"
-  mask "${rosettaPassword}"
-  mask "${web3Username}"
-  mask "${web3Password}"
 
   local sql=$(
     cat <<EOF
