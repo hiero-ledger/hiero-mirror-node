@@ -14,22 +14,27 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
+import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
+import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -39,7 +44,6 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 
-@CustomLog
 @Named
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
@@ -137,8 +141,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                             "Missing transaction result in block " + context.getFilename());
                 }
 
-                var transactionOutputs = new EnumMap<TransactionOutput.TransactionCase, TransactionOutput>(
-                        TransactionOutput.TransactionCase.class);
+                var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
                 while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
                     var transactionOutput = protoBlockItem.getTransactionOutput();
                     transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
@@ -165,13 +168,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
                 var blockTransaction = BlockTransaction.builder()
                         .previous(context.getLastBlockTransaction())
+                        .signedTransaction(signedTransaction)
+                        .signedTransactionBytes(signedTransactionInfo.signedTransaction())
                         .stateChanges(Collections.unmodifiableList(stateChangesList))
                         .traceData(Collections.unmodifiableList(traceDataList))
                         .transactionBody(transactionBody)
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                        .signedTransaction(signedTransaction)
-                        .signedTransactionBytes(signedTransactionInfo.signedTransaction())
+                        .trigger(context.getScheduledTransactionTriggers().get(transactionBody.getTransactionID()))
                         .build();
                 context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
@@ -211,6 +215,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
     @Value
     private static class ReaderContext {
+
         private BlockFile.BlockFileBuilder blockFile;
         private List<BlockItem> blockItems;
         private BlockRootHashDigest blockRootHashDigest;
@@ -237,6 +242,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
+
+        private Map<TransactionID, BlockTransaction> scheduledTransactionTriggers = new HashMap<>();
 
         ReaderContext(@Nonnull List<BlockItem> blockItems, @Nonnull String filename) {
             this.blockFile = BlockFile.builder();
@@ -280,7 +287,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             return blockItem;
         }
 
-        void setLastBlockTransaction(BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
+        void setLastBlockTransaction(@Nonnull BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
             if (userTransactionInBatch) {
                 if (lastUserTransactionInBatch != null
                         && batchBody != null
@@ -296,12 +303,27 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             }
 
             this.lastBlockTransaction = lastBlockTransaction;
-            if (lastBlockTransaction != null
-                    && lastBlockTransaction.getTransactionBody().hasAtomicBatch()) {
+            if (lastBlockTransaction.getTransactionBody().hasAtomicBatch()) {
                 this.batchIndex = 0;
                 this.batchBody = lastBlockTransaction.getTransactionBody().getAtomicBatch();
                 this.lastUserTransactionInBatch = null;
             }
+
+            // A short-term scheduled transaction and its triggering transaction (either a schedule create or a schedule
+            // sign) belong to one transactional unit, thus the statechanges are attached to the triggering transaction.
+            // Build the map to link a short-term scheduled transaction to its trigger
+            lastBlockTransaction
+                    .getTransactionOutput(TransactionCase.CREATE_SCHEDULE)
+                    .map(TransactionOutput::getCreateSchedule)
+                    .filter(CreateScheduleOutput::hasScheduledTransactionId)
+                    .map(CreateScheduleOutput::getScheduledTransactionId)
+                    .or(() -> lastBlockTransaction
+                            .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
+                            .map(TransactionOutput::getSignSchedule)
+                            .filter(SignScheduleOutput::hasScheduledTransactionId)
+                            .map(SignScheduleOutput::getScheduledTransactionId))
+                    .ifPresent(scheduledTransactionId ->
+                            scheduledTransactionTriggers.put(scheduledTransactionId, lastBlockTransaction));
         }
     }
 

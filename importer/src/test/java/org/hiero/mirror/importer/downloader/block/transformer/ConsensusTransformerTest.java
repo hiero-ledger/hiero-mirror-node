@@ -14,8 +14,10 @@ import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.Topic;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.List;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -212,5 +214,68 @@ final class ConsensusTransformerTest extends AbstractTransformerTest {
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @Test
+    void scheduledConsensusSubmitMessageTransform() {
+        // given
+        var scheduledTransactionId = TransactionID.newBuilder()
+                .setAccountID(recordItemBuilder.accountId())
+                .setScheduled(true)
+                .setTransactionValidStart(recordItemBuilder.timestamp())
+                .build();
+        var topicId = recordItemBuilder.topicId();
+        var runningHash = recordItemBuilder.bytes(48);
+        var scheduleSignRecordItem = recordItemBuilder
+                .scheduleCreate()
+                .receipt(r -> r.setScheduledTransactionID(scheduledTransactionId))
+                .customize(this::finalize)
+                .build();
+        var scheduleSignBlockTransaction = blockTransactionBuilder
+                .scheduleCreate(scheduleSignRecordItem)
+                .stateChanges(s -> {
+                    var stateChanges = s.getFirst().toBuilder()
+                            .addStateChanges(StateChange.newBuilder()
+                                    .setStateId(StateIdentifier.STATE_ID_TOPICS_VALUE)
+                                    .setMapUpdate(MapUpdateChange.newBuilder()
+                                            .setKey(MapChangeKey.newBuilder().setTopicIdKey(topicId))
+                                            .setValue(MapChangeValue.newBuilder()
+                                                    .setTopicValue(Topic.newBuilder()
+                                                            .setTopicId(topicId)
+                                                            .setRunningHash(runningHash)
+                                                            .setSequenceNumber(10)))))
+                            .build();
+                    s.clear();
+                    s.add(stateChanges);
+                })
+                .build();
+        var consensusSubmitMessageRecordItem = recordItemBuilder
+                .consensusSubmitMessage()
+                .clearIncrementer()
+                .receipt(r -> r.setTopicRunningHash(runningHash).setTopicSequenceNumber(10))
+                .transactionBody(b -> b.setTopicID(topicId))
+                .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        var consensusSubmitMessageBlockTransaction = blockTransactionBuilder
+                .consensusSubmitMessage(consensusSubmitMessageRecordItem)
+                .previous(scheduleSignBlockTransaction)
+                .stateChanges(List::clear)
+                .trigger(scheduleSignBlockTransaction)
+                .build();
+        var blockFile = blockFileBuilder
+                .items(List.of(scheduleSignBlockTransaction, consensusSubmitMessageBlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(scheduleSignRecordItem, consensusSubmitMessageRecordItem);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items).map(RecordItem::getParent).containsOnlyNulls();
+        });
     }
 }
