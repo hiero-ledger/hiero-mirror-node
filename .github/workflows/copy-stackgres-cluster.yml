@@ -116,22 +116,6 @@ jobs:
           gcloud auth application-default print-access-token >/dev/null
           gcloud config set container/use_application_default_credentials true
 
-      - name: Cache Cloud SDK paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          GCLOUD_BIN="$(command -v gcloud)"
-          KUBECTL_BIN="$(command -v kubectl)"
-          CLOUDSDK_BIN_DIR="$(dirname "$GCLOUD_BIN")"
-          echo "GCLOUD_BIN=$GCLOUD_BIN" >> "$GITHUB_ENV"
-          echo "KUBECTL_BIN=$KUBECTL_BIN" >> "$GITHUB_ENV"
-          echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
-
-      - name: Setup Testkube CLI
-        uses: kubeshop/setup-testkube@970d643ec9ecbe5707049c1d65b851da72aab3d9
-        with:
-          version: v2.3.0
-
       - name: Prepare pinned kubeconfig
         shell: bash
         run: |
@@ -173,6 +157,22 @@ jobs:
               echo "ERROR: context $CTX is not using exec auth"; exit 1
             fi
           done
+
+      - name: Cache Cloud SDK paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          GCLOUD_BIN="$(command -v gcloud)"
+          KUBECTL_BIN="$(command -v kubectl)"
+          CLOUDSDK_BIN_DIR="$(dirname "$GCLOUD_BIN")"
+          echo "GCLOUD_BIN=$GCLOUD_BIN" >> "$GITHUB_ENV"
+          echo "KUBECTL_BIN=$KUBECTL_BIN" >> "$GITHUB_ENV"
+          echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
+
+      - name: Setup Testkube CLI
+        uses: kubeshop/setup-testkube@970d643ec9ecbe5707049c1d65b851da72aab3d9
+        with:
+          version: v2.3.0
 
       - name: Execute copy script
         shell: bash
