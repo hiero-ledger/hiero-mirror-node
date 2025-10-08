@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -14,12 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.FixedFee;
 import org.hiero.mirror.common.domain.token.FractionalFee;
 import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
@@ -27,13 +30,17 @@ import org.hiero.mirror.web3.web3j.generated.Airdrop;
 import org.hiero.mirror.web3.web3j.generated.ClaimAirdrop;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
+@ExtendWith({OutputCaptureExtension.class})
 class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceTest {
 
     private static final BigInteger DEFAULT_DEPLOYED_CONTRACT_BALANCE = BigInteger.valueOf(100_000_000L);
@@ -106,6 +113,33 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
 
         // Then
         verifyContractCall(functionCall, contract);
+    }
+
+    @ParameterizedTest(name = "Airdrop token with invalid token address: {0}")
+    @CsvSource({"0xa7d9ddbe1f17865597fbd27ec712455208b6b76d", "0.0.-1900", "2.1.-1234", "0.0.5901004952499928656"})
+    void airdropTokenWithInvalidTokenAddress(String invalidTokenId, CapturedOutput output) {
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            // Given
+            final var contract = testWeb3jService.deployWithValue(Airdrop::deploy, DEFAULT_DEPLOYED_CONTRACT_BALANCE);
+            final var sender = accountEntityPersist();
+            final var receiver = persistAirdropReceiver(EntityType.ACCOUNT, e -> {});
+
+            final var tokenId = fungibleTokenSetup(sender);
+            tokenAccountPersist(tokenId, receiver.getId());
+            final var invalidTokenAddress = parseTokenIdToAddress(invalidTokenId);
+
+            // When
+            final var functionCall = contract.send_tokenAirdrop(
+                    invalidTokenAddress,
+                    getAddressFromEntity(sender),
+                    toAddress(receiver).toHexString(),
+                    DEFAULT_TOKEN_AIRDROP_AMOUNT,
+                    DEFAULT_TINYBAR_VALUE);
+
+            // Then
+            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
+            assertThat(output.getAll()).doesNotContain("InvalidEntityException");
+        }
     }
 
     @ParameterizedTest(name = "Airdrop non-fungible token to a(an) {0} that is already associated to it")
@@ -867,5 +901,24 @@ class ContractCallAirdropSystemContractTest extends AbstractContractCallServiceT
         } else {
             assertThrows(PrecompileNotSupportedException.class, functionCall::send);
         }
+    }
+
+    /**
+     * Parses a token ID to string
+     *
+     * @param tokenId the token ID in format "shard.realm.num" or EVM address
+     * @return the token address string
+     */
+    private String parseTokenIdToAddress(String tokenId) {
+        if (tokenId.startsWith("0x")) {
+            return tokenId;
+        }
+
+        // Parse shard.realm.num format
+        String[] parts = tokenId.split("\\.");
+
+        long num = Long.parseLong(parts[2]);
+
+        return Bytes.wrap(DomainUtils.toEvmAddress(num)).toHexString();
     }
 }
