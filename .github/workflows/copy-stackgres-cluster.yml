@@ -184,5 +184,23 @@ jobs:
           set -Eeuo pipefail
           export PATH="${CLOUDSDK_BIN_DIR}:${PATH}"
           hash -r
+          (
+            set -euo pipefail
+            while true; do
+              ENC_AUD="$(jq -rn --arg s "$AUD" '$s|@uri')"
+              if TOKEN_JSON="$(curl -sS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENC_AUD}")"; then
+                OIDC="$(jq -r '.value // empty' <<<"$TOKEN_JSON")"
+                if [[ -n "$OIDC" ]]; then
+                  printf '%s' "$OIDC" > "$SUBJECT_TOKEN_FILE"
+                  gcloud auth application-default print-access-token >/dev/null 2>&1 || true
+                fi
+              fi
+              kubectl --context "${K8S_SOURCE_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
+              kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
+              sleep 120
+            done
+          ) &
+          REFRESH_PID=$!
+          trap 'kill "$REFRESH_PID" 2>/dev/null || true' EXIT INT TERM
           cd ./tools/cluster-management/
           ./copy-live-environment.sh
