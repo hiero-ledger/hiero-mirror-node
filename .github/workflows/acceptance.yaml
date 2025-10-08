@@ -165,35 +165,40 @@ jobs:
           LOG_FILE="${{ github.workspace }}/output_log.txt"
           ERC_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract \[ERC\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
-              tail -n 1)
+              tail -n 1 | \
+              tr -d '[:space:]')
 
           echo "ERC_CONTRACT_ADDRESS=$ERC_CONTRACT_ADDRESS"
           echo "ERC_CONTRACT_ADDRESS=$ERC_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
 
           DEFAULT_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract \[PARENT\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
-              tail -n 1)
+              tail -n 1 | \
+              tr -d '[:space:]')
 
           echo "DEFAULT_CONTRACT_ADDRESS=$DEFAULT_CONTRACT_ADDRESS"
           echo "DEFAULT_CONTRACT_ADDRESS=$DEFAULT_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
 
           ESTIMATE_PRECOMPILE_CONTRACT=$(grep "Skipping cleanup of contract \[ESTIMATE_PRECOMPILE\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
-              tail -n 1)
+              tail -n 1 | \
+              tr -d '[:space:]')
 
           echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT"
           echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT" >> $GITHUB_OUTPUT
 
           NON_FUNGIBLE_TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[non_fungible\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
-              tail -n 1)
+              tail -n 1 | \
+              tr -d '[:space:]')
 
           echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS"
           echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS" >> $GITHUB_OUTPUT
 
           TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[fungible\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
-              tail -n 1)
+              tail -n 1 | \
+              tr -d '[:space:]')
 
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS"
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS" >> $GITHUB_OUTPUT
@@ -235,6 +240,7 @@ jobs:
           path: |
             ./tools/k6/src/web3/apis.js
           debug: false
+          flags: --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
