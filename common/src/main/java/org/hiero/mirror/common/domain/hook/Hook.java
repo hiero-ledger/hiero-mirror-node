@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.hook;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
@@ -15,6 +16,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -38,7 +41,8 @@ public class Hook implements Persistable<Hook.Id> {
 
     private boolean deleted;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private HookExtensionPoint extensionPoint;
 
     @jakarta.persistence.Id
@@ -47,7 +51,8 @@ public class Hook implements Persistable<Hook.Id> {
     @jakarta.persistence.Id
     private long ownerId;
 
-    @Enumerated
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private HookType type;
 
     @Override

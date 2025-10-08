@@ -33,7 +33,7 @@ create table if not exists hook_storage_change
     value_written       bytea,
 
     primary key (owner_id, hook_id, key, consensus_timestamp)
-) partition by range (consensus_timestamp);
+);
 comment on table hook_storage_change is 'Historical changes to hook storage state';
 
 
