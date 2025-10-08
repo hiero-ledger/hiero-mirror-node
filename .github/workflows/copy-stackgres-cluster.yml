@@ -91,17 +91,17 @@ jobs:
           AUD="//iam.googleapis.com/${WIF_PROVIDER}"
 
           cat >"$ADC_JSON" <<EOF
-{
-  "type": "external_account",
-  "audience": "${AUD}",
-  "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
-  "token_url": "https://sts.googleapis.com/v1/token",
-  "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SA_EMAIL}:generateAccessToken",
-  "credential_source": {
-    "file": "${SUBJECT_TOKEN_FILE}"
-  }
-}
-EOF
+          {
+            "type": "external_account",
+            "audience": "${AUD}",
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "token_url": "https://sts.googleapis.com/v1/token",
+            "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SA_EMAIL}:generateAccessToken",
+            "credential_source": {
+              "file": "${SUBJECT_TOKEN_FILE}"
+            }
+          }
+          EOF
 
           echo "GOOGLE_APPLICATION_CREDENTIALS=${ADC_JSON}" >> "$GITHUB_ENV"
           echo "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=${ADC_JSON}" >> "$GITHUB_ENV"
