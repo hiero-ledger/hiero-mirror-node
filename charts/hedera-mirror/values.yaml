@@ -226,7 +226,9 @@ redis:
   enabled: true
   host: "{{ .Release.Name }}-redis"
   image:
-    repository: bitnamilegacy/redis
+    registry: gcr.io
+    repository: mirrornode/redis
+    tag: 8.2.2
   kubectl:
     image:
       repository: rancher/kubectl
@@ -264,7 +266,9 @@ redis:
   sentinel:
     enabled: true
     image:
-      repository: bitnamilegacy/redis-sentinel
+      registry: gcr.io
+      repository: mirrornode/redis-sentinel
+      tag: 8.2.2
     masterSet: mirror
     persistence:
       enabled: true

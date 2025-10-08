@@ -13,6 +13,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.web3.repository.EntityRepository;
 
 @Named
@@ -35,7 +36,11 @@ public class CommonEntityAccessor {
     }
 
     public @Nonnull Optional<Entity> get(@Nonnull final TokenID tokenID, final Optional<Long> timestamp) {
-        return get(toEntityId(tokenID), timestamp);
+        try {
+            return get(toEntityId(tokenID), timestamp);
+        } catch (final InvalidEntityException e) {
+            return Optional.empty();
+        }
     }
 
     public @Nonnull Optional<Entity> get(@Nonnull final EntityId entityId, final Optional<Long> timestamp) {
