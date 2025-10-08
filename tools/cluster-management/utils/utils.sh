@@ -614,26 +614,23 @@ function getDiskPrefix() {
 }
 
 function getZFSVolumes() {
-  local volumes
-  volumes=$(kubectl get pv -o json |
-                jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \
-                  '.items|
-                     map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
-                                .status.phase == "Bound")|
-                        (.spec.claimRef.name) as $pvcName |
-                        (.spec.claimRef.namespace) as $pvcNamespace |
-                        {
-                          namespace: ($pvcNamespace),
-                          volumeName: (.metadata.name),
-                          pvcName: ($pvcName),
-                          pvcSize: (.spec.capacity.storage),
-                          nodeId: (.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]),
-                          citusCluster: ($CITUS_CLUSTERS | fromjson | map(select(.pvcName == $pvcName and
-                                                                          .namespace == $pvcNamespace))|first)
-                        }
-                    )')
-  maskJsonValues "${volumes}"
-  echo "${volumes}"
+  kubectl get pv -o json |
+    jq -r --arg CITUS_CLUSTERS "$(getCitusClusters)" \
+      '.items|
+         map(select(.metadata.annotations."pv.kubernetes.io/provisioned-by"=="zfs.csi.openebs.io" and
+                    .status.phase == "Bound")|
+            (.spec.claimRef.name) as $pvcName |
+            (.spec.claimRef.namespace) as $pvcNamespace |
+            {
+              namespace: ($pvcNamespace),
+              volumeName: (.metadata.name),
+              pvcName: ($pvcName),
+              pvcSize: (.spec.capacity.storage),
+              nodeId: (.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values[0]),
+              citusCluster: ($CITUS_CLUSTERS | fromjson | map(select(.pvcName == $pvcName and
+                                                              .namespace == $pvcNamespace))|first)
+            }
+        )'
 }
 
 function resizeCitusNodePools() {
