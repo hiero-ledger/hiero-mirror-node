@@ -385,7 +385,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.grpc.addressbook.nodeStakeCacheExpiry`       | 24h              | The amount of time to cache node stake assignments                                                        |
 | `hiero.mirror.grpc.addressbook.nodeStakeCacheSize`         | 5                | The maximum number of versions of node stake assignments to cache                                         |
 | `hiero.mirror.grpc.addressbook.nodeAccountCacheExpiry`     | 2s               | The amount of time to cache node entries                                                                  |
-| `hiero.mirror.grpc.addressbook.nodeAccountCacheSize`       | 5                | The maximum number of nodes cached                                                                        |
+| `hiero.mirror.grpc.addressbook.nodeAccountCacheSize`       | 50               | The maximum number of nodes cached                                                                        |
 | `hiero.mirror.grpc.checkTopicExists`                       | true             | Whether to throw an error when the topic doesn't exist                                                    |
 | `hiero.mirror.grpc.db.host`                                | 127.0.0.1        | The IP or hostname used to connect to the database                                                        |
 | `hiero.mirror.grpc.db.name`                                | mirror_node      | The name of the database                                                                                  |

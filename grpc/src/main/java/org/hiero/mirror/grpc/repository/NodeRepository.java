@@ -23,13 +23,8 @@ public interface NodeRepository extends CrudRepository<Node, Long> {
             cacheNames = CACHE_NAME,
             unless = "#result == null or #result.isEmpty()")
     default Map<Long, EntityId> findNodesWithAccountIdsMap() {
-        Map<Long, EntityId> map = new HashMap<>();
-        for (Node node : findNodesWithAccountIds()) {
-            var accountId = node.getAccountId();
-            if (accountId != null && !EntityId.isEmpty(accountId)) {
-                map.putIfAbsent(node.getNodeId(), accountId);
-            }
-        }
+        var map = new HashMap<Long, EntityId>();
+        findNodesWithAccountIds().forEach(node -> map.putIfAbsent(node.getNodeId(), node.getAccountId()));
         return map;
     }
 }

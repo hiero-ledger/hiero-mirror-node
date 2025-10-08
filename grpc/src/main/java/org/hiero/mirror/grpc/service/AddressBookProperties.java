@@ -29,10 +29,12 @@ public class AddressBookProperties {
     @Min(0)
     private long nodeStakeCacheSize = 5L;
 
+    @DurationMin(millis = 500L)
+    @NotNull
     private Duration nodeAccountCacheExpiry = Duration.ofSeconds(2);
 
     @Min(0)
-    private long nodeAccountCacheSize = 5L;
+    private long nodeAccountCacheSize = 50L;
 
     @DurationMin(millis = 100L)
     @NotNull

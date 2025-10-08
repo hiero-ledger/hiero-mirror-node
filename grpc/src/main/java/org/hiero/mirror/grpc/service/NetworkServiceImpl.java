@@ -89,11 +89,11 @@ public class NetworkServiceImpl implements NetworkService {
                     addressBookTimestamp, nextNodeId, pageSize);
             var endpoints = new AtomicInteger(0);
 
-            Map<Long, EntityId> accountIdMap = nodeRepository.findNodesWithAccountIdsMap();
+            var accountIdMap = nodeRepository.findNodesWithAccountIdsMap();
 
             nodes.forEach(node -> {
-                EntityId accountId = accountIdMap.get(node.getNodeId());
-                if (accountId != null && !EntityId.isEmpty(accountId)) {
+                var accountId = accountIdMap.get(node.getNodeId());
+                if (accountId != null) {
                     node.setNodeAccountId(accountId);
                 }
 
