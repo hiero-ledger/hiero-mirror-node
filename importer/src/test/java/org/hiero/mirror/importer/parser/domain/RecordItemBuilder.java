@@ -1477,7 +1477,6 @@ public class RecordItemBuilder {
 
         private static final BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> NOOP_INCREMENTER =
                 (b, r) -> {};
-
         private final TransactionType type;
         private final T transactionBody;
         private final SignatureMap.Builder signatureMap;
@@ -1557,6 +1556,11 @@ public class RecordItemBuilder {
                     .build();
         }
 
+        public Builder<T> clearIncrementer() {
+            this.incrementer = NOOP_INCREMENTER;
+            return this;
+        }
+
         public Builder<T> customize(Consumer<Builder<T>> consumer) {
             consumer.accept(this);
             return this;
@@ -1564,11 +1568,6 @@ public class RecordItemBuilder {
 
         public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
             this.entityTransactionPredicate = entityTransactionPredicate;
-            return this;
-        }
-
-        public Builder<T> clearIncrementer() {
-            this.incrementer = NOOP_INCREMENTER;
             return this;
         }
 
