@@ -834,7 +834,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute create operation with bad contract and verify gasConsumed")
     public void deployBadContract() {
         var contractPath = "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/DummyContract.json";
-        var txId = createContractAndReturnTransactionId(contractPath);
+        var txId = createContractAndReturnTransactionId("Dummy", contractPath);
         var contractId = Objects.requireNonNull(
                         mirrorClient.getTransactions(txId).getTransactions())
                 .getFirst()
@@ -847,7 +847,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute create operation with complex contract and verify gasConsumed")
     public void deployEstimateContract() {
         var contractPath = ESTIMATE_GAS.getPath();
-        var txId = createContractAndReturnTransactionId(contractPath);
+        var txId = createContractAndReturnTransactionId(ESTIMATE_GAS.getName(), contractPath);
         var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
@@ -857,7 +857,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute create operation with complex contract and lower gas limit and verify gasConsumed")
     public void deployEstimateContractWithLowGas() {
         var contractPath = ESTIMATE_GAS.getPath();
-        var txId = createContractAndReturnTransactionId(contractPath, 2150000L);
+        var txId = createContractAndReturnTransactionId(ESTIMATE_GAS.getName(), contractPath, 2150000L);
         var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
@@ -916,15 +916,14 @@ public class EstimateFeature extends AbstractEstimateFeature {
         }
     }
 
-    private String createContractAndReturnTransactionId(String resourcePath, Long gas) {
+    private String createContractAndReturnTransactionId(String contractName, String resourcePath, Long gas) {
         var resource = resourceLoader.getResource(resourcePath);
         try (var in = resource.getInputStream()) {
             CompiledSolidityArtifact compiledSolidityArtifact = readCompiledArtifact(in);
             var fileId =
                     persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
             try {
-                networkTransactionResponse =
-                        contractClient.createContract(fileId, gas, Hbar.fromTinybars(6_000_000), null);
+                networkTransactionResponse = contractClient.createContract(contractName, fileId, gas, Hbar.fromTinybars(6_000_000), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();
             } catch (Exception e) {
                 return extractTransactionId(e.getMessage());
@@ -935,8 +934,9 @@ public class EstimateFeature extends AbstractEstimateFeature {
         }
     }
 
-    private String createContractAndReturnTransactionId(String resourcePath) {
+    private String createContractAndReturnTransactionId(String contractName, String resourcePath) {
         return createContractAndReturnTransactionId(
+                contractName,
                 resourcePath,
                 contractClient
                         .getSdkClient()

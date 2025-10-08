@@ -109,6 +109,7 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
                 var fileId = persistContractBytes(
                         compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
                 networkTransactionResponse = contractClient.createContract(
+                        contractResource.name,
                         fileId,
                         contractClient
                                 .getSdkClient()
@@ -217,17 +218,29 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
     @Getter
     public enum ContractResource {
         ESTIMATE_PRECOMPILE(
+                "ESTIMATE_PRECOMPILE",
                 "classpath:solidity/artifacts/contracts/EstimatePrecompileContract.sol/EstimatePrecompileContract.json",
                 0),
-        ERC("classpath:solidity/artifacts/contracts/ERCTestContract.sol/ERCTestContract.json", 0),
-        EQUIVALENCE_CALL("classpath:solidity/artifacts/contracts/EquivalenceContract.sol/EquivalenceContract.json", 0),
+        ERC("ERC", "classpath:solidity/artifacts/contracts/ERCTestContract.sol/ERCTestContract.json", 0),
+        EQUIVALENCE_CALL(
+                "EQUIVALENCE_CALL",
+                "classpath:solidity/artifacts/contracts/EquivalenceContract.sol/EquivalenceContract.json",
+                0),
         EQUIVALENCE_DESTRUCT(
-                "classpath:solidity/artifacts/contracts/EquivalenceDestruct.sol/EquivalenceDestruct.json", 10000),
-        PRECOMPILE("classpath:solidity/artifacts/contracts/PrecompileTestContract.sol/PrecompileTestContract.json", 0),
+                "EQUIVALENCE_DESTRUCT",
+                "classpath:solidity/artifacts/contracts/EquivalenceDestruct.sol/EquivalenceDestruct.json",
+                10000),
+        PRECOMPILE(
+                "PRECOMPILE",
+                "classpath:solidity/artifacts/contracts/PrecompileTestContract.sol/PrecompileTestContract.json",
+                0),
         ESTIMATE_GAS(
-                "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/EstimateGasContract.json", 1000000),
-        PARENT_CONTRACT("classpath:solidity/artifacts/contracts/Parent.sol/Parent.json", 10000000);
+                "ESTIMATE_GAS",
+                "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/EstimateGasContract.json",
+                1000000),
+        PARENT_CONTRACT("PARENT", "classpath:solidity/artifacts/contracts/Parent.sol/Parent.json", 10000000);
 
+        private final String name;
         private final String path;
         private final int initialBalance;
 
