@@ -410,14 +410,23 @@ function waitForK6PodExecution() {
     sleep 30
   done
 
-  log "Waiting on job for test ${testName} to complete"
-  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=-1s
+  log "Waiting on job ${job} test ${testName} to complete"
+
+  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
+    log "Waiting for job ${job} to complete for test ${testName}"
+    sleep 1
+  done
+
   until kubectl get job -n "${TEST_KUBE_NAMESPACE}" "${job}-scraper" >/dev/null 2>&1; do
     log "Waiting for scraper"
     sleep 1
   done
-  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=-1s
-  sleep 5
+
+  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=10m > /dev/null 2>&1; do
+    log "Waiting for scraper job to complete"
+    sleep 1
+  done
+
   kubectl testkube download artifacts "${job}"
   cat artifacts/report.md
 }
@@ -437,7 +446,7 @@ snapshotSource
 restoreTarget
 deleteSnapshots
 
-if [[ "${WAIT_FOR_K6}" ]]; then
+if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   log "Awaiting k6 results"
   waitForK6PodExecution "rest"
   waitForK6PodExecution "rest-java"

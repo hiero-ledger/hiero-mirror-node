@@ -7,6 +7,7 @@ Need to copy live environment with zero downtime on source
 ## Prerequisites
 
 - Have `jq`, `yq`, and `base64` installed
+- Have `testkube` kubectl plugin installed
 - The source and target have compatible versions of postgres
 - The `target cluster` has a running Citus cluster deployed with `hedera-mirror` chart
 - The `target cluster` you are restoring to doesn't have any pvcs with a size larger than the size of the pvc in the
