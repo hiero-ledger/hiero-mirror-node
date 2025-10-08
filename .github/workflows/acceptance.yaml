@@ -187,18 +187,20 @@ jobs:
           echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT"
           echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT" >> $GITHUB_OUTPUT
 
-          NON_FUNGIBLE_TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[non_fungible\]" "$LOG_FILE" | \
+          RAW_NON_FUNGIBLE_TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[non_fungible\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
               tail -n 1 | \
               tr -d '[:space:]')
+          NON_FUNGIBLE_TOKEN_ADDRESS=$(printf "%064s" "$RAW_NON_FUNGIBLE_TOKEN_ADDRESS" | tr ' ' '0')
 
           echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS"
           echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS" >> $GITHUB_OUTPUT
 
-          TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[fungible\]" "$LOG_FILE" | \
+          RAW_TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[fungible\]" "$LOG_FILE" | \
               sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
               tail -n 1 | \
               tr -d '[:space:]')
+          TOKEN_ADDRESS=$(printf "%064s" "$RAW_TOKEN_ADDRESS" | tr ' ' '0')
 
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS"
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS" >> $GITHUB_OUTPUT
@@ -257,7 +259,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=1000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
 
