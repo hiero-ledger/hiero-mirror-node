@@ -71,17 +71,50 @@ jobs:
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
-      - name: Authenticate to Google Cloud (WIF)
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
-        with:
-          workload_identity_provider: ${{ env.WIF_PROVIDER }}
-          service_account: ${{ env.SA_EMAIL }}
-          audience: "//iam.googleapis.com/${{ env.WIF_PROVIDER }}"
-
       - name: Setup gcloud + GKE auth plugin
         uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
         with:
           install_components: gke-gcloud-auth-plugin, kubectl
+
+      - name: Create file-backed external_account ADC
+        shell: bash
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+        run: |
+          set -euo pipefail
+          ADC_DIR="${RUNNER_TEMP}/wif-adc"
+          mkdir -p "$ADC_DIR"
+          SUBJECT_TOKEN_FILE="${ADC_DIR}/subject.jwt"
+          ADC_JSON="${ADC_DIR}/adc.json"
+          : > "$SUBJECT_TOKEN_FILE"
+          AUD="//iam.googleapis.com/${WIF_PROVIDER}"
+
+          cat >"$ADC_JSON" <<EOF
+{
+  "type": "external_account",
+  "audience": "${AUD}",
+  "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+  "token_url": "https://sts.googleapis.com/v1/token",
+  "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SA_EMAIL}:generateAccessToken",
+  "credential_source": {
+    "file": "${SUBJECT_TOKEN_FILE}"
+  }
+}
+EOF
+
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${ADC_JSON}" >> "$GITHUB_ENV"
+          echo "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=${ADC_JSON}" >> "$GITHUB_ENV"
+          echo "SUBJECT_TOKEN_FILE=${SUBJECT_TOKEN_FILE}" >> "$GITHUB_ENV"
+          echo "AUD=${AUD}" >> "$GITHUB_ENV"
+
+          ENC_AUD="$(jq -rn --arg s "$AUD" '$s|@uri')"
+          TOK_JSON="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENC_AUD}")"
+          OIDC="$(jq -r '.value // empty' <<<"$TOK_JSON")"
+          test -n "$OIDC"
+          printf '%s' "$OIDC" > "$SUBJECT_TOKEN_FILE"
+
+          gcloud auth application-default print-access-token >/dev/null
 
       - name: Cache Cloud SDK bin paths
         shell: bash
@@ -147,9 +180,14 @@ jobs:
           hash -r
 
           (
+            set -Eeuo pipefail
             while true; do
-              gcloud auth print-access-token >/dev/null 2>&1 || true
-              gcloud auth application-default print-access-token >/dev/null 2>&1 || true
+              ENC_AUD="$(jq -rn --arg s "$AUD" '$s|@uri')"
+              TOK_JSON="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENC_AUD}")" || { sleep 30; continue; }
+              OIDC="$(jq -r '.value // empty' <<<"$TOK_JSON")"
+              if [[ -n "$OIDC" ]]; then
+                printf '%s' "$OIDC" > "$SUBJECT_TOKEN_FILE"
+              fi
               kubectl --context "${K8S_SOURCE_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
               kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
               sleep 300
@@ -161,4 +199,3 @@ jobs:
 
           cd ./tools/cluster-management/
           ./copy-live-environment.sh
-      
