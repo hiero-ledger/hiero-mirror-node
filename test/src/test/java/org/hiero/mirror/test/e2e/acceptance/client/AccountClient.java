@@ -61,6 +61,16 @@ public class AccountClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
+        if (Boolean.parseBoolean(System.getenv("HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES"))) {
+            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
+            log.warn("Acceptance tests running in CI -> skip cleanup.");
+            for (var accountName : accountMap.keySet()) {
+                log.info("Skipping cleanup of account [" + accountName + "] at address "
+                        + accountMap.get(accountName).getAccountId().toEvmAddress());
+            }
+            return;
+        }
+
         log.info("Deleting {} accounts", accountIds.size());
         deleteAll(accountIds, this::delete);
 

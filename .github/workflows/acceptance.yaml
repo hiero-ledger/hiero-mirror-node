@@ -123,6 +123,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES: "true"
             enabled: true
           web3:
             env:
@@ -140,6 +141,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES: "true"
             enabled: true
           web3:
             env:
@@ -152,11 +154,91 @@ jobs:
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+        run: |
+          touch output_log.txt
+          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m >> output_log.txt
+          cat output_log.txt
+
+      - name: Parse acceptance tests logs and set k6 environment variables
+        id: log-variables
+        run: |
+          LOG_FILE="${{ github.workspace }}/output_log.txt"
+          ERC_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract \[ERC\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1)
+
+          echo "ERC_CONTRACT_ADDRESS=$ERC_CONTRACT_ADDRESS"
+          echo "ERC_CONTRACT_ADDRESS=$ERC_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
+
+          DEFAULT_CONTRACT_ADDRESS=$(grep "Skipping cleanup of contract \[PARENT\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1)
+
+          echo "DEFAULT_CONTRACT_ADDRESS=$DEFAULT_CONTRACT_ADDRESS"
+          echo "DEFAULT_CONTRACT_ADDRESS=$DEFAULT_CONTRACT_ADDRESS" >> $GITHUB_OUTPUT
+
+          ESTIMATE_PRECOMPILE_CONTRACT=$(grep "Skipping cleanup of contract \[ESTIMATE_PRECOMPILE\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1)
+
+          echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT"
+          echo "ESTIMATE_PRECOMPILE_CONTRACT=$ESTIMATE_PRECOMPILE_CONTRACT" >> $GITHUB_OUTPUT
+
+          NON_FUNGIBLE_TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[non_fungible\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1)
+
+          echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS"
+          echo "NON_FUNGIBLE_TOKEN_ADDRESS=$NON_FUNGIBLE_TOKEN_ADDRESS" >> $GITHUB_OUTPUT
+
+          TOKEN_ADDRESS=$(grep "Skipping cleanup of token \[fungible\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1)
+
+          echo "TOKEN_ADDRESS=$TOKEN_ADDRESS"
+          echo "TOKEN_ADDRESS=$TOKEN_ADDRESS" >> $GITHUB_OUTPUT
+
+      - name: Install k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Get web3 base url
+        id: web3-base-url
+        run: |
+          export IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
+          BASE_URL="http://${WEB3_IP:-127.0.0.1}:8080"
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
+
+      - name: Port forward web3
+        run: |
+          echo "Port forwarding 8080:80"
+          kubectl port-forward "service/mirror-web3" -n mirror 8080:80 &
+
+      - name: Run k6 web3 tests
+        uses: grafana/run-k6-action@v1
+        env:
+          DEFAULT_DURATION: "3s"
+          DEFAULT_VUS: 2
+          BASE_URL: ${{ steps.web3-base-url.outputs.BASE_URL }}
+          AMOUNT: 0000000000000000000000000000000000000000000000000000000000000001
+          KEY_TYPE: 0000000000000000000000000000000000000000000000000000000000000001
+          RUN_ESTIMATE_TESTS: false
+          RUN_MODIFICATION_TESTS: false
+          RUN_WITH_VARIABLES: true
+          SERIAL_NUMBER: 0000000000000000000000000000000000000000000000000000000000000001
+          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
+          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
+          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
+          HTS_CONTRACT_ADDRESS: 0000000000000000000000000000000000000167
+          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
+          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
+        with:
+          path: |
+            ./tools/k6/src/web3/apis.js
+          debug: false
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        if: ${{ failure() }}
+        #        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
