@@ -8,14 +8,15 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 -- Main hook table
 create table if not exists hook
 (
-    contract_id       bigint                not null,
-    created_timestamp bigint,
-    hook_id           bigint                not null,
-    owner_id          bigint                not null,
-    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type              hook_type             not null default 'LAMBDA',
-    deleted           boolean               not null default false,
-    admin_key         bytea,
+    contract_id         bigint                not null,
+    created_timestamp   bigint,
+    modified_timestamp  bigint,
+    hook_id             bigint                not null,
+    owner_id            bigint                not null,
+    extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type                hook_type             not null default 'LAMBDA',
+    deleted             boolean               not null default false,
+    admin_key           bytea,
 
     primary key (owner_id, hook_id)
 );

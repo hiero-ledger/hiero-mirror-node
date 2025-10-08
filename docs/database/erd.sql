@@ -215,6 +215,7 @@ alter table file_data add constraint fk_file_data_consensus_timestamp foreign ke
 alter table file_data add constraint fk_file_data_entity_id foreign key (entity_id) references entity (id);
 alter table hook add constraint fk_hook_contract_id foreign key (contract_id) references entity (id);
 alter table hook add constraint fk_hook_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
+alter table hook add constraint fk_hook_modified_timestamp foreign key (modified_timestamp) references transaction (consensus_timestamp);
 alter table hook add constraint fk_hook_owner_id foreign key (owner_id) references entity (id);
 alter table hook_storage add constraint fk_hook_storage_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
 alter table hook_storage add constraint fk_hook_storage_hook_id_owner_id foreign key (owner_id, hook_id) references hook (owner_id, hook_id);

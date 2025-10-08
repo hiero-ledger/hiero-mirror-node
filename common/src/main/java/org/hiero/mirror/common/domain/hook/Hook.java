@@ -34,6 +34,8 @@ public class Hook implements Persistable<Hook.Id> {
     @Column(updatable = false)
     private Long createdTimestamp;
 
+    private Long modifiedTimestamp;
+
     private boolean deleted;
 
     @Enumerated
