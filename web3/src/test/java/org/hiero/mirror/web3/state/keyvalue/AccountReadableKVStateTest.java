@@ -35,7 +35,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
@@ -57,7 +56,6 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -147,9 +145,6 @@ class AccountReadableKVStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @Mock
-    private Predicate<Address> systemAccountDetector;
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -652,7 +647,6 @@ class AccountReadableKVStateTest {
     void returnsDummyAccountForSystemAccountWhenNotFound() {
         final var systemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
         when(commonEntityAccessor.get(systemKey, Optional.empty())).thenReturn(Optional.empty());
-        when(systemAccountDetector.test(any())).thenReturn(true);
 
         assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
                 .isNotNull()

@@ -9,12 +9,9 @@ import com.hedera.hapi.node.state.token.Account;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
-import java.util.function.Predicate;
 import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -23,7 +20,7 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hyperledger.besu.datatypes.Address;
+import org.hiero.mirror.web3.utils.AccountDetector;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in mirror-node
@@ -37,7 +34,6 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
-    private final Predicate<Address> strictSystemAccountDetector;
 
     public AccountReadableKVState(
             @Nonnull CommonEntityAccessor commonEntityAccessor,
@@ -49,8 +45,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull AccountBalanceRepository accountBalanceRepository,
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
-            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager,
-            @Nonnull Predicate<Address> strictSystemAccountDetector) {
+            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
                 KEY,
                 accountBalanceRepository,
@@ -63,7 +58,6 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 mirrorNodeEvmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
-        this.strictSystemAccountDetector = strictSystemAccountDetector;
     }
 
     @Override
@@ -89,15 +83,12 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
      * call for example, return a dummy account to avoid errors like
      * "Non-zero net hbar change when handling body"
      */
-    private Optional<Account> getDummySystemAccountIfApplicable(AccountID key) {
-        try {
-            final var accountAddress =
-                    EvmTokenUtils.toAddress(EntityId.of(key.shardNum(), key.realmNum(), key.accountNumOrThrow()));
-            if (strictSystemAccountDetector.test(accountAddress)) {
-                return Optional.of(Account.newBuilder().accountId(key).build());
-            }
-        } catch (Exception ignored) {
-            return Optional.empty();
+    private Optional<Account> getDummySystemAccountIfApplicable(AccountID accountID) {
+        if (accountID != null && accountID.hasAccountNum()) {
+            final var accountNum = accountID.accountNum();
+            return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
+                    ? Optional.of(Account.newBuilder().accountId(accountID).build())
+                    : Optional.empty();
         }
         return Optional.empty();
     }
