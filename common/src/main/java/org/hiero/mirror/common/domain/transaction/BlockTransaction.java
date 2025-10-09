@@ -77,6 +77,7 @@ public class BlockTransaction implements StreamItem {
     private final SignedTransaction signedTransaction;
     private final byte[] signedTransactionBytes;
     private final TopicID topicId; // for consensus submit message transaction
+    private final BlockTransaction trigger;
 
     @Getter(AccessLevel.NONE)
     private final AtomicReference<TopicMessage> topicMessage = new AtomicReference<>();
@@ -106,7 +107,8 @@ public class BlockTransaction implements StreamItem {
             List<TraceData> traceData,
             TransactionBody transactionBody,
             TransactionResult transactionResult,
-            Map<TransactionCase, TransactionOutput> transactionOutputs) {
+            Map<TransactionCase, TransactionOutput> transactionOutputs,
+            BlockTransaction trigger) {
         this.previous = previous;
         this.signedTransaction = signedTransaction;
         this.signedTransactionBytes = signedTransactionBytes;
@@ -115,6 +117,7 @@ public class BlockTransaction implements StreamItem {
         this.transactionBody = transactionBody;
         this.transactionResult = transactionResult;
         this.transactionOutputs = transactionOutputs;
+        this.trigger = trigger;
 
         consensusTimestamp = DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
         parentConsensusTimestamp = transactionResult.hasParentConsensusTimestamp()
@@ -207,6 +210,10 @@ public class BlockTransaction implements StreamItem {
     private StateChangeContext createStateChangeContext() {
         if (parent != null) {
             return parent.getStateChangeContext();
+        }
+
+        if (trigger != null) {
+            return trigger.getStateChangeContext();
         }
 
         return !CollectionUtils.isEmpty(stateChanges)
