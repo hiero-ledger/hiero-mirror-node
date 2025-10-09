@@ -38,8 +38,8 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.service.ContractInitcodeServiceImpl;
-import org.hiero.mirror.importer.service.FileDataService;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -55,11 +55,11 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
 
     private static final int DEFAULT_BYTECODE_SIDECAR_INDEX = 2;
 
+    @Mock
+    private ContractBytecodeService contractBytecodeService;
+
     @Captor
     private ArgumentCaptor<Contract> contracts;
-
-    @Mock
-    private FileDataService fileDataService;
 
     @BeforeEach
     void beforeEach() {
@@ -68,7 +68,7 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        var contractInitcodeService = new ContractInitcodeServiceImpl(fileDataService);
+        var contractInitcodeService = new ContractInitcodeServiceImpl(contractBytecodeService);
         return new ContractCreateTransactionHandler(
                 contractInitcodeService, entityIdService, entityListener, entityProperties);
     }
@@ -220,8 +220,8 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
         byte[] initCode;
         if (blockstream) {
             initCode = domainBuilder.bytes(1024);
-            when(fileDataService.get(recordItem.getConsensusTimestamp(), fileId))
-                    .thenReturn(initCode);
+            //            when(fileDataService.get(recordItem.getConsensusTimestamp(), fileId))
+            //                    .thenReturn(initCode);
         } else {
             initCode = DomainUtils.toBytes(recordItem
                     .getSidecarRecords()

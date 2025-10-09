@@ -2,65 +2,68 @@
 
 package org.hiero.mirror.importer.service;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.CaffeineSpec;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_FILE_DATA;
+import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
+
 import com.google.common.collect.Lists;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
+import java.util.Map;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.config.CacheProperties;
-import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
+import org.hiero.mirror.importer.parser.record.RecordFileParsedEvent;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.repository.FileDataRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.annotation.Order;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.CollectionUtils;
 
 @Named
 @Order
-@RequiredArgsConstructor
-final class FileDataServiceImpl implements FileDataService, RecordStreamFileListener, EntityListener {
+final class FileDataServiceImpl implements FileDataService, EntityListener {
 
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final Cache<EntityId, List<FileData>> fileContents = buildCache();
-
-    private final CacheProperties cacheProperties;
+    private final Cache cache;
     private final FileDataRepository fileDataRepository;
-    private final AtomicLong lastConsensusTimestamp = new AtomicLong();
+    private final Map<EntityId, List<FileData>> uncommited = new HashMap<>();
+
+    FileDataServiceImpl(@Qualifier(CACHE_FILE_DATA) CacheManager cacheManager, FileDataRepository fileDataRepository) {
+        this.cache = cacheManager.getCache(CACHE_NAME);
+        this.fileDataRepository = fileDataRepository;
+    }
 
     @Override
-    public byte[] get(long consensusTimestamp, EntityId fileId) {
-        if (consensusTimestamp < lastConsensusTimestamp.get() || DomainUtils.isSystemEntity(fileId)) {
+    public byte[] get(EntityId fileId) {
+        if (EntityId.isEmpty(fileId) || DomainUtils.isSystemEntity(fileId)) {
             return null;
         }
 
-        var cache = getFileContents();
-        var contents = cache.getIfPresent(fileId);
-        if (isFirstChunkNewContent(contents)) {
-            return contents.getLast().getConsensusTimestamp() <= consensusTimestamp ? combine(contents) : null;
+        var uncommitedContents = uncommited.get(fileId);
+        if (isFirstChunkNewContent(uncommitedContents)) {
+            return combine(null, uncommitedContents);
+        }
+
+        byte[] cached = cache.get(fileId, byte[].class);
+        if (cached != null) {
+            return combine(cached, uncommitedContents);
         }
 
         return fileDataRepository
-                .getFileAtTimestamp(fileId.getId(), consensusTimestamp)
+                .getFileAtTimestamp(fileId.getId(), Long.MAX_VALUE)
                 .map(dbContent -> {
-                    if (contents == null) {
-                        cache.put(fileId, Lists.newArrayList(dbContent));
-                        return dbContent.getFileData();
-                    } else {
-                        contents.addFirst(dbContent);
-                        return combine(contents);
-                    }
+                    byte[] commited = dbContent.getFileData();
+                    // safe to put already committed data into the cache
+                    cache.put(fileId, commited);
+                    return combine(commited, uncommitedContents);
                 })
                 .orElse(null);
     }
@@ -71,59 +74,52 @@ final class FileDataServiceImpl implements FileDataService, RecordStreamFileList
             return;
         }
 
-        var cache = getFileContents();
+        var entityId = fileData.getEntityId();
         if (isNewContent(fileData)) {
-            cache.put(fileData.getEntityId(), Lists.newArrayList(fileData));
+            uncommited.put(entityId, Lists.newArrayList(fileData));
         } else if (fileData.getDataSize() > 0) {
-            var contents = cache.get(fileData.getEntityId(), k -> new ArrayList<>());
-            contents.add(fileData);
+            uncommited.computeIfAbsent(entityId, k -> new ArrayList<>()).add(fileData);
         }
-
-        lastConsensusTimestamp.set(fileData.getConsensusTimestamp());
     }
 
-    @Override
-    public void onStart(@Nonnull RecordFile recordFile) {
-        long consensusStart = recordFile.getConsensusStart();
-        if (lastConsensusTimestamp.get() < consensusStart) {
-            return;
-        }
-
-        // when a record file is re-processed, remove file data chunks from the same record file
-        var cache = getFileContents();
-        for (var entry : cache.asMap().entrySet()) {
-            var fileId = entry.getKey();
-            var contents = entry.getValue();
-            var iter = contents.listIterator(contents.size());
-            while (iter.hasPrevious()) {
-                var fileData = iter.previous();
-                if (fileData.getConsensusTimestamp() < consensusStart) {
-                    break;
+    @TransactionalEventListener(RecordFileParsedEvent.class)
+    public void onRecordFileParsed() {
+        // only commit the changes to the cache when the record file has been parsed successfully, otherwise because
+        // the cache is bounded, updating the cache in onFileData may evict entries and then cause data loss
+        for (var fileId : uncommited.keySet()) {
+            var contents = uncommited.get(fileId);
+            if (isFirstChunkNewContent(contents)) {
+                cache.put(fileId, combine(null, contents));
+            } else {
+                byte[] cached = cache.get(fileId, byte[].class);
+                if (cached != null) {
+                    cache.put(fileId, combine(cached, contents));
                 }
-
-                iter.remove();
-            }
-
-            if (contents.isEmpty()) {
-                cache.invalidate(fileId);
             }
         }
 
-        lastConsensusTimestamp.set(consensusStart - 1);
+        uncommited.clear();
     }
 
-    private Cache<EntityId, List<FileData>> buildCache() {
-        return Caffeine.from(CaffeineSpec.parse(cacheProperties.getFileData())).build();
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_ROLLBACK, value = RecordFileParsedEvent.class)
+    public void onRecordFileParsingRolledBack() {
+        // note: don't use TransactionPhase.AFTER_COMPLETION, since the handler may get called before the AFTER_COMMIT
+        // handler
+        uncommited.clear();
     }
 
-    private static byte[] combine(List<FileData> contents) {
-        if (contents.size() == 1) {
-            return contents.getFirst().getFileData();
+    private static byte[] combine(byte[] first, List<FileData> remaining) {
+        if (CollectionUtils.isEmpty(remaining)) {
+            return first;
         }
 
-        int size = 0;
-        for (var content : contents) {
-            size += content.getDataSize();
+        if (first == null && remaining.size() == 1) {
+            return remaining.getFirst().getFileData();
+        }
+
+        int size = first != null ? first.length : 0;
+        for (var fileData : remaining) {
+            size += fileData.getDataSize();
         }
 
         if (size == 0) {
@@ -132,13 +128,18 @@ final class FileDataServiceImpl implements FileDataService, RecordStreamFileList
 
         byte[] combined = new byte[size];
         int offset = 0;
-        for (var content : contents) {
-            if (content.getDataSize() == 0) {
+        if (first != null) {
+            System.arraycopy(first, 0, combined, 0, first.length);
+            offset = first.length;
+        }
+
+        for (var fileData : remaining) {
+            if (fileData.getDataSize() == 0) {
                 continue;
             }
 
-            System.arraycopy(content.getFileData(), 0, combined, offset, content.getDataSize());
-            offset += content.getDataSize();
+            System.arraycopy(fileData.getFileData(), 0, combined, offset, fileData.getDataSize());
+            offset += fileData.getDataSize();
         }
 
         return combined;

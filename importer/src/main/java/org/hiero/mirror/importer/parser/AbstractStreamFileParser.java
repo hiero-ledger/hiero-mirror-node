@@ -87,7 +87,6 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
                 return;
             }
 
-            streamFileListener.onStart(streamFile);
             doParse(streamFile);
             doFlush(streamFile);
 
@@ -170,12 +169,6 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         }
     }
 
-    protected void doFlush(T streamFile) {
-        streamFileListener.onEnd(streamFile);
-        last.set(streamFile);
-        streamFile.clear();
-    }
-
     protected abstract void doParse(T streamFile);
 
     protected final T getLast() {
@@ -186,6 +179,12 @@ public abstract class AbstractStreamFileParser<T extends StreamFile<?>> implemen
         }
 
         return streamFileRepository.findLatest().orElse(null);
+    }
+
+    private void doFlush(T streamFile) {
+        streamFileListener.onEnd(streamFile);
+        last.set(streamFile);
+        streamFile.clear();
     }
 
     private boolean shouldParse(T previous, T current) {

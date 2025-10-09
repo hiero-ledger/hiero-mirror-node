@@ -8,12 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
 public final class ContractInitcodeServiceImpl implements ContractInitcodeService {
 
-    private final FileDataService fileDataService;
+    private final ContractBytecodeService contractBytecodeService;
 
     @Override
     public byte[] get(ContractBytecode contractBytecode, RecordItem recordItem) {
@@ -25,7 +26,14 @@ public final class ContractInitcodeServiceImpl implements ContractInitcodeServic
         if (contractCreate.hasInitcode()) {
             return DomainUtils.toBytes(contractCreate.getInitcode());
         } else if (contractCreate.hasFileID() && recordItem.isBlockstream()) {
-            return fileDataService.get(recordItem.getConsensusTimestamp(), EntityId.of(contractCreate.getFileID()));
+            var fileId = EntityId.of(contractCreate.getFileID());
+            byte[] initcode = contractBytecodeService.get(fileId);
+            if (initcode == null) {
+                Utility.handleRecoverableError(
+                        "Failed to get initcode from file {} at {}", fileId, recordItem.getConsensusTimestamp());
+            }
+
+            return initcode;
         }
 
         if (contractBytecode != null) {

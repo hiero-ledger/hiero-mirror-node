@@ -4,12 +4,14 @@ package org.hiero.mirror.importer.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.primitives.Bytes;
 import com.hedera.services.stream.proto.ContractBytecode;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,6 +19,7 @@ import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.converter.TypedArgumentConverter;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
 final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
@@ -109,8 +112,36 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
         assertThat(service.get(null, recordItem)).isNull();
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void readFromFile(boolean withHexPrefix) {
+        // given
+        var contractId = recordItemBuilder.contractId();
+        var contractBytecode = ContractBytecode.newBuilder()
+                .setContractId(contractId)
+                .setRuntimeBytecode(recordItemBuilder.bytes(100))
+                .build();
+        var fileId = recordItemBuilder.fileId();
+        byte[] expected = recordItemBuilder.randomBytes(128);
+        byte[] dataInDb = TestUtils.toBytecodeFileContent(expected, withHexPrefix);
+        var recordItem = recordItemBuilder
+                .contractCreate(contractId)
+                .transactionBody(b -> b.setFileID(fileId))
+                .recordItem(r -> r.blockstream(true))
+                .build();
+        domainBuilder
+                .fileData()
+                .customize(b -> b.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                        .entityId(EntityId.of(fileId))
+                        .fileData(dataInDb))
+                .persist();
+
+        // when, then
+        assertThat(service.get(contractBytecode, recordItem)).isEqualTo(expected);
+    }
+
     @Test
-    void readFromFile() {
+    void readFromFileMalformed() {
         // given
         var contractId = recordItemBuilder.contractId();
         var contractBytecode = ContractBytecode.newBuilder()
@@ -123,13 +154,15 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
                 .transactionBody(b -> b.setFileID(fileId))
                 .recordItem(r -> r.blockstream(true))
                 .build();
-        var fileData = domainBuilder
+        domainBuilder
                 .fileData()
-                .customize(b -> b.entityId(EntityId.of(fileId)))
+                .customize(b -> b.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                        .entityId(EntityId.of(fileId))
+                        .fileData(Bytes.concat(new byte[] {-100}, domainBuilder.bytes(63))))
                 .persist();
 
         // when, then
-        assertThat(service.get(contractBytecode, recordItem)).isEqualTo(fileData.getFileData());
+        assertThat(service.get(contractBytecode, recordItem)).isNull();
     }
 
     @Test

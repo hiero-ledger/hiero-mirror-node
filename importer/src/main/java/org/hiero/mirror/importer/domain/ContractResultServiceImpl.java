@@ -9,7 +9,6 @@ import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.ContractStateChange;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +40,7 @@ import org.hiero.mirror.importer.util.Utility;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public final class ContractResultServiceImpl implements ContractResultService {
+final class ContractResultServiceImpl implements ContractResultService {
 
     private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
@@ -58,7 +57,6 @@ public final class ContractResultServiceImpl implements ContractResultService {
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody();
         var transactionRecord = recordItem.getTransactionRecord();
         var functionResult = transactionRecord.hasContractCreateResult()
                 ? transactionRecord.getContractCreateResult()
@@ -67,8 +65,8 @@ public final class ContractResultServiceImpl implements ContractResultService {
         final var sidecarProcessingResult = processSidecarRecords(recordItem);
 
         // handle non create/call transactions
-        var contractCallOrCreate = isContractCreateOrCall(transactionBody);
-        if (!contractCallOrCreate && !isValidContractFunctionResult(functionResult)) {
+        boolean contractCallOrCreate = isContractCreateOrCall(transaction);
+        if (!contractCallOrCreate && !isContractFunctionResultSet(functionResult)) {
             addDefaultEthereumTransactionContractResult(recordItem, transaction);
             // skip any other transaction which is neither a create/call and has no valid ContractFunctionResult
             return;
@@ -122,12 +120,13 @@ public final class ContractResultServiceImpl implements ContractResultService {
         entityListener.onContractResult(contractResult);
     }
 
-    private boolean isValidContractFunctionResult(ContractFunctionResult contractFunctionResult) {
+    private boolean isContractFunctionResultSet(ContractFunctionResult contractFunctionResult) {
         return !contractFunctionResult.equals(ContractFunctionResult.getDefaultInstance());
     }
 
-    private boolean isContractCreateOrCall(TransactionBody transactionBody) {
-        return transactionBody.hasContractCall() || transactionBody.hasContractCreateInstance();
+    private boolean isContractCreateOrCall(Transaction transaction) {
+        return transaction.getType() == TransactionType.CONTRACTCALL.getProtoId()
+                || transaction.getType() == TransactionType.CONTRACTCREATEINSTANCE.getProtoId();
     }
 
     private void processContractAction(ContractAction action, int index, RecordItem recordItem) {
@@ -237,14 +236,7 @@ public final class ContractResultServiceImpl implements ContractResultService {
             contractResult.setFailedInitcode(sidecarProcessingResult.initcode());
         }
 
-        if (isValidContractFunctionResult(functionResult)) {
-            if (!isContractCreateOrCall(recordItem.getTransactionBody())) {
-                // amount, gasLimit and functionParameters were missing from record proto prior to HAPI v0.25
-                contractResult.setAmount(functionResult.getAmount());
-                contractResult.setGasLimit(functionResult.getGas());
-                contractResult.setFunctionParameters(DomainUtils.toBytes(functionResult.getFunctionParameters()));
-            }
-
+        if (isContractFunctionResultSet(functionResult)) {
             contractResult.setBloom(DomainUtils.toBytes(functionResult.getBloom()));
             contractResult.setCallResult(DomainUtils.toBytes(functionResult.getContractCallResult()));
             contractResult.setCreatedContractIds(contractIds);
