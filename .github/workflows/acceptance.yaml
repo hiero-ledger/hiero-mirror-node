@@ -213,6 +213,22 @@ jobs:
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS"
           echo "TOKEN_ADDRESS=$TOKEN_ADDRESS" >> $GITHUB_OUTPUT
 
+          PAYER_ACCOUNT=$(grep "Skipping cleanup of account \[BOB\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '[:space:]')
+
+          echo "PAYER_ACCOUNT=$PAYER_ACCOUNT"
+          echo "PAYER_ACCOUNT=$PAYER_ACCOUNT" >> $GITHUB_OUTPUT
+
+          ACCOUNT_ADDRESS=$(grep "Skipping cleanup of account \[ALICE\]" "$LOG_FILE" | \
+              sed -E 's/.*at address ([0-9a-fA-F]{40})/\1/' | \
+              tail -n 1 | \
+              tr -d '[:space:]')
+
+          echo "ACCOUNT_ADDRESS=$ACCOUNT_ADDRESS"
+          echo "ACCOUNT_ADDRESS=$ACCOUNT_ADDRESS" >> $GITHUB_OUTPUT
+
       - name: Install k6
         uses: grafana/setup-k6-action@v1
 
@@ -231,25 +247,33 @@ jobs:
       - name: Run k6 web3 tests
         uses: grafana/run-k6-action@v1
         env:
+          ACCOUNT_ADDRESS: ${{ steps.log-variables.outputs.ACCOUNT_ADDRESS }}
+          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+          BASE_URL: ${{ steps.web3-base-url.outputs.BASE_URL }}
+          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
-          BASE_URL: ${{ steps.web3-base-url.outputs.BASE_URL }}
-          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
+          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
+          HTS_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.PRECOMPILE_CONTRACT }}
           KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
+          PAYER_ACCOUNT: ${{ steps.log-variables.outputs.PAYER_ACCOUNT }}
           RUN_COMPLEX_TESTS: "false"
           RUN_ESTIMATE_TESTS: "false"
           RUN_MODIFICATION_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
-          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
-          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
-          HTS_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.PRECOMPILE_CONTRACT }}
-          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
           TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
         with:
           path: |
-            ./tools/k6/src/web3/apis.js
+            ./tools/k6/src/web3/test/contractCallRampUp.js
+            ./tools/k6/src/web3/test/contractCallAllowance.js
+            ./tools/k6/src/web3/test/contractCallApprovedForAll.js
+            ./tools/k6/src/web3/test/contractCallBalanceOf.js
+            ./tools/k6/src/web3/test/contractCallIsFrozen.js
+            ./tools/k6/src/web3/test/contractCallIsKyc.js
+            ./tools/k6/src/web3/test/contractCallReceive.js
           debug: false
           flags: --quiet
 
@@ -268,7 +292,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true || echo "Could not get logs for pod $pod"
             fi
           done
 
