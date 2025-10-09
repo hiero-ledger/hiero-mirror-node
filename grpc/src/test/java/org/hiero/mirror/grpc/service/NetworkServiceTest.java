@@ -18,7 +18,6 @@ import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
-import org.hiero.mirror.grpc.repository.NodeRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,8 +37,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final DomainBuilder domainBuilder;
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
-    private final NodeRepository nodeRepository;
-
     private int pageSize;
 
     @BeforeEach
@@ -296,39 +293,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().getNodeAccountId()).isEqualTo(originalAccountId);
-    }
-
-    @Test
-    void nodeAccountIdMappingCached() {
-        addressBookProperties.setPageSize(2);
-        var addressBook = addressBook();
-        var addressBookEntry1 = addressBookEntry();
-        var addressBookEntry2 = addressBookEntry();
-        var addressBookEntry3 = addressBookEntry();
-
-        var node1AccountId = EntityId.of(0L, 0L, 1000L);
-        var node2AccountId = EntityId.of(0L, 0L, 1001L);
-        var node3AccountId = EntityId.of(0L, 0L, 1002L);
-        createNode(addressBookEntry1.getNodeId(), node1AccountId);
-        createNode(addressBookEntry2.getNodeId(), node2AccountId);
-        createNode(addressBookEntry3.getNodeId(), node3AccountId);
-
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
-        var nodes = getNodes(filter);
-
-        assertThat(nodes).hasSize(3);
-        assertThat(nodes.get(0).getNodeAccountId()).isEqualTo(node1AccountId);
-        assertThat(nodes.get(1).getNodeAccountId()).isEqualTo(node2AccountId);
-        assertThat(nodes.get(2).getNodeAccountId()).isEqualTo(node3AccountId);
-
-        // Delete nodes and verify cache is used
-        nodeRepository.deleteAll();
-
-        nodes = getNodes(filter);
-        assertThat(nodes).hasSize(3);
-        assertThat(nodes.get(0).getNodeAccountId()).isEqualTo(node1AccountId);
-        assertThat(nodes.get(1).getNodeAccountId()).isEqualTo(node2AccountId);
-        assertThat(nodes.get(2).getNodeAccountId()).isEqualTo(node3AccountId);
     }
 
     // Helper method to add to the test class

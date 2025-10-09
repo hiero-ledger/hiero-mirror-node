@@ -22,7 +22,6 @@ public class CacheConfiguration {
     public static final String ADDRESS_BOOK_ENTRY_CACHE = "addressBookEntryCache";
     public static final String NODE_STAKE_CACHE = "nodeStakeCache";
     public static final String ENTITY_CACHE = "entityCache";
-    public static final String NODE_ACCOUNT_CACHE = "nodeAccountCache";
     public static final String CACHE_NAME = "default";
 
     @Bean(ADDRESS_BOOK_ENTRY_CACHE)
@@ -43,17 +42,6 @@ public class CacheConfiguration {
         caffeineCacheManager.setCaffeine(Caffeine.newBuilder()
                 .expireAfterWrite(addressBookProperties.getNodeStakeCacheExpiry())
                 .maximumSize(addressBookProperties.getNodeStakeCacheSize())
-                .recordStats());
-        return caffeineCacheManager;
-    }
-
-    @Bean(NODE_ACCOUNT_CACHE)
-    CacheManager nodeAccountCache(AddressBookProperties addressBookProperties) {
-        CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
-        caffeineCacheManager.setCaffeine(Caffeine.newBuilder()
-                .expireAfterWrite(addressBookProperties.getNodeAccountCacheExpiry())
-                .maximumSize(addressBookProperties.getNodeAccountCacheSize())
                 .recordStats());
         return caffeineCacheManager;
     }

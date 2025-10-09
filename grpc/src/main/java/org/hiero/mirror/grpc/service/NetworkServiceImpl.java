@@ -21,7 +21,6 @@ import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.repository.AddressBookEntryRepository;
 import org.hiero.mirror.grpc.repository.AddressBookRepository;
-import org.hiero.mirror.grpc.repository.NodeRepository;
 import org.hiero.mirror.grpc.repository.NodeStakeRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.transaction.support.TransactionOperations;
@@ -44,7 +43,6 @@ public class NetworkServiceImpl implements NetworkService {
     private final AddressBookRepository addressBookRepository;
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final NodeStakeRepository nodeStakeRepository;
-    private final NodeRepository nodeRepository;
     private final SystemEntity systemEntity;
 
     @Qualifier("readOnly")
@@ -89,14 +87,7 @@ public class NetworkServiceImpl implements NetworkService {
                     addressBookTimestamp, nextNodeId, pageSize);
             var endpoints = new AtomicInteger(0);
 
-            var accountIdMap = nodeRepository.findNodesWithAccountIdsMap();
-
             nodes.forEach(node -> {
-                var accountId = accountIdMap.get(node.getNodeId());
-                if (accountId != null) {
-                    node.setNodeAccountId(accountId);
-                }
-
                 // Override node stake
                 node.setStake(nodeStakeMap.getOrDefault(node.getNodeId(), 0L));
                 // This hack ensures that the nested serviceEndpoints is loaded eagerly and voids lazy init exceptions
