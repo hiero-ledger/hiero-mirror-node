@@ -160,6 +160,7 @@ jobs:
           cat output_log.txt
 
       - name: Parse acceptance tests logs and set k6 environment variables
+        if: ${{ matrix.stream-type != 'BLOCK' }}
         id: log-variables
         run: |
           LOG_FILE="${{ github.workspace }}/output_log.txt"
@@ -230,9 +231,11 @@ jobs:
           echo "ACCOUNT_ADDRESS=$ACCOUNT_ADDRESS" >> $GITHUB_OUTPUT
 
       - name: Install k6
+        if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/setup-k6-action@v1
 
       - name: Get web3 base url
+        if: ${{ matrix.stream-type != 'BLOCK' }}
         id: web3-base-url
         run: |
           export IP=$(kubectl get pods -n "${SOLO_NAMESPACE}" -l app.kubernetes.io/name=web3 -o custom-columns='IP:.status.podIP' --no-headers)
@@ -240,11 +243,13 @@ jobs:
           echo "BASE_URL=$BASE_URL" >> $GITHUB_OUTPUT
 
       - name: Port forward web3
+        if: ${{ matrix.stream-type != 'BLOCK' }}
         run: |
           echo "Port forwarding 8080:80"
           kubectl port-forward "service/mirror-web3" -n mirror 8080:80 &
 
       - name: Run k6 web3 tests
+        if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@v1
         env:
           ACCOUNT_ADDRESS: ${{ steps.log-variables.outputs.ACCOUNT_ADDRESS }}
