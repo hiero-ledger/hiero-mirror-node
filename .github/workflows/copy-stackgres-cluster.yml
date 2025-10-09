@@ -8,6 +8,49 @@ concurrency:
 on:
   push:
     branches: [jtn-copy-live-env2]
+  workflow_call:
+    inputs:
+      source_cluster_location:
+        type: string
+        default: "us-central1"
+        required: true
+      source_cluster_name:
+        type: string
+        default: "mainnet-na"
+        required: true
+      source_project:
+        type: string
+        default: "prod"
+        required: true
+      target_cluster_location:
+        type: string
+        default: "us-central1"
+        required: true
+      target_cluster_name:
+        type: string
+        default: "mainnet-staging-na"
+        required: true
+      target_default_pool:
+        type: string
+        default: "mainnet-staging-na"
+        required: true
+      target_project:
+        type: string
+        default: "nonprod"
+        required: true
+      teardown_target:
+        type: boolean
+        default: true
+        required: true
+    secrets:
+      GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID:
+        required: true
+      GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT:
+        required: true
+      GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID:
+        required: true
+      GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER:
+        required: true
   workflow_dispatch:
     inputs:
       source_cluster_location:
@@ -19,7 +62,7 @@ on:
         default: "mainnet-na"
         required: true
       source_project:
-        default: nonprod
+        default: prod
         description: "Source: GCP project"
         options: [prod, nonprod]
         required: true
