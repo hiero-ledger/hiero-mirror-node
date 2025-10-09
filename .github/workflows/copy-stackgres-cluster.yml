@@ -52,6 +52,7 @@ jobs:
     name: Copy Citus from SOURCE ➜ TARGET
     runs-on: hiero-mirror-node-linux-medium
     env:
+      FLUX_VERSION: "2.3.0"
       GCP_SNAPSHOT_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: "mainnet-staging-na"
       GCP_K8S_SOURCE_CLUSTER_REGION: "us-central1"
@@ -165,6 +166,43 @@ jobs:
         uses: kubeshop/setup-testkube@970d643ec9ecbe5707049c1d65b851da72aab3d9
         with:
           version: v2.3.0
+
+      - name: Ensure Flux CLI (idempotent)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if command -v flux >/dev/null 2>&1; then
+            INSTALLED="$(flux --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')" || INSTALLED=""
+            if [[ "$INSTALLED" == "$FLUX_VERSION" ]]; then
+              echo "Flux $INSTALLED already installed."
+              exit 0
+            else
+              echo "Replacing Flux $INSTALLED with $FLUX_VERSION…"
+            fi
+          else
+            echo "Flux not found; installing $FLUX_VERSION…"
+          fi
+
+          OS="linux"
+          ARCH_RAW="$(uname -m)"
+          case "$ARCH_RAW" in
+            x86_64) ARCH="amd64" ;;
+            aarch64|arm64) ARCH="arm64" ;;
+            *) echo "Unsupported architecture: $ARCH_RAW" >&2; exit 1 ;;
+          esac
+
+          TARBALL="flux_${FLUX_VERSION}_${OS}_${ARCH}.tar.gz"
+          BASE_URL="https://github.com/fluxcd/flux2/releases/download/v${FLUX_VERSION}"
+
+          curl -sSL -o "/tmp/${TARBALL}" "${BASE_URL}/${TARBALL}"
+          curl -sSL -o "/tmp/checksums.txt" "${BASE_URL}/flux_${FLUX_VERSION}_checksums.txt"
+          (cd /tmp && sha256sum -c <(grep " ${TARBALL}\$" checksums.txt))
+
+          tar -xzf "/tmp/${TARBALL}" -C /tmp flux
+          sudo mv /tmp/flux /usr/local/bin/flux
+          sudo chmod +x /usr/local/bin/flux
+          flux --version
 
       - name: Execute copy script
         shell: bash

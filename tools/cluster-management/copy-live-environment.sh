@@ -277,6 +277,8 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  resizeCitusNodePools 1
+
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
