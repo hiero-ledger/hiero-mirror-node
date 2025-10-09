@@ -363,7 +363,7 @@ function scaleDownNodePools() {
   done
 
   log "Draining nodes in pool ${DEFAULT_POOL_NAME}"
-  for node in "${POOL_NODES[@]}"; do
+  for node in "${poolNodes[@]}"; do
     [[ -z "$node" ]] && continue
 
     until kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" drain "$node" \
@@ -430,11 +430,12 @@ function teardownResources() {
 
 function waitForK6PodExecution() {
   local testName="$1"
-  local job
+  local job out
 
-  while true; do
-    job="$(
-      kubectl get jobs -n "${TEST_KUBE_NAMESPACE}" -l "executor=k6-custom-executor" -o json \
+  job=""
+  until {
+    if out="$(
+      kubectl get jobs -n "${TEST_KUBE_NAMESPACE}" -l "executor=k6-custom-executor" -o json 2>/dev/null \
         | jq -r --arg testName "$testName" '
             .items[]
             | select(.metadata.labels["test-name"] != null
@@ -442,17 +443,18 @@ function waitForK6PodExecution() {
             | .metadata.name
           ' \
         | head -n1
-    )"
-    if [[ -n "${job}" ]]; then
-      log "Found job ${job} for test ${testName}"
-      break
+    )"; then
+      [[ -n "$out" ]]
+    else
+      false
     fi
+  }; do
     log "waiting for test ${testName} to start"
     sleep 30
   done
 
-  log "Waiting for job ${job} to complete for test ${testName}"
-
+  job="$out"
+  log "Found job ${job} for test ${testName}"
   until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
     log "Waiting for job ${job} to complete for test ${testName}"
     sleep 1
