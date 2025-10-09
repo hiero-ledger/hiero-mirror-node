@@ -18,8 +18,8 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.springframework.data.domain.Persistable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true)
@@ -27,11 +27,13 @@ import org.springframework.data.domain.Persistable;
 @Entity
 @IdClass(Hook.Id.class)
 @NoArgsConstructor
-public class Hook implements Persistable<Hook.Id> {
+@Upsertable
+public class Hook {
 
     @ToString.Exclude
     private byte[] adminKey;
 
+    @Column(updatable = false)
     private EntityId contractId;
 
     @Column(updatable = false)
@@ -41,6 +43,7 @@ public class Hook implements Persistable<Hook.Id> {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(updatable = false)
     private HookExtensionPoint extensionPoint;
 
     @jakarta.persistence.Id
@@ -53,18 +56,12 @@ public class Hook implements Persistable<Hook.Id> {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(updatable = false)
     private HookType type;
 
-    @Override
     @JsonIgnore
     public Id getId() {
         return new Id(hookId, ownerId);
-    }
-
-    @JsonIgnore
-    @Override
-    public boolean isNew() {
-        return true;
     }
 
     public void setOwnerId(EntityId ownerId) {

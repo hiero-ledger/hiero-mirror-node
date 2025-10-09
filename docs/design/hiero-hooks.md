@@ -178,50 +178,18 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    deleted
-    boolean
-    not
-    null
-    default
-    false,
-    extension_point
-    hook_extension_point
-    not
-    null
-    default
-    'ACCOUNT_ALLOWANCE_HOOK',
-    type
-    hook_type
-    not
-    null
-    default
-    'LAMBDA',
-    contract_id
-    bigint
-    not
-    null,
-    created_timestamp
-    bigint,
-    hook_id
-    bigint
-    not
-    null,
-    modified_timestamp
-    bigint,
-    owner_id
-    bigint
-    not
-    null,
-    admin_key
-    bytea,
+    contract_id         bigint                not null,
+    created_timestamp   bigint,
+    hook_id             bigint                not null,
+    modified_timestamp  bigint,
+    owner_id            bigint                not null,
+    extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type                hook_type             not null default 'LAMBDA',
+    deleted             boolean               not null default false,
+    admin_key           bytea,
 
-    primary
-    key
-(
-    owner_id,
-    hook_id
-)
-    );
+    primary key (owner_id, hook_id)
+);
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
 ```
@@ -306,10 +274,9 @@ public class Hook {
 public class HookStorage {
 
     private long createdTimestamp;
-    private final long modifiedTimestamp;
     private long hookId;
     private byte[] key;
-    private final long modifiedTimestamp;
+    private long modifiedTimestamp;
     private long ownerId;
     private byte[] value;
 

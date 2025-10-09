@@ -583,27 +583,28 @@ public class DomainBuilder {
     public DomainWrapper<Hook, Hook.HookBuilder> hook() {
         var createdTimestamp = timestamp();
         var builder = Hook.builder()
-                .hookId(number())
-                .ownerId(id())
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
-                .createdTimestamp(createdTimestamp)
-                .modifiedTimestamp(createdTimestamp)
-                .deleted(false)
                 .adminKey(key())
-                .contractId(entityId());
+                .contractId(entityId())
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .hookId(number())
+                .modifiedTimestamp(createdTimestamp)
+                .ownerId(id())
+                .type(HookType.LAMBDA);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
     public DomainWrapper<HookStorage, HookStorage.HookStorageBuilder> hookStorage() {
         var createdTimestamp = timestamp();
+        var modifiedTimestamp = timestamp();
         var builder = HookStorage.builder()
-                .hookId(number())
-                .ownerId(id())
-                .key(bytes(32))
-                .value(bytes(32))
                 .createdTimestamp(createdTimestamp)
-                .modifiedTimestamp(createdTimestamp);
+                .hookId(number())
+                .key(bytes(32))
+                .modifiedTimestamp(modifiedTimestamp)
+                .ownerId(id())
+                .value(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -611,8 +612,8 @@ public class DomainBuilder {
         var builder = HookStorageChange.builder()
                 .consensusTimestamp(timestamp())
                 .hookId(number())
-                .ownerId(id())
                 .key(bytes(32))
+                .ownerId(id())
                 .valueRead(bytes(32))
                 .valueWritten(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
