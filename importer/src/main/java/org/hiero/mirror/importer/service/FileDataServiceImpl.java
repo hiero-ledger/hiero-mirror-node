@@ -30,7 +30,7 @@ import org.springframework.util.CollectionUtils;
 
 @Named
 @Order
-final class FileDataServiceImpl implements FileDataService, EntityListener {
+final class FileDataServiceImpl implements EntityListener, FileDataService {
 
     private final Cache cache;
     private final FileDataRepository fileDataRepository;
@@ -128,7 +128,7 @@ final class FileDataServiceImpl implements FileDataService, EntityListener {
 
         byte[] combined = new byte[size];
         int offset = 0;
-        if (first != null) {
+        if (ArrayUtils.isNotEmpty(first)) {
             System.arraycopy(first, 0, combined, 0, first.length);
             offset = first.length;
         }

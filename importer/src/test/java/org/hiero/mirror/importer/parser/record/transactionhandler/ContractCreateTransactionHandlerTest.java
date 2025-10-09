@@ -68,9 +68,11 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        var contractInitcodeService = new ContractInitcodeServiceImpl(contractBytecodeService);
         return new ContractCreateTransactionHandler(
-                contractInitcodeService, entityIdService, entityListener, entityProperties);
+                new ContractInitcodeServiceImpl(contractBytecodeService),
+                entityIdService,
+                entityListener,
+                entityProperties);
     }
 
     @Override
@@ -220,8 +222,7 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
         byte[] initCode;
         if (blockstream) {
             initCode = domainBuilder.bytes(1024);
-            //            when(fileDataService.get(recordItem.getConsensusTimestamp(), fileId))
-            //                    .thenReturn(initCode);
+            when(contractBytecodeService.get(fileId)).thenReturn(initCode);
         } else {
             initCode = DomainUtils.toBytes(recordItem
                     .getSidecarRecords()
