@@ -37,6 +37,7 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     private final DomainBuilder domainBuilder;
     private final NetworkService networkService;
     private final NodeStakeRepository nodeStakeRepository;
+
     private int pageSize;
 
     @BeforeEach
