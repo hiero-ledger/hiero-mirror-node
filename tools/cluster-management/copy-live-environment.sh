@@ -347,13 +347,18 @@ function scaleDownNodePools() {
     --project="${GCP_TARGET_PROJECT}" \
     --no-enable-autoscaling \
     --quiet
-  gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+
+  sleep 10
+
+  until gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
     --project="${GCP_TARGET_PROJECT}" \
     --num-nodes=0 \
-    --quiet \
-    --async
+    --quiet; do
+      log "Failed to scale down default pool, retrying"
+      sleep 5
+  done
 }
 
 function removeDisks() {
@@ -413,7 +418,7 @@ function waitForK6PodExecution() {
     sleep 30
   done
 
-  log "Waiting on job ${job} test ${testName} to complete"
+  log "Waiting for job ${job} to complete for test ${testName}"
 
   until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
     log "Waiting for job ${job} to complete for test ${testName}"
