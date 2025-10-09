@@ -60,7 +60,7 @@ jobs:
       GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-      PINNED_KUBECONFIG: ${{ github.workspace }}/.kube/config
+      KUBECONFIG: ${{ runner.temp }}/kubeconfig
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
 
@@ -76,7 +76,7 @@ jobs:
         with:
           install_components: gke-gcloud-auth-plugin, kubectl
 
-      - name: Create ADC from GitHub OIDC
+      - name: Create application default credentials
         shell: bash
         run: |
           set -euo pipefail
@@ -116,15 +116,7 @@ jobs:
           gcloud auth application-default print-access-token >/dev/null
           gcloud config set container/use_application_default_credentials true
 
-      - name: Prepare pinned kubeconfig
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$(dirname "$PINNED_KUBECONFIG")"
-          : > "$PINNED_KUBECONFIG"
-          echo "KUBECONFIG=$PINNED_KUBECONFIG" >> "$GITHUB_ENV"
-
-      - name: Get GKE credentials (source) via gcloud
+      - name: Get GKE credentials (source)
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +126,7 @@ jobs:
           SRC_CURR="$(kubectl config current-context)"
           kubectl config rename-context "${SRC_CURR}" "${K8S_SOURCE_CLUSTER_CONTEXT}"
 
-      - name: Get GKE credentials (target) via gcloud
+      - name: Get GKE credentials (target)
         shell: bash
         run: |
           set -euo pipefail

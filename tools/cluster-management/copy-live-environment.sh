@@ -381,7 +381,10 @@ function teardownResources() {
   log "Tearing down resources"
   for namespace in "${CITUS_NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
+    kubectl delete pdb -n "${namespace}" --all --ignore-not-found 1>&2
   done
+
+  kubectl delete pdb -n "${COMMON_NAMESPACE}" --all --ignore-not-found 1>&2
 
   scaleDownNodePools
   removeDisks
