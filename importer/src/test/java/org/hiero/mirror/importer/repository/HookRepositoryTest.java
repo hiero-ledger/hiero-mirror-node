@@ -15,7 +15,7 @@ class HookRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void save() {
-        var hook = domainBuilder.hook().persist();
+        var hook = hookRepository.save(domainBuilder.hook().get());
         assertThat(hookRepository.findById(hook.getId())).get().isEqualTo(hook);
     }
 }

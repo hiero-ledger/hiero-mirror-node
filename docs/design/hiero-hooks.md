@@ -178,17 +178,49 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    contract_id         bigint                not null,
-    created_timestamp   bigint,
-    modified_timestamp  bigint,
-    hook_id             bigint                not null,
-    owner_id            bigint                not null,
-    extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type                hook_type             not null default 'LAMBDA',
-    deleted             boolean               not null default false,
-    admin_key           bytea,
+    deleted
+    boolean
+    not
+    null
+    default
+    false,
+    extension_point
+    hook_extension_point
+    not
+    null
+    default
+    'ACCOUNT_ALLOWANCE_HOOK',
+    type
+    hook_type
+    not
+    null
+    default
+    'LAMBDA',
+    contract_id
+    bigint
+    not
+    null,
+    created_timestamp
+    bigint,
+    hook_id
+    bigint
+    not
+    null,
+    modified_timestamp
+    bigint,
+    owner_id
+    bigint
+    not
+    null,
+    admin_key
+    bytea,
 
-    primary key (owner_id, hook_id)
+    primary
+    key
+(
+    owner_id,
+    hook_id
+)
     );
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
@@ -223,12 +255,12 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    created_timestamp   bigint not null,
-    modified_timestamp  bigint not null,
-    hook_id             bigint not null,
-    owner_id            bigint not null,
-    key                 bytea  not null,
-    value               bytea  not null,
+    created_timestamp  bigint not null,
+    hook_id            bigint not null,
+    modified_timestamp bigint not null,
+    owner_id           bigint not null,
+    key                bytea  not null,
+    value              bytea  not null,
 
     primary key (owner_id, hook_id, key)
 );
@@ -273,11 +305,11 @@ public class Hook {
 @Upsertable
 public class HookStorage {
 
-    private long consensusTimestamp;
     private long createdTimestamp;
+    private final long modifiedTimestamp;
     private long hookId;
     private byte[] key;
-    private long modifiedTimestamp;
+    private final long modifiedTimestamp;
     private long ownerId;
     private byte[] value;
 

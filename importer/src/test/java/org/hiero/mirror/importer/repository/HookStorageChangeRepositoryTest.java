@@ -26,7 +26,8 @@ class HookStorageChangeRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void save() {
-        var hookStorageChange = domainBuilder.hookStorageChange().persist();
+        var hookStorageChange = hookStorageChangeRepository.save(
+                domainBuilder.hookStorageChange().get());
         assertThat(hookStorageChangeRepository.findById(hookStorageChange.getId()))
                 .get()
                 .isEqualTo(hookStorageChange);

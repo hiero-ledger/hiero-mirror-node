@@ -31,14 +31,14 @@ public class HookStorage {
     @Column(updatable = false)
     private long createdTimestamp;
 
-    private long modifiedTimestamp;
-
     @jakarta.persistence.Id
     private long hookId;
 
     @jakarta.persistence.Id
     @ToString.Exclude
     private byte[] key;
+
+    private long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long ownerId;

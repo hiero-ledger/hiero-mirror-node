@@ -8,14 +8,14 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 -- Main hook table
 create table if not exists hook
 (
-    contract_id         bigint                not null,
-    created_timestamp   bigint,
-    modified_timestamp  bigint,
-    hook_id             bigint                not null,
-    owner_id            bigint                not null,
+    deleted             boolean               not null default false,
     extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
     type                hook_type             not null default 'LAMBDA',
-    deleted             boolean               not null default false,
+    contract_id         bigint                not null,
+    created_timestamp   bigint,
+    hook_id             bigint                not null,
+    modified_timestamp  bigint,
+    owner_id            bigint                not null,
     admin_key           bytea,
 
     primary key (owner_id, hook_id)
@@ -45,14 +45,14 @@ select create_time_partitions('hook_storage_change', 'consensus_timestamp', true
 create table if not exists hook_storage
 (
     created_timestamp   bigint not null,
-    modified_timestamp  bigint not null,
     hook_id             bigint not null,
+    modified_timestamp  bigint not null,
     owner_id            bigint not null,
     key                 bytea  not null,
     value               bytea  not null,
 
     primary key (owner_id, hook_id, key)
-);
+)
 comment on table hook_storage is 'Current state of hook storage';
 
 select create_distributed_table('hook_storage', 'owner_id', colocate_with => 'entity');
