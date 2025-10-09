@@ -10,10 +10,10 @@ public class AccountDetector {
     private static final int STRICT_SYSTEM_ACCOUNT_BOUNDARY = 999;
 
     public static boolean isStrictSystem(long accountNum) {
-        return accountNum <= STRICT_SYSTEM_ACCOUNT_BOUNDARY;
+        return accountNum >= 0 && accountNum <= STRICT_SYSTEM_ACCOUNT_BOUNDARY;
     }
 
     public static boolean isSystem(long accountNum) {
-        return accountNum <= SYSTEM_ACCOUNT_BOUNDARY;
+        return accountNum >= 0 && accountNum <= SYSTEM_ACCOUNT_BOUNDARY;
     }
 }
