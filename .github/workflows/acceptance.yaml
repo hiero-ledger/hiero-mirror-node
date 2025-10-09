@@ -268,18 +268,34 @@ jobs:
         with:
           path: |
             ./tools/k6/src/web3/test/contractCallRampUp.js
-            ./tools/k6/src/web3/test/contractCallAllowance.js
-            ./tools/k6/src/web3/test/contractCallApprovedForAll.js
-            ./tools/k6/src/web3/test/contractCallBalanceOf.js
-            ./tools/k6/src/web3/test/contractCallIsFrozen.js
-            ./tools/k6/src/web3/test/contractCallIsKyc.js
-            ./tools/k6/src/web3/test/contractCallReceive.js
+            ./tools/k6/src/web3/test/contractCallApproved.js
+            ./tools/k6/src/web3/test/contractCallBalance.js
+            ./tools/k6/src/web3/test/contractCallDecimals.js
+            ./tools/k6/src/web3/test/contractCallFungibleTokenInfo.js
+            ./tools/k6/src/web3/test/contractCallIdentifier.js
+            ./tools/k6/src/web3/test/contractCallIsToken.js
+            ./tools/k6/src/web3/test/contractCallMultiply.js
+            ./tools/k6/src/web3/test/contractCallName.js
+            ./tools/k6/src/web3/test/contractCallNonFungibleTokenInfo.js
+            ./tools/k6/src/web3/test/contractCallOwnerOf.js
+            ./tools/k6/src/web3/test/contractCallSender.js
+            ./tools/k6/src/web3/test/contractCallSymbol.js
+            ./tools/k6/src/web3/test/contractCallTokenCustomFees.js
+            ./tools/k6/src/web3/test/contractCallTokenDefaultFreezeStatus.js
+            ./tools/k6/src/web3/test/contractCallTokenDefaultKycStatus.js
+            ./tools/k6/src/web3/test/contractCallTokenExpiryInfo.js
+            ./tools/k6/src/web3/test/contractCallTokenInfo.js
+            ./tools/k6/src/web3/test/contractCallTokenKey.js
+            ./tools/k6/src/web3/test/contractCallTokenType.js
+            ./tools/k6/src/web3/test/contractCallTokenURI.js
+            ./tools/k6/src/web3/test/contractCallTotalSupply.js
           debug: false
           flags: --quiet
+          fail-fast: true
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        #        if: ${{ failure() }}
+        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
@@ -292,7 +308,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
 
