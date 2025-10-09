@@ -341,7 +341,7 @@ function routeTraffic() {
       doContinue
       flux resume helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" --timeout 30m
     else
-      log "No helm release found in namespace ${namespace}. Skipping suspend"
+      log "No helm release found in namespace ${namespace}. Skipping resume"
     fi
     scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=monitor"
   fi

@@ -277,8 +277,6 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
-  resizeCitusNodePools 1
-
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
@@ -352,6 +350,38 @@ function scaleDownNodePools() {
 
   sleep 10
 
+  local poolNodes
+  log "Cordoning nodes in pool ${DEFAULT_POOL_NAME}"
+  mapfile -t poolNodes < <(
+    kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" \
+      get nodes -l "cloud.google.com/gke-nodepool=${DEFAULT_POOL_NAME}" \
+      -o name
+  )
+  for node in "${poolNodes[@]}"; do
+    [[ -z "$node" ]] && continue
+    kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
+  done
+
+  log "Draining nodes in pool ${DEFAULT_POOL_NAME}"
+  for node in "${POOL_NODES[@]}"; do
+    [[ -z "$node" ]] && continue
+
+    until kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" drain "$node" \
+        --ignore-daemonsets \
+        --delete-emptydir-data \
+        --grace-period=60 \
+        --timeout=15m \
+        --force; do
+      log "Failed to drain $node, retrying"
+      kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get pods -A -o wide --field-selector spec.nodeName="${node#node/}" || true
+      kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
+      sleep 30
+    done
+
+    log "Drained $node"
+  done
+
+  log "Scaling down default pool to 0 nodes"
   until gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
@@ -388,6 +418,7 @@ function teardownResources() {
   log "Tearing down resources"
   for namespace in "${CITUS_NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
+    pauseCitus "${namespace}" "true"
     kubectl delete pdb -n "${namespace}" --all --ignore-not-found 1>&2
   done
 
