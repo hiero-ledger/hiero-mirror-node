@@ -9,10 +9,12 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.Selecto
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import com.esaulpaugh.headlong.util.Strings;
+import com.google.common.base.Suppliers;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
@@ -24,12 +26,14 @@ import org.hiero.mirror.rest.model.ContractCallResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.FeatureProperties;
+import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.client.HttpClientErrorException;
 
 abstract class AbstractEstimateFeature extends BaseContractFeature {
 
+    private static final int MINOR_HAPI_VERSION_WITHOUT_GAS_REFUND = 67;
     private static final int BASE_GAS_FEE = 21_000;
     private static final int ADDITIONAL_FEE_FOR_CREATE = 32_000;
     private static final long CODE_DEPOSIT_BYTE_COST = 200L;
@@ -43,6 +47,30 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
     @Autowired
     protected FeatureProperties featureProperties;
+
+    private final Supplier<Boolean> shouldUseCodeDepositCost = Suppliers.memoize(() -> {
+        try {
+            var blocksResponse = mirrorClient.getBlocks(Order.DESC, 1);
+            verifyMirrorTransactionsResponse(mirrorClient, 200);
+
+            if (blocksResponse != null && !blocksResponse.getBlocks().isEmpty()) {
+                var latestBlock = blocksResponse.getBlocks().getFirst();
+                String hapiVersion = latestBlock.getHapiVersion();
+                if (hapiVersion != null) {
+                    String[] versionParts = hapiVersion.split("\\.");
+                    if (versionParts.length == 3) {
+                        int minor = Integer.parseInt(versionParts[1]);
+                        return minor >= MINOR_HAPI_VERSION_WITHOUT_GAS_REFUND;
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return false;
+    });
 
     /**
      * Checks if the estimatedGas is within the specified range of the actualGas.
@@ -223,7 +251,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
      *
      * @param txId the transaction that is going to be validated
      * @param contractId the contract for which to calculate the code deposit cost
-     * @param hasNestedDeploy whether the smart contract has a nested contract create
+     * @param hasNestedDeploy whether the smart contract transaction includes a nested contract create
      */
     protected void verifyGasConsumed(String txId, String contractId, boolean hasNestedDeploy) {
         int totalGasFee;
@@ -236,7 +264,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         var gasUsed = getGasFromActions(txId);
         // If there is a nested deploy the gas consumption is already captured in sidecars, so we shouldn't add
         // additional code deposit
-        var codeDepositCost = hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
+        var codeDepositCost = !shouldUseCodeDepositCost.get() || hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
         AssertionsForClassTypes.assertThat(gasConsumed).isEqualTo(gasUsed + codeDepositCost + totalGasFee);
     }
 
