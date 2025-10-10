@@ -51,6 +51,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -65,12 +66,27 @@ public class TokenClient extends AbstractNetworkClient {
     private final PrivateKey initialMetadataKey = PrivateKey.generateECDSA();
     private final byte[] initialMetadata = nextBytes(4);
 
-    public TokenClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public TokenClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
     public void clean() {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            for (var tokenName : tokenMap.keySet()) {
+                log.info("Skipping cleanup of token [" + tokenName.getSymbol() + "] at address "
+                        + tokenMap.get(tokenName).tokenId().toEvmAddress());
+                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
+                System.out.println(tokenName.getSymbol() + "="
+                        + String.format(
+                                "%s%s",
+                                "0".repeat(24),
+                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            }
+            return;
+        }
+
         var admin = sdkClient.getExpandedOperatorAccountId();
         log.info("Deleting {} tokens and dissociating {} token relationships", tokenIds.size(), associations.size());
         deleteAll(tokenIds, tokenId -> delete(admin, tokenId));

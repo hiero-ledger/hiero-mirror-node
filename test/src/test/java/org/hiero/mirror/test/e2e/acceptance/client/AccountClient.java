@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -45,8 +46,9 @@ public class AccountClient extends AbstractNetworkClient {
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
     private final long initialBalance;
 
-    public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public AccountClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
             initialBalance = getBalance();
             log.info(
@@ -61,6 +63,17 @@ public class AccountClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            for (var accountName : accountMap.keySet()) {
+                log.info("Skipping cleanup of account [" + accountName + "] at address "
+                        + accountMap.get(accountName).getAccountId().toEvmAddress());
+                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
+                System.out.println(accountName + "="
+                        + accountMap.get(accountName).getAccountId().toEvmAddress());
+            }
+            return;
+        }
+
         log.info("Deleting {} accounts", accountIds.size());
         deleteAll(accountIds, this::delete);
 
