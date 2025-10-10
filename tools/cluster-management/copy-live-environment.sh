@@ -277,6 +277,8 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  waitForClusterOperations "${DEFAULT_POOL_NAME}"
+
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
@@ -341,6 +343,7 @@ function deleteSnapshots() {
 function scaleDownNodePools() {
   resizeCitusNodePools 0
 
+  waitForClusterOperations "${DEFAULT_POOL_NAME}"
   gcloud container node-pools update "${DEFAULT_POOL_NAME}" \
     --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \

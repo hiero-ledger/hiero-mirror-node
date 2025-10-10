@@ -633,6 +633,34 @@ function getZFSVolumes() {
         )'
 }
 
+function waitForClusterOperations() {
+  local pool="${1}"
+  local ops
+  while true; do
+    ops="$(
+      gcloud container operations list \
+        --project "${GCP_TARGET_PROJECT}" \
+        --location "${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --filter="status=RUNNING AND (targetLink~clusters/${GCP_K8S_TARGET_CLUSTER_NAME} OR targetLink~nodePools/${pool})" \
+        --format="value(name)" \
+        --verbosity=none 2>/dev/null | awk 'NF' | sort -u
+    )"
+
+    [[ -z "$ops" ]] && break
+
+    while IFS= read -r op; do
+      [[ -z "$op" ]] && continue
+      log "Waiting for in-flight operation ${op} before resizing pool ${pool}…"
+      gcloud container operations wait "${op}" \
+        --project "${GCP_TARGET_PROJECT}" \
+        --location "${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --verbosity=none || true
+    done <<< "$ops"
+
+    sleep 5
+  done
+}
+
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
@@ -653,6 +681,7 @@ function resizeCitusNodePools() {
 
   for pool in "${citusPools[@]}"; do
     log "Scaling pool ${pool} to ${numNodes} nodes"
+    waitForClusterOperations "${pool}"
 
     gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
       --node-pool="${pool}" \
