@@ -181,7 +181,7 @@ create table if not exists hook
     contract_id         bigint                not null,
     created_timestamp   bigint,
     hook_id             bigint                not null,
-    modified_timestamp  bigint,
+    modified_timestamp  bigint                not null,
     owner_id            bigint                not null,
     extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
     type                hook_type             not null default 'LAMBDA',

@@ -31,6 +31,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 public class Hook {
 
     @ToString.Exclude
+    @Column(updatable = false)
     private byte[] adminKey;
 
     @Column(updatable = false)
@@ -49,7 +50,7 @@ public class Hook {
     @jakarta.persistence.Id
     private long hookId;
 
-    private Long modifiedTimestamp;
+    private long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long ownerId;
