@@ -277,6 +277,8 @@ function patchBackupPaths() {
 }
 
 function scaleupResources() {
+  waitForClusterOperations "${DEFAULT_POOL_NAME}"
+
   gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
@@ -315,6 +317,7 @@ function restoreTarget() {
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   configureAndValidateSnapshotRestore
   scaleupResources
+  resumeCommonChart
   patchBackupPaths
   replaceDisks
 }
@@ -341,20 +344,72 @@ function deleteSnapshots() {
 function scaleDownNodePools() {
   resizeCitusNodePools 0
 
+  waitForClusterOperations "${DEFAULT_POOL_NAME}"
   gcloud container node-pools update "${DEFAULT_POOL_NAME}" \
     --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --project="${GCP_TARGET_PROJECT}" \
     --no-enable-autoscaling \
     --quiet
-  gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+
+  sleep 10
+
+  local poolNodes
+  log "Cordoning nodes in pool ${DEFAULT_POOL_NAME}"
+  mapfile -t poolNodes < <(
+    kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" \
+      get nodes -l "cloud.google.com/gke-nodepool=${DEFAULT_POOL_NAME}" \
+      -o name
+  )
+
+  for node in "${poolNodes[@]}"; do
+    [[ -z "$node" ]] && continue
+    if ! kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get "$node" >/dev/null 2>&1; then
+      log "Node ${node} no longer exists; skipping cordon"
+      continue
+    fi
+    kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
+  done
+
+  log "Draining nodes in pool ${DEFAULT_POOL_NAME}"
+  for node in "${poolNodes[@]}"; do
+    [[ -z "$node" ]] && continue
+
+    while true; do
+      if ! kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get "$node" >/dev/null 2>&1; then
+        log "Node ${node} disappeared before/while draining; skipping"
+        break
+      fi
+
+      if kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" drain "$node" \
+            --ignore-daemonsets \
+            --delete-emptydir-data \
+            --grace-period=60 \
+            --timeout=15m \
+            --force; then
+        log "Drained ${node}"
+        break
+      fi
+
+      log "Failed to drain ${node}, retrying"
+      kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get pods -A -o wide --field-selector spec.nodeName="${node#node/}" || true
+      kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
+      sleep 30
+    done
+  done
+
+  log "Scaling down default pool to 0 nodes"
+  until gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
     --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
     --node-pool="${DEFAULT_POOL_NAME}" \
     --project="${GCP_TARGET_PROJECT}" \
     --num-nodes=0 \
-    --quiet \
-    --async
+    --quiet; do
+      log "Failed to scale down default pool, retrying"
+      sleep 5
+  done
 }
+
 
 function removeDisks() {
   local disksToDelete diskJson diskName diskZone zoneLink
@@ -381,7 +436,12 @@ function teardownResources() {
   log "Tearing down resources"
   for namespace in "${CITUS_NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
+    pauseCitus "${namespace}" "true"
+    kubectl delete pdb -n "${namespace}" --all --ignore-not-found 1>&2
   done
+
+  suspendCommonChart
+  kubectl delete pdb -n "${COMMON_NAMESPACE}" --all --ignore-not-found 1>&2
 
   scaleDownNodePools
   removeDisks
@@ -389,11 +449,12 @@ function teardownResources() {
 
 function waitForK6PodExecution() {
   local testName="$1"
-  local job
+  local job out
 
-  while true; do
-    job="$(
-      kubectl get jobs -n "${TEST_KUBE_NAMESPACE}" -l "executor=k6-custom-executor" -o json \
+  job=""
+  until {
+    if out="$(
+      kubectl get jobs -n "${TEST_KUBE_NAMESPACE}" -l "executor=k6-custom-executor" -o json 2>/dev/null \
         | jq -r --arg testName "$testName" '
             .items[]
             | select(.metadata.labels["test-name"] != null
@@ -401,24 +462,43 @@ function waitForK6PodExecution() {
             | .metadata.name
           ' \
         | head -n1
-    )"
-    if [[ -n "${job}" ]]; then
-      log "Found job ${job} for test ${testName}"
-      break
+    )"; then
+      [[ -n "$out" ]]
+    else
+      false
     fi
+  }; do
     log "waiting for test ${testName} to start"
     sleep 30
   done
 
-  log "Waiting on job for test ${testName} to complete"
-  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=-1s
+  job="$out"
+  log "Found job ${job} for test ${testName}"
+  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
+    log "Waiting for job ${job} to complete for test ${testName}"
+    sleep 1
+  done
+
   until kubectl get job -n "${TEST_KUBE_NAMESPACE}" "${job}-scraper" >/dev/null 2>&1; do
     log "Waiting for scraper"
     sleep 1
   done
-  kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=-1s
-  sleep 5
-  kubectl testkube download artifacts "${job}"
+
+  until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}-scraper" --timeout=10m > /dev/null 2>&1; do
+    log "Waiting for scraper job to complete"
+    sleep 1
+  done
+
+  log "downloading artifacts for job ${job}"
+  until {
+    rm -f artifacts/report.md 2>/dev/null || true
+    kubectl testkube download artifacts "${job}"  >/dev/null 2>&1
+    [[ -s artifacts/report.md ]]
+  }; do
+    log "Waiting for artifacts to be available"
+    sleep 5
+  done
+
   cat artifacts/report.md
 }
 
@@ -437,7 +517,7 @@ snapshotSource
 restoreTarget
 deleteSnapshots
 
-if [[ "${WAIT_FOR_K6}" ]]; then
+if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   log "Awaiting k6 results"
   waitForK6PodExecution "rest"
   waitForK6PodExecution "rest-java"

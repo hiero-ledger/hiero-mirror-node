@@ -13,9 +13,28 @@ function backgroundErrorHandler() {
 }
 
 mask() {
-  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "$1" ]]; then
+  set +x
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]]; then
     printf '::add-mask::%s\n' "$1"
   fi
+}
+
+maskJsonValues() {
+  set +x
+  local json input
+  json="${1:-}"
+
+  [[ -z "$json" ]] && return 0
+
+  while IFS= read -r value; do
+    mask "$value"
+
+    if decoded="$(printf '%s' "$value" | base64 -d 2>/dev/null)"; then
+      if [[ "$decoded" != *$'\x00'* && "$decoded" == *[[:print:]]* ]]; then
+        mask "$decoded"
+      fi
+    fi
+  done < <(jq -r '.. | strings' <<< "$json")
 }
 
 trap backgroundErrorHandler INT
@@ -257,6 +276,46 @@ function scaleDeployment() {
   fi
 }
 
+function suspendCommonChart() {
+  if kubectl get helmrelease -n "${COMMON_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null; then
+    log "Suspending helm release ${HELM_RELEASE_NAME} in namespace ${COMMON_NAMESPACE}"
+    flux suspend helmrelease -n "${COMMON_NAMESPACE}" "${HELM_RELEASE_NAME}"
+  fi
+}
+
+function resumeCommonChart() {
+  if ! kubectl get helmrelease -n "${COMMON_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
+    log "HelmRelease ${HELM_RELEASE_NAME} not found in namespace ${COMMON_NAMESPACE}; nothing to resume"
+    return 0
+  fi
+
+  local suspended
+  suspended="$(kubectl -n "${COMMON_NAMESPACE}" get helmrelease "${HELM_RELEASE_NAME}" -o jsonpath='{.spec.suspend}' 2>/dev/null || echo '')"
+  if [[ "${suspended}" == "true" ]]; then
+    log "Resuming helm release ${HELM_RELEASE_NAME} in namespace ${COMMON_NAMESPACE}"
+    flux resume helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" || true
+  else
+    log "HelmRelease ${HELM_RELEASE_NAME} is not suspended; proceeding to reconcile & wait"
+  fi
+
+  local deadline=$((SECONDS+1800))
+  until kubectl wait -n "${COMMON_NAMESPACE}" \
+           --for=condition=Ready "helmrelease/${HELM_RELEASE_NAME}" \
+           --timeout=10m >/dev/null 2>&1; do
+    if (( SECONDS >= deadline )); then
+      log "Timed out waiting for helmrelease/${HELM_RELEASE_NAME} to become Ready"
+      flux get helmreleases -n "${COMMON_NAMESPACE}" "${HELM_RELEASE_NAME}" || true
+      kubectl -n "${COMMON_NAMESPACE}" describe helmrelease "${HELM_RELEASE_NAME}" || true
+      return 1
+    fi
+    log "Waiting for helmrelease/${HELM_RELEASE_NAME} to become Ready… retrying reconcile"
+    flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${COMMON_NAMESPACE}" --with-source >/dev/null 2>&1 || true
+  done
+
+  log "HelmRelease ${HELM_RELEASE_NAME} is Ready"
+}
+
+
 function unrouteTraffic() {
   local namespace="${1}"
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then
@@ -322,7 +381,7 @@ function routeTraffic() {
       doContinue
       flux resume helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" --timeout 30m
     else
-      log "No helm release found in namespace ${namespace}. Skipping suspend"
+      log "No helm release found in namespace ${namespace}. Skipping resume"
     fi
     scaleDeployment "${namespace}" 1 "app.kubernetes.io/component=monitor"
   fi
@@ -614,6 +673,34 @@ function getZFSVolumes() {
         )'
 }
 
+function waitForClusterOperations() {
+  local pool="${1}"
+  local ops
+  while true; do
+    ops="$(
+      gcloud container operations list \
+        --project "${GCP_TARGET_PROJECT}" \
+        --location "${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --filter="status=RUNNING AND (targetLink~clusters/${GCP_K8S_TARGET_CLUSTER_NAME} OR targetLink~nodePools/${pool})" \
+        --format="value(name)" \
+        --verbosity=none 2>/dev/null | awk 'NF' | sort -u
+    )"
+
+    [[ -z "$ops" ]] && break
+
+    while IFS= read -r op; do
+      [[ -z "$op" ]] && continue
+      log "Waiting for in-flight operation ${op} before resizing pool ${pool}…"
+      gcloud container operations wait "${op}" \
+        --project "${GCP_TARGET_PROJECT}" \
+        --location "${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --verbosity=none || true
+    done <<< "$ops"
+
+    sleep 5
+  done
+}
+
 function resizeCitusNodePools() {
   local numNodes="${1}"
 
@@ -634,6 +721,7 @@ function resizeCitusNodePools() {
 
   for pool in "${citusPools[@]}"; do
     log "Scaling pool ${pool} to ${numNodes} nodes"
+    waitForClusterOperations "${pool}"
 
     gcloud container clusters resize "${GCP_K8S_TARGET_CLUSTER_NAME}" \
       --node-pool="${pool}" \
@@ -657,7 +745,7 @@ function updateStackgresCreds() {
   local namespace="${2}"
   local sgPasswords=$(kubectl get secret -n "${namespace}" "${cluster}" -o json |
     jq -r '.data')
-  mask "${sgPasswords}"
+  maskJsonValues "${sgPasswords}"
 
   local superuserUsername=$(echo "${sgPasswords}" | jq -r '.["superuser-username"]' | base64 -d)
   local superuserPassword=$(echo "${sgPasswords}" | jq -r '.["superuser-password"]'| base64 -d)
@@ -666,17 +754,10 @@ function updateStackgresCreds() {
   local authenticatorUsername=$(echo "${sgPasswords}" | jq -r '.["authenticator-username"]'| base64 -d)
   local authenticatorPassword=$(echo "${sgPasswords}" | jq -r '.["authenticator-password"]'| base64 -d)
 
-  mask "${superuserUsername}"
-  mask "${superuserPassword}"
-  mask "${replicationUsername}"
-  mask "${replicationPassword}"
-  mask "${authenticatorUsername}"
-  mask "${authenticatorPassword}"
-
   # Mirror Node Passwords
   local mirrorNodePasswords=$(kubectl get secret -n "${namespace}" "${HELM_RELEASE_NAME}-passwords" -o json |
     jq -r '.data')
-  mask "${mirrorNodePasswords}"
+  maskJsonValues "${mirrorNodePasswords}"
 
   local graphqlUsername=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_USERNAME'| base64 -d)
   local graphqlPassword=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_GRAPHQL_DB_PASSWORD'| base64 -d)
@@ -695,23 +776,6 @@ function updateStackgresCreds() {
   local web3Username=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_USERNAME'| base64 -d)
   local web3Password=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_WEB3_DB_PASSWORD'| base64 -d)
   local dbName=$(echo "${mirrorNodePasswords}" | jq -r '.HIERO_MIRROR_IMPORTER_DB_NAME'| base64 -d)
-
-  mask "${graphqlUsername}"
-  mask "${graphqlPassword}"
-  mask "${grpcUsername}"
-  mask "${grpcPassword}"
-  mask "${importerUsername}"
-  mask "${importerPassword}"
-  mask "${ownerUsername}"
-  mask "${ownerPassword}"
-  mask "${restUsername}"
-  mask "${restPassword}"
-  mask "${restJavaUsername}"
-  mask "${restJavaPassword}"
-  mask "${rosettaUsername}"
-  mask "${rosettaPassword}"
-  mask "${web3Username}"
-  mask "${web3Password}"
 
   local sql=$(
     cat <<EOF
