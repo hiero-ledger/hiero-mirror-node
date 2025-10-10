@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
 
 GCP_TARGET_PROJECT="$(readUserInput "Enter GCP Project for target: ")"
 if [[ -z "${GCP_TARGET_PROJECT}" ]]; then
