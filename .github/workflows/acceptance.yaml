@@ -180,6 +180,7 @@ jobs:
               awk -F'=' '{print $NF}' | \
               tail -n 1 | \
               tr -d '[:space:]' || true)
+            echo "${key}=${value}"
             echo "${key}=${value}" >> $GITHUB_OUTPUT
           done
 
@@ -199,7 +200,7 @@ jobs:
         env:
           ACCOUNT_ADDRESS: ${{ steps.log-variables.outputs.ACCOUNT_ADDRESS }}
           AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
-          BASE_URL: "http://localhost:8080"
+          BASE_URL: "http://127.0.0.1:8080"
           DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
@@ -220,7 +221,6 @@ jobs:
           path: ./tools/k6/src/web3/apis.js
           debug: false
           flags: --quiet
-          fail-fast: true
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
