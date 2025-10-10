@@ -253,14 +253,19 @@ public class BlockTransactionBuilder {
         convertContractBytecode(
                 evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder, recordItem.isTopLevel());
         convertContractStateChanges(evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder);
-        var traceData =
-                TraceData.newBuilder().setEvmTraceData(evmTraceDataBuilder).build();
+
+        var stateChangesList =
+                recordItem.isTopLevel() ? List.of(stateChangesBuilder.build()) : Collections.<StateChanges>emptyList();
+        var evmTraceData = evmTraceDataBuilder.build();
+        var traceDataList = !EvmTraceData.getDefaultInstance().equals(evmTraceData)
+                ? List.of(TraceData.newBuilder().setEvmTraceData(evmTraceData).build())
+                : Collections.<TraceData>emptyList();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CREATE, transactionOutput),
-                List.of(stateChangesBuilder.build()),
-                List.of(traceData));
+                stateChangesList,
+                traceDataList);
     }
 
     public BlockTransactionBuilder.Builder contractDeleteOrUpdate(RecordItem recordItem) {
@@ -739,7 +744,7 @@ public class BlockTransactionBuilder {
                                     .setValue(MapChangeValue.newBuilder()
                                             .setBytecodeValue(
                                                     Bytecode.newBuilder().setCode(bytecode.getRuntimeBytecode())))));
-                    if (!topLevel) {
+                    if (!topLevel && !bytecode.getInitcode().isEmpty()) {
                         var initcode = Hex.encodeHexString(DomainUtils.toBytes(bytecode.getInitcode()));
                         var runtimeBytecode = Hex.encodeHexString(DomainUtils.toBytes(bytecode.getRuntimeBytecode()));
 

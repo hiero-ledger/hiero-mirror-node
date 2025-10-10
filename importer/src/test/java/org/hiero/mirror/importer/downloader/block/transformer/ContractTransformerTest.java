@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,9 +29,11 @@ import com.hedera.services.stream.proto.ContractStateChange;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.StorageChange;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
+import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
@@ -51,6 +55,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -96,7 +101,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 // will add back contract bytecode and contract state change sidecar records once support is added
-                .sidecarRecords(records -> customizeSidecarRecords(records, this::simpleContractStateChanges))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -114,17 +119,19 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     @ValueSource(booleans = {true, false})
     void contractCallWithChildContractCreate(boolean explicitInitcode) {
         // given
+        var contractId = recordItemBuilder.contractId();
+        var runtimeBytecode = recordItemBuilder.bytes(1024);
         var expectedContractCall = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
-                .sidecarRecords(records -> customizeSidecarRecords(records, this::simpleContractStateChanges))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
         var contractCall = blockTransactionBuilder
                 .contractCall(expectedContractCall, false)
+                .stateChanges(stateChangesFromChildContractCreate(contractId, runtimeBytecode))
                 .build();
-        var contractId = recordItemBuilder.contractId();
         var transactionId = expectedContractCall.getTransactionBody().getTransactionID().toBuilder()
                 .setNonce(1)
                 .build();
@@ -136,12 +143,14 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
-                .sidecarRecords(records ->
-                        customizeSidecarRecords(records, contractBytecode(contractId, explicitInitcode, false)))
+                .sidecarRecords(records -> customizeSidecarRecords(
+                        records, false, contractBytecode(contractId, explicitInitcode, runtimeBytecode, false)))
                 .customize(this::finalize)
                 .build();
-        var contractCreate =
-                blockTransactionBuilder.contractCreate(expectedContractCreate).build();
+        var contractCreate = blockTransactionBuilder
+                .contractCreate(expectedContractCreate)
+                .previous(contractCall)
+                .build();
         var blockFile =
                 blockFileBuilder.items(List.of(contractCall, contractCreate)).build();
 
@@ -167,7 +176,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearLogInfo()
                         .clearContractNonces()
                         .clearSignerNonce())
-                .sidecarRecords(records -> customizeSidecarRecords(records, this::simpleContractStateChanges))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .status(ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION)
                 .customize(this::finalize)
                 .build();
@@ -226,7 +235,10 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
                 .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(
-                        records, contractBytecode(contractId, false, true), this::simpleContractStateChanges))
+                        records,
+                        true,
+                        contractBytecode(contractId, false, recordItemBuilder.bytes(1024), true),
+                        this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -348,14 +360,13 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void ethereum(boolean create) {
+    @Test
+    void ethereumCall() {
         // given
         var expectedRecordItem = recordItemBuilder
-                .ethereumTransaction(create)
+                .ethereumTransaction(false)
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
-                .sidecarRecords(records -> customizeSidecarRecords(records, this::simpleContractStateChanges))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -369,6 +380,59 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
     }
 
+    @Test
+    void ethereumCreateWithChild() {
+        // given
+        var contractId = recordItemBuilder.contractId();
+        var runtimeBytecode = recordItemBuilder.bytes(1024);
+        var ethereumCreate = recordItemBuilder
+                .ethereumTransaction(true)
+                .record(ETHEREUM_RECORD_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+        var ethereumCreateBlockTransaction = blockTransactionBuilder
+                .ethereum(ethereumCreate)
+                .stateChanges(stateChangesFromChildContractCreate(contractId, runtimeBytecode))
+                .build();
+        var parentConsensusTimestamp = ethereumCreate.getTransactionRecord().getConsensusTimestamp();
+        var transactionId = ethereumCreate.getTransactionBody().getTransactionID().toBuilder()
+                .setNonce(1)
+                .build();
+        var childCreate = recordItemBuilder
+                .contractCreate(contractId)
+                .recordItem(r -> r.transactionIndex(1))
+                .sidecarRecords(records -> customizeSidecarRecords(
+                        records, false, contractBytecode(contractId, false, runtimeBytecode, false)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.clearEvmAddress()
+                        .setParentConsensusTimestamp(parentConsensusTimestamp)
+                        .getContractCreateResultBuilder()
+                        .clearBloom()
+                        .clearLogInfo())
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
+                .customize(this::finalize)
+                .build();
+        var childCreateBlockTransaction = blockTransactionBuilder
+                .contractCreate(childCreate)
+                .previous(ethereumCreateBlockTransaction)
+                .build();
+        var blockFile = blockFileBuilder
+                .items(List.of(ethereumCreateBlockTransaction, childCreateBlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(ethereumCreate, childCreate);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, items.getFirst());
+        });
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void ethereumNoUsedGas(boolean create) {
@@ -378,7 +442,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .record(ETHEREUM_RECORD_CUSTOMIZER)
                 .record(r -> contractResultBuilder(r).ifPresent(ContractFunctionResult.Builder::clearGasUsed))
                 .receipt(Builder::clearContractID)
-                .sidecarRecords(records -> customizeSidecarRecords(records, this::simpleContractStateChanges))
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
         var blockTransaction =
@@ -737,8 +801,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     r.setParentConsensusTimestamp(parentConsensusTimestamp);
                     DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
                 })
-                .sidecarRecords(records ->
-                        customizeSidecarRecords(records, b -> b.setStateChanges(contractCall1ContractStateChanges)))
+                .sidecarRecords(records -> customizeSidecarRecords(
+                        records, true, b -> b.setStateChanges(contractCall1ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(1))
                 .customize(this::finalize)
                 .build();
@@ -788,8 +852,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     r.setParentConsensusTimestamp(parentConsensusTimestamp);
                     DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
                 })
-                .sidecarRecords(records ->
-                        customizeSidecarRecords(records, b -> b.setStateChanges(contractCall2ContractStateChanges)))
+                .sidecarRecords(records -> customizeSidecarRecords(
+                        records, true, b -> b.setStateChanges(contractCall2ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(2))
                 .customize(this::finalize)
                 .build();
@@ -830,8 +894,8 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     r.setParentConsensusTimestamp(parentConsensusTimestamp);
                     DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
                 })
-                .sidecarRecords(records ->
-                        customizeSidecarRecords(records, b -> b.setStateChanges(contractCall3ContractStateChanges)))
+                .sidecarRecords(records -> customizeSidecarRecords(
+                        records, true, b -> b.setStateChanges(contractCall3ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(3))
                 .customize(this::finalize)
                 .build();
@@ -905,14 +969,18 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     @SafeVarargs
     private void customizeSidecarRecords(
             List<TransactionSidecarRecord.Builder> sidecarRecords,
+            boolean topLevel,
             Consumer<TransactionSidecarRecord.Builder>... customizers) {
         Timestamp consensusTimestamp = null;
         var copy = List.copyOf(sidecarRecords);
         sidecarRecords.clear();
         for (var sidecarRecord : copy) {
             if (sidecarRecord.hasActions()) {
-                sidecarRecords.add(sidecarRecord);
+                if (topLevel) {
+                    sidecarRecords.add(sidecarRecord);
+                }
                 consensusTimestamp = sidecarRecord.getConsensusTimestamp();
+                break;
             }
         }
 
@@ -932,14 +1000,12 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     }
 
     private Consumer<TransactionSidecarRecord.Builder> contractBytecode(
-            ContractID contractId, boolean explicitInitcode, boolean topLevel) {
+            ContractID contractId, boolean explicitInitcode, ByteString runtimeBytecode, boolean topLevel) {
         return b -> {
             // no initcode for top level contract creates since when initcode source is
             // - in the transaction body, it's not set in the sidecar
             // - in a file, it's loaded later in parser
             var initcode = ByteString.EMPTY;
-            var runtimeBytecode = recordItemBuilder.bytes(1024);
-
             if (!topLevel) {
                 if (explicitInitcode) {
                     initcode = recordItemBuilder.bytes(1536);
@@ -1006,6 +1072,34 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .addContractStateChanges(contractStateChange2)
                 .build();
         builder.setStateChanges(contractStateChanges);
+    }
+
+    private Consumer<List<StateChanges>> stateChangesFromChildContractCreate(
+            ContractID contractId, ByteString runtimeBytecode) {
+        return stateChangesList -> {
+            var stateChanges = stateChangesList.getFirst();
+            stateChangesList.clear();
+
+            var accountId = EntityId.of(contractId).toAccountID();
+            var updated = stateChanges.toBuilder()
+                    .addStateChanges(StateChange.newBuilder()
+                            .setStateId(STATE_ID_ACCOUNTS_VALUE)
+                            .setMapUpdate(MapUpdateChange.newBuilder()
+                                    .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
+                                    .setValue(MapChangeValue.newBuilder()
+                                            .setAccountValue(Account.newBuilder()
+                                                    .setAccountId(accountId)
+                                                    .setSmartContract(true)))))
+                    .addStateChanges(StateChange.newBuilder()
+                            .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                            .setMapUpdate(MapUpdateChange.newBuilder()
+                                    .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
+                                    .setValue(MapChangeValue.newBuilder()
+                                            .setBytecodeValue(
+                                                    Bytecode.newBuilder().setCode(runtimeBytecode)))))
+                    .build();
+            stateChangesList.add(updated);
+        };
     }
 
     private StateChange tokenMapUpdate(boolean deleted, TokenID tokenId, long totalSupply) {
