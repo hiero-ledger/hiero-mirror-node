@@ -360,8 +360,13 @@ function scaleDownNodePools() {
       get nodes -l "cloud.google.com/gke-nodepool=${DEFAULT_POOL_NAME}" \
       -o name
   )
+
   for node in "${poolNodes[@]}"; do
     [[ -z "$node" ]] && continue
+    if ! kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get "$node" >/dev/null 2>&1; then
+      log "Node ${node} no longer exists; skipping cordon"
+      continue
+    fi
     kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
   done
 
@@ -369,19 +374,27 @@ function scaleDownNodePools() {
   for node in "${poolNodes[@]}"; do
     [[ -z "$node" ]] && continue
 
-    until kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" drain "$node" \
-        --ignore-daemonsets \
-        --delete-emptydir-data \
-        --grace-period=60 \
-        --timeout=15m \
-        --force; do
-      log "Failed to drain $node, retrying"
+    while true; do
+      if ! kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get "$node" >/dev/null 2>&1; then
+        log "Node ${node} disappeared before/while draining; skipping"
+        break
+      fi
+
+      if kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" drain "$node" \
+            --ignore-daemonsets \
+            --delete-emptydir-data \
+            --grace-period=60 \
+            --timeout=15m \
+            --force; then
+        log "Drained ${node}"
+        break
+      fi
+
+      log "Failed to drain ${node}, retrying"
       kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" get pods -A -o wide --field-selector spec.nodeName="${node#node/}" || true
       kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" cordon "$node" || true
       sleep 30
     done
-
-    log "Drained $node"
   done
 
   log "Scaling down default pool to 0 nodes"
@@ -395,6 +408,7 @@ function scaleDownNodePools() {
       sleep 5
   done
 }
+
 
 function removeDisks() {
   local disksToDelete diskJson diskName diskZone zoneLink
@@ -433,7 +447,7 @@ function teardownResources() {
 
 function waitForK6PodExecution() {
   local testName="$1"
-  local job out
+  local job out tmp
 
   job=""
   until {
@@ -474,8 +488,25 @@ function waitForK6PodExecution() {
   done
 
   log "downloading artifacts for job ${job}"
-  kubectl testkube download artifacts "${job}"
-  cat artifacts/report.md
+  tmp="$(mktemp -d)"
+  until {
+    rm -rf "${tmp:?}"/* 2>/dev/null || true
+    kubectl testkube -n "${TEST_KUBE_NAMESPACE}" download artifacts "${job}" --download-dir "${tmp}" >/dev/null 2>&1
+    find "${tmp}" -type f -size +0c | grep -q .
+  }; do
+    log "Waiting for artifacts to be available"
+    sleep 5
+  done
+
+  local report
+  report="$(find "${tmp}" -type f -name 'report.md' -print -quit)"
+  if [[ -n "${report}" ]]; then
+    cat "$report"
+  else
+    log "No report.md found for ${testName}"
+  fi
+
+  rm -rf "${tmp}"
 }
 
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
