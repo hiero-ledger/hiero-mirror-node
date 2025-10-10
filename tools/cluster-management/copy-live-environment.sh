@@ -447,7 +447,7 @@ function teardownResources() {
 
 function waitForK6PodExecution() {
   local testName="$1"
-  local job out tmp
+  local job out
 
   job=""
   until {
@@ -488,25 +488,16 @@ function waitForK6PodExecution() {
   done
 
   log "downloading artifacts for job ${job}"
-  tmp="$(mktemp -d)"
   until {
-    rm -rf "${tmp:?}"/* 2>/dev/null || true
-    kubectl testkube -n "${TEST_KUBE_NAMESPACE}" download artifacts "${job}" --download-dir "${tmp}" >/dev/null 2>&1
-    find "${tmp}" -type f -size +0c | grep -q .
+    rm -f artifacts/report.md 2>/dev/null || true
+    kubectl testkube -n "${TEST_KUBE_NAMESPACE}" download artifacts "${job}"  >/dev/null 2>&1
+    [[ -s artifacts/report.md ]]
   }; do
     log "Waiting for artifacts to be available"
     sleep 5
   done
 
-  local report
-  report="$(find "${tmp}" -type f -name 'report.md' -print -quit)"
-  if [[ -n "${report}" ]]; then
-    cat "$report"
-  else
-    log "No report.md found for ${testName}"
-  fi
-
-  rm -rf "${tmp}"
+  cat artifacts/report.md
 }
 
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then

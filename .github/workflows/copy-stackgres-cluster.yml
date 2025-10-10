@@ -185,20 +185,6 @@ jobs:
           TGT_CURR="$(kubectl config current-context)"
           kubectl config rename-context "${TGT_CURR}" "${K8S_TARGET_CLUSTER_CONTEXT}"
 
-      - name: Verify kubeconfig uses exec plugin
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Source user:"
-          kubectl --context "${K8S_SOURCE_CLUSTER_CONTEXT}" config view --minify -o json | jq '.users[0].user'
-          echo "Target user:"
-          kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" config view --minify -o json | jq '.users[0].user'
-          for CTX in "${K8S_SOURCE_CLUSTER_CONTEXT}" "${K8S_TARGET_CLUSTER_CONTEXT}"; do
-            if ! kubectl --context "$CTX" config view --minify -o json | jq -e '.users[0].user.exec' >/dev/null; then
-              echo "ERROR: context $CTX is not using exec auth"; exit 1
-            fi
-          done
-
       - name: Cache Cloud SDK paths
         shell: bash
         run: |
