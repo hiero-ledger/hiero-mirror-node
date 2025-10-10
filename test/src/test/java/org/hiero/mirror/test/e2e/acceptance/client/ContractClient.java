@@ -39,11 +39,12 @@ public class ContractClient extends AbstractNetworkClient {
     @Override
     public void clean() {
         if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
-            log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var contractName : contractIds.keySet()) {
                 log.info("Skipping cleanup of contract [" + contractName + "] at address "
                         + contractIds.get(contractName).toEvmAddress());
+                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
+                System.out.println(
+                        contractName + "=" + contractIds.get(contractName).toEvmAddress());
             }
             return;
         }
