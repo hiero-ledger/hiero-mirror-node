@@ -32,6 +32,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
     private static final int BASE_GAS_FEE = 21_000;
     private static final int ADDITIONAL_FEE_FOR_CREATE = 32_000;
+    private static final long CODE_DEPOSIT_BYTE_COST = 200L;
 
     protected int lowerDeviation;
     protected int upperDeviation;
@@ -198,6 +199,12 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
                 .isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
+    /**
+     * Validates that a transaction has charged a proper amount of gas. This method uses manual calculation, combining
+     * data from sidecar actions and intrinsic gas.
+     *
+     * @param txId the transaction that is going to be validated
+     */
     protected void verifyGasConsumed(String txId) {
         int totalGasFee;
         try {
@@ -208,6 +215,29 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         var gasConsumed = getGasConsumedByTransactionId(txId);
         var gasUsed = getGasFromActions(txId);
         AssertionsForClassTypes.assertThat(gasConsumed).isEqualTo(gasUsed + totalGasFee);
+    }
+
+    /**
+     * Validates that a transaction including contract create has charged a proper amount of gas. This method uses manual calculation, combining
+     * data from sidecar actions, runtime bytecode length for code deposit and intrinsic gas.
+     *
+     * @param txId the transaction that is going to be validated
+     * @param contractId the contract for which to calculate the code deposit cost
+     * @param hasNestedDeploy whether the smart contract has a nested contract create
+     */
+    protected void verifyGasConsumed(String txId, String contractId, boolean hasNestedDeploy) {
+        int totalGasFee;
+        try {
+            totalGasFee = calculateIntrinsicValue(gasConsumedSelector);
+        } catch (DecoderException e) {
+            throw new RuntimeException("Failed to decode hexadecimal string.", e);
+        }
+        var gasConsumed = getGasConsumedByTransactionId(txId);
+        var gasUsed = getGasFromActions(txId);
+        // If there is a nested deploy the gas consumption is already captured in sidecars, so we shouldn't add
+        // additional code deposit
+        var codeDepositCost = hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
+        AssertionsForClassTypes.assertThat(gasConsumed).isEqualTo(gasUsed + codeDepositCost + totalGasFee);
     }
 
     /**
@@ -253,6 +283,26 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
                 .map(List::getFirst)
                 .map(ContractAction::getGasUsed)
                 .orElse(0L); // Provide a default value in case any step results in null
+    }
+
+    /**
+     * The EVM is charging additional gas cost during contract deploy for storing the runtime bytecode. We should add
+     * this value on top of the current gas cost for contract creates.
+     *
+     * @param contractId the contract for which to calculate the code deposit cost
+     */
+    private long getCodeDepositGas(String contractId) {
+        return Optional.ofNullable(mirrorClient.getContractInfo(contractId))
+                .map(contractInfo -> {
+                    String bytecode = contractInfo.getRuntimeBytecode();
+                    if (bytecode != null && bytecode.startsWith("0x")) {
+                        // Remove "0x" prefix and convert hex string to byte length
+                        int byteLength = (bytecode.length() - 2) / 2;
+                        return byteLength * CODE_DEPOSIT_BYTE_COST;
+                    }
+                    return 0L;
+                })
+                .orElse(0L);
     }
 
     private Long getGasConsumedByTransactionId(String transactionId) {

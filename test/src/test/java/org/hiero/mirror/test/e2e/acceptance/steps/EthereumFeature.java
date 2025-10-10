@@ -69,12 +69,19 @@ public class EthereumFeature extends AbstractEstimateFeature {
     }
 
     @Given("I successfully create contract by Legacy ethereum transaction")
-    public void createNewERCtestContract() {
+    public void createContract() {
         deployedParentContract = ethereumContractCreate(PARENT_CONTRACT);
 
         gasConsumedSelector = Objects.requireNonNull(mirrorClient
                 .getContractInfo(deployedParentContract.contractId().toEvmAddress())
                 .getBytecode());
+
+        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractId = Objects.requireNonNull(
+                        mirrorClient.getTransactions(txId).getTransactions())
+                .getFirst()
+                .getEntityId();
+        verifyGasConsumed(txId, contractId, false);
     }
 
     @Then("the mirror node REST API should return status {int} for the eth contract creation transaction")
@@ -118,6 +125,13 @@ public class EthereumFeature extends AbstractEstimateFeature {
         assertThat(deployedParentContract.contractId().toEvmAddress()).isNotEqualTo(childAddress);
         addChildContract(childAddress);
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, CREATE_CHILD, BigInteger.valueOf(1000));
+
+        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractId = Objects.requireNonNull(
+                        mirrorClient.getTransactions(txId).getTransactions())
+                .getFirst()
+                .getEntityId();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Given("I successfully call function using EIP-2930 ethereum transaction")
@@ -130,12 +144,6 @@ public class EthereumFeature extends AbstractEstimateFeature {
         assertThat(childContractBytecodeFromParent).isNotNull();
 
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, GET_BYTE_CODE);
-    }
-
-    @Then("the mirror node contract results API should return an accurate gas consumed")
-    public void verifyGasConsumedIsCorrect() {
-        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        verifyGasConsumed(txId);
     }
 
     @And("the mirror node contract results opcodes API should return a non-empty response")
