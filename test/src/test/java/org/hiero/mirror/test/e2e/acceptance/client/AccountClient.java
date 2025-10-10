@@ -64,10 +64,11 @@ public class AccountClient extends AbstractNetworkClient {
     @Override
     public void clean() {
         if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
-            log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var accountName : accountMap.keySet()) {
                 log.info("Skipping cleanup of account [" + accountName + "] at address "
+                        + accountMap.get(accountName).getAccountId().toEvmAddress());
+                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
+                System.out.println(accountName + "="
                         + accountMap.get(accountName).getAccountId().toEvmAddress());
             }
             return;

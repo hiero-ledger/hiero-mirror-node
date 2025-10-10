@@ -74,11 +74,15 @@ public class TokenClient extends AbstractNetworkClient {
     @Override
     public void clean() {
         if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
-            log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var tokenName : tokenMap.keySet()) {
                 log.info("Skipping cleanup of token [" + tokenName.getSymbol() + "] at address "
                         + tokenMap.get(tokenName).tokenId().toEvmAddress());
+                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
+                System.out.println(tokenName.getSymbol() + "="
+                        + String.format(
+                                "%s%s",
+                                "0".repeat(24),
+                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
             }
             return;
         }
