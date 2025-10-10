@@ -18,7 +18,6 @@ import java.util.function.Supplier;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.tuweni.bytes.Bytes;
-import org.assertj.core.api.AssertionsForClassTypes;
 import org.hiero.mirror.rest.model.ContractAction;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractCallRequest;
@@ -33,7 +32,6 @@ import org.springframework.web.client.HttpClientErrorException;
 
 abstract class AbstractEstimateFeature extends BaseContractFeature {
 
-    private static final int MINOR_HAPI_VERSION_WITHOUT_GAS_REFUND = 67;
     private static final int BASE_GAS_FEE = 21_000;
     private static final int ADDITIONAL_FEE_FOR_CREATE = 32_000;
     private static final long CODE_DEPOSIT_BYTE_COST = 200L;
@@ -60,7 +58,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
                     String[] versionParts = hapiVersion.split("\\.");
                     if (versionParts.length == 3) {
                         int minor = Integer.parseInt(versionParts[1]);
-                        return minor >= MINOR_HAPI_VERSION_WITHOUT_GAS_REFUND;
+                        return minor >= featureProperties.getHapiMinorVersionWithoutGasRefund();
                     } else {
                         return false;
                     }
@@ -242,7 +240,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         }
         var gasConsumed = getGasConsumedByTransactionId(txId);
         var gasUsed = getGasFromActions(txId);
-        AssertionsForClassTypes.assertThat(gasConsumed).isEqualTo(gasUsed + totalGasFee);
+        assertThat(gasConsumed).isEqualTo(gasUsed + totalGasFee);
     }
 
     /**
@@ -265,7 +263,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         // If there is a nested deploy the gas consumption is already captured in sidecars, so we shouldn't add
         // additional code deposit
         var codeDepositCost = !shouldUseCodeDepositCost.get() || hasNestedDeploy ? 0L : getCodeDepositGas(contractId);
-        AssertionsForClassTypes.assertThat(gasConsumed).isEqualTo(gasUsed + codeDepositCost + totalGasFee);
+        assertThat(gasConsumed).isEqualTo(gasUsed + codeDepositCost + totalGasFee);
     }
 
     /**

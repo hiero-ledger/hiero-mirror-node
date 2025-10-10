@@ -668,10 +668,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployContractViaCreate() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
         var txId = executeContractTransaction(deployedContract, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
@@ -679,10 +676,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployContractViaCreateTwo() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
         var txId = executeContractTransaction(deployedContract, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
@@ -697,10 +691,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployAndCallContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_CALL_CONTRACT, new BigInteger("5"));
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_CALL_CONTRACT);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
@@ -708,10 +699,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployAndCallFailContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_CALL_CONTRACT, new BigInteger("11"));
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_CALL_CONTRACT);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
@@ -719,10 +707,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployAndSelfDestructContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_DESTROY);
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_DESTROY);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
@@ -743,10 +728,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployEstimateContract() {
         var contractPath = ESTIMATE_GAS.getPath();
         var txId = createContractAndReturnTransactionId(contractPath);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
         verifyGasConsumed(txId, contractId, false);
@@ -756,9 +738,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployEstimateContractWithLowGas() {
         var contractPath = ESTIMATE_GAS.getPath();
         var txId = createContractAndReturnTransactionId(contractPath, 2150000L);
-        var transactions =
-                Objects.requireNonNull(mirrorClient.getTransactions(txId).getTransactions());
-        var contractId = transactions.getFirst().getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
         verifyGasConsumed(txId, contractId, false);

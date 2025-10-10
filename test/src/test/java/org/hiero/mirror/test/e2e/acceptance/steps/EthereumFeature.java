@@ -76,11 +76,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
                 .getContractInfo(deployedParentContract.contractId().toEvmAddress())
                 .getBytecode());
 
-        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, false);
     }
 
@@ -127,10 +124,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, CREATE_CHILD, BigInteger.valueOf(1000));
 
         String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         verifyGasConsumed(txId, contractId, true);
     }
 
