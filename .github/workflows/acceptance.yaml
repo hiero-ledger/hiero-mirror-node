@@ -261,30 +261,9 @@ jobs:
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
           TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
+          WEB3_TEST_INCLUDE: "^(contractCall(RampUp|Approved|Balance|Decimals|FungibleTokenInfo|Identifier|IsToken|Multiply|Name|NonFungibleTokenInfo|OwnerOf|Sender|Symbol|TokenCustomFees|TokenDefaultFreezeStatus|TokenDefaultKycStatus|TokenExpiryInfo|TokenInfo|TokenKey|TokenType|TokenURI|TotalSupply).js)$"
         with:
-          path: |
-            ./tools/k6/src/web3/test/contractCallRampUp.js
-            ./tools/k6/src/web3/test/contractCallApproved.js
-            ./tools/k6/src/web3/test/contractCallBalance.js
-            ./tools/k6/src/web3/test/contractCallDecimals.js
-            ./tools/k6/src/web3/test/contractCallFungibleTokenInfo.js
-            ./tools/k6/src/web3/test/contractCallIdentifier.js
-            ./tools/k6/src/web3/test/contractCallIsToken.js
-            ./tools/k6/src/web3/test/contractCallMultiply.js
-            ./tools/k6/src/web3/test/contractCallName.js
-            ./tools/k6/src/web3/test/contractCallNonFungibleTokenInfo.js
-            ./tools/k6/src/web3/test/contractCallOwnerOf.js
-            ./tools/k6/src/web3/test/contractCallSender.js
-            ./tools/k6/src/web3/test/contractCallSymbol.js
-            ./tools/k6/src/web3/test/contractCallTokenCustomFees.js
-            ./tools/k6/src/web3/test/contractCallTokenDefaultFreezeStatus.js
-            ./tools/k6/src/web3/test/contractCallTokenDefaultKycStatus.js
-            ./tools/k6/src/web3/test/contractCallTokenExpiryInfo.js
-            ./tools/k6/src/web3/test/contractCallTokenInfo.js
-            ./tools/k6/src/web3/test/contractCallTokenKey.js
-            ./tools/k6/src/web3/test/contractCallTokenType.js
-            ./tools/k6/src/web3/test/contractCallTokenURI.js
-            ./tools/k6/src/web3/test/contractCallTotalSupply.js
+          path: ./tools/k6/src/web3/apis.js
           debug: false
           flags: --quiet
           fail-fast: true
