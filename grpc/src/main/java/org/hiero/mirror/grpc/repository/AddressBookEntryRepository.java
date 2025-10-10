@@ -18,8 +18,27 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
             cacheNames = CACHE_NAME,
             unless = "#result == null or #result.size() == 0")
     @Query(
-            value = "select * from address_book_entry where consensus_timestamp = ? and node_id >= ? "
-                    + "order by node_id asc limit ?",
+            value =
+                    """
+        select abe.consensus_timestamp,
+               abe.description,
+               abe.memo,
+               abe.node_id,
+               abe.node_cert_hash,
+               abe.public_key,
+               abe.stake,
+               case
+                   when n.account_id is not null and (n.deleted is null or n.deleted = false)
+                       then n.account_id
+                   else abe.node_account_id
+               end as node_account_id
+        from address_book_entry abe
+        left join node n on n.node_id = abe.node_id
+        where abe.consensus_timestamp = ?
+          and abe.node_id >= ?
+        order by abe.node_id asc
+        limit ?
+        """,
             nativeQuery = true)
     List<AddressBookEntry> findByConsensusTimestampAndNodeId(long consensusTimestamp, long nodeId, int limit);
 }
