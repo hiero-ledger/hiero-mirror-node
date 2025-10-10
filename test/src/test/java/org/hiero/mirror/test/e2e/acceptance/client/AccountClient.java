@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -45,8 +46,9 @@ public class AccountClient extends AbstractNetworkClient {
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
     private final long initialBalance;
 
-    public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public AccountClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
             initialBalance = getBalance();
             log.info(
@@ -61,7 +63,7 @@ public class AccountClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
-        if (Boolean.parseBoolean(System.getenv("HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES"))) {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
             // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
             log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var accountName : accountMap.keySet()) {

@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -30,13 +31,14 @@ public class ContractClient extends AbstractNetworkClient {
 
     private final Map<String, ContractId> contractIds = new ConcurrentHashMap<>();
 
-    public ContractClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public ContractClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
     public void clean() {
-        if (Boolean.parseBoolean(System.getenv("HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES"))) {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
             // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
             log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var contractName : contractIds.keySet()) {

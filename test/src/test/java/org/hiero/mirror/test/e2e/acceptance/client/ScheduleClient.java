@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -23,8 +24,9 @@ public class ScheduleClient extends AbstractNetworkClient {
 
     private final Collection<ScheduleId> scheduleIds = new CopyOnWriteArrayList<>();
 
-    public ScheduleClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public ScheduleClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
