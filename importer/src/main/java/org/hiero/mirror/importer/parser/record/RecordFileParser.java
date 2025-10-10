@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.parser.record;
 
-import static org.hiero.mirror.importer.config.DateRangeCalculator.DateRangeFilter;
 import static org.hiero.mirror.importer.reader.record.ProtoRecordFileReader.VERSION;
 
 import com.google.common.base.Stopwatch;
@@ -136,18 +135,14 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
     }
 
     @Override
-    protected void doFlush(RecordFile streamFile) {
-        super.doFlush(streamFile);
-        applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, streamFile.getConsensusEnd()));
-    }
-
-    @Override
     protected void doParse(RecordFile recordFile) {
-        DateRangeFilter dateRangeFilter = dateRangeCalculator.getFilter(parserProperties.getStreamType());
+        var dateRangeFilter = dateRangeCalculator.getFilter(parserProperties.getStreamType());
         var aggregator = new RecordItemAggregator();
         var count = new AtomicLong(0L);
         boolean shouldLog = log.isDebugEnabled() || log.isTraceEnabled();
         final var logIndex = new AtomicInteger(0);
+
+        applicationEventPublisher.publishEvent(new RecordFileParsedEvent(this, recordFile.getConsensusEnd()));
         recordFile.getItems().forEach(recordItem -> {
             if (shouldLog) {
                 logItem(recordItem);

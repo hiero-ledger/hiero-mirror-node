@@ -54,7 +54,7 @@ import org.mockito.Mock;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.context.ApplicationEventPublisher;
 
-class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, RecordFileParser> {
+final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, RecordFileParser> {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -85,15 +85,16 @@ class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, Reco
         if (parsed) {
             verify(recordItemListener).onItem(recordItem);
             verify(recordStreamFileListener).onEnd(recordFile);
+        } else if (dbError) {
+            verify(recordStreamFileListener, never()).onEnd(recordFile);
+        }
+
+        if (parsed || dbError) {
             // Can't verify the event object since ApplicationEvent has a timestamp field for when the event happened
             verify(applicationEventPublisher)
                     .publishEvent(argThat(e -> e instanceof RecordFileParsedEvent recordFileParsedEvent
                             && recordFileParsedEvent.getConsensusEnd() == recordFile.getConsensusEnd()));
         } else {
-            if (dbError) {
-                verify(recordStreamFileListener, never()).onEnd(recordFile);
-            }
-
             verify(applicationEventPublisher, never()).publishEvent(any());
         }
     }

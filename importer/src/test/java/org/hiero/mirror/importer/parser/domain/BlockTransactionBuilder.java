@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -40,12 +41,16 @@ import com.hedera.hapi.block.stream.output.protoc.UtilPrngOutput;
 import com.hedera.hapi.block.stream.trace.protoc.ContractSlotUsage;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTransactionLog;
+import com.hedera.hapi.block.stream.trace.protoc.ExecutedInitcode;
+import com.hedera.hapi.block.stream.trace.protoc.InitcodeBookends;
 import com.hedera.hapi.block.stream.trace.protoc.SlotRead;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
+import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
@@ -75,10 +80,13 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -242,15 +250,22 @@ public class BlockTransactionBuilder {
         var evmTraceDataBuilder = new EvmTraceDataBuilder(
                         contractCreateResult.getLogInfoList(), recordItem.getSidecarRecords())
                 .partial();
+        convertContractBytecode(
+                evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder, recordItem.isTopLevel());
         convertContractStateChanges(evmTraceDataBuilder, recordItem.getSidecarRecords(), stateChangesBuilder);
-        var traceData =
-                TraceData.newBuilder().setEvmTraceData(evmTraceDataBuilder).build();
+
+        var stateChangesList =
+                recordItem.isTopLevel() ? List.of(stateChangesBuilder.build()) : Collections.<StateChanges>emptyList();
+        var evmTraceData = evmTraceDataBuilder.build();
+        var traceDataList = !EvmTraceData.getDefaultInstance().equals(evmTraceData)
+                ? List.of(TraceData.newBuilder().setEvmTraceData(evmTraceData).build())
+                : Collections.<TraceData>emptyList();
         return new BlockTransactionBuilder.Builder(
                 recordItem.getTransaction(),
                 transactionResult(recordItem),
                 Map.of(CONTRACT_CREATE, transactionOutput),
-                List.of(stateChangesBuilder.build()),
-                List.of(traceData));
+                stateChangesList,
+                traceDataList);
     }
 
     public BlockTransactionBuilder.Builder contractDeleteOrUpdate(RecordItem recordItem) {
@@ -714,14 +729,50 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
+    private void convertContractBytecode(
+            EvmTraceData.Builder evmTraceDataBuilder,
+            List<TransactionSidecarRecord> sidecarRecords,
+            StateChanges.Builder stateChangesBuilder,
+            boolean topLevel) {
+        findFirstSidecarRecord(
+                        sidecarRecords, TransactionSidecarRecord::hasBytecode, TransactionSidecarRecord::getBytecode)
+                .ifPresent(bytecode -> {
+                    stateChangesBuilder.addStateChanges(StateChange.newBuilder()
+                            .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                            .setMapUpdate(MapUpdateChange.newBuilder()
+                                    .setKey(MapChangeKey.newBuilder().setContractIdKey(bytecode.getContractId()))
+                                    .setValue(MapChangeValue.newBuilder()
+                                            .setBytecodeValue(
+                                                    Bytecode.newBuilder().setCode(bytecode.getRuntimeBytecode())))));
+                    if (!topLevel && !bytecode.getInitcode().isEmpty()) {
+                        var initcode = Hex.encodeHexString(DomainUtils.toBytes(bytecode.getInitcode()));
+                        var runtimeBytecode = Hex.encodeHexString(DomainUtils.toBytes(bytecode.getRuntimeBytecode()));
+
+                        var executedInitcode = ExecutedInitcode.newBuilder();
+                        int index = initcode.indexOf(runtimeBytecode);
+                        if (index == -1) {
+                            executedInitcode.setExplicitInitcode(bytecode.getInitcode());
+                        } else {
+                            executedInitcode.setInitcodeBookends(InitcodeBookends.newBuilder()
+                                    .setDeployBytecode(ByteString.fromHex(initcode.substring(0, index)))
+                                    .setMetadataBytecode(
+                                            ByteString.fromHex(initcode.substring(index + runtimeBytecode.length()))));
+                        }
+
+                        evmTraceDataBuilder.setExecutedInitcode(executedInitcode);
+                    }
+                });
+    }
+
     private void convertContractStateChanges(
             EvmTraceData.Builder evmTraceDataBuilder,
             List<TransactionSidecarRecord> sidecarRecords,
             StateChanges.Builder stateChangesBuilder) {
-        var contractStateChanges = sidecarRecords.stream()
-                .filter(TransactionSidecarRecord::hasStateChanges)
-                .findFirst()
-                .map(r -> r.getStateChanges().getContractStateChangesList())
+        var contractStateChanges = findFirstSidecarRecord(
+                        sidecarRecords,
+                        TransactionSidecarRecord::hasStateChanges,
+                        TransactionSidecarRecord::getStateChanges)
+                .map(ContractStateChanges::getContractStateChangesList)
                 .orElse(null);
         if (CollectionUtils.isEmpty(contractStateChanges)) {
             return;
@@ -735,7 +786,7 @@ public class BlockTransactionBuilder {
                         .setKey(MapChangeKey.newBuilder()
                                 .setSlotKeyKey(SlotKey.newBuilder()
                                         .setContractID(recordItemBuilder.contractId())
-                                        .setKey(recordItemBuilder.bytes(32))))
+                                        .setKey(recordItemBuilder.slot())))
                         .setValue(MapChangeValue.newBuilder()
                                 .setSlotValueValue(SlotValue.newBuilder().setValue(recordItemBuilder.bytes(8))))));
         var contractStorageSlotCounts = new HashMap<ContractID, Integer>();
@@ -783,6 +834,13 @@ public class BlockTransactionBuilder {
 
             evmTraceDataBuilder.addContractSlotUsages(slotUsage.build());
         }
+    }
+
+    private <T> Optional<T> findFirstSidecarRecord(
+            List<TransactionSidecarRecord> sidecarRecords,
+            Predicate<TransactionSidecarRecord> predicate,
+            Function<TransactionSidecarRecord, T> getter) {
+        return sidecarRecords.stream().filter(predicate).findFirst().map(getter);
     }
 
     private List<StateChange> getSerialNumbersStateChanges(List<Long> serialNumbers, TokenID tokenId) {

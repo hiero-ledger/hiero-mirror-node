@@ -4,9 +4,11 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -17,12 +19,14 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
-class EthereumTransactionHandler extends AbstractTransactionHandler {
+final class EthereumTransactionHandler extends AbstractTransactionHandler {
 
+    private final ContractBytecodeService contractBytecodeService;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
     private final EthereumTransactionParser ethereumTransactionParser;
@@ -48,6 +52,32 @@ class EthereumTransactionHandler extends AbstractTransactionHandler {
     @Override
     public TransactionType getType() {
         return TransactionType.ETHEREUMTRANSACTION;
+    }
+
+    @Override
+    public void updateContractResult(ContractResult contractResult, RecordItem recordItem) {
+        if (!recordItem.isBlockstream()) {
+            super.updateContractResult(contractResult, recordItem);
+            return;
+        }
+
+        if (recordItem.getEthereumTransaction() == null) {
+            return;
+        }
+
+        // In blockstreams, no EvmTransactionResult.internal_call_context is populated for ethereum transactions.
+        // The values for the fields amount / gasLimit / functionParameters should get populated from the transaction
+        // body and the call data file if offloaded.
+        var ethereumTransaction = recordItem.getEthereumTransaction();
+        contractResult.setAmount(new BigInteger(ethereumTransaction.getValue()).longValue());
+        contractResult.setGasLimit(ethereumTransaction.getGasLimit());
+
+        if (!ArrayUtils.isEmpty(ethereumTransaction.getCallData())) {
+            contractResult.setFunctionParameters(ethereumTransaction.getCallData());
+        } else if (ethereumTransaction.getCallDataId() != null) {
+            byte[] bytecode = contractBytecodeService.get(ethereumTransaction.getCallDataId());
+            contractResult.setFunctionParameters(bytecode);
+        }
     }
 
     @Override

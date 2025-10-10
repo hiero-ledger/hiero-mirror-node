@@ -31,6 +31,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
@@ -238,6 +239,16 @@ class DomainUtilsTest {
     })
     void convertInstantToNanosMax(Instant instant, long expected) {
         assertThat(DomainUtils.convertToNanosMax(instant)).isEqualTo(expected);
+    }
+
+    @Test
+    void isSystemEntity() {
+        assertThat(DomainUtils.isSystemEntity(null)).isFalse();
+        assertThat(DomainUtils.isSystemEntity(EntityId.EMPTY)).isFalse();
+
+        var domainBuilder = new DomainBuilder();
+        assertThat(DomainUtils.isSystemEntity(domainBuilder.entityNum(999))).isTrue();
+        assertThat(DomainUtils.isSystemEntity(domainBuilder.entityNum(1000))).isFalse();
     }
 
     @ParameterizedTest(name = "leftPadBytes: ({0}, {1}): {2}")
