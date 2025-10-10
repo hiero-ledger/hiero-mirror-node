@@ -473,6 +473,7 @@ function waitForK6PodExecution() {
     sleep 1
   done
 
+  log "downloading artifacts for job ${job}"
   kubectl testkube download artifacts "${job}"
   cat artifacts/report.md
 }
