@@ -173,22 +173,23 @@ Create a new table to store hook information:
 
 ```sql
 -- add_hooks_support.sql
-create type hook_type as enum ('LAMBDA', 'PURE');
+create type hook_type as enum ('LAMBDA');
 create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 create table if not exists hook
 (
-    contract_id       bigint                not null,
-    created_timestamp bigint                not null,
-    hook_id           bigint                not null,
-    owner_id          bigint                not null,
-    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type              hook_type             not null default 'LAMBDA',
-    deleted           boolean               not null default false,
-    admin_key         bytea,
+    contract_id         bigint                not null,
+    created_timestamp   bigint,
+    hook_id             bigint                not null,
+    modified_timestamp  bigint                not null,
+    owner_id            bigint                not null,
+    extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type                hook_type             not null default 'LAMBDA',
+    deleted             boolean               not null default false,
+    admin_key           bytea,
 
     primary key (owner_id, hook_id)
-    );
+);
 
 select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
 ```
@@ -222,11 +223,12 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    consensus_timestamp bigint not null,
-    hook_id             bigint not null,
-    owner_id            bigint not null,
-    key                 bytea  not null,
-    value               bytea  not null,
+    created_timestamp  bigint not null,
+    hook_id            bigint not null,
+    modified_timestamp bigint not null,
+    owner_id           bigint not null,
+    key                bytea  not null,
+    value              bytea  not null,
 
     primary key (owner_id, hook_id, key)
 );
@@ -249,7 +251,7 @@ public class Hook {
 
     private byte[] adminKey;
     private long contractId;
-    private long createdTimestamp;
+    private Long createdTimestamp;
     private boolean deleted;
     private HookExtensionPoint extensionPoint;
     private long hookId;
@@ -268,6 +270,7 @@ public class Hook {
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 @IdClass(HookStorage.Id.class)
+@Upsertable
 public class HookStorage {
 
     private long createdTimestamp;
@@ -334,7 +337,7 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
     create Hook entity with:
         - composite ID (owner_id, hook_id) from transaction
         - extension point from protobuf enum
-        - hook type (PURE or LAMBDA)
+        - hook type (LAMBDA)
         - admin key if present
         - contract_id
         - deleted = false
@@ -588,13 +591,12 @@ Feature: Hook Management
     When I update <owner_type> to add hooks:
       | type   | extension_point        |
       | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
-      | PURE   | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
     And I query mirror node REST API for <owner_type> hooks
-    Then the response contains 2 hooks with types "LAMBDA" and "PURE"
+    Then the response contains 1 hook with type "LAMBDA"
     When I perform a CryptoTransfer that triggers hook execution for <owner_type>
     And the mirror node processes the transactions
-    Then I verify mirror node receives 2 ContractCall transactions to address '0.0.365'
+    Then I verify mirror node receives 1 ContractCall transaction to address '0.0.365'
     And I query mirror node REST API to get storage for <owner_type> hook 'LAMBDA'
     Then I receive storage entries
     When I successfully update <owner_type> to delete hooks
