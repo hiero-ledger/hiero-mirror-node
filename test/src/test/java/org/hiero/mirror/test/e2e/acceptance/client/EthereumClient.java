@@ -33,8 +33,9 @@ public class EthereumClient extends AbstractNetworkClient {
 
     private final Map<PrivateKey, BigInteger> accountNonce = new ConcurrentHashMap<>();
 
-    public EthereumClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public EthereumClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override

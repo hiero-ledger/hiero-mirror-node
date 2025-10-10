@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -39,8 +40,9 @@ public class TopicClient extends AbstractNetworkClient {
     private final Map<Long, Instant> recordPublishInstants;
     private final Collection<TopicId> topicIds = new CopyOnWriteArrayList<>();
 
-    public TopicClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public TopicClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         recordPublishInstants = new ConcurrentHashMap<>();
     }
 

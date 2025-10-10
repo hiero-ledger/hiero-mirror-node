@@ -51,6 +51,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -65,13 +66,14 @@ public class TokenClient extends AbstractNetworkClient {
     private final PrivateKey initialMetadataKey = PrivateKey.generateECDSA();
     private final byte[] initialMetadata = nextBytes(4);
 
-    public TokenClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public TokenClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
     public void clean() {
-        if (Boolean.parseBoolean(System.getenv("HIERO_MIRROR_TEST_ACCEPTANCE_SKIP_CLEANUP_ENTITIES"))) {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
             // In CI we don't want to cleanup as the entities are needed in the k6 test in the next step.
             log.warn("Acceptance tests running in CI -> skip cleanup.");
             for (var tokenName : tokenMap.keySet()) {
