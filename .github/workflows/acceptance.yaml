@@ -192,6 +192,19 @@ jobs:
         run: |
           echo "Port forwarding 8080:80"
           kubectl port-forward "service/mirror-web3" -n mirror 8080:80 &
+          kubectl port-forward "service/mirror-rest" -n mirror 5551:80 &
+
+      - name: Run k6 rest tests
+        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+        env:
+          BASE_URL: "http://localhost:5551"
+          DEFAULT_DURATION: "3s"
+          DEFAULT_VUS: 2
+        with:
+          path: ./tools/k6/src/rest/apis.js
+          debug: false
+          flags: --quiet
+          fail-fast: true
 
       - name: Run k6 web3 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
