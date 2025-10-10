@@ -490,7 +490,7 @@ function waitForK6PodExecution() {
   log "downloading artifacts for job ${job}"
   until {
     rm -f artifacts/report.md 2>/dev/null || true
-    kubectl testkube -n "${TEST_KUBE_NAMESPACE}" download artifacts "${job}"  >/dev/null 2>&1
+    kubectl testkube download artifacts "${job}"  >/dev/null 2>&1
     [[ -s artifacts/report.md ]]
   }; do
     log "Waiting for artifacts to be available"
