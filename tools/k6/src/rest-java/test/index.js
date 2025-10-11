@@ -7,6 +7,7 @@ import * as accountsNftAllowanceOwner from './accountsNftAllowanceOwner.js';
 import * as accountsNftAllowanceSpender from './accountsNftAllowanceSpender.js';
 import * as accountsPendingAirdrop from './accountsPendingAirdrop.js';
 import * as accountsOutstandingAirdrop from './accountsOutstandingAirdrop.js';
+import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkStake from './networkStake.js';
 import * as topicsId from './topicsId.js';
 import * as rampUp from './rampUp.js';
@@ -17,6 +18,7 @@ const tests = {
   accountsNftAllowanceSpender,
   accountsPendingAirdrop,
   accountsOutstandingAirdrop,
+  networkExchangeRate,
   networkStake,
   topicsId,
   rampUp,

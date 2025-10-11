@@ -4827,7 +4827,7 @@ components:
         type: array
         items:
           type: string
-          pattern: ^((eq|gt|gte|lt|lte|ne):)?\d{1,10}(.\d{1,9})?$
+          pattern: ^((eq|gt|gte|lt|lte|ne):)?\d{1,10}(\.\d{1,9})?$
     timestampPathParam:
       name: timestamp
       in: path
@@ -4836,7 +4836,7 @@ components:
       example: 1234567890.000000700
       schema:
         type: string
-        pattern: ^\d{1,10}(.\d{1,9})?$
+        pattern: ^\d{1,10}(\.\d{1,9})?$
     stateTimestampQueryParam:
       description: The consensus timestamp of the contract state as a Unix timestamp in seconds.nanoseconds format with an optional comparison operator. See [unixtimestamp.com](https://www.unixtimestamp.com/) for a simple way to convert a date to the 'seconds' part of the Unix time.
       name: timestamp
@@ -4886,7 +4886,7 @@ components:
         type: array
         items:
           type: string
-          pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(.\d{1,9})?$
+          pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(\.\d{1,9})?$
     tokenInfoTimestampQueryParam:
       description: The Unix timestamp in seconds.nanoseconds format. See [unixtimestamp.com](https://www.unixtimestamp.com/) for a simple way to convert a date to the 'seconds' part of the Unix time.
       name: timestamp
@@ -4922,7 +4922,7 @@ components:
           value: lte:1234567890.000000700
       schema:
         type: string
-        pattern: ^((eq|lt|lte):)?\d{1,10}(.\d{1,9})?$
+        pattern: ^((eq|lt|lte):)?\d{1,10}(\.\d{1,9})?$
     logTopic0QueryParam:
       name: topic0
       in: query
