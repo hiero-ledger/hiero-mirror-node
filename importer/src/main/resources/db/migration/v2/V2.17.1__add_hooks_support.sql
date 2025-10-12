@@ -39,7 +39,10 @@ create table if not exists hook_storage_change
 comment on table hook_storage_change is 'Historical changes to hook storage state';
 
 select create_distributed_table('hook_storage_change', 'owner_id', colocate_with => 'entity');
-select create_time_partitions('hook_storage_change', 'consensus_timestamp', true);
+select create_time_partitions(table_name :='public.hook_storage_change',
+                              partition_interval := ${partitionTimeInterval},
+                              start_from := ${partitionStartDate}::timestamptz,
+                              end_at := CURRENT_TIMESTAMP + ${partitionTimeInterval});
 
 -- Hook storage table (current state)
 create table if not exists hook_storage
@@ -52,7 +55,7 @@ create table if not exists hook_storage
     value               bytea  not null,
 
     primary key (owner_id, hook_id, key)
-)
+);
 comment on table hook_storage is 'Current state of hook storage';
 
 select create_distributed_table('hook_storage', 'owner_id', colocate_with => 'entity');
