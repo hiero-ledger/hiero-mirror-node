@@ -14,12 +14,12 @@ import org.mapstruct.Mapping;
 @Mapper(config = MapperConfiguration.class, uses = CommonMapper.class)
 public interface ExchangeRateMapper {
 
-    @Mapping(source = "source.protobuf.currentRate", target = "currentRate")
-    @Mapping(source = "source.protobuf.nextRate", target = "nextRate")
-    @Mapping(source = "source.fileData.consensusTimestamp", target = "timestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
+    @Mapping(source = "protobuf.currentRate", target = "currentRate")
+    @Mapping(source = "protobuf.nextRate", target = "nextRate")
+    @Mapping(source = "fileData.consensusTimestamp", target = "timestamp", qualifiedByName = QUALIFIER_TIMESTAMP)
     NetworkExchangeRateSetResponse map(SystemFile<ExchangeRateSet> source);
 
-    @Mapping(source = "source.centEquiv", target = "centEquivalent")
-    @Mapping(source = "source.hbarEquiv", target = "hbarEquivalent")
+    @Mapping(source = "centEquiv", target = "centEquivalent")
+    @Mapping(source = "hbarEquiv", target = "hbarEquivalent")
     ExchangeRate map(com.hederahashgraph.api.proto.java.ExchangeRate source);
 }

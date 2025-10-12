@@ -22,7 +22,7 @@ final class FileServiceTest extends RestJavaIntegrationTest {
 
     @Test
     void getExchangeRateSuccess() {
-        // Given
+        // given
         final var exchangeRateSet = ExchangeRateSet.newBuilder().build();
         final var fileData = domainBuilder
                 .fileData()
@@ -30,26 +30,26 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                 .persist();
         final var bound = bound(RangeOperator.EQ, fileData);
 
-        // When
+        // when
         final var actual = service.getExchangeRate(bound);
 
-        // Then
+        // then
         fileData.setTransactionType(null);
         assertThat(actual).isEqualTo(new SystemFile<>(fileData, exchangeRateSet));
     }
 
     @Test
     void getExchangeRateNotFound() {
-        // Given
+        // given
         final var bound = bound(RangeOperator.GTE, domainBuilder.fileData().get());
 
-        // When/Then
+        // when / then
         assertThatThrownBy(() -> service.getExchangeRate(bound)).isInstanceOf(EntityNotFoundException.class);
     }
 
     @Test
     void getExchangeRateRecovers() {
-        // Given
+        // given
         final var exchangeRateSet = ExchangeRateSet.newBuilder().build();
         final var fileData = domainBuilder
                 .fileData()
@@ -61,10 +61,10 @@ final class FileServiceTest extends RestJavaIntegrationTest {
                 .persist();
         final var bound = bound(RangeOperator.GTE, fileData);
 
-        // When
+        // when
         final var actual = service.getExchangeRate(bound);
 
-        // Then
+        // then
         fileData.setTransactionType(null);
         assertThat(actual).isEqualTo(new SystemFile<>(fileData, exchangeRateSet));
     }

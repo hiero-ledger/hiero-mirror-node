@@ -31,7 +31,7 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
 
     @Test
     void getFileAtTimestamp() {
-        // Given
+        // given
         final var fileData1 = fileData(FILECREATE, 100);
         final var fileData2 = fileData(FILEAPPEND, 10);
         final var fileData3 = fileData(FILEUPDATE, 0);
@@ -39,7 +39,7 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
         final var fileData5 = fileData(FILEUPDATE, 50);
         final var fileData6 = fileData(FILEAPPEND, 10);
 
-        // When / Then
+        // when / then
         assertFileData(0L, fileData1.getConsensusTimestamp(), fileData1);
         assertFileData(0L, fileData2.getConsensusTimestamp(), fileData1, fileData2);
         assertFileData(0L, fileData3.getConsensusTimestamp(), fileData1, fileData2);
@@ -59,14 +59,14 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
 
     @Test
     void getFileAtTimestampWrongEntity() {
-        // Given
+        // given
         fileData(FILECREATE, 100);
         final var wrongId = domainBuilder.entityId().getId();
 
-        // When
+        // when
         final var actual = fileDataRepository.getFileAtTimestamp(wrongId, 0L, Long.MAX_VALUE);
 
-        // Then
+        // then
         assertThat(actual).isEmpty();
     }
 

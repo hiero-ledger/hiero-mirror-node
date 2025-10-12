@@ -10,6 +10,7 @@ import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
@@ -23,7 +24,7 @@ import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class CommonMapperTest {
+final class CommonMapperTest {
 
     private final CommonMapper commonMapper = Mappers.getMapper(CommonMapper.class);
     private final DomainBuilder domainBuilder = new DomainBuilder();
@@ -177,6 +178,23 @@ class CommonMapperTest {
         assertThat(commonMapper.mapRange(Range.openClosed(110000000L, 1100000000L)))
                 .usingRecursiveComparison()
                 .isEqualTo(range);
+    }
+
+    @Test
+    void mapTimestamp() {
+        assertThat(commonMapper.mapTimestamp(null)).isNull();
+        assertThat(commonMapper.mapTimestamp(0L)).isEqualTo("0.0");
+        assertThat(commonMapper.mapTimestamp(123456789L)).isEqualTo("0.123456789");
+        assertThat(commonMapper.mapTimestamp(123456789000000000L)).isEqualTo("123456789.000000000");
+        assertThat(commonMapper.mapTimestamp(123456789012345678L)).isEqualTo("123456789.012345678");
+    }
+
+    @Test
+    void mapTimestampSeconds() {
+        assertThat(commonMapper.mapTimestampSeconds(null)).isNull();
+        assertThat(commonMapper.mapTimestampSeconds(
+                        TimestampSeconds.newBuilder().setSeconds(12345).build()))
+                .isEqualTo(12345);
     }
 
     private org.hiero.mirror.rest.model.Key toKey(byte[] bytes, TypeEnum type) {

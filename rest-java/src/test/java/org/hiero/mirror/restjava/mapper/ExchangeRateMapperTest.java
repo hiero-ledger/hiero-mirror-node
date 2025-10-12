@@ -31,21 +31,25 @@ final class ExchangeRateMapperTest {
 
     @Test
     void map() {
+        // given
         final var fileData = domainBuilder.fileData().get();
         final var systemFile = new SystemFile<>(fileData, EXCHANGE_RATE_SET);
-        assertThat(mapper.map(systemFile))
-                .returns(EXCHANGE_RATE_SET.getCurrentRate().getCentEquiv(), n -> n.getCurrentRate()
-                        .getCentEquivalent())
-                .returns(EXCHANGE_RATE_SET.getCurrentRate().getExpirationTime().getSeconds(), n -> n.getCurrentRate()
+        final var currentRate = EXCHANGE_RATE_SET.getCurrentRate();
+        final var nextRate = EXCHANGE_RATE_SET.getNextRate();
+
+        // when
+        final var result = mapper.map(systemFile);
+
+        // then
+        assertThat(result)
+                .returns(currentRate.getCentEquiv(), n -> n.getCurrentRate().getCentEquivalent())
+                .returns(currentRate.getExpirationTime().getSeconds(), n -> n.getCurrentRate()
                         .getExpirationTime())
-                .returns(EXCHANGE_RATE_SET.getCurrentRate().getHbarEquiv(), n -> n.getCurrentRate()
-                        .getHbarEquivalent())
-                .returns(EXCHANGE_RATE_SET.getNextRate().getCentEquiv(), n -> n.getNextRate()
-                        .getCentEquivalent())
-                .returns(EXCHANGE_RATE_SET.getNextRate().getExpirationTime().getSeconds(), n -> n.getNextRate()
+                .returns(currentRate.getHbarEquiv(), n -> n.getCurrentRate().getHbarEquivalent())
+                .returns(nextRate.getCentEquiv(), n -> n.getNextRate().getCentEquivalent())
+                .returns(nextRate.getExpirationTime().getSeconds(), n -> n.getNextRate()
                         .getExpirationTime())
-                .returns(EXCHANGE_RATE_SET.getNextRate().getHbarEquiv(), n -> n.getNextRate()
-                        .getHbarEquivalent())
+                .returns(nextRate.getHbarEquiv(), n -> n.getNextRate().getHbarEquivalent())
                 .returns(
                         commonMapper.mapTimestamp(fileData.getConsensusTimestamp()),
                         NetworkExchangeRateSetResponse::getTimestamp);
@@ -53,12 +57,18 @@ final class ExchangeRateMapperTest {
 
     @Test
     void mapNulls() {
+        // given
         final var fileData = domainBuilder
                 .fileData()
                 .customize(f -> f.consensusTimestamp(null))
                 .get();
         final var systemFile = new SystemFile<>(fileData, ExchangeRateSet.getDefaultInstance());
-        assertThat(mapper.map(systemFile))
+
+        // when
+        final var result = mapper.map(systemFile);
+
+        // then
+        assertThat(result)
                 .returns(null, NetworkExchangeRateSetResponse::getCurrentRate)
                 .returns(null, NetworkExchangeRateSetResponse::getNextRate)
                 .returns(null, NetworkExchangeRateSetResponse::getTimestamp);

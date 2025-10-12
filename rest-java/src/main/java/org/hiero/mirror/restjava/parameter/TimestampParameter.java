@@ -10,9 +10,9 @@ import org.hiero.mirror.restjava.common.RangeParameter;
 
 public record TimestampParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 
-    public static final String ERROR = "Invalid timestamp parameter";
     public static final TimestampParameter EMPTY = new TimestampParameter(null, null);
 
+    private static final String ERROR = "Invalid timestamp parameter";
     private static final Pattern PATTERN =
             Pattern.compile("^((eq|gt|gte|lt|lte|ne):)?(\\d{1,17})(\\.(\\d{1,9}))?$", Pattern.CASE_INSENSITIVE);
 
