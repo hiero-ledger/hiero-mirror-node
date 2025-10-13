@@ -180,8 +180,7 @@ jobs:
               awk -F'=' '{print $NF}' | \
               tail -n 1 | \
               tr -d '[:space:]' || true)
-            echo "${key}=${value}"
-            echo "${key}=${value}" >> $GITHUB_OUTPUT
+            echo "${key}=${value}" >> $GITHUB_ENV
           done
 
       - name: Install k6
@@ -201,22 +200,22 @@ jobs:
           ACCOUNT_ADDRESS: ${{ steps.log-variables.outputs.ACCOUNT_ADDRESS }}
           AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
           BASE_URL: "http://127.0.0.1:8080"
-          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
+          #          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
-          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
-          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
-          HTS_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.PRECOMPILE_CONTRACT }}
+          #          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
+          #          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
+          #          HTS_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.PRECOMPILE_CONTRACT }}
           KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
-          PAYER_ACCOUNT: ${{ steps.log-variables.outputs.PAYER_ACCOUNT }}
+          #          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
+          #          PAYER_ACCOUNT: ${{ steps.log-variables.outputs.PAYER_ACCOUNT }}
           RUN_COMPLEX_TESTS: "false"
           RUN_ESTIMATE_TESTS: "false"
           RUN_MODIFICATION_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
-          WEB3_TEST_INCLUDE: "./tools/k6/src/web3/test/contractCallRampUp.js,./tools/k6/src/web3/test/contractCallApproved.js,./tools/k6/src/web3/test/contractCallBalance.js,./tools/k6/src/web3/test/contractCallDecimals.js,./tools/k6/src/web3/test/contractCallFungibleTokenInfo.js,./tools/k6/src/web3/test/contractCallIdentifier.js,./tools/k6/src/web3/test/contractCallIsToken.js,./tools/k6/src/web3/test/contractCallMultiply.js,./tools/k6/src/web3/test/contractCallName.js,./tools/k6/src/web3/test/contractCallNonFungibleTokenInfo.js,./tools/k6/src/web3/test/contractCallOwnerOf.js,./tools/k6/src/web3/test/contractCallSender.js,./tools/k6/src/web3/test/contractCallSymbol.js,./tools/k6/src/web3/test/contractCallTokenCustomFees.js,./tools/k6/src/web3/test/contractCallTokenDefaultFreezeStatus.js,./tools/k6/src/web3/test/contractCallTokenDefaultKycStatus.js,./tools/k6/src/web3/test/contractCallTokenExpiryInfo.js,./tools/k6/src/web3/test/contractCallTokenInfo.js,./tools/k6/src/web3/test/contractCallTokenKey.js,./tools/k6/src/web3/test/contractCallTokenType.js,./tools/k6/src/web3/test/contractCallTokenURI.js,./tools/k6/src/web3/test/contractCallTotalSupply.js"
+          #          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
+          WEB3_TEST_INCLUDE: ".*/contractCall(RampUp|Approved|Balance|Decimals|FungibleTokenInfo|Identifier|IsToken|Multiply|Name|NonFungibleTokenInfo|OwnerOf|Sender|Symbol|TokenCustomFees|TokenDefaultFreezeStatus|TokenDefaultKycStatus|TokenExpiryInfo|TokenInfo|TokenKey|TokenType|TokenURI|TotalSupply).js"
         with:
           path: ./tools/k6/src/web3/apis.js
           debug: false
