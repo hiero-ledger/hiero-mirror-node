@@ -176,11 +176,14 @@ jobs:
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
 
           for key in "${!k6Map[@]}"; do
-            value=$(grep -E "${key}=" "$LOG_FILE" | \
+            value=$(grep -E "\b${key}=" "$LOG_FILE" | \
               awk -F'=' '{print $NF}' | \
               tail -n 1 | \
               tr -d '[:space:]' || true)
             echo "${key}=${value}" >> $GITHUB_ENV
+
+            value2=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE")
+            echo "Option 2: ${key}=${value2}"
           done
 
       - name: Install k6
