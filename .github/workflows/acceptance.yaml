@@ -215,7 +215,8 @@ jobs:
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
           #          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
-          WEB3_TEST_INCLUDE: ".*/contractCall(RampUp|Approved|Balance|Decimals|FungibleTokenInfo|Identifier|IsToken|Multiply|Name|NonFungibleTokenInfo|OwnerOf|Sender|Symbol|TokenCustomFees|TokenDefaultFreezeStatus|TokenDefaultKycStatus|TokenExpiryInfo|TokenInfo|TokenKey|TokenType|TokenURI|TotalSupply).js"
+          #          WEB3_TEST_INCLUDE: ".*/contractCall(Approved|Balance|Decimals|FungibleTokenInfo|Identifier|IsToken|Multiply|Name|NonFungibleTokenInfo|OwnerOf|Sender|Symbol|TokenCustomFees|TokenDefaultFreezeStatus|TokenDefaultKycStatus|TokenExpiryInfo|TokenInfo|TokenKey|TokenType|TokenURI|TotalSupply).js"
+          WEB3_TEST_INCLUDE: ".*/contractCall(?!.*Estimate)(?!RampUp|Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).js"
         with:
           path: ./tools/k6/src/web3/apis.js
           debug: false
@@ -223,7 +224,7 @@ jobs:
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        if: ${{ failure() }}
+        #        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
