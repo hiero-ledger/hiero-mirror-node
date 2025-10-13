@@ -780,7 +780,7 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I execute contractCall for failing precompile function and verify gasConsumed")
     public void failingPrecompileFunction() {
         gasConsumedSelector = encodeDataToByteArray(PRECOMPILE, IS_TOKEN_SELECTOR, fungibleTokenAddress);
-        var txId = executeContractTransaction(deployedPrecompileContract, 25400L, IS_TOKEN_SELECTOR);
+        var txId = executeContractTransaction(deployedPrecompileContract, 21216L, IS_TOKEN_SELECTOR);
         verifyGasConsumed(txId);
     }
 
@@ -788,14 +788,16 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployContractViaCreate() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
         var txId = executeContractTransaction(deployedContract, DEPLOY_CONTRACT_VIA_CREATE_OPCODE);
-        verifyGasConsumed(txId);
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Then("I execute contractCall for contract deploy function via create2 and verify gasConsumed")
     public void deployContractViaCreateTwo() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
         var txId = executeContractTransaction(deployedContract, DEPLOY_CONTRACT_VIA_CREATE_2_OPCODE);
-        verifyGasConsumed(txId);
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Then("I execute contractCall failing to deploy contract due to low gas and verify gasConsumed")
@@ -809,55 +811,57 @@ public class EstimateFeature extends AbstractEstimateFeature {
     public void deployAndCallContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_CALL_CONTRACT, new BigInteger("5"));
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_CALL_CONTRACT);
-        verifyGasConsumed(txId);
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Then("I execute deploy and call contract that fails and verify gasConsumed")
     public void deployAndCallFailContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_CALL_CONTRACT, new BigInteger("11"));
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_CALL_CONTRACT);
-        verifyGasConsumed(txId);
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Then("I execute deploy and selfdestruct and verify gasConsumed")
     public void deployAndSelfDestructContract() {
         gasConsumedSelector = encodeDataToByteArray(ESTIMATE_GAS, DEPLOY_AND_DESTROY);
         var txId = executeContractTransaction(deployedContract, DEPLOY_AND_DESTROY);
-        verifyGasConsumed(txId);
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Then("I execute create operation with bad contract and verify gasConsumed")
     public void deployBadContract() {
         var contractPath = "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/DummyContract.json";
         var txId = createContractAndReturnTransactionId(contractPath);
+        var contractId = Objects.requireNonNull(
+                        mirrorClient.getTransactions(txId).getTransactions())
+                .getFirst()
+                .getEntityId();
         gasConsumedSelector = Objects.requireNonNull(
                 mirrorClient.getContractResultByTransactionId(txId).getFailedInitcode());
-        verifyGasConsumed(txId);
+        verifyGasConsumed(txId, contractId, false);
     }
 
     @Then("I execute create operation with complex contract and verify gasConsumed")
     public void deployEstimateContract() {
         var contractPath = ESTIMATE_GAS.getPath();
         var txId = createContractAndReturnTransactionId(contractPath);
-        var contractId = Objects.requireNonNull(
-                        mirrorClient.getTransactions(txId).getTransactions())
-                .getFirst()
-                .getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
-        verifyGasConsumed(txId);
+        verifyGasConsumed(txId, contractId, false);
     }
 
     @Then("I execute create operation with complex contract and lower gas limit and verify gasConsumed")
     public void deployEstimateContractWithLowGas() {
         var contractPath = ESTIMATE_GAS.getPath();
         var txId = createContractAndReturnTransactionId(contractPath, 2150000L);
-        var transactions =
-                Objects.requireNonNull(mirrorClient.getTransactions(txId).getTransactions());
-        var contractId = transactions.getFirst().getEntityId();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
         gasConsumedSelector =
                 Objects.requireNonNull(mirrorClient.getContractInfo(contractId).getBytecode());
-        verifyGasConsumed(txId);
+        verifyGasConsumed(txId, contractId, false);
     }
 
     private String executeContractTransaction(DeployedContract deployedContract, SelectorInterface contractMethods) {

@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -632,6 +633,25 @@ class AccountReadableKVStateTest {
     @Test
     void iterateReturnsEmptyIterator() {
         assertThat(accountReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
+    }
+
+    @Test
+    void returnsNullForNonSystemAccountWhenNotFound() {
+        final var nonSystemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 2000L));
+        when(commonEntityAccessor.get(eq(nonSystemKey), any())).thenReturn(Optional.empty());
+
+        assertThat(accountReadableKVState.readFromDataSource(nonSystemKey)).isNull();
+    }
+
+    @Test
+    void returnsDummyAccountForSystemAccountWhenNotFound() {
+        final var systemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
+        when(commonEntityAccessor.get(systemKey, Optional.empty())).thenReturn(Optional.empty());
+
+        assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
+                .isNotNull()
+                .returns(systemKey, Account::accountId)
+                .returns(0L, Account::tinybarBalance));
     }
 
     private AccountID getAccountId(final Long num) {

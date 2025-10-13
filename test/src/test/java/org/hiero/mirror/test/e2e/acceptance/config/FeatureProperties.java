@@ -19,6 +19,8 @@ public class FeatureProperties {
 
     private boolean contractCallLocalEstimate = true;
 
+    private int hapiMinorVersionWithoutGasRefund = 67;
+
     @Min(1)
     @Max(10_000_000)
     private long maxContractFunctionGas = 5_250_000;
