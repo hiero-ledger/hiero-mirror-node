@@ -8,7 +8,6 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.Selecto
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
-import com.esaulpaugh.headlong.util.Strings;
 import com.google.common.base.Suppliers;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
@@ -120,7 +119,6 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
                 && (VIEW.equals(method.getFunctionType()) || PURE.equals(method.getFunctionType()))) {
             try {
                 var data = params.toBytes(method.getSelector()).toByteArray();
-                System.out.printf("Performing ContractCallLocal with data: " + Strings.encode(data) + "\n");
                 contractClient.executeContractQuery(contractId, method.getSelector(), estimateGasResult, data);
             } catch (PrecheckStatusException | TimeoutException e) {
                 throw new RuntimeException(e);

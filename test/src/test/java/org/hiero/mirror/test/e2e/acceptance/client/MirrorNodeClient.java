@@ -14,7 +14,6 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
-import com.hedera.hashgraph.sdk.LedgerId;
 import com.hedera.hashgraph.sdk.MirrorNodeContractEstimateGasQuery;
 import com.hedera.hashgraph.sdk.SubscriptionHandle;
 import com.hedera.hashgraph.sdk.TokenId;
@@ -80,7 +79,6 @@ import org.hiero.mirror.rest.model.TransactionsResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.RestJavaProperties;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
-import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractMethodInterface;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
@@ -105,7 +103,6 @@ public class MirrorNodeClient {
     private final Web3Properties web3Properties;
     private final Supplier<Boolean> partialStateSupplier = Suppliers.memoize(this::computeHasPartialState);
     private final Client queryClient;
-    private final ExpandedAccountId defaultOperator;
 
     public MirrorNodeClient(
             AcceptanceTestProperties acceptanceTestProperties,
@@ -113,8 +110,6 @@ public class MirrorNodeClient {
             RestJavaProperties restJavaProperties,
             Web3Properties web3Properties)
             throws InterruptedException, URISyntaxException {
-        defaultOperator = new ExpandedAccountId(
-                acceptanceTestProperties.getOperatorId(), acceptanceTestProperties.getOperatorKey());
         this.acceptanceTestProperties = acceptanceTestProperties;
         this.restClient = restClientBuilder.build();
         this.restJavaClient = StringUtils.isBlank(restJavaProperties.getBaseUrl())
@@ -724,21 +719,7 @@ public class MirrorNodeClient {
                 ? web3Properties.getEndpoint()
                 : acceptanceTestProperties.getRestProperties().getEndpoint();
 
-        LedgerId ledgerId =
-                resolveLedgerId(acceptanceTestProperties.getNetwork().name());
+        var ledgerId = acceptanceTestProperties.getNetwork().getLedgerId();
         return Client.forNetwork(Map.of()).setMirrorNetwork(List.of(endpoint)).setLedgerId(ledgerId);
-    }
-
-    private LedgerId resolveLedgerId(String networkName) {
-        String normalized = networkName.toLowerCase();
-
-        switch (normalized) {
-            case "mainnet":
-            case "testnet":
-            case "previewnet":
-                return LedgerId.fromString(normalized);
-            default:
-                return null;
-        }
     }
 }
