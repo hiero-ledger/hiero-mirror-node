@@ -197,24 +197,24 @@ jobs:
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
         env:
-          ACCOUNT_ADDRESS: ${{ steps.log-variables.outputs.ACCOUNT_ADDRESS }}
+          ACCOUNT_ADDRESS: ${{ env.ALICE }}
           AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
           BASE_URL: "http://127.0.0.1:8080"
-          #          DEFAULT_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.DEFAULT_CONTRACT_ADDRESS }}
+          DEFAULT_CONTRACT_ADDRESS: ${{ env.PARENT }}
           DEFAULT_DURATION: "3s"
           DEFAULT_VUS: 2
-          #          ERC_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.ERC_CONTRACT_ADDRESS }}
-          #          ESTIMATE_PRECOMPILE_CONTRACT: ${{ steps.log-variables.outputs.ESTIMATE_PRECOMPILE_CONTRACT }}
-          #          HTS_CONTRACT_ADDRESS: ${{ steps.log-variables.outputs.PRECOMPILE_CONTRACT }}
+          ERC_CONTRACT_ADDRESS: ${{ env.ERC }}
+          ESTIMATE_PRECOMPILE_CONTRACT: ${{ env.ESTIMATE_PRECOMPILE }}
+          HTS_CONTRACT_ADDRESS: ${{ env.PRECOMPILE }}
           KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          #          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ steps.log-variables.outputs.NON_FUNGIBLE_TOKEN_ADDRESS }}
-          #          PAYER_ACCOUNT: ${{ steps.log-variables.outputs.PAYER_ACCOUNT }}
+          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ env.non_fungible }}
+          PAYER_ACCOUNT: ${{ env.BOB }}
           RUN_COMPLEX_TESTS: "false"
           RUN_ESTIMATE_TESTS: "false"
           RUN_MODIFICATION_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          #          TOKEN_ADDRESS: ${{ steps.log-variables.outputs.TOKEN_ADDRESS }}
+          TOKEN_ADDRESS: ${{ env.fungible }}
           WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
         with:
           path: |
