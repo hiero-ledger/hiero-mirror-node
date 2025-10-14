@@ -18,7 +18,7 @@ extra.apply {
     set("besuVersion", "24.3.3")
     set("blockNodeVersion", "0.19.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
-    set("grpcVersion", "1.75.0")
+    set("grpcVersion", "1.76.0")
     set("jooq.version", "3.20.8") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.17.1")
@@ -77,7 +77,7 @@ dependencies {
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
-        api("org.gaul:s3proxy:2.7.0")
+        api("org.gaul:s3proxy:2.8.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
@@ -88,7 +88,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.35.0")
+        api("software.amazon.awssdk:bom:2.35.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

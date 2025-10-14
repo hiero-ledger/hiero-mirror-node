@@ -17,6 +17,14 @@ Example invocation using [grpcurl](https://github.com/fullstorydev/grpcurl):
 
 ## Network Service
 
+### Get Fee Estimate
+
+[HIP-1261](https://hips.hedera.com/hip/hip-1261) defines a `getFeeEstimate` API that allows a client to retrieve the
+current fee schedule for a given transaction. See the
+protobuf [definition](../../protobuf/src/main/proto/com/hedera/mirror/api/proto/network_service.proto).
+
+`grpcurl -plaintext -d '{"mode": "STATE", "transaction": {"signedTransactionBytes": ""}}' localhost:5600 com.hedera.mirror.api.proto.NetworkService/getFeeEstimate`
+
 ### Get Nodes
 
 [HIP-21](https://hips.hedera.com/hip/hip-21) describes a need for clients to retrieve address book information without
