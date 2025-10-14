@@ -115,6 +115,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                             onBlockStream.accept(blockStream);
                         }
                     }
+                    case END_OF_BLOCK -> {
+                        // Marks the end of a block; ignore it for now and handle it in a future block node release when
+                        // it becomes required
+                    }
                     case STATUS -> {
                         var status = response.getStatus();
                         if (status == SubscribeStreamResponse.Code.SUCCESS) {
