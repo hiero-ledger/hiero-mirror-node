@@ -76,7 +76,7 @@ final class FileDataRepositoryTest extends RestJavaIntegrationTest {
                     .map(FileData::getFileData)
                     .filter(ArrayUtils::isNotEmpty)
                     .toArray(i -> new byte[i][]));
-            var expected = fileData[0].toBuilder()
+            var expected = fileData[fileData.length - 1].toBuilder()
                     .fileData(bytes)
                     .transactionType(null)
                     .build();

@@ -16,7 +16,7 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class FileDataRepositoryTest extends ImporterIntegrationTest {
+final class FileDataRepositoryTest extends ImporterIntegrationTest {
 
     @Resource
     private FileDataRepository fileDataRepository;
@@ -133,6 +133,7 @@ class FileDataRepositoryTest extends ImporterIntegrationTest {
                 .customize(
                         f -> f.entityId(create.getEntityId()).transactionType(TransactionType.FILEAPPEND.getProtoId()))
                 .persist();
+        expected.setConsensusTimestamp(append.getConsensusTimestamp());
         expected.setFileData(Bytes.concat(create.getFileData(), append.getFileData()));
         softly.assertThat(fileDataRepository.getFileAtTimestamp(entityId, append.getConsensusTimestamp()))
                 .contains(expected);

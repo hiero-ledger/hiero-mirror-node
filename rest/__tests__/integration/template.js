@@ -96,10 +96,7 @@ const getSpecs = async () => {
       walk(specRootPath)
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
-          const specText = fs.readFileSync(f, 'utf8');
-          const spec =
-            f.indexOf('stateproof') > -1 ? JSONParse(specText) : transformShardRealmValues(JSONParse(specText));
-          spec.name = path.basename(f);
+          const spec = readAndTransformSpec(f);
           getResponseHeaders(spec, f);
 
           const key = path.dirname(f).replace(specRootPath, '');
@@ -125,6 +122,14 @@ const getSpecs = async () => {
     specMap[key].push(...specs);
     return specMap;
   }, {});
+};
+
+const readAndTransformSpec = (filepath) => {
+  const text = fs.readFileSync(filepath, 'utf8');
+  const spec = JSONParse(text);
+  const transformed = filepath.indexOf('stateproof') > -1 ? spec : transformShardRealmValues(spec);
+  transformed.name = path.basename(filepath);
+  return transformed;
 };
 
 setupIntegrationTest();
@@ -155,19 +160,12 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
   };
 
   const getTests = (spec) => {
-    const tests = spec.tests || [
-      {
-        url: spec.url,
-        urls: spec.urls,
-        responseJson: spec.responseJson,
-        responseStatus: spec.responseStatus,
-      },
-    ];
+    const tests = spec.tests || [spec];
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseStatus} = test;
-        return urls.map((url) => ({url, responseJson, responseStatus}));
+        const {responseJson, responseJsonMatrix, responseStatus} = test;
+        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus}));
       })
     );
   };
@@ -359,7 +357,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                 if (response.status === 200 && dir.endsWith('stateproof')) {
                   jsonObj = transformStateProofResponse(jsonObj);
                 }
-                expect(jsonObj).toEqual(tt.responseJson);
+                const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
+                expect(jsonObj).toEqual(responseJson);
               } else {
                 expect(response.text).toEqual(tt.responseJson);
               }
