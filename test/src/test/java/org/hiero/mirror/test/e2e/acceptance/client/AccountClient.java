@@ -63,19 +63,8 @@ public class AccountClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
-        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            for (var accountName : accountMap.keySet()) {
-                log.info("Skipping cleanup of account [" + accountName + "] at address "
-                        + accountMap.get(accountName).getAccountId().toEvmAddress());
-                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
-                System.out.println(accountName + "="
-                        + accountMap.get(accountName).getAccountId().toEvmAddress());
-            }
-            return;
-        }
-
         log.info("Deleting {} accounts", accountIds.size());
-        deleteAll(accountIds, this::delete);
+        deleteOrLogEntities(accountIds, this::delete);
 
         var cost = initialBalance - getBalance();
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
@@ -92,6 +81,17 @@ public class AccountClient extends AbstractNetworkClient {
         }
 
         client.setOperator(operatorId.getAccountId(), operatorId.getPrivateKey());
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var accountName : accountMap.keySet()) {
+            log.info("Skipping cleanup of account [" + accountName + "] at address "
+                    + accountMap.get(accountName).getAccountId().toEvmAddress());
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println(accountName + "="
+                    + accountMap.get(accountName).getAccountId().toEvmAddress());
+        }
     }
 
     @Override

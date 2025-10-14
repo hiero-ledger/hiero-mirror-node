@@ -73,24 +73,24 @@ public class TokenClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
-        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            for (var tokenName : tokenMap.keySet()) {
-                log.info("Skipping cleanup of token [" + tokenName.getSymbol() + "] at address "
-                        + tokenMap.get(tokenName).tokenId().toEvmAddress());
-                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
-                System.out.println(tokenName.getSymbol() + "="
-                        + String.format(
-                                "%s%s",
-                                "0".repeat(24),
-                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
-            }
-            return;
-        }
-
         var admin = sdkClient.getExpandedOperatorAccountId();
         log.info("Deleting {} tokens and dissociating {} token relationships", tokenIds.size(), associations.size());
-        deleteAll(tokenIds, tokenId -> delete(admin, tokenId));
+        deleteOrLogEntities(tokenIds, tokenId -> delete(admin, tokenId));
         deleteAll(associations.keySet(), association -> dissociate(association.accountId, association.tokenId));
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var tokenName : tokenMap.keySet()) {
+            log.info("Skipping cleanup of token [" + tokenName.getSymbol() + "] at address "
+                    + tokenMap.get(tokenName).tokenId().toEvmAddress());
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            // The token addresses need to be left-padded with zeroes in order to match the expected format.
+            System.out.println(tokenName.getSymbol() + "="
+                    + String.format(
+                            "%s%s",
+                            "0".repeat(24), tokenMap.get(tokenName).tokenId().toEvmAddress()));
+        }
     }
 
     @Override
@@ -640,15 +640,15 @@ public class TokenClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse delete(ExpandedAccountId accountId, TokenId token) {
+    public NetworkTransactionResponse delete(ExpandedAccountId accountId, TokenId tokenId) {
         TokenDeleteTransaction tokenDissociateTransaction =
-                new TokenDeleteTransaction().setTokenId(token).setTransactionMemo(getMemo("Delete token"));
+                new TokenDeleteTransaction().setTokenId(tokenId).setTransactionMemo(getMemo("Delete token"));
 
         var keyList = KeyList.of(accountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenDissociateTransaction, keyList);
-        log.info("Deleted token {} via {}", token, response.getTransactionId());
-        tokenIds.remove(token);
-        tokenMap.values().removeIf(tokenResponse -> token.equals(tokenResponse.tokenId));
+        log.info("Deleted token {} via {}", tokenId, response.getTransactionId());
+        tokenIds.remove(tokenId);
+        tokenMap.values().removeIf(tokenResponse -> tokenId.equals(tokenResponse.tokenId));
         return response;
     }
 

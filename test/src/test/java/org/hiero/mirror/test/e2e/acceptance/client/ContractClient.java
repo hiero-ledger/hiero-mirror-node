@@ -29,7 +29,7 @@ import org.springframework.retry.support.RetryTemplate;
 @Named
 public class ContractClient extends AbstractNetworkClient {
 
-    private final Map<String, ContractId> contractIds = new ConcurrentHashMap<>();
+    private final Map<String, ContractId> contractMap = new ConcurrentHashMap<>();
 
     public ContractClient(
             SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
@@ -38,19 +38,19 @@ public class ContractClient extends AbstractNetworkClient {
 
     @Override
     public void clean() {
-        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
-            for (var contractName : contractIds.keySet()) {
-                log.info("Skipping cleanup of contract [" + contractName + "] at address "
-                        + contractIds.get(contractName).toEvmAddress());
-                // Log the values so that it can be parsed in CI and passed to the k6 tests as input.
-                System.out.println(
-                        contractName + "=" + contractIds.get(contractName).toEvmAddress());
-            }
-            return;
-        }
+        log.info("Deleting {} contracts", contractMap.size());
+        deleteOrLogEntities(contractMap.values(), id -> deleteContract(id, client.getOperatorAccountId(), null));
+    }
 
-        log.info("Deleting {} contracts", contractIds.size());
-        deleteAll(contractIds.values(), id -> deleteContract(id, client.getOperatorAccountId(), null));
+    @Override
+    protected void logEntities() {
+        for (var contractName : contractMap.keySet()) {
+            log.info("Skipping cleanup of contract [" + contractName + "] at address "
+                    + contractMap.get(contractName).toEvmAddress());
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println(
+                    contractName + "=" + contractMap.get(contractName).toEvmAddress());
+        }
     }
 
     public NetworkTransactionResponse createContract(
@@ -81,7 +81,7 @@ public class ContractClient extends AbstractNetworkClient {
 
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
-        contractIds.put(contractName, contractId);
+        contractMap.put(contractName, contractId);
 
         return response;
     }
@@ -115,7 +115,7 @@ public class ContractClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(contractDeleteTransaction);
         log.info("Deleted contract {} via {}", contractId, response.getTransactionId());
-        contractIds.remove(contractId);
+        contractMap.remove(contractId);
         return response;
     }
 
