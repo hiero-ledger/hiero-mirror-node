@@ -11,8 +11,8 @@ create table if not exists hook
     contract_id         bigint                not null,
     created_timestamp   bigint,
     hook_id             bigint                not null,
-    modified_timestamp  bigint                not null,
     owner_id            bigint                not null,
+    timestamp_range     int8range,
     extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
     type                hook_type             not null default 'LAMBDA',
     deleted             boolean               not null default false,
@@ -21,6 +21,13 @@ create table if not exists hook
     primary key (owner_id, hook_id)
 );
 comment on table hook is 'Hooks attached to accounts and contracts';
+
+-- Hook history table (temporal data)
+create table if not exists hook_history
+(
+    like hook including defaults
+);
+comment on table hook_history is 'Historical changes to hooks';
 
 -- Hook storage change table (historical changes)
 create table if not exists hook_storage_change

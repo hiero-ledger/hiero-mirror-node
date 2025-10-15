@@ -76,6 +76,7 @@ import org.hiero.mirror.common.domain.entity.TokenAllowanceHistory;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookHistory;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
@@ -580,7 +581,7 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
-    public DomainWrapper<Hook, Hook.HookBuilder> hook() {
+    public DomainWrapper<Hook, Hook.HookBuilder<?, ?>> hook() {
         var createdTimestamp = timestamp();
         var builder = Hook.builder()
                 .adminKey(key())
@@ -589,8 +590,23 @@ public class DomainBuilder {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .hookId(number())
-                .modifiedTimestamp(createdTimestamp)
                 .ownerId(id())
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .type(HookType.LAMBDA);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<HookHistory, HookHistory.HookHistoryBuilder<?, ?>> hookHistory() {
+        var createdTimestamp = timestamp();
+        var builder = HookHistory.builder()
+                .adminKey(key())
+                .contractId(entityId())
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .hookId(number())
+                .ownerId(id())
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
                 .type(HookType.LAMBDA);
         return new DomainWrapperImpl<>(builder, builder::build);
     }

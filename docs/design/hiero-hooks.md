@@ -167,22 +167,23 @@ Hooks can be fetched based on the following criteria:
 
 The database indexes must support these query patterns efficiently for optimal performance.
 
-### 1. Hooks Table
+### 1. Hook Tables
 
-Create a new table to store hook information:
+Create new tables to store hook information with history support:
 
 ```sql
 -- add_hooks_support.sql
 create type hook_type as enum ('LAMBDA');
 create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
+-- Main hook table (current state)
 create table if not exists hook
 (
     contract_id         bigint                not null,
     created_timestamp   bigint,
     hook_id             bigint                not null,
-    modified_timestamp  bigint                not null,
     owner_id            bigint                not null,
+    timestamp_range     int8range,
     extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
     type                hook_type             not null default 'LAMBDA',
     deleted             boolean               not null default false,
@@ -191,7 +192,14 @@ create table if not exists hook
     primary key (owner_id, hook_id)
 );
 
-select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
+-- Hook history table (temporal data)
+create table if not exists hook_history
+(
+    like hook including defaults
+);
+
+select create_distributed_table('hook', 'owner_id', colocate_with => 'entity');
+select create_distributed_table('hook_history', 'owner_id', colocate_with => 'entity');
 ```
 
 ### 2. Hook Storage Tables
@@ -240,28 +248,50 @@ select create_distributed_table('hook_storage', 'owner_id', colocate_with = > 'e
 
 ### 1. Domain Models
 
-Create new domain classes:
+Create new domain classes following the EntityHistory pattern:
 
-#### Hook.java
+#### AbstractHook.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/entity/Hook.java
-@IdClass(Hook.Id.class)
-public class Hook {
+// common/src/main/java/org/hiero/mirror/common/domain/hook/AbstractHook.java
+@IdClass(AbstractHook.Id.class)
+public abstract class AbstractHook implements History {
 
     private byte[] adminKey;
-    private long contractId;
+    private EntityId contractId;
     private Long createdTimestamp;
-    private boolean deleted;
+    private Boolean deleted;
     private HookExtensionPoint extensionPoint;
     private long hookId;
     private long ownerId;
+
+    private Range<Long> timestampRange;
+
     private HookType type;
 
     public static class Id implements Serializable {
         private long hookId;
         private long ownerId;
     }
+}
+```
+
+#### Hook.java
+
+```java
+// common/src/main/java/org/hiero/mirror/common/domain/hook/Hook.java
+@Upsertable
+public class Hook extends AbstractHook {
+    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
+}
+```
+
+#### HookHistory.java
+
+```java
+// common/src/main/java/org/hiero/mirror/common/domain/hook/HookHistory.java
+public class HookHistory extends AbstractHook {
+    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
 }
 ```
 
