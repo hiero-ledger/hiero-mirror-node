@@ -101,6 +101,8 @@ alter table entity drop column timestamp_range, add column timestamp_range bigin
 alter table entity_history drop column timestamp_range, add column timestamp_range bigint;
 alter table entity_stake drop column timestamp_range, add column timestamp_range bigint;
 alter table entity_stake_history drop column timestamp_range, add column timestamp_range bigint;
+alter table hook drop column timestamp_range, add column timestamp_range bigint;
+alter table hook_history drop column timestamp_range, add column timestamp_range bigint;
 alter table nft drop column timestamp_range, add column timestamp_range bigint;
 alter table nft_allowance drop column timestamp_range, add column timestamp_range bigint;
 alter table nft_allowance_history drop column timestamp_range, add column timestamp_range bigint;
@@ -215,8 +217,12 @@ alter table file_data add constraint fk_file_data_consensus_timestamp foreign ke
 alter table file_data add constraint fk_file_data_entity_id foreign key (entity_id) references entity (id);
 alter table hook add constraint fk_hook_contract_id foreign key (contract_id) references entity (id);
 alter table hook add constraint fk_hook_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
-alter table hook add constraint fk_hook_modified_timestamp foreign key (modified_timestamp) references transaction (consensus_timestamp);
 alter table hook add constraint fk_hook_owner_id foreign key (owner_id) references entity (id);
+alter table hook add constraint fk_hook_timestamp_range foreign key (timestamp_range) references transaction (consensus_timestamp);
+alter table hook_history add constraint fk_hook_history_contract_id foreign key (contract_id) references entity (id);
+alter table hook_history add constraint fk_hook_history_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
+alter table hook_history add constraint fk_hook_history_owner_id foreign key (owner_id) references entity (id);
+alter table hook_history add constraint fk_hook_history_timestamp_range foreign key (timestamp_range) references transaction (consensus_timestamp);
 alter table hook_storage add constraint fk_hook_storage_created_timestamp foreign key (created_timestamp) references transaction (consensus_timestamp);
 alter table hook_storage add constraint fk_hook_storage_hook_id_owner_id foreign key (owner_id, hook_id) references hook (owner_id, hook_id);
 alter table hook_storage add constraint fk_hook_storage_modified_timestamp foreign key (modified_timestamp) references transaction (consensus_timestamp);
