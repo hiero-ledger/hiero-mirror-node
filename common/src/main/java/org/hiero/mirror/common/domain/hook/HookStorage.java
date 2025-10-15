@@ -3,7 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
@@ -28,7 +27,6 @@ public class HookStorage {
 
     private static final int KEY_BYTE_LENGTH = 32;
 
-    @Column(updatable = false)
     private long createdTimestamp;
 
     @jakarta.persistence.Id
