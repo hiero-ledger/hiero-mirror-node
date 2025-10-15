@@ -4,7 +4,6 @@ package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Range;
-import jakarta.persistence.Column;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.IdClass;
@@ -31,20 +30,16 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 public abstract class AbstractHook implements History {
 
     @ToString.Exclude
-    @Column(updatable = false)
     private byte[] adminKey;
 
-    @Column(updatable = false)
     private EntityId contractId;
 
-    @Column(updatable = false)
     private Long createdTimestamp;
 
     private Boolean deleted;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(updatable = false)
     private HookExtensionPoint extensionPoint;
 
     @jakarta.persistence.Id
@@ -57,7 +52,6 @@ public abstract class AbstractHook implements History {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(updatable = false)
     private HookType type;
 
     @JsonIgnore
