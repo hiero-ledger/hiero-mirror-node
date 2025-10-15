@@ -155,8 +155,7 @@ jobs:
       - name: Run acceptance tests
         run: |
           touch output_log.txt
-          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m >> output_log.txt
-          cat output_log.txt
+          helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m | tee output_log.txt
 
       - name: Parse acceptance tests logs and set k6 environment variables
         if: ${{ matrix.stream-type != 'BLOCK' }}
@@ -221,7 +220,7 @@ jobs:
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        #        if: ${{ failure() }}
+        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
