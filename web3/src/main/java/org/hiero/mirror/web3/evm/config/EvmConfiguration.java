@@ -86,6 +86,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
+    public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
@@ -99,6 +100,7 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
     public static final String CACHE_NAME_RECORD_FILE_LATEST_INDEX = "latestIndex";
+    public static final String CACHE_NAME_SYSTEM_ACCOUNT = "systemAccount";
     public static final String CACHE_NAME_TOKEN = "token";
     public static final String CACHE_NAME_TOKEN_ACCOUNT = "tokenAccount";
     public static final String CACHE_NAME_TOKEN_ACCOUNT_COUNT = "tokenAccountCount";
@@ -144,6 +146,14 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getContractState());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_SYSTEM_ACCOUNT)
+    CacheManager cacheManagerSystemAccount() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_SYSTEM_ACCOUNT));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getSystemAccount());
         return caffeineCacheManager;
     }
 
