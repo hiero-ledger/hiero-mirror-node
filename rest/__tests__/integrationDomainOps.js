@@ -1113,6 +1113,7 @@ const contractStateDefaults = {
 };
 
 const nodeDefaults = {
+  account_id: null,
   admin_key: 'OiG1sc5qQaLDwUfqfBg8urypfFGcwlesArZzBDsEgvyr0MQ',
   created_timestamp: 1664365660048674966,
   decline_reward: false,
