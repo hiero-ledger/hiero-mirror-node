@@ -64,7 +64,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
@@ -155,7 +155,7 @@ jobs:
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+        run: helm test mirror-1 -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
