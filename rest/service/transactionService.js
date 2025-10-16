@@ -4,12 +4,13 @@ import _ from 'lodash';
 
 import BaseService from './baseService';
 import {orderFilterValues} from '../constants';
-import {EthereumTransaction, Transaction} from '../model';
+import {EthereumTransaction, Transaction, TransactionResult} from '../model';
 import {OrderSpec} from '../sql';
 import TransactionId from '../transactionId';
 import config from '../config';
 
 const {maxTransactionConsensusTimestampRangeNs} = config.query;
+const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
 /**
  * Transaction retrieval business logic
  */
@@ -19,9 +20,26 @@ class TransactionService extends BaseService {
            ${Transaction.SCHEDULED}, ${Transaction.TYPE},
            ${Transaction.PAYER_ACCOUNT_ID}
     from ${Transaction.tableName}
-    where ${Transaction.PAYER_ACCOUNT_ID} = $1 
-          and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
-          and ${Transaction.VALID_START_NS} = $2`;
+    where ${Transaction.CONSENSUS_TIMESTAMP} = coalesce((
+        select ${Transaction.CONSENSUS_TIMESTAMP}
+        from ${Transaction.tableName}
+        where ${Transaction.PAYER_ACCOUNT_ID} = $1 
+            and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
+            and ${Transaction.VALID_START_NS} = $2
+            and ${Transaction.RESULT} = ${successTransactionResult}
+            and ${Transaction.NONCE} = (select coalesce($4, 0))
+        order by ${Transaction.CONSENSUS_TIMESTAMP} desc
+        limit 1
+    ), (
+        select ${Transaction.CONSENSUS_TIMESTAMP}
+        from ${Transaction.tableName}
+        where ${Transaction.PAYER_ACCOUNT_ID} = $1 
+            and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
+            and ${Transaction.VALID_START_NS} = $2
+            and ${Transaction.NONCE} = (select coalesce($4, 0))
+        order by ${Transaction.CONSENSUS_TIMESTAMP} desc
+        limit 1
+    ))`;
 
   static ethereumTransactionDetailsQuery = `
   select
@@ -63,9 +81,8 @@ class TransactionService extends BaseService {
     const maxConsensusTimestamp = BigInt(transactionId.getValidStartNs()) + maxTransactionConsensusTimestampRangeNs;
     return this.getTransactionDetails(
       TransactionService.transactionDetailsFromTransactionIdQuery,
-      [transactionId.getEntityId().getEncodedId(), transactionId.getValidStartNs(), maxConsensusTimestamp],
-      excludeTransactionResults,
-      nonce
+      [transactionId.getEntityId().getEncodedId(), transactionId.getValidStartNs(), maxConsensusTimestamp, nonce],
+      excludeTransactionResults
     );
   }
 

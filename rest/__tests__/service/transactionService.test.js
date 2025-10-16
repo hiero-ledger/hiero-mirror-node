@@ -17,7 +17,6 @@ const contractCreateType = TransactionType.getProtoId('CONTRACTCREATEINSTANCE');
 const ethereumTxType = TransactionType.getProtoId('ETHEREUMTRANSACTION');
 const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
 const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
-const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
 
 describe('TransactionService.getTransactionDetailsFromTransactionId tests', () => {
   const defaultPayerId = EntityId.parseString('5');
@@ -87,45 +86,29 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
     expect(pickTransactionFields(actual)).toEqual([{consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId}]);
   });
 
-  test('Multiple rows match with nonce', async () => {
+  test('Latest row match with nonce', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
       TransactionId.fromString(`${defaultPayerId.toString()}-0-5`),
       0
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 6, payerAccountId: defaultPayerEncodedId},
-      {consensusTimestamp: 8, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 6, payerAccountId: defaultPayerEncodedId}
     ]);
   });
 
-  test('Multiple rows match without nonce', async () => {
+  test('Latest row match without nonce', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
       TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`)
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
-      {consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId},
-      {consensusTimestamp: 15, payerAccountId: defaultPayerEncodedId},
+      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId}
     ]);
   });
 
-  test('Two rows match without nonce exclude duplicate transaction', async () => {
+  test('Single row match with nonce returns latest unsuccessful if no successful', async () => {
     const actual = await TransactionService.getTransactionDetailsFromTransactionId(
       TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
-      undefined,
-      duplicateTransactionResult
-    );
-    expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
-      {consensusTimestamp: 13, payerAccountId: defaultPayerEncodedId},
-    ]);
-  });
-
-  test('Single row match with nonce exclude duplicate transaction', async () => {
-    const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
-      0,
-      duplicateTransactionResult
+      0
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
       {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
