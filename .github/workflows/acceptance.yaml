@@ -157,7 +157,7 @@ jobs:
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs --filter name="${HELM_RELEASE_NAME}-acceptance" --timeout 20m | tee output_log.txt
+        run: helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" --timeout 20m | tee output_log.txt
 
       - name: Parse acceptance tests logs and set k6 environment variables
         if: ${{ matrix.stream-type != 'BLOCK' }}
