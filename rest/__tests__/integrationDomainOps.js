@@ -1639,6 +1639,7 @@ const addNode = async (nodeInput) => {
 
   convertByteaFields(['admin_key'], node);
   node.grpc_proxy_endpoint = node.grpc_proxy_endpoint ? JSONStringify(node.grpc_proxy_endpoint) : null;
+  node.account_id = encodedIdFromSpecValue(node.account_id);
   await insertDomainObject('node', Object.keys(nodeDefaults), node);
 };
 
