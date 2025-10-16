@@ -923,7 +923,8 @@ public class EstimateFeature extends AbstractEstimateFeature {
             var fileId =
                     persistContractBytes(compiledSolidityArtifact.getBytecode().replaceFirst(HEX_PREFIX, ""));
             try {
-                networkTransactionResponse = contractClient.createContract(contractName, fileId, gas, Hbar.fromTinybars(6_000_000), null);
+                networkTransactionResponse =
+                        contractClient.createContract(contractName, fileId, gas, Hbar.fromTinybars(6_000_000), null);
                 return networkTransactionResponse.getTransactionIdStringNoCheckSum();
             } catch (Exception e) {
                 return extractTransactionId(e.getMessage());
