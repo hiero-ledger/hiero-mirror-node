@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Trigger Staging on Deploy Change
+
+on:
+  push:
+    branches: [deploy]
+    paths:
+      - clusters/mainnet-staging-na/mainnet-citus/helmrelease.yaml
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  run-reusable-copy:
+    uses: hiero-ledger/hiero-mirror-node/.github/workflows/copy-stackgres-cluster.yml@7d9e935073507e45738098eb05a7c15f7658b565
+    with:
+      source_cluster_location: "us-central1"
+      source_cluster_name: "mainnet-na"
+      source_project: "prod"
+      target_cluster_location: "us-central1"
+      target_cluster_name: "mainnet-staging-na"
+      target_default_pool: "mainnet-staging-na"
+      target_project: "nonprod"
+      teardown_target: true
+    secrets:
+      GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
+      GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+      GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}

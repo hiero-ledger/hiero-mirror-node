@@ -3,6 +3,7 @@ kind: HelmRelease
 metadata:
   name: mirror
   namespace: mainnet-citus
+  # Trigger staging environemnt - workflow -- Remove in >= 0.142.0-rc1
 spec:
   chart:
     spec:
