@@ -577,8 +577,8 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
 });
 
 describe('NetworkNodeService node_account_id override logic', () => {
-  const nodeAccount1000 = EntityId.parseString('0.0.1000');
-  const nodeAccount1001 = EntityId.parseString('0.0.1001');
+  const nodeAccount1000 = EntityId.parseString('1000');
+  const nodeAccount1001 = EntityId.parseString('1001');
 
   test('override node_account_id when present in node table', async () => {
     const addressBooks = [
@@ -593,14 +593,14 @@ describe('NetworkNodeService node_account_id override logic', () => {
       {
         consensus_timestamp: 10,
         node_id: 0,
-        node_account_id: EntityId.parseString('0.0.3').toString(), // original
+        node_account_id: EntityId.parseString('3').toString(),
         description: 'desc 1',
         memo: 'memo 1',
       },
       {
         consensus_timestamp: 10,
         node_id: 1,
-        node_account_id: EntityId.parseString('0.0.4').toString(), // original
+        node_account_id: EntityId.parseString('4').toString(),
         description: 'desc 2',
         memo: 'memo 2',
       },
@@ -636,7 +636,7 @@ describe('NetworkNodeService node_account_id override logic', () => {
       },
     ];
 
-    const nodeAccountOriginal = EntityId.parseString('0.0.3');
+    const nodeAccountOriginal = EntityId.parseString('3');
     const entries = [
       {
         consensus_timestamp: 20,
@@ -661,7 +661,6 @@ describe('NetworkNodeService node_account_id override logic', () => {
     );
 
     expect(result).toHaveLength(1);
-    // should keep the original one from address_book_entry
     expect(result[0].addressBookEntry.nodeAccountId).toEqual(nodeAccountOriginal.getEncodedId());
   });
 
@@ -674,7 +673,7 @@ describe('NetworkNodeService node_account_id override logic', () => {
       },
     ];
 
-    const nodeAccountOriginal = EntityId.parseString('0.0.5');
+    const nodeAccountOriginal = EntityId.parseString('5');
     const entries = [
       {
         consensus_timestamp: 30,
