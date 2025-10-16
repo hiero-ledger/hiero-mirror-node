@@ -198,6 +198,7 @@ jobs:
           BASE_URL: "http://127.0.0.1:8080"
           DEFAULT_CONTRACT_ADDRESS: ${{ env.PARENT }}
           DEFAULT_DURATION: "3s"
+          DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
           ERC_CONTRACT_ADDRESS: ${{ env.ERC }}
           ESTIMATE_PRECOMPILE_CONTRACT: ${{ env.ESTIMATE_PRECOMPILE }}
