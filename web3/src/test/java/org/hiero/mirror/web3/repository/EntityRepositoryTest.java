@@ -5,6 +5,8 @@ package org.hiero.mirror.web3.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_SYSTEM_ACCOUNT;
 
 import com.google.common.collect.Range;
 import java.util.Objects;
@@ -37,12 +39,9 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @BeforeEach
     void clearCache() {
-        entityCacheManager.getCacheNames().forEach(cacheName -> Objects.requireNonNull(
-                        entityCacheManager.getCache(cacheName))
-                .clear());
-        systemAccountCacheManager.getCacheNames().forEach(cacheName -> Objects.requireNonNull(
-                        systemAccountCacheManager.getCache(cacheName))
-                .clear());
+        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
+        Objects.requireNonNull(systemAccountCacheManager.getCache(CACHE_NAME_SYSTEM_ACCOUNT))
+                .invalidate();
     }
 
     @Test
@@ -487,9 +486,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(systemEntity);
 
         entityRepository.delete(systemEntity);
-        entityCacheManager.getCacheNames().forEach(cacheName -> Objects.requireNonNull(
-                        entityCacheManager.getCache(cacheName))
-                .clear());
+        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
                 .as("Entity should be found in the system account cache after clearing the regular cache")
@@ -506,9 +503,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(systemEntity);
 
         entityRepository.delete(systemEntity);
-        entityCacheManager.getCacheNames().forEach(cacheName -> Objects.requireNonNull(
-                        entityCacheManager.getCache(cacheName))
-                .clear());
+        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
                 .as("Entity should NOT be found after clearing the regular cache")
@@ -526,9 +521,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(regularEntity);
 
         entityRepository.delete(regularEntity);
-        entityCacheManager.getCacheNames().forEach(cacheName -> Objects.requireNonNull(
-                        entityCacheManager.getCache(cacheName))
-                .clear());
+        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(regularEntity.getId()))
                 .as("Entity should NOT be found after clearing the regular cache")
