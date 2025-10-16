@@ -115,7 +115,7 @@ jobs:
             cat <<EOF > mirror.yaml
           importer:
             env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1-0.${SOLO_NAMESPACE}.svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
             cucumberTags: "@acceptance and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @erc and not @ethcall"
