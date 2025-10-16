@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.140.0-rc1'
+      version: '0.141.0-rc1'
   dependsOn:
     - name: testkube
       namespace: testkube
@@ -61,7 +61,7 @@ spec:
         config:
           rest:
             DEFAULT_ACCOUNT_BALANCE: "123456"
-            DEFAULT_ACCOUNT_ID: "1682785"
+            DEFAULT_ACCOUNT_ID: "3229"
             DEFAULT_ACCOUNT_ID_CRYPTO_ALLOWANCE: "0.0.9353440"
             DEFAULT_ACCOUNT_ID_NFTS: "1484550"
             DEFAULT_ACCOUNT_ID_TIMESTAMP: "1698181150.152"
