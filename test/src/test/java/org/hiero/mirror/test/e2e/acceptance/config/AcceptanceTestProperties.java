@@ -94,6 +94,8 @@ public final class AcceptanceTestProperties {
     @NotNull
     private NodeNameEnum nodeType = NodeNameEnum.MIRROR;
 
+    private boolean skipEntitiesCleanup;
+
     public void setOperatorId(String operatorId) {
         var configuredOperator = AccountId.fromString(operatorId);
         var configuredShard = commonProperties.getShard();
