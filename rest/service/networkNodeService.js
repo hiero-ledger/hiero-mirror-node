@@ -24,13 +24,15 @@ class NetworkNodeService extends BaseService {
         (select max(${NodeStake.CONSENSUS_TIMESTAMP}) from ${NodeStake.tableName})
     ),
     ${Node.tableAlias} as (
-      select ${Node.ADMIN_KEY}, ${Node.DECLINE_REWARD}, ${Node.GRPC_PROXY_ENDPOINT}, ${Node.NODE_ID}
+      select ${Node.ADMIN_KEY}, ${Node.DECLINE_REWARD}, ${Node.GRPC_PROXY_ENDPOINT}, ${Node.NODE_ID}, ${Node.ACCOUNT_ID}
       from ${Node.tableName}
     )
     select ${AddressBookEntry.getFullName(AddressBookEntry.DESCRIPTION)},
       ${AddressBookEntry.getFullName(AddressBookEntry.MEMO)},
       ${AddressBookEntry.getFullName(AddressBookEntry.NODE_ID)},
-      ${AddressBookEntry.getFullName(AddressBookEntry.NODE_ACCOUNT_ID)},
+     coalesce(${Node.getFullName(Node.ACCOUNT_ID)}, ${AddressBookEntry.getFullName(
+    AddressBookEntry.NODE_ACCOUNT_ID
+  )}) as ${AddressBookEntry.NODE_ACCOUNT_ID},
       ${AddressBookEntry.getFullName(AddressBookEntry.NODE_CERT_HASH)},
       ${AddressBookEntry.getFullName(AddressBookEntry.PUBLIC_KEY)},
       ${AddressBook.getFullName(AddressBook.FILE_ID)},

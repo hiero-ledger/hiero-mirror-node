@@ -167,30 +167,39 @@ Hooks can be fetched based on the following criteria:
 
 The database indexes must support these query patterns efficiently for optimal performance.
 
-### 1. Hooks Table
+### 1. Hook Tables
 
-Create a new table to store hook information:
+Create new tables to store hook information with history support:
 
 ```sql
 -- add_hooks_support.sql
-create type hook_type as enum ('LAMBDA', 'PURE');
+create type hook_type as enum ('LAMBDA');
 create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
+-- Main hook table (current state)
 create table if not exists hook
 (
-    contract_id       bigint                not null,
-    created_timestamp bigint                not null,
-    hook_id           bigint                not null,
-    owner_id          bigint                not null,
-    extension_point   hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type              hook_type             not null default 'LAMBDA',
-    deleted           boolean               not null default false,
-    admin_key         bytea,
+    contract_id         bigint                not null,
+    created_timestamp   bigint,
+    hook_id             bigint                not null,
+    owner_id            bigint                not null,
+    timestamp_range     int8range,
+    extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
+    type                hook_type             not null default 'LAMBDA',
+    deleted             boolean               not null default false,
+    admin_key           bytea,
 
     primary key (owner_id, hook_id)
-    );
+);
 
-select create_distributed_table('hook', 'owner_id', colocate_with = > 'entity');
+-- Hook history table (temporal data)
+create table if not exists hook_history
+(
+    like hook including defaults
+);
+
+select create_distributed_table('hook', 'owner_id', colocate_with => 'entity');
+select create_distributed_table('hook_history', 'owner_id', colocate_with => 'entity');
 ```
 
 ### 2. Hook Storage Tables
@@ -222,11 +231,12 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    consensus_timestamp bigint not null,
-    hook_id             bigint not null,
-    owner_id            bigint not null,
-    key                 bytea  not null,
-    value               bytea  not null,
+    created_timestamp  bigint not null,
+    hook_id            bigint not null,
+    modified_timestamp bigint not null,
+    owner_id           bigint not null,
+    key                bytea  not null,
+    value              bytea  not null,
 
     primary key (owner_id, hook_id, key)
 );
@@ -238,22 +248,25 @@ select create_distributed_table('hook_storage', 'owner_id', colocate_with = > 'e
 
 ### 1. Domain Models
 
-Create new domain classes:
+Create new domain classes following the EntityHistory pattern:
 
-#### Hook.java
+#### AbstractHook.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/entity/Hook.java
-@IdClass(Hook.Id.class)
-public class Hook {
+// common/src/main/java/org/hiero/mirror/common/domain/hook/AbstractHook.java
+@IdClass(AbstractHook.Id.class)
+public abstract class AbstractHook implements History {
 
     private byte[] adminKey;
-    private long contractId;
-    private long createdTimestamp;
-    private boolean deleted;
+    private EntityId contractId;
+    private Long createdTimestamp;
+    private Boolean deleted;
     private HookExtensionPoint extensionPoint;
     private long hookId;
     private long ownerId;
+
+    private Range<Long> timestampRange;
+
     private HookType type;
 
     public static class Id implements Serializable {
@@ -263,11 +276,31 @@ public class Hook {
 }
 ```
 
+#### Hook.java
+
+```java
+// common/src/main/java/org/hiero/mirror/common/domain/hook/Hook.java
+@Upsertable
+public class Hook extends AbstractHook {
+    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
+}
+```
+
+#### HookHistory.java
+
+```java
+// common/src/main/java/org/hiero/mirror/common/domain/hook/HookHistory.java
+public class HookHistory extends AbstractHook {
+    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
+}
+```
+
 #### HookStorage.java (Current State)
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/entity/HookStorage.java
 @IdClass(HookStorage.Id.class)
+@Upsertable
 public class HookStorage {
 
     private long createdTimestamp;
@@ -334,7 +367,7 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
     create Hook entity with:
         - composite ID (owner_id, hook_id) from transaction
         - extension point from protobuf enum
-        - hook type (PURE or LAMBDA)
+        - hook type (LAMBDA)
         - admin key if present
         - contract_id
         - deleted = false
@@ -588,13 +621,12 @@ Feature: Hook Management
     When I update <owner_type> to add hooks:
       | type   | extension_point        |
       | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
-      | PURE   | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
     And I query mirror node REST API for <owner_type> hooks
-    Then the response contains 2 hooks with types "LAMBDA" and "PURE"
+    Then the response contains 1 hook with type "LAMBDA"
     When I perform a CryptoTransfer that triggers hook execution for <owner_type>
     And the mirror node processes the transactions
-    Then I verify mirror node receives 2 ContractCall transactions to address '0.0.365'
+    Then I verify mirror node receives 1 ContractCall transaction to address '0.0.365'
     And I query mirror node REST API to get storage for <owner_type> hook 'LAMBDA'
     Then I receive storage entries
     When I successfully update <owner_type> to delete hooks

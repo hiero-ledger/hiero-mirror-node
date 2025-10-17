@@ -25,6 +25,7 @@ import com.hederahashgraph.api.proto.java.ContractNonceInfo;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -71,7 +73,7 @@ import org.springframework.data.util.Version;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
+final class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
 
     private final ContractRepository contractRepository;
     private final ContractActionRepository contractActionRepository;
@@ -216,22 +218,62 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         assertThat(entityRepository.count()).isZero();
     }
 
-    @Test
-    void processEthereumTransactionCreate() {
-        var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            false, true, false
+            true, true, false
+            true, false, false
+            true, false, true
+            """)
+    void processEthereumTransactionCreate(boolean blockstream, boolean initcodeInlined, boolean withHexPrefix) {
+        // given
+        var ethereumTransaction =
+                domainBuilder.ethereumTransaction(initcodeInlined).get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction(true)
-                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .record(r -> {
+                    if (blockstream) {
+                        r.getContractCreateResultBuilder()
+                                .clearAmount()
+                                .clearFunctionParameters()
+                                .clearGas();
+                    }
+                })
+                .recordItem(r -> r.blockstream(blockstream).ethereumTransaction(ethereumTransaction))
                 .build();
+        byte[] rawInitcode = ethereumTransaction.getCallData();
+        if (!initcodeInlined) {
+            byte[] offloaded = domainBuilder.bytes(64);
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                            .entityId(ethereumTransaction.getCallDataId())
+                            .fileData(TestUtils.toBytecodeFileContent(offloaded, withHexPrefix)))
+                    .persist();
+            rawInitcode = offloaded;
+        }
 
+        // when
         process(recordItem);
 
+        // then
         assertContractResult(recordItem);
         assertContractLogs(recordItem);
         assertContractActions(recordItem);
         assertContractStateChanges(recordItem);
         assertThat(contractRepository.count()).isZero();
         assertThat(entityRepository.count()).isZero();
+
+        if (blockstream) {
+            assertThat(contractResultRepository.findAll())
+                    .hasSize(1)
+                    .first()
+                    .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                    .returns(rawInitcode, ContractResult::getFunctionParameters)
+                    .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
+        }
     }
 
     @ParameterizedTest
@@ -374,10 +416,18 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                 .returns(22074L, ContractResult::getGasConsumed);
     }
 
-    @Test
-    void processGasConsumedCalculationContractCreate() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, false
+            true, false
+            true, true
+            """)
+    void processGasConsumedCalculationContractCreate(boolean blockstream, boolean withHexPrefix) {
         // Given RecordItem with 2 contract actions and bytecode sidecar record
-        final var recordItem = recordItemBuilder.contractCreate().build();
+        final var recordItem = recordItemBuilder
+                .contractCreate()
+                .recordItem(r -> r.blockstream(blockstream))
+                .build();
 
         final var contractActionRecord = TransactionSidecarRecord.newBuilder()
                 .setActions(ContractActions.newBuilder()
@@ -386,10 +436,22 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                                 contractAction(CallOperationType.OP_CALL, ContractActionType.CALL, 1))))
                 .build();
 
+        final var initcode = new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1};
         final var bytecodeRecord = TransactionSidecarRecord.newBuilder()
                 .setBytecode(ContractBytecode.newBuilder()
-                        .setInitcode(ByteString.copyFrom(new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1})))
+                        .setInitcode(blockstream ? ByteString.EMPTY : DomainUtils.fromBytes(initcode)))
                 .build();
+
+        if (blockstream) {
+            final var fileId = EntityId.of(
+                    recordItem.getTransactionBody().getContractCreateInstance().getFileID());
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                            .entityId(fileId)
+                            .fileData(TestUtils.toBytecodeFileContent(initcode, withHexPrefix)))
+                    .persist();
+        }
 
         recordItem.setSidecarRecords(List.of(contractActionRecord, bytecodeRecord));
 
@@ -397,15 +459,9 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         process(recordItem);
 
         // Then
-        final var contractResult = contractResultRepository
-                .findById(recordItem.getConsensusTimestamp())
-                .orElse(null);
-
-        assertThat(contractResult)
-                .isNotNull()
-                .extracting(ContractResult::getGasConsumed)
-                .isNotNull()
-                .isEqualTo(53146L);
+        assertThat(contractResultRepository.findById(recordItem.getConsensusTimestamp()))
+                .get()
+                .returns(53146L, ContractResult::getGasConsumed);
     }
 
     @Test

@@ -11,6 +11,7 @@ import com.hedera.hashgraph.sdk.KeyList;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -19,8 +20,9 @@ public class FileClient extends AbstractNetworkClient {
 
     private final Collection<FileId> fileIds = new CopyOnWriteArrayList<>();
 
-    public FileClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public FileClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override

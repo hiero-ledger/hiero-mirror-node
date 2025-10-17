@@ -184,7 +184,9 @@ class BlockNodeTest extends BlockNodeTestBase {
                 subscribeStreamResponse(blockItemSet(blockHead(0))),
                 subscribeStreamResponse(blockItemSet()),
                 subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())),
-                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())));
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when

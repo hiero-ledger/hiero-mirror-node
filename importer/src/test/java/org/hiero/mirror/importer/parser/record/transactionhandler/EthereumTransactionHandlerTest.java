@@ -38,6 +38,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -48,14 +49,17 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
 import org.springframework.data.util.Version;
 
-class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private static final ByteString ETHEREUM_HASH = DomainUtils.fromBytes(nextBytes(32));
 
     private static final Version HAPI_VERSION_0_46_0 = new Version(0, 46, 0);
 
+    @Mock
+    private ContractBytecodeService contractBytecodeService;
+
     @Mock(strictness = LENIENT)
-    protected EthereumTransactionParser ethereumTransactionParser;
+    private EthereumTransactionParser ethereumTransactionParser;
 
     @AfterEach
     void cleanup() {
@@ -67,7 +71,8 @@ class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTest {
         doReturn(domainBuilder.ethereumTransaction(true).get())
                 .when(ethereumTransactionParser)
                 .decode(any());
-        return new EthereumTransactionHandler(entityListener, entityProperties, ethereumTransactionParser);
+        return new EthereumTransactionHandler(
+                contractBytecodeService, entityListener, entityProperties, ethereumTransactionParser);
     }
 
     @Override

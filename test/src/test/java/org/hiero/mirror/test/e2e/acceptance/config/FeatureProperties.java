@@ -17,7 +17,9 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class FeatureProperties {
 
-    private boolean contractCallLocalEstimate = false;
+    private boolean contractCallLocalEstimate = true;
+
+    private int hapiMinorVersionWithoutGasRefund = 67;
 
     @Min(1)
     @Max(10_000_000)

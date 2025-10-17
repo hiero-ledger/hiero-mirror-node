@@ -8,6 +8,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -19,6 +20,7 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.utils.AccountDetector;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in mirror-node
@@ -72,6 +74,22 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     }
                     return account;
                 })
+                .or(() -> getDummySystemAccountIfApplicable(key))
                 .orElse(null);
+    }
+
+    /**
+     * In case a system account doesn't exist, in a historical contract
+     * call for example, return a dummy account to avoid errors like
+     * "Non-zero net hbar change when handling body"
+     */
+    private Optional<Account> getDummySystemAccountIfApplicable(AccountID accountID) {
+        if (accountID != null && accountID.hasAccountNum()) {
+            final var accountNum = accountID.accountNum();
+            return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
+                    ? Optional.of(Account.newBuilder().accountId(accountID).build())
+                    : Optional.empty();
+        }
+        return Optional.empty();
     }
 }

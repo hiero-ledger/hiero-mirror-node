@@ -114,6 +114,7 @@ import org.hiero.mirror.web3.evm.store.contract.EntityAddressSequencer;
 import org.hiero.mirror.web3.evm.store.contract.MirrorEntityAccess;
 import org.hiero.mirror.web3.evm.token.TokenAccessorImpl;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
+import org.hiero.mirror.web3.utils.AccountDetector;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -125,8 +126,6 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 public class ServicesConfiguration {
-    private static final int SYSTEM_ACCOUNT_BOUNDARY = 750;
-    private static final int STRICT_SYSTEM_ACCOUNT_BOUNDARY = 999;
 
     @Bean
     static Predicate<Address> systemAccountDetector() {
@@ -134,7 +133,7 @@ public class ServicesConfiguration {
         // from the perspective of the EVM when executing Call, Balance, and SelfDestruct operations
         return address -> {
             var entityId = fromEvmAddress(address.toArray());
-            return entityId != null && entityId.getNum() <= SYSTEM_ACCOUNT_BOUNDARY;
+            return entityId != null && AccountDetector.isSystem(entityId.getNum());
         };
     }
 
@@ -144,7 +143,7 @@ public class ServicesConfiguration {
         // from the perspective of the EVM when executing ExtCode operations
         return address -> {
             var entityId = fromEvmAddress(address.toArray());
-            return entityId != null && entityId.getNum() <= STRICT_SYSTEM_ACCOUNT_BOUNDARY;
+            return entityId != null && AccountDetector.isStrictSystem(entityId.getNum());
         };
     }
 
