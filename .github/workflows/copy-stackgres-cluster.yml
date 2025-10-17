@@ -120,6 +120,9 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
