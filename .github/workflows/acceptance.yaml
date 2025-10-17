@@ -161,7 +161,6 @@ jobs:
 
       - name: Parse acceptance tests logs and set k6 environment variables
         if: ${{ matrix.stream-type != 'BLOCK' }}
-        id: log-variables
         run: |
           set -ex
           LOG_FILE="./output_log.txt"
@@ -177,8 +176,9 @@ jobs:
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
 
           for key in "${!k6Map[@]}"; do
+            k6="${k6Map[$key]}"
             value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
-            echo "${key}=${value}" >> $GITHUB_ENV
+            echo "${k6}=${value}" >> $GITHUB_ENV
           done
 
       - name: Install k6
@@ -195,25 +195,17 @@ jobs:
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
         env:
-          ACCOUNT_ADDRESS: ${{ env.ALICE }}
           AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
           BASE_URL: "http://127.0.0.1:8080"
-          DEFAULT_CONTRACT_ADDRESS: ${{ env.PARENT }}
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
-          ERC_CONTRACT_ADDRESS: ${{ env.ERC }}
-          ESTIMATE_PRECOMPILE_CONTRACT: ${{ env.ESTIMATE_PRECOMPILE }}
-          HTS_CONTRACT_ADDRESS: ${{ env.PRECOMPILE }}
           KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ env.non_fungible }}
-          PAYER_ACCOUNT: ${{ env.BOB }}
           RUN_COMPLEX_TESTS: "false"
           RUN_ESTIMATE_TESTS: "false"
           RUN_MODIFICATION_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          TOKEN_ADDRESS: ${{ env.fungible }}
           WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
         with:
           path: |
