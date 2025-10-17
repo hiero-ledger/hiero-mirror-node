@@ -60,8 +60,6 @@ ${ContractResult.getFullName(ContractResult.TRANSACTION_INDEX)},
 ${ContractResult.getFullName(ContractResult.TRANSACTION_NONCE)},
 ${ContractResult.getFullName(ContractResult.TRANSACTION_RESULT)}
 `;
-const duplicateTransactionResult = TransactionResult.getProtoId('DUPLICATE_TRANSACTION');
-const wrongNonceTransactionResult = TransactionResult.getProtoId('WRONG_NONCE');
 const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
 
 /**
@@ -217,7 +215,7 @@ class ContractService extends BaseService {
           ), (
               select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
               from ${ContractTransactionHash.tableName}
-              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} not in (${duplicateTransactionResult}, ${wrongNonceTransactionResult})
+              where ${ContractTransactionHash.HASH} = $1
               order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
               limit 1
           ))

@@ -1,5 +1,5 @@
 {
-  "description": "Contract results api call for a transaction id with at most one transaction match invariance breached",
+  "description": "Contract results api call for a transaction id with at most one latest transaction returned",
   "setup": {
     "contractresults": [
       {
@@ -62,14 +62,41 @@
     "/api/v1/contracts/results/0.0.8001-167654-000123400",
     "/api/v1/contracts/results/0.0.8001-167654-000123400?nonce=0"
   ],
-  "responseStatus": 500,
+  "responseStatus": 200,
   "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Internal error"
-        }
-      ]
-    }
+    "access_list": null,
+    "address": "0x0000000000000000000000000000000000001389",
+    "amount": 30,
+    "block_gas_used": 0,
+    "block_hash": "0x6ceecd8bb224da491",
+    "block_number": 17,
+    "bloom": "0x0505",
+    "call_result": "0x0606",
+    "chain_id": null,
+    "contract_id": "0.0.5001",
+    "created_contract_ids": ["0.0.7001"],
+    "error_message": null,
+    "failed_initcode": null,
+    "from": "0x0000000000000000000000000000000000000065",
+    "function_parameters": "0x0707",
+    "gas_consumed": null,
+    "gas_limit": 987654,
+    "gas_price": null,
+    "gas_used": 123,
+    "hash": "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "logs": [],
+    "max_fee_per_gas": null,
+    "max_priority_fee_per_gas": null,
+    "nonce": null,
+    "r": null,
+    "result": "SUCCESS",
+    "s": null,
+    "state_changes": [],
+    "status": "0x1",
+    "timestamp": "167654.000123456",
+    "to": "0x0000000000000000000000000000000000001389",
+    "transaction_index": 1,
+    "type": null,
+    "v": null
   }
 }
