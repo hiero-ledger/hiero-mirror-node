@@ -276,26 +276,6 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         assertThat(result.getFirst().getNodeAccountId()).isEqualTo(originalAccountId);
     }
 
-    @Test
-    void ignoreDeletedNodesWhenOverridingAccountId() {
-        var addressBook = addressBook();
-        var entry = addressBookEntry();
-        var originalAccountId = entry.getNodeAccountId();
-
-        domainBuilder
-                .node()
-                .customize(n -> n.nodeId(entry.getNodeId())
-                        .accountId(EntityId.of("0.0.999"))
-                        .deleted(true))
-                .persist();
-
-        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
-        var result = getNodes(filter);
-
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().getNodeAccountId()).isEqualTo(originalAccountId);
-    }
-
     // Helper method to add to the test class
     private void createNode(long nodeId, EntityId accountId) {
         domainBuilder

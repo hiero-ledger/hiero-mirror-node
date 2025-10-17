@@ -27,11 +27,7 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
                abe.node_cert_hash,
                abe.public_key,
                abe.stake,
-               case
-                   when n.account_id is not null and (n.deleted is null or n.deleted = false)
-                       then n.account_id
-                   else abe.node_account_id
-               end as node_account_id
+               coalesce(n.account_id, abe.node_account_id) as node_account_id
         from address_book_entry abe
         left join node n on n.node_id = abe.node_id
         where abe.consensus_timestamp = ?
