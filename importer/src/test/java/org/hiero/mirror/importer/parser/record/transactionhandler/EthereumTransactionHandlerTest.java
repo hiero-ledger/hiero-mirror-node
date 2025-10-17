@@ -15,6 +15,7 @@ import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.ByteString;
@@ -27,6 +28,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.math.BigInteger;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -35,6 +37,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.converter.HexToByteArrayConverter;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
@@ -43,7 +46,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
@@ -107,6 +112,47 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
         var expectedId = EntityId.of(functionResult.getContractID());
 
         assertThat(transactionHandler.getEntity(recordItem)).isEqualTo(expectedId);
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            'abab', true, , 'abab'
+            '', true, , ''
+            , true, , ''
+            , false, 'abab', 'abab'
+            , false, '', ''
+            , false, , ''
+            """)
+    void updateContractResult(
+            @ConvertWith(HexToByteArrayConverter.class) byte[] callData,
+            boolean callDataInlined,
+            @ConvertWith(HexToByteArrayConverter.class) byte[] callDataInFile,
+            @ConvertWith(HexToByteArrayConverter.class) byte[] expectedFunctionParameters) {
+        // given
+        var contractResult = new ContractResult();
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(callDataInlined)
+                .customize(e -> e.callData(callData))
+                .get();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
+                .build();
+        if (!callDataInlined) {
+            doReturn(callDataInFile).when(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+        }
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        verify(contractBytecodeService, times(callDataInlined ? 0 : 1)).get(any(EntityId.class));
+        assertThat(contractResult)
+                .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                .returns(expectedFunctionParameters, ContractResult::getFunctionParameters)
+                .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
     }
 
     @ParameterizedTest

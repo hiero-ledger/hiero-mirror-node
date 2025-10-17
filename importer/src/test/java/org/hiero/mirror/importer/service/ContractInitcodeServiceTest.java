@@ -7,17 +7,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.google.common.primitives.Bytes;
 import com.hedera.services.stream.proto.ContractBytecode;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.converter.HexToByteArrayConverter;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ConvertWith;
-import org.junit.jupiter.params.converter.TypedArgumentConverter;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -180,21 +178,5 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
 
         // when, then
         assertThat(service.get(contractBytecode, recordItem)).isNull();
-    }
-
-    private static class HexToByteArrayConverter extends TypedArgumentConverter<String, byte[]> {
-
-        HexToByteArrayConverter() {
-            super(String.class, byte[].class);
-        }
-
-        @Override
-        protected byte[] convert(String source) throws ArgumentConversionException {
-            if (source == null) {
-                return null;
-            }
-
-            return Hex.decode(source);
-        }
     }
 }
