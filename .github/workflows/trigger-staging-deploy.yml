@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   run-reusable-copy:
-    uses: hiero-ledger/hiero-mirror-node/.github/workflows/copy-stackgres-cluster.yml@7d9e935073507e45738098eb05a7c15f7658b565
+    uses: hiero-ledger/hiero-mirror-node/.github/workflows/copy-stackgres-cluster.yml@main
     with:
       source_cluster_location: "us-central1"
       source_cluster_name: "mainnet-na"
