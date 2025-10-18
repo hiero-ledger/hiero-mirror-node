@@ -12,7 +12,6 @@ import com.hedera.services.fees.HbarCentExchange;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Optional;
-import javax.annotation.Nonnull;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -20,10 +19,11 @@ import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.precompile.AbstractPrecompiledContract;
+import org.jspecify.annotations.NonNull;
 
 /**
- * System contract to interconvert tinybars and tinycents at the active exchange rate. The ABI
- * consists of 1 to 9 packed bytes where,
+ * System contract to interconvert tinybars and tinycents at the active exchange rate. The ABI consists of 1 to 9 packed
+ * bytes where,
  *
  * <ol>
  *   <li>The first byte is either {@code 0xbb}, when converting to tinybars; or {@code 0xcc}, when
@@ -37,16 +37,13 @@ import org.hyperledger.besu.evm.precompile.AbstractPrecompiledContract;
  * conversion result. Otherwise, it returns null.
  */
 public class ExchangeRatePrecompiledContract extends AbstractPrecompiledContract {
-    private static final String PRECOMPILE_NAME = "ExchangeRate";
-    private static final BigIntegerType WORD_DECODER = TypeFactory.create("uint256");
-
+    public static final String EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS = "0x168";
     // tinycentsToTinybars(uint256)
     static final int TO_TINYBARS_SELECTOR = 0x2e3cff6a;
     // tinybarsToTinycents(uint256)
     static final int TO_TINYCENTS_SELECTOR = 0x43a88229;
-
-    public static final String EXCHANGE_RATE_SYSTEM_CONTRACT_ADDRESS = "0x168";
-
+    private static final String PRECOMPILE_NAME = "ExchangeRate";
+    private static final BigIntegerType WORD_DECODER = TypeFactory.create("uint256");
     private final HbarCentExchange exchange;
     private final Instant consensusNow;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
@@ -68,8 +65,7 @@ public class ExchangeRatePrecompiledContract extends AbstractPrecompiledContract
     }
 
     @Override
-    @Nonnull
-    public PrecompileContractResult computePrecompile(final Bytes input, final @Nonnull MessageFrame frame) {
+    public @NonNull PrecompileContractResult computePrecompile(final Bytes input, final @NonNull MessageFrame frame) {
         try {
             validateTrue(input.size() >= 4, INVALID_TRANSACTION_BODY);
             validateTrue(frame.getValue().getAsBigInteger().equals(BigInteger.ZERO), INVALID_FEE_SUBMITTED);

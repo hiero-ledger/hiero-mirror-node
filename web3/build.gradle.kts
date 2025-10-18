@@ -28,7 +28,6 @@ dependencies {
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("jakarta.inject:jakarta.inject-api")
-    implementation("javax.inject:javax.inject")
     implementation("net.java.dev.jna:jna")
     implementation("org.bouncycastle:bcprov-jdk18on")
     implementation("org.springframework:spring-context-support")

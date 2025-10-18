@@ -4,11 +4,11 @@ package org.hiero.mirror.importer.db;
 
 import com.google.common.collect.Range;
 import java.util.Comparator;
-import javax.annotation.Nullable;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE) // For builder
 @Builder

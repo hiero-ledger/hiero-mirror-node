@@ -25,14 +25,13 @@ import com.hedera.services.hapi.fees.usage.SigUsage;
 import com.hedera.services.hapi.fees.usage.crypto.CryptoOpsUsage;
 import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import java.util.EnumSet;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 
 /**
- *  Copied Logic type from hedera-services. Differences with the original:
- *  1. Remove FeeSchedule, UtilPrng, File logic
+ * Copied Logic type from hedera-services. Differences with the original: 1. Remove FeeSchedule, UtilPrng, File logic
  */
 @Singleton
 public class AccessorBasedUsages {

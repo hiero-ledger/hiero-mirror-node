@@ -20,19 +20,18 @@ import com.hedera.node.app.spi.workflows.ResourceExhaustedException;
 import com.hedera.node.config.data.ContractsConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import jakarta.inject.Inject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import javax.inject.Inject;
 
 /**
- * A {@link ProxyWorldUpdater} that enforces several Hedera-specific checks and actions before
- * making the final commit in the "base" {@link HandleHederaOperations}. These include validating storage size
- * limits, calculating and charging rent, and preserving per-contract linked lists. See the
- * {@link #commit()} implementation for more details.
- *
- * Change from the original class - added getEvmFrameState() method. It is needed for the opcode
- * storage tracer to work. Otherwise, we don't have access to the storage changes.
+ * A {@link ProxyWorldUpdater} that enforces several Hedera-specific checks and actions before making the final commit
+ * in the "base" {@link HandleHederaOperations}. These include validating storage size limits, calculating and charging
+ * rent, and preserving per-contract linked lists. See the {@link #commit()} implementation for more details.
+ * <p>
+ * Change from the original class - added getEvmFrameState() method. It is needed for the opcode storage tracer to work.
+ * Otherwise, we don't have access to the storage changes.
  */
 @TransactionScope
 public class RootProxyWorldUpdater extends ProxyWorldUpdater {
@@ -155,8 +154,6 @@ public class RootProxyWorldUpdater extends ProxyWorldUpdater {
         return updatedContractNonces;
     }
 
-    private record SizeEffects(long finalSlotsUsed, List<StorageSizeChange> sizeChanges) {}
-
     private SizeEffects summarizeSizeEffects(@NonNull final List<StorageAccesses> allChanges) {
         // The initial K/V state will still include the slots being "zeroed out"; i.e., removed
         var finalSlotsUsed = evmFrameState.getKvStateSize();
@@ -184,4 +181,6 @@ public class RootProxyWorldUpdater extends ProxyWorldUpdater {
             }
         }
     }
+
+    private record SizeEffects(long finalSlotsUsed, List<StorageSizeChange> sizeChanges) {}
 }

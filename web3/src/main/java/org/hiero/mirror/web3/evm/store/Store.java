@@ -12,9 +12,9 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.util.List;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.hiero.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An interface which serves as a facade over the mirror-node specific in-memory state. This interface is used by components
@@ -57,6 +57,7 @@ public interface Store {
     void updateTokenRelationship(TokenRelationship updatedTokenRelationship);
 
     void deleteTokenRelationship(TokenRelationship tokenRelationship);
+
     /**
      * Update fungible or non-fungible token into the in-memory state.
      */
