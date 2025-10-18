@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.entity;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -31,6 +32,6 @@ public enum EntityType {
     }
 
     public String toDisplayString() {
-        return StringUtils.capitalize(name().toLowerCase());
+        return StringUtils.capitalize(name().toLowerCase(Locale.ENGLISH));
     }
 }

@@ -27,6 +27,7 @@ import com.hedera.services.evm.contracts.operations.HederaSelfDestructOperationV
 import com.hedera.services.evm.contracts.operations.HederaSelfDestructOperationV050;
 import com.hedera.services.txns.crypto.AbstractAutoCreationLogic;
 import com.hedera.services.txns.util.PrngLogic;
+import jakarta.inject.Provider;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
@@ -35,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
-import javax.inject.Provider;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessor;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmMessageCallProcessorV30;

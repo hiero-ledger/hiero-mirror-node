@@ -8,9 +8,8 @@ import lombok.experimental.SuperBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 /**
- * Royalty fee is applied every time a NFT is transferred(changes ownership).
- * It is a fraction of the amount exchanged for the NFT. If no value is exchanged
- * for the NFT a fallback amount is deducted from the receiver.
+ * Royalty fee is applied every time a NFT is transferred(changes ownership). It is a fraction of the amount exchanged
+ * for the NFT. If no value is exchanged for the NFT a fallback amount is deducted from the receiver.
  */
 @Data
 @NoArgsConstructor
@@ -32,6 +31,7 @@ public class RoyaltyFee extends AbstractFee {
      */
     private long numerator;
 
+    @Override
     public boolean isChargedInToken(EntityId tokenId) {
         return false;
     }

@@ -25,6 +25,7 @@ dependencies {
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("io.freefair.gradle:lombok-plugin:9.0.0")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
+    implementation("net.ltgt.gradle:gradle-errorprone-plugin:4.3.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.flywaydb:flyway-database-postgresql:11.14.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:2.4.1")

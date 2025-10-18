@@ -22,6 +22,7 @@ public class FractionalFee extends AbstractFee {
 
     private boolean netOfTransfers;
 
+    @Override
     public boolean isChargedInToken(EntityId tokenId) {
         return true;
     }

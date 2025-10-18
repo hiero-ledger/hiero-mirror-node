@@ -22,6 +22,7 @@ public class FixedFee extends AbstractFee {
      */
     private EntityId denominatingTokenId;
 
+    @Override
     public boolean isChargedInToken(EntityId tokenId) {
         return tokenId.equals(denominatingTokenId);
     }

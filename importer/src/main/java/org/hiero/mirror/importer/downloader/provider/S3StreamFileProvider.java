@@ -9,7 +9,6 @@ import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
 import lombok.CustomLog;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -21,6 +20,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
+import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.core.ResponseBytes;
