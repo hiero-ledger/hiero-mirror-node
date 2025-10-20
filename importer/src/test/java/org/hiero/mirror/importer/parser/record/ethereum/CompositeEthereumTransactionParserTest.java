@@ -115,7 +115,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
             true, false
             false, false
             """)
-    void getHashType2CallDataFileData(boolean addHexPrefix, boolean useCurrentStatue) {
+    void getHashType2CallDataFileData(boolean addHexPrefix, boolean useCurrentState) {
         // given
         byte[] expected = new Keccak.Digest256().digest(RAW_TX_TYPE_1);
         var fileData = domainBuilder
@@ -125,7 +125,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
                     f.fileData(data.getBytes(StandardCharsets.UTF_8));
                 })
                 .persist();
-        if (!useCurrentStatue) {
+        if (!useCurrentState) {
             domainBuilder
                     .fileData()
                     .customize(f -> f.consensusTimestamp(fileData.getConsensusTimestamp() + 2)
@@ -140,7 +140,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
                 fileData.getEntityId(),
                 fileData.getConsensusTimestamp() + 1,
                 RAW_TX_TYPE_1_CALL_DATA_OFFLOADED,
-                useCurrentStatue);
+                useCurrentState);
 
         // then
         assertThat(actual).isEqualTo(expected);

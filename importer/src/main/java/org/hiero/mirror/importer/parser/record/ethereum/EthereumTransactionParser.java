@@ -23,7 +23,7 @@ public interface EthereumTransactionParser {
      * @param consensusTimestamp The consensus timestamp of the ethereum transaction
      * @param transactionBytes The raw bytes of the ethereum transaction, note the call data might be offloaded to
      *                         callDataId
-     * @param useCurrentStatue Whether to use the current state or the historical state for loading call data from file
+     * @param useCurrentState Whether to use the current state or the historical state for loading call data from file
      * @return The keccak256 hash of the ethereum transaction, or an empty byte array if the hash cannot be computed
      */
     byte[] getHash(
@@ -31,5 +31,5 @@ public interface EthereumTransactionParser {
             EntityId callDataId,
             long consensusTimestamp,
             byte[] transactionBytes,
-            boolean useCurrentStatue);
+            boolean useCurrentState);
 }
