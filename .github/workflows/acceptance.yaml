@@ -170,6 +170,7 @@ jobs:
           k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
           k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
+          k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
           k6Map["BOB"]="PAYER_ACCOUNT"
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
           k6Map["fungible"]="TOKEN_ADDRESS"
