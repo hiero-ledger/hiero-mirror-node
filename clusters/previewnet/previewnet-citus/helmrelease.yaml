@@ -63,6 +63,8 @@ spec:
       enabled: true
     restjava:
       enabled: true
+      routes:
+        exchangeRate: true
     stackgres:
       coordinator:
         persistentVolume:
