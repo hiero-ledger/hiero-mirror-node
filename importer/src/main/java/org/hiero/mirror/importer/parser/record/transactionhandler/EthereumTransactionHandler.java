@@ -62,6 +62,10 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         }
 
         if (recordItem.getEthereumTransaction() == null) {
+            // This can happen when decoding from the transaction bytes has failed, set default values for not-null
+            // columns
+            contractResult.setFunctionParameters(ArrayUtils.EMPTY_BYTE_ARRAY);
+            contractResult.setGasLimit(0L);
             return;
         }
 

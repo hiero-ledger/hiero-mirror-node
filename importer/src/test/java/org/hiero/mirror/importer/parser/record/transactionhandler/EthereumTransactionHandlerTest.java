@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
@@ -153,6 +154,25 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
                 .returns(expectedFunctionParameters, ContractResult::getFunctionParameters)
                 .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
+    }
+
+    @Test
+    void updateContractResultNullEthereumTransaction() {
+        // given
+        var contractResult = new ContractResult();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true))
+                .build();
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        assertThat(contractResult)
+                .returns(null, ContractResult::getAmount)
+                .returns(EMPTY_BYTE_ARRAY, ContractResult::getFunctionParameters)
+                .returns(0L, ContractResult::getGasLimit);
     }
 
     @ParameterizedTest
