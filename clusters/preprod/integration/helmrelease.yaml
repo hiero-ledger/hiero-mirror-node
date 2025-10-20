@@ -61,7 +61,7 @@ spec:
       enabled: false
     restjava:
       routes:
-        networkStake: true
+        exchangeRate: true
     rosetta:
       enabled: true
     test:
