@@ -103,7 +103,6 @@ jobs:
     name: Copy Citus from source to target
     runs-on: hiero-mirror-node-linux-medium
     env:
-      FLUX_VERSION: "2.3.0"
       GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
       GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
@@ -202,7 +201,7 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
-        uses: kubeshop/setup-testkube@970d643ec9ecbe5707049c1d65b851da72aab3d9
+        uses: kubeshop/setup-testkube@12a1cb43ab0cc9a90aef8c8447fa22a3b2c7e7c8 # v1.0.10
         with:
           version: v2.3.0
 
