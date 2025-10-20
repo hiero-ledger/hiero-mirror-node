@@ -20,26 +20,13 @@ class TransactionService extends BaseService {
            ${Transaction.SCHEDULED}, ${Transaction.TYPE},
            ${Transaction.PAYER_ACCOUNT_ID}
     from ${Transaction.tableName}
-    where ${Transaction.CONSENSUS_TIMESTAMP} = coalesce((
-        select ${Transaction.CONSENSUS_TIMESTAMP}
-        from ${Transaction.tableName}
-        where ${Transaction.PAYER_ACCOUNT_ID} = $1 
-            and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
-            and ${Transaction.VALID_START_NS} = $2
-            and ${Transaction.RESULT} = ${successTransactionResult}
-            and ${Transaction.NONCE} = (select coalesce($4, 0))
-        order by ${Transaction.CONSENSUS_TIMESTAMP} desc
-        limit 1
-    ), (
-        select ${Transaction.CONSENSUS_TIMESTAMP}
-        from ${Transaction.tableName}
-        where ${Transaction.PAYER_ACCOUNT_ID} = $1 
-            and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
-            and ${Transaction.VALID_START_NS} = $2
-            and ${Transaction.NONCE} = (select coalesce($4, 0))
-        order by ${Transaction.CONSENSUS_TIMESTAMP} desc
-        limit 1
-    ))`;
+    where ${Transaction.PAYER_ACCOUNT_ID} = $1 
+        and ${Transaction.CONSENSUS_TIMESTAMP} >= $2 and ${Transaction.CONSENSUS_TIMESTAMP} <= $3
+        and ${Transaction.VALID_START_NS} = $2
+        and ${Transaction.NONCE} = (select coalesce($4, 0))
+    order by (${Transaction.RESULT} = ${successTransactionResult}) desc,
+             ${Transaction.CONSENSUS_TIMESTAMP} desc
+    limit 1`;
 
   static ethereumTransactionDetailsQuery = `
   select
@@ -74,15 +61,13 @@ class TransactionService extends BaseService {
    *
    * @param {TransactionId} transactionId transactionId
    * @param {Number} nonce nonce of the transaction
-   * @param {string[]|string} excludeTransactionResults Transaction results to exclude, can be a list or a single result
    * @return {Promise<Transaction[]>} transactions subset
    */
-  async getTransactionDetailsFromTransactionId(transactionId, nonce = undefined, excludeTransactionResults = []) {
+  async getTransactionDetailsFromTransactionId(transactionId, nonce = undefined) {
     const maxConsensusTimestamp = BigInt(transactionId.getValidStartNs()) + maxTransactionConsensusTimestampRangeNs;
     return this.getTransactionDetails(
       TransactionService.transactionDetailsFromTransactionIdQuery,
       [transactionId.getEntityId().getEncodedId(), transactionId.getValidStartNs(), maxConsensusTimestamp, nonce],
-      excludeTransactionResults
     );
   }
 
@@ -102,28 +87,7 @@ class TransactionService extends BaseService {
   async getTransactionDetails(
     query,
     params,
-    excludeTransactionResults = [],
-    nonce = undefined,
-    limit = undefined,
-    orderQuery = undefined
   ) {
-    if (nonce !== undefined) {
-      params.push(nonce);
-      query = `${query}
-      and ${Transaction.NONCE} = $${params.length}`;
-    }
-
-    query += this.getExcludeTransactionResultsCondition(excludeTransactionResults, params);
-
-    if (orderQuery !== undefined) {
-      query += ` ${orderQuery}`;
-    }
-
-    if (limit !== undefined) {
-      params.push(limit);
-      query += ` ${this.getLimitQuery(params.length)}`;
-    }
-
     const rows = await super.getRows(query, params);
     return rows.map((row) => new Transaction(row));
   }

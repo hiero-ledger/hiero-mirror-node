@@ -114,15 +114,6 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
       {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
     ]);
   });
-
-  test('No match without nonce exclude all possible transaction results', async () => {
-    const actual = await TransactionService.getTransactionDetailsFromTransactionId(
-      TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`),
-      undefined,
-      [duplicateTransactionResult, successTransactionResult]
-    );
-    expect(actual).toHaveLength(0);
-  });
 });
 
 describe('TransactionService.getEthTransactionByTimestampAndPayerId tests', () => {

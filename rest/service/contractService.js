@@ -205,21 +205,10 @@ class ContractService extends BaseService {
                    where ${ContractTransaction.CONSENSUS_TIMESTAMP} = $1 and ${ContractTransaction.ENTITY_ID} = $2`;
 
   static ethereumTransactionsByHashQuery = `select * from ${ContractTransactionHash.tableName}
-        where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.CONSENSUS_TIMESTAMP} = (
-          select coalesce((
-              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
-              from ${ContractTransactionHash.tableName}
-              where ${ContractTransactionHash.HASH} = $1 and ${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}
-              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
-              limit 1
-          ), (
-              select ${ContractTransactionHash.CONSENSUS_TIMESTAMP}
-              from ${ContractTransactionHash.tableName}
-              where ${ContractTransactionHash.HASH} = $1
-              order by ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
-              limit 1
-          ))
-       )`;
+        where ${ContractTransactionHash.HASH} = $1
+        order by (${ContractTransactionHash.TRANSACTION_RESULT} = ${successTransactionResult}) desc,
+                 ${ContractTransactionHash.CONSENSUS_TIMESTAMP} desc
+        limit 1`;
 
   getContractResultsByIdAndFiltersQuery(whereConditions, whereParams, order, limit) {
     const params = whereParams;
