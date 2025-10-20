@@ -90,13 +90,17 @@ on:
         required: true
         type: boolean
 
+defaults:
+  run:
+    shell: bash
+
 permissions:
   id-token: write
   contents: read
 
 jobs:
   run-copy:
-    name: Copy Citus from SOURCE ➜ TARGET
+    name: Copy Citus from source to target
     runs-on: hiero-mirror-node-linux-medium
     env:
       FLUX_VERSION: "2.3.0"
@@ -119,18 +123,18 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
 
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
       - name: Setup gcloud + kubectl + GKE auth plugin
-        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
         with:
+          cache: true
           install_components: gke-gcloud-auth-plugin, kubectl
 
       - name: Create application default credentials
-        shell: bash
         run: |
           set -euo pipefail
           : "${ACTIONS_ID_TOKEN_REQUEST_URL:?missing OIDC URL}"
@@ -170,7 +174,6 @@ jobs:
           gcloud config set container/use_application_default_credentials true
 
       - name: Get GKE credentials (source)
-        shell: bash
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "${GCP_K8S_SOURCE_CLUSTER_NAME}" \
@@ -180,7 +183,6 @@ jobs:
           kubectl config rename-context "${SRC_CURR}" "${K8S_SOURCE_CLUSTER_CONTEXT}"
 
       - name: Get GKE credentials (target)
-        shell: bash
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "${GCP_K8S_TARGET_CLUSTER_NAME}" \
@@ -190,7 +192,6 @@ jobs:
           kubectl config rename-context "${TGT_CURR}" "${K8S_TARGET_CLUSTER_CONTEXT}"
 
       - name: Cache Cloud SDK paths
-        shell: bash
         run: |
           set -euo pipefail
           GCLOUD_BIN="$(command -v gcloud)"
@@ -206,12 +207,11 @@ jobs:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@4a15fa6a023259353ef750acf1c98fe88407d4d0
+        uses: fluxcd/flux2/action@4a15fa6a023259353ef750acf1c98fe88407d4d0 # v2.7.2
         with:
           version: v2.3.0
 
       - name: Execute copy script
-        shell: bash
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
