@@ -21,6 +21,7 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
@@ -45,6 +46,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.HandlerMapping;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.util.WebUtils;
@@ -63,6 +65,14 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         var requestMapping = String.valueOf(request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE));
         var responseHeaders = properties.getResponse().getHeaders().getHeadersForPath(requestMapping);
         responseHeaders.forEach(response::setHeader);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    private ResponseEntity<Object> typeMismatch(final TypeMismatchException e, final WebRequest request) {
+        // Explicitly don't log the parameter value to avoid cross-site scripting attacks
+        final var detail = "Failed to convert '%s'".formatted(e.getPropertyName());
+        var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, detail);
+        return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({

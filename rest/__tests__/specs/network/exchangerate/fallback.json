@@ -56,13 +56,26 @@
     {
       "url": "/api/v1/network/exchangerate?timestamp=gt:1234567890.900800200",
       "responseStatus": 404,
-      "responseJson": {
-        "_status": {
-          "messages": [
-            {
-              "message": "Not found"
-            }
-          ]
+      "responseJsonMatrix": {
+        "java": {
+          "_status": {
+            "messages": [
+              {
+                "data": null,
+                "detail": "File 0.0.112 not found",
+                "message": "Not Found"
+              }
+            ]
+          }
+        },
+        "js": {
+          "_status": {
+            "messages": [
+              {
+                "message": "Not found"
+              }
+            ]
+          }
         }
       }
     }

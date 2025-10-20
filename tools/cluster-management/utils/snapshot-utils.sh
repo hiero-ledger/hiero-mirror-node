@@ -4,7 +4,18 @@
 
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
+
+normalizeGceSnapshotName() {
+  local s="$1" max=63
+
+  s="${s,,}"                                   # lowercase
+  s="${s//[^a-z0-9-]/-}"                       # only [a-z0-9-]
+  (( ${#s} > max )) && s="${s: -max}"          # last 63
+  [[ $s =~ ^[a-z] ]] || s="a${s#?}"            # start with letter
+  while [[ $s == -* ]]; do s="${s::-1}"; done  # no trailing '-'
+  printf '%s' "$s"
+}
 
 function setupZfsVolumeForRecovery() {
   local namespace="${1}"  pvcName="${2}" backupLabel="${3}"
@@ -216,6 +227,7 @@ function snapshotCitusDisks() {
     diskNodeId="${diskName#"$diskPrefix"-}"
     diskNodeId="${diskNodeId%"-zfs"}"
     snapshotName="${diskName}-${epochSeconds}"
+    snapshotName="$(normalizeGceSnapshotName "$snapshotName")"
     snapshotRegion=$(echo "${diskNodeId}" | cut -d '-' -f 2-3)
     diskZone=$(echo "${diskNodeId}" | cut -d '-' -f 2-4)
     nodeVolumes=$(echo "${zfsVolumes}" | jq -r --arg diskNodeId "${diskNodeId}" 'map(select(.nodeId == $diskNodeId))')
@@ -578,7 +590,9 @@ function deleteZfsSnapshots() {
     log "No snapshots found for ${ZFS_POOL_NAME} on node ${nodeId}"
   else
     log "Deleting all snapshots for ${ZFS_POOL_NAME} on node ${nodeId}"
-    kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r ${snapshots}
+    while IFS= read -r snap; do
+          kubectl_common exec "${pod}" -c openebs-zfs-plugin -- zfs destroy -r "$snap"
+    done <<< "${snapshots}"
   fi
 }
 

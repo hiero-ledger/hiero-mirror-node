@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -45,8 +46,9 @@ public class AccountClient extends AbstractNetworkClient {
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
     private final long initialBalance;
 
-    public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public AccountClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
             initialBalance = getBalance();
             log.info(
@@ -62,7 +64,7 @@ public class AccountClient extends AbstractNetworkClient {
     @Override
     public void clean() {
         log.info("Deleting {} accounts", accountIds.size());
-        deleteAll(accountIds, this::delete);
+        deleteOrLogEntities(accountIds, this::delete);
 
         var cost = initialBalance - getBalance();
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
@@ -79,6 +81,19 @@ public class AccountClient extends AbstractNetworkClient {
         }
 
         client.setOperator(operatorId.getAccountId(), operatorId.getPrivateKey());
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var accountName : accountMap.keySet()) {
+            log.info(
+                    "Skipping cleanup of account [{}}] at address {}.",
+                    accountName,
+                    accountMap.get(accountName).getAccountId().toEvmAddress());
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println(accountName + "="
+                    + accountMap.get(accountName).getAccountId().toEvmAddress());
+        }
     }
 
     @Override

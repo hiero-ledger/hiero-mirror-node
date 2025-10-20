@@ -32,7 +32,7 @@ import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
-class TokenAirdropsControllerTest extends ControllerTest {
+final class TokenAirdropsControllerTest extends ControllerTest {
 
     private final TokenAirdropMapper mapper;
 
@@ -425,7 +425,6 @@ class TokenAirdropsControllerTest extends ControllerTest {
             result =
                     restClient.get().uri(nextParams, sender.getNum()).retrieve().body(TokenAirdropsResponse.class);
             nextParams = nextBase.formatted(receiver2, token1, serial3);
-            ;
             // Then
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop3), baseLink + nextParams));
 
@@ -898,10 +897,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     () -> restClient.get().uri("", id).retrieve().body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'id' with value: '" + id + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'id'");
         }
 
         @ParameterizedTest
@@ -924,17 +920,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'receiver.id' with value: '" + accountId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'receiver.id'");
         }
 
         @ParameterizedTest
         @CsvSource({
             "101, limit must be less than or equal to 100",
             "-1, limit must be greater than 0",
-            "a, Failed to convert 'limit' with value: 'a'"
+            "a, Failed to convert 'limit'"
         })
         void invalidLimit(String limit, String expected) {
             // When
@@ -950,9 +943,9 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @CsvSource({
-            "ascending, Failed to convert 'order' with value: 'ascending'",
-            "dsc, Failed to convert 'order' with value: 'dsc'",
-            "invalid, Failed to convert 'order' with value: 'invalid'"
+            "ascending, Failed to convert 'order'",
+            "dsc, Failed to convert 'order'",
+            "invalid, Failed to convert 'order'"
         })
         void invalidOrder(String order, String expected) {
             // When
@@ -986,10 +979,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'token.id' with value: '" + tokenId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'token.id'");
         }
     }
 
@@ -1153,7 +1143,6 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
             // Then
             nextParams = nextBase.formatted(sender.getNum(), sender, token1);
-            ;
             assertThat(result).isEqualTo(getExpectedResponse(List.of(airdrop1), baseLink + nextParams));
 
             // When follow link
@@ -1931,10 +1920,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     () -> restClient.get().uri("", id).retrieve().body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'id' with value: '" + id + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'id'");
         }
 
         @ParameterizedTest
@@ -1957,17 +1943,14 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'sender.id' with value: '" + accountId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'sender.id'");
         }
 
         @ParameterizedTest
         @CsvSource({
             "101, limit must be less than or equal to 100",
             "-1, limit must be greater than 0",
-            "a, Failed to convert 'limit' with value: 'a'"
+            "a, Failed to convert 'limit'"
         })
         void invalidLimit(String limit, String expected) {
             // When
@@ -1983,9 +1966,9 @@ class TokenAirdropsControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @CsvSource({
-            "ascending, Failed to convert 'order' with value: 'ascending'",
-            "dsc, Failed to convert 'order' with value: 'dsc'",
-            "invalid, Failed to convert 'order' with value: 'invalid'"
+            "ascending, Failed to convert 'order'",
+            "dsc, Failed to convert 'order'",
+            "invalid, Failed to convert 'order'"
         })
         void invalidOrder(String order, String expected) {
             // When
@@ -2019,10 +2002,7 @@ class TokenAirdropsControllerTest extends ControllerTest {
                     .body(TokenAirdropsResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'token.id' with value: '" + tokenId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'token.id'");
         }
     }
 }

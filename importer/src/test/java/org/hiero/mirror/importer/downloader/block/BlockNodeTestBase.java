@@ -10,6 +10,7 @@ import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 
@@ -44,6 +45,12 @@ class BlockNodeTestBase {
     protected static BlockItem recordFileItem() {
         return BlockItem.newBuilder()
                 .setRecordFile(RecordFileItem.getDefaultInstance())
+                .build();
+    }
+
+    protected static SubscribeStreamResponse subscribeStreamResponse(long endOfBlockNumber) {
+        return SubscribeStreamResponse.newBuilder()
+                .setEndOfBlock(BlockEnd.newBuilder().setBlockNumber(endOfBlockNumber))
                 .build();
     }
 

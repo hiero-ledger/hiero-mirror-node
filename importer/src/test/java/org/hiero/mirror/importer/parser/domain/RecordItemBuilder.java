@@ -12,6 +12,7 @@ import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
 
 import com.google.protobuf.BoolValue;
 import com.google.protobuf.ByteString;
@@ -1253,6 +1254,10 @@ public class RecordItemBuilder {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public ByteString slot() {
+        return fromBytes(trim(randomBytes(32)));
     }
 
     // Helper methods

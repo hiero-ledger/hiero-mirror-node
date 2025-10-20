@@ -3,6 +3,8 @@
 hiero:
   mirror:
     importer:
+      cache:
+        fileData: "maximumSize=2,expireAfterAccess=5m,recordStats"
       downloader:
         bucketName: test
       importHistoricalAccountInfo: false

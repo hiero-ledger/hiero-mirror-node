@@ -15,7 +15,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class NumberRangeParameterTest {
+final class NumberRangeParameterTest {
 
     @Test
     void testNoOperatorPresent() {
@@ -36,7 +36,20 @@ class NumberRangeParameterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"a", ".1", "someinvalidstring", "-1", "9223372036854775808", ":2000", ":", "eq:", ":1"})
+    @ValueSource(
+            strings = {
+                "a",
+                ".1",
+                "someinvalidstring",
+                "-1",
+                "9223372036854775808",
+                ":2000",
+                ":",
+                "eq:",
+                "eq:a",
+                "a:1",
+                "eq:1:2"
+            })
     @DisplayName("IntegerRangeParameter parse from string tests, negative cases")
     void testInvalidParam(String input) {
         assertThrows(IllegalArgumentException.class, () -> NumberRangeParameter.valueOf(input));

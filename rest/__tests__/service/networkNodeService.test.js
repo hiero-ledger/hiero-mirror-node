@@ -38,12 +38,12 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id
+                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id, account_id
                                  from node)
                       select abe.description,
                              abe.memo,
                              abe.node_id,
-                             abe.node_account_id,
+                             coalesce(n.account_id, abe.node_account_id) as node_account_id,
                              abe.node_cert_hash,
                              abe.public_key,
                              adb.file_id,
@@ -96,12 +96,12 @@ describe('NetworkNodeService.getNetworkNodesWithFiltersQuery tests', () => {
                                          staking_period
                                   from node_stake
                                   where consensus_timestamp = (select max(consensus_timestamp) from node_stake)),
-                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id
+                           n as (select admin_key, decline_reward, grpc_proxy_endpoint, node_id, account_id
                                  from node)
                       select abe.description,
                              abe.memo,
                              abe.node_id,
-                             abe.node_account_id,
+                             coalesce(n.account_id, abe.node_account_id) as node_account_id,
                              abe.node_cert_hash,
                              abe.public_key,
                              adb.file_id,
@@ -573,6 +573,129 @@ describe('NetworkNodeService.getNetworkNodes tests node filter', () => {
         5
       )
     ).resolves.toMatchObject(expectedNetworkNode102);
+  });
+});
+
+describe('NetworkNodeService node_account_id override logic', () => {
+  const nodeAccount1000 = EntityId.parseString('1000');
+  const nodeAccount1001 = EntityId.parseString('1001');
+
+  test('override node_account_id when present in node table', async () => {
+    const addressBooks = [
+      {
+        start_consensus_timestamp: 10,
+        file_id: EntityId.systemEntity.addressBookFile102.toString(),
+        node_count: 2,
+      },
+    ];
+
+    const entries = [
+      {
+        consensus_timestamp: 10,
+        node_id: 0,
+        node_account_id: EntityId.parseString('3').toString(),
+        description: 'desc 1',
+        memo: 'memo 1',
+      },
+      {
+        consensus_timestamp: 10,
+        node_id: 1,
+        node_account_id: EntityId.parseString('4').toString(),
+        description: 'desc 2',
+        memo: 'memo 2',
+      },
+    ];
+
+    const nodes = [
+      {node_id: 0, account_id: nodeAccount1000.getEncodedId(), deleted: false},
+      {node_id: 1, account_id: nodeAccount1001.getEncodedId(), deleted: false},
+    ];
+
+    await integrationDomainOps.loadAddressBooks(addressBooks);
+    await integrationDomainOps.loadAddressBookEntries(entries);
+    await integrationDomainOps.loadNodes(nodes);
+
+    const result = await NetworkNodeService.getNetworkNodes(
+      [],
+      [EntityId.systemEntity.addressBookFile102.getEncodedId()],
+      'asc',
+      10
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result[0].addressBookEntry.nodeAccountId).toEqual(nodeAccount1000.getEncodedId());
+    expect(result[1].addressBookEntry.nodeAccountId).toEqual(nodeAccount1001.getEncodedId());
+  });
+
+  test('keep existing node_account_id when node table account_id is null', async () => {
+    const addressBooks = [
+      {
+        start_consensus_timestamp: 20,
+        file_id: EntityId.systemEntity.addressBookFile102.toString(),
+        node_count: 1,
+      },
+    ];
+
+    const nodeAccountOriginal = EntityId.parseString('3');
+    const entries = [
+      {
+        consensus_timestamp: 20,
+        node_id: 0,
+        node_account_id: nodeAccountOriginal.toString(),
+        description: 'desc 1',
+        memo: 'memo 1',
+      },
+    ];
+
+    const nodes = [{node_id: 0, account_id: null, deleted: false}];
+
+    await integrationDomainOps.loadAddressBooks(addressBooks);
+    await integrationDomainOps.loadAddressBookEntries(entries);
+    await integrationDomainOps.loadNodes(nodes);
+
+    const result = await NetworkNodeService.getNetworkNodes(
+      [],
+      [EntityId.systemEntity.addressBookFile102.getEncodedId()],
+      'asc',
+      10
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].addressBookEntry.nodeAccountId).toEqual(nodeAccountOriginal.getEncodedId());
+  });
+
+  test('use address_book_entry when node table has no matching row', async () => {
+    const addressBooks = [
+      {
+        start_consensus_timestamp: 30,
+        file_id: EntityId.systemEntity.addressBookFile102.toString(),
+        node_count: 1,
+      },
+    ];
+
+    const nodeAccountOriginal = EntityId.parseString('5');
+    const entries = [
+      {
+        consensus_timestamp: 30,
+        node_id: 2,
+        node_account_id: nodeAccountOriginal.toString(),
+        description: 'desc without node table entry',
+        memo: 'memo 3',
+      },
+    ];
+
+    await integrationDomainOps.loadAddressBooks(addressBooks);
+    await integrationDomainOps.loadAddressBookEntries(entries);
+
+    const result = await NetworkNodeService.getNetworkNodes(
+      [],
+      [EntityId.systemEntity.addressBookFile102.getEncodedId()],
+      'asc',
+      10
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].addressBookEntry.nodeAccountId).toEqual(nodeAccountOriginal.getEncodedId());
   });
 });
 

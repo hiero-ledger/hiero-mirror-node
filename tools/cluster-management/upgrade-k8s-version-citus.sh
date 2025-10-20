@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-source ./utils.sh
+source ./utils/utils.sh
 
 versionGreater() {
   local raw1="$1"

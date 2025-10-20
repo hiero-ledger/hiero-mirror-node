@@ -74,6 +74,12 @@ import org.hiero.mirror.common.domain.entity.NftAllowanceHistory;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowanceHistory;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookHistory;
+import org.hiero.mirror.common.domain.hook.HookStorage;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
+import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.job.ReconciliationJob;
 import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.common.domain.node.Node;
@@ -572,6 +578,60 @@ public class DomainBuilder {
                 .fileData(bytes(128))
                 .entityId(entityId())
                 .transactionType(TransactionType.FILECREATE.getProtoId());
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<Hook, Hook.HookBuilder<?, ?>> hook() {
+        var createdTimestamp = timestamp();
+        var builder = Hook.builder()
+                .adminKey(key())
+                .contractId(entityId())
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .hookId(number())
+                .ownerId(id())
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .type(HookType.LAMBDA);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<HookHistory, HookHistory.HookHistoryBuilder<?, ?>> hookHistory() {
+        var createdTimestamp = timestamp();
+        var builder = HookHistory.builder()
+                .adminKey(key())
+                .contractId(entityId())
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .hookId(number())
+                .ownerId(id())
+                .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
+                .type(HookType.LAMBDA);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<HookStorage, HookStorage.HookStorageBuilder> hookStorage() {
+        var createdTimestamp = timestamp();
+        var modifiedTimestamp = timestamp();
+        var builder = HookStorage.builder()
+                .createdTimestamp(createdTimestamp)
+                .hookId(number())
+                .key(bytes(32))
+                .modifiedTimestamp(modifiedTimestamp)
+                .ownerId(id())
+                .value(bytes(32));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<HookStorageChange, HookStorageChange.HookStorageChangeBuilder> hookStorageChange() {
+        var builder = HookStorageChange.builder()
+                .consensusTimestamp(timestamp())
+                .hookId(number())
+                .key(bytes(32))
+                .ownerId(id())
+                .valueRead(bytes(32))
+                .valueWritten(bytes(32));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

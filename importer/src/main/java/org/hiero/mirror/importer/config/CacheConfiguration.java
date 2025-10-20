@@ -20,6 +20,7 @@ public class CacheConfiguration {
 
     public static final String CACHE_ADDRESS_BOOK = "addressBook";
     public static final String CACHE_ALIAS = "alias";
+    public static final String CACHE_FILE_DATA = "fileData";
     public static final String CACHE_TIME_PARTITION_OVERLAP = "timePartitionOverlap";
     public static final String CACHE_TIME_PARTITION = "timePartition";
     public static final String CACHE_NAME = "default";
@@ -36,6 +37,11 @@ public class CacheConfiguration {
     @Bean(CACHE_ALIAS)
     CacheManager cacheManagerAlias() {
         return cacheManager(cacheProperties.getAlias());
+    }
+
+    @Bean(CACHE_FILE_DATA)
+    CacheManager cacheManagerFileData() {
+        return cacheManager(cacheProperties.getFileData());
     }
 
     @Bean(CACHE_TIME_PARTITION)

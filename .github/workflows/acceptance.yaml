@@ -8,6 +8,7 @@ on:
       - "main"
       - "release/**"
     paths:
+      - ".github/workflows/acceptance.yaml"
       - "test/**"
   push:
     branches:
@@ -40,13 +41,15 @@ jobs:
           - BLOCK
     timeout-minutes: 40
     env:
-      BLOCK_NODE_CHART_VERSION: v0.17.1
-      CONSENSUS_VERSION: v0.65.1
-      MIRROR_NODE_VERSION: v0.139.0-rc3
+      BLOCK_NODE_CHART_VERSION: v0.20.1
+      CONSENSUS_VERSION: v0.67.0
+      HELM_RELEASE_NAME: mirror-1
+      MIRROR_NODE_VERSION: v0.141.0-rc1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
+      SOLO_VERSION: v0.46.1
       TAG: pr-changes
     steps:
       - name: Harden Runner
@@ -62,7 +65,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
@@ -79,7 +82,7 @@ jobs:
           java-version: 21
 
       - name: Install Solo CLI via npm
-        run: npm install -g @hashgraph/solo@v0.43.0
+        run: npm install -g @hashgraph/solo@${SOLO_VERSION}
 
       - name: Build Mirror Node Test JAR
         run: ./gradlew test:build -x test
@@ -92,26 +95,27 @@ jobs:
           set -ex
 
           kind create cluster -n "${SOLO_CLUSTER_NAME}"
-          solo init
-          solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
           kind load docker-image gcr.io/mirrornode/hedera-mirror-test:${TAG} -n "${SOLO_CLUSTER_NAME}"
-          solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
-          solo deployment add-cluster --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1
-          solo cluster-ref setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
+
+          solo init
+          solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
+          solo deployment config create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
+          solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1
+          solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
             solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
           fi
-          solo node keys --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-          solo network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
-          solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
-          solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-          cat <<EOF > mirror.yaml
+            cat <<EOF > mirror.yaml
           importer:
             env:
-              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-0.${SOLO_NAMESPACE}.svc.cluster.local'
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
             cucumberTags: "@acceptance and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @erc and not @ethcall"
@@ -130,7 +134,7 @@ jobs:
           EOF
 
           else
-          cat <<EOF > mirror.yaml
+            cat <<EOF > mirror.yaml
           test:
             image:
               tag: ${TAG}
@@ -140,6 +144,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
             enabled: true
           web3:
             env:
@@ -147,12 +152,74 @@ jobs:
           EOF
           fi
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger
+          solo mirror node add --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger
 
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+        run: helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" --timeout 20m | tee output_log.txt
+
+      - name: Parse acceptance tests logs and set k6 environment variables
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        id: log-variables
+        run: |
+          set -ex
+          LOG_FILE="./output_log.txt"
+
+          declare -A k6Map
+          k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
+          k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
+          k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
+          k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
+          k6Map["BOB"]="PAYER_ACCOUNT"
+          k6Map["ALICE"]="ACCOUNT_ADDRESS"
+          k6Map["fungible"]="TOKEN_ADDRESS"
+          k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
+
+          for key in "${!k6Map[@]}"; do
+            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+            echo "${key}=${value}" >> $GITHUB_ENV
+          done
+
+      - name: Install k6
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
+
+      - name: Port forward web3
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        run: |
+          echo "Port forwarding 8080:80"
+          kubectl port-forward "service/${HELM_RELEASE_NAME}-web3" -n "${SOLO_NAMESPACE}" 8080:80 &
+
+      - name: Run k6 web3 tests
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+        env:
+          ACCOUNT_ADDRESS: ${{ env.ALICE }}
+          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+          BASE_URL: "http://127.0.0.1:8080"
+          DEFAULT_CONTRACT_ADDRESS: ${{ env.PARENT }}
+          DEFAULT_DURATION: "3s"
+          DEFAULT_GRACEFUL_STOP: "1s"
+          DEFAULT_VUS: 2
+          ERC_CONTRACT_ADDRESS: ${{ env.ERC }}
+          ESTIMATE_PRECOMPILE_CONTRACT: ${{ env.ESTIMATE_PRECOMPILE }}
+          HTS_CONTRACT_ADDRESS: ${{ env.PRECOMPILE }}
+          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+          NON_FUNGIBLE_TOKEN_ADDRESS: ${{ env.non_fungible }}
+          PAYER_ACCOUNT: ${{ env.BOB }}
+          RUN_COMPLEX_TESTS: "false"
+          RUN_ESTIMATE_TESTS: "false"
+          RUN_MODIFICATION_TESTS: "false"
+          RUN_WITH_VARIABLES: "true"
+          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
+          TOKEN_ADDRESS: ${{ env.fungible }}
+          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
+        with:
+          path: |
+            ./tools/k6/src/web3/apis.js
+          debug: false
+          flags: --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
@@ -169,7 +236,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=1000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
 
