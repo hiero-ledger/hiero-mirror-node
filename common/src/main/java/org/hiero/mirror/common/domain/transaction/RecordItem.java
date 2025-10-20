@@ -62,11 +62,7 @@ public class RecordItem implements StreamItem {
     private final long consensusTimestamp;
 
     private final boolean blockstream;
-
-    @Setter
-    @NonFinal
-    private RecordItem parent;
-
+    private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
     private final SignatureMap signatureMap;
