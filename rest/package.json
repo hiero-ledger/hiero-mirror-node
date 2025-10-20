@@ -29,7 +29,7 @@
     "express-http-context": "^2.0.1",
     "express-openapi-validator": "^5.6.0",
     "extend": "^3.0.2",
-    "extensionless": "^1.9.9",
+    "extensionless": "^2.0.2",
     "ioredis": "^5.8.1",
     "ip-anonymize": "^0.1.0",
     "js-yaml": "^4.1.0",
