@@ -125,7 +125,7 @@ jobs:
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
       - name: Setup gcloud + kubectl + GKE auth plugin
-        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
         with:
           install_components: gke-gcloud-auth-plugin, kubectl
 
