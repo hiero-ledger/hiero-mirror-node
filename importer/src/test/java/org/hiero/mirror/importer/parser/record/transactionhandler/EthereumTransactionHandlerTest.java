@@ -231,14 +231,12 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                         && e.getEthereumNonce() == ethereumTransaction.getNonce() + 1));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
-
-        doReturn(hash)
-                .when(ethereumTransactionParser)
+        verify(ethereumTransactionParser)
                 .getHash(
                         ethereumTransaction.getCallData(),
                         ethereumTransaction.getCallDataId(),
                         consensusTimestamp,
-                        ethereumTransaction.getData(),
+                        transactionBytes,
                         true);
     }
 
