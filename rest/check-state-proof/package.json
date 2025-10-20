@@ -34,7 +34,7 @@
     "abort-controller": "^3.0.0",
     "boxen": "^8.0.1",
     "chalk": "^5.6.2",
-    "extensionless": "^1.9.9",
+    "extensionless": "^2.0.2",
     "glob": "^11.0.3",
     "lodash": "^4.17.21",
     "log4js": "^6.9.1",
