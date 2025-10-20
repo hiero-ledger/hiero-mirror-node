@@ -65,10 +65,12 @@ class TransactionService extends BaseService {
    */
   async getTransactionDetailsFromTransactionId(transactionId, nonce = undefined) {
     const maxConsensusTimestamp = BigInt(transactionId.getValidStartNs()) + maxTransactionConsensusTimestampRangeNs;
-    return this.getTransactionDetails(
-      TransactionService.transactionDetailsFromTransactionIdQuery,
-      [transactionId.getEntityId().getEncodedId(), transactionId.getValidStartNs(), maxConsensusTimestamp, nonce],
-    );
+    return this.getTransactionDetails(TransactionService.transactionDetailsFromTransactionIdQuery, [
+      transactionId.getEntityId().getEncodedId(),
+      transactionId.getValidStartNs(),
+      maxConsensusTimestamp,
+      nonce,
+    ]);
   }
 
   async getEthTransactionByTimestampAndPayerId(timestamp, payerId) {
@@ -84,10 +86,7 @@ class TransactionService extends BaseService {
     return rows.map((row) => new EthereumTransaction(row));
   }
 
-  async getTransactionDetails(
-    query,
-    params,
-  ) {
+  async getTransactionDetails(query, params) {
     const rows = await super.getRows(query, params);
     return rows.map((row) => new Transaction(row));
   }

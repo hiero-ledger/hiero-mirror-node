@@ -92,7 +92,7 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
       0
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 6, payerAccountId: defaultPayerEncodedId}
+      {consensusTimestamp: 6, payerAccountId: defaultPayerEncodedId},
     ]);
   });
 
@@ -101,7 +101,7 @@ describe('TransactionService.getTransactionDetailsFromTransactionId tests', () =
       TransactionId.fromString(`${defaultPayerId.toString()}-0-${duplicateValidStartNs}`)
     );
     expect(pickTransactionFields(actual)).toIncludeSameMembers([
-      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId}
+      {consensusTimestamp: 11, payerAccountId: defaultPayerEncodedId},
     ]);
   });
 

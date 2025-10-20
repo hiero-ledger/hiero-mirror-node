@@ -1120,10 +1120,7 @@ class ContractController extends BaseController {
       const transactionId = TransactionId.fromString(transactionIdOrHash);
       const nonce = getLastNonceParamValue(req.query);
       // Map the transactions id to a consensus timestamp
-      const transactions = await TransactionService.getTransactionDetailsFromTransactionId(
-        transactionId,
-        nonce
-      );
+      const transactions = await TransactionService.getTransactionDetailsFromTransactionId(transactionId, nonce);
 
       if (transactions.length === 0) {
         throw new NotFoundError();
