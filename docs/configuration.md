@@ -378,7 +378,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 
 | Name                                                       | Default          | Description                                                                                               |
 | ---------------------------------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `hiero.mirror.grpc.addressbook.cacheExpiry`                | 5s               | The amount of time to cache address book entries                                                          |
+| `hiero.mirror.grpc.addressbook.cacheExpiry`                | 2s               | The amount of time to cache address book entries                                                          |
 | `hiero.mirror.grpc.addressbook.cacheSize`                  | 50               | The maximum number of address book pages to cache                                                         |
 | `hiero.mirror.grpc.addressbook.maxPageDelay`               | 250ms            | The maximum amount of time to sleep between paging for address book entries                               |
 | `hiero.mirror.grpc.addressbook.minPageDelay`               | 100ms            | The minimum amount of time to sleep between paging for address book entries                               |

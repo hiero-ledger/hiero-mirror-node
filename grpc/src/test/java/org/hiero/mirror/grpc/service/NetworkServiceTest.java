@@ -246,8 +246,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
         var addressBook = addressBook();
         var addressBookEntry1 = addressBookEntry();
         var addressBookEntry2 = addressBookEntry();
-        var node1AccountId = EntityId.of(0L, 0L, 1000L);
-        var node2AccountId = EntityId.of(0L, 0L, 1001L);
+        var node1AccountId = domainBuilder.entityId();
+        var node2AccountId = domainBuilder.entityId();
         createNode(addressBookEntry1.getNodeId(), node1AccountId);
         createNode(addressBookEntry2.getNodeId(), node2AccountId);
         var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
