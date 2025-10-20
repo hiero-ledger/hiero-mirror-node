@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.data.util.Predicates.negate;
 
 import com.google.common.collect.Range;
+import com.google.common.primitives.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
@@ -43,6 +44,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.bouncycastle.util.encoders.Hex;
 import org.gaul.s3proxy.S3Proxy;
 import org.gaul.shaded.org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -64,6 +66,7 @@ public class TestUtils {
 
     public static final int S3_PROXY_PORT = 8001;
 
+    private static final byte[] HEX_PREFIX_BYTES = new byte[] {'0', 'x'};
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // Customize BeanUtilsBean to not copy properties for null since non-nulls represent partial updates in our system.
@@ -232,6 +235,11 @@ public class TestUtils {
                 .setRealmNum(Long.parseLong(parts[1]))
                 .setAccountNum(Long.parseLong(parts[2]))
                 .build();
+    }
+
+    public static byte[] toBytecodeFileContent(byte[] raw, boolean withHexPrefix) {
+        byte[] encoded = Hex.encode(raw);
+        return withHexPrefix ? Bytes.concat(HEX_PREFIX_BYTES, encoded) : encoded;
     }
 
     public static ContractID toContractId(Entity contract) {

@@ -4,8 +4,9 @@
 
 set -euo pipefail
 
-source ./utils.sh
-source ./snapshot-utils.sh
+source ./utils/utils.sh
+source ./utils/input-utils.sh
+source ./utils/snapshot-utils.sh
 
 REPLACE_DISKS="${REPLACE_DISKS:-true}"
 

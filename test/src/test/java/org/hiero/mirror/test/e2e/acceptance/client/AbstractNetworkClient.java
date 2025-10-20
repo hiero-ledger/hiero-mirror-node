@@ -29,6 +29,7 @@ import java.util.function.Supplier;
 import lombok.Data;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.slf4j.Logger;
@@ -44,11 +45,14 @@ public abstract class AbstractNetworkClient implements Cleanable {
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final SDKClient sdkClient;
     protected final RetryTemplate retryTemplate;
+    protected final AcceptanceTestProperties acceptanceTestProperties;
 
-    public AbstractNetworkClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
+    public AbstractNetworkClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
         this.sdkClient = sdkClient;
         this.client = sdkClient.getClient();
         this.retryTemplate = retryTemplate;
+        this.acceptanceTestProperties = acceptanceTestProperties;
     }
 
     @Override
@@ -206,4 +210,15 @@ public abstract class AbstractNetworkClient implements Cleanable {
                                 ? account.getPublicKey().toEvmAddress().toString()
                                 : account.getAccountId().toEvmAddress());
     }
+
+    protected final <T> void deleteOrLogEntities(Collection<T> ids, Consumer<T> deleteAction) {
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            logEntities();
+            return;
+        }
+
+        deleteAll(ids, deleteAction);
+    }
+
+    protected void logEntities() {}
 }

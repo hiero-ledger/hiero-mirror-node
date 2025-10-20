@@ -308,10 +308,10 @@ public class RatesAndFeesLoader {
                         return parser.parse(fileData.getFileData());
                     } catch (InvalidProtocolBufferException e) {
                         log.warn(
-                                "Failed to load file data for fileId {} at {}, failing back to previous file. Retry attempt {}. Exception: ",
+                                "Attempt {} failed to load file {} at {}, falling back to previous file.",
+                                context.getRetryCount() + 1,
                                 fileId,
                                 nanoSeconds.get(),
-                                context.getRetryCount() + 1,
                                 e);
                         nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
                         throw new InvalidFileException(e);

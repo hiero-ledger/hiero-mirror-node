@@ -3,19 +3,32 @@
   "setup": {},
   "url": "/api/v1/network/exchangerate?timestamp=test&limit=c&order=d",
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Invalid parameter: timestamp"
-        },
-        {
-          "message": "Unknown query parameter: limit"
-        },
-        {
-          "message": "Unknown query parameter: order"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: timestamp"
+          },
+          {
+            "message": "Unknown query parameter: limit"
+          },
+          {
+            "message": "Unknown query parameter: order"
+          }
+        ]
+      }
     }
   }
 }
