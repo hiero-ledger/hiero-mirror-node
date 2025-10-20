@@ -19,7 +19,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.913.0",
     "@godaddy/terminus": "^4.12.1",
-    "@hashgraph/proto": "^2.22.0",
+    "@hashgraph/proto": "^2.24.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
     "asn1js": "^3.0.6",
     "assert": "^2.1.0",
