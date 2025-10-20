@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import kotlin.collections.ArrayDeque;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 
@@ -42,12 +41,12 @@ public final class StateChangeContext {
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final List<Long> nodeIds = new ArrayDeque<>();
-    private final List<FileID> fileIds = new ArrayDeque<>();
+    private final List<Long> nodeIds = new ArrayList<>();
+    private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
-    private final List<TokenID> tokenIds = new ArrayDeque<>();
+    private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
-    private final List<TopicID> topicIds = new ArrayDeque<>();
+    private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
     private StateChangeContext() {}
