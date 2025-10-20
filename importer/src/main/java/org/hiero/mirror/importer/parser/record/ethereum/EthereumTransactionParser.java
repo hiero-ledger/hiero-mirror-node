@@ -25,5 +25,10 @@ public interface EthereumTransactionParser {
      *                         callDataId
      * @return The keccak256 hash of the ethereum transaction, or an empty byte array if the hash cannot be computed
      */
-    byte[] getHash(byte[] callData, EntityId callDataId, long consensusTimestamp, byte[] transactionBytes);
+    byte[] getHash(
+            byte[] callData,
+            EntityId callDataId,
+            long consensusTimestamp,
+            byte[] transactionBytes,
+            boolean useCurrentStatue);
 }
