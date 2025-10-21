@@ -21,6 +21,10 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
+import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
+import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -529,6 +533,34 @@ public class RecordItemBuilder {
                 .setReceiverSigRequired(false)
                 .setShardID(SHARD_ID)
                 .setStakedNodeId(1L);
+        return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
+    }
+
+    @SuppressWarnings("deprecation")
+    public Builder<CryptoCreateTransactionBody.Builder> cryptoCreateWithHooks() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L)
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var builder = CryptoCreateTransactionBody.newBuilder()
+                .setAlias(bytes(20))
+                .setAutoRenewPeriod(duration(30))
+                .setDeclineReward(true)
+                .setInitialBalance(1000L)
+                .setKey(key())
+                .setMaxAutomaticTokenAssociations(2)
+                .setMemo(text(16))
+                .setProxyAccountID(accountId())
+                .setRealmID(REALM_ID)
+                .setReceiverSigRequired(false)
+                .setShardID(SHARD_ID)
+                .setStakedNodeId(1L)
+                .addHookCreationDetails(hookCreationDetails);
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
     }
 

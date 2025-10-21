@@ -13,6 +13,7 @@ import static org.hiero.mirror.importer.util.UtilityTest.EVM_ADDRESS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,6 +60,9 @@ import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
+import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
@@ -71,6 +75,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
+import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAllowanceRepository;
@@ -99,6 +104,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
     private final ContractRepository contractRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
+    private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
@@ -1821,6 +1827,48 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .hasSize(1)
                 .extracting(org.hiero.mirror.common.domain.transaction.Transaction::getResult)
                 .containsOnly(unknownResult);
+    }
+
+    @Test
+    void cryptoCreateWithHooks() {
+        // given
+        var recordItem = recordItemBuilder.cryptoCreateWithHooks().build();
+
+        var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
+        var cryptoCreateBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+        var hookCreationDetails = cryptoCreateBody.getHookCreationDetails(0);
+
+        // Extract hook details from the transaction
+        var hookId = hookCreationDetails.getHookId();
+        var contractId =
+                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var adminKey = hookCreationDetails.getAdminKey();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // Find and verify hook from database
+        var hookOptional = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertEntities(EntityId.of(accountId)),
+                () -> assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord()));
+
+        if (hookOptional.isPresent()) {
+            var dbHook = hookOptional.get();
+            assertAll(
+                    () -> assertEquals(hookId, dbHook.getHookId()),
+                    () -> assertEquals(contractId, dbHook.getContractId()),
+                    () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                    () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                    () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                    () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                    () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                    () -> assertFalse(dbHook.getDeleted()));
+        } else {
+            // Hook processing is not implemented yet, so no hooks should be stored
+            assertEquals(0, hookRepository.count());
+        }
     }
 
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {

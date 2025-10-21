@@ -63,6 +63,10 @@ public abstract class AbstractHook implements History {
         this.ownerId = ownerId.getId();
     }
 
+    public void setOwnerId(long ownerId) {
+        this.ownerId = ownerId;
+    }
+
     @AllArgsConstructor
     @Data
     @NoArgsConstructor
