@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -31,6 +32,7 @@ import org.hiero.mirror.web3.utils.AccountDetector;
 public class AccountReadableKVState extends AbstractAliasedAccountReadableKVState<AccountID, Account> {
 
     public static final String KEY = "ACCOUNTS";
+    public static final int STATE_ID = ACCOUNTS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -47,7 +49,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
             @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
-                KEY,
+                STATE_ID,
                 accountBalanceRepository,
                 cryptoAllowanceRepository,
                 nftAllowanceRepository,

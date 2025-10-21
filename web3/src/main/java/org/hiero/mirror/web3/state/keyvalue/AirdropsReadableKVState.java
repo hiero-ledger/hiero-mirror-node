@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema.AIRDROPS_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.PendingAirdropId;
@@ -17,10 +18,12 @@ import org.hiero.mirror.web3.repository.TokenAirdropRepository;
 public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
 
     public static final String KEY = "PENDING_AIRDROPS";
+    public static final int STATE_ID = AIRDROPS_STATE_ID;
+
     private final TokenAirdropRepository tokenAirdropRepository;
 
     protected AirdropsReadableKVState(final TokenAirdropRepository tokenAirdropRepository) {
-        super(TokenService.NAME, KEY);
+        super(TokenService.NAME, STATE_ID);
         this.tokenAirdropRepository = tokenAirdropRepository;
     }
 

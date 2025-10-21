@@ -20,10 +20,8 @@ public class FunctionReadableSingletonState<S> extends ReadableSingletonStateBas
      *     backing store.
      */
     public FunctionReadableSingletonState(
-            @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
-            @Nonnull final Supplier<S> backingStoreAccessor) {
-        super(serviceName, stateKey);
+            @Nonnull final String serviceName, final int stateId, @Nonnull final Supplier<S> backingStoreAccessor) {
+        super(stateId, serviceName);
         this.backingStoreAccessor = Objects.requireNonNull(backingStoreAccessor);
     }
 

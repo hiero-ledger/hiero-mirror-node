@@ -23,18 +23,18 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
     @Nullable
     private final Runnable onCommit;
 
-    public MapWritableStates(@Nonnull final Map<String, ?> states) {
+    public MapWritableStates(@Nonnull final Map<Integer, ?> states) {
         this(states, null);
     }
 
-    public MapWritableStates(@Nonnull final Map<String, ?> states, @Nullable final Runnable onCommit) {
+    public MapWritableStates(@Nonnull final Map<Integer, ?> states, @Nullable final Runnable onCommit) {
         super(states);
         this.onCommit = onCommit;
     }
 
     @Nonnull
     @Override
-    public <K, V> WritableKVState<K, V> get(@Nonnull String stateKey) {
+    public <K, V> WritableKVState<K, V> get(@Nonnull int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
@@ -48,7 +48,7 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
 
     @Nonnull
     @Override
-    public <T> WritableSingletonState<T> getSingleton(@Nonnull final String stateKey) {
+    public <T> WritableSingletonState<T> getSingleton(@Nonnull final int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
@@ -63,7 +63,7 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
 
     @Nonnull
     @Override
-    public <E> WritableQueueState<E> getQueue(@Nonnull final String stateKey) {
+    public <E> WritableQueueState<E> getQueue(@Nonnull final int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown queue state key: " + stateKey);

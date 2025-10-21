@@ -53,7 +53,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     protected AbstractAliasedAccountReadableKVState(
-            @Nonnull String stateKey,
+            @Nonnull int stateId,
             @Nonnull AccountBalanceRepository accountBalanceRepository,
             @Nonnull CryptoAllowanceRepository cryptoAllowanceRepository,
             @Nonnull NftAllowanceRepository nftAllowanceRepository,
@@ -62,7 +62,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             @Nonnull TokenAccountRepository tokenAccountRepository,
             @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
             @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
-        super(TokenService.NAME, stateKey);
+        super(TokenService.NAME, stateId);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
         this.nftAllowanceRepository = nftAllowanceRepository;

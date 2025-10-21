@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.NFTS_STATE_ID;
 import static org.hiero.mirror.web3.state.Utils.convertToTimestamp;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -33,7 +34,7 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     private final TokenRepository tokenRepository;
 
     public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
-        super(TokenService.NAME, KEY);
+        super(TokenService.NAME, NFTS_STATE_ID);
         this.nftRepository = nftRepository;
         this.tokenRepository = tokenRepository;
     }

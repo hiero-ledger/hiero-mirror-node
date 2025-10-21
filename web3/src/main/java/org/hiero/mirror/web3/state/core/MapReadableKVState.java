@@ -33,8 +33,8 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(
-            @Nonnull final String serviceName, @Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(serviceName, stateKey);
+            @Nonnull final String serviceName, final int stateId, @Nonnull final Map<K, V> backingStore) {
+        super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
@@ -60,11 +60,11 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MapReadableKVState<?, ?> that = (MapReadableKVState<?, ?>) o;
-        return Objects.equals(getStateKey(), that.getStateKey()) && Objects.equals(backingStore, that.backingStore);
+        return Objects.equals(getStateId(), that.getStateId()) && Objects.equals(backingStore, that.backingStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateKey(), backingStore);
+        return Objects.hash(getStateId(), backingStore);
     }
 }

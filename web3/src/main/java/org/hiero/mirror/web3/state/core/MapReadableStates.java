@@ -12,13 +12,13 @@ import java.util.Objects;
 @SuppressWarnings("unchecked")
 public class MapReadableStates extends AbstractMapReadableState {
 
-    public MapReadableStates(@Nonnull final Map<String, ?> states) {
+    public MapReadableStates(@Nonnull final Map<Integer, ?> states) {
         super(states);
     }
 
     @Nonnull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@Nonnull String stateKey) {
+    public <K, V> ReadableKVState<K, V> get(@Nonnull int stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
@@ -32,7 +32,7 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @Nonnull
     @Override
-    public <T> ReadableSingletonState<T> getSingleton(@Nonnull String stateKey) {
+    public <T> ReadableSingletonState<T> getSingleton(@Nonnull int stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
@@ -47,7 +47,7 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @Nonnull
     @Override
-    public <E> ReadableQueueState<E> getQueue(@Nonnull String stateKey) {
+    public <E> ReadableQueueState<E> getQueue(@Nonnull int stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown queue state key: " + stateKey);

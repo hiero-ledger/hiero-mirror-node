@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
 
@@ -22,13 +23,15 @@ import org.hiero.mirror.web3.state.CommonEntityAccessor;
 public class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
 
     public static final String KEY = "BYTECODE";
+    public static final int STATE_ID = BYTECODE_STATE_ID;
+
     private final ContractRepository contractRepository;
 
     private final CommonEntityAccessor commonEntityAccessor;
 
     protected ContractBytecodeReadableKVState(
             final ContractRepository contractRepository, CommonEntityAccessor commonEntityAccessor) {
-        super(ContractService.NAME, KEY);
+        super(ContractService.NAME, STATE_ID);
         this.contractRepository = contractRepository;
         this.commonEntityAccessor = commonEntityAccessor;
     }

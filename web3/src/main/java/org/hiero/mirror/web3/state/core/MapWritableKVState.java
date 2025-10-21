@@ -15,9 +15,9 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     public MapWritableKVState(
             @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
+            final int stateId,
             @Nonnull final ReadableKVState<K, V> readableBackingStore) {
-        super(serviceName, stateKey);
+        super(serviceName, stateId);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
@@ -62,12 +62,12 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MapWritableKVState<?, ?> that = (MapWritableKVState<?, ?>) o;
-        return Objects.equals(getStateKey(), that.getStateKey())
+        return Objects.equals(getStateId(), that.getStateId())
                 && Objects.equals(readableBackingStore, that.readableBackingStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateKey(), readableBackingStore);
+        return Objects.hash(getStateId(), readableBackingStore);
     }
 }

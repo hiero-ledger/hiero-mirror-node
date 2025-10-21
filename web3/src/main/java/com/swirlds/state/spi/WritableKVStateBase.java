@@ -35,8 +35,8 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * @param serviceName The name of the service that owns the state. Cannot be null.
      * @param stateKey The state key. Cannot be null.
      */
-    protected WritableKVStateBase(@Nonnull final String serviceName, @Nonnull final String stateKey) {
-        super(serviceName, stateKey);
+    protected WritableKVStateBase(@Nonnull final String serviceName, final int stateId) {
+        super(stateId, serviceName);
     }
 
     /**
@@ -212,7 +212,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     protected abstract long sizeOfDataSource();
 
     private Map<Object, Object> getWriteCacheState() {
-        return ContractCallContext.get().getWriteCacheState(getStateKey());
+        return ContractCallContext.get().getWriteCacheState(getStateId());
     }
 
     /**

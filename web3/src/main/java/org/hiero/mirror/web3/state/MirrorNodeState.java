@@ -55,10 +55,13 @@ import com.swirlds.state.spi.WritableKVStateBase;
 import com.swirlds.state.spi.WritableQueueStateBase;
 import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,10 +73,8 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.hiero.base.crypto.Hash;
 import org.hiero.mirror.common.CommonProperties;
@@ -100,7 +101,7 @@ public class MirrorNodeState implements MerkleNodeState {
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
     // Key is Service, value is Map of state name to state datasource
-    private final Map<String, Map<String, Object>> states = new ConcurrentHashMap<>();
+    private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
     private final List<StateChangeListener> listeners = new ArrayList<>();
 
     private final List<ReadableKVState> readableKVStates;
@@ -167,7 +168,7 @@ public class MirrorNodeState implements MerkleNodeState {
         // No-op
     }
 
-    public MirrorNodeState addService(@Nonnull final String serviceName, @Nonnull final Map<String, ?> dataSources) {
+    public MirrorNodeState addService(@Nonnull final String serviceName, @Nonnull final Map<Integer, ?> dataSources) {
         final var serviceStates = this.states.computeIfAbsent(serviceName, k -> new ConcurrentHashMap<>());
         dataSources.forEach((k, b) -> {
             if (!serviceStates.containsKey(k)) {
@@ -182,6 +183,11 @@ public class MirrorNodeState implements MerkleNodeState {
         return this;
     }
 
+    @Override
+    public MerkleNode getRoot() {
+        return MerkleNodeState.super.getRoot();
+    }
+
     @Nonnull
     @Override
     public MerkleNodeState copy() {
@@ -189,12 +195,20 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
-    @Deprecated
-    public <T extends MerkleNode> void putServiceStateIfAbsent(
-            @Nonnull StateMetadata<?, ?> md, @Nonnull Supplier<T> nodeSupplier, @Nonnull Consumer<T> nodeInitializer) {}
+    public void initializeState(@NonNull StateMetadata<?, ?> md) {
+        MerkleNodeState.super.initializeState(md);
+    }
 
     @Override
     public void unregisterService(@Nonnull String serviceName) {}
+
+    @Override
+    public void removeServiceState(@NonNull String serviceName, int stateId) {}
+
+    @Override
+    public MerkleNodeState loadSnapshot(@NonNull Path targetPath) throws IOException {
+        return MerkleNodeState.super.loadSnapshot(targetPath);
+    }
 
     /**
      * Removes the state with the given key for the service with the given name.
@@ -223,24 +237,24 @@ public class MirrorNodeState implements MerkleNodeState {
             if (serviceStates == null) {
                 return new MapReadableStates(new HashMap<>());
             }
-            final Map<String, Object> data = new ConcurrentHashMap<>();
+            final Map<Integer, Object> data = new ConcurrentHashMap<>();
             for (final var entry : serviceStates.entrySet()) {
-                final var stateName = entry.getKey();
+                final var stateId = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue queue) {
-                    data.put(stateName, new ListReadableQueueState(serviceName, stateName, queue));
+                    data.put(stateId, new ListReadableQueueState(serviceName, stateId, queue));
                 } else if (state instanceof ReadableKVState<?, ?> kvState) {
                     final var readableKVState = readableKVStates.stream()
-                            .filter(r -> r.getStateKey().equals(stateName))
+                            .filter(r -> r.getStateId() == stateId)
                             .findFirst();
 
                     if (readableKVState.isPresent()) {
-                        data.put(stateName, readableKVState.get());
+                        data.put(stateId, readableKVState.get());
                     } else {
-                        data.put(stateName, kvState);
+                        data.put(stateId, kvState);
                     }
                 } else if (state instanceof SingletonState<?> singleton) {
-                    data.put(stateName, new FunctionReadableSingletonState<>(serviceName, stateName, singleton));
+                    data.put(stateId, new FunctionReadableSingletonState<>(serviceName, stateId, singleton));
                 }
             }
             return new MapReadableStates(data);
@@ -255,26 +269,26 @@ public class MirrorNodeState implements MerkleNodeState {
             if (serviceStates == null) {
                 return new EmptyWritableStates();
             }
-            final Map<String, Object> data = new ConcurrentHashMap<>();
+            final Map<Integer, Object> data = new ConcurrentHashMap<>();
             for (final var entry : serviceStates.entrySet()) {
-                final var stateName = entry.getKey();
+                final var stateId = entry.getKey();
                 final var state = entry.getValue();
                 if (state instanceof Queue<?> queue) {
                     data.put(
-                            stateName,
+                            stateId,
                             withAnyRegisteredListeners(
-                                    serviceName, new ListWritableQueueState<>(serviceName, stateName, queue)));
+                                    serviceName, new ListWritableQueueState<>(serviceName, stateId, queue)));
                 } else if (state instanceof ReadableKVState<?, ?>) {
                     data.put(
-                            stateName,
+                            stateId,
                             withAnyRegisteredListeners(
                                     serviceName,
                                     new MapWritableKVState<>(
                                             serviceName,
-                                            stateName,
-                                            getReadableStates(serviceName).get(stateName))));
+                                            stateId,
+                                            getReadableStates(serviceName).get(stateId))));
                 } else if (state instanceof SingletonState<?> ref) {
-                    data.put(stateName, withAnyRegisteredListeners(serviceName, stateName, ref));
+                    data.put(stateId, withAnyRegisteredListeners(serviceName, stateId, ref));
                 }
             }
             return new MapWritableStates(data, () -> readableStates.remove(serviceName));
@@ -302,10 +316,8 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <V> WritableSingletonStateBase<V> withAnyRegisteredListeners(
-            @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
-            @Nonnull final SingletonState<V> singleton) {
-        final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton);
+            @Nonnull final String serviceName, final int stateId, @Nonnull final SingletonState<V> singleton) {
+        final var state = new FunctionWritableSingletonState<>(serviceName, stateId, singleton);
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(SINGLETON)) {
                 registerSingletonListener(serviceName, state, listener);
@@ -338,7 +350,7 @@ public class MirrorNodeState implements MerkleNodeState {
             @Nonnull final String serviceName,
             @Nonnull final WritableSingletonStateBase<V> singletonState,
             @Nonnull final StateChangeListener listener) {
-        final var stateId = listener.stateIdFor(serviceName, singletonState.getStateKey());
+        final var stateId = singletonState.getStateId();
         singletonState.registerListener(value -> listener.singletonUpdateChange(stateId, value));
     }
 
@@ -346,32 +358,33 @@ public class MirrorNodeState implements MerkleNodeState {
             @Nonnull final String serviceName,
             @Nonnull final WritableQueueStateBase<V> queueState,
             @Nonnull final StateChangeListener listener) {
-        final var stateId = listener.stateIdFor(serviceName, queueState.getStateKey());
+        final var stateId = queueState.getStateId();
         queueState.registerListener(new QueueChangeListener<>() {
             @Override
             public void queuePushChange(@Nonnull final V value) {
-                listener.queuePushChange(stateId, value);
+                // TODO DELETE?
+                //                listener.queuePushChange(stateId, value);
             }
 
             @Override
             public void queuePopChange() {
-                listener.queuePopChange(stateId);
+                //                listener.queuePopChange(stateId);
             }
         });
     }
 
     private <K, V> void registerKVListener(
             @Nonnull final String serviceName, WritableKVStateBase<K, V> state, StateChangeListener listener) {
-        final var stateId = listener.stateIdFor(serviceName, state.getStateKey());
+        final var stateId = state.getStateId();
         state.registerListener(new KVChangeListener<>() {
             @Override
             public void mapUpdateChange(@Nonnull final K key, @Nonnull final V value) {
-                listener.mapUpdateChange(stateId, key, value);
+                //                listener.mapUpdateChange(stateId, key, value);
             }
 
             @Override
             public void mapDeleteChange(@Nonnull final K key) {
-                listener.mapDeleteChange(stateId, key);
+                //                listener.mapDeleteChange(stateId, key);
             }
         });
     }
@@ -402,7 +415,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @VisibleForTesting
-    Map<String, Map<String, Object>> getStates() {
+    Map<String, Map<Integer, Object>> getStates() {
         return Collections.unmodifiableMap(states);
     }
 

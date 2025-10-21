@@ -19,11 +19,11 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
-    /** The service name, which cannot be null */
-    private final String serviceName;
+    /** State label used in logs, typically serviceName.stateKey */
+    protected final String label;
 
-    /** The state key, which cannot be null */
-    private final String stateKey;
+    // The state ID
+    protected final int stateId;
 
     private static final Object marker = new Object();
 
@@ -33,23 +33,16 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param serviceName The name of the service that owns the state. Cannot be null.
      * @param stateKey The state key. Cannot be null.
      */
-    protected ReadableKVStateBase(@Nonnull String serviceName, @Nonnull String stateKey) {
-        this.serviceName = Objects.requireNonNull(serviceName);
-        this.stateKey = Objects.requireNonNull(stateKey);
+    protected ReadableKVStateBase(final int stateId, final String label) {
+        this.label = Objects.requireNonNull(label);
+        this.stateId = stateId;
     }
 
     /** {@inheritDoc} */
     @Override
     @Nonnull
-    public final String getServiceName() {
-        return serviceName;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    @Nonnull
-    public final String getStateKey() {
-        return stateKey;
+    public final int getStateId() {
+        return stateId;
     }
 
     /** {@inheritDoc} */
@@ -128,6 +121,6 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     }
 
     private Map<Object, Object> getReadCache() {
-        return ContractCallContext.get().getReadCacheState(getStateKey());
+        return ContractCallContext.get().getReadCacheState(getStateId());
     }
 }

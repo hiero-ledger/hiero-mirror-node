@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.FileID;
@@ -32,6 +33,7 @@ import org.hiero.mirror.web3.utils.Suppliers;
 public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
 
     public static final String KEY = "FILES";
+    public static final int STATE_ID = FILES_STATE_ID;
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
@@ -40,7 +42,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
             SystemFileLoader systemFileLoader) {
-        super(FileService.NAME, KEY);
+        super(FileService.NAME, FILES_STATE_ID);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;

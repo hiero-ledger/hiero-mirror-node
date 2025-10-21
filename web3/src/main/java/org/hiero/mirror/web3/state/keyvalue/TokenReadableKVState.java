@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
@@ -62,7 +63,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final EntityRepository entityRepository,
             final NftRepository nftRepository,
             final SystemEntity systemEntity) {
-        super(TokenService.NAME, KEY);
+        super(TokenService.NAME, TOKENS_STATE_ID);
         this.commonEntityAccessor = commonEntityAccessor;
         this.customFeeRepository = customFeeRepository;
         this.tokenRepository = tokenRepository;

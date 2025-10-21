@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 
 import com.hedera.hapi.node.state.contract.SlotKey;
@@ -19,10 +20,12 @@ import org.hiero.mirror.web3.service.ContractStateService;
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final String KEY = "STORAGE";
+    public static final int STATE_ID = STORAGE_STATE_ID;
+
     private final ContractStateService contractStateService;
 
     protected ContractStorageReadableKVState(final ContractStateService contractStateService) {
-        super(ContractService.NAME, KEY);
+        super(ContractService.NAME, STORAGE_STATE_ID);
         this.contractStateService = contractStateService;
     }
 
