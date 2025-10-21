@@ -7,6 +7,9 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  push:
+    branches:
+      - jtn-timeout-test
   workflow_call:
     inputs:
       source_cluster_location:
@@ -102,16 +105,16 @@ jobs:
   run-copy:
     name: Copy Citus from source to target
     runs-on: hiero-mirror-node-linux-medium
+    timeout-minutes: 900  # 15 hours
     env:
-      GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
-      GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
-      GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
-      GCP_K8S_TARGET_CLUSTER_NAME: ${{ inputs.target_cluster_name }}
-      GCP_K8S_TARGET_CLUSTER_REGION: ${{ inputs.target_cluster_location }}
-      GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      GCP_SNAPSHOT_PROJECT: ${{secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID}}
+      GCP_K8S_SOURCE_CLUSTER_NAME: mainnet-na
+      GCP_K8S_SOURCE_CLUSTER_REGION: us-central1
+      GCP_K8S_TARGET_CLUSTER_NAME: mainnet-staging-na
+      GCP_K8S_TARGET_CLUSTER_REGION: us-central1
+      GCP_TARGET_PROJECT: ${{ secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-      PINNED_KUBECONFIG: ${{ github.workspace }}/.kube/config
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
 
@@ -124,7 +127,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: main
           fetch-depth: 0
 
       - name: Ensure jq is available
