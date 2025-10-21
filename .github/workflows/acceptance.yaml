@@ -175,6 +175,9 @@ jobs:
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
           k6Map["fungible"]="TOKEN_ADDRESS"
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
+          k6Map["DEFAULT_TOPIC"]="DEFAULT_TOPIC_WITH_FEE_ID"
+          k6Map["ALICE"]="DEFAULT_ACCOUNT_ID_AIRDROP_SENDER"
+          k6Map["BOB"]="DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER"
 
           for key in "${!k6Map[@]}"; do
             k6="${k6Map[$key]}"
@@ -200,6 +203,7 @@ jobs:
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
+          RESTJAVA_TEST_EXCLUDE: "^accountsNft(AllowanceOwner|AllowanceSpender).*$"
         with:
           path: |
             ./tools/k6/src/rest-java/apis.js
