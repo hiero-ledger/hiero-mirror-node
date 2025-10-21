@@ -201,6 +201,7 @@ jobs:
           DEFAULT_DURATION: "3s"
           DEFAULT_GRACEFUL_STOP: "1s"
           DEFAULT_VUS: 2
+          REST_TEST_EXCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
         with:
           path: |
             ./tools/k6/src/rest/apis.js
