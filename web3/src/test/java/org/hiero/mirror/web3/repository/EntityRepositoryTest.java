@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_SYSTEM_ACCOUNT;
 
 import com.google.common.collect.Range;
 import java.util.Objects;
@@ -17,7 +16,6 @@ import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -36,13 +34,6 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @Qualifier(CACHE_MANAGER_SYSTEM_ACCOUNT)
     private final CacheManager systemAccountCacheManager;
-
-    @BeforeEach
-    void clearCache() {
-        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
-        Objects.requireNonNull(systemAccountCacheManager.getCache(CACHE_NAME_SYSTEM_ACCOUNT))
-                .invalidate();
-    }
 
     @Test
     void findByIdAndDeletedIsFalseSuccessfulCall() {
@@ -477,7 +468,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByIdAndDeletedIsFalse_systemAccountIsCachedInBothCaches() {
+    void findByIdAndDeletedIsFalseWhenSystemAccountIsCachedInBothCaches() {
         final var systemEntity =
                 domainBuilder.entity().customize(e -> e.id(777L)).persist();
         ContractCallContext.get().setBalanceCall(false);
@@ -486,7 +477,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(systemEntity);
 
         entityRepository.delete(systemEntity);
-        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
+        invalidateCache();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
                 .as("Entity should be found in the system account cache after clearing the regular cache")
@@ -494,7 +485,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
     }
 
     @Test
-    void findByIdAndDeletedIsFalse_systemAccountIsCachedOnlyInEntityCacheOnBalanceCall() {
+    void findByIdAndDeletedIsFalseWhenSystemAccountIsCachedOnlyInEntityCacheOnBalanceCall() {
         final var systemEntity =
                 domainBuilder.entity().customize(e -> e.id(777L)).persist();
         ContractCallContext.get().setBalanceCall(true);
@@ -503,7 +494,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(systemEntity);
 
         entityRepository.delete(systemEntity);
-        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
+        invalidateCache();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
                 .as("Entity should NOT be found after clearing the regular cache")
@@ -512,7 +503,7 @@ class EntityRepositoryTest extends Web3IntegrationTest {
 
     @ParameterizedTest()
     @ValueSource(booleans = {true, false})
-    void findByIdAndDeletedIsFalse_regularAccountIsCachedOnlyInEntityCache(boolean isBalanceCall) {
+    void findByIdAndDeletedIsFalseWhenRegularAccountIsCachedOnlyInEntityCache(boolean isBalanceCall) {
         final var regularEntity =
                 domainBuilder.entity().customize(e -> e.id(2000L)).persist();
         ContractCallContext.get().setBalanceCall(isBalanceCall);
@@ -521,13 +512,17 @@ class EntityRepositoryTest extends Web3IntegrationTest {
                 .contains(regularEntity);
 
         entityRepository.delete(regularEntity);
-        Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME)).invalidate();
+        invalidateCache();
 
         assertThat(entityRepository.findByIdAndDeletedIsFalse(regularEntity.getId()))
                 .as("Entity should NOT be found after clearing the regular cache")
                 .isEmpty();
     }
 
+    private void invalidateCache() {
+        var cache = Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME), "Cache should NOT be null");
+        cache.invalidate();
+    }
     // Method that provides the test data
     private static Stream<Arguments> shardAndRealmData() {
         return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));
