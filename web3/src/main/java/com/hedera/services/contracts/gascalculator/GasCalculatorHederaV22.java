@@ -25,7 +25,8 @@ public class GasCalculatorHederaV22 extends GasCalculatorHederaV19 {
     }
 
     @Override
-    public long transactionIntrinsicGasCost(final Bytes payload, final boolean isContractCreation) {
+    public long transactionIntrinsicGasCost(
+            final Bytes payload, final boolean isContractCreation, final long baselineGas) {
         int zeros = 0;
         for (int i = 0; i < payload.size(); i++) {
             if (payload.get(i) == 0) {

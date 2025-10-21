@@ -93,7 +93,7 @@ public class HederaEvmTxProcessor {
             final boolean contractCreation,
             final TracerType tracerType) {
         final var blockValues = blockMetaSource.computeBlockValues(gasLimit);
-        final var intrinsicGas = gasCalculator.transactionIntrinsicGasCost(payload, contractCreation);
+        final var intrinsicGas = gasCalculator.transactionIntrinsicGasCost(payload, contractCreation, 0L);
         final var gasAvailable = gasLimit - intrinsicGas;
 
         final var valueAsWei = Wei.of(value);

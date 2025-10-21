@@ -367,7 +367,7 @@ class MirrorEvmTxProcessorTest {
 
         final var mutableAccount = mock(MutableAccount.class);
 
-        given(gasCalculator.transactionIntrinsicGasCost(Bytes.EMPTY, false)).willReturn((long) 0);
+        given(gasCalculator.transactionIntrinsicGasCost(Bytes.EMPTY, false, 0L)).willReturn((long) 0);
 
         given(gasCalculator.getSelfDestructRefundAmount()).willReturn(0L);
         given(gasCalculator.getMaxRefundQuotient()).willReturn(2L);
