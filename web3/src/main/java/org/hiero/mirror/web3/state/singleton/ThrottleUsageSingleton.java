@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_STATE_KEY;
+import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_KEY;
 
 import com.hedera.hapi.node.state.throttles.ThrottleUsageSnapshots;
 import jakarta.inject.Named;
@@ -12,7 +12,7 @@ public class ThrottleUsageSingleton implements SingletonState<ThrottleUsageSnaps
 
     @Override
     public String getKey() {
-        return THROTTLE_USAGE_SNAPSHOTS_STATE_KEY;
+        return THROTTLE_USAGE_SNAPSHOTS_KEY;
     }
 
     @Override

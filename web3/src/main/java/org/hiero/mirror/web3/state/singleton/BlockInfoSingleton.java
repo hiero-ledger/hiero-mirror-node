@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCK_INFO_STATE_KEY;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_KEY;
 
 import com.hedera.hapi.node.state.blockrecords.BlockInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -17,7 +17,7 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
     @Override
     public String getKey() {
-        return BLOCK_INFO_STATE_KEY;
+        return BLOCKS_KEY;
     }
 
     @Override

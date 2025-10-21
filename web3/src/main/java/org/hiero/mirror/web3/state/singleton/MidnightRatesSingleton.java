@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_KEY;
+import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_KEY;
 
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
@@ -24,7 +24,7 @@ public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
     @Override
     public String getKey() {
-        return MIDNIGHT_RATES_STATE_KEY;
+        return MIDNIGHT_RATES_KEY;
     }
 
     @SneakyThrows

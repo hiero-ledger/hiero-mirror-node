@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING_HASHES_STATE_KEY;
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING_HASHES_KEY;
 
 import com.hedera.hapi.node.state.blockrecords.RunningHashes;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -14,7 +14,7 @@ public class RunningHashesSingleton implements SingletonState<RunningHashes> {
 
     @Override
     public String getKey() {
-        return RUNNING_HASHES_STATE_KEY;
+        return RUNNING_HASHES_KEY;
     }
 
     @Override
