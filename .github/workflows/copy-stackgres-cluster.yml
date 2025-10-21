@@ -216,7 +216,7 @@ jobs:
       - name: Execute copy script
         env:
           AUTO_CONFIRM: "true"
-          DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          DEFAULT_POOL_NAME: mainnet-staging-na
           WAIT_FOR_K6: "true"
         run: |
           set -Eeuo pipefail
