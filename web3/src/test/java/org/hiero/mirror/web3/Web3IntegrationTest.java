@@ -6,6 +6,7 @@ import jakarta.annotation.Resource;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.store.Store;
+import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 
@@ -17,4 +18,7 @@ public abstract class Web3IntegrationTest extends CommonIntegrationTest {
 
     @Resource
     protected Store store;
+
+    @Resource
+    protected StateRegistry stateRegistry;
 }

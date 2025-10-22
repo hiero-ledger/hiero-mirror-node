@@ -10,6 +10,7 @@ import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
+import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
 import jakarta.annotation.Nonnull;
@@ -27,21 +28,24 @@ import org.hiero.mirror.web3.state.singleton.SingletonState;
 @Named
 public final class StateRegistry {
     private static final Set<Integer> DEFAULT_IMPLEMENTATIONS = Stream.of(
+                    V0490FileSchema.FILES_STATE_ID,
                     V0490TokenSchema.STAKING_INFOS_STATE_ID,
-                    //                    V0490FileSchema.UPGRADE_DATA_KEY,
-                    //                    V0490RecordCacheSchema.TXN_RECORD_QUEUE,
-                    //                    V0540RecordCacheSchema.TXN_RECEIPT_QUEUE,
+                    V0490TokenSchema.TOKENS_STATE_ID,
+                    V0490TokenSchema.ACCOUNTS_STATE_ID,
+                    V0490TokenSchema.TOKEN_RELS_STATE_ID,
+                    V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID,
                     V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_STATE_ID,
                     V0490ScheduleSchema.SCHEDULES_BY_EQUALITY_STATE_ID,
+                    V0490ScheduleSchema.SCHEDULES_BY_ID_STATE_ID,
                     V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID,
                     V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID,
                     V0570ScheduleSchema.SCHEDULED_ORDERS_STATE_ID,
                     V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID,
                     V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID,
-                    V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID,
                     V0610TokenSchema.NODE_REWARDS_STATE_ID,
                     V065ContractSchema.EVM_HOOK_STATES_STATE_ID,
-                    V065ContractSchema.LAMBDA_STORAGE_STATE_ID)
+                    V065ContractSchema.LAMBDA_STORAGE_STATE_ID,
+                    V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID)
             .collect(Collectors.toSet());
 
     private final ImmutableMap<Integer, Object> states;
@@ -63,10 +67,6 @@ public final class StateRegistry {
      * If not, and the state key is among the {@code DEFAULT_IMPLEMENTATIONS}, it returns
      * a default instance depending on the state's structure (queue, singleton, or key-value).
      * <p>
-     * Special handling is applied for keys that start with {@code "UPGRADE_DATA"}:
-     * these are normalized to {@link V0490FileSchema#UPGRADE_DATA_KEY} for validation
-     * against default implementations, but the original key is still used when instantiating
-     * the state object.
      *
      * @param serviceName the name of the service with the state definition
      * @param definition the state definition containing the key and type information
@@ -82,14 +82,9 @@ public final class StateRegistry {
             return state;
         }
 
-        // var to handle keys that start with UPGRADE_DATA - need to be validated against default impl with `normalized`
-        // upgrade data key that has no concrete shard/realm/num
-        //        final String effectiveKey = stateId.startsWith("UPGRADE_DATA") ? V0490FileSchema.UPGRADE_DATA_KEY :
-        // stateId;
-        //
-        //        if (!DEFAULT_IMPLEMENTATIONS.contains(effectiveKey)) {
-        //            throw new UnsupportedOperationException("Unsupported state key: " + effectiveKey);
-        //        }
+        if (!DEFAULT_IMPLEMENTATIONS.contains(stateId)) {
+            //                    throw new UnsupportedOperationException("Unsupported state key: " + stateId);
+        }
 
         if (definition.queue()) {
             return new ConcurrentLinkedDeque<>();

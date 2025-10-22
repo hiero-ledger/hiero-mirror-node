@@ -391,7 +391,6 @@ class MirrorEvmTxProcessorTest {
         given(gasCalculator.getLowTierGasCost()).willReturn(5L);
         given(gasCalculator.getMidTierGasCost()).willReturn(8L);
         given(gasCalculator.getBaseTierGasCost()).willReturn(2L);
-        given(gasCalculator.getBlockHashOperationGasCost()).willReturn(20L);
         given(gasCalculator.getWarmStorageReadCost()).willReturn(160L);
         given(gasCalculator.getColdSloadCost()).willReturn(2100L);
         given(gasCalculator.getSloadOperationGasCost()).willReturn(0L);

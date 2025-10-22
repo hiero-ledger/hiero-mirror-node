@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.web3.state.components;
 
+import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_KEY;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_KEY;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_KEY;
@@ -9,19 +12,20 @@ import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NO
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_KEY;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.congestion.CongestionLevelStarts;
+import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.hapi.node.state.primitives.ProtoLong;
+import com.hedera.hapi.node.state.schedule.ScheduleList;
 import com.hedera.hapi.node.state.token.NodeRewards;
 import com.hedera.hapi.node.state.token.Token;
 import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.state.merkle.SchemaApplications;
 import com.swirlds.config.api.Configuration;
-import com.swirlds.state.lifecycle.StartupNetworks;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableStates;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,33 +57,41 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
                                 StateDefinition.onDisk(
                                         TOKENS_STATE_ID, TOKENS_KEY, TokenID.PROTOBUF, Token.PROTOBUF, 1)),
                         SERVICE_NAME,
-                        "states")
-                //                Arguments.of(
-                //                        Set.of(
-                //                                StateDefinition.queue(
-                //                                        "UPGRADE_DATA[FileID[shardNum=0, realmNum=0, fileNum=112]]",
-                //                                        ProtoBytes.PROTOBUF),
-                //                                StateDefinition.onDisk(SCHEDULES_BY_EXPIRY_SEC_STATE_ID,
-                //                                        SCHEDULES_BY_EXPIRY_SEC_KEY, ProtoLong.PROTOBUF,
-                // ScheduleList.PROTOBUF, 1)),
-                //                        "otherService",
-                //                        "default implementations")
-                );
+                        "states"),
+                Arguments.of(
+                        Set.of(
+                                StateDefinition.queue(
+                                        FILES_STATE_ID,
+                                        "UPGRADE_DATA[FileID[shardNum=0, realmNum=0, fileNum=112]]",
+                                        ProtoBytes.PROTOBUF),
+                                StateDefinition.onDisk(
+                                        SCHEDULES_BY_EXPIRY_SEC_STATE_ID,
+                                        SCHEDULES_BY_EXPIRY_SEC_KEY,
+                                        ProtoLong.PROTOBUF,
+                                        ScheduleList.PROTOBUF,
+                                        1)),
+                        "otherService",
+                        "default implementations"));
     }
 
     private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
-    private final MirrorNodeState mirrorNodeState;
-    private final StartupNetworks startupNetworks;
-    private final StateRegistry stateRegistry;
+    private MirrorNodeState mirrorNodeState;
+    private StateRegistry stateRegistry;
 
     private SchemaRegistryImpl schemaRegistry;
-    private String serviceName = "TEST";
+    private String serviceName = SERVICE_NAME;
 
     private Configuration config;
 
     @BeforeEach
     void setup() {
-        schemaRegistry = new SchemaRegistryImpl(serviceName, new SchemaApplications(), stateRegistry);
+        stateRegistry = new StateRegistry(java.util.List.of(), java.util.List.of());
+        mirrorNodeState = new MirrorNodeState(
+                java.util.List.of(),
+                mock(com.hedera.node.app.services.ServicesRegistry.class),
+                mock(org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.class),
+                mock(org.hiero.mirror.web3.repository.RecordFileRepository.class));
+        schemaRegistry = new SchemaRegistryImpl(serviceName, stateRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 
@@ -87,8 +99,10 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
     @MethodSource("stateDefinition")
     void migrateWithStateKeysPresent(
             final Set<StateDefinition<?, ?>> stateDef, final String serviceName, final String description) {
-        final var expectedKeys =
-                stateDef.stream().map(StateDefinition::stateKey).collect(Collectors.toSet());
+        final var expectedKeys = stateDef.stream()
+                .map(StateDefinition::stateId)
+                .map(Object::toString)
+                .collect(Collectors.toSet());
 
         final var schema =
                 new TestSchemaBuilder(previousVersion).withStates(stateDef).build();
@@ -131,8 +145,7 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
     }
 
     private void migrate(final String serviceName) {
-        schemaRegistry.migrate(
-                serviceName, mirrorNodeState, previousVersion, config, config, new HashMap<>(), startupNetworks);
+        schemaRegistry.migrate(serviceName, mirrorNodeState, config);
     }
 
     private void validateState(
