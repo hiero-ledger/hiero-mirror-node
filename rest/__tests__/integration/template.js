@@ -293,7 +293,10 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     logger.debug('uploading file objects to mock s3 service');
     const s3ObjectKeys = [];
     for (const filePath of walk(dataPath)) {
-      const s3ObjectKey = path.relative(dataPath, filePath);
+      const s3ObjectKey =
+        process.platform === 'win32'
+          ? path.relative(dataPath, filePath).replace(/\\/g, '/')
+          : path.relative(dataPath, filePath);
       const fileStream = fs.createReadStream(filePath);
       await s3client.send(
         new PutObjectCommand({

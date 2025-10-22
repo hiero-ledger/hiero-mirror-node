@@ -9,10 +9,10 @@
     "node": ">= 22"
   },
   "scripts": {
-    "dev": "HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
+    "dev": "cross-env HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",
     "start": "node --import=extensionless/register server.js",
     "pretest": "node --import=extensionless/register __tests__/integration/generator.js",
-    "test": "NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "cross-env NODE_NO_WARNINGS=1 node --import=extensionless/register --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
@@ -55,6 +55,7 @@
     "@testcontainers/postgresql": "^11.7.1",
     "@testcontainers/redis": "^11.7.1",
     "app-root-path": "^3.1.0",
+    "cross-env": "^7.0.3",
     "crypto-random-string": "^5.0.0",
     "jest": "^30.2.0",
     "jest-extended": "^6.0.0",
