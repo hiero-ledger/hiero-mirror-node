@@ -14,6 +14,7 @@ DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
+TEST_KUBE_TARGET_NAMESPACE=("mainnet-citus")
 WAIT_FOR_K6="${WAIT_FOR_K6:-false}"
 
 function deleteBackupsFromSource() {
@@ -37,7 +38,8 @@ function deleteBackupsFromSource() {
     return 0
   fi
 
-  local namespace name
+  local namespace
+  local name
   while IFS=$'\t' read -r namespace name; do
     [[ -z "${namespace}" || -z "$name" ]] && continue
     log "Deleting SGShardedBackup/${name} in namespace=${namespace}"
@@ -58,7 +60,9 @@ function createSgBackup() {
   local attempt=1
 
   while true; do
-    local backupName status msg
+    local backupName
+    local status
+    local msg
     backupName="${HELM_RELEASE_NAME}-citus-$(date -u +"%Y-%m-%d-%H-%M-%S")"
 
     cat <<EOF | kubectl apply -n "${namespace}" -f - 1>&2
@@ -123,7 +127,9 @@ function runBackupsForAllNamespaces() {
 
   local out='{}'
   while IFS= read -r item; do
-    local namespace cluster backup
+    local namespace
+    local cluster
+    local backup
     namespace="$(jq -r '.metadata.namespace' <<<"$item")"
     cluster="$(jq -r '.metadata.name' <<<"$item")"
     [[ -z "$namespace" || -z "$cluster" ]] && continue
@@ -158,7 +164,8 @@ function getBackupPaths() {
 }
 
 function getLatestBackup() {
-  local backups zfsSnapshots
+  local backups
+  local zfsSnapshots
   backups=$(kubectl get sgbackups.stackgres.io -A -o json | jq '
   .items|
   map(select(.status.process.status == "Completed"))|
@@ -260,7 +267,10 @@ function patchBackupPaths() {
     return 0
   fi
 
-  local namespace cluster patch pathsJson
+  local namespace
+  local cluster
+  local patch
+  local pathsJson
   while IFS=$'\t' read -r namespace cluster pathsJson; do
     [[ -z "${namespace}" || -z "${cluster}" ]] && continue
 
@@ -323,7 +333,8 @@ function restoreTarget() {
 }
 
 function deleteSnapshots() {
-  local snapshots name
+  local snapshots
+  local name
   snapshots="$(getSnapshotsById)"
 
   log "Deleting snapshots ${snapshots}"
@@ -412,7 +423,11 @@ function scaleDownNodePools() {
 
 
 function removeDisks() {
-  local disksToDelete diskJson diskName diskZone zoneLink
+  local disksToDelete
+  local diskJson
+  local diskName
+  local diskZone
+  local zoneLink
   disksToDelete="$(getCitusDiskNames "${GCP_TARGET_PROJECT}" "${DISK_PREFIX}")"
   log "Will delete disks ${disksToDelete}"
   doContinue
@@ -432,6 +447,49 @@ function removeDisks() {
   deleteDisk "${diskName}" "${diskZone}"
 }
 
+function resolveHpaName() {
+   local component="$1"
+   local ns="$2"
+   local -a hpas
+   mapfile -t hpas < <(kubectl get hpa -n "${ns}" \
+     -l "app.kubernetes.io/component=${component}" \
+     -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+
+   if [[ ${#hpas[@]} -eq 0 || -z "${hpas[0]}" ]]; then
+     log "No HPA found in ${ns} with label app.kubernetes.io/component=${component}"
+     return 0
+   fi
+   if [[ ${#hpas[@]} -gt 1 ]]; then
+     log "Expected exactly 1 HPA in ${ns} for component=${component}, found ${#hpas[@]}: ${hpas[*]}"
+     return 0
+   fi
+
+   printf '%s\n' "${hpas[0]}"
+}
+
+function getHpaMaxReplicas() {
+  local ns="$1"
+  local hpaName="$2"
+  if [[ -z "$ns" || -z "$hpaName" ]]; then
+    echo ""
+    return 0
+  fi
+  kubectl get hpa "${hpaName}" -n "${ns}" -o jsonpath='{.spec.maxReplicas}' 2>/dev/null || true
+}
+
+function scaleHpaMin() {
+  local ns="$1"
+  local hpaName="$2"
+  local min="${3:-1}"
+  if [[ -z "$ns" || -z "$hpaName" ]]; then
+    echo ""
+    return 0
+  fi
+  log "Patching HPA ${hpaName} in ${ns}: minReplicas=${min}"
+  kubectl patch hpa "${hpaName}" -n "${ns}" --type='merge' \
+    -p "{\"spec\":{\"minReplicas\":${min}}}" >/dev/null || true
+}
+
 function teardownResources() {
   log "Tearing down resources"
   for namespace in "${CITUS_NAMESPACES[@]}"; do
@@ -448,8 +506,14 @@ function teardownResources() {
 }
 
 function waitForK6PodExecution() {
-  local testName="$1"
+  local testName="${1:-}"
+  local targetNamespace="${2:-}"
   local job out
+
+  if [[ -z "${testName}" || -z "${targetNamespace}" ]]; then
+    log "ERROR: waitForK6PodExecution requires <testName> and <namespace>"
+    return 1
+  fi
 
   job=""
   until {
@@ -474,6 +538,15 @@ function waitForK6PodExecution() {
 
   job="$out"
   log "Found job ${job} for test ${testName}"
+
+  local hpaName
+  local maxReplicas
+  hpaName="$(resolveHpaName "${testName}" "${targetNamespace}")" || true
+  maxReplicas="$(getHpaMaxReplicas "${targetNamespace}" "${hpaName}")" || true
+  if [[ -n "${maxReplicas}" ]]; then
+    scaleHpaMin "${targetNamespace}" "${hpaName}" "${maxReplicas}"
+  fi
+
   until kubectl wait -n "${TEST_KUBE_NAMESPACE}" --for=condition=complete "job/${job}" --timeout=10m > /dev/null 2>&1; do
     log "Waiting for job ${job} to complete for test ${testName}"
     sleep 1
@@ -500,6 +573,8 @@ function waitForK6PodExecution() {
   done
 
   cat artifacts/report.md
+
+  scaleHpaMin "${targetNamespace}" "${hpaName}"
 }
 
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
@@ -519,9 +594,15 @@ deleteSnapshots
 
 if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   log "Awaiting k6 results"
-  waitForK6PodExecution "rest"
-  waitForK6PodExecution "rest-java"
-  waitForK6PodExecution "web3"
+  for ns in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
+    if kubectl get helmrelease -n "${ns}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
+      log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${ns}"
+      flux suspend helmrelease -n "${ns}" "${HELM_RELEASE_NAME}"
+    fi
+    waitForK6PodExecution "rest" "${ns}"
+    waitForK6PodExecution "rest-java" "${ns}"
+    waitForK6PodExecution "web3" "${ns}"
+  done
   log "K6 tests completed"
   teardownResources
 fi
