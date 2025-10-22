@@ -24,7 +24,7 @@ class ListReadableQueueStateTest {
     void testIterateOnDataSource() {
         final var iterator = mock(Iterator.class);
         when(backingStore.iterator()).thenReturn(iterator);
-        final var queueState = new ListReadableQueueState<>("SERVICE_NAME", "KEY", backingStore);
+        final var queueState = new ListReadableQueueState<>("SERVICE_NAME", 1, backingStore);
         assertThat(queueState.iterateOnDataSource()).isEqualTo(iterator);
     }
 
@@ -32,7 +32,7 @@ class ListReadableQueueStateTest {
     void testPeekOnDataSource() {
         final var firstElem = new Object();
         when((backingStore.peek())).thenReturn(firstElem);
-        final var queueState = new ListReadableQueueState<>("SERVICE_NAME", "KEY", backingStore);
+        final var queueState = new ListReadableQueueState<>("SERVICE_NAME", 1, backingStore);
         assertThat(queueState.peekOnDataSource()).isEqualTo(firstElem);
     }
 }

@@ -29,7 +29,7 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * exceptions when certain keys are accessed, etc.
      *
      * @param serviceName The service name for this state
-     * @param stateKey The state key for this state
+     * @param stateId The state key for this state
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(

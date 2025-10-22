@@ -32,6 +32,7 @@ import org.hiero.mirror.web3.utils.Suppliers;
 public class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
 
     public static final String KEY = "TOKEN_RELS";
+    public static final int STATE_ID = TOKEN_RELS_STATE_ID;
 
     private final NftRepository nftRepository;
     private final SystemEntity systemEntity;

@@ -37,7 +37,6 @@ import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.CustomFeeRepository;
-import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.NftRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -49,6 +48,7 @@ import org.springframework.util.CollectionUtils;
 public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
 
     public static final String KEY = "TOKENS";
+    public static final int STATE_ID = TOKENS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final CustomFeeRepository customFeeRepository;
@@ -60,10 +60,9 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final CommonEntityAccessor commonEntityAccessor,
             final CustomFeeRepository customFeeRepository,
             final TokenRepository tokenRepository,
-            final EntityRepository entityRepository,
             final NftRepository nftRepository,
             final SystemEntity systemEntity) {
-        super(TokenService.NAME, TOKENS_STATE_ID);
+        super(TokenService.NAME, STATE_ID);
         this.commonEntityAccessor = commonEntityAccessor;
         this.customFeeRepository = customFeeRepository;
         this.tokenRepository = tokenRepository;

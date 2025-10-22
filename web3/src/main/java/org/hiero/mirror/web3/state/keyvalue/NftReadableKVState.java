@@ -30,11 +30,12 @@ import org.hiero.mirror.web3.repository.TokenRepository;
 public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
     public static final String KEY = "NFTS";
+    public static final int STATE_ID = NFTS_STATE_ID;
     private final NftRepository nftRepository;
     private final TokenRepository tokenRepository;
 
     public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
-        super(TokenService.NAME, NFTS_STATE_ID);
+        super(TokenService.NAME, STATE_ID);
         this.nftRepository = nftRepository;
         this.tokenRepository = tokenRepository;
     }

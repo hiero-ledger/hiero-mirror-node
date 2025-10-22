@@ -2,9 +2,8 @@
 
 package org.hiero.mirror.web3.state.components;
 
-import static com.hedera.node.app.state.merkle.SchemaApplicationType.MIGRATION;
-import static com.hedera.node.app.state.merkle.SchemaApplicationType.RESTART;
 import static com.hedera.node.app.state.merkle.SchemaApplicationType.STATE_DEFINITIONS;
+import static com.hedera.node.app.state.merkle.VersionUtils.alreadyIncludesStateDefs;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.state.merkle.SchemaApplications;
@@ -13,25 +12,35 @@ import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
 import com.swirlds.state.lifecycle.StartupNetworks;
+import com.swirlds.state.lifecycle.StateDefinition;
+import com.swirlds.state.lifecycle.StateMetadata;
 import com.swirlds.state.spi.FilteredReadableStates;
 import com.swirlds.state.spi.FilteredWritableStates;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.MirrorNodeState;
-import org.hiero.mirror.web3.state.core.MapWritableStates;
 import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
 
 @RequiredArgsConstructor
+@CustomLog
 public class SchemaRegistryImpl implements SchemaRegistry {
+
+    /**
+     * The name of the service using this registry.
+     */
+    private final String serviceName;
 
     private final SchemaApplications schemaApplications;
     private final StateRegistry stateRegistry;
@@ -71,36 +80,42 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             final var applications =
                     schemaApplications.computeApplications(previousVersion, latestVersion, schema, appConfig);
             final var readableStates = state.getReadableStates(serviceName);
-            final var previousStates = new FilteredReadableStates(readableStates, readableStates.stateKeys());
+            final var previousStates = new FilteredReadableStates(readableStates, readableStates.stateIds());
             final WritableStates writableStates;
             final WritableStates newStates;
             if (applications.contains(STATE_DEFINITIONS)) {
-                final var redefinedWritableStates = applyStateDefinitions(serviceName, schema, appConfig, state);
+                final var schemasAlreadyInState = schemas.tailSet(schema).stream()
+                        .filter(s -> s != schema
+                                && previousVersion != null
+                                && alreadyIncludesStateDefs(previousVersion, s.getVersion()))
+                        .toList();
+                final var redefinedWritableStates =
+                        applyStateDefinitions(schema, schemasAlreadyInState, appConfig, state);
                 writableStates = redefinedWritableStates.beforeStates();
                 newStates = redefinedWritableStates.afterStates();
             } else {
                 newStates = writableStates = state.getWritableStates(serviceName);
             }
-            final var context = newMigrationContext(
-                    previousVersion,
-                    previousStates,
-                    newStates,
-                    appConfig,
-                    platformConfig,
-                    sharedValues,
-                    startupNetworks);
-            if (applications.contains(MIGRATION)) {
-                schema.migrate(context);
-            }
-            if (applications.contains(RESTART)) {
-                schema.restart(context);
-            }
-            if (writableStates instanceof MapWritableStates mws) {
-                mws.commit();
-            }
+            //            final var context = newMigrationContext(
+            //                    previousVersion,
+            //                    previousStates,
+            //                    newStates,
+            //                    appConfig,
+            //                    platformConfig,
+            //                    sharedValues,
+            //                    startupNetworks);
+            //            if (applications.contains(MIGRATION)) {
+            //                schema.migrate(context);
+            //            }
+            //            if (applications.contains(RESTART)) {
+            //                schema.restart(context);
+            //            }
+            //            if (writableStates instanceof MapWritableStates mws) {
+            ////                mws.commit();
+            //            }
 
             // And finally we can remove any states we need to remove
-            schema.statesToRemove().forEach(stateKey -> state.removeServiceState(serviceName, stateKey));
+            //            schema.statesToRemove().forEach(stateKey -> state.removeServiceState(serviceName, stateKey));
         }
     }
 
@@ -115,7 +130,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
             @Nonnull final StartupNetworks startupNetworks) {
         return new MigrationContext() {
             @Override
-            public void copyAndReleaseOnDiskState(String stateKey) {
+            public void copyAndReleaseOnDiskState(int stateKey) {
                 // No-op
             }
 
@@ -172,20 +187,46 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     }
 
     private RedefinedWritableStates applyStateDefinitions(
-            @Nonnull final String serviceName,
             @Nonnull final Schema schema,
+            @Nonnull final List<Schema> schemasAlreadyInState,
             @Nonnull final Configuration configuration,
             @Nonnull final MirrorNodeState state) {
-        final Map<String, Object> stateDataSources = new HashMap<>();
+
+        final Map<Integer, Object> stateDataSources = new HashMap<>();
         schema.statesToCreate(configuration)
-                .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(serviceName, def)));
+                .forEach(def -> stateDataSources.put(def.stateId(), stateRegistry.lookup(serviceName, def)));
+        //        schema.statesToCreate(configuration)
+        //////                        .forEach(def -> stateDataSources.put(def.stateKey(),
+        // stateRegistry.lookup(serviceName, def)));
+        //                .forEach(def -> stateDataSources.put(def.stateId(), new HashMap<>()));
 
         state.addService(serviceName, stateDataSources);
 
-        final var statesToRemove = schema.statesToRemove();
+        // Create the new states (based on the schema) which, thanks to the above, does not
+        // expand the set of states that the migration code will see
+        schema.statesToCreate(configuration).stream()
+                .sorted(Comparator.comparing(StateDefinition::stateKey))
+                .forEach(def -> {
+                    final var stateKey = def.stateKey();
+                    if (schemasAlreadyInState.stream()
+                            .anyMatch(s -> s.statesToRemove().contains(stateKey))) {
+                        log.info("  Skipping {} as it is removed by a later schema", stateKey);
+                        return;
+                    }
+                    log.info("  Ensuring {} has state {}", serviceName, stateKey);
+                    final var md = new StateMetadata<>(serviceName, schema, def);
+                    //                    state.initializeState(md);
+                });
+
+        //                state.addService(serviceName, stateDataSources);
+
+        // Create the "before" and "after" writable states (we won't commit anything
+        // from these states until we have completed migration for this schema)
+        //        final var statesToRemove = schema.statesToRemove();
         final var writableStates = state.getWritableStates(serviceName);
-        final var remainingStates = new HashSet<>(writableStates.stateKeys());
-        remainingStates.removeAll(statesToRemove);
+        final var remainingStates = new HashSet<>(writableStates.stateIds());
+        //        remainingStates.removeAll(statesToRemove);
+        //        log.info("  Removing states {} from service {}", statesToRemove, serviceName);
         final var newStates = new FilteredWritableStates(writableStates, remainingStates);
         return new RedefinedWritableStates(writableStates, newStates);
     }

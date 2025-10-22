@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state;
 
 import static com.hedera.node.app.service.token.impl.handlers.BaseCryptoHandler.asAccount;
 import static com.hedera.node.app.spi.fees.NoopFeeCharging.NOOP_FEE_CHARGING;
-import static com.swirlds.platform.state.service.PlatformStateFacade.DEFAULT_PLATFORM_STATE_FACADE;
 import static com.swirlds.state.StateChangeListener.StateType.MAP;
 import static com.swirlds.state.StateChangeListener.StateType.QUEUE;
 import static com.swirlds.state.StateChangeListener.StateType.SINGLETON;
@@ -83,6 +82,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
+import org.hiero.mirror.web3.state.components.SchemaRegistryImpl;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
@@ -103,6 +103,7 @@ public class MirrorNodeState implements MerkleNodeState {
     // Key is Service, value is Map of state name to state datasource
     private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
     private final List<StateChangeListener> listeners = new ArrayList<>();
+    private final Map<String, Map<Integer, StateMetadata<?, ?>>> services = new HashMap<>();
 
     private final List<ReadableKVState> readableKVStates;
 
@@ -140,20 +141,57 @@ public class MirrorNodeState implements MerkleNodeState {
         final var currentVersion =
                 bootstrapConfig.getConfigData(VersionConfig.class).servicesVersion();
         final var previousVersion = latest.isEmpty() ? null : currentVersion;
+
+        registerServices(servicesRegistry);
+
+        servicesRegistry.registrations().forEach(registration -> {
+            if (!(registration.registry() instanceof SchemaRegistryImpl schemaRegistry)) {
+                throw new IllegalArgumentException("Can only be used with SchemaRegistryImpl instances");
+            }
+
+            final Map<String, Object> sharedValues = new HashMap<>();
+            schemaRegistry.migrate(
+                    registration.serviceName(),
+                    this,
+                    previousVersion,
+                    mirrorNodeEvmProperties.getVersionedConfiguration(),
+                    mirrorNodeEvmProperties.getVersionedConfiguration(),
+                    sharedValues,
+                    startupNetworks);
+        });
+
         ContractCallContext.run(ctx -> {
             latest.ifPresent(ctx::setRecordFile);
-            registerServices(servicesRegistry);
-            serviceMigrator.doMigrations(
-                    this,
-                    servicesRegistry,
-                    previousVersion,
-                    currentVersion,
-                    mirrorNodeEvmProperties.getVersionedConfiguration(),
-                    mirrorNodeEvmProperties.getVersionedConfiguration(),
-                    startupNetworks,
-                    storeMetricsService,
-                    configProvider,
-                    DEFAULT_PLATFORM_STATE_FACADE);
+            //            registerServices(servicesRegistry);
+            //
+            //            servicesRegistry.registrations().forEach(registration -> {
+            //                if (!(registration.registry() instanceof SchemaRegistryImpl schemaRegistry)) {
+            //                    throw new IllegalArgumentException("Can only be used with SchemaRegistryImpl
+            // instances");
+            //                }
+            //
+            //                final Map<String, Object> sharedValues = new HashMap<>();
+            //                schemaRegistry.migrate(
+            //                        registration.serviceName(),
+            //                        this,
+            //                        previousVersion,
+            //                        mirrorNodeEvmProperties.getVersionedConfiguration(),
+            //                        mirrorNodeEvmProperties.getVersionedConfiguration(),
+            //                        sharedValues,
+            //                        startupNetworks);
+
+            //            serviceMigrator.doMigrations(
+            //                    this,
+            //                    servicesRegistry,
+            //                    previousVersion,
+            //                    currentVersion,
+            //                    mirrorNodeEvmProperties.getVersionedConfiguration(),
+            //                    mirrorNodeEvmProperties.getVersionedConfiguration(),
+            //                    startupNetworks,
+            //                    storeMetricsService,
+            //                    configProvider,
+            //                    DEFAULT_PLATFORM_STATE_FACADE);
+            //            });
             return ctx;
         });
     }
@@ -196,7 +234,16 @@ public class MirrorNodeState implements MerkleNodeState {
 
     @Override
     public void initializeState(@NonNull StateMetadata<?, ?> md) {
-        MerkleNodeState.super.initializeState(md);
+        // Put this metadata into the map
+        final var def = md.stateDefinition();
+        final var serviceName = md.serviceName();
+        final var stateMetadata = services.computeIfAbsent(serviceName, k -> new HashMap<>());
+        stateMetadata.put(def.stateId(), md);
+
+        // We also need to add/update the metadata of the service in the writableStatesMap so that
+        // it isn't stale or incomplete (e.g. in a genesis case)
+        readableStates.put(serviceName, new MapReadableStates(new HashMap<>()));
+        writableStates.put(serviceName, new MapWritableStates(new HashMap<>()));
     }
 
     @Override

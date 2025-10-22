@@ -14,7 +14,6 @@ import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.services.ServicesRegistry;
 import com.hedera.node.app.services.ServicesRegistry.Registration;
-import com.hedera.node.app.spi.info.NetworkInfo;
 import com.hedera.node.config.VersionedConfiguration;
 import com.hedera.node.config.data.VersionConfig;
 import com.swirlds.platform.state.MerkleNodeState;
@@ -35,9 +34,6 @@ class ServiceMigratorImplTest {
 
     @Mock
     private MirrorNodeState mirrorNodeState;
-
-    @Mock
-    private NetworkInfo networkInfo;
 
     @Mock
     private SchemaRegistryImpl schemaRegistry;

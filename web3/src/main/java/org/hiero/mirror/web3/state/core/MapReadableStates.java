@@ -18,13 +18,13 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @Nonnull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@Nonnull int stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <K, V> ReadableKVState<K, V> get(@Nonnull int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown k/v state key: " + stateId);
         }
         if (!(state instanceof ReadableKVState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableKVState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableKVState: " + stateId);
         }
 
         return (ReadableKVState<K, V>) state;

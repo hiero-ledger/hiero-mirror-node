@@ -6,7 +6,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.hiero.mirror.web3.common.ContractCallContext;
 
@@ -19,7 +18,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
-    /** State label used in logs, typically serviceName.stateKey */
+    /** State label used in logs, typically serviceName.stateKey (may be null) */
+    @Nullable
     protected final String label;
 
     // The state ID
@@ -30,11 +30,11 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     /**
      * Create a new StateBase.
      *
-     * @param serviceName The name of the service that owns the state. Cannot be null.
-     * @param stateKey The state key. Cannot be null.
+     * @param stateId The state ID
+     * @param label The state label (may be null)
      */
-    protected ReadableKVStateBase(final int stateId, final String label) {
-        this.label = Objects.requireNonNull(label);
+    protected ReadableKVStateBase(final int stateId, @Nullable final String label) {
+        this.label = label; // allow null to match platform-sdk behavior
         this.stateId = stateId;
     }
 
@@ -51,7 +51,9 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     public V get(@Nonnull K key) {
         // We need to cache the item because somebody may perform business logic basic on this
         // contains call, even if they never need the value itself!
-        Objects.requireNonNull(key);
+        if (key == null) {
+            throw new NullPointerException("key must not be null");
+        }
         if (!hasBeenRead(key)) {
             final var value = readFromDataSource(key);
             markRead(key, value);
@@ -107,7 +109,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param value The value
      */
     protected final void markRead(@Nonnull K key, @Nullable V value) {
-        getReadCache().put(key, Objects.requireNonNullElse(value, (V) marker));
+        getReadCache().put(key, value == null ? (V) marker : value);
     }
 
     /**

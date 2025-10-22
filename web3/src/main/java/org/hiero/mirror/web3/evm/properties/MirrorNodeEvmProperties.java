@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.evm.properties;
 
-import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
+import static com.hedera.hapi.util.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 import static org.hiero.base.utility.CommonUtils.unhex;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30;
@@ -53,7 +53,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
-@RequiredArgsConstructor(onConstructor_ = {@Autowired})
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
@@ -68,6 +67,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private final CommonProperties commonProperties;
 
     private final SystemEntity systemEntity;
+
+    @Autowired
+    public MirrorNodeEvmProperties(final CommonProperties commonProperties, final SystemEntity systemEntity) {
+        this.commonProperties = commonProperties;
+        this.systemEntity = systemEntity;
+    }
 
     @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":true}")
     private boolean allowLongZeroAddresses = true;
