@@ -200,6 +200,9 @@ jobs:
             value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
             echo "${k6}=${value}" >> $GITHUB_ENV
           done
+          
+          // Create new map for rest
+          k6Map["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
 
       - name: Install k6
         if: ${{ matrix.stream-type != 'BLOCK' }}
