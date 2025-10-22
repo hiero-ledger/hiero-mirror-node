@@ -175,6 +175,7 @@ jobs:
           k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
+          k6Map["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
           k6Map["BOB"]="PAYER_ACCOUNT"
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
           k6Map["fungible"]="TOKEN_ADDRESS"
@@ -190,17 +191,12 @@ jobs:
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
 
-      #      - name: Port forward services
-      #        if: ${{ matrix.stream-type != 'BLOCK' }}
-      #        run: |
-      #          kubectl port-forward "service/${HELM_RELEASE_NAME}-web3" -n "${SOLO_NAMESPACE}" 8080:80 &
-      #          kubectl port-forward "service/${HELM_RELEASE_NAME}-rest" -n "${SOLO_NAMESPACE}" 5551:80 &
-
       - name: Run rest tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        #        env:
-        #          REST_TEST_EXCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
+        env:
+          #          REST_TEST_EXCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
+          REST_TEST_INCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
         with:
           path: |
             ./tools/k6/src/rest/apis.js
