@@ -21,18 +21,19 @@ import java.util.stream.Stream;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
+import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith(OutputCaptureExtension.class)
-class CompositeEthereumTransactionParserTest extends AbstractEthereumTransactionParserTest {
+final class CompositeEthereumTransactionParserTest extends AbstractEthereumTransactionParserTest {
 
     public static final String BERLIN_RAW_TX_1 =
             "01f87182012a8085a54f4c3c00832dc6c094000000000000000000000000000000000000052d8502540be40083123456c001a04d83230d6c19076fa42ef92f88d2cb0ae917b58640cc86f221a2e15b1736714fa03a4643759236b06b6abb31713ad694ab3b7ac5760f183c46f448260b08252b58";
@@ -100,13 +101,21 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
                 ethereumTransaction.getCallData(),
                 ethereumTransaction.getCallDataId(),
                 ethereumTransaction.getConsensusTimestamp(),
-                ethereumTransaction.getData());
+                ethereumTransaction.getData(),
+                true);
         assertThat(hash).isEqualTo(ethereumTransaction.getHash());
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void getHashType2CallDataFileData(boolean addHexPrefix) {
+    @CsvSource(
+            textBlock =
+                    """
+            true, true
+            false, true
+            true, false
+            false, false
+            """)
+    void getHashType2CallDataFileData(boolean addHexPrefix, boolean useCurrentState) {
         // given
         byte[] expected = new Keccak.Digest256().digest(RAW_TX_TYPE_1);
         var fileData = domainBuilder
@@ -116,13 +125,22 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
                     f.fileData(data.getBytes(StandardCharsets.UTF_8));
                 })
                 .persist();
+        if (!useCurrentState) {
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.consensusTimestamp(fileData.getConsensusTimestamp() + 2)
+                            .entityId(fileData.getEntityId())
+                            .transactionType(TransactionType.FILEAPPEND.getProtoId()))
+                    .persist();
+        }
 
         // when
         var actual = ethereumTransactionParser.getHash(
                 EMPTY_BYTE_ARRAY,
                 fileData.getEntityId(),
                 fileData.getConsensusTimestamp() + 1,
-                RAW_TX_TYPE_1_CALL_DATA_OFFLOADED);
+                RAW_TX_TYPE_1_CALL_DATA_OFFLOADED,
+                useCurrentState);
 
         // then
         assertThat(actual).isEqualTo(expected);
@@ -137,7 +155,7 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
 
         // when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, RAW_TX_TYPE_1_WITH_ACCESS_LIST);
+                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), consensusTimestamp, RAW_TX_TYPE_1_WITH_ACCESS_LIST, true);
 
         // then
         softly.assertThat(actual).isEmpty();
@@ -152,17 +170,20 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
                 .customize(f -> f.fileData(new byte[] {(byte) 0xff}))
                 .persist();
         long consensusTimestamp = fileData.getConsensusTimestamp() + 1;
-        String expectedMessage =
-                "Failed to get hash for ethereum transaction at %d. org.bouncycastle.util.encoders.DecoderException"
-                        .formatted(consensusTimestamp);
+        var fileId = fileData.getEntityId();
+        var expectedMessages = List.of(
+                "Failed to decode contract bytecode from file %s org.bouncycastle.util.encoders.DecoderException"
+                        .formatted(fileId),
+                "Failed to read call data from file %s for ethereum transaction at %d"
+                        .formatted(fileId, consensusTimestamp));
 
         // when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, fileData.getEntityId(), consensusTimestamp, RAW_TX_TYPE_1);
+                EMPTY_BYTE_ARRAY, fileData.getEntityId(), consensusTimestamp, RAW_TX_TYPE_1, true);
 
         // then
         softly.assertThat(actual).isEmpty();
-        softly.assertThat(capturedOutput.getAll()).contains(expectedMessage);
+        softly.assertThat(capturedOutput.getAll()).contains(expectedMessages);
     }
 
     @Test
@@ -170,12 +191,12 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
         // given
         long consensusTimestamp = domainBuilder.timestamp();
         var fileEntityId = domainBuilder.entityId();
-        String expectedMessage = "Call data not found from %s for ethereum transaction at %s"
+        String expectedMessage = "Failed to read call data from file %s for ethereum transaction at %d"
                 .formatted(fileEntityId, consensusTimestamp);
 
         // when
-        var actual =
-                ethereumTransactionParser.getHash(EMPTY_BYTE_ARRAY, fileEntityId, consensusTimestamp, RAW_TX_TYPE_1);
+        var actual = ethereumTransactionParser.getHash(
+                EMPTY_BYTE_ARRAY, fileEntityId, consensusTimestamp, RAW_TX_TYPE_1, true);
 
         // then
         softly.assertThat(actual).isEmpty();
@@ -190,7 +211,7 @@ class CompositeEthereumTransactionParserTest extends AbstractEthereumTransaction
 
         // when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), domainBuilder.timestamp(), rawBytes);
+                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), domainBuilder.timestamp(), rawBytes, true);
 
         // then
         softly.assertThat(actual).isEmpty();

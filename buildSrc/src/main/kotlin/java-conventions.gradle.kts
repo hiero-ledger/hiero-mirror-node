@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import net.ltgt.gradle.errorprone.errorprone
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
@@ -8,6 +9,7 @@ plugins {
     id("io.spring.dependency-management")
     id("jacoco")
     id("java-library")
+    id("net.ltgt.errorprone")
     id("org.gradle.test-retry")
 }
 
@@ -33,6 +35,9 @@ val mockitoAgent = configurations.register("mockitoAgent")
 
 dependencies {
     annotationProcessor(platform(project(":")))
+    // Versions for errorprone don't seem to work when only specified in root build.gradle.kts
+    errorprone("com.google.errorprone:error_prone_core:2.42.0")
+    errorprone("com.uber.nullaway:nullaway:0.12.10")
     implementation(platform(project(":")))
     mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -44,6 +49,12 @@ tasks.withType<JavaCompile>().configureEach {
         listOf("-parameters", "-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview")
     )
     options.encoding = "UTF-8"
+    options.errorprone {
+        disableAllChecks = true
+        check("NullAway", net.ltgt.gradle.errorprone.CheckSeverity.ERROR)
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
+    }
     sourceCompatibility = "21"
     targetCompatibility = "21"
 }

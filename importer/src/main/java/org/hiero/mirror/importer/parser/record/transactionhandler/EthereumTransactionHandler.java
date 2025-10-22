@@ -62,6 +62,10 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         }
 
         if (recordItem.getEthereumTransaction() == null) {
+            // This can happen when decoding from the transaction bytes has failed, set default values for not-null
+            // columns
+            contractResult.setFunctionParameters(ArrayUtils.EMPTY_BYTE_ARRAY);
+            contractResult.setGasLimit(0L);
             return;
         }
 
@@ -72,12 +76,20 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
         contractResult.setAmount(new BigInteger(ethereumTransaction.getValue()).longValue());
         contractResult.setGasLimit(ethereumTransaction.getGasLimit());
 
-        if (!ArrayUtils.isEmpty(ethereumTransaction.getCallData())) {
-            contractResult.setFunctionParameters(ethereumTransaction.getCallData());
-        } else if (ethereumTransaction.getCallDataId() != null) {
-            byte[] bytecode = contractBytecodeService.get(ethereumTransaction.getCallDataId());
-            contractResult.setFunctionParameters(bytecode);
+        byte[] callData = ethereumTransaction.getCallData();
+        var callDataId = ethereumTransaction.getCallDataId();
+        if (callDataId != null) {
+            callData = contractBytecodeService.get(callDataId);
+            if (callData == null) {
+                Utility.handleRecoverableError(
+                        "Failed to read call data from file {} for ethereum transaction at {}",
+                        callDataId,
+                        recordItem.getConsensusTimestamp());
+            }
         }
+
+        // #12199, function_parameters is a not-null db column, so set it to an empty array as fallback
+        contractResult.setFunctionParameters(callData != null ? callData : ArrayUtils.EMPTY_BYTE_ARRAY);
     }
 
     @Override
@@ -109,7 +121,8 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
                         ethereumTransaction.getCallData(),
                         ethereumTransaction.getCallDataId(),
                         ethereumTransaction.getConsensusTimestamp(),
-                        ethereumTransaction.getData());
+                        ethereumTransaction.getData(),
+                        true);
                 ethereumTransaction.setHash(hash);
             }
 

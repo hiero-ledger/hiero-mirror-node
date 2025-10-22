@@ -17,6 +17,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransactionHash;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -34,7 +35,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
 @Tag("migration")
-class BackfillEthereumTransactionHashMigrationTest extends ImporterIntegrationTest {
+final class BackfillEthereumTransactionHashMigrationTest extends ImporterIntegrationTest {
 
     private final ContractResultRepository contractResultRepository;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
@@ -77,6 +78,18 @@ class BackfillEthereumTransactionHashMigrationTest extends ImporterIntegrationTe
 
         // Add one with non-empty hash
         expectedEthereumTransactions.add(domainBuilder.ethereumTransaction(true).persist());
+
+        // Append data to one of the call data files to verify the migration is using historical file state
+        ethereumTransactions.stream()
+                .filter(e -> ArrayUtils.isEmpty(e.getCallData()) && !EntityId.isEmpty(e.getCallDataId()))
+                .findFirst()
+                .ifPresent(e -> domainBuilder
+                        .fileData()
+                        .customize(f -> f.consensusTimestamp(
+                                        ethereumTransactions.getLast().getConsensusTimestamp() + 1)
+                                .entityId(e.getCallDataId())
+                                .transactionType(TransactionType.FILEAPPEND.getProtoId()))
+                        .persist());
 
         var expectedHashes = expectedEthereumTransactions.stream()
                 .collect(Collectors.toMap(EthereumTransaction::getConsensusTimestamp, EthereumTransaction::getHash));

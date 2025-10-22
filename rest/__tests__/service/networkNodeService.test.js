@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
 import {NetworkNodeService} from '../../service';
 import {assertSqlQueryEqual} from '../testutils';
 import integrationDomainOps from '../integrationDomainOps';
@@ -607,8 +606,8 @@ describe('NetworkNodeService node_account_id override logic', () => {
     ];
 
     const nodes = [
-      {node_id: 0, account_id: nodeAccount1000.getEncodedId(), deleted: false},
-      {node_id: 1, account_id: nodeAccount1001.getEncodedId(), deleted: false},
+      {node_id: 0, account_id: nodeAccount1000.toString(), deleted: false},
+      {node_id: 1, account_id: nodeAccount1001.toString(), deleted: false},
     ];
 
     await integrationDomainOps.loadAddressBooks(addressBooks);

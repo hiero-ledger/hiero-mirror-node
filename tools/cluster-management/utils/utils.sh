@@ -505,7 +505,7 @@ function scaleDownCitusPods() {
 
     for pod in "${remainingPods[@]}"; do
       log "Force deleting pod ${pod}"
-      kubectl delete pod "${pod}" -n "${namespace}" --grace-period=0 --force
+      kubectl delete pod "${pod}" -n "${namespace}" --grace-period=0 --force --ignore-not-found=true
     done
   fi
 }

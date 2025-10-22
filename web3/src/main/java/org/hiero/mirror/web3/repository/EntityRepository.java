@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
@@ -10,12 +11,22 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_A
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface EntityRepository extends CrudRepository<Entity, Long> {
 
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_ENTITY, unless = "#result == null")
+    @Caching(
+            cacheable = {
+                @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_ENTITY, unless = "#result == null"),
+                @Cacheable(
+                        cacheNames = CACHE_NAME,
+                        cacheManager = CACHE_MANAGER_SYSTEM_ACCOUNT,
+                        condition =
+                                "#entityId < 1000 && !(T(org.hiero.mirror.web3.common.ContractCallContext).get()?.isBalanceCall() ?: false)",
+                        unless = "#result == null")
+            })
     Optional<Entity> findByIdAndDeletedIsFalse(Long entityId);
 
     @Cacheable(

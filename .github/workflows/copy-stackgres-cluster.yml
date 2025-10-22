@@ -90,16 +90,20 @@ on:
         required: true
         type: boolean
 
+defaults:
+  run:
+    shell: bash
+
 permissions:
   id-token: write
   contents: read
 
 jobs:
   run-copy:
-    name: Copy Citus from SOURCE ➜ TARGET
+    name: Copy Citus from source to target
     runs-on: hiero-mirror-node-linux-medium
+    timeout-minutes: 900 # 15 hours
     env:
-      FLUX_VERSION: "2.3.0"
       GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
       GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
@@ -108,7 +112,6 @@ jobs:
       GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-      PINNED_KUBECONFIG: ${{ github.workspace }}/.kube/config
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
 
@@ -119,18 +122,21 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Ensure jq is available
         run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
 
       - name: Setup gcloud + kubectl + GKE auth plugin
-        uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
         with:
+          cache: true
           install_components: gke-gcloud-auth-plugin, kubectl
 
       - name: Create application default credentials
-        shell: bash
         run: |
           set -euo pipefail
           : "${ACTIONS_ID_TOKEN_REQUEST_URL:?missing OIDC URL}"
@@ -170,7 +176,6 @@ jobs:
           gcloud config set container/use_application_default_credentials true
 
       - name: Get GKE credentials (source)
-        shell: bash
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "${GCP_K8S_SOURCE_CLUSTER_NAME}" \
@@ -180,7 +185,6 @@ jobs:
           kubectl config rename-context "${SRC_CURR}" "${K8S_SOURCE_CLUSTER_CONTEXT}"
 
       - name: Get GKE credentials (target)
-        shell: bash
         run: |
           set -euo pipefail
           gcloud container clusters get-credentials "${GCP_K8S_TARGET_CLUSTER_NAME}" \
@@ -190,7 +194,6 @@ jobs:
           kubectl config rename-context "${TGT_CURR}" "${K8S_TARGET_CLUSTER_CONTEXT}"
 
       - name: Cache Cloud SDK paths
-        shell: bash
         run: |
           set -euo pipefail
           GCLOUD_BIN="$(command -v gcloud)"
@@ -201,21 +204,20 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
-        uses: kubeshop/setup-testkube@970d643ec9ecbe5707049c1d65b851da72aab3d9
+        uses: kubeshop/setup-testkube@12a1cb43ab0cc9a90aef8c8447fa22a3b2c7e7c8 # v1.0.10
         with:
           version: v2.3.0
 
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@ca29bb1a41d662495cbf3a8ee6dba7f088ae7310
+        uses: fluxcd/flux2/action@4a15fa6a023259353ef750acf1c98fe88407d4d0 # v2.7.2
         with:
           version: v2.3.0
 
       - name: Execute copy script
-        shell: bash
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
-          WAIT_FOR_K6: "true"
+          WAIT_FOR_K6: ${{ inputs.teardown_target }}
         run: |
           set -Eeuo pipefail
           export PATH="${CLOUDSDK_BIN_DIR}:${PATH}"

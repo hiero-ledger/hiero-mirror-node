@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.converter.WeiBarTinyBarConverter.WEIBARS_TO_TINYBARS_BIGINT;
@@ -9,12 +10,14 @@ import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
 import static org.hiero.mirror.importer.util.Utility.HALT_ON_ERROR_PROPERTY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.ByteString;
@@ -27,6 +30,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.math.BigInteger;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -35,6 +39,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.converter.HexToByteArrayConverter;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
@@ -43,7 +48,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.Mock;
@@ -110,6 +117,66 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     }
 
     @ParameterizedTest
+    @CsvSource(
+            textBlock =
+                    """
+            'abab', true, , 'abab'
+            '', true, , ''
+            , true, , ''
+            , false, 'abab', 'abab'
+            , false, '', ''
+            , false, , ''
+            """)
+    void updateContractResult(
+            @ConvertWith(HexToByteArrayConverter.class) byte[] callData,
+            boolean callDataInlined,
+            @ConvertWith(HexToByteArrayConverter.class) byte[] callDataInFile,
+            @ConvertWith(HexToByteArrayConverter.class) byte[] expectedFunctionParameters) {
+        // given
+        var contractResult = new ContractResult();
+        var ethereumTransaction = domainBuilder
+                .ethereumTransaction(callDataInlined)
+                .customize(e -> e.callData(callData))
+                .get();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
+                .build();
+        if (!callDataInlined) {
+            doReturn(callDataInFile).when(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+        }
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        verify(contractBytecodeService, times(callDataInlined ? 0 : 1)).get(any(EntityId.class));
+        assertThat(contractResult)
+                .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                .returns(expectedFunctionParameters, ContractResult::getFunctionParameters)
+                .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
+    }
+
+    @Test
+    void updateContractResultNullEthereumTransaction() {
+        // given
+        var contractResult = new ContractResult();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true))
+                .build();
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        assertThat(contractResult)
+                .returns(null, ContractResult::getAmount)
+                .returns(EMPTY_BYTE_ARRAY, ContractResult::getFunctionParameters)
+                .returns(0L, ContractResult::getGasLimit);
+    }
+
+    @ParameterizedTest
     @MethodSource("provideUpdateTransactionArguments")
     void updateTransaction(boolean create, boolean setPriorHapiVersion, long expectedNonce) {
         var fileId = EntityId.of(999L);
@@ -169,21 +236,17 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                         && e.getEthereumNonce() == expectedNonce));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
-        verify(ethereumTransactionParser, never()).getHash(any(), any(), anyLong(), any());
+        verify(ethereumTransactionParser, never()).getHash(any(), any(), anyLong(), any(), anyBoolean());
     }
 
     @Test
     void updateTransactionEmptyHash() {
+        // given
         var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
         var gasLimit = ethereumTransaction.getGasLimit();
         var expectedValue = new BigInteger(ethereumTransaction.getValue())
                 .divide(WEIBARS_TO_TINYBARS_BIGINT)
                 .toByteArray();
-        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
-
-        byte[] hash = domainBuilder.bytes(32);
-        doReturn(hash).when(ethereumTransactionParser).getHash(any(), any(), anyLong(), any());
-
         var recordItem = recordItemBuilder
                 .ethereumTransaction(false)
                 .record(r ->
@@ -194,15 +257,30 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(recordItem.getConsensusTimestamp()))
                 .get();
+        long consensusTimestamp = recordItem.getConsensusTimestamp();
+        ethereumTransaction.setConsensusTimestamp(consensusTimestamp);
+        var body = recordItem.getTransactionBody().getEthereumTransaction();
+        byte[] hash = domainBuilder.bytes(32);
+        byte[] transactionBytes = DomainUtils.toBytes(body.getEthereumData());
+        doReturn(hash)
+                .when(ethereumTransactionParser)
+                .getHash(
+                        ethereumTransaction.getCallData(),
+                        ethereumTransaction.getCallDataId(),
+                        consensusTimestamp,
+                        transactionBytes,
+                        true);
+        doReturn(ethereumTransaction).when(ethereumTransactionParser).decode(any());
 
+        // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
-        var body = recordItem.getTransactionBody().getEthereumTransaction();
+        // then
         verify(entityListener).onEthereumTransaction(ethereumTransaction);
         assertThat(ethereumTransaction)
                 .returns(null, EthereumTransaction::getCallDataId)
-                .returns(recordItem.getConsensusTimestamp(), EthereumTransaction::getConsensusTimestamp)
-                .returns(DomainUtils.toBytes(body.getEthereumData()), EthereumTransaction::getData)
+                .returns(consensusTimestamp, EthereumTransaction::getConsensusTimestamp)
+                .returns(transactionBytes, EthereumTransaction::getData)
                 .returns(gasLimit, EthereumTransaction::getGasLimit)
                 .returns(hash, EthereumTransaction::getHash)
                 .returns(body.getMaxGasAllowance(), EthereumTransaction::getMaxGasAllowance)
@@ -219,8 +297,13 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
                         && e.getEthereumNonce() == ethereumTransaction.getNonce() + 1));
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
-
-        verify(ethereumTransactionParser).getHash(any(), any(), anyLong(), any());
+        verify(ethereumTransactionParser)
+                .getHash(
+                        ethereumTransaction.getCallData(),
+                        ethereumTransaction.getCallDataId(),
+                        consensusTimestamp,
+                        transactionBytes,
+                        true);
     }
 
     @Test

@@ -63,7 +63,7 @@ class Eip2930EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     void getHashIncorrectTransactionType(CapturedOutput capturedOutput) {
         // given, when
         var actual = ethereumTransactionParser.getHash(
-                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), domainBuilder.timestamp(), LONDON_RAW_TX);
+                EMPTY_BYTE_ARRAY, domainBuilder.entityId(), domainBuilder.timestamp(), LONDON_RAW_TX, true);
 
         // then
         softly.assertThat(actual).isEmpty();

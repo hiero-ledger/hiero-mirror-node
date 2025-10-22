@@ -30,7 +30,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
-public class BackfillEthereumTransactionHashMigration extends RepeatableMigration {
+public final class BackfillEthereumTransactionHashMigration extends RepeatableMigration {
 
     private static final String INSERT_TRANSACTION_HASH_SQL =
             """
@@ -98,30 +98,24 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
 
     @Override
     protected void doMigrate() throws IOException {
-        var found = new AtomicInteger();
-        var patched = new AtomicInteger();
-        var stopwatch = Stopwatch.createStarted();
+        final var found = new AtomicInteger();
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var patched = new AtomicInteger();
+        final var stopwatch = Stopwatch.createStarted();
 
         getTransactionOperations().executeWithoutResult(s -> {
             long consensusTimestamp = -1;
             for (; ; ) {
-                var transactions = jdbcOperationsProvider
-                        .getObject()
-                        .query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
+                final var transactions =
+                        jdbcOperations.query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
                 if (transactions.isEmpty()) {
                     break;
                 }
 
                 found.addAndGet(transactions.size());
                 consensusTimestamp = transactions.getLast().getConsensusTimestamp();
-                var patchedTransactions = transactions.stream()
-                        .map(t -> {
-                            var callDataId = t.getCallDataId() == null ? null : EntityId.of(t.getCallDataId());
-                            t.setHash(ethereumTransactionParserProvider
-                                    .getObject()
-                                    .getHash(t.getCallData(), callDataId, t.getConsensusTimestamp(), t.getData()));
-                            return t;
-                        })
+                final var patchedTransactions = transactions.stream()
+                        .peek(this::getHash)
                         .filter(t -> ArrayUtils.isNotEmpty(t.getHash()))
                         .toList();
                 patched.addAndGet(patchedTransactions.size());
@@ -142,10 +136,9 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
         if (patchedTransactions.isEmpty()) {
             return;
         }
+
         final var jdbcOperations = jdbcOperationsProvider.getObject();
-
         jdbcOperations.batchUpdate(UPDATE_CONTRACT_RESULT_SQL, patchedTransactions, patchedTransactions.size(), PSS);
-
         jdbcOperations.batchUpdate(
                 UPDATE_CONTRACT_TRANSACTION_HASH_SQL,
                 patchedTransactions,
@@ -154,11 +147,10 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                     ps.setLong(1, transaction.getConsensusTimestamp());
                     ps.setBytes(2, transaction.getHash());
                 });
-
         jdbcOperations.batchUpdate(UPDATE_ETHEREUM_HASH_SQL, patchedTransactions, patchedTransactions.size(), PSS);
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(ETHEREUMTRANSACTION)) {
-            var transactionHashes = patchedTransactions.stream()
+            final var transactionHashes = patchedTransactions.stream()
                     .map(t -> TransactionHash.builder()
                             .consensusTimestamp(t.getConsensusTimestamp())
                             .hash(t.getHash())
@@ -172,6 +164,19 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                         ps.setLong(3, transactionHash.getPayerAccountId());
                     });
         }
+    }
+
+    private void getHash(MigrationEthereumTransaction ethereumTransaction) {
+        final var callDataId =
+                ethereumTransaction.getCallDataId() == null ? null : EntityId.of(ethereumTransaction.getCallDataId());
+        final var ethereumTransactionParser = ethereumTransactionParserProvider.getObject();
+        final byte[] hash = ethereumTransactionParser.getHash(
+                ethereumTransaction.getCallData(),
+                callDataId,
+                ethereumTransaction.getConsensusTimestamp(),
+                ethereumTransaction.getData(),
+                false);
+        ethereumTransaction.setHash(hash);
     }
 
     private TransactionOperations getTransactionOperations() {
