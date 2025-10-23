@@ -3,17 +3,17 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import com.swirlds.state.spi.ReadableKVStateBase;
+import jakarta.annotation.Nonnull;
 import java.util.Collections;
 import java.util.Iterator;
-import org.jspecify.annotations.NonNull;
 
 public abstract class AbstractReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
 
-    protected AbstractReadableKVState(@NonNull String serviceName, @NonNull String stateKey) {
+    protected AbstractReadableKVState(@Nonnull String serviceName, @Nonnull String stateKey) {
         super(serviceName, stateKey);
     }
 
-    @NonNull
+    @Nonnull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return Collections.emptyIterator();

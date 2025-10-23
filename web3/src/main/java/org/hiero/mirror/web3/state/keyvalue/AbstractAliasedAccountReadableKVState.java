@@ -19,6 +19,7 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,7 +40,6 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.utils.Suppliers;
-import org.jspecify.annotations.NonNull;
 
 public abstract class AbstractAliasedAccountReadableKVState<K, V> extends AbstractReadableKVState<K, V> {
 
@@ -53,15 +53,15 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     protected AbstractAliasedAccountReadableKVState(
-            @NonNull String stateKey,
-            @NonNull AccountBalanceRepository accountBalanceRepository,
-            @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
-            @NonNull NftAllowanceRepository nftAllowanceRepository,
-            @NonNull NftRepository nftRepository,
-            @NonNull SystemEntity systemEntity,
-            @NonNull TokenAccountRepository tokenAccountRepository,
-            @NonNull TokenAllowanceRepository tokenAllowanceRepository,
-            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+            @Nonnull String stateKey,
+            @Nonnull AccountBalanceRepository accountBalanceRepository,
+            @Nonnull CryptoAllowanceRepository cryptoAllowanceRepository,
+            @Nonnull NftAllowanceRepository nftAllowanceRepository,
+            @Nonnull NftRepository nftRepository,
+            @Nonnull SystemEntity systemEntity,
+            @Nonnull TokenAccountRepository tokenAccountRepository,
+            @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
+            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
         super(TokenService.NAME, stateKey);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;

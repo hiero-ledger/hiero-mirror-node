@@ -9,6 +9,7 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.node.app.service.token.TokenService;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -24,7 +25,6 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenBalanceRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.utils.Suppliers;
-import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
 @Named
@@ -53,7 +53,7 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
     }
 
     @Override
-    protected TokenRelation readFromDataSource(@NonNull EntityIDPair key) {
+    protected TokenRelation readFromDataSource(@Nonnull EntityIDPair key) {
         final var tokenId = key.tokenId();
         final var accountId = key.accountId();
         if (tokenId == null

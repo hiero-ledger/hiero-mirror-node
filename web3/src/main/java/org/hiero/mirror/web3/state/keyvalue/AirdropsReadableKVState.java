@@ -8,10 +8,10 @@ import com.hedera.hapi.node.base.PendingAirdropId;
 import com.hedera.hapi.node.base.PendingAirdropValue;
 import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
 import com.hedera.node.app.service.token.TokenService;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.TokenAirdropRepository;
-import org.jspecify.annotations.NonNull;
 
 @Named
 public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
@@ -25,11 +25,11 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
     }
 
     @Override
-    protected AccountPendingAirdrop readFromDataSource(@NonNull PendingAirdropId key) {
+    protected AccountPendingAirdrop readFromDataSource(@Nonnull PendingAirdropId key) {
         final var senderId = toEntityId(key.senderId()).getId();
         final var receiverId = toEntityId(key.receiverId()).getId();
         final var tokenId = toEntityId(
-                        key.hasNonFungibleToken() ? key.nonFungibleToken().tokenId() : key.fungibleTokenType())
+                key.hasNonFungibleToken() ? key.nonFungibleToken().tokenId() : key.fungibleTokenType())
                 .getId();
         final var serialNumber =
                 key.hasNonFungibleToken() ? key.nonFungibleToken().serialNumber() : 0L;

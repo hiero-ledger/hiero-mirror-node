@@ -20,6 +20,7 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,7 +42,6 @@ import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.utils.Suppliers;
-import org.jspecify.annotations.NonNull;
 import org.springframework.util.CollectionUtils;
 
 @Named
@@ -71,7 +71,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     @Override
-    protected Token readFromDataSource(@NonNull TokenID key) {
+    protected Token readFromDataSource(@Nonnull TokenID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var entity = commonEntityAccessor.get(key, timestamp).orElse(null);
 

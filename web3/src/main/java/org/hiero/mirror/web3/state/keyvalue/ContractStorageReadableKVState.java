@@ -9,11 +9,11 @@ import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.service.ContractStateService;
-import org.jspecify.annotations.NonNull;
 
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
@@ -27,7 +27,7 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
     }
 
     @Override
-    protected SlotValue readFromDataSource(@NonNull SlotKey slotKey) {
+    protected SlotValue readFromDataSource(@Nonnull SlotKey slotKey) {
         if (!slotKey.hasContractID()) {
             return null;
         }

@@ -14,6 +14,7 @@ import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
 import com.hedera.node.app.state.recordcache.schemas.V0540RecordCacheSchema;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Set;
@@ -24,7 +25,6 @@ import java.util.stream.Stream;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
 import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
-import org.jspecify.annotations.NonNull;
 
 @Named
 public final class StateRegistry {
@@ -49,8 +49,8 @@ public final class StateRegistry {
     private final ImmutableMap<String, Object> states;
 
     public StateRegistry(
-            @NonNull final Collection<ReadableKVState<?, ?>> keyValues,
-            @NonNull final Collection<SingletonState<?>> singletons) {
+            @Nonnull final Collection<ReadableKVState<?, ?>> keyValues,
+            @Nonnull final Collection<SingletonState<?>> singletons) {
 
         this.states = ImmutableMap.<String, Object>builder()
                 .putAll(keyValues.stream().collect(Collectors.toMap(ReadableKVState::getStateKey, kv -> kv)))

@@ -4,10 +4,10 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableKVStateBase;
+import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import org.jspecify.annotations.NonNull;
 
 /**
  * A simple implementation of {@link ReadableKVState} backed by a
@@ -33,17 +33,17 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(
-            @NonNull final String serviceName, @NonNull final String stateKey, @NonNull final Map<K, V> backingStore) {
+            @Nonnull final String serviceName, @Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
         super(serviceName, stateKey);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
     @Override
-    protected V readFromDataSource(@NonNull K key) {
+    protected V readFromDataSource(@Nonnull K key) {
         return backingStore.get(key);
     }
 
-    @NonNull
+    @Nonnull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return backingStore.keySet().iterator();
@@ -57,12 +57,8 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         MapReadableKVState<?, ?> that = (MapReadableKVState<?, ?>) o;
         return Objects.equals(getStateKey(), that.getStateKey()) && Objects.equals(backingStore, that.backingStore);
     }

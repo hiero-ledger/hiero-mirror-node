@@ -5,20 +5,20 @@ package org.hiero.mirror.web3.state.core;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableQueueState;
 import com.swirlds.state.spi.ReadableSingletonState;
+import jakarta.annotation.Nonnull;
 import java.util.Map;
 import java.util.Objects;
-import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("unchecked")
 public class MapReadableStates extends AbstractMapReadableState {
 
-    public MapReadableStates(@NonNull final Map<String, ?> states) {
+    public MapReadableStates(@Nonnull final Map<String, ?> states) {
         super(states);
     }
 
-    @NonNull
+    @Nonnull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@NonNull String stateKey) {
+    public <K, V> ReadableKVState<K, V> get(@Nonnull String stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
@@ -30,9 +30,9 @@ public class MapReadableStates extends AbstractMapReadableState {
         return (ReadableKVState<K, V>) state;
     }
 
-    @NonNull
+    @Nonnull
     @Override
-    public <T> ReadableSingletonState<T> getSingleton(@NonNull String stateKey) {
+    public <T> ReadableSingletonState<T> getSingleton(@Nonnull String stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
@@ -45,9 +45,9 @@ public class MapReadableStates extends AbstractMapReadableState {
         return (ReadableSingletonState<T>) state;
     }
 
-    @NonNull
+    @Nonnull
     @Override
-    public <E> ReadableQueueState<E> getQueue(@NonNull String stateKey) {
+    public <E> ReadableQueueState<E> getQueue(@Nonnull String stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown queue state key: " + stateKey);
