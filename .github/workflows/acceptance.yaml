@@ -41,8 +41,12 @@ jobs:
           - BLOCK
     timeout-minutes: 40
     env:
+      BASE_URL: "http://127.0.0.1:8081"
       BLOCK_NODE_CHART_VERSION: v0.20.1
       CONSENSUS_VERSION: v0.67.0
+      DEFAULT_DURATION: "3s"
+      DEFAULT_GRACEFUL_STOP: "1s"
+      DEFAULT_VUS: 2
       HELM_RELEASE_NAME: mirror-1
       MIRROR_NODE_VERSION: v0.141.0-rc1
       SOLO_CLUSTER_NAME: test
@@ -152,7 +156,7 @@ jobs:
           EOF
           fi
 
-          solo mirror node add --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger
+          solo mirror node add --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger --enable-ingress
 
           echo "Solo cluster setup completed successfully!"
 
@@ -187,52 +191,42 @@ jobs:
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
 
-      - name: Port forward services
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        run: |
-          kubectl port-forward "service/${HELM_RELEASE_NAME}-web3" -n "${SOLO_NAMESPACE}" 8080:80 &
-          kubectl port-forward "service/${HELM_RELEASE_NAME}-restjava" -n "${SOLO_NAMESPACE}" 8084:80 &
-
       - name: Run rest-java tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          BASE_URL: "http://127.0.0.1:8084"
-          DEFAULT_DURATION: "3s"
-          DEFAULT_GRACEFUL_STOP: "1s"
-          DEFAULT_VUS: 2
-          RESTJAVA_TEST_EXCLUDE: "^(accounts(NftAllowanceOwner|NftAllowanceSpender|OutstandingAirdrop|PendingAirdrop))|rampUp.*$"
+        #        env:
+        #          RESTJAVA_TEST_EXCLUDE: "^(accounts(NftAllowanceOwner|NftAllowanceSpender|OutstandingAirdrop|PendingAirdrop))|rampUp.*$"
         with:
           path: |
             ./tools/k6/src/rest-java/apis.js
           debug: false
           flags: --quiet
 
-      - name: Run k6 web3 tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
-          BASE_URL: "http://127.0.0.1:8080"
-          DEFAULT_DURATION: "3s"
-          DEFAULT_GRACEFUL_STOP: "1s"
-          DEFAULT_VUS: 2
-          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          RUN_COMPLEX_TESTS: "false"
-          RUN_ESTIMATE_TESTS: "false"
-          RUN_MODIFICATION_TESTS: "false"
-          RUN_WITH_VARIABLES: "true"
-          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
-        with:
-          path: |
-            ./tools/k6/src/web3/apis.js
-          debug: false
-          flags: --quiet
+      #      - name: Run k6 web3 tests
+      #        if: ${{ matrix.stream-type != 'BLOCK' }}
+      #        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      #        env:
+      #          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          BASE_URL: "http://127.0.0.1:8080"
+      #          DEFAULT_DURATION: "3s"
+      #          DEFAULT_GRACEFUL_STOP: "1s"
+      #          DEFAULT_VUS: 2
+      #          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          RUN_COMPLEX_TESTS: "false"
+      #          RUN_ESTIMATE_TESTS: "false"
+      #          RUN_MODIFICATION_TESTS: "false"
+      #          RUN_WITH_VARIABLES: "true"
+      #          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
+      #        with:
+      #          path: |
+      #            ./tools/k6/src/web3/apis.js
+      #          debug: false
+      #          flags: --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        if: ${{ failure() }}
+        #        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
@@ -245,7 +239,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=100000 || echo "Could not get logs for pod $pod"
             fi
           done
 

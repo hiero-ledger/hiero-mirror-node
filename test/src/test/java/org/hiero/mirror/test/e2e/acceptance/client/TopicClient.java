@@ -55,7 +55,6 @@ public class TopicClient extends AbstractNetworkClient {
     @Override
     protected void logEntities() {
         for (var topicId : topicIds) {
-            log.info("Skipping cleanup of topic at address {}.", topicId);
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             System.out.println("DEFAULT_TOPIC=" + topicId.num);
         }
