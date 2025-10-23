@@ -113,10 +113,7 @@ const flywayMigrate = async (connectionParams) => {
   const {database, host, password, port, user} = connectionParams;
   logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${port}`);
   const jdbcUrl = `jdbc:postgresql://${host}:${port}/${database}`;
-  const flywayConfigPath = path.join(
-    os.platform() === 'win32' ? path.join('.', 'build', 'flyway data') : os.tmpdir(),
-    `config_worker_${workerId}.json`
-  ); // store configs in temp dir
+  const flywayConfigPath = path.join(FLYWAY_DATA_PATH, `config_worker_${workerId}.json`);
   const locations = getMigrationScriptLocation(schemaConfigs.locations);
 
   const flywayConfigObject = {
