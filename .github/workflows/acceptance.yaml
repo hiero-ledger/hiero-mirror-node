@@ -175,11 +175,13 @@ jobs:
           k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
-          k6Map["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
+          k6Map["ESTIMATE_PRECOMPILE"]="DEFAULT_CONTRACT_ID"
           k6Map["BOB"]="PAYER_ACCOUNT"
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
           k6Map["fungible"]="TOKEN_ADDRESS"
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
+          k6Map["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
+          k6Map["ALICE"]="DEFAULT_ACCOUNT_ID"
 
           for key in "${!k6Map[@]}"; do
             k6="${k6Map[$key]}"
