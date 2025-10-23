@@ -39,7 +39,7 @@ class EVMHookHandlerTest {
     private RecordItem recordItem;
 
     @InjectMocks
-    private EVMHookHandler EVMHookHandler;
+    private EVMHookHandler eVMHookHandler;
 
     @Test
     void processHookCreationDetailsSuccess() {
@@ -70,7 +70,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        EVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
+        eVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -104,7 +104,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        EVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
+        eVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -122,7 +122,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        EVMHookHandler.processHookCreationDetails(recordItem, entityId, null);
+        eVMHookHandler.processHookCreationDetails(recordItem, entityId, null);
 
         // then
         verifyNoInteractions(entityListener);
@@ -134,7 +134,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        EVMHookHandler.processHookCreationDetails(recordItem, entityId, Collections.emptyList());
+        eVMHookHandler.processHookCreationDetails(recordItem, entityId, Collections.emptyList());
 
         // then
         verifyNoInteractions(entityListener);
@@ -152,7 +152,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        EVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+        eVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -168,7 +168,7 @@ class EVMHookHandlerTest {
                 () -> assertThat(firstHook.getHookId()).isEqualTo(hookId1),
                 () -> assertThat(firstHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(firstHook.getDeleted()).isTrue(),
-                () -> assertThat(firstHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)),
+                () -> assertThat(firstHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
                 () -> assertThat(firstHook.getAdminKey()).isNull(),
                 () -> assertThat(firstHook.getContractId()).isNull(),
                 () -> assertThat(firstHook.getCreatedTimestamp()).isNull(),
@@ -177,7 +177,7 @@ class EVMHookHandlerTest {
                 () -> assertThat(secondHook.getHookId()).isEqualTo(hookId2),
                 () -> assertThat(secondHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(secondHook.getDeleted()).isTrue(),
-                () -> assertThat(secondHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)));
+                () -> assertThat(secondHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)));
     }
 
     @Test
@@ -191,7 +191,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        EVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+        eVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -203,7 +203,7 @@ class EVMHookHandlerTest {
                 () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(capturedHook.getDeleted()).isTrue(),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isNull(),
-                () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)));
+                () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)));
     }
 
     @Test
@@ -212,7 +212,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        EVMHookHandler.processHookDeletion(recordItem, entityId, null);
+        eVMHookHandler.processHookDeletion(recordItem, entityId, null);
 
         // then
         verifyNoInteractions(entityListener);
@@ -224,7 +224,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        EVMHookHandler.processHookDeletion(recordItem, entityId, Collections.emptyList());
+        eVMHookHandler.processHookDeletion(recordItem, entityId, Collections.emptyList());
 
         // then
         verifyNoInteractions(entityListener);

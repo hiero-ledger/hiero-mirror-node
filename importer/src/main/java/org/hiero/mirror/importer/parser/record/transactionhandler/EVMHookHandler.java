@@ -32,7 +32,7 @@ final class EVMHookHandler {
      */
     void processHookCreationDetails(
             RecordItem recordItem, EntityId entityId, List<HookCreationDetails> hookCreationDetailsList) {
-        if (!hookCreationDetailsList.isEmpty()) {
+        if (hookCreationDetailsList != null && !hookCreationDetailsList.isEmpty()) {
             hookCreationDetailsList.forEach(hookCreationDetails -> {
                 var spec = hookCreationDetails.getLambdaEvmHook().getSpec();
                 Hook hook = Hook.builder()
@@ -60,11 +60,12 @@ final class EVMHookHandler {
      * @param hookIdsToDeleteList the list of hook IDs to delete
      */
     public void processHookDeletion(RecordItem recordItem, EntityId entityId, List<Long> hookIdsToDeleteList) {
-        if (!hookIdsToDeleteList.isEmpty()) {
+        if (hookIdsToDeleteList != null && !hookIdsToDeleteList.isEmpty()) {
             hookIdsToDeleteList.forEach(hookId -> {
                 Hook hook = Hook.builder()
                         .hookId(hookId)
                         .ownerId(entityId.getId())
+                        .contractId(EntityId.EMPTY)
                         .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                         .deleted(true)
                         .build();
