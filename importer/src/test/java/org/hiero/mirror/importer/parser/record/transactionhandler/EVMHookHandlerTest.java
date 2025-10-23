@@ -140,6 +140,96 @@ class EVMHookHandlerTest {
         verifyNoInteractions(entityListener);
     }
 
+    @Test
+    void processHookDeletionSuccess() {
+        // given
+        var consensusTimestamp = 1234567890L;
+        var entityId = EntityId.of(0, 0, 1000);
+        var hookId1 = 1L;
+        var hookId2 = 2L;
+        var hookIdsToDelete = List.of(hookId1, hookId2);
+
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+
+        // when
+        EVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+
+        // then
+        ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
+        verify(entityListener, times(2)).onHook(hookCaptor.capture());
+
+        var capturedHooks = hookCaptor.getAllValues();
+        assertThat(capturedHooks).hasSize(2);
+
+        var firstHook = capturedHooks.get(0);
+        var secondHook = capturedHooks.get(1);
+
+        assertAll(
+                () -> assertThat(firstHook.getHookId()).isEqualTo(hookId1),
+                () -> assertThat(firstHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(firstHook.getDeleted()).isTrue(),
+                () -> assertThat(firstHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)),
+                () -> assertThat(firstHook.getAdminKey()).isNull(),
+                () -> assertThat(firstHook.getContractId()).isNull(),
+                () -> assertThat(firstHook.getCreatedTimestamp()).isNull(),
+                () -> assertThat(firstHook.getExtensionPoint()).isNull(),
+                () -> assertThat(firstHook.getType()).isNull(),
+                () -> assertThat(secondHook.getHookId()).isEqualTo(hookId2),
+                () -> assertThat(secondHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(secondHook.getDeleted()).isTrue(),
+                () -> assertThat(secondHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)));
+    }
+
+    @Test
+    void processHookDeletionWithSingleHook() {
+        // given
+        var consensusTimestamp = 1234567890L;
+        var entityId = EntityId.of(0, 0, 1000);
+        var hookId = 5L;
+        var hookIdsToDelete = List.of(hookId);
+
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+
+        // when
+        EVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+
+        // then
+        ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
+        verify(entityListener).onHook(hookCaptor.capture());
+
+        var capturedHook = hookCaptor.getValue();
+        assertAll(
+                () -> assertThat(capturedHook.getHookId()).isEqualTo(hookId),
+                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(capturedHook.getDeleted()).isTrue(),
+                () -> assertThat(capturedHook.getCreatedTimestamp()).isNull(),
+                () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atMost(consensusTimestamp)));
+    }
+
+    @Test
+    void processHookDeletionWithNullList() {
+        // given
+        var entityId = EntityId.of(0, 0, 1000);
+
+        // when
+        EVMHookHandler.processHookDeletion(recordItem, entityId, null);
+
+        // then
+        verifyNoInteractions(entityListener);
+    }
+
+    @Test
+    void processHookDeletionWithEmptyList() {
+        // given
+        var entityId = EntityId.of(0, 0, 1000);
+
+        // when
+        EVMHookHandler.processHookDeletion(recordItem, entityId, Collections.emptyList());
+
+        // then
+        verifyNoInteractions(entityListener);
+    }
+
     private HookCreationDetails createHookCreationDetails(long hookId, EntityId contractId, byte[] adminKey) {
         var evmHookSpec = EvmHookSpec.newBuilder()
                 .setContractId(contractId.toContractID())

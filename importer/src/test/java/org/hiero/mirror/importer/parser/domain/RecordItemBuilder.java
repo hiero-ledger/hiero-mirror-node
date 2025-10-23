@@ -667,6 +667,49 @@ public class RecordItemBuilder {
         return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
     }
 
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookDeletion() {
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookIdsToDelete(1L); // Default hook ID to delete
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookCreation() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L) // Default hook ID to create
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookCreationDetails(hookCreationDetails);
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookDeletionAndCreation() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L) // Same hook ID to delete and create
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookIdsToDelete(1L) // Delete hook ID 1
+                .addHookCreationDetails(hookCreationDetails); // Create hook ID 1
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
     public CustomFee.Builder customFee(CustomFee.FeeCase feeCase) {
         var accountId = accountId();
         var customFee =

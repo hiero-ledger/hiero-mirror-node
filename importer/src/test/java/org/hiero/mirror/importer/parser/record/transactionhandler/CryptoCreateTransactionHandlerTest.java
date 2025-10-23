@@ -4,6 +4,9 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
@@ -37,9 +40,10 @@ import org.springframework.data.util.Version;
 
 class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    private final EVMHookHandler evmHookHandler = mock(EVMHookHandler.class);
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        final var evmHookHandler = new EVMHookHandler(entityListener);
         return new CryptoCreateTransactionHandler(entityIdService, entityListener, evmHookHandler);
     }
 
@@ -241,6 +245,42 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         transactionHandler.updateTransaction(transaction(recordItem), recordItem);
 
         assertEntity(accountId, recordItem.getConsensusTimestamp()).returns(expected, Entity::getEvmAddress);
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder.cryptoCreateWithHooks().build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+        var transactionBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .processHookCreationDetails(
+                        eq(recordItem), eq(accountId), eq(transactionBody.getHookCreationDetailsList()));
+
+        // Verify entity was created
+        assertEntity(accountId, recordItem.getConsensusTimestamp());
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder.cryptoCreate().build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).processHookCreationDetails(eq(recordItem), any(EntityId.class), eq(List.of()));
     }
 
     private ObjectAssert<Entity> assertEntity(EntityId accountId, long timestamp) {

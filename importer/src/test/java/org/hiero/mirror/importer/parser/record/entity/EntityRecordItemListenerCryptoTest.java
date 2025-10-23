@@ -1854,21 +1854,93 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEntities(EntityId.of(accountId)),
                 () -> assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord()));
 
-        if (hookOptional.isPresent()) {
-            var dbHook = hookOptional.get();
-            assertAll(
-                    () -> assertEquals(hookId, dbHook.getHookId()),
-                    () -> assertEquals(contractId, dbHook.getContractId()),
-                    () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
-                    () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                    () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
-                    () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
-                    () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
-                    () -> assertFalse(dbHook.getDeleted()));
-        } else {
-            // Hook processing is not implemented yet, so no hooks should be stored
-            assertEquals(0, hookRepository.count());
-        }
+        var dbHook = hookOptional.get();
+        assertAll(
+                () -> assertEquals(hookId, dbHook.getHookId()),
+                () -> assertEquals(contractId, dbHook.getContractId()),
+                () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                () -> assertFalse(dbHook.getDeleted()));
+    }
+
+    @Test
+    void cryptoUpdateWithHooksSequentialOperations() {
+        // Step 1: Create an account with hooks
+        var createAccountWithHooksRecordItem =
+                recordItemBuilder.cryptoCreateWithHooks().build();
+        parseRecordItemAndCommit(createAccountWithHooksRecordItem);
+
+        var accountId = createAccountWithHooksRecordItem
+                .getTransactionRecord()
+                .getReceipt()
+                .getAccountID();
+        var cryptoCreateBody =
+                createAccountWithHooksRecordItem.getTransactionBody().getCryptoCreateAccount();
+        var hookCreationDetails = cryptoCreateBody.getHookCreationDetails(0);
+
+        // Extract hook details from the transaction
+        var hookId = hookCreationDetails.getHookId();
+        var contractId =
+                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var adminKey = hookCreationDetails.getAdminKey();
+
+        // Assert after creation
+        final var hookOptional = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional.isPresent(), "Hook should exist after creation"),
+                () -> assertFalse(hookOptional.get().getDeleted(), "Hook should not be deleted after creation"),
+                () -> assertEquals(1, hookRepository.count(), "Should have 1 hook after creation"));
+        var dbHook = hookOptional.get();
+        assertAll(
+                () -> assertEquals(hookId, dbHook.getHookId()),
+                () -> assertEquals(contractId, dbHook.getContractId()),
+                () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(
+                        createAccountWithHooksRecordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                () -> assertFalse(dbHook.getDeleted()));
+
+        // Step 2: Delete and create hook in same transaction
+        var deletionAndCreationRecordItem = recordItemBuilder
+                .cryptoUpdateWithHookDeletionAndCreation()
+                .transactionBody(b -> b.setAccountIDToUpdate(accountId))
+                .build();
+        parseRecordItemAndCommit(deletionAndCreationRecordItem);
+
+        // Assert after deletion and creation in same transaction
+        final var hookOptional2 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional2.isPresent(), "Hook should exist after deletion and creation"),
+                () -> assertFalse(hookOptional2.get().getDeleted(), "Hook should not be deleted after recreation"),
+                () -> assertEquals(
+                        deletionAndCreationRecordItem.getConsensusTimestamp(),
+                        hookOptional2.get().getCreatedTimestamp(),
+                        "Hook should have creation timestamp from the transaction"),
+                () -> assertEquals(
+                        1, hookRepository.count(), "Should have 1 hook record (upsert merges delete and create)"));
+
+        // Step 3: Final deletion
+        var finalDeleteRecordItem = recordItemBuilder
+                .cryptoUpdateWithHookDeletion()
+                .transactionBody(b -> b.setAccountIDToUpdate(accountId))
+                .build();
+        parseRecordItemAndCommit(finalDeleteRecordItem);
+
+        // Assert after final deletion
+        final var hookOptional3 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional3.isPresent(), "Hook should still exist after final soft delete"),
+                () -> assertTrue(
+                        hookOptional3.get().getDeleted(), "Hook should be marked as deleted after final deletion"),
+                () -> assertEquals(1, hookRepository.count(), "Hook count should remain same for soft delete"));
     }
 
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {

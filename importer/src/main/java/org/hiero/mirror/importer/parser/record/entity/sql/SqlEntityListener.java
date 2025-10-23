@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.entity.sql;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.List;
@@ -209,7 +210,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onHook(Hook hook) {
-        context.add(hook);
+        context.merge(hook.getId(), hook, this::mergeHook);
     }
 
     @Override
@@ -633,6 +634,13 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         return dest;
+    }
+
+    private Hook mergeHook(Hook previous, Hook current) {
+        if (previous != null && previous.getDeleted() && current.getTimestampUpper() == null) {
+            previous.setTimestampRange(Range.openClosed(current.getTimestampLower(), current.getTimestampLower() + 1));
+        }
+        return current;
     }
 
     private NftAllowance mergeNftAllowance(NftAllowance previous, NftAllowance current) {
