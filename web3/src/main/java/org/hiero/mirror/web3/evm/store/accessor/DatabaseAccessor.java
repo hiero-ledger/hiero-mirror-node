@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.evm.store.accessor;
 
 import java.util.Optional;
-import lombok.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.ResolvableType;
 
 /** A database accessor to get some domain type V with primary key K from the database.

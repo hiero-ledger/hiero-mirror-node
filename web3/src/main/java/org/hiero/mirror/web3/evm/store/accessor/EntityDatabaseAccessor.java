@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +16,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class EntityDatabaseAccessor extends DatabaseAccessor<Object, Entity> {
     private final EntityRepository entityRepository;
 
     @Override
-    public @Nonnull Optional<Entity> get(@Nonnull Object key, final Optional<Long> timestamp) {
+    public @NonNull Optional<Entity> get(@NonNull Object key, final Optional<Long> timestamp) {
         if (key instanceof Address address) {
             final var addressBytes = address.toArrayUnsafe();
             if (isMirror(addressBytes)) {

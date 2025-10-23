@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.common;
 
 import com.google.common.collect.Iterables;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
@@ -13,6 +12,7 @@ import java.util.Map.Entry;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
@@ -24,13 +24,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Named
 @RequiredArgsConstructor
+@NullMarked
 class LinkFactoryImpl implements LinkFactory {
 
     private static final Links DEFAULT_LINKS = new Links();
 
     @Override
-    public <T> Links create(
-            List<T> items, @Nonnull Pageable pageable, @Nonnull Function<T, Map<String, String>> extractor) {
+    public <T> Links create(List<T> items, Pageable pageable, Function<T, Map<String, String>> extractor) {
         if (CollectionUtils.isEmpty(items) || pageable.getPageSize() > items.size()) {
             return DEFAULT_LINKS;
         }
@@ -100,7 +100,7 @@ class LinkFactoryImpl implements LinkFactory {
         var sortEqMap = new HashMap<String, Boolean>();
         var sortList = sort.map(s -> {
                     var property = s.getProperty();
-                    sortEqMap.put(property, containsEq(queryParams.get(property)));
+                    sortEqMap.put(property, containsEq(queryParams.getOrDefault(property, List.of())));
                     return property;
                 })
                 .toList();
@@ -135,10 +135,6 @@ class LinkFactoryImpl implements LinkFactory {
     }
 
     private static boolean containsEq(List<String> values) {
-        if (values == null) {
-            return false;
-        }
-
         for (var value : values) {
             if (hasEq(value)) {
                 return true;

@@ -11,10 +11,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Optional;
 import org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState.Entry;
 import org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState.ValueState;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;

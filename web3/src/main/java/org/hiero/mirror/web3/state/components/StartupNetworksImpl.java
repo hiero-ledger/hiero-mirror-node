@@ -5,15 +5,15 @@ package org.hiero.mirror.web3.state.components;
 import com.hedera.node.internal.network.Network;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public class StartupNetworksImpl implements StartupNetworks {
 
     @Override
-    public Network genesisNetworkOrThrow(@Nonnull Configuration platformConfig) {
+    public Network genesisNetworkOrThrow(@NonNull Configuration platformConfig) {
         return Network.DEFAULT;
     }
 

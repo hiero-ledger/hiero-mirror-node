@@ -21,8 +21,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +38,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.retry.support.RetryTemplate;
 
@@ -69,7 +69,7 @@ public class SystemFileLoader {
             cacheNames = CACHE_NAME_MODULARIZED,
             key = "#key",
             unless = "#result == null")
-    public @Nullable File load(@Nonnull FileID key, long consensusTimestamp) {
+    public @Nullable File load(@NonNull FileID key, long consensusTimestamp) {
         var systemFile = getSystemFiles().get(key);
         if (systemFile == null) {
             return null;

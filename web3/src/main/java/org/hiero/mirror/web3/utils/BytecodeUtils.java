@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.utils;
 
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import jakarta.annotation.Nonnull;
 import java.util.regex.Pattern;
 import lombok.experimental.UtilityClass;
+import org.jspecify.annotations.NonNull;
 
 /**
  * A utility class for extracting runtime bytecode from init bytecode of a smart contract.
@@ -61,7 +61,7 @@ public class BytecodeUtils {
         return HEX_PREFIX + runtimeBytecode; // Append "0x" prefix and return
     }
 
-    @Nonnull
+    @NonNull
     private static String getRuntimeBytecode(final String initBytecode) {
         // Find the first occurrence of "CODECOPY" (39)
         int codeCopyIndex = initBytecode.indexOf(CODECOPY);

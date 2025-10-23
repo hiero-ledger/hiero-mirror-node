@@ -9,7 +9,6 @@ import com.hedera.hapi.node.base.ContractID;
 import com.hedera.hapi.node.state.contract.Bytecode;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -17,6 +16,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.repository.ContractRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
@@ -34,7 +34,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
     }
 
     @Override
-    protected Bytecode readFromDataSource(@Nonnull ContractID contractID) {
+    protected Bytecode readFromDataSource(@NonNull ContractID contractID) {
         final var entityId = toEntityId(contractID);
 
         return contractRepository
@@ -44,7 +44,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
                 .orElse(null);
     }
 
-    private EntityId toEntityId(@Nonnull final com.hedera.hapi.node.base.ContractID contractID) {
+    private EntityId toEntityId(@NonNull final ContractID contractID) {
         if (contractID.hasContractNum()) {
             return entityIdFromContractId(contractID);
         } else if (contractID.hasEvmAddress()) {

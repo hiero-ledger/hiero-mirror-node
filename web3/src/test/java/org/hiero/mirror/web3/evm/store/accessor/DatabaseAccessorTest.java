@@ -5,10 +5,10 @@ package org.hiero.mirror.web3.evm.store.accessor;
 import java.nio.file.AccessDeniedException;
 import java.util.Optional;
 import java.util.stream.LongStream;
-import lombok.NonNull;
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 

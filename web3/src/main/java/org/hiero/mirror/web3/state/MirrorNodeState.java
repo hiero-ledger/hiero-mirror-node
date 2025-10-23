@@ -55,8 +55,6 @@ import com.swirlds.state.spi.WritableKVStateBase;
 import com.swirlds.state.spi.WritableQueueStateBase;
 import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.time.InstantSource;
@@ -90,6 +88,8 @@ import org.hiero.mirror.web3.state.core.MapReadableStates;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Named
@@ -167,7 +167,7 @@ public class MirrorNodeState implements MerkleNodeState {
         // No-op
     }
 
-    public MirrorNodeState addService(@Nonnull final String serviceName, @Nonnull final Map<String, ?> dataSources) {
+    public MirrorNodeState addService(@NonNull final String serviceName, @NonNull final Map<String, ?> dataSources) {
         final var serviceStates = this.states.computeIfAbsent(serviceName, k -> new ConcurrentHashMap<>());
         dataSources.forEach((k, b) -> {
             if (!serviceStates.containsKey(k)) {
@@ -182,7 +182,7 @@ public class MirrorNodeState implements MerkleNodeState {
         return this;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     public MerkleNodeState copy() {
         return this;
@@ -191,10 +191,10 @@ public class MirrorNodeState implements MerkleNodeState {
     @Override
     @Deprecated
     public <T extends MerkleNode> void putServiceStateIfAbsent(
-            @Nonnull StateMetadata<?, ?> md, @Nonnull Supplier<T> nodeSupplier, @Nonnull Consumer<T> nodeInitializer) {}
+            @NonNull StateMetadata<?, ?> md, @NonNull Supplier<T> nodeSupplier, @NonNull Consumer<T> nodeInitializer) {}
 
     @Override
-    public void unregisterService(@Nonnull String serviceName) {}
+    public void unregisterService(@NonNull String serviceName) {}
 
     /**
      * Removes the state with the given key for the service with the given name.
@@ -202,7 +202,7 @@ public class MirrorNodeState implements MerkleNodeState {
      * @param serviceName the name of the service
      * @param stateKey    the key of the state
      */
-    public void removeServiceState(@Nonnull final String serviceName, @Nonnull final String stateKey) {
+    public void removeServiceState(@NonNull final String serviceName, @NonNull final String stateKey) {
         requireNonNull(serviceName);
         requireNonNull(stateKey);
         this.states.computeIfPresent(serviceName, (k, v) -> {
@@ -215,9 +215,9 @@ public class MirrorNodeState implements MerkleNodeState {
         });
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public ReadableStates getReadableStates(@Nonnull String serviceName) {
+    public ReadableStates getReadableStates(@NonNull String serviceName) {
         return readableStates.computeIfAbsent(serviceName, s -> {
             final var serviceStates = this.states.get(s);
             if (serviceStates == null) {
@@ -247,9 +247,9 @@ public class MirrorNodeState implements MerkleNodeState {
         });
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public WritableStates getWritableStates(@Nonnull String serviceName) {
+    public WritableStates getWritableStates(@NonNull String serviceName) {
         return writableStates.computeIfAbsent(serviceName, s -> {
             final var serviceStates = states.get(s);
             if (serviceStates == null) {
@@ -282,13 +282,13 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     @Override
-    public void registerCommitListener(@Nonnull final StateChangeListener listener) {
+    public void registerCommitListener(@NonNull final StateChangeListener listener) {
         requireNonNull(listener);
         listeners.add(listener);
     }
 
     @Override
-    public void unregisterCommitListener(@Nonnull final StateChangeListener listener) {
+    public void unregisterCommitListener(@NonNull final StateChangeListener listener) {
         requireNonNull(listener);
         listeners.remove(listener);
     }
@@ -302,9 +302,9 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <V> WritableSingletonStateBase<V> withAnyRegisteredListeners(
-            @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
-            @Nonnull final SingletonState<V> singleton) {
+            @NonNull final String serviceName,
+            @NonNull final String stateKey,
+            @NonNull final SingletonState<V> singleton) {
         final var state = new FunctionWritableSingletonState<>(serviceName, stateKey, singleton);
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(SINGLETON)) {
@@ -315,7 +315,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <K, V> MapWritableKVState<K, V> withAnyRegisteredListeners(
-            @Nonnull final String serviceName, @Nonnull final MapWritableKVState<K, V> state) {
+            @NonNull final String serviceName, @NonNull final MapWritableKVState<K, V> state) {
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(MAP)) {
                 registerKVListener(serviceName, state, listener);
@@ -325,7 +325,7 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <T> ListWritableQueueState<T> withAnyRegisteredListeners(
-            @Nonnull final String serviceName, @Nonnull final ListWritableQueueState<T> state) {
+            @NonNull final String serviceName, @NonNull final ListWritableQueueState<T> state) {
         listeners.forEach(listener -> {
             if (listener.stateTypes().contains(QUEUE)) {
                 registerQueueListener(serviceName, state, listener);
@@ -335,21 +335,21 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <V> void registerSingletonListener(
-            @Nonnull final String serviceName,
-            @Nonnull final WritableSingletonStateBase<V> singletonState,
-            @Nonnull final StateChangeListener listener) {
+            @NonNull final String serviceName,
+            @NonNull final WritableSingletonStateBase<V> singletonState,
+            @NonNull final StateChangeListener listener) {
         final var stateId = listener.stateIdFor(serviceName, singletonState.getStateKey());
         singletonState.registerListener(value -> listener.singletonUpdateChange(stateId, value));
     }
 
     private <V> void registerQueueListener(
-            @Nonnull final String serviceName,
-            @Nonnull final WritableQueueStateBase<V> queueState,
-            @Nonnull final StateChangeListener listener) {
+            @NonNull final String serviceName,
+            @NonNull final WritableQueueStateBase<V> queueState,
+            @NonNull final StateChangeListener listener) {
         final var stateId = listener.stateIdFor(serviceName, queueState.getStateKey());
         queueState.registerListener(new QueueChangeListener<>() {
             @Override
-            public void queuePushChange(@Nonnull final V value) {
+            public void queuePushChange(@NonNull final V value) {
                 listener.queuePushChange(stateId, value);
             }
 
@@ -361,16 +361,16 @@ public class MirrorNodeState implements MerkleNodeState {
     }
 
     private <K, V> void registerKVListener(
-            @Nonnull final String serviceName, WritableKVStateBase<K, V> state, StateChangeListener listener) {
+            @NonNull final String serviceName, WritableKVStateBase<K, V> state, StateChangeListener listener) {
         final var stateId = listener.stateIdFor(serviceName, state.getStateKey());
         state.registerListener(new KVChangeListener<>() {
             @Override
-            public void mapUpdateChange(@Nonnull final K key, @Nonnull final V value) {
+            public void mapUpdateChange(@NonNull final K key, @NonNull final V value) {
                 listener.mapUpdateChange(stateId, key, value);
             }
 
             @Override
-            public void mapDeleteChange(@Nonnull final K key) {
+            public void mapDeleteChange(@NonNull final K key) {
                 listener.mapDeleteChange(stateId, key);
             }
         });
@@ -438,16 +438,16 @@ public class MirrorNodeState implements MerkleNodeState {
         return new SignatureVerifier() {
             @Override
             public boolean verifySignature(
-                    @Nonnull Key key,
-                    @Nonnull com.hedera.pbj.runtime.io.buffer.Bytes bytes,
-                    @Nonnull com.hedera.node.app.spi.signatures.SignatureVerifier.MessageType messageType,
-                    @Nonnull SignatureMap signatureMap,
+                    @NonNull Key key,
+                    @NonNull Bytes bytes,
+                    @NonNull MessageType messageType,
+                    @NonNull SignatureMap signatureMap,
                     @Nullable Function<Key, SimpleKeyStatus> simpleKeyVerifier) {
                 throw new UnsupportedOperationException("Not implemented");
             }
 
             @Override
-            public KeyCounts countSimpleKeys(@Nonnull Key key) {
+            public KeyCounts countSimpleKeys(@NonNull Key key) {
                 throw new UnsupportedOperationException("Not implemented");
             }
         };

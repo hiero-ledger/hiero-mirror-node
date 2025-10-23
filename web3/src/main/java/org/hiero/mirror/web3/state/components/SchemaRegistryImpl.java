@@ -17,8 +17,6 @@ import com.swirlds.state.spi.FilteredReadableStates;
 import com.swirlds.state.spi.FilteredWritableStates;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -29,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
 import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 public class SchemaRegistryImpl implements SchemaRegistry {
@@ -43,7 +43,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     private final SortedSet<Schema> schemas = new TreeSet<>();
 
     @Override
-    public SchemaRegistry register(@Nonnull Schema schema) {
+    public SchemaRegistry register(@NonNull Schema schema) {
         schemas.remove(schema);
         schemas.add(schema);
         return this;
@@ -51,13 +51,13 @@ public class SchemaRegistryImpl implements SchemaRegistry {
 
     @SuppressWarnings("java:S107")
     public void migrate(
-            @Nonnull final String serviceName,
-            @Nonnull final MirrorNodeState state,
+            @NonNull final String serviceName,
+            @NonNull final MirrorNodeState state,
             @Nullable final SemanticVersion previousVersion,
-            @Nonnull final Configuration appConfig,
-            @Nonnull final Configuration platformConfig,
-            @Nonnull final Map<String, Object> sharedValues,
-            @Nonnull final StartupNetworks startupNetworks) {
+            @NonNull final Configuration appConfig,
+            @NonNull final Configuration platformConfig,
+            @NonNull final Map<String, Object> sharedValues,
+            @NonNull final StartupNetworks startupNetworks) {
         if (schemas.isEmpty()) {
             return;
         }
@@ -107,12 +107,12 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     @SuppressWarnings("java:S107")
     public MigrationContext newMigrationContext(
             @Nullable final SemanticVersion previousVersion,
-            @Nonnull final ReadableStates previousStates,
-            @Nonnull final WritableStates writableStates,
-            @Nonnull final Configuration appConfig,
-            @Nonnull final Configuration platformConfig,
-            @Nonnull final Map<String, Object> sharedValues,
-            @Nonnull final StartupNetworks startupNetworks) {
+            @NonNull final ReadableStates previousStates,
+            @NonNull final WritableStates writableStates,
+            @NonNull final Configuration appConfig,
+            @NonNull final Configuration platformConfig,
+            @NonNull final Map<String, Object> sharedValues,
+            @NonNull final StartupNetworks startupNetworks) {
         return new MigrationContext() {
             @Override
             public void copyAndReleaseOnDiskState(String stateKey) {
@@ -124,7 +124,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                 return 0;
             }
 
-            @Nonnull
+            @NonNull
             @Override
             public StartupNetworks startupNetworks() {
                 return startupNetworks;
@@ -135,25 +135,25 @@ public class SchemaRegistryImpl implements SchemaRegistry {
                 return previousVersion;
             }
 
-            @Nonnull
+            @NonNull
             @Override
             public ReadableStates previousStates() {
                 return previousStates;
             }
 
-            @Nonnull
+            @NonNull
             @Override
             public WritableStates newStates() {
                 return writableStates;
             }
 
-            @Nonnull
+            @NonNull
             @Override
             public Configuration appConfig() {
                 return appConfig;
             }
 
-            @Nonnull
+            @NonNull
             @Override
             public Configuration platformConfig() {
                 return platformConfig;
@@ -172,10 +172,10 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     }
 
     private RedefinedWritableStates applyStateDefinitions(
-            @Nonnull final String serviceName,
-            @Nonnull final Schema schema,
-            @Nonnull final Configuration configuration,
-            @Nonnull final MirrorNodeState state) {
+            @NonNull final String serviceName,
+            @NonNull final Schema schema,
+            @NonNull final Configuration configuration,
+            @NonNull final MirrorNodeState state) {
         final Map<String, Object> stateDataSources = new HashMap<>();
         schema.statesToCreate(configuration)
                 .forEach(def -> stateDataSources.put(def.stateKey(), stateRegistry.lookup(serviceName, def)));

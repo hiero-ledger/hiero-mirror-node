@@ -15,30 +15,30 @@ import com.swirlds.config.api.Configuration;
 import com.swirlds.platform.state.MerkleNodeState;
 import com.swirlds.platform.state.service.PlatformStateFacade;
 import com.swirlds.state.lifecycle.StartupNetworks;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.hiero.mirror.web3.state.MirrorNodeState;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @Named
 public class ServiceMigratorImpl implements ServiceMigrator {
 
     @Override
     public List<Builder> doMigrations(
-            @Nonnull MerkleNodeState state,
-            @Nonnull ServicesRegistry servicesRegistry,
+            @NonNull MerkleNodeState state,
+            @NonNull ServicesRegistry servicesRegistry,
             @Nullable SemanticVersion previousVersion,
-            @Nonnull SemanticVersion currentVersion,
-            @Nonnull Configuration appConfig,
-            @Nonnull Configuration platformConfig,
-            @Nonnull StartupNetworks startupNetworks,
-            @Nonnull StoreMetricsServiceImpl storeMetricsService,
-            @Nonnull ConfigProviderImpl configProvider,
-            @Nonnull PlatformStateFacade platformStateFacade) {
+            @NonNull SemanticVersion currentVersion,
+            @NonNull Configuration appConfig,
+            @NonNull Configuration platformConfig,
+            @NonNull StartupNetworks startupNetworks,
+            @NonNull StoreMetricsServiceImpl storeMetricsService,
+            @NonNull ConfigProviderImpl configProvider,
+            @NonNull PlatformStateFacade platformStateFacade) {
         requireNonNull(state);
         requireNonNull(servicesRegistry);
         requireNonNull(currentVersion);

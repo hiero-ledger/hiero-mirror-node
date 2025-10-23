@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.evm.store;
 
 import java.util.Optional;
-import lombok.NonNull;
+import org.jspecify.annotations.NonNull;
 
 /** A CachingStateFrame that holds reads (falling through to an upstream cache) and local updates/deletes. */
 public class RWCachingStateFrame<K> extends ROCachingStateFrame<K> {
@@ -36,8 +36,9 @@ public class RWCachingStateFrame<K> extends ROCachingStateFrame<K> {
             throw new IllegalStateException("This frame and downstream frame have different klasses registered");
         }
         for (final var kv : thisCaches.entrySet()) {
-            if (!downstreamCaches.containsKey(kv.getKey()))
+            if (!downstreamCaches.containsKey(kv.getKey())) {
                 throw new IllegalStateException("This frame and downstream frame have different klasses registered");
+            }
             kv.getValue().coalesceFrom(downstreamCaches.get(kv.getKey()));
         }
     }

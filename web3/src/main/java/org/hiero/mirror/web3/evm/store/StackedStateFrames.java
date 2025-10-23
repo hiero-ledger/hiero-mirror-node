@@ -6,9 +6,9 @@ import com.google.common.annotations.VisibleForTesting;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Optional;
-import lombok.NonNull;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.store.accessor.DatabaseAccessor;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public class StackedStateFrames {

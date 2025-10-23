@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import lombok.NonNull;
 import org.hiero.mirror.web3.evm.exception.EvmException;
 import org.hiero.mirror.web3.evm.store.accessor.DatabaseAccessor;
+import org.jspecify.annotations.NonNull;
 
 /**
  * A CachingStateFrame that answers reads by getting entities from some other source - a database! - and disallows all

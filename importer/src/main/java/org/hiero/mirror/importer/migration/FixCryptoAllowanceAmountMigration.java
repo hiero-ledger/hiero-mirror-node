@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Map;
@@ -16,6 +15,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
@@ -151,7 +151,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
         return MigrationVersion.fromVersion("1.84.2"); // The version crypto_allowance_migration is created
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Optional<Long> migratePartial(Long last) {
         long minTimestamp = getEarliestTimestamp();
