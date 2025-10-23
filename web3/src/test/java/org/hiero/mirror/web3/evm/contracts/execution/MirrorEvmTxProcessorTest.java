@@ -191,7 +191,7 @@ class MirrorEvmTxProcessorTest {
                 processorsMap,
                 blockMetaSource,
                 hederaEvmContractAliases,
-                new AbstractCodeCache(10, hederaEvmEntityAccess, codeFactory),
+                new AbstractCodeCache(10, hederaEvmEntityAccess),
                 Map.of(TracerType.OPERATION, () -> mirrorOperationTracer),
                 store,
                 new EntityAddressSequencer(commonProperties),
