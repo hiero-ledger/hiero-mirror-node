@@ -4,10 +4,10 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableKVStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
 
 /**
  * A simple implementation of {@link ReadableKVState} backed by a
@@ -33,17 +33,17 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param backingStore The backing store to use
      */
     public MapReadableKVState(
-            @Nonnull final String serviceName, final int stateId, @Nonnull final Map<K, V> backingStore) {
+            @NonNull final String serviceName, final int stateId, @NonNull final Map<K, V> backingStore) {
         super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
     @Override
-    protected V readFromDataSource(@Nonnull K key) {
+    protected V readFromDataSource(@NonNull K key) {
         return backingStore.get(key);
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return backingStore.keySet().iterator();

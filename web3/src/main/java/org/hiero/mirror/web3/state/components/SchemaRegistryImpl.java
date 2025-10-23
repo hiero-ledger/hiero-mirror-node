@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state.components;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
-import jakarta.annotation.Nonnull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedSet;
@@ -15,6 +14,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
+import org.jspecify.annotations.NonNull;
 
 @RequiredArgsConstructor
 @CustomLog
@@ -34,7 +34,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     private final SortedSet<Schema> schemas = new TreeSet<>();
 
     @Override
-    public SchemaRegistry register(@Nonnull Schema schema) {
+    public SchemaRegistry register(@NonNull Schema schema) {
         schemas.remove(schema);
         schemas.add(schema);
         return this;
@@ -42,9 +42,9 @@ public class SchemaRegistryImpl implements SchemaRegistry {
 
     @SuppressWarnings("java:S107")
     public void migrate(
-            @Nonnull final String serviceName,
-            @Nonnull final MirrorNodeState state,
-            @Nonnull final Configuration appConfig) {
+            @NonNull final String serviceName,
+            @NonNull final MirrorNodeState state,
+            @NonNull final Configuration appConfig) {
         if (schemas.isEmpty()) {
             return;
         }
@@ -56,10 +56,10 @@ public class SchemaRegistryImpl implements SchemaRegistry {
     }
 
     private void applyStateDefinitions(
-            @Nonnull final String serviceName,
-            @Nonnull final Schema schema,
-            @Nonnull final Configuration configuration,
-            @Nonnull final MirrorNodeState state) {
+            @NonNull final String serviceName,
+            @NonNull final Schema schema,
+            @NonNull final Configuration configuration,
+            @NonNull final MirrorNodeState state) {
         final Map<Integer, Object> stateDataSources = new HashMap<>();
         final var statesToRemove = schema.statesToRemove();
         schema.statesToCreate(configuration).stream()

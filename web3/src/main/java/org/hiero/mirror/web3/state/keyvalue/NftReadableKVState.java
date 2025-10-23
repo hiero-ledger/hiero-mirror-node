@@ -12,7 +12,6 @@ import com.hedera.hapi.node.state.token.Nft;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -20,6 +19,7 @@ import org.hiero.mirror.common.domain.token.AbstractToken;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.NftRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in
@@ -34,14 +34,14 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     private final NftRepository nftRepository;
     private final TokenRepository tokenRepository;
 
-    public NftReadableKVState(@Nonnull NftRepository nftRepository, @Nonnull TokenRepository tokenRepository) {
+    public NftReadableKVState(@NonNull NftRepository nftRepository, @NonNull TokenRepository tokenRepository) {
         super(TokenService.NAME, STATE_ID);
         this.nftRepository = nftRepository;
         this.tokenRepository = tokenRepository;
     }
 
     @Override
-    protected Nft readFromDataSource(@Nonnull final NftID key) {
+    protected Nft readFromDataSource(@NonNull final NftID key) {
         if (key.tokenId() == null) {
             return null;
         }

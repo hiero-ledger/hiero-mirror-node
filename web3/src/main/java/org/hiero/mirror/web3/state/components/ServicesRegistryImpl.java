@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.state.components;
 
 import com.hedera.node.app.services.ServicesRegistry;
 import com.swirlds.state.lifecycle.Service;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.Set;
@@ -13,6 +12,7 @@ import java.util.TreeSet;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor
@@ -22,14 +22,14 @@ public class ServicesRegistryImpl implements ServicesRegistry {
     private final SortedSet<Registration> entries = new TreeSet<>();
     private final StateRegistry stateRegistry;
 
-    @Nonnull
+    @NonNull
     @Override
     public Set<Registration> registrations() {
         return Collections.unmodifiableSortedSet(entries);
     }
 
     @Override
-    public void register(@Nonnull Service service) {
+    public void register(@NonNull Service service) {
         final var serviceName = service.getServiceName();
 
         log.debug("Registering schemas for service {}", serviceName);
@@ -39,9 +39,9 @@ public class ServicesRegistryImpl implements ServicesRegistry {
         log.info("Registered service {} with implementation {}", service.getServiceName(), service.getClass());
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public ServicesRegistry subRegistryFor(@Nonnull String... serviceNames) {
+    public ServicesRegistry subRegistryFor(@NonNull String... serviceNames) {
         return this;
     }
 }

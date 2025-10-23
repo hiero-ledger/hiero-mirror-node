@@ -16,7 +16,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Objects;
@@ -31,6 +30,7 @@ import org.hiero.mirror.web3.repository.ScheduleRepository;
 import org.hiero.mirror.web3.repository.TransactionSignatureRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 @Named
 class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
@@ -52,7 +52,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
     }
 
     @Override
-    protected Schedule readFromDataSource(@Nonnull ScheduleID key) {
+    protected Schedule readFromDataSource(@NonNull ScheduleID key) {
         final var scheduleId = EntityIdUtils.toEntityId(key);
 
         final var timestamp = ContractCallContext.get().getTimestamp();

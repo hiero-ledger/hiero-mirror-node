@@ -5,20 +5,20 @@ package org.hiero.mirror.web3.state.core;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableQueueState;
 import com.swirlds.state.spi.ReadableSingletonState;
-import jakarta.annotation.Nonnull;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("unchecked")
 public class MapReadableStates extends AbstractMapReadableState {
 
-    public MapReadableStates(@Nonnull final Map<Integer, ?> states) {
+    public MapReadableStates(@NonNull final Map<Integer, ?> states) {
         super(states);
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@Nonnull int stateId) {
+    public <K, V> ReadableKVState<K, V> get(@NonNull int stateId) {
         final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
             throw new IllegalArgumentException("Unknown k/v state key: " + stateId);
@@ -30,9 +30,9 @@ public class MapReadableStates extends AbstractMapReadableState {
         return (ReadableKVState<K, V>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <T> ReadableSingletonState<T> getSingleton(@Nonnull int stateKey) {
+    public <T> ReadableSingletonState<T> getSingleton(@NonNull int stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
@@ -45,9 +45,9 @@ public class MapReadableStates extends AbstractMapReadableState {
         return (ReadableSingletonState<T>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <E> ReadableQueueState<E> getQueue(@Nonnull int stateKey) {
+    public <E> ReadableQueueState<E> getQueue(@NonNull int stateKey) {
         final var state = states.get(Objects.requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown queue state key: " + stateKey);

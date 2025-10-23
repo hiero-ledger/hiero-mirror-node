@@ -9,7 +9,6 @@ import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Optional;
@@ -23,6 +22,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in
@@ -49,7 +49,7 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     }
 
     @Override
-    protected File readFromDataSource(@Nonnull FileID key) {
+    protected File readFromDataSource(@NonNull FileID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();

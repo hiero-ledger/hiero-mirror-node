@@ -6,7 +6,6 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AL
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -19,6 +18,7 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.state.AliasedAccountCacheManager;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVState<ProtoBytes, AccountID> {
@@ -30,15 +30,15 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     protected AliasesReadableKVState(
             final CommonEntityAccessor commonEntityAccessor,
-            @Nonnull NftAllowanceRepository nftAllowanceRepository,
-            @Nonnull NftRepository nftRepository,
-            @Nonnull SystemEntity systemEntity,
-            @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
-            @Nonnull CryptoAllowanceRepository cryptoAllowanceRepository,
-            @Nonnull TokenAccountRepository tokenAccountRepository,
-            @Nonnull AccountBalanceRepository accountBalanceRepository,
-            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties,
-            @Nonnull AliasedAccountCacheManager aliasedAccountCacheManager) {
+            @NonNull NftAllowanceRepository nftAllowanceRepository,
+            @NonNull NftRepository nftRepository,
+            @NonNull SystemEntity systemEntity,
+            @NonNull TokenAllowanceRepository tokenAllowanceRepository,
+            @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
+            @NonNull TokenAccountRepository tokenAccountRepository,
+            @NonNull AccountBalanceRepository accountBalanceRepository,
+            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            @NonNull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
                 STATE_ID,
                 accountBalanceRepository,
@@ -54,7 +54,7 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     @Override
-    protected AccountID readFromDataSource(@Nonnull ProtoBytes alias) {
+    protected AccountID readFromDataSource(@NonNull ProtoBytes alias) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var entity = commonEntityAccessor.get(alias.value(), timestamp);
         return entity.map(e -> {

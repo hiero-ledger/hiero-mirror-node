@@ -13,7 +13,6 @@ import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
 import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Set;
@@ -24,6 +23,7 @@ import java.util.stream.Stream;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
 import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public final class StateRegistry {
@@ -51,8 +51,8 @@ public final class StateRegistry {
     private final ImmutableMap<Integer, Object> states;
 
     public StateRegistry(
-            @Nonnull final Collection<ReadableKVState<?, ?>> keyValues,
-            @Nonnull final Collection<SingletonState<?>> singletons) {
+            @NonNull final Collection<ReadableKVState<?, ?>> keyValues,
+            @NonNull final Collection<SingletonState<?>> singletons) {
 
         this.states = ImmutableMap.<Integer, Object>builder()
                 .putAll(keyValues.stream().collect(Collectors.toMap(ReadableKVState::getStateId, kv -> kv)))

@@ -37,8 +37,6 @@ import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.time.InstantSource;
@@ -70,6 +68,8 @@ import org.hiero.mirror.web3.state.core.MapReadableStates;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 @Named
@@ -134,7 +134,7 @@ public class MirrorNodeState implements State {
         // No-op
     }
 
-    public MirrorNodeState addService(@Nonnull final String serviceName, @Nonnull final Map<Integer, ?> dataSources) {
+    public MirrorNodeState addService(@NonNull final String serviceName, @NonNull final Map<Integer, ?> dataSources) {
         final var serviceStates = this.states.computeIfAbsent(serviceName, k -> new ConcurrentHashMap<>());
         dataSources.forEach((k, b) -> {
             if (!serviceStates.containsKey(k)) {
@@ -149,9 +149,9 @@ public class MirrorNodeState implements State {
         return this;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public ReadableStates getReadableStates(@Nonnull String serviceName) {
+    public ReadableStates getReadableStates(@NonNull String serviceName) {
         return readableStates.computeIfAbsent(serviceName, s -> {
             final var serviceStates = this.states.get(s);
             if (serviceStates == null) {
@@ -181,9 +181,9 @@ public class MirrorNodeState implements State {
         });
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public WritableStates getWritableStates(@Nonnull String serviceName) {
+    public WritableStates getWritableStates(@NonNull String serviceName) {
         return writableStates.computeIfAbsent(serviceName, s -> {
             final var serviceStates = states.get(s);
             if (serviceStates == null) {
@@ -271,16 +271,16 @@ public class MirrorNodeState implements State {
         return new SignatureVerifier() {
             @Override
             public boolean verifySignature(
-                    @Nonnull Key key,
-                    @Nonnull com.hedera.pbj.runtime.io.buffer.Bytes bytes,
-                    @Nonnull com.hedera.node.app.spi.signatures.SignatureVerifier.MessageType messageType,
-                    @Nonnull SignatureMap signatureMap,
+                    @NonNull Key key,
+                    @NonNull com.hedera.pbj.runtime.io.buffer.Bytes bytes,
+                    @NonNull com.hedera.node.app.spi.signatures.SignatureVerifier.MessageType messageType,
+                    @NonNull SignatureMap signatureMap,
                     @Nullable Function<Key, SimpleKeyStatus> simpleKeyVerifier) {
                 throw new UnsupportedOperationException("Not implemented");
             }
 
             @Override
-            public KeyCounts countSimpleKeys(@Nonnull Key key) {
+            public KeyCounts countSimpleKeys(@NonNull Key key) {
                 throw new UnsupportedOperationException("Not implemented");
             }
         };
