@@ -181,7 +181,7 @@ jobs:
           k6Map["fungible"]="TOKEN_ADDRESS"
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
           k6Map["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
-          k6Map["BOB"]="DEFAULT_ACCOUNT_ID"
+          k6Map["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
 
           for key in "${!k6Map[@]}"; do
             k6="${k6Map[$key]}"
@@ -196,9 +196,9 @@ jobs:
       - name: Run rest tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          #          REST_TEST_EXCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
-          REST_TEST_INCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
+        #        env:
+        #          REST_TEST_EXCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
+        #          REST_TEST_INCLUDE: "^(accountsBalanceFalsePubkey|accountsBalanceGte0Pubkey|balances|balancesAccountTimestamp|balancesTimestamp|contractsIdResults|networkSupply|tokensIdBalancesTimestamp).*$"
         with:
           path: |
             ./tools/k6/src/rest/apis.js
