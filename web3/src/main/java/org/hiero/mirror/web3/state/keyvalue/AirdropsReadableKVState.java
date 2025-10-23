@@ -29,7 +29,7 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
         final var senderId = toEntityId(key.senderId()).getId();
         final var receiverId = toEntityId(key.receiverId()).getId();
         final var tokenId = toEntityId(
-                key.hasNonFungibleToken() ? key.nonFungibleToken().tokenId() : key.fungibleTokenType())
+                        key.hasNonFungibleToken() ? key.nonFungibleToken().tokenId() : key.fungibleTokenType())
                 .getId();
         final var serialNumber =
                 key.hasNonFungibleToken() ? key.nonFungibleToken().serialNumber() : 0L;

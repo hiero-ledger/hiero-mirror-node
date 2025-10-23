@@ -8,30 +8,30 @@ import com.hedera.node.app.spi.info.NetworkInfo;
 import com.hedera.node.app.spi.info.NodeInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.State;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 @Named
 @RequiredArgsConstructor
 public class NetworkInfoImpl implements NetworkInfo {
 
-    @NonNull
+    @Nonnull
     @Override
     public Bytes ledgerId() {
         throw new UnsupportedOperationException("Ledger ID is not supported.");
     }
 
-    @NonNull
+    @Nonnull
     @Override
     public NodeInfo selfNodeInfo() {
         return nodeInfo();
     }
 
-    @NonNull
+    @Nonnull
     @Override
     public List<NodeInfo> addressBook() {
         return List.of(nodeInfo());
@@ -86,7 +86,7 @@ public class NetworkInfoImpl implements NetworkInfo {
                 return Collections.emptyList();
             }
 
-            @NonNull
+            @Nonnull
             @Override
             public List<ServiceEndpoint> hapiEndpoints() {
                 return Collections.emptyList();

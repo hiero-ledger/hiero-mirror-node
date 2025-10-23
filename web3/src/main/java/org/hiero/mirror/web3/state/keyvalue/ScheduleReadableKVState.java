@@ -107,13 +107,13 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                         final var signatureCase = SignaturePair.SignatureCase.forNumber(signature.getType());
                         return switch (signatureCase) {
                             case SignatureCase.ED25519 ->
-                                    Key.newBuilder()
-                                            .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                            .build();
+                                Key.newBuilder()
+                                        .ed25519(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                        .build();
                             case SignatureCase.ECDSA_SECP256K1 ->
-                                    Key.newBuilder()
-                                            .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
-                                            .build();
+                                Key.newBuilder()
+                                        .ecdsaSecp256k1(Bytes.wrap(signature.getPublicKeyPrefix()))
+                                        .build();
                             default -> null; // Skip unsupported key types
                         };
                     })

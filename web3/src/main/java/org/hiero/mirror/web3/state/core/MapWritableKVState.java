@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
+import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Objects;
-import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
 public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
@@ -14,36 +14,36 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     private final ReadableKVState<K, V> readableBackingStore;
 
     public MapWritableKVState(
-            @NonNull final String serviceName,
-            @NonNull final String stateKey,
-            @NonNull final ReadableKVState<K, V> readableBackingStore) {
+            @Nonnull final String serviceName,
+            @Nonnull final String stateKey,
+            @Nonnull final ReadableKVState<K, V> readableBackingStore) {
         super(serviceName, stateKey);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
     @Override
-    protected V readFromDataSource(@NonNull K key) {
+    protected V readFromDataSource(@Nonnull K key) {
         return readableBackingStore.get(key);
     }
 
-    @NonNull
+    @Nonnull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return readableBackingStore.keys();
     }
 
     @Override
-    protected V getForModifyFromDataSource(@NonNull K key) {
+    protected V getForModifyFromDataSource(@Nonnull K key) {
         return readableBackingStore.get(key);
     }
 
     @Override
-    protected void putIntoDataSource(@NonNull K key, @NonNull V value) {
+    protected void putIntoDataSource(@Nonnull K key, @Nonnull V value) {
         put(key, value);
     }
 
     @Override
-    protected void removeFromDataSource(@NonNull K key) {
+    protected void removeFromDataSource(@Nonnull K key) {
         remove(key);
     }
 
@@ -59,12 +59,8 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
         MapWritableKVState<?, ?> that = (MapWritableKVState<?, ?>) o;
         return Objects.equals(getStateKey(), that.getStateKey())
                 && Objects.equals(readableBackingStore, that.readableBackingStore);
