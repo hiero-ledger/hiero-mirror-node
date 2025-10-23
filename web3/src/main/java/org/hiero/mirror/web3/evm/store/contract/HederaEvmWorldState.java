@@ -22,7 +22,6 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.account.Account;
-import org.hyperledger.besu.evm.code.CodeFactory;
 import org.hyperledger.besu.evm.worldstate.WorldUpdater;
 
 @SuppressWarnings("java:S107")
@@ -39,7 +38,6 @@ public class HederaEvmWorldState implements HederaEvmMutableWorldState {
 
     private final EntityAddressSequencer entityAddressSequencer;
     private final MirrorEvmContractAliases mirrorEvmContractAliases;
-    private final CodeFactory codeFactory;
 
     @SuppressWarnings("java:S107")
     public HederaEvmWorldState(
@@ -50,8 +48,7 @@ public class HederaEvmWorldState implements HederaEvmMutableWorldState {
             final TokenAccessor tokenAccessor,
             final EntityAddressSequencer entityAddressSequencer,
             final MirrorEvmContractAliases mirrorEvmContractAliases,
-            final Store store,
-            final CodeFactory codeFactory) {
+            final Store store) {
         this.hederaEvmEntityAccess = hederaEvmEntityAccess;
         this.evmProperties = evmProperties;
         this.abstractCodeCache = abstractCodeCache;
@@ -60,7 +57,6 @@ public class HederaEvmWorldState implements HederaEvmMutableWorldState {
         this.mirrorEvmContractAliases = mirrorEvmContractAliases;
         this.entityAddressSequencer = entityAddressSequencer;
         this.store = store;
-        this.codeFactory = codeFactory;
     }
 
     public Account get(final Address address) {
@@ -74,7 +70,7 @@ public class HederaEvmWorldState implements HederaEvmMutableWorldState {
             return null;
         }
         final long balance = hederaEvmEntityAccess.getBalance(address);
-        return new WorldStateAccount(address, Wei.of(balance), abstractCodeCache, hederaEvmEntityAccess, codeFactory);
+        return new WorldStateAccount(address, Wei.of(balance), abstractCodeCache, hederaEvmEntityAccess);
     }
 
     @Override

@@ -41,7 +41,6 @@ import org.hiero.mirror.web3.repository.TokenBalanceRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
-import org.hyperledger.besu.evm.code.CodeFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -100,9 +99,6 @@ class HederaEvmWorldStateTest {
     @Mock
     private OptionValidator validator;
 
-    @Mock
-    private CodeFactory codeFactory;
-
     private StoreImpl store;
 
     private HederaEvmWorldState subject;
@@ -143,8 +139,7 @@ class HederaEvmWorldStateTest {
                 tokenAccessor,
                 entityAddressSequencer,
                 mirrorEvmContractAliases,
-                store,
-                codeFactory);
+                store);
     }
 
     @Test
