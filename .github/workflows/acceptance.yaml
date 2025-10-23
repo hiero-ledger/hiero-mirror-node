@@ -180,6 +180,8 @@ jobs:
           k6Map["fungible"]="TOKEN_ADDRESS"
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
           k6Map["DEFAULT_TOPIC"]="DEFAULT_TOPIC_WITH_FEE_ID"
+          k6Map["DEFAULT_ACCOUNT_ID_ALICE"]="DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER"
+          k6Map["DEFAULT_ACCOUNT_ID_DAVE"]="DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER"
 
           for key in "${!k6Map[@]}"; do
             k6="${k6Map[$key]}"
@@ -194,7 +196,8 @@ jobs:
       - name: Run rest-java tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        #        env:
+        env:
+          DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
         #          RESTJAVA_TEST_EXCLUDE: "^(accounts(NftAllowanceOwner|NftAllowanceSpender|OutstandingAirdrop|PendingAirdrop))|rampUp.*$"
         with:
           path: |
