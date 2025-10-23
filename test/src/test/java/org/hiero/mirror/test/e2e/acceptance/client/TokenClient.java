@@ -84,10 +84,6 @@ public class TokenClient extends AbstractNetworkClient {
     @Override
     protected void logEntities() {
         for (var tokenName : tokenMap.keySet()) {
-            log.info(
-                    "Skipping cleanup of token [{}}] at address {}.",
-                    tokenName.getSymbol(),
-                    tokenMap.get(tokenName).tokenId().toEvmAddress());
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             // The token addresses need to be left-padded with zeroes in order to match the expected format.
             System.out.println(tokenName.getSymbol() + "="
