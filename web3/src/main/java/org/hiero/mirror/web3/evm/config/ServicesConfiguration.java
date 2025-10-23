@@ -278,11 +278,9 @@ public class ServicesConfiguration {
 
     @Bean
     AbstractCodeCache abstractCodeCache(
-            final MirrorNodeEvmProperties evmProperties,
-            final MirrorEntityAccess mirrorEntityAccess,
-            final CodeFactory codeFactory) {
+            final MirrorNodeEvmProperties evmProperties, final MirrorEntityAccess mirrorEntityAccess) {
         return new AbstractCodeCache(
-                (int) evmProperties.getExpirationCacheTime().toSeconds(), mirrorEntityAccess, codeFactory);
+                (int) evmProperties.getExpirationCacheTime().toSeconds(), mirrorEntityAccess);
     }
 
     /**
