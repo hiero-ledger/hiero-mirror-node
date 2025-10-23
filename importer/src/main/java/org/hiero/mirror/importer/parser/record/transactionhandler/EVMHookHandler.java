@@ -65,7 +65,6 @@ final class EVMHookHandler {
                 Hook hook = Hook.builder()
                         .hookId(hookId)
                         .ownerId(entityId.getId())
-                        .contractId(EntityId.EMPTY)
                         .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
                         .deleted(true)
                         .build();
