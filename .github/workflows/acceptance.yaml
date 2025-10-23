@@ -181,7 +181,7 @@ jobs:
           k6Map["fungible"]="TOKEN_ADDRESS"
           k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
           k6Map["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
-          k6Map["DAVE"]="DEFAULT_ACCOUNT_ID"
+          k6Map["BOB"]="DEFAULT_ACCOUNT_ID"
 
           for key in "${!k6Map[@]}"; do
             k6="${k6Map[$key]}"
