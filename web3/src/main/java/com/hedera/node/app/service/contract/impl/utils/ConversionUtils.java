@@ -656,6 +656,24 @@ public class ConversionUtils {
     }
 
     /**
+     * Converts
+     * - a long-zero address to a PBJ {@link ContractID} with id number instead of alias.
+     * - an EVM address to a PBJ {@link ContractID} with alias instead of id number.
+     *
+     * @param entityIdFactory the entity id factory
+     * @param address the EVM address
+     * @return the PBJ {@link ContractID}
+     */
+    public static ContractID asContractId(
+            @NonNull final EntityIdFactory entityIdFactory, @NonNull final Address address) {
+        if (isLongZero(address)) {
+            return entityIdFactory.newContractId(numberOfLongZero(address));
+        } else {
+            return asEvmContractId(entityIdFactory, address);
+        }
+    }
+
+    /**
      * Converts a headlong address to a PBJ {@link ScheduleID}.
      *
      * @param entityIdFactory the entity id factory
