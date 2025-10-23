@@ -197,6 +197,8 @@ create table if not exists hook_history
 (
     like hook including defaults
 );
+-- Allow contract_id to be null in hook_history
+alter table hook_history alter column contract_id drop not null;
 
 select create_distributed_table('hook', 'owner_id', colocate_with => 'entity');
 select create_distributed_table('hook_history', 'owner_id', colocate_with => 'entity');
