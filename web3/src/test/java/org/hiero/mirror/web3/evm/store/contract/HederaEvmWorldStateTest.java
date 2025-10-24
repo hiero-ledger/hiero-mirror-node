@@ -249,7 +249,8 @@ class HederaEvmWorldStateTest {
     void newContractAddressReturnsSequencerValueAsTypedAddress() {
         var actualSubject = subject.updater();
         final Address sponsor = Address.fromHexString("0x23f5e49569a835d7bf9aefd30e4f60cdd570f225");
-        final ContractID contractID = ContractID.newBuilder().build();
+        final ContractID contractID =
+                ContractID.newBuilder().setContractNum(1_000_000_000L).build();
 
         when(entityAddressSequencer.getNewContractId(sponsor)).thenReturn(contractID);
 

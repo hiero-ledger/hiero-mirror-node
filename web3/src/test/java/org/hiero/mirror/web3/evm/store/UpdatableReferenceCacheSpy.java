@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.web3.evm.store;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Test spy that implements an UpdatableReferenceCache with K = String. Only new

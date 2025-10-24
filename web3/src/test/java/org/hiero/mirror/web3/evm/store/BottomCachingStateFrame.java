@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.evm.store;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.NonNull;
 
 /** A CachingStateFrame that answers "missing" for all reads and disallows all updates/writes. */
 public class BottomCachingStateFrame<K> extends CachingStateFrame<K> {

@@ -71,7 +71,6 @@ import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -92,6 +91,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.util.CollectionUtils;
@@ -967,9 +967,9 @@ public class BlockTransactionBuilder {
         private Builder(
                 Transaction transaction,
                 TransactionResult transactionResult,
-                @Nonnull Map<TransactionCase, TransactionOutput> transactionOutputs,
-                @Nonnull List<StateChanges> stateChanges,
-                @Nonnull List<TraceData> traceDataList) {
+                @NonNull Map<TransactionCase, TransactionOutput> transactionOutputs,
+                @NonNull List<StateChanges> stateChanges,
+                @NonNull List<TraceData> traceDataList) {
             if (transaction.hasSigMap()) {
                 // legacy format
                 this.signedTransaction = SignedTransaction.newBuilder()

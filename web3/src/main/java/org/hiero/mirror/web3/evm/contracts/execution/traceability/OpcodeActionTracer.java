@@ -4,8 +4,6 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.Map;
@@ -22,6 +20,8 @@ import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog

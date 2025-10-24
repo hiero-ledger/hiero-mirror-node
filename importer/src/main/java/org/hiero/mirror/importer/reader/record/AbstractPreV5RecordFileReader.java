@@ -13,7 +13,6 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
@@ -23,7 +22,10 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.hiero.mirror.importer.exception.StreamFileReaderException;
 import org.hiero.mirror.importer.reader.ValidatedDataInputStream;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 @RequiredArgsConstructor
 public abstract class AbstractPreV5RecordFileReader implements RecordFileReader {
 
@@ -34,7 +36,7 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
     private final int readerVersion;
 
     @Override
-    public RecordFile read(@NonNull StreamFileData streamFileData) {
+    public RecordFile read(StreamFileData streamFileData) {
         String filename = streamFileData.getFilename();
 
         try (RecordFileDigest digest = getRecordFileDigest(streamFileData.getInputStream());
@@ -141,7 +143,7 @@ public abstract class AbstractPreV5RecordFileReader implements RecordFileReader 
 
         private final MessageDigest messageDigestFile;
 
-        private final MessageDigest messageDigestBody;
+        private final @Nullable MessageDigest messageDigestBody;
 
         public RecordFileDigest(InputStream is, boolean simple) {
             messageDigestFile = createSha384Digest();

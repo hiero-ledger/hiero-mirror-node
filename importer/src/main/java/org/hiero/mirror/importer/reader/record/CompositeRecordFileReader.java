@@ -7,16 +7,17 @@ import jakarta.inject.Named;
 import java.io.DataInputStream;
 import java.io.IOException;
 import lombok.CustomLog;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.StreamFileReaderException;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Primary;
 
 @CustomLog
 @Named
+@NullMarked
 @Primary
 @RequiredArgsConstructor
 public class CompositeRecordFileReader implements RecordFileReader {
@@ -27,7 +28,7 @@ public class CompositeRecordFileReader implements RecordFileReader {
     private final ProtoRecordFileReader version6Reader;
 
     @Override
-    public RecordFile read(@NonNull StreamFileData streamFileData) {
+    public RecordFile read(StreamFileData streamFileData) {
         long count = 0;
         Stopwatch stopwatch = Stopwatch.createStarted();
         String filename = streamFileData.getFilename();

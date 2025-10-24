@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.utils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Optional;
 import org.hiero.mirror.web3.evm.store.accessor.DatabaseAccessor;
+import org.jspecify.annotations.NonNull;
 
 public class BareDatabaseAccessor<K, V> extends DatabaseAccessor<K, V> {
     @NonNull

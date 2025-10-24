@@ -17,7 +17,6 @@ import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
-import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -36,6 +35,7 @@ import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @UtilityClass
@@ -85,7 +85,7 @@ public class DomainUtils {
      * ECDSA_SECP256K1). If the protobuf encoding of a Key is a single primitive key or a complex key with exactly one
      * primitive key within it, return the key as a String with lowercase hex encoding.
      *
-     * @param protobufKey
+     * @param protobufKey the protobuf encoding of a Key
      * @return public key as a string in hex encoding, or null
      */
     public static String getPublicKey(@Nullable byte[] protobufKey) {
@@ -182,8 +182,8 @@ public class DomainUtils {
     /**
      * Pad a byte array with leading zeros to a given length.
      *
-     * @param bytes
-     * @param length
+     * @param bytes  the byte array to pad
+     * @param length the length to pad to
      */
     public static byte[] leftPadBytes(byte[] bytes, int length) {
         if (bytes == null) {
@@ -340,7 +340,7 @@ public class DomainUtils {
     }
 
     public static byte[] toEvmAddress(ContractID contractId) {
-        if (contractId == null || contractId == ContractID.getDefaultInstance()) {
+        if (contractId == null || ContractID.getDefaultInstance().equals(contractId)) {
             throw new InvalidEntityException("Invalid ContractID");
         }
 

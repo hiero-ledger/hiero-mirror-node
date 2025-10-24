@@ -26,7 +26,6 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenID;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import java.util.HashMap;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.hiero.mirror.web3.evm.store.CachingStateFrame.CacheAccessIncorrectTyp
 import org.hiero.mirror.web3.evm.store.UpdatableReferenceCache.UpdatableCacheUsageException;
 import org.hiero.mirror.web3.evm.store.accessor.model.TokenRelationshipKey;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.Nullable;
 
 @Named
 public class StoreImpl implements Store {

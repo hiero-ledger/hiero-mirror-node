@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.type.CollectionType;
 import com.google.common.base.CaseFormat;
 import com.google.common.base.Converter;
 import com.google.common.collect.Range;
-import jakarta.annotation.Nullable;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
@@ -34,6 +33,7 @@ import org.jooq.Record;
 import org.jooq.RecordMapper;
 import org.jooq.RecordType;
 import org.jooq.postgres.extensions.types.LongRange;
+import org.jspecify.annotations.Nullable;
 
 class DomainRecordMapper<R extends Record, E> implements RecordMapper<R, E> {
 

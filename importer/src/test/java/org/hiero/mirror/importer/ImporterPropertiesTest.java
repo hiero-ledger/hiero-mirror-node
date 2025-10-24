@@ -3,10 +3,7 @@
 package org.hiero.mirror.importer;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import org.hiero.mirror.importer.ImporterProperties.HederaNetwork;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -52,15 +49,5 @@ class ImporterPropertiesTest {
         properties.setNetwork(networkName);
         assertThat(properties.getNetwork()).isEqualTo(expectedNetwork);
         assertThat(properties.getNetworkPrefix()).isEqualTo(expectedPrefix);
-    }
-
-    @Test
-    void verifySetNetworkPropertyValidation() {
-        var properties = new ImporterProperties();
-        assertThat(properties.getNetwork()).isEqualTo(HederaNetwork.DEMO); // Default
-        assertThat(properties.getNetworkPrefix()).isNull();
-
-        assertThrows(NullPointerException.class, () -> HederaNetwork.getBucketName(null));
-        assertThrows(NullPointerException.class, () -> HederaNetwork.isAllowAnonymousAccess(null));
     }
 }

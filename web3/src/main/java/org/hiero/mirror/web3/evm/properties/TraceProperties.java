@@ -7,9 +7,9 @@ import static org.hiero.mirror.web3.viewmodel.ContractCallRequest.ADDRESS_LENGTH
 import java.util.HashSet;
 import java.util.Set;
 import lombok.Data;
-import lombok.NonNull;
 import org.hiero.mirror.web3.validation.Hex;
 import org.hyperledger.besu.evm.frame.MessageFrame.State;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 

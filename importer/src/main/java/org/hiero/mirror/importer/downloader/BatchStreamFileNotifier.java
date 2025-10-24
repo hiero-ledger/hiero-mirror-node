@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.downloader;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.io.Closeable;
 import java.time.Duration;
@@ -24,8 +23,10 @@ import org.hiero.mirror.importer.parser.AbstractParserProperties.BatchProperties
 import org.hiero.mirror.importer.parser.StreamFileParser;
 import org.hiero.mirror.importer.parser.balance.AccountBalanceFileParser;
 import org.hiero.mirror.importer.parser.record.RecordFileParser;
+import org.jspecify.annotations.NullMarked;
 
 @CustomLog
+@NullMarked
 @Named
 final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
 
@@ -47,7 +48,7 @@ final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
     }
 
     @Override
-    public void verified(@Nonnull StreamFile<?> streamFile) {
+    public void verified(StreamFile<?> streamFile) {
         var streamFileSubscriber =
                 switch (streamFile.getType()) {
                     case BALANCE -> balanceStreamFileSubscriber;
