@@ -17,17 +17,17 @@ import (
 
 const latestNodeServiceEndpoints = `select
                                     abe.node_id,
-                                    abe.node_account_id,
+                                    coalesce(n.account_id, abe.node_account_id) as node_account_id,
                                     string_agg(ip_address_v4 || ':' || port::text, ','
                                       order by ip_address_v4,port) endpoints
                                   from (
                                     select max(start_consensus_timestamp) from address_book where file_id = @file_id
                                   ) current
                                   join address_book_entry abe on abe.consensus_timestamp = current.max
+                                  left join node n on n.node_id = abe.node_id
                                   left join address_book_service_endpoint abse
                                     on abse.consensus_timestamp = current.max and abse.node_id = abe.node_id
-                                  group by abe.node_id, abe.node_account_id`
-
+                                  group by abe.node_id, n.account_id, abe.node_account_id`
 type nodeServiceEndpoint struct {
 	NodeId        int64
 	NodeAccountId domain.EntityId
