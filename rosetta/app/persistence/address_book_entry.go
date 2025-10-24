@@ -28,6 +28,7 @@ const latestNodeServiceEndpoints = `select
                                   left join address_book_service_endpoint abse
                                     on abse.consensus_timestamp = current.max and abse.node_id = abe.node_id
                                   group by abe.node_id, n.account_id, abe.node_account_id`
+
 type nodeServiceEndpoint struct {
 	NodeId        int64
 	NodeAccountId domain.EntityId
