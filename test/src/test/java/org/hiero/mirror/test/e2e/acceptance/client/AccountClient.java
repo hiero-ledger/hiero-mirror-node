@@ -93,6 +93,8 @@ public class AccountClient extends AbstractNetworkClient {
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             System.out.println(accountName + "="
                     + accountMap.get(accountName).getAccountId().toEvmAddress());
+            System.out.println("DEFAULT_ACCOUNT_ID_" + accountName + "="
+                    + accountMap.get(accountName).getAccountId());
         }
     }
 
