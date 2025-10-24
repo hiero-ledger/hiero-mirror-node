@@ -211,13 +211,15 @@ public abstract class AbstractNetworkClient implements Cleanable {
                                 : account.getAccountId().toEvmAddress());
     }
 
-    protected final <T> void deleteOrLogEntities(Collection<T> ids, Consumer<T> deleteAction) {
+    // Returns "true" if the cleanup is skipped
+    protected final <T> boolean deleteOrLogEntities(Collection<T> ids, Consumer<T> deleteAction) {
         if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
             logEntities();
-            return;
+            return true;
         }
 
         deleteAll(ids, deleteAction);
+        return false;
     }
 
     protected void logEntities() {}

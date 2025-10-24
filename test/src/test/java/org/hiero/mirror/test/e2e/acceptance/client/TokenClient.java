@@ -75,23 +75,26 @@ public class TokenClient extends AbstractNetworkClient {
     public void clean() {
         var admin = sdkClient.getExpandedOperatorAccountId();
         log.info("Deleting {} tokens and dissociating {} token relationships", tokenIds.size(), associations.size());
-        deleteOrLogEntities(tokenIds, tokenId -> delete(admin, tokenId));
-        deleteAll(associations.keySet(), association -> dissociate(association.accountId, association.tokenId));
+        var skippedCleanup = deleteOrLogEntities(tokenIds, tokenId -> delete(admin, tokenId));
+        if (!skippedCleanup) {
+            deleteAll(associations.keySet(), association -> dissociate(association.accountId, association.tokenId));
+        }
     }
 
     @Override
     protected void logEntities() {
         for (var tokenName : tokenMap.keySet()) {
-            log.info(
-                    "Skipping cleanup of token [{}}] at address {}.",
-                    tokenName.getSymbol(),
-                    tokenMap.get(tokenName).tokenId().toEvmAddress());
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             // The token addresses need to be left-padded with zeroes in order to match the expected format.
-            System.out.println(tokenName.getSymbol() + "="
-                    + String.format(
-                            "%s%s",
-                            "0".repeat(24), tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            if (tokenName.equals(TokenNameEnum.NFT_AIRDROP)) {
+                System.out.println(tokenName.getSymbol() + "=" + tokenMap.get(tokenName).tokenId);
+            } else {
+                System.out.println(tokenName.getSymbol() + "="
+                        + String.format(
+                                "%s%s",
+                                "0".repeat(24),
+                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            }
         }
     }
 

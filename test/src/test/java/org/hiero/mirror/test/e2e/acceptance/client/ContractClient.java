@@ -45,10 +45,6 @@ public class ContractClient extends AbstractNetworkClient {
     @Override
     protected void logEntities() {
         for (var contractName : contractMap.keySet()) {
-            log.info(
-                    "Skipping cleanup of contract [{}}] at address {}.",
-                    contractName,
-                    contractMap.get(contractName).toEvmAddress());
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             System.out.println(
                     contractName + "=" + contractMap.get(contractName).toEvmAddress());
