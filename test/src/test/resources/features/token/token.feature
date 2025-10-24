@@ -150,7 +150,7 @@ Feature: HTS Base Coverage Feature
     Then DAVE claims the airdrop
     Then the mirror node REST API should return the transaction and get transaction detail
     And I verify "successful" airdrop of <amount> tokens to DAVE
-    Then I airdrop 1 tokens to BOB
+    Then I airdrop 1 token to BOB
     Then the mirror node REST API should return the transaction
 
     Examples:
