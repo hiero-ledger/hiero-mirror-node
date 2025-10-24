@@ -85,10 +85,12 @@ import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.springframework.context.annotation.Scope;
 import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class EstimateFeature extends AbstractEstimateFeature {
 
     private static final String HEX_DIGITS = "0123456789abcdef";

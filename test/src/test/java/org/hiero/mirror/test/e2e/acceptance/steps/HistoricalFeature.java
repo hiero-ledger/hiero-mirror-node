@@ -71,9 +71,11 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
+import org.springframework.context.annotation.Scope;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class HistoricalFeature extends AbstractEstimateFeature {
     private static final long CUSTOM_FIXED_FEE_AMOUNT = 10L;
 

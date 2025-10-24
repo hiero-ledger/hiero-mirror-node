@@ -165,9 +165,11 @@ import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
+import org.springframework.context.annotation.Scope;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     private static final Tuple[] EMPTY_TUPLE_ARRAY = new Tuple[] {};
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;

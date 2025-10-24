@@ -51,11 +51,13 @@ import org.hiero.mirror.test.e2e.acceptance.client.TopicClient;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
+import org.springframework.context.annotation.Scope;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class TopicFeature extends AbstractFeature {
 
     private static final long FIXED_FEE_AMOUNT = 10;
