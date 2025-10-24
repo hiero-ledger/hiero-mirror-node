@@ -27,9 +27,11 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
+import org.springframework.context.annotation.Scope;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class EquivalenceFeature extends AbstractFeature {
 
     private static final String OBTAINER_SAME_CONTRACT_ID_EXCEPTION = "OBTAINER_SAME_CONTRACT_ID";

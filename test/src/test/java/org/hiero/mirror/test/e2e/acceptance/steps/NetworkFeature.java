@@ -19,10 +19,12 @@ import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
+import org.springframework.context.annotation.Scope;
 
 @CustomLog
 @Data
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class NetworkFeature {
 
     private final MirrorNodeClient mirrorClient;

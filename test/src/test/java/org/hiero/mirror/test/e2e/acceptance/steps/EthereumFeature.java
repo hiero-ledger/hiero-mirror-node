@@ -34,11 +34,13 @@ import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class EthereumFeature extends AbstractEstimateFeature {
 
     protected final EthereumClient ethereumClient;

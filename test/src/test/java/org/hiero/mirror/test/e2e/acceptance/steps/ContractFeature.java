@@ -36,12 +36,14 @@ import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class ContractFeature extends BaseContractFeature {
     private static final String GET_ACCOUNT_BALANCE_SELECTOR = "6896fabf";
     private static final String GET_SENDER_SELECTOR = "5e01eb5a";

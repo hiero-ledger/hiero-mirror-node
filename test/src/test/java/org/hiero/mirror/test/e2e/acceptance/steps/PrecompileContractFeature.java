@@ -67,12 +67,14 @@ import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.hiero.mirror.test.e2e.acceptance.util.ContractCallResponseWrapper;
+import org.springframework.context.annotation.Scope;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class PrecompileContractFeature extends AbstractFeature {
     private static final long FIRST_NFT_SERIAL_NUMBER = 1;
     private static final BigInteger DEFAULT_SERIAL_NUMBER = BigInteger.ONE;
