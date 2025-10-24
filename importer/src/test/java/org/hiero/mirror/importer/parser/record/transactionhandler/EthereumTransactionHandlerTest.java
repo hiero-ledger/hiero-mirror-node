@@ -120,40 +120,62 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     @CsvSource(
             textBlock =
                     """
-            'abab', true, , 'abab'
-            '', true, , ''
-            , true, , ''
-            , false, 'abab', 'abab'
-            , false, '', ''
-            , false, , ''
+            'abab', , 'abab'
+            , 'abab', 'abab'
+            'abab', 'efef', 'abab'
+            , , ''
             """)
     void updateContractResult(
             @ConvertWith(HexToByteArrayConverter.class) byte[] callData,
-            boolean callDataInlined,
             @ConvertWith(HexToByteArrayConverter.class) byte[] callDataInFile,
             @ConvertWith(HexToByteArrayConverter.class) byte[] expectedFunctionParameters) {
         // given
         var contractResult = new ContractResult();
+        boolean callDataInlined = callData != null;
+        var callDataId = callDataInFile != null ? domainBuilder.entityId() : null;
         var ethereumTransaction = domainBuilder
                 .ethereumTransaction(callDataInlined)
-                .customize(e -> e.callData(callData))
+                .customize(e -> e.callData(callData).callDataId(callDataId))
                 .get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction()
                 .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
                 .build();
-        if (!callDataInlined) {
-            doReturn(callDataInFile).when(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+        boolean expectCallDataFromFile = !callDataInlined && callDataId != null;
+        if (expectCallDataFromFile) {
+            doReturn(callDataInFile).when(contractBytecodeService).get(callDataId);
         }
 
         // when
         transactionHandler.updateContractResult(contractResult, recordItem);
 
         // then
-        verify(contractBytecodeService, times(callDataInlined ? 0 : 1)).get(any(EntityId.class));
+        verify(contractBytecodeService, times(expectCallDataFromFile ? 1 : 0)).get(any(EntityId.class));
         assertThat(contractResult)
                 .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
                 .returns(expectedFunctionParameters, ContractResult::getFunctionParameters)
+                .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
+    }
+
+    @Test
+    void updateContractResultWithNullFromCallDataId() {
+        // given
+        var contractResult = new ContractResult();
+        var ethereumTransaction = domainBuilder.ethereumTransaction(false).get();
+        var recordItem = recordItemBuilder
+                .ethereumTransaction()
+                .recordItem(r -> r.blockstream(true).ethereumTransaction(ethereumTransaction))
+                .build();
+        doReturn(null).when(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+
+        // when
+        transactionHandler.updateContractResult(contractResult, recordItem);
+
+        // then
+        verify(contractBytecodeService).get(ethereumTransaction.getCallDataId());
+        assertThat(contractResult)
+                .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                .returns(EMPTY_BYTE_ARRAY, ContractResult::getFunctionParameters)
                 .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
     }
 
