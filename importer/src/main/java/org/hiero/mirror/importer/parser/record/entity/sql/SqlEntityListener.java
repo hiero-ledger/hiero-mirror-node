@@ -27,6 +27,7 @@ import org.hiero.mirror.common.domain.entity.FungibleAllowance;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
@@ -204,6 +205,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onFileData(FileData fileData) {
         context.add(fileData);
+    }
+
+    @Override
+    public void onHook(Hook hook) {
+        context.merge(hook.getId(), hook, this::mergeHook);
     }
 
     @Override
@@ -627,6 +633,13 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         return dest;
+    }
+
+    private Hook mergeHook(Hook previous, Hook current) {
+        if (previous != null && previous.getDeleted() && current.getTimestampUpper() == null) {
+            previous.setTimestampUpper(current.getTimestampLower() + 1);
+        }
+        return current;
     }
 
     private NftAllowance mergeNftAllowance(NftAllowance previous, NftAllowance current) {

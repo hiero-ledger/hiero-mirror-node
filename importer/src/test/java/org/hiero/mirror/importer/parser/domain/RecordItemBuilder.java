@@ -21,6 +21,10 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
+import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
+import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -532,6 +536,34 @@ public class RecordItemBuilder {
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
     }
 
+    @SuppressWarnings("deprecation")
+    public Builder<CryptoCreateTransactionBody.Builder> cryptoCreateWithHooks() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L)
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var builder = CryptoCreateTransactionBody.newBuilder()
+                .setAlias(bytes(20))
+                .setAutoRenewPeriod(duration(30))
+                .setDeclineReward(true)
+                .setInitialBalance(1000L)
+                .setKey(key())
+                .setMaxAutomaticTokenAssociations(2)
+                .setMemo(text(16))
+                .setProxyAccountID(accountId())
+                .setRealmID(REALM_ID)
+                .setReceiverSigRequired(false)
+                .setShardID(SHARD_ID)
+                .setStakedNodeId(1L)
+                .addHookCreationDetails(hookCreationDetails);
+        return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
+    }
+
     public Builder<CryptoDeleteTransactionBody.Builder> cryptoDelete() {
         var builder = CryptoDeleteTransactionBody.newBuilder()
                 .setDeleteAccountID(accountId())
@@ -632,6 +664,49 @@ public class RecordItemBuilder {
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
                 .setStakedNodeId(1L);
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookDeletion() {
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookIdsToDelete(1L); // Default hook ID to delete
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookCreation() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L) // Default hook ID to create
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookCreationDetails(hookCreationDetails);
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+    }
+
+    public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdateWithHookDeletionAndCreation() {
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L) // Same hook ID to delete and create
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key())
+                .build();
+
+        var accountId = accountId();
+        var builder = CryptoUpdateTransactionBody.newBuilder()
+                .setAccountIDToUpdate(accountId)
+                .addHookIdsToDelete(1L) // Delete hook ID 1
+                .addHookCreationDetails(hookCreationDetails); // Create hook ID 1
         return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
     }
 

@@ -35,6 +35,9 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
+import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
@@ -77,6 +80,7 @@ import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.EntityTransactionRepository;
 import org.hiero.mirror.importer.repository.EthereumTransactionRepository;
 import org.hiero.mirror.importer.repository.FileDataRepository;
+import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.LiveHashRepository;
 import org.hiero.mirror.importer.repository.NetworkFreezeRepository;
 import org.hiero.mirror.importer.repository.NetworkStakeRepository;
@@ -131,6 +135,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private final EntityTransactionRepository entityTransactionRepository;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final FileDataRepository fileDataRepository;
+    private final HookRepository hookRepository;
     private final LiveHashRepository liveHashRepository;
     private final NetworkFreezeRepository networkFreezeRepository;
     private final NetworkStakeRepository networkStakeRepository;
@@ -3600,6 +3605,61 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         nft.setTokenId(tokenId.getId());
 
         return nft;
+    }
+
+    @Test
+    void onHook() {
+        // given
+        var hook1 = domainBuilder.hook().get();
+        var hook2 = domainBuilder.hook().get();
+
+        // when
+        sqlEntityListener.onHook(hook1);
+        sqlEntityListener.onHook(hook2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(hookRepository.findAll()).containsExactlyInAnyOrder(hook1, hook2);
+        assertThat(findHistory(Hook.class)).isEmpty();
+    }
+
+    @Test
+    void onHookMergeWithoutPrevious() {
+        // given
+        var hook = domainBuilder.hook().get();
+
+        // when
+        sqlEntityListener.onHook(hook);
+        completeFileAndCommit();
+
+        // then
+        assertThat(hookRepository.findAll()).containsExactly(hook);
+        assertThat(findHistory(Hook.class)).isEmpty();
+    }
+
+    @Test
+    void onHookMergeWithDeletedPrevious() {
+        // given
+        var hookCreate = domainBuilder.hook().get();
+        var hookDelete = Hook.builder()
+                .deleted(true)
+                .ownerId(hookCreate.getOwnerId())
+                .hookId(hookCreate.getHookId())
+                .timestampRange(Range.atLeast(hookCreate.getCreatedTimestamp()))
+                .build();
+
+        // when
+        sqlEntityListener.onHook(hookDelete);
+        sqlEntityListener.onHook(hookCreate);
+        completeFileAndCommit();
+
+        // then
+        var expectedPrevious = hookDelete.toBuilder().build();
+        expectedPrevious.setTimestampUpper(hookCreate.getTimestampLower() + 1);
+        expectedPrevious.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
+        expectedPrevious.setType(HookType.LAMBDA);
+        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
+        assertThat(findHistory(Hook.class)).containsExactly(expectedPrevious);
     }
 
     private TokenAccount getTokenAccount(
