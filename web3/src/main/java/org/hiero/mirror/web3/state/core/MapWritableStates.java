@@ -12,10 +12,10 @@ import com.swirlds.state.spi.WritableQueueStateBase;
 import com.swirlds.state.spi.WritableSingletonState;
 import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class MapWritableStates extends AbstractMapReadableState implements WritableStates, CommittableWritableStates {
@@ -23,18 +23,18 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
     @Nullable
     private final Runnable onCommit;
 
-    public MapWritableStates(@Nonnull final Map<Integer, ?> states) {
+    public MapWritableStates(@NonNull final Map<Integer, ?> states) {
         this(states, null);
     }
 
-    public MapWritableStates(@Nonnull final Map<Integer, ?> states, @Nullable final Runnable onCommit) {
+    public MapWritableStates(@NonNull final Map<Integer, ?> states, @Nullable final Runnable onCommit) {
         super(states);
         this.onCommit = onCommit;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <K, V> WritableKVState<K, V> get(@Nonnull int stateKey) {
+    public <K, V> WritableKVState<K, V> get(@NonNull int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
@@ -46,9 +46,9 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
         return (WritableKVState<K, V>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <T> WritableSingletonState<T> getSingleton(@Nonnull final int stateKey) {
+    public <T> WritableSingletonState<T> getSingleton(@NonNull final int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
@@ -61,9 +61,9 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
         return (WritableSingletonState<T>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <E> WritableQueueState<E> getQueue(@Nonnull final int stateKey) {
+    public <E> WritableQueueState<E> getQueue(@NonNull final int stateKey) {
         final var state = states.get(requireNonNull(stateKey));
         if (state == null) {
             throw new IllegalArgumentException("Unknown queue state key: " + stateKey);
