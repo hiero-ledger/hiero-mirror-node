@@ -100,8 +100,12 @@ class TokenTransformerTest extends AbstractTransformerTest {
     @Test
     void tokenCreate() {
         // given
-        var expectedRecordItem =
-                recordItemBuilder.tokenCreate().customize(this::finalize).build();
+        var expectedRecordItem = recordItemBuilder
+                .tokenCreate()
+                .transactionBody(
+                        b -> b.setInitialSupply(domainBuilder.number()).setTokenType(TokenType.FUNGIBLE_COMMON))
+                .customize(this::finalize)
+                .build();
         var blockTransaction =
                 blockTransactionBuilder.tokenCreate(expectedRecordItem).build();
         var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();

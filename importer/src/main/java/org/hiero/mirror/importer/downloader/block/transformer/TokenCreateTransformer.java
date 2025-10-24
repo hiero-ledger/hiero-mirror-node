@@ -19,10 +19,6 @@ final class TokenCreateTransformer extends AbstractBlockTransactionTransformer {
                 .recordItemBuilder()
                 .transactionRecordBuilder()
                 .getReceiptBuilder();
-        receiptBuilder.setNewTotalSupply(blockTransactionTransformation
-                .getTransactionBody()
-                .getTokenCreation()
-                .getInitialSupply());
         blockTransaction
                 .getStateChangeContext()
                 .getNewTokenId()
