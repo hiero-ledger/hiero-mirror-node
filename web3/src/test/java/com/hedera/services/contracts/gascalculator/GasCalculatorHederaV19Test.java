@@ -55,7 +55,7 @@ class GasCalculatorHederaV19Test {
 
     @Test
     void transactionIntrinsicGasCost() {
-        assertEquals(0L, subject.transactionIntrinsicGasCost(Bytes.of(1, 2, 3), true));
+        assertEquals(0L, subject.transactionIntrinsicGasCost(Bytes.of(1, 2, 3), true, 0L));
     }
 
     @Test

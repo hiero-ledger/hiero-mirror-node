@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_ID_STATE_ID;
+
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.ScheduleID;
 import com.hedera.hapi.node.base.TransactionID;
@@ -9,13 +11,11 @@ import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
 import com.hedera.hapi.node.state.schedule.Schedule;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.service.schedule.ScheduleService;
-import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Objects;
@@ -30,6 +30,7 @@ import org.hiero.mirror.web3.repository.ScheduleRepository;
 import org.hiero.mirror.web3.repository.TransactionSignatureRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 @Named
 class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
@@ -44,14 +45,14 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
             ScheduleRepository scheduleRepository,
             CommonEntityAccessor commonEntityAccessor,
             TransactionSignatureRepository transactionSignatureRepository) {
-        super(ScheduleService.NAME, V0490ScheduleSchema.SCHEDULES_BY_ID_KEY);
+        super(ScheduleService.NAME, SCHEDULES_BY_ID_STATE_ID);
         this.scheduleRepository = scheduleRepository;
         this.commonEntityAccessor = commonEntityAccessor;
         this.transactionSignatureRepository = transactionSignatureRepository;
     }
 
     @Override
-    protected Schedule readFromDataSource(@Nonnull ScheduleID key) {
+    protected Schedule readFromDataSource(@NonNull ScheduleID key) {
         final var scheduleId = EntityIdUtils.toEntityId(key);
 
         final var timestamp = ContractCallContext.get().getTimestamp();

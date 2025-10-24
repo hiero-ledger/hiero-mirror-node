@@ -30,78 +30,79 @@ class MapReadableStatesTest {
     @Mock
     private ReadableQueueState<String> queueStateMock;
 
-    private static final String KV_STATE_KEY = "kvState";
-    private static final String SINGLETON_KEY = "singleton";
-    private static final String QUEUE_KEY = "queue";
+    private static final int UNKNOW_STATE_ID = 0;
+    private static final int KV_STATE_ID = 1;
+    private static final int SINGLETON_STATE_ID = 2;
+    private static final int QUEUE_STATE_ID = 3;
 
     @BeforeEach
     void setup() {
-        states = new MapReadableStates(
-                Map.of(KV_STATE_KEY, kvStateMock, SINGLETON_KEY, singletonStateMock, QUEUE_KEY, queueStateMock));
+        states = new MapReadableStates(Map.of(
+                KV_STATE_ID, kvStateMock, SINGLETON_STATE_ID, singletonStateMock, QUEUE_STATE_ID, queueStateMock));
     }
 
     @Test
     void testGetState() {
-        assertThat(states.get(KV_STATE_KEY)).isEqualTo(kvStateMock);
+        assertThat(states.get(KV_STATE_ID)).isEqualTo(kvStateMock);
     }
 
     @Test
     void testGetStateNotFound() {
-        assertThatThrownBy(() -> states.get("unknown")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.get(UNKNOW_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetStateNotCorrectType() {
-        assertThatThrownBy(() -> states.get(SINGLETON_KEY)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.get(SINGLETON_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetSingletonState() {
-        assertThat(states.getSingleton(SINGLETON_KEY)).isEqualTo(singletonStateMock);
+        assertThat(states.getSingleton(SINGLETON_STATE_ID)).isEqualTo(singletonStateMock);
     }
 
     @Test
     void testGetSingletonStateNotFound() {
-        assertThatThrownBy(() -> states.getSingleton("unknown")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.getSingleton(UNKNOW_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetSingletonStateNotCorrectType() {
-        assertThatThrownBy(() -> states.getSingleton(QUEUE_KEY)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.getSingleton(QUEUE_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetQueueState() {
-        assertThat(states.getQueue(QUEUE_KEY)).isEqualTo(queueStateMock);
+        assertThat(states.getQueue(QUEUE_STATE_ID)).isEqualTo(queueStateMock);
     }
 
     @Test
     void testGetQueueStateNotFound() {
-        assertThatThrownBy(() -> states.getQueue("unknown")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.getQueue(UNKNOW_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testGetQueueStateNotCorrectType() {
-        assertThatThrownBy(() -> states.getQueue(KV_STATE_KEY)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> states.getQueue(KV_STATE_ID)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testContains() {
-        assertThat(states.contains(KV_STATE_KEY)).isTrue();
-        assertThat(states.contains(SINGLETON_KEY)).isTrue();
-        assertThat(states.contains(QUEUE_KEY)).isTrue();
-        assertThat(states.contains("unknown")).isFalse();
+        assertThat(states.contains(KV_STATE_ID)).isTrue();
+        assertThat(states.contains(SINGLETON_STATE_ID)).isTrue();
+        assertThat(states.contains(QUEUE_STATE_ID)).isTrue();
+        assertThat(states.contains(UNKNOW_STATE_ID)).isFalse();
     }
 
     @Test
     void testStateKeysReturnsCorrectSet() {
-        assertThat(states.stateKeys()).isEqualTo(Set.of(KV_STATE_KEY, SINGLETON_KEY, QUEUE_KEY));
+        assertThat(states.stateIds()).isEqualTo(Set.of(KV_STATE_ID, SINGLETON_STATE_ID, QUEUE_STATE_ID));
     }
 
     @Test
     void testStateKeysReturnsUnmodifiableSet() {
-        Set<String> keys = states.stateKeys();
-        assertThatThrownBy(() -> keys.add("newKey")).isInstanceOf(UnsupportedOperationException.class);
+        Set<Integer> keys = states.stateIds();
+        assertThatThrownBy(() -> keys.add(4)).isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
@@ -121,21 +122,21 @@ class MapReadableStatesTest {
 
     @Test
     void testEqualsSameValues() {
-        MapReadableStates other = new MapReadableStates(
-                Map.of(KV_STATE_KEY, kvStateMock, SINGLETON_KEY, singletonStateMock, QUEUE_KEY, queueStateMock));
+        MapReadableStates other = new MapReadableStates(Map.of(
+                KV_STATE_ID, kvStateMock, SINGLETON_STATE_ID, singletonStateMock, QUEUE_STATE_ID, queueStateMock));
         assertThat(states).isEqualTo(other);
     }
 
     @Test
     void testEqualsDifferentValues() {
-        MapReadableStates other = new MapReadableStates(Map.of(KV_STATE_KEY, kvStateMock));
+        MapReadableStates other = new MapReadableStates(Map.of(KV_STATE_ID, kvStateMock));
         assertThat(states).isNotEqualTo(other);
     }
 
     @Test
     void testHashCode() {
-        MapReadableStates other = new MapReadableStates(
-                Map.of(KV_STATE_KEY, kvStateMock, SINGLETON_KEY, singletonStateMock, QUEUE_KEY, queueStateMock));
+        MapReadableStates other = new MapReadableStates(Map.of(
+                KV_STATE_ID, kvStateMock, SINGLETON_STATE_ID, singletonStateMock, QUEUE_STATE_ID, queueStateMock));
         assertThat(states).hasSameHashCodeAs(other);
     }
 }

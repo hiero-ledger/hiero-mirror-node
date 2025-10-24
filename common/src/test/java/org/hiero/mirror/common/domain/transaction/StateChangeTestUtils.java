@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
@@ -32,7 +32,7 @@ public final class StateChangeTestUtils {
 
     public static StateChange contractStorageMapDeleteChange(ContractID contractId, ByteString slot) {
         return StateChange.newBuilder()
-                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                .setStateId(STATE_ID_STORAGE_VALUE)
                 .setMapDelete(MapDeleteChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
                                 .setSlotKeyKey(SlotKey.newBuilder()
@@ -43,7 +43,7 @@ public final class StateChangeTestUtils {
 
     public static StateChange contractStorageMapUpdateChange(ContractID contractId, ByteString slot, ByteString value) {
         return StateChange.newBuilder()
-                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                .setStateId(STATE_ID_STORAGE_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder()
                                 .setSlotKeyKey(SlotKey.newBuilder()

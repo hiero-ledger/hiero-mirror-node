@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableSingletonStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Objects;
 import java.util.function.Supplier;
+import org.jspecify.annotations.NonNull;
 
 public class FunctionReadableSingletonState<S> extends ReadableSingletonStateBase<S> {
 
@@ -20,10 +20,8 @@ public class FunctionReadableSingletonState<S> extends ReadableSingletonStateBas
      *     backing store.
      */
     public FunctionReadableSingletonState(
-            @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
-            @Nonnull final Supplier<S> backingStoreAccessor) {
-        super(serviceName, stateKey);
+            @NonNull final String serviceName, final int stateId, @NonNull final Supplier<S> backingStoreAccessor) {
+        super(stateId, serviceName);
         this.backingStoreAccessor = Objects.requireNonNull(backingStoreAccessor);
     }
 

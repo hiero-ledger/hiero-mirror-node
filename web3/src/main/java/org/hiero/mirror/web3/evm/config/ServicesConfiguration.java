@@ -116,6 +116,7 @@ import org.hiero.mirror.web3.evm.token.TokenAccessorImpl;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.utils.AccountDetector;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.evm.code.CodeFactory;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.context.annotation.Bean;
@@ -280,6 +281,20 @@ public class ServicesConfiguration {
             final MirrorNodeEvmProperties evmProperties, final MirrorEntityAccess mirrorEntityAccess) {
         return new AbstractCodeCache(
                 (int) evmProperties.getExpirationCacheTime().toSeconds(), mirrorEntityAccess);
+    }
+
+    /**
+     * Provides a singleton instance of {@link CodeFactory} initialized with zero values.
+     *
+     * <p>The values {@code maxEofVersion} and {@code maxContainerSize} are set to 0,
+     * which means the factory defaults to handling only legacy code (EOF version 0)
+     * and sets a strict size limit on EOF code containers.
+     *
+     * @return an instance of {@link CodeFactory} with strict constraints.
+     */
+    @Bean
+    CodeFactory codeFactory() {
+        return new CodeFactory(0, 0);
     }
 
     @Bean

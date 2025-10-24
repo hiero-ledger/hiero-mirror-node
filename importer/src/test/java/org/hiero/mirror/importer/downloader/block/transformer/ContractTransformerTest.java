@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.downloader.block.transformer;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1091,7 +1091,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                                                     .setAccountId(accountId)
                                                     .setSmartContract(true)))))
                     .addStateChanges(StateChange.newBuilder()
-                            .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                            .setStateId(STATE_ID_BYTECODE_VALUE)
                             .setMapUpdate(MapUpdateChange.newBuilder()
                                     .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
                                     .setValue(MapChangeValue.newBuilder()

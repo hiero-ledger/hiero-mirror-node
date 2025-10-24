@@ -6,7 +6,6 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import org.hiero.mirror.web3.common.ContractCallContext;
 
@@ -19,37 +18,31 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
-    /** The service name, which cannot be null */
-    private final String serviceName;
+    /** State label used in logs, typically serviceName.stateKey (may be null) */
+    @Nullable
+    protected final String label;
 
-    /** The state key, which cannot be null */
-    private final String stateKey;
+    // The state ID
+    protected final int stateId;
 
     private static final Object marker = new Object();
 
     /**
      * Create a new StateBase.
      *
-     * @param serviceName The name of the service that owns the state. Cannot be null.
-     * @param stateKey The state key. Cannot be null.
+     * @param stateId The state ID
+     * @param label The state label (may be null)
      */
-    protected ReadableKVStateBase(@Nonnull String serviceName, @Nonnull String stateKey) {
-        this.serviceName = Objects.requireNonNull(serviceName);
-        this.stateKey = Objects.requireNonNull(stateKey);
+    protected ReadableKVStateBase(final int stateId, @Nullable final String label) {
+        this.label = label; // allow null to match platform-sdk behavior
+        this.stateId = stateId;
     }
 
     /** {@inheritDoc} */
     @Override
     @Nonnull
-    public final String getServiceName() {
-        return serviceName;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    @Nonnull
-    public final String getStateKey() {
-        return stateKey;
+    public final int getStateId() {
+        return stateId;
     }
 
     /** {@inheritDoc} */
@@ -58,7 +51,9 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     public V get(@Nonnull K key) {
         // We need to cache the item because somebody may perform business logic basic on this
         // contains call, even if they never need the value itself!
-        Objects.requireNonNull(key);
+        if (key == null) {
+            throw new NullPointerException("key must not be null");
+        }
         if (!hasBeenRead(key)) {
             final var value = readFromDataSource(key);
             markRead(key, value);
@@ -114,7 +109,7 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param value The value
      */
     protected final void markRead(@Nonnull K key, @Nullable V value) {
-        getReadCache().put(key, Objects.requireNonNullElse(value, (V) marker));
+        getReadCache().put(key, value == null ? (V) marker : value);
     }
 
     /**
@@ -128,6 +123,6 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
     }
 
     private Map<Object, Object> getReadCache() {
-        return ContractCallContext.get().getReadCacheState(getStateKey());
+        return ContractCallContext.get().getReadCacheState(getStateId());
     }
 }

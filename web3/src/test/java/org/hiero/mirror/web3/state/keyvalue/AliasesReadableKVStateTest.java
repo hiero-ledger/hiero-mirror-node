@@ -166,13 +166,13 @@ class AliasesReadableKVStateTest {
         when(commonEntityAccessor.get(ALIAS_BYTES.value(), Optional.empty()))
                 .thenReturn(Optional.of(ENTITY_WITH_ALIAS));
         assertThat(contractCallContext
-                        .getReadCacheState(AccountReadableKVState.KEY)
+                        .getReadCacheState(AccountReadableKVState.STATE_ID)
                         .containsKey(ACCOUNT_ID))
                 .isFalse();
         assertThat(aliasesReadableKVState.get(ALIAS_BYTES))
                 .satisfies(accountID -> assertThat(accountID).isEqualTo(ACCOUNT_ID));
         assertThat(contractCallContext
-                        .getReadCacheState(AccountReadableKVState.KEY)
+                        .getReadCacheState(AccountReadableKVState.STATE_ID)
                         .containsKey(ACCOUNT_ID))
                 .isTrue();
     }

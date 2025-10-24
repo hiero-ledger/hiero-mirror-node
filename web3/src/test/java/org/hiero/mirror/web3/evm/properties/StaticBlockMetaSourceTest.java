@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.evm.properties;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
@@ -59,13 +60,13 @@ class StaticBlockMetaSourceTest {
 
         given(repository.findByIndex(1)).willReturn(Optional.of(recordFile));
         final var expected = Hash.fromHexString("0x37313862636664302d616365352d343861632d396430612d3639303631633765");
-        assertThat(subject.getBlockHash(1)).isEqualTo(expected);
+        assertThat(subject.blockHashOf(any(), 1)).isEqualTo(expected);
     }
 
     @Test
     void getBlockHashThrowsExceptionWhitMissingFileId() {
         given(repository.findByIndex(1)).willReturn(Optional.empty());
-        assertThatThrownBy(() -> subject.getBlockHash(1)).isInstanceOf(MissingResultException.class);
+        assertThatThrownBy(() -> subject.blockHashOf(any(), 1)).isInstanceOf(MissingResultException.class);
     }
 
     @Test
@@ -73,7 +74,7 @@ class StaticBlockMetaSourceTest {
         final var recordFile = domainBuilder.recordFile().get();
         final var timeStamp = Instant.ofEpochSecond(0, recordFile.getConsensusStart());
         given(contractCallContext.getRecordFile()).willReturn(recordFile);
-        final var result = subject.computeBlockValues(23L);
+        final var result = subject.blockValuesOf(23L);
         assertThat(result.getGasLimit()).isEqualTo(23);
         assertThat(result.getNumber()).isEqualTo(recordFile.getIndex());
         assertThat(result.getTimestamp()).isEqualTo(timeStamp.getEpochSecond());
@@ -83,7 +84,7 @@ class StaticBlockMetaSourceTest {
     void computeBlockValuesFailsFailsForMissingFileId() {
         given(ContractCallContext.get()).willReturn(contractCallContext);
         given(contractCallContext.getRecordFile()).willReturn(null);
-        assertThatThrownBy(() -> subject.computeBlockValues(1)).isInstanceOf(MissingResultException.class);
+        assertThatThrownBy(() -> subject.blockValuesOf(1)).isInstanceOf(MissingResultException.class);
     }
 
     @Test

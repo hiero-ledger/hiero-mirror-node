@@ -16,15 +16,15 @@ import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 public class AliasedAccountCacheManager {
 
     public void putAccountAlias(final Bytes accountAlias, final AccountID accountID) {
-        getReadCache(AliasesReadableKVState.KEY)
+        getReadCache(AliasesReadableKVState.STATE_ID)
                 .putIfAbsent(ProtoBytes.newBuilder().value(accountAlias).build(), accountID);
     }
 
     public void putAccountNum(final AccountID accountID, final Account account) {
-        getReadCache(AccountReadableKVState.KEY).putIfAbsent(accountID, account);
+        getReadCache(AccountReadableKVState.STATE_ID).putIfAbsent(accountID, account);
     }
 
-    private Map<Object, Object> getReadCache(final String readCacheKey) {
-        return ContractCallContext.get().getReadCacheState(readCacheKey);
+    private Map<Object, Object> getReadCache(final int readStateId) {
+        return ContractCallContext.get().getReadCacheState(readStateId);
     }
 }

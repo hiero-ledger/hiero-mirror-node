@@ -658,7 +658,7 @@ class OpcodeTracerTest {
                 .worldUpdater(worldUpdater)
                 .gasPrice(Wei.of(GAS_PRICE))
                 .blockValues(mock(BlockValues.class))
-                .blockHashLookup(ignored -> Hash.wrap(Bytes32.ZERO))
+                .blockHashLookup((ignored, gas) -> Hash.wrap(Bytes32.ZERO))
                 .contextVariables(Map.of(ContractCallContext.CONTEXT_NAME, contractCallContext));
     }
 

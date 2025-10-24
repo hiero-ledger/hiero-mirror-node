@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.ids.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_KEY;
+import static com.hedera.node.app.ids.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.node.config.data.HederaConfig;
@@ -21,8 +21,8 @@ public class EntityIdSingleton implements SingletonState<EntityNumber> {
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
-    public String getKey() {
-        return ENTITY_ID_STATE_KEY;
+    public Integer getId() {
+        return ENTITY_ID_STATE_ID;
     }
 
     @Override

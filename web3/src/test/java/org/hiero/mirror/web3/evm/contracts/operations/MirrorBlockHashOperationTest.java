@@ -47,7 +47,7 @@ class MirrorBlockHashOperationTest {
         given(messageFrame.popStackItem()).willReturn(Bytes.of(1, 1, 1, 1, 1, 1, 1, 1, 1));
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)
@@ -66,7 +66,7 @@ class MirrorBlockHashOperationTest {
         given(messageFrame.getBlockValues()).willReturn(blockValues);
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)
@@ -85,7 +85,7 @@ class MirrorBlockHashOperationTest {
         given(messageFrame.getBlockValues()).willReturn(blockValues);
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)
@@ -106,7 +106,7 @@ class MirrorBlockHashOperationTest {
         given(messageFrame.getBlockValues()).willReturn(blockValues);
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)
@@ -128,7 +128,7 @@ class MirrorBlockHashOperationTest {
         given(recordFileRepository.findByIndex(recordFile.getIndex())).willReturn(Optional.of(recordFile));
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)
@@ -149,7 +149,7 @@ class MirrorBlockHashOperationTest {
         given(recordFileRepository.findByIndex(0)).willReturn(Optional.empty());
 
         // When
-        var result = operation.executeFixedCostOperation(messageFrame, null);
+        var result = operation.execute(messageFrame, null);
 
         // Then
         assertThat(result)

@@ -42,7 +42,7 @@ class HederaBlockHashOperationTest {
     void testTooLargeValuePassedReturnsZero() {
         given(messageFrame.popStackItem()).willReturn(Bytes.of(0xa, 0xb, 0xa, 0xb, 0xa, 0xb, 0xa, 0xb, 0xa));
 
-        subject.executeFixedCostOperation(messageFrame, evm);
+        subject.execute(messageFrame, evm);
 
         verify(messageFrame, times(1)).pushStackItem(UInt256.ZERO);
     }

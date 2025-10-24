@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.evm.properties;
 
-import static com.swirlds.state.lifecycle.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
+import static com.hedera.hapi.util.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 import static org.hiero.base.utility.CommonUtils.unhex;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30;
