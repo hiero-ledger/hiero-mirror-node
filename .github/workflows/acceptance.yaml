@@ -189,15 +189,13 @@ jobs:
           declare -A k6MapRestJava
           k6MapRestJava["DEFAULT_TOPIC"]="DEFAULT_TOPIC_WITH_FEE_ID"
           k6MapRestJava["PRECOMPILE"]="DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER"
+          k6MapRestJava["DEFAULT_ACCOUNT_ID_BOB"]="DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER"
 
           for key in "${!k6MapRestJava[@]}"; do
             k6="${k6MapRestJava[$key]}"
             value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
             echo "${k6}=${value}" >> $GITHUB_ENV
           done
-
-          value=$(grep -oP "^DEFAULT_ACCOUNT_ID_BOB=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
-          echo "DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER=${value}" >> $GITHUB_ENV
 
       - name: Install k6
         if: ${{ matrix.stream-type != 'BLOCK' }}
@@ -209,38 +207,33 @@ jobs:
         env:
           DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
           DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
-        #          RESTJAVA_TEST_EXCLUDE: "^(accounts(NftAllowanceOwner|NftAllowanceSpender|OutstandingAirdrop|PendingAirdrop))|rampUp.*$"
         with:
           path: |
             ./tools/k6/src/rest-java/apis.js
           debug: false
           flags: --quiet
 
-      #      - name: Run k6 web3 tests
-      #        if: ${{ matrix.stream-type != 'BLOCK' }}
-      #        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-      #        env:
-      #          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
-      #          BASE_URL: "http://127.0.0.1:8080"
-      #          DEFAULT_DURATION: "3s"
-      #          DEFAULT_GRACEFUL_STOP: "1s"
-      #          DEFAULT_VUS: 2
-      #          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-      #          RUN_COMPLEX_TESTS: "false"
-      #          RUN_ESTIMATE_TESTS: "false"
-      #          RUN_MODIFICATION_TESTS: "false"
-      #          RUN_WITH_VARIABLES: "true"
-      #          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-      #          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
-      #        with:
-      #          path: |
-      #            ./tools/k6/src/web3/apis.js
-      #          debug: false
-      #          flags: --quiet
+      - name: Run k6 web3 tests
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+        env:
+          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+          RUN_COMPLEX_TESTS: "false"
+          RUN_ESTIMATE_TESTS: "false"
+          RUN_MODIFICATION_TESTS: "false"
+          RUN_WITH_VARIABLES: "true"
+          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
+          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
+        with:
+          path: |
+            ./tools/k6/src/web3/apis.js
+          debug: false
+          flags: --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        #        if: ${{ failure() }}
+        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
@@ -253,7 +246,7 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=100000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
 
