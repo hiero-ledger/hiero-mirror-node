@@ -53,6 +53,28 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - accounts
+  /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks:
+    get:
+      summary: List hooks for an account
+      description: Returns a list of hooks associated with a given account ID, alias, or EVM address.
+      operationId: getAccountHooks
+      parameters:
+        - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HooksResponse" # Reference the new response schema
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - hooks # Keep it grouped with other hooks endpoints
   /api/v1/accounts/{idOrAliasOrEvmAddress}/nfts:
     get:
       summary: Get nfts for an account info
@@ -1550,6 +1572,61 @@ components:
           $ref: "#/components/schemas/CryptoAllowances"
         links:
           $ref: "#/components/schemas/Links"
+    HooksResponse:
+      type: object
+      required:
+        - hooks
+        - links
+      properties:
+        hooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hook"
+        links:
+          $ref: "#/components/schemas/Links"
+    Hook:
+      type: object
+      required:
+        - contract_id
+        - deleted
+        - extension_point
+        - hook_id
+        - owner_id
+        - type
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        contract_id:
+          description: The contract entity that contains the hook's executing bytecode
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+        created_timestamp:
+          description: The consensus timestamp when the hook was created
+          allOf:
+            - $ref: "#/components/schemas/TimestampNullable"
+        deleted:
+          description: Whether the hook has been deleted
+          type: boolean
+          example: false
+        extension_point:
+          description: The extension point this hook implements
+          type: string
+          example: "ACCOUNT_ALLOWANCE_HOOK"
+        hook_id:
+          description: The unique identifier for the hook within the owner's scope
+          format: int64
+          type: integer
+          example: 1
+        owner_id:
+          description: The entity that owns the hook
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+        timestamp_range:
+          $ref: "#/components/schemas/TimestampRangeNullable"
+        type:
+          description: The type of the hook implementation
+          type: string
+          example: "LAMBDA"
     NetworkExchangeRateSetResponse:
       type: object
       properties:
