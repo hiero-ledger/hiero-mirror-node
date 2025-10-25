@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static org.hiero.mirror.web3.state.Utils.parseKey;
+
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.ScheduleID;
 import com.hedera.hapi.node.base.TransactionID;
@@ -83,6 +85,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                 .scheduleId(scheduleID)
                 .payerAccountId(EntityIdUtils.toAccountId(schedule.getPayerAccountId()))
                 .schedulerAccountId(EntityIdUtils.toAccountId(schedule.getCreatorAccountId()))
+                .adminKey(parseKey(entity.getKey()))
                 .deleted(entity.getDeleted())
                 .memo(entity.getMemo())
                 .scheduledTransaction(
