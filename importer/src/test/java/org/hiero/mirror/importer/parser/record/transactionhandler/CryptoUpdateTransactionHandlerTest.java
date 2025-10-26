@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -172,10 +173,11 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         // then
         verify(evmHookHandler)
-                .processHookCreationDetails(
-                        eq(recordItem), eq(accountId), eq(transactionBody.getHookCreationDetailsList()));
-        verify(evmHookHandler)
-                .processHookDeletion(eq(recordItem), eq(accountId), eq(transactionBody.getHookIdsToDeleteList()));
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(List.of()));
 
         // Verify entity was updated
         verify(entityListener).onEntity(any(Entity.class));
@@ -195,10 +197,11 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         // then
         verify(evmHookHandler)
-                .processHookDeletion(eq(recordItem), eq(accountId), eq(transactionBody.getHookIdsToDeleteList()));
-        verify(evmHookHandler)
-                .processHookCreationDetails(
-                        eq(recordItem), eq(accountId), eq(transactionBody.getHookCreationDetailsList()));
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(transactionBody.getHookIdsToDeleteList()));
 
         // Verify entity was updated
         verify(entityListener).onEntity(any(Entity.class));
@@ -219,10 +222,11 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         // then
         verify(evmHookHandler)
-                .processHookDeletion(eq(recordItem), eq(accountId), eq(transactionBody.getHookIdsToDeleteList()));
-        verify(evmHookHandler)
-                .processHookCreationDetails(
-                        eq(recordItem), eq(accountId), eq(transactionBody.getHookCreationDetailsList()));
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(transactionBody.getHookIdsToDeleteList()));
 
         // Verify entity was updated
         verify(entityListener).onEntity(any(Entity.class));
@@ -238,8 +242,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(evmHookHandler).processHookDeletion(eq(recordItem), any(EntityId.class), eq(List.of()));
-        verify(evmHookHandler).processHookCreationDetails(eq(recordItem), any(EntityId.class), eq(List.of()));
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
     private Transaction transaction(RecordItem recordItem) {

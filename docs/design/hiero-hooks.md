@@ -179,7 +179,7 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 -- Main hook table (current state)
 create table if not exists hook
 (
-    contract_id         bigint                not null,
+    contract_id         bigint,
     created_timestamp   bigint,
     hook_id             bigint                not null,
     owner_id            bigint                not null,
@@ -197,8 +197,6 @@ create table if not exists hook_history
 (
     like hook including defaults
 );
--- Allow contract_id to be null in hook_history
-alter table hook_history alter column contract_id drop not null;
 
 select create_distributed_table('hook', 'owner_id', colocate_with => 'entity');
 select create_distributed_table('hook_history', 'owner_id', colocate_with => 'entity');

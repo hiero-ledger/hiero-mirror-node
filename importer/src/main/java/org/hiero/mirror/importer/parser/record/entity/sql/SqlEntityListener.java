@@ -639,6 +639,23 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (previous != null && previous.getDeleted() && current.getTimestampUpper() == null) {
             previous.setTimestampUpper(current.getTimestampLower() + 1);
         }
+        Hook src = current.hasHistory() ? current : previous;
+        Hook dest = current.hasHistory() ? previous : current;
+        if (dest.getExtensionPoint() == null) {
+            dest.setExtensionPoint(src.getExtensionPoint());
+        }
+        if (dest.getType() == null) {
+            dest.setType(src.getType());
+        }
+        if (dest.getContractId() == null) {
+            dest.setContractId(src.getContractId());
+        }
+        if (dest.getAdminKey() == null) {
+            dest.setAdminKey(src.getAdminKey());
+        }
+        if (dest.getCreatedTimestamp() == null) {
+            dest.setCreatedTimestamp(src.getCreatedTimestamp());
+        }
         return current;
     }
 

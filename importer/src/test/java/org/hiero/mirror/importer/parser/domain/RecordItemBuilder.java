@@ -547,21 +547,7 @@ public class RecordItemBuilder {
                 .setAdminKey(key())
                 .build();
 
-        var builder = CryptoCreateTransactionBody.newBuilder()
-                .setAlias(bytes(20))
-                .setAutoRenewPeriod(duration(30))
-                .setDeclineReward(true)
-                .setInitialBalance(1000L)
-                .setKey(key())
-                .setMaxAutomaticTokenAssociations(2)
-                .setMemo(text(16))
-                .setProxyAccountID(accountId())
-                .setRealmID(REALM_ID)
-                .setReceiverSigRequired(false)
-                .setShardID(SHARD_ID)
-                .setStakedNodeId(1L)
-                .addHookCreationDetails(hookCreationDetails);
-        return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
+        return cryptoCreate().transactionBody(b -> b.addHookCreationDetails(hookCreationDetails));
     }
 
     public Builder<CryptoDeleteTransactionBody.Builder> cryptoDelete() {

@@ -91,8 +91,7 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
 
         updateStakingInfo(recordItem, entity);
         entityListener.onEntity(entity);
-        evmHookHandler.processHookCreationDetails(
-                recordItem, entity.toEntityId(), transactionBody.getHookCreationDetailsList());
+        evmHookHandler.process(recordItem, entity.getId(), transactionBody.getHookCreationDetailsList(), null);
     }
 
     private void updateStakingInfo(RecordItem recordItem, Entity entity) {

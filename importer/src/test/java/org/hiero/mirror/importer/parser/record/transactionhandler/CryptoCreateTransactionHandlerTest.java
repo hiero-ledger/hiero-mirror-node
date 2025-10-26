@@ -4,8 +4,9 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -286,8 +287,11 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         // then
         verify(evmHookHandler)
-                .processHookCreationDetails(
-                        eq(recordItem), eq(accountId), eq(transactionBody.getHookCreationDetailsList()));
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        isNull());
 
         // Verify entity was created
         assertEntity(accountId, recordItem.getConsensusTimestamp());
@@ -305,7 +309,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(evmHookHandler).processHookCreationDetails(eq(recordItem), any(EntityId.class), eq(List.of()));
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), isNull());
     }
 
     private ObjectAssert<Entity> assertEntity(EntityId accountId, long timestamp) {

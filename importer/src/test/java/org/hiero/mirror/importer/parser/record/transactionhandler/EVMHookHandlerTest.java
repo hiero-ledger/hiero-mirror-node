@@ -30,7 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class EVMHookHandlerTest {
+final class EVMHookHandlerTest {
 
     @Mock
     private EntityListener entityListener;
@@ -70,7 +70,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
+        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, null);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -104,7 +104,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
+        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, null);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -122,7 +122,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        eVMHookHandler.processHookCreationDetails(recordItem, entityId, null);
+        eVMHookHandler.process(recordItem, entityId.getId(), null, null);
 
         // then
         verifyNoInteractions(entityListener);
@@ -134,7 +134,7 @@ class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        eVMHookHandler.processHookCreationDetails(recordItem, entityId, Collections.emptyList());
+        eVMHookHandler.process(recordItem, entityId.getId(), Collections.emptyList(), null);
 
         // then
         verifyNoInteractions(entityListener);
@@ -152,7 +152,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+        eVMHookHandler.process(recordItem, entityId.getId(), null, hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -191,7 +191,7 @@ class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.processHookDeletion(recordItem, entityId, hookIdsToDelete);
+        eVMHookHandler.process(recordItem, entityId.getId(), null, hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -207,24 +207,12 @@ class EVMHookHandlerTest {
     }
 
     @Test
-    void processHookDeletionWithNullList() {
-        // given
-        var entityId = EntityId.of(0, 0, 1000);
-
-        // when
-        eVMHookHandler.processHookDeletion(recordItem, entityId, null);
-
-        // then
-        verifyNoInteractions(entityListener);
-    }
-
-    @Test
     void processHookDeletionWithEmptyList() {
         // given
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        eVMHookHandler.processHookDeletion(recordItem, entityId, Collections.emptyList());
+        eVMHookHandler.process(recordItem, entityId.getId(), null, Collections.emptyList());
 
         // then
         verifyNoInteractions(entityListener);
