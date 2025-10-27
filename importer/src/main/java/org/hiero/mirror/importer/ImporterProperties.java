@@ -76,7 +76,8 @@ public class ImporterProperties {
         if (groupByDay) {
             return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));
         }
-        return getStreamPath().resolve(streamFileData.getFilename());
+
+        return getStreamPath();
     }
 
     public String getNetwork() {
