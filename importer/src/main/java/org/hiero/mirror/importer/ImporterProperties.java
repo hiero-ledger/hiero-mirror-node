@@ -70,13 +70,14 @@ public class ImporterProperties {
     private Long topicRunningHashV2AddedTimestamp;
 
     @NotNull
-    private Version smartContractThrottlingVersion = Version.parse("0.67.0");
+    private Version smartContractThrottlingVersion = Version.parse("0.68.0");
 
     public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
         if (groupByDay) {
             return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));
         }
-        return getStreamPath().resolve(streamFileData.getFilename());
+
+        return getStreamPath();
     }
 
     public String getNetwork() {
