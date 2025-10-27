@@ -3,12 +3,12 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_SCHEDULES_BY_ID_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.ACCOUNT_CREATE;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CONTRACT_CALL;
@@ -740,7 +740,7 @@ public class BlockTransactionBuilder {
                         sidecarRecords, TransactionSidecarRecord::hasBytecode, TransactionSidecarRecord::getBytecode)
                 .ifPresent(bytecode -> {
                     stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                            .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                            .setStateId(STATE_ID_BYTECODE_VALUE)
                             .setMapUpdate(MapUpdateChange.newBuilder()
                                     .setKey(MapChangeKey.newBuilder().setContractIdKey(bytecode.getContractId()))
                                     .setValue(MapChangeValue.newBuilder()
@@ -782,7 +782,7 @@ public class BlockTransactionBuilder {
 
         // add an identical MapUpdateChange
         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                .setStateId(STATE_ID_STORAGE_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setIdentical(true)
                         .setKey(MapChangeKey.newBuilder()
@@ -818,7 +818,7 @@ public class BlockTransactionBuilder {
                             .build();
                     if (!BytesValue.getDefaultInstance().equals(storageChange.getValueWritten())) {
                         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setStateId(STATE_ID_STORAGE_VALUE)
                                 .setMapUpdate(MapUpdateChange.newBuilder()
                                         .setKey(mapChangeKey)
                                         .setValue(MapChangeValue.newBuilder()
@@ -828,7 +828,7 @@ public class BlockTransactionBuilder {
                     } else {
                         // deleted
                         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setStateId(STATE_ID_STORAGE_VALUE)
                                 .setMapDelete(MapDeleteChange.newBuilder().setKey(mapChangeKey)));
                     }
                 }

@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution;
 
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.service.evm.contracts.execution.BlockMetaSource;
+import com.hedera.node.app.service.contract.impl.hevm.HederaEvmBlocks;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTxProcessor;
@@ -44,6 +44,7 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
     private final Store store;
     private final EntityAddressSequencer entityAddressSequencer;
     private final TokenAccessor tokenAccessor;
+    private final CodeFactory codeFactory;
 
     @SuppressWarnings("java:S107")
     public MirrorEvmTxProcessorImpl(
@@ -53,13 +54,14 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
             final GasCalculator gasCalculator,
             final Map<SemanticVersion, Provider<MessageCallProcessor>> mcps,
             final Map<SemanticVersion, Provider<ContractCreationProcessor>> ccps,
-            final BlockMetaSource blockMetaSource,
+            final HederaEvmBlocks blockMetaSource,
             final MirrorEvmContractAliases aliasManager,
             final AbstractCodeCache codeCache,
             final Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap,
             final Store store,
             final EntityAddressSequencer entityAddressSequencer,
-            final TokenAccessor tokenAccessor) {
+            final TokenAccessor tokenAccessor,
+            final CodeFactory codeFactory) {
         super(
                 worldState,
                 pricesAndFeesProvider,
@@ -75,6 +77,7 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
         this.store = store;
         this.entityAddressSequencer = entityAddressSequencer;
         this.tokenAccessor = tokenAccessor;
+        this.codeFactory = codeFactory;
     }
 
     public HederaEvmTransactionProcessingResult execute(final CallServiceParameters params, final long estimatedGas) {
@@ -104,20 +107,26 @@ public class MirrorEvmTxProcessorImpl extends HederaEvmTxProcessor implements Mi
                 params.isStatic(),
                 aliasManager.resolveForEvm(params.getReceiver()),
                 params.getReceiver().equals(Address.ZERO),
-                params.getTracerType());
+                params.getTracerType(),
+                codeFactory);
     }
 
     @Override
     protected MessageFrame buildInitialFrame(
-            final MessageFrame.Builder baseInitialFrame, final Address to, final Bytes payload, long value) {
+            final MessageFrame.Builder baseInitialFrame,
+            final Address to,
+            final Bytes payload,
+            long value,
+            final CodeFactory codeFactory) {
         if (Address.ZERO.equals(to)) {
             var contractAddress = EntityIdUtils.asTypedEvmAddress(entityAddressSequencer.getNewContractId(to));
+
             return baseInitialFrame
                     .type(MessageFrame.Type.CONTRACT_CREATION)
                     .address(contractAddress)
                     .contract(contractAddress)
                     .inputData(Bytes.EMPTY)
-                    .code(CodeFactory.createCode(payload, 0, false))
+                    .code(codeFactory.createCode(payload, false))
                     .build();
         } else {
             final var resolvedForEvm = aliasManager.resolveForEvm(to);

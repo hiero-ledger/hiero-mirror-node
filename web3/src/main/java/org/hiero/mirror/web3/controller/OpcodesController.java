@@ -67,17 +67,8 @@ class OpcodesController {
             throw new ThrottleException("Requests per second rate limit exceeded.");
         }
 
-        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
-
-        // Temporary workaround to ensure modularized services are fully available when enabled.
-        // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
-        // can distribute traffic between the old and new logic.
-        if (isModularizedHeader != null && evmProperties.isModularizedServices()) {
-            isModularized = Boolean.parseBoolean(isModularizedHeader);
-        }
-
-        response.addHeader(MODULARIZED_HEADER, String.valueOf(isModularized));
-        final var options = new OpcodeTracerOptions(stack, memory, storage, isModularized);
+        response.addHeader(MODULARIZED_HEADER, String.valueOf(true));
+        final var options = new OpcodeTracerOptions(stack, memory, storage, true);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options);
     }
 }

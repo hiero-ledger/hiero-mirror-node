@@ -12,10 +12,10 @@ import com.swirlds.state.spi.WritableQueueStateBase;
 import com.swirlds.state.spi.WritableSingletonState;
 import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings({"rawtypes", "unchecked"})
 public class MapWritableStates extends AbstractMapReadableState implements WritableStates, CommittableWritableStates {
@@ -23,54 +23,54 @@ public class MapWritableStates extends AbstractMapReadableState implements Writa
     @Nullable
     private final Runnable onCommit;
 
-    public MapWritableStates(@Nonnull final Map<String, ?> states) {
+    public MapWritableStates(@NonNull final Map<Integer, ?> states) {
         this(states, null);
     }
 
-    public MapWritableStates(@Nonnull final Map<String, ?> states, @Nullable final Runnable onCommit) {
+    public MapWritableStates(@NonNull final Map<Integer, ?> states, @Nullable final Runnable onCommit) {
         super(states);
         this.onCommit = onCommit;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <K, V> WritableKVState<K, V> get(@Nonnull String stateKey) {
-        final var state = states.get(requireNonNull(stateKey));
+    public <K, V> WritableKVState<K, V> get(int stateId) {
+        final var state = states.get(requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown k/v state key: " + stateId);
         }
         if (!(state instanceof WritableKVState)) {
-            throw new IllegalArgumentException("State is not an instance of WritableKVState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of WritableKVState: " + stateId);
         }
 
         return (WritableKVState<K, V>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <T> WritableSingletonState<T> getSingleton(@Nonnull final String stateKey) {
-        final var state = states.get(requireNonNull(stateKey));
+    public <T> WritableSingletonState<T> getSingleton(@NonNull final int stateId) {
+        final var state = states.get(requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown singleton state key: " + stateId);
         }
 
         if (!(state instanceof WritableSingletonState)) {
-            throw new IllegalArgumentException("State is not an instance of WritableSingletonState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of WritableSingletonState: " + stateId);
         }
 
         return (WritableSingletonState<T>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <E> WritableQueueState<E> getQueue(@Nonnull final String stateKey) {
-        final var state = states.get(requireNonNull(stateKey));
+    public <E> WritableQueueState<E> getQueue(@NonNull final int stateId) {
+        final var state = states.get(requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown queue state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown queue state key: " + stateId);
         }
 
         if (!(state instanceof WritableQueueState)) {
-            throw new IllegalArgumentException("State is not an instance of WritableQueueState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of WritableQueueState: " + stateId);
         }
 
         return (WritableQueueState<E>) state;

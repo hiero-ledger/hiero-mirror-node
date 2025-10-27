@@ -44,7 +44,7 @@ class ContractController {
             throttleManager.throttle(request);
             validateContractMaxGasLimit(request);
 
-            final var params = constructServiceParameters(request, isModularizedHeader);
+            final var params = constructServiceParameters(request);
             response.addHeader(MODULARIZED_HEADER, String.valueOf(params.isModularized()));
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
@@ -55,8 +55,7 @@ class ContractController {
         }
     }
 
-    private ContractExecutionParameters constructServiceParameters(
-            ContractCallRequest request, final String isModularizedHeader) {
+    private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
         final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
 
         Address receiver;
@@ -79,26 +78,13 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
 
-        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
-
-        // Temporary workaround to ensure modularized services are fully available when enabled.
-        // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
-        // can distribute traffic between the old and new logic.
-        if (isModularizedHeader != null && evmProperties.isModularizedServices()) {
-            isModularized = Boolean.parseBoolean(isModularizedHeader);
-        }
-
-        if (request.getModularized() != null) {
-            isModularized = request.getModularized();
-        }
-
         return ContractExecutionParameters.builder()
                 .block(block)
                 .callData(data)
                 .callType(callType)
                 .gas(request.getGas())
                 .isEstimate(request.isEstimate())
-                .isModularized(isModularized)
+                .isModularized(true)
                 .isStatic(isStaticCall)
                 .receiver(receiver)
                 .sender(fromAddress)

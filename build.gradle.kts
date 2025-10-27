@@ -16,7 +16,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.20.1")
+    set("blockNodeVersion", "0.21.1")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.76.0")
     set("jooq.version", "3.20.8") // Must match buildSrc/build.gradle.kts
@@ -50,9 +50,9 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.66.0")
+        api("com.hedera.hashgraph:app:0.67.2")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.66.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.67.2")
         api("com.hedera.hashgraph:sdk:2.64.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")

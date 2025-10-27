@@ -613,14 +613,14 @@ class AccountReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(Optional.empty());
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(entity));
         assertThat(contractCallContext
-                        .getReadCacheState(AliasesReadableKVState.KEY)
+                        .getReadCacheState(AliasesReadableKVState.STATE_ID)
                         .containsKey(EVM_ADDRESS_BYTES))
                 .isFalse();
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)
                 .returns(ACCOUNT_ID, Account::accountId)
                 .returns(EVM_ADDRESS_BYTES.value(), Account::alias));
         assertThat(contractCallContext
-                        .getReadCacheState(AliasesReadableKVState.KEY)
+                        .getReadCacheState(AliasesReadableKVState.STATE_ID)
                         .containsKey(EVM_ADDRESS_BYTES))
                 .isTrue();
     }
