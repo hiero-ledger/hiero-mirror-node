@@ -17,7 +17,6 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -27,6 +26,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.NonNull;
 
 public final class StateChangeContext {
 
@@ -94,19 +94,19 @@ public final class StateChangeContext {
         topicIds.sort(TOPIC_ID_COMPARATOR);
     }
 
-    public Optional<Account> getAccount(@Nonnull AccountID id) {
+    public Optional<Account> getAccount(@NonNull AccountID id) {
         return Optional.ofNullable(accounts.get(id));
     }
 
-    public Optional<ByteString> getContractBytecode(@Nonnull ContractID id) {
+    public Optional<ByteString> getContractBytecode(@NonNull ContractID id) {
         return Optional.ofNullable(contractBytecodes.get(id));
     }
 
-    public Optional<ContractID> getContractId(@Nonnull ByteString evmAddress) {
+    public Optional<ContractID> getContractId(@NonNull ByteString evmAddress) {
         return Optional.ofNullable(contractIds.get(evmAddress));
     }
 
-    public SlotValue getContractStorageChange(@Nonnull ContractID contractId, int index) {
+    public SlotValue getContractStorageChange(@NonNull ContractID contractId, int index) {
         if (index < 0) {
             return null;
         }
@@ -119,7 +119,7 @@ public final class StateChangeContext {
         return indexed.get(index);
     }
 
-    public BytesValue getContractStorageValueWritten(@Nonnull SlotKey slotKey) {
+    public BytesValue getContractStorageValueWritten(@NonNull SlotKey slotKey) {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
@@ -155,7 +155,7 @@ public final class StateChangeContext {
         return Optional.of(topicIds.removeLast());
     }
 
-    public Optional<TopicMessage> getTopicMessage(@Nonnull TopicID topicId) {
+    public Optional<TopicMessage> getTopicMessage(@NonNull TopicID topicId) {
         return Optional.ofNullable(topicState.remove(topicId));
     }
 
@@ -166,7 +166,7 @@ public final class StateChangeContext {
      * @param change - The amount of change to track
      * @return An optional of the pending airdrop's amount
      */
-    public Optional<Long> trackPendingFungibleAirdrop(@Nonnull PendingAirdropId pendingAirdropId, long change) {
+    public Optional<Long> trackPendingFungibleAirdrop(@NonNull PendingAirdropId pendingAirdropId, long change) {
         return Optional.ofNullable(pendingFungibleAirdrops.remove(pendingAirdropId))
                 .map(amount -> {
                     if (change < amount) {
@@ -185,7 +185,7 @@ public final class StateChangeContext {
      *               should be negative; for transactions which reduced the total supply, the value should be positive
      * @return An optional of the token total supply
      */
-    public Optional<Long> trackTokenTotalSupply(@Nonnull TokenID tokenId, long change) {
+    public Optional<Long> trackTokenTotalSupply(@NonNull TokenID tokenId, long change) {
         return Optional.ofNullable(tokenTotalSupplies.get(tokenId)).map(totalSupply -> {
             tokenTotalSupplies.put(tokenId, totalSupply + change);
             return totalSupply;

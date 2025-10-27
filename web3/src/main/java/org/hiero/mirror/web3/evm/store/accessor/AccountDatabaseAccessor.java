@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BinaryOperator;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance;
@@ -48,6 +47,7 @@ import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor

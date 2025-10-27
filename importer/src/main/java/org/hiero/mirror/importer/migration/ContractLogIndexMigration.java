@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Map;
@@ -14,6 +13,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -202,7 +202,7 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
         return endTimestamp;
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Optional<Long> migratePartial(Long consensusEndTimestamp) {
         // Get record files for an interval of time.

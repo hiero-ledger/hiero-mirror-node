@@ -171,6 +171,57 @@ func (suite *addressBookEntryRepositorySuite) TestEntriesDbConnectionError() {
 	assert.Nil(suite.T(), actual)
 }
 
+func (suite *addressBookEntryRepositorySuite) TestEntriesWithNodeAccountId() {
+	// given:
+	accountId5 := MustEncodeEntityId(suite.shard, suite.realm, 5)
+	accountId6 := MustEncodeEntityId(suite.shard, suite.realm, 6)
+
+	db.CreateDbRecords(dbClient, suite.addressBooks, suite.addressBookEntries, suite.addressBookServiceEndpoints)
+
+	suite.createNode(0, accountId5)
+	suite.createNode(1, accountId6)
+
+	expected := &types.AddressBookEntries{
+		Entries: []types.AddressBookEntry{
+			{0, accountId5, []string{"192.168.0.1:50211", "192.168.0.1:50217", "192.168.0.10:50211"}},
+			{1, accountId6, []string{"192.168.1.10:50211"}},
+		},
+	}
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
+
+	// when
+	actual, err := repo.Entries(defaultContext)
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
+}
+
+func (suite *addressBookEntryRepositorySuite) TestEntriesWithMixedNodeAccountIds() {
+	// given:
+	accountId5 := MustEncodeEntityId(suite.shard, suite.realm, 5)
+
+	db.CreateDbRecords(dbClient, suite.addressBooks, suite.addressBookEntries, suite.addressBookServiceEndpoints)
+
+	suite.createNode(0, accountId5)
+	suite.createNodeWithNullAccountId(1)
+
+	expected := &types.AddressBookEntries{
+		Entries: []types.AddressBookEntry{
+			{0, accountId5, []string{"192.168.0.1:50211", "192.168.0.1:50217", "192.168.0.10:50211"}},
+			{1, suite.accountId70, []string{"192.168.1.10:50211"}},
+		},
+	}
+	repo := NewAddressBookEntryRepository(suite.systemEntity.GetAddressBook101(), suite.systemEntity.GetAddressBook102(), dbClient)
+
+	// when
+	actual, err := repo.Entries(defaultContext)
+
+	// then
+	assert.Nil(suite.T(), err)
+	assert.Equal(suite.T(), expected, actual)
+}
+
 func MustEncodeEntityId(shard, realm, num int64) domain.EntityId {
 	encodedId, err := domain.EntityIdOf(shard, realm, num)
 	if err != nil {
@@ -198,4 +249,21 @@ func getAddressBookEntry(
 		NodeId:             nodeId,
 		NodeAccountId:      nodeAccountId,
 	}
+}
+
+func (suite *addressBookEntryRepositorySuite) createNode(nodeId int64, accountId domain.EntityId) {
+	dbClient.GetDb().Exec(
+		`INSERT INTO node (node_id, account_id, created_timestamp, deleted, timestamp_range)
+		 VALUES (?, ?, 1, false, int8range(1, NULL, '[)'))`,
+		nodeId,
+		accountId.EncodedId,
+	)
+}
+
+func (suite *addressBookEntryRepositorySuite) createNodeWithNullAccountId(nodeId int64) {
+	dbClient.GetDb().Exec(
+		`INSERT INTO node (node_id, account_id, created_timestamp, deleted, timestamp_range)
+		 VALUES (?, NULL, 1, false, int8range(1, NULL, '[)'))`,
+		nodeId,
+	)
 }

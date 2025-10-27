@@ -18,7 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class StreamFilenameTest {
+final class StreamFilenameTest {
 
     @Test
     void fromBlockNumber() {
@@ -237,6 +237,6 @@ class StreamFilenameTest {
         assertThrows(NullPointerException.class, () -> StreamFilename.from("somePath", null));
         assertThrows(NullPointerException.class, () -> StreamFilename.from((StreamFilename) null, "someFilename"));
         assertThrows(NullPointerException.class, () -> StreamFilename.from("somePath", null, "\\"));
-        assertThrows(NullPointerException.class, () -> StreamFilename.from("somePath", "someFilename", null));
+        assertThrows(InvalidStreamFileException.class, () -> StreamFilename.from("somePath", "someFilename", null));
     }
 }

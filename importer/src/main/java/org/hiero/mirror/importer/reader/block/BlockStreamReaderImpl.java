@@ -26,7 +26,6 @@ import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -43,12 +42,13 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.jspecify.annotations.NonNull;
 
 @Named
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
     @Override
-    public BlockFile read(@Nonnull BlockStream blockStream) {
+    public BlockFile read(@NonNull BlockStream blockStream) {
         var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
         byte[] bytes = blockStream.bytes();
         Integer size = bytes != null ? bytes.length : null;
@@ -242,7 +242,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         private Map<TransactionID, BlockTransaction> scheduledTransactionTriggers = new HashMap<>();
 
-        ReaderContext(@Nonnull List<BlockItem> blockItems, @Nonnull String filename) {
+        ReaderContext(@NonNull List<BlockItem> blockItems, @NonNull String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
             this.blockRootHashDigest = new BlockRootHashDigest();
@@ -284,7 +284,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             return blockItem;
         }
 
-        void setLastBlockTransaction(@Nonnull BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
+        void setLastBlockTransaction(@NonNull BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
             if (userTransactionInBatch) {
                 if (lastUserTransactionInBatch != null
                         && batchBody != null

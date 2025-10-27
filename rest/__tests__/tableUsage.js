@@ -67,7 +67,7 @@ const recordQuery = (callerInfo, query) => {
 };
 
 const shouldTrackTableUsage = (callerFilePath) => {
-  if (!enabled || callerFilePath.includes('__tests__')) {
+  if (!enabled || !callerFilePath || callerFilePath.includes('__tests__')) {
     return false;
   }
 

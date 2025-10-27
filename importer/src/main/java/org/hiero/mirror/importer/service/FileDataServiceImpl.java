@@ -6,7 +6,6 @@ import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_FILE_DAT
 import static org.hiero.mirror.importer.config.CacheConfiguration.CACHE_NAME;
 
 import com.google.common.collect.Lists;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -20,6 +19,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.RecordFileParsedEvent;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.repository.FileDataRepository;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -69,7 +69,7 @@ final class FileDataServiceImpl implements EntityListener, FileDataService {
     }
 
     @Override
-    public void onFileData(@Nonnull FileData fileData) {
+    public void onFileData(@NonNull FileData fileData) {
         if (DomainUtils.isSystemEntity(fileData.getEntityId())) {
             return;
         }

@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -35,6 +34,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.NftRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor

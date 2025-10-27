@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.temporal.ChronoUnit;
 import java.util.Objects;
@@ -16,6 +15,7 @@ import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.db.TimePartitionService;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.context.annotation.Profile;
@@ -173,7 +173,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
         return MigrationVersion.fromVersion("1.89.2"); // The version balance table partitions are created
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Optional<Long> migratePartial(Long last) {
         var stopwatch = Stopwatch.createStarted();

@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.evm.store.impl;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BinaryOperator;
-import lombok.NonNull;
+import org.jspecify.annotations.NonNull;
 
 /** Utility class to compute the state of a cache line.
  *

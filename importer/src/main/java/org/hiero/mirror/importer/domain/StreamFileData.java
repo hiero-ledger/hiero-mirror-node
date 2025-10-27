@@ -14,16 +14,17 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.compress.compressors.CompressorStreamFactory;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.jspecify.annotations.NullMarked;
 
 @CustomLog
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@NullMarked
 @Value
 public class StreamFileData {
 
@@ -56,27 +57,27 @@ public class StreamFileData {
         return new StreamFileData(streamFilename, bytes, lastModified);
     }
 
-    public static StreamFileData from(@NonNull File file) {
+    public static StreamFileData from(File file) {
         return readStreamFileData(file, StreamFilename.from(file.getPath(), File.separator));
     }
 
-    public static StreamFileData from(@NonNull File file, StreamFilename streamFilename) {
+    public static StreamFileData from(File file, StreamFilename streamFilename) {
         return readStreamFileData(file, streamFilename);
     }
 
-    public static StreamFileData from(@NonNull Path basePath, @NonNull StreamFilename streamFilename) {
+    public static StreamFileData from(Path basePath, StreamFilename streamFilename) {
         var streamFile = new File(basePath.toFile(), streamFilename.getFilePath());
         return readStreamFileData(streamFile, streamFilename);
     }
 
     // Used for testing String based files like CSVs
-    public static StreamFileData from(@NonNull String filename, @NonNull String contents) {
+    public static StreamFileData from(String filename, String contents) {
         return new StreamFileData(
                 StreamFilename.from(filename), () -> contents.getBytes(StandardCharsets.UTF_8), Instant.now());
     }
 
     // Used for testing with raw bytes
-    public static StreamFileData from(@NonNull String filename, byte[] bytes) {
+    public static StreamFileData from(String filename, byte[] bytes) {
         return new StreamFileData(StreamFilename.from(filename), () -> bytes, Instant.now());
     }
 

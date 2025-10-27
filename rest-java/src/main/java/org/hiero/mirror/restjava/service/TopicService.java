@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.restjava.service;
 
-import jakarta.annotation.Nonnull;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.Topic;
+import org.jspecify.annotations.NonNull;
 
 public interface TopicService {
 
-    Topic findById(@Nonnull EntityId id);
+    Topic findById(@NonNull EntityId id);
 }
