@@ -18,6 +18,7 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
+import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
@@ -30,16 +31,46 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 public abstract class AbstractHook implements History {
 
     @ToString.Exclude
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then {0}
+                                 else coalesce({0}, e_{0})
+                            end""")
     private byte[] adminKey;
 
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then {0}
+                                 else coalesce({0}, e_{0})
+                            end""")
     private EntityId contractId;
 
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then {0}
+                                 else coalesce({0}, e_{0})
+                            end""")
     private Long createdTimestamp;
 
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then coalesce({0}, {1})
+                                 else coalesce({0}, e_{0}, {1})
+                            end""")
     private Boolean deleted;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then coalesce({0}, {1})
+                                 else coalesce({0}, e_{0}, {1})
+                            end""")
     private HookExtensionPoint extensionPoint;
 
     @jakarta.persistence.Id
@@ -48,10 +79,22 @@ public abstract class AbstractHook implements History {
     @jakarta.persistence.Id
     private long ownerId;
 
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then {0}
+                                 else coalesce({0}, e_{0})
+                            end""")
     private Range<Long> timestampRange;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @UpsertColumn(
+            coalesce =
+                    """
+                            case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then coalesce({0}, {1})
+                                 else coalesce({0}, e_{0}, {1})
+                            end""")
     private HookType type;
 
     @JsonIgnore
