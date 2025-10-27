@@ -31,7 +31,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
 
-    public static final String KEY = "TOKEN_RELS";
     public static final int STATE_ID = TOKEN_RELS_STATE_ID;
 
     private final NftRepository nftRepository;

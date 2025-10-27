@@ -29,7 +29,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
-    public static final String KEY = "NFTS";
     public static final int STATE_ID = NFTS_STATE_ID;
     private final NftRepository nftRepository;
     private final TokenRepository tokenRepository;

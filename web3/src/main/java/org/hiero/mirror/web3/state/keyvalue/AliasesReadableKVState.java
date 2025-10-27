@@ -23,7 +23,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVState<ProtoBytes, AccountID> {
 
-    public static final String KEY = "ALIASES";
     public static final Integer STATE_ID = ALIASES_STATE_ID;
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;

@@ -17,7 +17,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
 
-    public static final String KEY = "PENDING_AIRDROPS";
     public static final int STATE_ID = AIRDROPS_STATE_ID;
 
     private final TokenAirdropRepository tokenAirdropRepository;

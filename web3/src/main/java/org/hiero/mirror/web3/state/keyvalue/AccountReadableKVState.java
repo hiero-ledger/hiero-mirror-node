@@ -63,7 +63,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     @Override
-    protected Account readFromDataSource(@Nonnull AccountID key) {
+    protected Account readFromDataSource(@NonNull AccountID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         return commonEntityAccessor
                 .get(key, timestamp)

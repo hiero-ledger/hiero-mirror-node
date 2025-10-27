@@ -18,10 +18,10 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @NonNull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@NonNull int stateId) {
+    public <K, V> ReadableKVState<K, V> get(int stateId) {
         final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown k/v state key: " + stateId);
+            throw new IllegalArgumentException("Unknown k/v state id: " + stateId);
         }
         if (!(state instanceof ReadableKVState)) {
             throw new IllegalArgumentException("State is not an instance of ReadableKVState: " + stateId);
@@ -32,14 +32,14 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @NonNull
     @Override
-    public <T> ReadableSingletonState<T> getSingleton(@NonNull int stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <T> ReadableSingletonState<T> getSingleton(int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown singleton state id: " + stateId);
         }
 
         if (!(state instanceof ReadableSingletonState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableSingletonState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableSingletonState: " + stateId);
         }
 
         return (ReadableSingletonState<T>) state;
@@ -47,14 +47,14 @@ public class MapReadableStates extends AbstractMapReadableState {
 
     @NonNull
     @Override
-    public <E> ReadableQueueState<E> getQueue(@NonNull int stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <E> ReadableQueueState<E> getQueue(int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown queue state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown queue state id: " + stateId);
         }
 
         if (!(state instanceof ReadableQueueState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableQueueState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableQueueState: " + stateId);
         }
 
         return (ReadableQueueState<E>) state;

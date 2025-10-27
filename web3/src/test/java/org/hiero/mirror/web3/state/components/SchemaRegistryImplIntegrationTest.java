@@ -26,6 +26,7 @@ import com.hedera.node.app.config.ConfigProviderImpl;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableStates;
+import jakarta.annotation.Resource;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -76,22 +77,22 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
 
     private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
     private MirrorNodeState mirrorNodeState;
-    private StateRegistry stateRegistry;
 
     private SchemaRegistryImpl schemaRegistry;
-    private String serviceName = SERVICE_NAME;
 
     private Configuration config;
 
+    @Resource
+    protected StateRegistry stateRegistry;
+
     @BeforeEach
     void setup() {
-        stateRegistry = new StateRegistry(java.util.List.of(), java.util.List.of());
         mirrorNodeState = new MirrorNodeState(
                 java.util.List.of(),
                 mock(com.hedera.node.app.services.ServicesRegistry.class),
                 mock(org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.class),
                 mock(org.hiero.mirror.web3.repository.RecordFileRepository.class));
-        schemaRegistry = new SchemaRegistryImpl(serviceName, stateRegistry);
+        schemaRegistry = new SchemaRegistryImpl(SERVICE_NAME, stateRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }
 

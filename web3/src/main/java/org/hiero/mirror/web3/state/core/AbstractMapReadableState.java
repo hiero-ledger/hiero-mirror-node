@@ -18,8 +18,8 @@ abstract class AbstractMapReadableState implements ReadableStates {
     }
 
     @Override
-    public boolean contains(@NonNull int stateKey) {
-        return states.containsKey(stateKey);
+    public boolean contains(int stateId) {
+        return states.containsKey(stateId);
     }
 
     @NonNull

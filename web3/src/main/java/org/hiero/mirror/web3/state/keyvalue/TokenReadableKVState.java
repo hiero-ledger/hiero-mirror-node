@@ -47,7 +47,6 @@ import org.springframework.util.CollectionUtils;
 @Named
 public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
 
-    public static final String KEY = "TOKENS";
     public static final int STATE_ID = TOKENS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;

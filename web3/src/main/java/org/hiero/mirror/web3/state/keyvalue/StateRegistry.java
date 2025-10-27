@@ -10,6 +10,7 @@ import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
 import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
+import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
 import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
@@ -27,25 +28,23 @@ import org.jspecify.annotations.NonNull;
 
 @Named
 public final class StateRegistry {
-    private static final Set<Integer> DEFAULT_IMPLEMENTATIONS = Stream.of(
-                    V0490FileSchema.FILES_STATE_ID,
-                    V0490TokenSchema.STAKING_INFOS_STATE_ID,
-                    V0490TokenSchema.TOKENS_STATE_ID,
-                    V0490TokenSchema.ACCOUNTS_STATE_ID,
-                    V0490TokenSchema.TOKEN_RELS_STATE_ID,
-                    V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID,
-                    V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_STATE_ID,
-                    V0490ScheduleSchema.SCHEDULES_BY_EQUALITY_STATE_ID,
-                    V0490ScheduleSchema.SCHEDULES_BY_ID_STATE_ID,
-                    V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID,
-                    V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID,
-                    V0570ScheduleSchema.SCHEDULED_ORDERS_STATE_ID,
-                    V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID,
-                    V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID,
-                    V0610TokenSchema.NODE_REWARDS_STATE_ID,
-                    V065ContractSchema.EVM_HOOK_STATES_STATE_ID,
-                    V065ContractSchema.LAMBDA_STORAGE_STATE_ID,
-                    V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID)
+    private static final Set<String> DEFAULT_IMPLEMENTATIONS = Stream.of(
+                    V0490TokenSchema.STAKING_INFOS_KEY,
+                    V0490TokenSchema.STAKING_NETWORK_REWARDS_KEY,
+                    V0490FileSchema.FILES_KEY,
+                    V0490RecordCacheSchema.TRANSACTION_RECEIPTS_KEY,
+                    V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_KEY,
+                    V0490ScheduleSchema.SCHEDULES_BY_EQUALITY_KEY,
+                    V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_KEY,
+                    V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_KEY,
+                    V0560BlockStreamSchema.BLOCK_STREAM_INFO_KEY,
+                    V0570ScheduleSchema.SCHEDULED_COUNTS_KEY,
+                    V0570ScheduleSchema.SCHEDULED_ORDERS_KEY,
+                    V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_KEY,
+                    V0570ScheduleSchema.SCHEDULED_USAGES_KEY,
+                    V0610TokenSchema.NODE_REWARDS_KEY,
+                    V065ContractSchema.EVM_HOOK_STATES_KEY,
+                    V065ContractSchema.LAMBDA_STORAGE_KEY)
             .collect(Collectors.toSet());
 
     private final ImmutableMap<Integer, Object> states;
@@ -82,8 +81,10 @@ public final class StateRegistry {
             return state;
         }
 
-        if (!DEFAULT_IMPLEMENTATIONS.contains(stateId)) {
-            //                    throw new UnsupportedOperationException("Unsupported state key: " + stateId);
+        final var stateKey = definition.stateKey();
+
+        if (!DEFAULT_IMPLEMENTATIONS.contains(stateKey) && !stateKey.contains("I_UPGRADE")) {
+            throw new UnsupportedOperationException("Unsupported state key: " + stateKey);
         }
 
         if (definition.queue()) {

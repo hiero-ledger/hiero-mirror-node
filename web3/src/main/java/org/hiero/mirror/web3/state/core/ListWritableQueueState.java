@@ -18,7 +18,7 @@ public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
      * exceptions when certain keys are accessed, etc.
      *
      * @param serviceName The service name for this state
-     * @param stateKey The state key for this state
+     * @param stateId The state id for this state
      * @param backingStore The backing store to use
      */
     public ListWritableQueueState(

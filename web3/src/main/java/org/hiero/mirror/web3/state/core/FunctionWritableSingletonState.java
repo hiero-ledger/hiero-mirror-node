@@ -15,7 +15,7 @@ public class FunctionWritableSingletonState<S> extends WritableSingletonStateBas
      * Creates a new instance.
      *
      * @param serviceName The name of the service that owns the state.
-     * @param stateKey The state key for this instance.
+     * @param stateId The state id for this instance.
      * @param backingStoreAccessor A {@link Supplier} that provides access to the value in the
      *     backing store.
      */

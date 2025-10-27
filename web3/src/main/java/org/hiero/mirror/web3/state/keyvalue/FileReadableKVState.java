@@ -32,7 +32,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
 
-    public static final String KEY = "FILES";
     public static final int STATE_ID = FILES_STATE_ID;
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;

@@ -19,7 +19,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
-    public static final String KEY = "STORAGE";
     public static final int STATE_ID = STORAGE_STATE_ID;
 
     private final ContractStateService contractStateService;

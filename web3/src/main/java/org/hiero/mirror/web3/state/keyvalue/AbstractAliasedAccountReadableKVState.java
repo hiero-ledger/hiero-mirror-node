@@ -53,7 +53,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     protected AbstractAliasedAccountReadableKVState(
-            @NonNull int stateId,
+            int stateId,
             @NonNull AccountBalanceRepository accountBalanceRepository,
             @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
             @NonNull NftAllowanceRepository nftAllowanceRepository,

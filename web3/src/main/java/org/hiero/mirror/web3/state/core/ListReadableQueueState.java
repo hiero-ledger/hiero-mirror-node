@@ -20,11 +20,11 @@ public class ListReadableQueueState<E> extends ReadableQueueStateBase<E> {
      * exceptions when certain keys are accessed, etc.
      *
      * @param serviceName The service name for this state
-     * @param stateKey The state key for this state
+     * @param stateId The state id for this state
      * @param backingStore The backing store to use
      */
     public ListReadableQueueState(
-            @NonNull final String serviceName, @NonNull final int stateId, @NonNull final Queue<E> backingStore) {
+            @NonNull final String serviceName, final int stateId, @NonNull final Queue<E> backingStore) {
         super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }

@@ -22,7 +22,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
 
-    public static final String KEY = "BYTECODE";
     public static final int STATE_ID = BYTECODE_STATE_ID;
 
     private final ContractRepository contractRepository;
@@ -47,7 +46,7 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
                 .orElse(null);
     }
 
-    private EntityId toEntityId(@NonNull final com.hedera.hapi.node.base.ContractID contractID) {
+    private EntityId toEntityId(@NonNull final ContractID contractID) {
         if (contractID.hasContractNum()) {
             return entityIdFromContractId(contractID);
         } else if (contractID.hasEvmAddress()) {

@@ -45,7 +45,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,8 +53,6 @@ import java.util.function.LongSupplier;
 import lombok.RequiredArgsConstructor;
 import org.hiero.base.crypto.Hash;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
@@ -106,7 +103,6 @@ public class MirrorNodeState implements State {
             return;
         }
 
-        Optional<RecordFile> latest = recordFileRepository.findLatest();
         registerServices(servicesRegistry);
 
         servicesRegistry.registrations().forEach(registration -> {
@@ -116,11 +112,6 @@ public class MirrorNodeState implements State {
 
             schemaRegistry.migrate(
                     registration.serviceName(), this, mirrorNodeEvmProperties.getVersionedConfiguration());
-        });
-
-        ContractCallContext.run(ctx -> {
-            latest.ifPresent(ctx::setRecordFile);
-            return ctx;
         });
     }
 
@@ -230,11 +221,6 @@ public class MirrorNodeState implements State {
     }
 
     @VisibleForTesting
-    void setWritableStates(final Map<String, WritableStates> writableStates) {
-        this.writableStates.putAll(writableStates);
-    }
-
-    @VisibleForTesting
     Map<String, Map<Integer, Object>> getStates() {
         return Collections.unmodifiableMap(states);
     }
@@ -272,8 +258,8 @@ public class MirrorNodeState implements State {
             @Override
             public boolean verifySignature(
                     @NonNull Key key,
-                    @NonNull com.hedera.pbj.runtime.io.buffer.Bytes bytes,
-                    @NonNull com.hedera.node.app.spi.signatures.SignatureVerifier.MessageType messageType,
+                    @NonNull Bytes bytes,
+                    SignatureVerifier.@NonNull MessageType messageType,
                     @NonNull SignatureMap signatureMap,
                     @Nullable Function<Key, SimpleKeyStatus> simpleKeyVerifier) {
                 throw new UnsupportedOperationException("Not implemented");
