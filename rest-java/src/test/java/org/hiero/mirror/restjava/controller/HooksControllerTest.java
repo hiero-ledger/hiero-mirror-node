@@ -25,7 +25,7 @@ import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
-final class HookControllerTest extends ControllerTest {
+final class HooksControllerTest extends ControllerTest {
 
     private final HookMapper hookMapper;
 
@@ -104,7 +104,7 @@ final class HookControllerTest extends ControllerTest {
             // Expect a 'next' link pointing to items *before* the last item (hook2)
             final var links = new Links();
             links.setNext(String.format(
-                    "/api/v1/accounts/%d/hooks?hook.id=lt:%d&limit=%d", accountId, hook2.getHookId(), limit));
+                    "/api/v1/accounts/%d/hooks?limit=%d&hook.id=lt:%d", accountId, limit, hook2.getHookId()));
             expectedResponse.setLinks(links);
 
             final var actual =
@@ -185,7 +185,7 @@ final class HookControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("?order=foo").retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "order must be either 'asc' or 'desc'");
+                    "Failed to convert 'order'");
         }
     }
 
