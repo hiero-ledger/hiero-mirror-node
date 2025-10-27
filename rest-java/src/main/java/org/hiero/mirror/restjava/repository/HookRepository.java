@@ -10,8 +10,6 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface HookRepository extends PagingAndSortingRepository<Hook, Id> {
 
-    long countByOwnerId(long ownerId);
-
     List<Hook> findByOwnerIdOrderByHookIdAsc(long ownerId, Pageable pageable);
 
     List<Hook> findByOwnerIdOrderByHookIdDesc(long ownerId, Pageable pageable);

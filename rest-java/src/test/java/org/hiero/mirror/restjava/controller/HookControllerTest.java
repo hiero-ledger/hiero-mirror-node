@@ -25,7 +25,7 @@ import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
-public class HookControllerTest extends ControllerTest {
+final class HookControllerTest extends ControllerTest {
 
     private final HookMapper hookMapper;
 
@@ -53,20 +53,24 @@ public class HookControllerTest extends ControllerTest {
             final var hook2 = storeHook(accountId);
 
             // Default order is 'desc', so the hook with the larger ID (hook2) comes first
-            final var expected = hookMapper.mapToHooksResponse(List.of(hook2, hook1));
+            final var expectedHooks = hookMapper.map(List.of(hook2, hook1));
+            final var expectedResponse = new HooksResponse();
+            expectedResponse.setHooks(expectedHooks);
             final var actual = restClient.get().uri("").retrieve().body(HooksResponse.class);
 
-            assertThat(actual).isNotNull().isEqualTo(expected);
+            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
         void noHooksFound() {
             // Persist a hook for a *different* account to ensure filtering works
             storeHook(accountId + 1);
-            final var expected = hookMapper.mapToHooksResponse(Collections.emptyList());
+            final var expectedHooks = hookMapper.map(Collections.emptyList());
+            final var expectedResponse = new HooksResponse();
+            expectedResponse.setHooks(expectedHooks);
             final var actual = restClient.get().uri("").retrieve().body(HooksResponse.class);
 
-            assertThat(actual).isNotNull().isEqualTo(expected);
+            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
@@ -75,10 +79,12 @@ public class HookControllerTest extends ControllerTest {
             final var hook2 = storeHook(accountId);
 
             // 'asc' order, so the hook with the smaller ID (hook1) comes first
-            final var expected = hookMapper.mapToHooksResponse(List.of(hook1, hook2));
+            final var expectedHooks = hookMapper.map(List.of(hook1, hook2));
+            final var expectedResponse = new HooksResponse();
+            expectedResponse.setHooks(expectedHooks);
             final var actual = restClient.get().uri("?order=asc").retrieve().body(HooksResponse.class);
 
-            assertThat(actual).isNotNull().isEqualTo(expected);
+            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
@@ -90,8 +96,10 @@ public class HookControllerTest extends ControllerTest {
             // Total 3 hooks. Default order=desc, limit=2
 
             // Expected response contains the last 2 hooks (hook3, hook2)
-            final var expectedHooks = List.of(hook3, hook2);
-            final var expectedResponse = hookMapper.mapToHooksResponse(expectedHooks);
+            final var expectedHooks = hookMapper.map(List.of(hook3, hook2));
+
+            final var expectedResponse = new HooksResponse();
+            expectedResponse.setHooks(expectedHooks);
 
             // Expect a 'next' link pointing to items *before* the last item (hook2)
             final var links = new Links();
@@ -106,27 +114,6 @@ public class HookControllerTest extends ControllerTest {
             assertThat(actual.getHooks()).hasSize(limit);
             assertThat(actual.getLinks()).isNotNull();
             assertThat(actual.getLinks().getNext()).isEqualTo(links.getNext());
-        }
-
-        @Test
-        void nextLinkNotGeneratedForAsc() {
-            int limit = 2;
-            final var hook1 = storeHook(accountId);
-            final var hook2 = storeHook(accountId);
-            storeHook(accountId);
-
-            // Expected response contains the first 2 hooks (hook1, hook2), since the order will be 'asc' and limit = 2
-            final var expectedHooks = List.of(hook1, hook2);
-            final var expectedResponse = hookMapper.mapToHooksResponse(expectedHooks);
-            // No link expected for 'asc' order
-
-            final var actual = restClient
-                    .get()
-                    .uri("?limit=" + limit + "&order=asc")
-                    .retrieve()
-                    .body(HooksResponse.class);
-
-            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @ParameterizedTest
@@ -152,7 +139,10 @@ public class HookControllerTest extends ControllerTest {
                     .mapToObj(hooks::get)
                     .collect(Collectors.toList());
 
-            final var expected = hookMapper.mapToHooksResponse(expectedHookList);
+            final var expectedHooks = hookMapper.map(expectedHookList);
+
+            final var expectedResponse = new HooksResponse();
+            expectedResponse.setHooks(expectedHooks);
 
             final var formattedParams = MessageFormat.format(
                     parameters,
@@ -163,7 +153,7 @@ public class HookControllerTest extends ControllerTest {
 
             final var actual = restClient.get().uri(formattedParams).retrieve().body(HooksResponse.class);
 
-            assertThat(actual).isNotNull().isEqualTo(expected);
+            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
@@ -171,7 +161,7 @@ public class HookControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("?limit=0").retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "limit must be greater than or equal to 1");
+                    "limit must be greater than 0");
         }
 
         @Test

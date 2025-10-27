@@ -14,22 +14,11 @@ import org.springframework.data.domain.PageRequest;
 @Named
 @NullMarked
 @RequiredArgsConstructor
-public class HookServiceImpl implements HookService {
+final class HookServiceImpl implements HookService {
 
     private static final Pattern HOOK_ID_FORMAT = Pattern.compile("^(eq|gt|gte|lt|lte):(\\d+)$");
 
     private final HookRepository hookRepository;
-
-    /**
-     * Gets the count of active (non-deleted) hooks for a specific account.
-     *
-     * @param ownerId The ID of the owner account.
-     * @return The number of active hooks.
-     */
-    @Override
-    public long getActiveHookCount(long ownerId) {
-        return hookRepository.countByOwnerId(ownerId);
-    }
 
     /**
      * Retrieves all hooks (active or deleted) of a given owner.
@@ -38,7 +27,7 @@ public class HookServiceImpl implements HookService {
      * @return List of all hooks for the owner.
      */
     @Override
-    public List<Hook> getAllHooksByOwner(long ownerId, String hookIdFilter, int limit, String order) {
+    public List<Hook> getHooks(long ownerId, String hookIdFilter, int limit, String order) {
         final var pageable = PageRequest.of(0, Math.min(Math.max(limit, 1), 100));
         final boolean ascending = "asc".equalsIgnoreCase(order);
 

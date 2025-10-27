@@ -2,9 +2,12 @@
 
 package org.hiero.mirror.restjava.controller;
 
+import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
+import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
+
 import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.Links;
@@ -22,23 +25,25 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/accounts")
 @RequiredArgsConstructor
 @RestController
-public class HooksController {
+final class HooksController {
     private final HookService hookService;
     private final HookMapper hookMapper;
 
     @GetMapping("/{accountId}/hooks")
-    public ResponseEntity<HooksResponse> getHooks(
+    ResponseEntity<HooksResponse> getHooks(
             @PathVariable long accountId,
             @RequestParam(name = "hook.id", required = false) String hookId,
-            @RequestParam(defaultValue = "25") @Min(1) @Max(100) int limit,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc")
                     @Pattern(regexp = "^(?i)(asc|desc)$", message = "must be either ''asc'' or ''desc''")
                     String order) {
-        final var hooks = hookService.getAllHooksByOwner(accountId, hookId, limit, order);
-        final var hooksResponse = hookMapper.mapToHooksResponse(hooks);
+        final var hooksServiceResponse = hookService.getHooks(accountId, hookId, limit, order);
+        final var hooks = hookMapper.map(hooksServiceResponse);
 
-        // Build next link only if descending and there are results
-        if ("desc".equalsIgnoreCase(order) && hooks.size() == limit) {
+        HooksResponse hooksResponse = new HooksResponse();
+        hooksResponse.setHooks(hooks);
+
+        if (hooks.size() == limit) {
             final long lastHookId = hooks.getLast().getHookId();
             final var links = new Links();
             links.setNext(

@@ -20,7 +20,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
-import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingInheritanceStrategy;
@@ -35,7 +34,6 @@ public interface CommonMapper {
             .toByteArray();
     String QUALIFIER_TIMESTAMP = "timestamp";
     String QUALIFIER_TIMESTAMP_RANGE = "timestampRange";
-    String QUALIFIER_TIMESTAMP_RANGE_NULLABLE = "timestampRangeNullable";
     int NANO_DIGITS = 9;
     int FRACTION_SCALE = 9;
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
@@ -114,19 +112,6 @@ public interface CommonMapper {
             target.setTo(mapTimestamp(source.upperEndpoint()));
         }
 
-        return target;
-    }
-
-    @Named(QUALIFIER_TIMESTAMP_RANGE_NULLABLE)
-    default TimestampRangeNullable mapTimestampRangeNullable(Range<Long> source) {
-        final var timestampRange = mapRange(source);
-        if (timestampRange == null) {
-            return null;
-        }
-
-        final var target = new TimestampRangeNullable();
-        target.setFrom(timestampRange.getFrom());
-        target.setTo(timestampRange.getTo());
         return target;
     }
 
