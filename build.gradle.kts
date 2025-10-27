@@ -88,7 +88,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.35.10")
+        api("software.amazon.awssdk:bom:2.36.2")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
