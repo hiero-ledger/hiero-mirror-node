@@ -11,10 +11,10 @@ import org.springframework.data.repository.CrudRepository;
 public interface ContractActionRepository
         extends CrudRepository<ContractAction, ContractAction.Id>, RetentionRepository {
 
+    List<ContractAction> findByConsensusTimestamp(long consensusTimestamp);
+
     @Modifying
     @Override
     @Query("delete from ContractAction where consensusTimestamp <= ?1")
     int prune(long consensusTimestamp);
-
-    List<ContractAction> findByConsensusTimestamp(long consensusTimestamp);
 }

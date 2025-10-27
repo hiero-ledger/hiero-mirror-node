@@ -80,7 +80,7 @@ import reactor.core.publisher.Mono;
 @SuppressWarnings("deprecation")
 @TestPropertySource(
         properties = {"hiero.mirror.importer.downloader.bucketName=", "spring.flyway.baselineVersion=2.999.999"})
-class BlockStreamVerificationTest {
+final class BlockStreamVerificationTest {
 
     private static final Map<String, String> BASE_URLS = Map.of(
             ImporterProperties.HederaNetwork.MAINNET, baseUrlFor(ImporterProperties.HederaNetwork.MAINNET),
