@@ -9,6 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Data
 public class BlockStreamVerificationProperties {
 
+    private int batchSize = 100;
     private long endConsensusTimestamp = Long.MAX_VALUE;
     private long startConsensusTimestamp;
 }

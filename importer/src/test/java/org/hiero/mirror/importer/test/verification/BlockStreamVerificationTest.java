@@ -122,7 +122,7 @@ class BlockStreamVerificationTest {
     void verify() {
         final long endConsensusTimestamp = properties.getEndConsensusTimestamp();
         long lastConsensusTimestamp = properties.getStartConsensusTimestamp() - 1;
-        final int limit = 100;
+        final int limit = properties.getBatchSize();
         for (; ; ) {
             var transactions =
                     transactionRepository.findInTimestampRange(endConsensusTimestamp, lastConsensusTimestamp, limit);
@@ -451,6 +451,7 @@ class BlockStreamVerificationTest {
                         "Consensus timestamp mismatch: actual {}, expected {}",
                         actualConsensusTimestamp,
                         consensusTimestamp);
+                stats.record(false);
             }
 
             if (actualConsensusTimestamp > consensusTimestamp) {
@@ -506,6 +507,7 @@ class BlockStreamVerificationTest {
             return;
         }
 
+        // created contract ids is a deprecated field
         contractResultBuilder.clearCreatedContractIDs();
         if (contractResultBuilder.hasEvmAddress()) {
             var evmAddress = contractResultBuilder.getEvmAddress().getValue();
@@ -517,6 +519,7 @@ class BlockStreamVerificationTest {
             }
         }
 
+        // left trim 0s from the topics
         var logInfoList = contractResultBuilder.getLogInfoList().stream()
                 .map(logInfo -> {
                     var topics = logInfo.getTopicList().stream()

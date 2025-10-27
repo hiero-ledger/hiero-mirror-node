@@ -14,6 +14,26 @@ class TransactionRepositoryTest extends ImporterIntegrationTest {
     private final TransactionRepository transactionRepository;
 
     @Test
+    void findInTimestampRange() {
+        // given
+        var transaction1 = domainBuilder.transaction().persist();
+        var transaction2 = domainBuilder.transaction().persist();
+
+        // when, then
+        assertThat(transactionRepository.findInTimestampRange(
+                        transaction2.getConsensusTimestamp(), transaction1.getConsensusTimestamp() - 1, 2))
+                .containsExactly(transaction1, transaction2);
+        assertThat(transactionRepository.findInTimestampRange(
+                        transaction2.getConsensusTimestamp(), transaction1.getConsensusTimestamp() - 1, 1))
+                .containsExactly(transaction1);
+        assertThat(transactionRepository.findInTimestampRange(
+                        transaction2.getConsensusTimestamp(), transaction1.getConsensusTimestamp(), 2))
+                .containsExactly(transaction2);
+        assertThat(transactionRepository.findInTimestampRange(Long.MAX_VALUE, transaction2.getConsensusTimestamp(), 2))
+                .isEmpty();
+    }
+
+    @Test
     void prune() {
         domainBuilder.transaction().persist();
         var transaction2 = domainBuilder.transaction().persist();
