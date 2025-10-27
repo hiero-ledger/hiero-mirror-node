@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.repository;
 
+import java.util.List;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -14,4 +15,6 @@ public interface ContractActionRepository
     @Override
     @Query("delete from ContractAction where consensusTimestamp <= ?1")
     int prune(long consensusTimestamp);
+
+    List<ContractAction> findByConsensusTimestamp(long consensusTimestamp);
 }
