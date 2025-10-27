@@ -11,7 +11,6 @@ import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
 import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
-import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
 import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
 import jakarta.inject.Named;
@@ -35,8 +34,6 @@ public final class StateRegistry {
                     V0490RecordCacheSchema.TRANSACTION_RECEIPTS_KEY,
                     V0490ScheduleSchema.SCHEDULES_BY_EXPIRY_SEC_KEY,
                     V0490ScheduleSchema.SCHEDULES_BY_EQUALITY_KEY,
-                    V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_KEY,
-                    V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_KEY,
                     V0560BlockStreamSchema.BLOCK_STREAM_INFO_KEY,
                     V0570ScheduleSchema.SCHEDULED_COUNTS_KEY,
                     V0570ScheduleSchema.SCHEDULED_ORDERS_KEY,
