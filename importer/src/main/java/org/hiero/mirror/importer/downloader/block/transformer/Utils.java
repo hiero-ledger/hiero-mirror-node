@@ -58,14 +58,6 @@ final class Utils {
     }
 
     static byte[] leftPad32(ByteString topic) {
-        byte[] bytes = DomainUtils.toBytes(topic);
-        int length = bytes.length;
-        if (length < TOPIC_SIZE_BYTES) {
-            byte[] padded = new byte[TOPIC_SIZE_BYTES];
-            System.arraycopy(bytes, 0, padded, TOPIC_SIZE_BYTES - length, length);
-            return padded;
-        }
-
-        return bytes;
+        return DomainUtils.leftPadBytes(DomainUtils.toBytes(topic), TOPIC_SIZE_BYTES);
     }
 }

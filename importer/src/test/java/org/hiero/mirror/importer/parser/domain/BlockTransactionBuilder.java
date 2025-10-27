@@ -72,6 +72,7 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -104,6 +105,7 @@ import org.springframework.util.CollectionUtils;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BlockTransactionBuilder {
 
+    private final SecureRandom random = new SecureRandom();
     private final RecordItemBuilder recordItemBuilder;
 
     private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
@@ -799,7 +801,7 @@ public class BlockTransactionBuilder {
                     // only read
                     slotUsage.addSlotReads(SlotRead.newBuilder()
                             .setKey(storageChange.getSlot())
-                            .setReadValue(storageChange.getValueRead())
+                            .setReadValue(leftPad(storageChange.getValueRead()))
                             .build());
                 } else {
                     int count = contractStorageSlotCounts.compute(contractId, (k, v) -> v == null ? 1 : v + 1);
@@ -820,8 +822,8 @@ public class BlockTransactionBuilder {
                                 .setMapUpdate(MapUpdateChange.newBuilder()
                                         .setKey(mapChangeKey)
                                         .setValue(MapChangeValue.newBuilder()
-                                                .setSlotValueValue(
-                                                        SlotValue.newBuilder().setValue(valueWritten.getValue())))
+                                                .setSlotValueValue(SlotValue.newBuilder()
+                                                        .setValue(leftPad(valueWritten.getValue()))))
                                         .build()));
                     } else {
                         // deleted
@@ -880,6 +882,14 @@ public class BlockTransactionBuilder {
         }
 
         return ByteString.EMPTY;
+    }
+
+    private ByteString leftPad(ByteString value) {
+        if (random.nextInt() % 2 == 0) {
+            return value;
+        }
+
+        return DomainUtils.fromBytes(DomainUtils.leftPadBytes(DomainUtils.toBytes(value), 32));
     }
 
     private Timestamp timestamp(long consensusTimestamp) {
