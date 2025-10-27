@@ -67,12 +67,14 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.web.client.RestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @CustomLog
+@EnabledIf(expression = "${hiero.mirror.importer.test.blockstream.enabled}", loadContext = true)
 @DisableRepeatableSqlMigration
 @Import(CommonConfiguration.class)
 @RequiredArgsConstructor
