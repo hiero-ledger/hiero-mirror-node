@@ -167,7 +167,7 @@ class HederaEvmWorldStateTest {
         assertThat(subject.get(address)).isNull();
     }
 
-    // There are uncompatible changes between hedera-evm and latest besu version
+    // There are incompatible changes between hedera-evm and latest besu version
     @Test
     @Disabled
     void returnsWorldStateAccount() {
@@ -181,7 +181,7 @@ class HederaEvmWorldStateTest {
         assertThat(account.hasCode()).isFalse();
     }
 
-    // There are uncompatible changes between hedera-evm and latest besu version
+    // There are incompatible changes between hedera-evm and latest besu version
     @Test
     @Disabled
     void returnsHederaEvmWorldStateTokenAccount() {
