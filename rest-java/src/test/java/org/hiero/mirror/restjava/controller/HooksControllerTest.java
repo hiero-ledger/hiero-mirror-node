@@ -5,10 +5,7 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
@@ -42,74 +39,78 @@ final class HooksControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            // Persist at least one hook for the default request
+            // given: at least one persisted hook for default request
             storeHook(accountId);
             return uriSpec.uri("");
         }
 
         @Test
         void success() {
+            // given
             final var hook1 = storeHook(accountId);
             final var hook2 = storeHook(accountId);
-
-            // Default order is 'desc', so the hook with the larger ID (hook2) comes first
             final var expectedHooks = hookMapper.map(List.of(hook2, hook1));
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
+
+            // when
             final var actual = restClient.get().uri("").retrieve().body(HooksResponse.class);
 
+            // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
         void noHooksFound() {
-            // Persist a hook for a *different* account to ensure filtering works
-            storeHook(accountId + 1);
+            // given
+            storeHook(accountId + 1); // Different account
             final var expectedHooks = hookMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
+
+            // when
             final var actual = restClient.get().uri("").retrieve().body(HooksResponse.class);
 
+            // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
         void orderAsc() {
+            // given
             final var hook1 = storeHook(accountId);
             final var hook2 = storeHook(accountId);
-
-            // 'asc' order, so the hook with the smaller ID (hook1) comes first
             final var expectedHooks = hookMapper.map(List.of(hook1, hook2));
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
+
+            // when
             final var actual = restClient.get().uri("?order=asc").retrieve().body(HooksResponse.class);
 
+            // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 
         @Test
         void limitAndNextLink() {
+            // given
             int limit = 2;
             storeHook(accountId);
             final var hook2 = storeHook(accountId);
             final var hook3 = storeHook(accountId);
-            // Total 3 hooks. Default order=desc, limit=2
-
-            // Expected response contains the last 2 hooks (hook3, hook2)
             final var expectedHooks = hookMapper.map(List.of(hook3, hook2));
-
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
-
-            // Expect a 'next' link pointing to items *before* the last item (hook2)
             final var links = new Links();
             links.setNext(String.format(
                     "/api/v1/accounts/%d/hooks?limit=%d&hook.id=lt:%d", accountId, limit, hook2.getHookId()));
             expectedResponse.setLinks(links);
 
+            // when
             final var actual =
                     restClient.get().uri("?limit=" + limit).retrieve().body(HooksResponse.class);
 
+            // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getHooks()).hasSize(limit);
             assertThat(actual.getLinks()).isNotNull();
@@ -127,32 +128,30 @@ final class HooksControllerTest extends ControllerTest {
                     "'?hook.id=eq:{1}' | 1", // eq hook1's ID -> (hook1)
                 })
         void hookIdBounds(String parameters, String expectedIndices) {
+            // given
             final var hooks = new ArrayList<Hook>();
             for (int i = 0; i < 4; i++) {
                 hooks.add(storeHook(accountId));
             }
-
-            // Map string indices "3, 2, 1" to List<Hook>
             final var expectedHookList = Arrays.stream(expectedIndices.split(","))
                     .map(String::trim)
                     .mapToInt(Integer::parseInt)
                     .mapToObj(hooks::get)
                     .collect(Collectors.toList());
-
             final var expectedHooks = hookMapper.map(expectedHookList);
-
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
 
+            // when
             final var formattedParams = MessageFormat.format(
                     parameters,
                     hooks.get(0).getHookId(),
                     hooks.get(1).getHookId(),
                     hooks.get(2).getHookId(),
                     hooks.get(3).getHookId());
-
             final var actual = restClient.get().uri(formattedParams).retrieve().body(HooksResponse.class);
 
+            // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
         }
 

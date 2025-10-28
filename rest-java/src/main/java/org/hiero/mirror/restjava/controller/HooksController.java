@@ -5,11 +5,13 @@ package org.hiero.mirror.restjava.controller;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
+import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.jooq.domain.Tables.HOOK;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +49,8 @@ final class HooksController {
     @GetMapping("/{accountId}/hooks")
     ResponseEntity<HooksResponse> getHooks(
             @PathVariable EntityIdParameter accountId,
-            @RequestParam(name = "hook.id", required = false) NumberRangeParameter[] hookIds,
+            @RequestParam(name = "hook.id", required = false) @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
+                    NumberRangeParameter[] hookIds,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Sort.Direction order) {
 
