@@ -44,7 +44,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class DomainUtilsTest {
+final class DomainUtilsTest {
 
     private static final String ED25519_KEY = "60beee88a761e079f71b03b5fe041979369e96450a7455b203a2578c8a7d4852";
     private static final String ECDSA_384_KEY = "0000001365636473612d736861322d6e69737470333834000000086e697374703338"

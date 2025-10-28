@@ -885,7 +885,7 @@ public class BlockTransactionBuilder {
     }
 
     private ByteString leftPad(ByteString value) {
-        if (random.nextInt() % 2 == 0) {
+        if (random.nextBoolean()) {
             return value;
         }
 

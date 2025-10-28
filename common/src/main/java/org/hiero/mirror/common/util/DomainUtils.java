@@ -341,8 +341,8 @@ public class DomainUtils {
     }
 
     public static ByteString trim(final ByteString data) {
-        if (data == null) {
-            return null;
+        if (data == null || data.isEmpty() || data.byteAt(0) != 0) {
+            return data;
         }
 
         final byte[] value = DomainUtils.toBytes(data);
