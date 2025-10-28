@@ -31,6 +31,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonConfiguration;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractStateChange;
@@ -66,15 +67,17 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit.jupiter.EnabledIf;
 import org.springframework.transaction.support.TransactionOperations;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @CustomLog
-@EnabledIf(expression = "${hiero.mirror.importer.test.blockstream.enabled}", loadContext = true)
+@EnabledIf(expression = "${BLOCKSTREAM_TEST_ENABLED:false}")
 @DisableRepeatableSqlMigration
 @Import(CommonConfiguration.class)
 @RequiredArgsConstructor
@@ -91,6 +94,8 @@ final class BlockStreamVerificationTest {
     private static final String BLOCKS_URI = "/blocks?timestamp=gte:{timestamp}&limit=25&order=asc";
     // 4-byte shard + 8-byte realm, all 0s
     private static final ByteString DEFAULT_LONG_FORM_ADDRESS_PREFIX = ByteString.copyFrom(new byte[12]);
+    private static final String RECORD_FILE_PATH_TEMPLATE =
+            "%s/%s%%s/%%s".formatted(StreamType.RECORD.getPath(), StreamType.RECORD.getNodePrefix());
     private static final String VALUE_DIFF_TEMPLATE = "%s: actual value - %s, expected value - %s";
 
     private final BlockStreamVerificationProperties properties;
@@ -101,7 +106,6 @@ final class BlockStreamVerificationTest {
     private final ContractStateChangeRepository contractStateChangeRepository;
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final ImporterProperties importerProperties;
-    private final RestClient restClient;
     private final List<String> recordFiles = new ArrayList<>();
     private final RecordDownloaderProperties recordDownloaderProperties;
     private final RecordFileReader recordFileReader;
@@ -109,6 +113,7 @@ final class BlockStreamVerificationTest {
     private final Stats stats = new Stats();
     private final StreamFileProvider streamFileProvider;
     private final TransactionRepository transactionRepository;
+    private final WebClient webClient;
 
     private RecordFile current;
     private boolean foundFirstTransaction;
@@ -123,17 +128,18 @@ final class BlockStreamVerificationTest {
     @Test
     void verify() {
         final long endConsensusTimestamp = properties.getEndConsensusTimestamp();
-        long lastConsensusTimestamp = properties.getStartConsensusTimestamp() - 1;
-        final int limit = properties.getBatchSize();
+        final var pageable =
+                PageRequest.of(0, properties.getBatchSize(), Sort.by(Sort.Order.asc("consensusTimestamp")));
+        long startConsensusTimestamp = properties.getStartConsensusTimestamp();
         for (; ; ) {
-            var transactions =
-                    transactionRepository.findInTimestampRange(endConsensusTimestamp, lastConsensusTimestamp, limit);
+            var transactions = transactionRepository.findByConsensusTimestampBetween(
+                    startConsensusTimestamp, endConsensusTimestamp, pageable);
             if (transactions.isEmpty()) {
                 break;
             }
 
             transactions.forEach(this::verifyTransaction);
-            lastConsensusTimestamp = transactions.getLast().getConsensusTimestamp();
+            startConsensusTimestamp = transactions.getLast().getConsensusTimestamp() + 1;
         }
 
         log.info("Verification results: {}", stats);
@@ -144,27 +150,26 @@ final class BlockStreamVerificationTest {
         return "https://%s.mirrornode.hedera.com/api/v1".formatted(network);
     }
 
-    private static List<String> compareFiledByField(
-            GeneratedMessage actual, GeneratedMessage expected, String fieldPath) {
+    private static List<String> compareFields(GeneratedMessage actual, GeneratedMessage expected, String fieldPath) {
         if (Objects.equals(actual, expected)) {
             return Collections.emptyList();
         }
 
-        var diffs = new ArrayList<String>();
-        var fieldDescriptors = actual.getDescriptorForType().getFields();
+        final var diffs = new ArrayList<String>();
+        final var fieldDescriptors = actual.getDescriptorForType().getFields();
 
         for (var fieldDescriptor : fieldDescriptors) {
-            var actualField = actual.getField(fieldDescriptor);
-            var expectedField = expected.getField(fieldDescriptor);
+            final var actualField = actual.getField(fieldDescriptor);
+            final var expectedField = expected.getField(fieldDescriptor);
 
             if (!Objects.equals(actualField, expectedField)) {
-                var fullPath = StringUtils.joinWith(".", fieldPath, fieldDescriptor.getName());
-                boolean isComplexType = fieldDescriptor.getType() == Descriptors.FieldDescriptor.Type.MESSAGE;
+                final var fullPath = StringUtils.joinWith(".", fieldPath, fieldDescriptor.getName());
+                final boolean isComplexType = fieldDescriptor.getType() == Descriptors.FieldDescriptor.Type.MESSAGE;
 
                 if (fieldDescriptor.isRepeated()) {
-                    var actualList = (List<?>) actualField;
-                    var expectedList = (List<?>) expectedField;
-                    int size = Math.min(actualList.size(), expectedList.size());
+                    final var actualList = (List<?>) actualField;
+                    final var expectedList = (List<?>) expectedField;
+                    final int size = Math.min(actualList.size(), expectedList.size());
 
                     if (actualList.size() != expectedList.size()) {
                         diffs.add("%s: actual list size - %d, expected list size - %d"
@@ -172,12 +177,12 @@ final class BlockStreamVerificationTest {
                     }
 
                     for (int i = 0; i < size; i++) {
-                        var actualElement = actualList.get(i);
-                        var expectedElement = expectedList.get(i);
-                        var elementPath = "%s[%d]".formatted(fullPath, i);
+                        final var actualElement = actualList.get(i);
+                        final var expectedElement = expectedList.get(i);
+                        final var elementPath = "%s[%d]".formatted(fullPath, i);
 
                         if (isComplexType) {
-                            diffs.addAll(compareFiledByField(
+                            diffs.addAll(compareFields(
                                     (GeneratedMessage) actualElement, (GeneratedMessage) expectedElement, elementPath));
                         } else if (!Objects.equals(actualElement, expectedElement)) {
                             // simple type in a repeated field
@@ -185,8 +190,8 @@ final class BlockStreamVerificationTest {
                         }
                     }
                 } else if (isComplexType) {
-                    diffs.addAll(compareFiledByField(
-                            (GeneratedMessage) actualField, (GeneratedMessage) expectedField, fullPath));
+                    diffs.addAll(
+                            compareFields((GeneratedMessage) actualField, (GeneratedMessage) expectedField, fullPath));
                 } else {
                     // simple type
                     diffs.add(VALUE_DIFF_TEMPLATE.formatted(fullPath, actualField, expectedField));
@@ -195,12 +200,6 @@ final class BlockStreamVerificationTest {
         }
 
         return diffs;
-    }
-
-    private static String toTimestampString(long timestamp) {
-        String str = StringUtils.leftPad(Long.toString(timestamp), 10, '0');
-        int fractionIndex = str.length() - 9;
-        return "%s.%s".formatted(str.substring(0, fractionIndex), str.substring(fractionIndex));
     }
 
     private void archiveFile(byte[] data, StreamFileData streamFileData) {
@@ -350,9 +349,9 @@ final class BlockStreamVerificationTest {
     }
 
     private List<String> compareTransactionRecord(RecordItem expectedRecordItem, Transaction transaction) {
-        var actualRecord = patch(transaction);
-        var expectedRecord = patch(expectedRecordItem);
-        return compareFiledByField(actualRecord, expectedRecord, "TransactionRecord");
+        final var actualRecord = patch(transaction);
+        final var expectedRecord = patch(expectedRecordItem);
+        return compareFields(actualRecord, expectedRecord, "TransactionRecord");
     }
 
     private RecordFile getRecordFile(String filename) {
@@ -360,8 +359,7 @@ final class BlockStreamVerificationTest {
         RecordFile recordFile = null;
         for (var node : consensusNodeService.getNodes()) {
             try {
-                var filePath = "recordstreams/record%s/%s"
-                        .formatted(node.getNodeAccountId().toString(), filename);
+                var filePath = RECORD_FILE_PATH_TEMPLATE.formatted(node.getNodeAccountId(), filename);
                 var streamFilename = StreamFilename.from(filePath);
                 var streamFile = streamFileProvider.get(node, streamFilename).block();
                 recordFile = recordFileReader.read(streamFile);
@@ -385,7 +383,7 @@ final class BlockStreamVerificationTest {
     }
 
     private Mono<SidecarFile> getSidecar(ConsensusNode node, StreamFilename recordFilename, SidecarFile sidecar) {
-        var sidecarFilename = StreamFilename.from(recordFilename, sidecar.getName());
+        final var sidecarFilename = StreamFilename.from(recordFilename, sidecar.getName());
         return streamFileProvider.get(node, sidecarFilename).map(streamFileData -> {
             sidecarFileReader.read(sidecar, streamFileData);
 
@@ -401,7 +399,7 @@ final class BlockStreamVerificationTest {
     }
 
     private void getSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
-        var records = Flux.fromIterable(recordFile.getSidecars())
+        final var records = Flux.fromIterable(recordFile.getSidecars())
                 .flatMap(sidecar -> getSidecar(node, recordFilename, sidecar))
                 .flatMapIterable(SidecarFile::getRecords)
                 .collect(Multimaps.toMultimap(
@@ -427,11 +425,12 @@ final class BlockStreamVerificationTest {
                 || current.getConsensusStart() > consensusTimestamp
                 || current.getConsensusEnd() < consensusTimestamp) {
             if (recordFiles.isEmpty()) {
-                var response = restClient
+                var response = webClient
                         .get()
-                        .uri(BLOCKS_URI, toTimestampString(consensusTimestamp))
+                        .uri(BLOCKS_URI, DomainUtils.toTimestamp(consensusTimestamp))
                         .retrieve()
-                        .body(BlocksResponse.class);
+                        .bodyToMono(BlocksResponse.class)
+                        .block();
                 response.getBlocks().forEach(block -> recordFiles.add(block.getName()));
             }
 
@@ -468,7 +467,7 @@ final class BlockStreamVerificationTest {
 
     @SneakyThrows
     private TransactionRecord patch(Transaction transaction) {
-        var builder = TransactionRecord.parseFrom(transaction.getTransactionRecordBytes()).toBuilder();
+        final var builder = TransactionRecord.parseFrom(transaction.getTransactionRecordBytes()).toBuilder();
         if (transaction.getType() == TransactionType.ETHEREUMTRANSACTION.getProtoId()) {
             ethereumTransactionRepository
                     .findById(transaction.getConsensusTimestamp())
@@ -495,14 +494,14 @@ final class BlockStreamVerificationTest {
     }
 
     private TransactionRecord patch(RecordItem recordItem) {
-        var context = new RecordItemContext(recordItem);
+        final var context = new RecordItemContext(recordItem);
         recordItemPatchers.forEach(p -> p.accept(context));
         return context.builder().build();
     }
 
     private void patchContractFunctionResult(RecordItemContext context) {
-        var builder = context.builder();
-        var contractResultBuilder = builder.hasContractCallResult()
+        final var builder = context.builder();
+        final var contractResultBuilder = builder.hasContractCallResult()
                 ? builder.getContractCallResultBuilder()
                 : (builder.hasContractCreateResult() ? builder.getContractCreateResultBuilder() : null);
         if (contractResultBuilder == null) {
@@ -512,7 +511,7 @@ final class BlockStreamVerificationTest {
         // created contract ids is a deprecated field
         contractResultBuilder.clearCreatedContractIDs();
         if (contractResultBuilder.hasEvmAddress()) {
-            var evmAddress = contractResultBuilder.getEvmAddress().getValue();
+            final var evmAddress = contractResultBuilder.getEvmAddress().getValue();
             if (evmAddress
                     .substring(0, Math.min(evmAddress.size(), DEFAULT_LONG_FORM_ADDRESS_PREFIX.size()))
                     .equals(DEFAULT_LONG_FORM_ADDRESS_PREFIX)) {
@@ -522,7 +521,7 @@ final class BlockStreamVerificationTest {
         }
 
         // left trim 0s from the topics
-        var logInfoList = contractResultBuilder.getLogInfoList().stream()
+        final var logInfoList = contractResultBuilder.getLogInfoList().stream()
                 .map(logInfo -> {
                     var topics = logInfo.getTopicList().stream()
                             .map(topic -> DomainUtils.fromBytes(DomainUtils.trim(DomainUtils.toBytes(topic))))
@@ -534,7 +533,7 @@ final class BlockStreamVerificationTest {
     }
 
     private void patchTransactionReceipt(RecordItemContext context) {
-        var receiptBuilder = context.builder().getReceiptBuilder();
+        final var receiptBuilder = context.builder().getReceiptBuilder();
         receiptBuilder.clearExchangeRate();
 
         if (context.recordItem().getTransactionType() == TransactionType.SCHEDULEDELETE.getProtoId()) {
@@ -543,15 +542,15 @@ final class BlockStreamVerificationTest {
     }
 
     private void verifyTransaction(Transaction transaction) {
-        var expectedRecordItem = getExpectedRecordItem(transaction.getConsensusTimestamp());
+        final var expectedRecordItem = getExpectedRecordItem(transaction.getConsensusTimestamp());
         if (expectedRecordItem == null) {
             return;
         }
 
-        var diffs = ListUtils.union(
+        final var diffs = ListUtils.union(
                 compareTransactionRecord(expectedRecordItem, transaction),
                 compareSidecarRecords(expectedRecordItem.getSidecarRecords(), transaction));
-        boolean successful = diffs.isEmpty();
+        final boolean successful = diffs.isEmpty();
         log.info(
                 "Verified transaction record of {} transaction at {} - {}",
                 TransactionType.of(transaction.getType()),
@@ -576,8 +575,8 @@ final class BlockStreamVerificationTest {
         }
 
         @Bean
-        RestClient restClient(ImporterProperties importerProperties, RestClient.Builder restClientBuilder) {
-            return restClientBuilder
+        WebClient webClient(ImporterProperties importerProperties, WebClient.Builder webClientBuilder) {
+            return webClientBuilder
                     .baseUrl(BASE_URLS.get(importerProperties.getNetwork()))
                     .build();
         }

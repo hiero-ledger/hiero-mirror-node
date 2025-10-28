@@ -27,8 +27,6 @@ hiero:
             maxAttempts: 2
       startDate: 1970-01-01T00:00:00Z
       test:
-        blockstream:
-          enabled: false
         performance:
           downloader:
             enabled: true

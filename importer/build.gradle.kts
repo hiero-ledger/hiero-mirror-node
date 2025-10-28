@@ -63,7 +63,6 @@ dependencies {
         exclude(group = "org.apache.commons", module = "commons-fileupload2-javax")
     }
     testImplementation("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.springframework.boot:spring-boot-starter-web")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
     testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
