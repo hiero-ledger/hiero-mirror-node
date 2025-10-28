@@ -32,7 +32,7 @@ public class HookRepositoryCustomImpl implements HookRepositoryCustom {
         final var orderBy = hookTable.HOOK_ID.sort(request.getOrder().isAscending() ? SortOrder.ASC : SortOrder.DESC);
 
         return dsl.selectFrom(hookTable)
-                .where(ownerIdCondition.and(hookIdCondition)) // Combine conditions
+                .where(ownerIdCondition.and(hookIdCondition))
                 .orderBy(orderBy)
                 .limit(request.getLimit())
                 .fetchInto(Hook.class);

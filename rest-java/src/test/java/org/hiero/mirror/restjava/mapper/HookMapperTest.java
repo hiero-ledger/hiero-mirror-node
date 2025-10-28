@@ -4,12 +4,14 @@ package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Range;
 import org.apache.commons.codec.DecoderException;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.Key;
+import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -33,6 +35,7 @@ final class HookMapperTest {
         source.setHookId(10L);
         source.setOwnerId(200L);
         source.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
+        source.setTimestampRange(Range.closed(1L, 100000L));
         source.setType(HookType.LAMBDA);
         source.setDeleted(false);
 
@@ -50,6 +53,8 @@ final class HookMapperTest {
         assertThat(result.getHookId()).isEqualTo(10L);
         assertThat(result.getDeleted()).isFalse();
         assertThat(result.getExtensionPoint()).isEqualTo(Hook.ExtensionPointEnum.ACCOUNT_ALLOWANCE_HOOK);
+        assertThat(result.getTimestampRange())
+                .isEqualTo(new TimestampRangeNullable().from("0.000000001").to("0.000100000"));
         assertThat(result.getType()).isEqualTo(Hook.TypeEnum.LAMBDA);
         assertThat(result.getAdminKey().getType()).isEqualTo(Key.TypeEnum.ED25519);
         assertThat(result.getAdminKey().getKey()).hasSize(64);
@@ -77,6 +82,9 @@ final class HookMapperTest {
                 .isNull();
         assertThat(result.getHookId()).as("hookId default for primitive long").isEqualTo(0L);
         assertThat(result.getOwnerId()).as("ownerId should be null").isNull();
+        assertThat(result.getTimestampRange())
+                .as("timestampRange should be null")
+                .isNull();
         assertThat(result.getType()).as("type should be null").isNull();
     }
 }

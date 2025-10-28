@@ -1595,6 +1595,7 @@ components:
         - extension_point
         - hook_id
         - owner_id
+        - timestamp_range
         - type
       properties:
         admin_key:
@@ -1625,6 +1626,8 @@ components:
           allOf:
             - $ref: "#/components/schemas/EntityId"
           description: The entity that owns the hook
+        timestamp_range:
+          $ref: "#/components/schemas/TimestampRangeNullable"
         type:
           description: The type of the hook implementation
           enum: [LAMBDA]
