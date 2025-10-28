@@ -7,18 +7,28 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.node.config.data.ContractsConfig;
 import java.math.BigInteger;
 import java.time.Instant;
 import org.hiero.mirror.web3.evm.store.CachingStateFrame.CacheAccessIncorrectTypeException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HIP1215Contract;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 
 class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
 
     private static final BigInteger EXPIRY_SHIFT = BigInteger.valueOf(40);
     private static final BigInteger GAS_LIMIT = BigInteger.valueOf(2_000_000L);
 
+    private boolean isSystemCallEnabled() {
+        return mirrorNodeEvmProperties
+                .getVersionedConfiguration()
+                .getConfigData(ContractsConfig.class)
+                .systemContractScheduleCallEnabled();
+    }
+
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testScheduleCall() throws Exception {
         // Given
@@ -39,6 +49,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testScheduleCallWithPayer() throws Exception {
         // Given
@@ -51,21 +62,16 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Currently not working as in the current hedera-app version the ScheduleCallTranslator has a function
-            // signature "scheduleCallWithSender"
-            // which in hedera-app v0.67 gets renamed to "scheduleCallWithPayer" which is the correct signature
-            // according to HIP-1215.
-            // Everything is set up according to the HIP and needs to be uncommented once we bump hedera-app.
-
-            //            verifyEthCallAndEstimateGas(sendFunction, contract);
-            //            final var callFunctionResult = callFunction.send();
-            //            verifyCallFunctionResult(callFunctionResult);
+            verifyEthCallAndEstimateGas(sendFunction, contract);
+            final var callFunctionResult = callFunction.send();
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testExecuteCallOnPayerSignature() throws Exception {
         // Given
@@ -80,21 +86,16 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Currently not working as in the current hedera-app version the ScheduleCallTranslator has a function
-            // signature "executeCallOnSenderSignature"
-            // which in hedera-app v0.67 gets renamed to "executeCallOnPayerSignature" which is the correct signature
-            // according to HIP-1215.
-            // Everything is set up according to the HIP and needs to be uncommented once we bump hedera-app.
-
-            //            verifyEthCallAndEstimateGas(sendFunction, contract);
-            //            final var callFunctionResult = callFunction.send();
-            //            verifyCallFunctionResult(callFunctionResult);
+            verifyEthCallAndEstimateGas(sendFunction, contract);
+            final var callFunctionResult = callFunction.send();
+            verifyCallFunctionResult(callFunctionResult);
         } else {
             final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
             assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testDeleteSchedule() throws Exception {
         // Given
@@ -103,8 +104,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var sender = accountEntityPersist();
         final var receiver = accountEntityPersist();
         final var scheduleEntity = scheduleEntityPersist();
-        final var schedule =
-                schedulePersist(scheduleEntity, payer, buildDefaultScheduleTransactionBody(sender, receiver));
+        schedulePersist(scheduleEntity, payer, buildDefaultScheduleTransactionBody(sender, receiver));
 
         // When
         final var sendFunction = contract.send_deleteScheduleExample(getAddressFromEntity(scheduleEntity));
@@ -121,6 +121,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testDeleteScheduleThroughFacade() throws Exception {
         // Given
@@ -129,8 +130,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var sender = accountEntityPersist();
         final var receiver = accountEntityPersist();
         final var scheduleEntity = scheduleEntityPersist();
-        final var schedule =
-                schedulePersist(scheduleEntity, payer, buildDefaultScheduleTransactionBody(sender, receiver));
+        schedulePersist(scheduleEntity, payer, buildDefaultScheduleTransactionBody(sender, receiver));
 
         // When
         final var sendFunction = contract.send_deleteScheduleProxyExample(getAddressFromEntity(scheduleEntity));
@@ -142,10 +142,11 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
             final var callFunctionResult = callFunction.send();
             assertThat(callFunctionResult).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
         } else {
-            final var exception = assertThrows(CacheAccessIncorrectTypeException.class, sendFunction::send);
+            assertThrows(CacheAccessIncorrectTypeException.class, sendFunction::send);
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testHasScheduleCapacity() throws Exception {
         // Given
@@ -166,6 +167,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testHasScheduleCapacityProxy() throws Exception {
         // Given
@@ -187,6 +189,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testScheduleCallWithCapacityCheckAndDelete() throws Exception {
         // Given
@@ -207,6 +210,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         }
     }
 
+    @EnabledIf("isSystemCallEnabled")
     @Test
     void testScheduleCallWithDefaultCallData() throws Exception {
         // Given
