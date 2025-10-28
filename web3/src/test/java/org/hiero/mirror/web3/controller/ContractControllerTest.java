@@ -514,7 +514,7 @@ class ContractControllerTest {
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        assertThat(capturedParams.isModularized()).isFalse();
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     @Test
@@ -530,7 +530,7 @@ class ContractControllerTest {
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        assertThat(capturedParams.isModularized()).isFalse();
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     @Test
@@ -562,7 +562,7 @@ class ContractControllerTest {
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        assertThat(capturedParams.isModularized()).isFalse();
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     @Test
@@ -578,7 +578,7 @@ class ContractControllerTest {
         verify(service).processCall(paramsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        assertThat(capturedParams.isModularized()).isFalse();
+        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     @Test

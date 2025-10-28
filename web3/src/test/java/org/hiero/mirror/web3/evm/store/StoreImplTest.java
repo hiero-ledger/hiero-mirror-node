@@ -256,13 +256,18 @@ class StoreImplTest {
 
     @Test
     void deleteTokenRelationship() {
-        setupTokenAndAccount();
+        var tokenRelationship = new TokenRelationship(
+                new com.hedera.services.store.models.Token(TOKEN_ID), new Account(0L, ACCOUNT_ID, 0L));
+        subject.wrap();
+        subject.updateTokenRelationship(tokenRelationship);
 
-        final var tokenRelationship = subject.getTokenRelationship(
+        final var preDeleteTokenRelationship = subject.getTokenRelationship(
                 new TokenRelationshipKey(TOKEN_ADDRESS, ACCOUNT_ADDRESS), OnMissing.DONT_THROW);
 
-        subject.wrap();
-        subject.deleteTokenRelationship(tokenRelationship);
+        assertThat(preDeleteTokenRelationship.getToken().getId()).isEqualTo(TOKEN_ID);
+        assertThat(preDeleteTokenRelationship.getAccount().getId()).isEqualTo(ACCOUNT_ID);
+
+        subject.deleteTokenRelationship(preDeleteTokenRelationship);
 
         var postDeleteRelationship = subject.getTokenRelationship(
                 new TokenRelationshipKey(TOKEN_ADDRESS, ACCOUNT_ADDRESS), OnMissing.DONT_THROW);

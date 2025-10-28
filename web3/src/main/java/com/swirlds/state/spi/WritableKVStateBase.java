@@ -2,8 +2,6 @@
 
 package com.swirlds.state.spi;
 
-import static java.util.Objects.requireNonNull;
-
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.util.ArrayList;
@@ -33,21 +31,21 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * Create a new StateBase.
      *
      * @param serviceName The name of the service that owns the state. Cannot be null.
-     * @param stateKey The state key. Cannot be null.
+     * @param stateId The state id.
      */
-    protected WritableKVStateBase(@Nonnull final String serviceName, @Nonnull final String stateKey) {
-        super(serviceName, stateKey);
+    protected WritableKVStateBase(@Nonnull final String serviceName, final int stateId) {
+        super(stateId, serviceName);
     }
 
     /**
-     * Register a listener to be notified of changes to the state on {@link #commit()}. We do not support unregistering
-     * a listener, as the lifecycle of a {@link WritableKVState} is scoped to the set of mutations made to a state in a
-     * round; and there is no use case where an application would only want to be notified of a subset of those changes.
-     * @param listener the listener to register
+     * Compatibility constructor matching platform-sdk signature (int, String).
+     * Some components (e.g., WrappedWritableKVState) expect this exact signature at runtime.
+     *
+     * @param stateId The state ID
+     * @param label The state label (may be null)
      */
-    public void registerListener(@Nonnull final KVChangeListener<K, V> listener) {
-        requireNonNull(listener);
-        listeners.add(listener);
+    protected WritableKVStateBase(final int stateId, final String label) {
+        super(stateId, label);
     }
 
     /**
@@ -212,7 +210,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     protected abstract long sizeOfDataSource();
 
     private Map<Object, Object> getWriteCacheState() {
-        return ContractCallContext.get().getWriteCacheState(getStateKey());
+        return ContractCallContext.get().getWriteCacheState(getStateId());
     }
 
     /**
