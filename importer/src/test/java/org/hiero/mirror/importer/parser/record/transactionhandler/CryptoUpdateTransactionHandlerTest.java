@@ -162,7 +162,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerCalledWithHookCreationDetails() {
         // given
-        var recordItem = recordItemBuilder.cryptoUpdateWithHookCreation().build();
+        var recordItem = recordItemBuilder.cryptoUpdate().build();
         var transaction = transaction(recordItem);
         var accountId = EntityId.of(
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
@@ -186,7 +186,10 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerCalledWithHookDeletionDetails() {
         // given
-        var recordItem = recordItemBuilder.cryptoUpdateWithHookDeletion().build();
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
         var transaction = transaction(recordItem);
         var accountId = EntityId.of(
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
@@ -210,8 +213,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerCalledWithBothHookCreationAndDeletionDetails() {
         // given
-        var recordItem =
-                recordItemBuilder.cryptoUpdateWithHookDeletionAndCreation().build();
+        var recordItem = recordItemBuilder.cryptoUpdate().build();
         var transaction = transaction(recordItem);
         var accountId = EntityId.of(
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
@@ -235,7 +237,10 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerNotCalledWhenNoHooks() {
         // given
-        var recordItem = recordItemBuilder.cryptoUpdate().build();
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
         var transaction = transaction(recordItem);
 
         // when

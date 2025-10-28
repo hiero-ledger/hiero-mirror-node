@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -276,7 +275,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerCalledWithHookCreationDetails() {
         // given
-        var recordItem = recordItemBuilder.cryptoCreateWithHooks().build();
+        var recordItem = recordItemBuilder.cryptoCreate().build();
         var transaction = transaction(recordItem);
         var accountId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
@@ -291,7 +290,7 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                         eq(recordItem),
                         eq(accountId.getId()),
                         eq(transactionBody.getHookCreationDetailsList()),
-                        isNull());
+                        eq(List.of()));
 
         // Verify entity was created
         assertEntity(accountId, recordItem.getConsensusTimestamp());
@@ -302,14 +301,17 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerNotCalledWhenNoHooks() {
         // given
-        var recordItem = recordItemBuilder.cryptoCreate().build();
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
         var transaction = transaction(recordItem);
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
 
         // then
-        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), isNull());
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
     private ObjectAssert<Entity> assertEntity(EntityId accountId, long timestamp) {

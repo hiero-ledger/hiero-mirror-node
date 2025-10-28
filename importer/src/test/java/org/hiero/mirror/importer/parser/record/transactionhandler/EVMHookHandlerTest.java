@@ -14,7 +14,6 @@ import com.google.common.collect.Range;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
-import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
@@ -70,7 +69,7 @@ final class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, null);
+        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, List.of());
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -104,7 +103,7 @@ final class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, null);
+        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, List.of());
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -117,24 +116,12 @@ final class EVMHookHandlerTest {
     }
 
     @Test
-    void processHookCreationDetailsWithNullList() {
-        // given
-        var entityId = EntityId.of(0, 0, 1000);
-
-        // when
-        eVMHookHandler.process(recordItem, entityId.getId(), null, null);
-
-        // then
-        verifyNoInteractions(entityListener);
-    }
-
-    @Test
     void processHookCreationDetailsWithEmptyList() {
         // given
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), Collections.emptyList(), null);
+        eVMHookHandler.process(recordItem, entityId.getId(), List.of(), List.of());
 
         // then
         verifyNoInteractions(entityListener);
@@ -152,7 +139,7 @@ final class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), null, hookIdsToDelete);
+        eVMHookHandler.process(recordItem, entityId.getId(), List.of(), hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
@@ -212,7 +199,7 @@ final class EVMHookHandlerTest {
         var entityId = EntityId.of(0, 0, 1000);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), null, Collections.emptyList());
+        eVMHookHandler.process(recordItem, entityId.getId(), List.of(), List.of());
 
         // then
         verifyNoInteractions(entityListener);

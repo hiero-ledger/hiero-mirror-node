@@ -6,7 +6,6 @@ import com.google.common.collect.Range;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import jakarta.inject.Named;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
@@ -14,13 +13,13 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.util.CollectionUtils;
 
 @Named
-@RequiredArgsConstructor
 @NullMarked
-@CustomLog
+@RequiredArgsConstructor
 final class EVMHookHandler {
 
     private final EntityListener entityListener;
@@ -62,46 +61,38 @@ final class EVMHookHandler {
 
     private void processHookCreationDetail(
             RecordItem recordItem, long entityId, HookCreationDetails hookCreationDetails) {
-        // Check if lambda_evm_hook oneof field is set
-        if (!hookCreationDetails.hasLambdaEvmHook()) {
-            log.warn(
-                    "Skipping hook creation for hookId {} - lambda_evm_hook not set in transaction at {}",
+        // Check if any hook oneof field is set
+        if (!hookCreationDetails.hasLambdaEvmHook() && !hookCreationDetails.hasPureEvmHook()) {
+            Utility.handleRecoverableError(
+                    "Skipping hook creation for hookId {} - no hook implementation set in transaction at {}",
                     hookCreationDetails.getHookId(),
                     recordItem.getConsensusTimestamp());
             return;
         }
 
-        final var lambdaEvmHook = hookCreationDetails.getLambdaEvmHook();
+        // Get the spec from whichever hook type is set
+        final var spec = hookCreationDetails.hasLambdaEvmHook()
+                ? hookCreationDetails.getLambdaEvmHook().getSpec()
+                : hookCreationDetails.getPureEvmHook().getSpec();
 
-        // Check if spec is set
-        if (!lambdaEvmHook.hasSpec()) {
-            log.warn(
-                    "Skipping hook creation for hookId {} - spec not set in lambda_evm_hook in transaction at {}",
-                    hookCreationDetails.getHookId(),
-                    recordItem.getConsensusTimestamp());
-            return;
-        }
-
-        final var spec = lambdaEvmHook.getSpec();
-
-        // Check if contract ID is set
+        // Check if contract ID is set in spec
         if (!spec.hasContractId()) {
-            log.warn(
-                    "Skipping hook creation for hookId {} - contract_id not set in spec in transaction at {}",
+            Utility.handleRecoverableError(
+                    "Skipping hook creation for hookId {} - contract_id not set in hook spec in transaction at {}",
                     hookCreationDetails.getHookId(),
                     recordItem.getConsensusTimestamp());
             return;
         }
 
         final var hookBuilder = Hook.builder()
-                .createdTimestamp(recordItem.getConsensusTimestamp())
                 .contractId(EntityId.of(spec.getContractId()))
+                .createdTimestamp(recordItem.getConsensusTimestamp())
                 .deleted(false)
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .extensionPoint(translateHookExtensionPoint(hookCreationDetails.getExtensionPoint()))
                 .hookId(hookCreationDetails.getHookId())
+                .ownerId(entityId)
                 .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
-                .type(HookType.LAMBDA)
-                .ownerId(entityId);
+                .type(translateHookType(hookCreationDetails));
 
         // Check if adminKey is set before accessing it
         if (hookCreationDetails.hasAdminKey()) {
@@ -112,14 +103,12 @@ final class EVMHookHandler {
         recordItem.addEntityId(hook.getContractId());
         entityListener.onHook(hook);
 
-        // Process storage updates if present
-        if (!CollectionUtils.isEmpty(lambdaEvmHook.getStorageUpdatesList())) {
-            log.debug(
-                    "Processing {} storage updates for hookId {} in transaction at {}",
-                    lambdaEvmHook.getStorageUpdatesList().size(),
-                    hookCreationDetails.getHookId(),
-                    recordItem.getConsensusTimestamp());
-            // TODO: Process storage updates when hook storage functionality is implemented
+        // Process storage updates if present (only for LambdaEvmHook)
+        if (hookCreationDetails.hasLambdaEvmHook()) {
+            final var lambdaEvmHook = hookCreationDetails.getLambdaEvmHook();
+            if (!CollectionUtils.isEmpty(lambdaEvmHook.getStorageUpdatesList())) {
+                // TODO: Process storage updates when hook storage functionality is implemented
+            }
         }
     }
 
@@ -132,16 +121,54 @@ final class EVMHookHandler {
      * @param hookIdsToDeleteList the list of hook IDs to delete
      */
     private void processHookDeletion(RecordItem recordItem, long entityId, List<Long> hookIdsToDeleteList) {
-        if (!CollectionUtils.isEmpty(hookIdsToDeleteList)) {
-            hookIdsToDeleteList.forEach(hookId -> {
-                Hook hook = Hook.builder()
-                        .hookId(hookId)
-                        .ownerId(entityId)
-                        .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
-                        .deleted(true)
-                        .build();
-                entityListener.onHook(hook);
-            });
+        hookIdsToDeleteList.forEach(hookId -> {
+            Hook hook = Hook.builder()
+                    .deleted(true)
+                    .hookId(hookId)
+                    .ownerId(entityId)
+                    .timestampRange(Range.atLeast(recordItem.getConsensusTimestamp()))
+                    .build();
+            entityListener.onHook(hook);
+        });
+    }
+
+    /**
+     * Translates the protobuf HookExtensionPoint from the transaction body to the domain HookExtensionPoint.
+     *
+     * @param protoExtensionPoint the HookExtensionPoint from the transaction protobuf
+     * @return the corresponding domain HookExtensionPoint
+     */
+    private HookExtensionPoint translateHookExtensionPoint(
+            com.hedera.hapi.node.hooks.legacy.HookExtensionPoint protoExtensionPoint) {
+        return switch (protoExtensionPoint) {
+            case ACCOUNT_ALLOWANCE_HOOK -> HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK;
+            case UNRECOGNIZED -> {
+                Utility.handleRecoverableError(
+                        "Unrecognized HookExtensionPoint: {}, defaulting to ACCOUNT_ALLOWANCE_HOOK",
+                        protoExtensionPoint);
+                yield HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK;
+            }
+        };
+    }
+
+    /**
+     * Translates the hook type from the oneof case in the transaction body to the domain HookType.
+     *
+     * @param hookCreationDetails the HookCreationDetails from the transaction protobuf
+     * @return the corresponding domain HookType
+     */
+    private HookType translateHookType(HookCreationDetails hookCreationDetails) {
+        if (hookCreationDetails.hasLambdaEvmHook()) {
+            return HookType.LAMBDA;
+        } else if (hookCreationDetails.hasPureEvmHook()) {
+            Utility.handleRecoverableError(
+                    "PureEvmHook not yet supported for hookId {}, treating as LAMBDA", hookCreationDetails.getHookId());
+            return HookType.PURE;
+        } else {
+            Utility.handleRecoverableError(
+                    "Unknown hook type in HookCreationDetails for hookId {}, defaulting to LAMBDA",
+                    hookCreationDetails.getHookId());
+            return HookType.LAMBDA;
         }
     }
 }

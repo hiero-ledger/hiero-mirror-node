@@ -1832,7 +1832,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     @Test
     void cryptoCreateWithHooks() {
         // given
-        var recordItem = recordItemBuilder.cryptoCreateWithHooks().build();
+        var recordItem = recordItemBuilder.cryptoCreate().build();
 
         var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
         var cryptoCreateBody = recordItem.getTransactionBody().getCryptoCreateAccount();
@@ -1869,8 +1869,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     @Test
     void cryptoUpdateWithHooksSequentialOperations() {
         // Step 1: Create an account with hooks
-        var createAccountWithHooksRecordItem =
-                recordItemBuilder.cryptoCreateWithHooks().build();
+        var createAccountWithHooksRecordItem = recordItemBuilder.cryptoCreate().build();
         parseRecordItemAndCommit(createAccountWithHooksRecordItem);
 
         var accountId = createAccountWithHooksRecordItem
@@ -1908,8 +1907,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Step 2: Delete and create hook in same transaction
         var deletionAndCreationRecordItem = recordItemBuilder
-                .cryptoUpdateWithHookDeletionAndCreation()
-                .transactionBody(b -> b.setAccountIDToUpdate(accountId))
+                .cryptoUpdate()
+                .transactionBody(b -> b.addHookIdsToDelete(1L).setAccountIDToUpdate(accountId))
                 .build();
         parseRecordItemAndCommit(deletionAndCreationRecordItem);
 
@@ -1928,8 +1927,11 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Step 3: Final deletion
         var finalDeleteRecordItem = recordItemBuilder
-                .cryptoUpdateWithHookDeletion()
-                .transactionBody(b -> b.setAccountIDToUpdate(accountId))
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails()
+                        .addHookIdsToDelete(1L)
+                        .setAccountIDToUpdate(accountId)
+                        .clearHookCreationDetails())
                 .build();
         parseRecordItemAndCommit(finalDeleteRecordItem);
 
@@ -1940,7 +1942,8 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertTrue(hookOptional3.isPresent(), "Hook should still exist after final soft delete"),
                 () -> assertTrue(
                         hookOptional3.get().getDeleted(), "Hook should be marked as deleted after final deletion"),
-                () -> assertEquals(1, hookRepository.count(), "Hook count should remain same for soft delete"));
+                () -> assertEquals(1, hookRepository.count(), "Hook count should remain same for soft delete"),
+                () -> assertTrue(hookOptional3.get().getDeleted()));
     }
 
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {
