@@ -1064,6 +1064,60 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertEntityTransactions(recordItem));
     }
 
+    @Test
+    void testCallWithZeroNonceToBeTopLevel() {
+        var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(0);
+                })
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void testCallWithPositiveNonceAndNotScheduledTypeToNotBeTopLevel() {
+        var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                })
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void testCallWithNonEmptyParentConsensusTimestampToNotBeTopLevel() {
+        var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                    r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                            .setSeconds(1499853)
+                            .setNanos(0)
+                            .build());
+                })
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void testCallWithEmptyParentConsensusTimestampToBeTopLevel() {
+        var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                    r.setParentConsensusTimestamp(
+                            Timestamp.newBuilder().setSeconds(0).setNanos(0).build());
+                })
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
     private void assertFailedContractCreate(TransactionBody transactionBody, TransactionRecord txnRecord) {
         var dbTransaction = getDbTransaction(txnRecord.getConsensusTimestamp());
         var contractCreateBody = transactionBody.getContractCreateInstance();

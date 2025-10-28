@@ -4,16 +4,19 @@ package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
@@ -24,6 +27,7 @@ import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
+import org.hiero.mirror.importer.test.performance.PerformanceProperties.SubType;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,6 +115,158 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         assertRecordFile(recordFile1, recordFile2, recordFile3);
         assertThat(cryptoTransferRepository.count()).isEqualTo(3 * 6 * transactions);
         assertThat(transactionRepository.count()).isEqualTo(3 * transactions);
+    }
+
+    @Test
+    void parseSingleFileWithNonceZeroContractCallItems() {
+        // given
+        int transactions = 2;
+        int entities = 2;
+        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        var recordFileTemplate = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions).entities(entities).subType(SubType.CONTRACT_CALL));
+        var recordFile = recordFileTemplate.build();
+        recordFile.getItems().forEach(r -> {
+            var rec = r.getTransactionRecord();
+            var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
+            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+        });
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+    }
+
+    @Test
+    void parseSingleFileWithEmptyParentConsensusTimestampTopLevelContractCallItems() {
+        // given
+        int transactions = 2;
+        int entities = 2;
+        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
+                .entities(entities)
+                .subType(SubType.CONTRACT_CALL)
+                .nonce(5)
+                .isScheduled(false));
+        var recordFile = recordFileTemplate.build();
+        recordFile.getItems().forEach(r -> {
+            var rec = r.getTransactionRecord();
+            var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
+            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+        });
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+    }
+
+    @Test
+    void parseSingleFileWitHavingParentConsensusTimestampNonTopLevelContractCallItems() {
+        // given
+        int transactions = 2;
+        int entities = 2;
+        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
+                .entities(entities)
+                .subType(SubType.CONTRACT_CALL)
+                .nonce(5)
+                .isScheduled(false)
+                .parentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(1403434L).build()));
+        var recordFile = recordFileTemplate.build();
+        recordFile.getItems().forEach(r -> {
+            var rec = r.getTransactionRecord();
+            var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
+            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+        });
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isZero();
+        assertThat(updatedRecordFile.getLogsBloom()).isEmpty();
+    }
+
+    @Test
+    void parseSingleFileWithPositiveNonceAndScheduledTopLevelContractCallItems() {
+        // given
+        int transactions = 2;
+        int entities = 2;
+        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
+                .entities(entities)
+                .subType(SubType.CONTRACT_CALL)
+                .nonce(8)
+                .isScheduled(true));
+        var recordFile = recordFileTemplate.build();
+        recordFile.getItems().forEach(r -> {
+            var rec = r.getTransactionRecord();
+            var result = rec.hasContractCreateResult() ? rec.getContractCreateResult() : rec.getContractCallResult();
+            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+        });
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+    }
+
+    @Test
+    void parseSingleFileWithOneTopLevelAndOneNotTopLevelContractCall() {
+        // given
+        int transactions = 2;
+        int entities = 1;
+        LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        var recordFileTemplate = recordFileBuilder.recordFile().recordItems(i -> i.count(transactions)
+                .entities(entities)
+                .subType(SubType.CONTRACT_CALL)
+                .nonce(5)
+                .isScheduled(false)
+                .parentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(1403434L).build()));
+        var recordFile = recordFileTemplate.build();
+        var transactionRecord = recordFile.getItems().get(1).getTransactionRecord();
+        var result = transactionRecord.hasContractCreateResult()
+                ? transactionRecord.getContractCreateResult()
+                : transactionRecord.getContractCallResult();
+        logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(entities * 100000L);
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
     }
 
     @Test

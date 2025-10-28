@@ -172,7 +172,11 @@ public class RecordItem implements StreamItem {
 
     // Whether this is a top level, user submitted transaction that could possibly trigger other internal transactions.
     public boolean isTopLevel() {
-        return transactionRecord.getTransactionID().getNonce() == 0;
+        var transactionNonce = transactionRecord.getTransactionID().getNonce();
+
+        return transactionNonce == 0
+                || (transactionNonce > 0 && transactionRecord.getTransactionID().getScheduled())
+                || transactionRecord.getParentConsensusTimestamp().getSeconds() == 0;
     }
 
     /**

@@ -145,4 +145,12 @@ public class RecordFile implements StreamFile<RecordItem> {
 
         return new Version(hapiVersionMajor, hapiVersionMinor, hapiVersionPatch);
     }
+
+    public long getGasUsed() {
+        return gasUsed;
+    }
+
+    public byte[] getLogsBloom() {
+        return logsBloom;
+    }
 }

@@ -337,6 +337,28 @@ public class RecordItemBuilder {
         return contractCall(contractId());
     }
 
+    public Builder<ContractCallTransactionBody.Builder> contractCall(
+            final int nonce, final Timestamp parentConsensusTimestamp, boolean isScheduled) {
+        var contractId = contractId();
+        ContractCallTransactionBody.Builder transactionBody = ContractCallTransactionBody.newBuilder()
+                .setAmount(5_000L)
+                .setContractID(contractId)
+                .setFunctionParameters(nonZeroBytes(64))
+                .setGas(10_000L);
+
+        var functionResult = contractFunctionResult(contractId);
+        var transactionID = TransactionID.newBuilder()
+                .setNonce(nonce)
+                .setAccountID(functionResult.getSenderId())
+                .setScheduled(isScheduled);
+
+        return new Builder<>(TransactionType.CONTRACTCALL, transactionBody)
+                .receipt(r -> r.setContractID(contractId))
+                .record(r -> r.setContractCallResult(functionResult)
+                        .setTransactionID(transactionID.build())
+                        .setParentConsensusTimestamp(parentConsensusTimestamp));
+    }
+
     @SuppressWarnings("deprecation")
     public Builder<ContractCallTransactionBody.Builder> contractCall(ContractID contractId) {
         ContractCallTransactionBody.Builder transactionBody = ContractCallTransactionBody.newBuilder()
