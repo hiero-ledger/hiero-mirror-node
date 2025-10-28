@@ -75,6 +75,10 @@ Response format:
       "extension_point": "ACCOUNT_ALLOWANCE_HOOK",
       "hook_id": 5,
       "owner_id": "0.0.123",
+      "timestamp": {
+        "from": "1726874345.123456789",
+        "to": null
+      },
       "type": "LAMBDA"
     }
   ],
