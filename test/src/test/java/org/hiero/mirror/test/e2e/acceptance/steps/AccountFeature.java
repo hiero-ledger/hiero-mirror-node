@@ -37,12 +37,14 @@ import org.hiero.mirror.test.e2e.acceptance.client.Cleanable;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
+import org.springframework.context.annotation.Scope;
 import org.springframework.core.OrderComparator;
 import org.springframework.http.HttpStatus;
 
 @CustomLog
 @Data
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class AccountFeature extends AbstractFeature {
 
     public static final int DEFAULT_LIMIT = 25;
