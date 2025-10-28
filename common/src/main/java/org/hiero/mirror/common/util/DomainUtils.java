@@ -48,8 +48,10 @@ public class DomainUtils {
 
     private static final long MAX_SYSTEM_ENTITY_NUM = 999;
     private static final byte[] MIRROR_PREFIX = new byte[12];
+    private static final int NANO_DIGITS = 9;
     private static final char NULL_CHARACTER = (char) 0;
     private static final char NULL_REPLACEMENT = '�'; // Standard replacement character 0xFFFD
+    private static final String TIMESTAMP_ZERO = "0.0";
 
     static {
         try {
@@ -391,6 +393,17 @@ public class DomainUtils {
             return text;
         }
         return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
+    }
+
+    public String toTimestamp(long timestamp) {
+        if (timestamp == 0) {
+            return TIMESTAMP_ZERO;
+        }
+
+        var timestampString = StringUtils.leftPad(String.valueOf(timestamp), NANO_DIGITS + 1, '0');
+        return new StringBuilder(timestampString)
+                .insert(timestampString.length() - NANO_DIGITS, '.')
+                .toString();
     }
 
     static class UnsafeByteOutput extends ByteOutput {
