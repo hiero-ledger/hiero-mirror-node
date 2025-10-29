@@ -86,10 +86,15 @@ public class TokenClient extends AbstractNetworkClient {
         for (var tokenName : tokenMap.keySet()) {
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             // The token addresses need to be left-padded with zeroes in order to match the expected format.
-            System.out.println(tokenName.getSymbol() + "="
-                    + String.format(
-                            "%s%s",
-                            "0".repeat(24), tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            if (tokenName.equals(TokenNameEnum.NFT_AIRDROP)) {
+                System.out.println(tokenName.getSymbol() + "=" + tokenMap.get(tokenName).tokenId);
+            } else {
+                System.out.println(tokenName.getSymbol() + "="
+                        + String.format(
+                                "%s%s",
+                                "0".repeat(24),
+                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            }
         }
     }
 

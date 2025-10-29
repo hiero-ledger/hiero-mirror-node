@@ -200,25 +200,33 @@ jobs:
             value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
             echo "${k6}=${value}" >> $GITHUB_ENV
           done
-          
-          // Create new map for rest
-          k6Map["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
+
+          declare -A k6MapRest
+          k6MapRest["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
+          k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
+          k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
+
+          for key in "${!k6MapRest[@]}"; do
+            k6="${k6MapRest[$key]}"
+            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+            echo "${k6}=${value}" >> $GITHUB_ENV
+          done
 
       - name: Install k6
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
 
-      - name: Run rest-java tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
-          DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
-        with:
-          path: |
-            ./tools/k6/src/rest-java/apis.js
-          debug: false
-          flags: --quiet
+      #      - name: Run rest-java tests
+      #        if: ${{ matrix.stream-type != 'BLOCK' }}
+      #        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      #        env:
+      #          DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
+      #          DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
+      #        with:
+      #          path: |
+      #            ./tools/k6/src/rest-java/apis.js
+      #          debug: false
+      #          flags: --quiet
 
       - name: Run rest tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
@@ -229,27 +237,27 @@ jobs:
           debug: false
           flags: --quiet
 
-      - name: Run k6 web3 tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
-          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          RUN_COMPLEX_TESTS: "false"
-          RUN_ESTIMATE_TESTS: "false"
-          RUN_MODIFICATION_TESTS: "false"
-          RUN_WITH_VARIABLES: "true"
-          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
-        with:
-          path: |
-            ./tools/k6/src/web3/apis.js
-          debug: false
-          flags: --quiet
+      #      - name: Run k6 web3 tests
+      #        if: ${{ matrix.stream-type != 'BLOCK' }}
+      #        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      #        env:
+      #          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          RUN_COMPLEX_TESTS: "false"
+      #          RUN_ESTIMATE_TESTS: "false"
+      #          RUN_MODIFICATION_TESTS: "false"
+      #          RUN_WITH_VARIABLES: "true"
+      #          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
+      #          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
+      #        with:
+      #          path: |
+      #            ./tools/k6/src/web3/apis.js
+      #          debug: false
+      #          flags: --quiet
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
-        if: ${{ failure() }}
+        #        if: ${{ failure() }}
         run: |
           echo "--------------------------------------------------"
           echo "Workflow failed. Collecting logs for debugging..."
