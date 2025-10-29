@@ -27,6 +27,8 @@ import org.hiero.mirror.common.domain.entity.FungibleAllowance;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.HookStorage;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
@@ -60,6 +62,7 @@ import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordPar
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.repository.HookStorageRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -81,6 +84,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private final EntityProperties entityProperties;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
+    private final HookStorageRepository hookStorageRepository;
     private final SqlProperties sqlProperties;
 
     @Override
@@ -204,6 +208,22 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onFileData(FileData fileData) {
         context.add(fileData);
+    }
+
+    @Override
+    public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
+        context.add(storageChange);
+
+        final var hookStorage = HookStorage.builder()
+                .createdTimestamp(storageChange.getConsensusTimestamp())
+                .hookId(storageChange.getHookId())
+                .ownerId(storageChange.getOwnerId())
+                .key(storageChange.getKey())
+                .modifiedTimestamp(storageChange.getConsensusTimestamp())
+                .value(storageChange.getValueWritten())
+                .build();
+
+        context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
     }
 
     @Override
@@ -850,6 +870,12 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
 
         return current;
+    }
+
+    private HookStorage mergeHookStorage(HookStorage previous, HookStorage current) {
+        previous.setValue(current.getValue());
+        previous.setModifiedTimestamp(current.getModifiedTimestamp());
+        return previous;
     }
 
     private void onNftTransferList(Transaction transaction) {
