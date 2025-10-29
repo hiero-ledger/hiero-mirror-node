@@ -8,8 +8,6 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.Range;
@@ -3700,24 +3698,12 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .type(HookType.LAMBDA) // merged from creation
                 .build();
 
+        var expectedHookHistory = hookCreate.toBuilder()
+                .timestampRange(Range.closedOpen(createdTimestamp, deletedTimestamp))
+                .build();
+
         assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
-
-        Collection<Hook> history = findHistory(Hook.class);
-        Optional<Hook> actualOptional = history.stream().findFirst();
-        assertThat(actualOptional).isPresent();
-
-        assertAll(
-                () -> assertEquals(hookId, actualOptional.get().getHookId()),
-                () -> assertEquals(contractId, actualOptional.get().getContractId()),
-                () -> assertEquals(
-                        HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
-                        actualOptional.get().getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, actualOptional.get().getType()),
-                () -> assertEquals(
-                        EntityId.of(ownerId).getId(), actualOptional.get().getOwnerId()),
-                () -> assertEquals(createdTimestamp, actualOptional.get().getCreatedTimestamp()),
-                () -> assertNotNull(actualOptional.get().getTimestampUpper()),
-                () -> assertFalse(actualOptional.get().getDeleted()));
+        assertThat(findHistory(Hook.class)).containsExactly(expectedHookHistory);
     }
 
     @Test
