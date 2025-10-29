@@ -96,6 +96,56 @@ final class EVMHookHandlerTest {
     }
 
     @Test
+    void processHookCreationDetailsWithEmptyContract() {
+        // given
+        var consensusTimestamp = 1234567890L;
+        var entityId = EntityId.of(0, 0, 1000);
+        var hookId = 1L;
+        var contractId = EntityId.of(0, 0, 2000);
+        var adminKey = "test-admin-key".getBytes();
+
+        var evmHookSpec = EvmHookSpec.newBuilder()
+                .setContractId(contractId.toContractID())
+                .build();
+
+        var lambdaEvmHook = LambdaEvmHook.newBuilder().setSpec(evmHookSpec).build();
+
+        var hookCreationDetails = HookCreationDetails.newBuilder()
+                .setExtensionPoint(com.hedera.hapi.node.hooks.legacy.HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(hookId)
+                .setLambdaEvmHook(lambdaEvmHook)
+                .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
+                        .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
+                        .build())
+                .build();
+
+        var hookCreationDetailsList = List.of(hookCreationDetails);
+
+        when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
+
+        // when
+        when(entityIdService.lookup(contractId.toContractID())).thenReturn(Optional.empty());
+        eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, List.of());
+
+        // then
+        ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
+        verify(entityListener).onHook(hookCaptor.capture());
+
+        var capturedHook = hookCaptor.getValue();
+        assertAll(
+                () -> assertThat(capturedHook.getHookId()).isEqualTo(hookId),
+                () -> assertThat(capturedHook.getContractId()).isEqualTo(EntityId.EMPTY),
+                () -> assertThat(capturedHook.getAdminKey())
+                        .isEqualTo(hookCreationDetails.getAdminKey().toByteArray()),
+                () -> assertThat(capturedHook.getExtensionPoint()).isEqualTo(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK),
+                () -> assertThat(capturedHook.getType()).isEqualTo(HookType.LAMBDA),
+                () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
+                () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
+                () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
+                () -> assertThat(capturedHook.getDeleted()).isFalse());
+    }
+
+    @Test
     void processHookCreationDetailsWithMultipleHooks() {
         // given
         var consensusTimestamp = 1234567890L;
