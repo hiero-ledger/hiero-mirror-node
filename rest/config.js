@@ -185,6 +185,7 @@ const durationQueryConfigKeys = [
   'maxTimestampRange',
   'maxTransactionConsensusTimestampRange',
   'maxTransactionsTimestampRange',
+  'maxValidStartTimestampDrift',
 ];
 
 const parseQueryConfig = () => {

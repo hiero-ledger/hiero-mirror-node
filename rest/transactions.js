@@ -838,7 +838,7 @@ const getTransactionsByTransactionIdsSql = (transactionKeys, filters, timestampF
   params.lowerConsensusTimestampIndex = params.length;
   params.push(
     timestampField === Transaction.VALID_START_NS
-      ? minTimestamp - config.query.maxRecordFileCloseIntervalNs
+      ? minTimestamp - config.query.maxValidStartTimestampDriftNs
       : minTimestamp
   );
   params.upperConsensusTimestampIndex = params.length;

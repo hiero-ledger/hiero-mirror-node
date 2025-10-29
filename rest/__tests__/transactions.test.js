@@ -10,9 +10,9 @@ import EntityId from '../entityId';
 
 const {
   query: {
-    maxRecordFileCloseIntervalNs,
     maxScheduledTransactionConsensusTimestampRangeNs,
     maxTransactionConsensusTimestampRangeNs,
+    maxValidStartTimestampDriftNs,
   },
 } = config;
 
@@ -486,7 +486,7 @@ describe('extractSqlFromTransactionsByIdOrHashRequest', () => {
   describe('success', () => {
     const defaultTransactionIdStr = '0.0.200-123456789-987654321';
     const validStartNs = 123456789987654321n;
-    const minConsensusTimestamp = validStartNs - maxRecordFileCloseIntervalNs;
+    const minConsensusTimestamp = validStartNs - maxValidStartTimestampDriftNs;
     const maxConsensusTimestamp = validStartNs + maxTransactionConsensusTimestampRangeNs;
     const defaultParams = addTimestampIndices([200n, validStartNs, minConsensusTimestamp, maxConsensusTimestamp]);
     const transactionKeys = [200n, validStartNs];
@@ -638,7 +638,7 @@ describe('getTransactionsByTransactionIdsSql', () => {
     const minValidStartNs = 123456789987654321n;
     const maxValidStartNs = 123456789987654322n;
 
-    const minConsensusTimestampForId = minValidStartNs - maxRecordFileCloseIntervalNs;
+    const minConsensusTimestampForId = minValidStartNs - maxValidStartTimestampDriftNs;
     const maxConsensusTimestampForId = maxValidStartNs + maxTransactionConsensusTimestampRangeNs;
 
     const defaultParams = addTimestampIndices([
