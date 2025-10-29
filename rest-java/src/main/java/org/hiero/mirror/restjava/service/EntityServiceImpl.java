@@ -9,7 +9,7 @@ import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.repository.EntityRepository;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.Optional;
@@ -22,13 +22,13 @@ class EntityServiceImpl implements EntityService {
     private final EntityRepository entityRepository;
 
     @Override
-    public Entity findById(@Nonnull EntityId id) {
+    public Entity findById(@NonNull EntityId id) {
         return entityRepository.findById(id.getId())
                 .orElseThrow(() -> new EntityNotFoundException("Entity not found: " + id));
     }
 
     @Override
-    public EntityId lookup(@Nonnull EntityIdParameter accountId) {
+    public EntityId lookup(@NonNull EntityIdParameter accountId) {
         var id = switch (accountId) {
             case EntityIdNumParameter p -> Optional.of(p.id());
             case EntityIdAliasParameter p -> entityRepository.findByAlias(p.alias()).map(EntityId::of);

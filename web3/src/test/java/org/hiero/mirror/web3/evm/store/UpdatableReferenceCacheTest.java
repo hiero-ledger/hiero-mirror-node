@@ -3,12 +3,9 @@
 package org.hiero.mirror.web3.evm.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatExceptionOfType;
 import static org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState.ValueState;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import org.assertj.core.api.SoftAssertions;
@@ -16,6 +13,8 @@ import org.assertj.core.api.junit.jupiter.InjectSoftAssertions;
 import org.assertj.core.api.junit.jupiter.SoftAssertionsExtension;
 import org.hiero.mirror.web3.evm.store.UpdatableReferenceCache.UpdatableCacheUsageException;
 import org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState.Entry;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -94,13 +93,6 @@ class UpdatableReferenceCacheTest {
         softly.assertThat(actualGet).isEqualTo(expected);
     }
 
-    ///// Tests start here:
-
-    @Test
-    void cannotGetWithANullKeyTest() {
-        assertThatNullPointerException().isThrownBy(() -> sut.get(null));
-    }
-
     @Test
     void fillWhileNotYetFetchedIsOkTest() {
         sut.fill(THIS_KEY, ORIGINAL_VALUE);
@@ -130,16 +122,6 @@ class UpdatableReferenceCacheTest {
         assertThatExceptionOfType(
                         state == ValueState.INVALID ? IllegalStateException.class : UpdatableCacheUsageException.class)
                 .isThrownBy(() -> sut.fill(THIS_KEY, NEW_VALUE));
-    }
-
-    @Test
-    void cannotUpdateWithANullKeyTest() {
-        assertThatNullPointerException().isThrownBy(() -> sut.update(null, "foo"));
-    }
-
-    @Test
-    void cannotUpdateWithANullValueTest() {
-        assertThatNullPointerException().isThrownBy(() -> sut.update("foo", null));
     }
 
     @ParameterizedTest(name = "state {0} (original {1} x current {2})")
@@ -191,11 +173,6 @@ class UpdatableReferenceCacheTest {
                 .containsEntry(THIS_KEY, ORIGINAL_VALUE);
     }
 
-    @Test
-    void cannotDeleteWithANullKeyTest() {
-        assertThatNullPointerException().isThrownBy(() -> sut.delete(null));
-    }
-
     @ParameterizedTest(name = "state {0} (original {1} x current {2}) ⟶ result (state {3}, key exists? {4})")
     @CsvSource(
             useHeadersInDisplayName = true,
@@ -206,12 +183,11 @@ class UpdatableReferenceCacheTest {
         UPDATED, NULL,     NON_NULL, MISSING, false
     """)
     void deleteInAllowableScenariosTest(
-            @NonNull final ValueState state,
-            @NonNull final ValueIs originalValueIs,
-            @NonNull final ValueIs currentValueIs,
-            @NonNull final ValueState endState,
+            final ValueState state,
+            final ValueIs originalValueIs,
+            final ValueIs currentValueIs,
+            final ValueState endState,
             final boolean keyInCurrentAtEnd) {
-
         setInitialCacheLineState(originalValueIs, currentValueIs);
 
         sut.delete(THIS_KEY);

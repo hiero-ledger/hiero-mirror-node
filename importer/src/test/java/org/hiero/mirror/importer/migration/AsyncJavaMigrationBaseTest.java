@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import jakarta.annotation.Nonnull;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Value;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.jdbc.core.DataClassRowMapper;
@@ -95,9 +95,8 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
             return TEST_MIGRATION_DESCRIPTION;
         }
 
-        @Nonnull
         @Override
-        protected Optional<Long> migratePartial(final Long last) {
+        protected @NonNull Optional<Long> migratePartial(final Long last) {
             if (sleep > 0) {
                 Uninterruptibles.sleepUninterruptibly(sleep, TimeUnit.SECONDS);
             }

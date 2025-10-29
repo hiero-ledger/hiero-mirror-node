@@ -17,16 +17,15 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
-import jakarta.annotation.Nonnull;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.NonNull;
 
 public final class StateChangeContext {
 
@@ -42,12 +41,12 @@ public final class StateChangeContext {
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final List<Long> nodeIds = new LinkedList<>();
-    private final List<FileID> fileIds = new LinkedList<>();
+    private final List<Long> nodeIds = new ArrayList<>();
+    private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
-    private final List<TokenID> tokenIds = new LinkedList<>();
+    private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
-    private final List<TopicID> topicIds = new LinkedList<>();
+    private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
     private StateChangeContext() {}
@@ -66,8 +65,8 @@ public final class StateChangeContext {
                     var mapUpdate = stateChange.getMapUpdate();
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
-                        case StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
-                        case StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
+                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
                         case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
@@ -94,19 +93,19 @@ public final class StateChangeContext {
         topicIds.sort(TOPIC_ID_COMPARATOR);
     }
 
-    public Optional<Account> getAccount(@Nonnull AccountID id) {
+    public Optional<Account> getAccount(@NonNull AccountID id) {
         return Optional.ofNullable(accounts.get(id));
     }
 
-    public Optional<ByteString> getContractBytecode(@Nonnull ContractID id) {
+    public Optional<ByteString> getContractBytecode(@NonNull ContractID id) {
         return Optional.ofNullable(contractBytecodes.get(id));
     }
 
-    public Optional<ContractID> getContractId(@Nonnull ByteString evmAddress) {
+    public Optional<ContractID> getContractId(@NonNull ByteString evmAddress) {
         return Optional.ofNullable(contractIds.get(evmAddress));
     }
 
-    public SlotValue getContractStorageChange(@Nonnull ContractID contractId, int index) {
+    public SlotValue getContractStorageChange(@NonNull ContractID contractId, int index) {
         if (index < 0) {
             return null;
         }
@@ -119,7 +118,7 @@ public final class StateChangeContext {
         return indexed.get(index);
     }
 
-    public BytesValue getContractStorageValueWritten(@Nonnull SlotKey slotKey) {
+    public BytesValue getContractStorageValueWritten(@NonNull SlotKey slotKey) {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
@@ -155,7 +154,7 @@ public final class StateChangeContext {
         return Optional.of(topicIds.removeLast());
     }
 
-    public Optional<TopicMessage> getTopicMessage(@Nonnull TopicID topicId) {
+    public Optional<TopicMessage> getTopicMessage(@NonNull TopicID topicId) {
         return Optional.ofNullable(topicState.remove(topicId));
     }
 
@@ -166,7 +165,7 @@ public final class StateChangeContext {
      * @param change - The amount of change to track
      * @return An optional of the pending airdrop's amount
      */
-    public Optional<Long> trackPendingFungibleAirdrop(@Nonnull PendingAirdropId pendingAirdropId, long change) {
+    public Optional<Long> trackPendingFungibleAirdrop(@NonNull PendingAirdropId pendingAirdropId, long change) {
         return Optional.ofNullable(pendingFungibleAirdrops.remove(pendingAirdropId))
                 .map(amount -> {
                     if (change < amount) {
@@ -185,7 +184,7 @@ public final class StateChangeContext {
      *               should be negative; for transactions which reduced the total supply, the value should be positive
      * @return An optional of the token total supply
      */
-    public Optional<Long> trackTokenTotalSupply(@Nonnull TokenID tokenId, long change) {
+    public Optional<Long> trackTokenTotalSupply(@NonNull TokenID tokenId, long change) {
         return Optional.ofNullable(tokenTotalSupplies.get(tokenId)).map(totalSupply -> {
             tokenTotalSupplies.put(tokenId, totalSupply + change);
             return totalSupply;
@@ -234,10 +233,11 @@ public final class StateChangeContext {
 
     private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
         slotKey = normalize(slotKey);
-        contractStorageChanges.put(slotKey, valueWritten);
+        final var trimmed = DomainUtils.trim(valueWritten);
+        contractStorageChanges.put(slotKey, trimmed);
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
-                .add(new SlotValue(slotKey.getKey(), valueWritten));
+                .add(new SlotValue(slotKey.getKey(), trimmed));
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

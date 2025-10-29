@@ -5,9 +5,9 @@ package org.hiero.mirror.web3.evm.store;
 import java.io.Serial;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.NonNull;
 import org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState;
 import org.hiero.mirror.web3.evm.store.impl.UpdatableReferenceCacheLineState.Entry;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Runs a cache for references but treated as values, for use as part of a
@@ -30,13 +30,8 @@ public class UpdatableReferenceCache<K> {
 
     private static final String INVALID_STATE_MESSAGE = "Trying to do something in an invalid state";
 
-    @NonNull
     protected final Map<K, Object> original = new HashMap<>(); // "missing" denoted by null values here
-
-    @NonNull
     protected final Map<K, Object> current = new HashMap<>(); // "deleted" denoted by null values here
-
-    @NonNull
     protected final UpdatableReferenceCacheLineState<K> cacheLineStateIdentification =
             new UpdatableReferenceCacheLineState<>();
 

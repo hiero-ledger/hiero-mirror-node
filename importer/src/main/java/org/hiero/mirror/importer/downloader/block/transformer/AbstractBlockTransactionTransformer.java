@@ -271,7 +271,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;
-            var valueRead = slotRead.getReadValue();
+            var valueRead = DomainUtils.trim(slotRead.getReadValue());
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
                 int index = slotRead.getIndex();

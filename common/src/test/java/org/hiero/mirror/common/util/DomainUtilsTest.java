@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -43,7 +44,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class DomainUtilsTest {
+final class DomainUtilsTest {
 
     private static final String ED25519_KEY = "60beee88a761e079f71b03b5fe041979369e96450a7455b203a2578c8a7d4852";
     private static final String ECDSA_384_KEY = "0000001365636473612d736861322d6e69737470333834000000086e697374703338"
@@ -499,6 +500,29 @@ class DomainUtilsTest {
     @ValueSource(strings = {" ", "\t"})
     void toSnakeCaseReturnsInputAsIsForBlankOrNull(final String input) {
         assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(input);
+    }
+
+    @Test
+    void trimByteString() {
+        assertThat(DomainUtils.trim((ByteString) null)).isNull();
+        assertThat(DomainUtils.trim(ByteString.EMPTY)).isSameAs(ByteString.EMPTY);
+        final var shouldNotTrim = ByteString.copyFrom(new byte[] {0x1, 0x2});
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2});
+        final var expected = ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2});
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
+    }
+
+    @Test
+    void trimBytesValue() {
+        assertThat(DomainUtils.trim((BytesValue) null)).isNull();
+        final var emptyValue = BytesValue.of(ByteString.EMPTY);
+        assertThat(DomainUtils.trim(emptyValue)).isSameAs(emptyValue);
+        final var shouldNotTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x2}));
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2}));
+        final var expected = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2}));
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
     }
 
     @ParameterizedTest

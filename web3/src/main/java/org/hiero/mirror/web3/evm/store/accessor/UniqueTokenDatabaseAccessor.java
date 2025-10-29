@@ -12,12 +12,12 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Optional;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.repository.NftRepository;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor

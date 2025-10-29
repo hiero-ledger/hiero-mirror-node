@@ -9,6 +9,7 @@ import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import java.util.stream.Stream;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder.TransferType;
 import org.junit.jupiter.api.Test;
@@ -17,14 +18,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class CryptoTransformerTest extends AbstractTransformerTest {
+final class CryptoTransformerTest extends AbstractTransformerTest {
 
     private static Stream<Arguments> provideAliasAndExpectedEvmAddress() {
+        var ecDsaAlias = ByteString.copyFrom(
+                Hex.decode("3a21029afbc3562d9ebb6e6a4d784fd7bf7389ea3047dd2a7ad3864192326388185387"));
+        var evmAddressFromEcDsaAlias = ByteString.copyFrom(Hex.decode("5b718ea220b7784a8f4069b18506155f2ea28ef6"));
         var randomAlias = recordItemBuilder.bytes(20);
         return Stream.of(
                 arguments(ByteString.EMPTY, ByteString.EMPTY),
                 arguments(recordItemBuilder.key().toByteString(), ByteString.EMPTY),
-                arguments(randomAlias, randomAlias));
+                arguments(ecDsaAlias, evmAddressFromEcDsaAlias),
+                arguments(randomAlias, ByteString.EMPTY));
     }
 
     @ParameterizedTest

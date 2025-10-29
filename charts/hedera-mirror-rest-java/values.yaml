@@ -323,7 +323,7 @@ resources:
 revisionHistoryLimit: 3
 
 routes:
-  exchangeRate: false
+  exchangeRate: true
 
 securityContext:
   allowPrivilegeEscalation: false

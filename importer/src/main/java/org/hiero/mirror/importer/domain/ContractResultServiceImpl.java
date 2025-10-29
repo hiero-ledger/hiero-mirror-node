@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -36,6 +35,7 @@ import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHan
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NonNull;
 
 @CustomLog
 @Named

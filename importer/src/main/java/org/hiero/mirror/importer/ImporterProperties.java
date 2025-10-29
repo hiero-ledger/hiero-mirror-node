@@ -13,12 +13,12 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NonNull;
 import org.apache.commons.collections4.map.CaseInsensitiveMap;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.migration.MigrationProperties;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.data.util.Version;
 import org.springframework.validation.annotation.Validated;
@@ -70,13 +70,14 @@ public class ImporterProperties {
     private Long topicRunningHashV2AddedTimestamp;
 
     @NotNull
-    private Version smartContractThrottlingVersion = Version.parse("0.67.0");
+    private Version smartContractThrottlingVersion = Version.parse("0.68.0");
 
     public Path getArchiveDestinationFolderPath(StreamFileData streamFileData) {
         if (groupByDay) {
             return getStreamPath().resolve(streamFileData.getFilename().substring(0, 10));
         }
-        return getStreamPath().resolve(streamFileData.getFilename());
+
+        return getStreamPath();
     }
 
     public String getNetwork() {
@@ -95,6 +96,7 @@ public class ImporterProperties {
         STAKE_IN_ADDRESS_BOOK // like STAKE, but only the nodes found in the address book are used in the calculation.
     }
 
+    @NullMarked
     public final class HederaNetwork {
         public static final String DEMO = "demo";
         public static final String MAINNET = "mainnet";
@@ -111,11 +113,11 @@ public class ImporterProperties {
 
         private HederaNetwork() {}
 
-        public static String getBucketName(@NonNull String network) {
+        public static String getBucketName(String network) {
             return NETWORK_DEFAULT_BUCKETS.getOrDefault(network, "");
         }
 
-        public static boolean isAllowAnonymousAccess(@NonNull String network) {
+        public static boolean isAllowAnonymousAccess(String network) {
             return DEMO.equals(network);
         }
     }

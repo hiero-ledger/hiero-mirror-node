@@ -10,7 +10,6 @@ import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.function.Supplier;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.token.AbstractTokenAccount;
@@ -24,6 +23,7 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenBalanceRepository;
 import org.hiero.mirror.web3.utils.Suppliers;
 import org.hyperledger.besu.datatypes.Address;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor

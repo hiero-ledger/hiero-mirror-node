@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
@@ -22,10 +23,10 @@ class BlockStreamInfoSingletonTest {
     @DisplayName("should return the correct state key")
     void key() {
         // when
-        final var key = blockStreamInfoSingleton.getKey();
+        final var key = blockStreamInfoSingleton.getId();
 
         // then
-        assertThat(key).isEqualTo("BLOCK_STREAM_INFO");
+        assertThat(key).isEqualTo(BLOCK_STREAM_INFO_STATE_ID);
     }
 
     @Test

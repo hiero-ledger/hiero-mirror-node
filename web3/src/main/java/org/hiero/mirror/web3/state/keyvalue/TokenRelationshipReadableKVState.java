@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKEN_RELS_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.AccountID;
@@ -9,7 +10,6 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
 import com.hedera.node.app.service.token.TokenService;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -25,12 +25,13 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenBalanceRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
 @Named
 public class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
 
-    public static final String KEY = "TOKEN_RELS";
+    public static final int STATE_ID = TOKEN_RELS_STATE_ID;
 
     private final NftRepository nftRepository;
     private final SystemEntity systemEntity;
@@ -44,7 +45,7 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
             final TokenAccountRepository tokenAccountRepository,
             final TokenBalanceRepository tokenBalanceRepository,
             final TokenRepository tokenRepository) {
-        super(TokenService.NAME, KEY);
+        super(TokenService.NAME, TOKEN_RELS_STATE_ID);
         this.nftRepository = nftRepository;
         this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;
@@ -53,7 +54,7 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
     }
 
     @Override
-    protected TokenRelation readFromDataSource(@Nonnull EntityIDPair key) {
+    protected TokenRelation readFromDataSource(@NonNull EntityIDPair key) {
         final var tokenId = key.tokenId();
         final var accountId = key.accountId();
         if (tokenId == null

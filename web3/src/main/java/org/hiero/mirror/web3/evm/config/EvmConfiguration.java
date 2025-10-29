@@ -86,6 +86,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
+    public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
     public static final String CACHE_NAME = "default";
@@ -144,6 +145,14 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getContractState());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_SYSTEM_ACCOUNT)
+    CacheManager cacheManagerSystemAccount() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getSystemAccount());
         return caffeineCacheManager;
     }
 
@@ -517,7 +526,7 @@ public class EvmConfiguration {
     }
 
     private ContractCreationProcessor contractCreationProcessor(EVM evm) {
-        return new ContractCreationProcessor(gasCalculator, evm, true, List.of(), 1);
+        return new ContractCreationProcessor(evm, true, List.of(), 1);
     }
 
     private MirrorEvmMessageCallProcessor mirrorEvmMessageCallProcessor(EVM evm) {

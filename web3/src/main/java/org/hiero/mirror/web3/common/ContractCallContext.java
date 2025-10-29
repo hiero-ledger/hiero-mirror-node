@@ -30,13 +30,13 @@ public class ContractCallContext {
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     @Getter(AccessLevel.NONE)
-    private final Map<String, Map<Object, Object>> readCache = new HashMap<>();
+    private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
 
     @Getter(AccessLevel.NONE)
-    private final Map<String, Map<Object, Object>> writeCache = new HashMap<>();
+    private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
     private List<ContractAction> contractActions = List.of();
@@ -156,11 +156,11 @@ public class ContractCallContext {
         return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
     }
 
-    public Map<Object, Object> getReadCacheState(final String stateKey) {
-        return readCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    public Map<Object, Object> getReadCacheState(final int stateId) {
+        return readCache.computeIfAbsent(stateId, k -> new HashMap<>());
     }
 
-    public Map<Object, Object> getWriteCacheState(final String stateKey) {
-        return writeCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    public Map<Object, Object> getWriteCacheState(final int stateId) {
+        return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
     }
 }

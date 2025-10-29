@@ -4,12 +4,12 @@ package org.hiero.mirror.web3.evm.store.accessor;
 
 import jakarta.inject.Named;
 import java.util.Optional;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.AbstractTokenAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.evm.store.DatabaseBackedStateFrame.DatabaseAccessIncorrectKeyTypeException;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @RequiredArgsConstructor

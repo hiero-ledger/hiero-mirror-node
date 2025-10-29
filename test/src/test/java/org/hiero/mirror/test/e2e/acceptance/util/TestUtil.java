@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.NonNull;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
@@ -37,6 +36,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.jspecify.annotations.NonNull;
 
 @UtilityClass
 public class TestUtil {

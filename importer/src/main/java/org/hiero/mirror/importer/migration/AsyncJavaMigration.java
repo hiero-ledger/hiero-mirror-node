@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.migration;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
-import jakarta.annotation.Nonnull;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Objects;
@@ -15,6 +14,8 @@ import org.apache.commons.lang3.BooleanUtils;
 import org.flywaydb.core.api.callback.Callback;
 import org.flywaydb.core.api.callback.Context;
 import org.flywaydb.core.api.callback.Event;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -27,6 +28,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
+@NullMarked
 abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Callback {
 
     private static final String ASYNC_JAVA_MIGRATION_HISTORY_FIXED =
@@ -157,7 +159,8 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         runMigrateAsync();
     }
 
-    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, Class<O> requiredType) {
+    protected final <O> @Nullable O queryForObjectOrNull(
+            String sql, SqlParameterSource paramSource, Class<O> requiredType) {
         try {
             return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, requiredType);
         } catch (EmptyResultDataAccessException ex) {
@@ -165,7 +168,8 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         }
     }
 
-    protected final <O> O queryForObjectOrNull(String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
+    protected final <O> @Nullable O queryForObjectOrNull(
+            String sql, SqlParameterSource paramSource, RowMapper<O> rowMapper) {
         try {
             return getNamedParameterJdbcOperations().queryForObject(sql, paramSource, rowMapper);
         } catch (EmptyResultDataAccessException ex) {
@@ -235,7 +239,6 @@ abstract class AsyncJavaMigration<T> extends RepeatableMigration implements Call
         }
     }
 
-    @Nonnull
     protected abstract Optional<T> migratePartial(T last);
 
     /**

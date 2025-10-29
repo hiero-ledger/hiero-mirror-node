@@ -5,6 +5,7 @@ package com.hedera.node.app.service.evm.contracts.execution;
 import static org.hiero.mirror.web3.common.PrecompileContext.PRECOMPILE_CONTEXT;
 
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.node.app.service.contract.impl.hevm.HederaEvmBlocks;
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import com.hedera.node.app.service.evm.store.contracts.HederaEvmMutableWorldState;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
@@ -19,6 +20,7 @@ import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.account.MutableAccount;
+import org.hyperledger.besu.evm.code.CodeFactory;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.processor.AbstractMessageProcessor;
@@ -35,7 +37,7 @@ import org.hyperledger.besu.evm.tracing.OperationTracer;
 public class HederaEvmTxProcessor {
     private static final int MAX_STACK_SIZE = 1024;
 
-    protected final BlockMetaSource blockMetaSource;
+    protected final HederaEvmBlocks blockMetaSource;
     protected final HederaEvmMutableWorldState worldState;
 
     protected final GasCalculator gasCalculator;
@@ -54,7 +56,7 @@ public class HederaEvmTxProcessor {
             final GasCalculator gasCalculator,
             final Map<SemanticVersion, Provider<MessageCallProcessor>> mcps,
             final Map<SemanticVersion, Provider<ContractCreationProcessor>> ccps,
-            final BlockMetaSource blockMetaSource,
+            final HederaEvmBlocks blockMetaSource,
             final Map<TracerType, Provider<HederaEvmOperationTracer>> tracerMap) {
         this.worldState = worldState;
         this.livePricesSource = livePricesSource;
@@ -91,9 +93,10 @@ public class HederaEvmTxProcessor {
             final boolean isStatic,
             final Address mirrorReceiver,
             final boolean contractCreation,
-            final TracerType tracerType) {
-        final var blockValues = blockMetaSource.computeBlockValues(gasLimit);
-        final var intrinsicGas = gasCalculator.transactionIntrinsicGasCost(payload, contractCreation);
+            final TracerType tracerType,
+            final CodeFactory codeFactory) {
+        final var blockValues = blockMetaSource.blockValuesOf(gasLimit);
+        final var intrinsicGas = gasCalculator.transactionIntrinsicGasCost(payload, contractCreation, 0L);
         final var gasAvailable = gasLimit - intrinsicGas;
 
         final var valueAsWei = Wei.of(value);
@@ -115,7 +118,7 @@ public class HederaEvmTxProcessor {
                 .completer(unused -> {})
                 .isStatic(isStatic)
                 .miningBeneficiary(dynamicProperties.fundingAccountAddress())
-                .blockHashLookup(blockMetaSource::getBlockHash)
+                .blockHashLookup(blockMetaSource::blockHashOf)
                 .contextVariables(Map.of(
                         "HederaFunctionality",
                         getFunctionType(contractCreation),
@@ -124,7 +127,7 @@ public class HederaEvmTxProcessor {
                         ContractCallContext.CONTEXT_NAME,
                         ContractCallContext.get()));
 
-        final var initialFrame = buildInitialFrame(commonInitialFrame, receiver, payload, value);
+        final var initialFrame = buildInitialFrame(commonInitialFrame, receiver, payload, value, codeFactory);
         final var messageFrameStack = initialFrame.getMessageFrameStack();
         HederaEvmOperationTracer tracer = this.getTracer(tracerType);
 
@@ -180,7 +183,11 @@ public class HederaEvmTxProcessor {
 
     @SuppressWarnings("java:S1172")
     protected MessageFrame buildInitialFrame(
-            MessageFrame.Builder baseInitialFrame, Address to, Bytes payload, final long value) {
+            MessageFrame.Builder baseInitialFrame,
+            Address to,
+            Bytes payload,
+            final long value,
+            final CodeFactory codeFactory) {
         return MessageFrame.builder().build();
     }
 
