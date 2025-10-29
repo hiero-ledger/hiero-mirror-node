@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
@@ -24,6 +25,7 @@ import org.springframework.util.CollectionUtils;
 final class EVMHookHandler {
 
     private final EntityListener entityListener;
+    private final EntityIdService entityIdService;
 
     /**
      * Processes both hook deletions and hook creations for a given transaction. This method serves as the main entry
@@ -82,7 +84,7 @@ final class EVMHookHandler {
         }
 
         final var hookBuilder = Hook.builder()
-                .contractId(EntityId.of(spec.getContractId()))
+                .contractId(entityIdService.lookup(spec.getContractId()).orElse(EntityId.EMPTY))
                 .createdTimestamp(recordItem.getConsensusTimestamp())
                 .deleted(false)
                 .extensionPoint(translateHookExtensionPoint(hookCreationDetails.getExtensionPoint()))

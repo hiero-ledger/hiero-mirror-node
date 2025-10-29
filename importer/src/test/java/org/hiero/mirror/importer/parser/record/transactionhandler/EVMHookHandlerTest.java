@@ -15,11 +15,13 @@ import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +35,9 @@ final class EVMHookHandlerTest {
 
     @Mock
     private EntityListener entityListener;
+
+    @Mock
+    private EntityIdService entityIdService;
 
     @Mock
     private RecordItem recordItem;
@@ -69,6 +74,7 @@ final class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
+        when(entityIdService.lookup(contractId.toContractID())).thenReturn(Optional.of(contractId));
         eVMHookHandler.process(recordItem, entityId.getId(), hookCreationDetailsList, List.of());
 
         // then
@@ -183,6 +189,7 @@ final class EVMHookHandlerTest {
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
         verify(entityListener).onHook(hookCaptor.capture());
+        verifyNoInteractions(entityIdService);
 
         var capturedHook = hookCaptor.getValue();
         assertAll(
