@@ -162,7 +162,10 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
     @Test
     void evmHookHandlerCalledWithHookCreationDetails() {
         // given
-        var recordItem = recordItemBuilder.cryptoUpdate().build();
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookIdsToDelete())
+                .build();
         var transaction = transaction(recordItem);
         var accountId = EntityId.of(
                 recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
@@ -239,7 +242,7 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         // given
         var recordItem = recordItemBuilder
                 .cryptoUpdate()
-                .transactionBody(b -> b.clearHookCreationDetails())
+                .transactionBody(b -> b.clearHookCreationDetails().clearHookIdsToDelete())
                 .build();
         var transaction = transaction(recordItem);
 

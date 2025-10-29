@@ -169,7 +169,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
@@ -198,7 +197,6 @@ import org.springframework.data.util.Version;
 /**
  * Generates typical protobuf request and response objects with all fields populated.
  */
-@Slf4j
 @Named
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class RecordItemBuilder {
@@ -522,9 +520,6 @@ public class RecordItemBuilder {
 
     @SuppressWarnings("deprecation")
     public Builder<CryptoCreateTransactionBody.Builder> cryptoCreate() {
-
-        var hookCreationDetails = hookCreationDetails().build();
-
         var builder = CryptoCreateTransactionBody.newBuilder()
                 .setAlias(bytes(20))
                 .setAutoRenewPeriod(duration(30))
@@ -537,7 +532,7 @@ public class RecordItemBuilder {
                 .setRealmID(REALM_ID)
                 .setReceiverSigRequired(false)
                 .setShardID(SHARD_ID)
-                .addHookCreationDetails(hookCreationDetails)
+                .addHookCreationDetails(hookCreationDetails())
                 .setStakedNodeId(1L);
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
     }
@@ -644,7 +639,6 @@ public class RecordItemBuilder {
     @SuppressWarnings("deprecation")
     public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdate() {
         var accountId = accountId();
-        var hookCreationDetails = hookCreationDetails().build();
         var builder = CryptoUpdateTransactionBody.newBuilder()
                 .setAutoRenewPeriod(duration(30))
                 .setAccountIDToUpdate(accountId)
@@ -653,7 +647,8 @@ public class RecordItemBuilder {
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
                 .setStakedNodeId(1L)
-                .addHookCreationDetails(hookCreationDetails); // Create hook ID 1
+                .addHookCreationDetails(hookCreationDetails())
+                .addHookIdsToDelete(1L);
         return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
     }
 

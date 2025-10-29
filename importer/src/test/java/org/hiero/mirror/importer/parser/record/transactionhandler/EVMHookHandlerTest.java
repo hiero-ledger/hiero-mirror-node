@@ -178,7 +178,7 @@ final class EVMHookHandlerTest {
         when(recordItem.getConsensusTimestamp()).thenReturn(consensusTimestamp);
 
         // when
-        eVMHookHandler.process(recordItem, entityId.getId(), null, hookIdsToDelete);
+        eVMHookHandler.process(recordItem, entityId.getId(), List.of(), hookIdsToDelete);
 
         // then
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
