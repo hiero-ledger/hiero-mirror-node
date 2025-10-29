@@ -3,7 +3,8 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
-import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
+import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -67,7 +68,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         final var timestamp = ContractCallContext.get().getTimestamp();
         return commonEntityAccessor
                 .get(key, timestamp)
-                .filter(entity -> entity.getType() != TOKEN)
+                .filter(entity -> entity.getType() == ACCOUNT || entity.getType() == CONTRACT)
                 .map(entity -> {
                     final var account = accountFromEntity(entity, timestamp);
                     // Associate the account alias with this entity in the cache, if any.
