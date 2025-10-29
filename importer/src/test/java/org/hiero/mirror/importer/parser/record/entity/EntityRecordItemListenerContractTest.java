@@ -1065,32 +1065,38 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
     }
 
     @Test
-    void testCallWithZeroNonceToBeTopLevel() {
-        var recordItem = recordItemBuilder
+    void topLevelRecordFiles() {
+        var recordItem1 = recordItemBuilder
                 .contractCall()
                 .record(r -> {
                     r.getTransactionIDBuilder().setNonce(0);
                 })
                 .build();
 
-        assertThat(recordItem.isTopLevel()).isTrue();
-    }
-
-    @Test
-    void testCallWithPositiveNonceAndNotScheduledTypeToNotBeTopLevel() {
-        var recordItem = recordItemBuilder
+        var recordItem2 = recordItemBuilder
                 .contractCall()
                 .record(r -> {
                     r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                    r.setParentConsensusTimestamp(
+                            Timestamp.newBuilder().setSeconds(0).setNanos(0).build());
                 })
                 .build();
 
-        assertThat(recordItem.isTopLevel()).isFalse();
+        var recordItem3 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(true);
+                })
+                .build();
+
+        assertThat(recordItem1.isTopLevel()).isTrue();
+        assertThat(recordItem2.isTopLevel()).isTrue();
+        assertThat(recordItem3.isTopLevel()).isTrue();
     }
 
     @Test
-    void testCallWithNonEmptyParentConsensusTimestampToNotBeTopLevel() {
-        var recordItem = recordItemBuilder
+    void notTopLevelRecordFiles() {
+        var recordItem1 = recordItemBuilder
                 .contractCall()
                 .record(r -> {
                     r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
@@ -1101,21 +1107,19 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 })
                 .build();
 
-        assertThat(recordItem.isTopLevel()).isFalse();
-    }
-
-    @Test
-    void testCallWithEmptyParentConsensusTimestampToBeTopLevel() {
-        var recordItem = recordItemBuilder
+        var recordItem2 = recordItemBuilder
                 .contractCall()
                 .record(r -> {
                     r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
-                    r.setParentConsensusTimestamp(
-                            Timestamp.newBuilder().setSeconds(0).setNanos(0).build());
+                    r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                            .setSeconds(0)
+                            .setNanos(190024888)
+                            .build());
                 })
                 .build();
 
-        assertThat(recordItem.isTopLevel()).isTrue();
+        assertThat(recordItem1.isTopLevel()).isFalse();
+        assertThat(recordItem2.isTopLevel()).isFalse();
     }
 
     private void assertFailedContractCreate(TransactionBody transactionBody, TransactionRecord txnRecord) {
