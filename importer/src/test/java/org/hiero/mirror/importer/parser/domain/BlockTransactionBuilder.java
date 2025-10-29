@@ -3,12 +3,12 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_SCHEDULES_BY_ID_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.ACCOUNT_CREATE;
 import static com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase.CONTRACT_CALL;
@@ -72,6 +72,7 @@ import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -104,6 +105,7 @@ import org.springframework.util.CollectionUtils;
 @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BlockTransactionBuilder {
 
+    private final SecureRandom random = new SecureRandom();
     private final RecordItemBuilder recordItemBuilder;
 
     private static StateChanges buildFileIdStateChanges(RecordItem recordItem) {
@@ -738,7 +740,7 @@ public class BlockTransactionBuilder {
                         sidecarRecords, TransactionSidecarRecord::hasBytecode, TransactionSidecarRecord::getBytecode)
                 .ifPresent(bytecode -> {
                     stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                            .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                            .setStateId(STATE_ID_BYTECODE_VALUE)
                             .setMapUpdate(MapUpdateChange.newBuilder()
                                     .setKey(MapChangeKey.newBuilder().setContractIdKey(bytecode.getContractId()))
                                     .setValue(MapChangeValue.newBuilder()
@@ -780,7 +782,7 @@ public class BlockTransactionBuilder {
 
         // add an identical MapUpdateChange
         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                .setStateId(STATE_ID_STORAGE_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setIdentical(true)
                         .setKey(MapChangeKey.newBuilder()
@@ -799,7 +801,7 @@ public class BlockTransactionBuilder {
                     // only read
                     slotUsage.addSlotReads(SlotRead.newBuilder()
                             .setKey(storageChange.getSlot())
-                            .setReadValue(storageChange.getValueRead())
+                            .setReadValue(leftPad(storageChange.getValueRead()))
                             .build());
                 } else {
                     int count = contractStorageSlotCounts.compute(contractId, (k, v) -> v == null ? 1 : v + 1);
@@ -816,17 +818,17 @@ public class BlockTransactionBuilder {
                             .build();
                     if (!BytesValue.getDefaultInstance().equals(storageChange.getValueWritten())) {
                         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setStateId(STATE_ID_STORAGE_VALUE)
                                 .setMapUpdate(MapUpdateChange.newBuilder()
                                         .setKey(mapChangeKey)
                                         .setValue(MapChangeValue.newBuilder()
-                                                .setSlotValueValue(
-                                                        SlotValue.newBuilder().setValue(valueWritten.getValue())))
+                                                .setSlotValueValue(SlotValue.newBuilder()
+                                                        .setValue(leftPad(valueWritten.getValue()))))
                                         .build()));
                     } else {
                         // deleted
                         stateChangesBuilder.addStateChanges(StateChange.newBuilder()
-                                .setStateId(STATE_ID_CONTRACT_STORAGE_VALUE)
+                                .setStateId(STATE_ID_STORAGE_VALUE)
                                 .setMapDelete(MapDeleteChange.newBuilder().setKey(mapChangeKey)));
                     }
                 }
@@ -880,6 +882,14 @@ public class BlockTransactionBuilder {
         }
 
         return ByteString.EMPTY;
+    }
+
+    private ByteString leftPad(ByteString value) {
+        if (random.nextBoolean()) {
+            return value;
+        }
+
+        return DomainUtils.fromBytes(DomainUtils.leftPadBytes(DomainUtils.toBytes(value), 32));
     }
 
     private Timestamp timestamp(long consensusTimestamp) {

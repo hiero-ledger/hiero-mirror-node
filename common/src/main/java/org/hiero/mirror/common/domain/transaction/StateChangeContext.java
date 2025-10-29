@@ -20,7 +20,6 @@ import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -42,12 +41,12 @@ public final class StateChangeContext {
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
-    private final List<Long> nodeIds = new LinkedList<>();
-    private final List<FileID> fileIds = new LinkedList<>();
+    private final List<Long> nodeIds = new ArrayList<>();
+    private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
-    private final List<TokenID> tokenIds = new LinkedList<>();
+    private final List<TokenID> tokenIds = new ArrayList<>();
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
-    private final List<TopicID> topicIds = new LinkedList<>();
+    private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
 
     private StateChangeContext() {}
@@ -66,8 +65,8 @@ public final class StateChangeContext {
                     var mapUpdate = stateChange.getMapUpdate();
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
-                        case StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
-                        case StateIdentifier.STATE_ID_CONTRACT_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
+                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
                         case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
@@ -234,10 +233,11 @@ public final class StateChangeContext {
 
     private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
         slotKey = normalize(slotKey);
-        contractStorageChanges.put(slotKey, valueWritten);
+        final var trimmed = DomainUtils.trim(valueWritten);
+        contractStorageChanges.put(slotKey, trimmed);
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
-                .add(new SlotValue(slotKey.getKey(), valueWritten));
+                .add(new SlotValue(slotKey.getKey(), trimmed));
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

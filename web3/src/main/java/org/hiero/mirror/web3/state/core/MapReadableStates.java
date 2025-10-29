@@ -5,56 +5,56 @@ package org.hiero.mirror.web3.state.core;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableQueueState;
 import com.swirlds.state.spi.ReadableSingletonState;
-import jakarta.annotation.Nonnull;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("unchecked")
 public class MapReadableStates extends AbstractMapReadableState {
 
-    public MapReadableStates(@Nonnull final Map<String, ?> states) {
+    public MapReadableStates(@NonNull final Map<Integer, ?> states) {
         super(states);
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <K, V> ReadableKVState<K, V> get(@Nonnull String stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <K, V> ReadableKVState<K, V> get(int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown k/v state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown k/v state id: " + stateId);
         }
         if (!(state instanceof ReadableKVState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableKVState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableKVState: " + stateId);
         }
 
         return (ReadableKVState<K, V>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <T> ReadableSingletonState<T> getSingleton(@Nonnull String stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <T> ReadableSingletonState<T> getSingleton(int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown singleton state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown singleton state id: " + stateId);
         }
 
         if (!(state instanceof ReadableSingletonState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableSingletonState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableSingletonState: " + stateId);
         }
 
         return (ReadableSingletonState<T>) state;
     }
 
-    @Nonnull
+    @NonNull
     @Override
-    public <E> ReadableQueueState<E> getQueue(@Nonnull String stateKey) {
-        final var state = states.get(Objects.requireNonNull(stateKey));
+    public <E> ReadableQueueState<E> getQueue(int stateId) {
+        final var state = states.get(Objects.requireNonNull(stateId));
         if (state == null) {
-            throw new IllegalArgumentException("Unknown queue state key: " + stateKey);
+            throw new IllegalArgumentException("Unknown queue state id: " + stateId);
         }
 
         if (!(state instanceof ReadableQueueState)) {
-            throw new IllegalArgumentException("State is not an instance of ReadableQueueState: " + stateKey);
+            throw new IllegalArgumentException("State is not an instance of ReadableQueueState: " + stateId);
         }
 
         return (ReadableQueueState<E>) state;

@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.service.evm.contracts.execution.BlockMetaSource;
+import com.hedera.node.app.service.contract.impl.hevm.HederaEvmBlocks;
 import com.hedera.node.app.service.evm.contracts.execution.HederaBlockValues;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hedera.node.app.service.evm.contracts.execution.PricesAndFeesProvider;
@@ -49,11 +49,13 @@ import org.hiero.mirror.web3.evm.store.contract.HederaEvmWorldState;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hyperledger.besu.datatypes.Address;
+import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.hyperledger.besu.evm.MainnetEVMs;
 import org.hyperledger.besu.evm.account.MutableAccount;
+import org.hyperledger.besu.evm.code.CodeFactory;
 import org.hyperledger.besu.evm.frame.BlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -85,7 +87,7 @@ class MirrorEvmTxProcessorTest {
     private final HederaEvmAccount receiver = new HederaEvmAccount(Address.ALTBN128_MUL);
     private final Address receiverAddress = receiver.canonicalAddress();
     private final Address nativePrecompileAddress = Address.SHA256;
-    private final Address invalidNativePrecompileAddress = Address.BLS12_G1MUL;
+    private final Address invalidNativePrecompileAddress = Address.BLS12_G2ADD;
     private HederaEvmAccount senderWithAlias;
 
     @Mock
@@ -119,7 +121,7 @@ class MirrorEvmTxProcessorTest {
     private HederaBlockValues hederaBlockValues;
 
     @Mock
-    private BlockMetaSource blockMetaSource;
+    private HederaEvmBlocks blockMetaSource;
 
     @Mock
     private MirrorOperationTracer mirrorOperationTracer;
@@ -132,6 +134,9 @@ class MirrorEvmTxProcessorTest {
 
     @Mock
     private CommonProperties commonProperties;
+
+    @Mock
+    private CodeFactory codeFactory;
 
     private MirrorEvmTxProcessorImpl mirrorEvmTxProcessor;
 
@@ -170,12 +175,12 @@ class MirrorEvmTxProcessorTest {
                 EVM_VERSION,
                 () -> new MessageCallProcessor(v50, new PrecompileContractRegistry()));
         Map<SemanticVersion, Provider<ContractCreationProcessor>> processorsMap = Map.of(
-                EVM_VERSION_0_30, () -> new ContractCreationProcessor(gasCalculator, v30, true, List.of(), 1),
-                EVM_VERSION_0_34, () -> new ContractCreationProcessor(gasCalculator, v34, true, List.of(), 1),
-                EVM_VERSION_0_38, () -> new ContractCreationProcessor(gasCalculator, v38, true, List.of(), 1),
-                EVM_VERSION_0_46, () -> new ContractCreationProcessor(gasCalculator, v38, true, List.of(), 1),
-                EVM_VERSION_0_50, () -> new ContractCreationProcessor(gasCalculator, v50, true, List.of(), 1),
-                EVM_VERSION, () -> new ContractCreationProcessor(gasCalculator, v50, true, List.of(), 1));
+                EVM_VERSION_0_30, () -> new ContractCreationProcessor(v30, true, List.of(), 1),
+                EVM_VERSION_0_34, () -> new ContractCreationProcessor(v34, true, List.of(), 1),
+                EVM_VERSION_0_38, () -> new ContractCreationProcessor(v38, true, List.of(), 1),
+                EVM_VERSION_0_46, () -> new ContractCreationProcessor(v38, true, List.of(), 1),
+                EVM_VERSION_0_50, () -> new ContractCreationProcessor(v50, true, List.of(), 1),
+                EVM_VERSION, () -> new ContractCreationProcessor(v50, true, List.of(), 1));
 
         mirrorEvmTxProcessor = new MirrorEvmTxProcessorImpl(
                 worldState,
@@ -190,7 +195,8 @@ class MirrorEvmTxProcessorTest {
                 Map.of(TracerType.OPERATION, () -> mirrorOperationTracer),
                 store,
                 new EntityAddressSequencer(commonProperties),
-                tokenAccessor);
+                tokenAccessor,
+                codeFactory);
     }
 
     @ParameterizedTest
@@ -260,11 +266,11 @@ class MirrorEvmTxProcessorTest {
                 .blockValues(hederaBlockValues)
                 .completer(ignored -> {})
                 .miningBeneficiary(Address.ZERO)
-                .blockHashLookup(ignored -> null);
+                .blockHashLookup((ignored, gas) -> Hash.EMPTY);
 
         assertThatExceptionOfType(MirrorEvmTransactionException.class)
                 .isThrownBy(() -> mirrorEvmTxProcessor.buildInitialFrame(
-                        protoFrame, receiverAddress, Bytes.fromHexString(FUNCTION_HASH), 0L));
+                        protoFrame, receiverAddress, Bytes.fromHexString(FUNCTION_HASH), 0L, codeFactory));
     }
 
     @Test
@@ -286,10 +292,10 @@ class MirrorEvmTxProcessorTest {
                 .blockValues(mock(BlockValues.class))
                 .completer(ignored -> {})
                 .miningBeneficiary(Address.ZERO)
-                .blockHashLookup(ignored -> null);
+                .blockHashLookup((ignored, gas) -> Hash.EMPTY);
         // when:
         final MessageFrame buildMessageFrame = mirrorEvmTxProcessor.buildInitialFrame(
-                commonInitialFrame, receiver.canonicalAddress(), Bytes.EMPTY, 0L);
+                commonInitialFrame, receiver.canonicalAddress(), Bytes.EMPTY, 0L, codeFactory);
 
         // expect:
         assertThat(sender).isEqualTo(buildMessageFrame.getSenderAddress());
@@ -318,11 +324,11 @@ class MirrorEvmTxProcessorTest {
                 .blockValues(mock(BlockValues.class))
                 .completer(ignored -> {})
                 .miningBeneficiary(Address.ZERO)
-                .blockHashLookup(ignored -> null);
+                .blockHashLookup((ignored, gas) -> Hash.EMPTY);
 
         // when:
         final MessageFrame buildMessageFrame = mirrorEvmTxProcessor.buildInitialFrame(
-                commonInitialFrame, nativePrecompileAddress, validPrecompilePayload, 0L);
+                commonInitialFrame, nativePrecompileAddress, validPrecompilePayload, 0L, codeFactory);
 
         assertThat(sender).isEqualTo(buildMessageFrame.getSenderAddress());
         assertThat(buildMessageFrame.getApparentValue()).isEqualTo(Wei.ZERO);
@@ -352,12 +358,12 @@ class MirrorEvmTxProcessorTest {
                 .blockValues(mock(BlockValues.class))
                 .completer(ignored -> {})
                 .miningBeneficiary(Address.ZERO)
-                .blockHashLookup(ignored -> null);
+                .blockHashLookup((ignored, gas) -> Hash.EMPTY);
 
         // when:
         assertThatExceptionOfType(MirrorEvmTransactionException.class)
                 .isThrownBy(() -> mirrorEvmTxProcessor.buildInitialFrame(
-                        commonInitialFrame, invalidNativePrecompileAddress, validPrecompilePayload, 0L));
+                        commonInitialFrame, invalidNativePrecompileAddress, validPrecompilePayload, 0L, codeFactory));
     }
 
     private void givenValidMockWithoutGetOrCreate() {
@@ -367,7 +373,7 @@ class MirrorEvmTxProcessorTest {
 
         final var mutableAccount = mock(MutableAccount.class);
 
-        given(gasCalculator.transactionIntrinsicGasCost(Bytes.EMPTY, false)).willReturn((long) 0);
+        given(gasCalculator.transactionIntrinsicGasCost(Bytes.EMPTY, false, 0L)).willReturn((long) 0);
 
         given(gasCalculator.getSelfDestructRefundAmount()).willReturn(0L);
         given(gasCalculator.getMaxRefundQuotient()).willReturn(2L);
@@ -377,7 +383,7 @@ class MirrorEvmTxProcessorTest {
         given(stackedUpdater.getOrCreate(any())).willReturn(mutableAccount);
         given(stackedUpdater.getOrCreate(any())).willReturn(mutableAccount);
 
-        given(blockMetaSource.computeBlockValues(anyLong())).willReturn(hederaBlockValues);
+        given(blockMetaSource.blockValuesOf(anyLong())).willReturn(hederaBlockValues);
     }
 
     private void setupGasCalculator() {
@@ -385,7 +391,6 @@ class MirrorEvmTxProcessorTest {
         given(gasCalculator.getLowTierGasCost()).willReturn(5L);
         given(gasCalculator.getMidTierGasCost()).willReturn(8L);
         given(gasCalculator.getBaseTierGasCost()).willReturn(2L);
-        given(gasCalculator.getBlockHashOperationGasCost()).willReturn(20L);
         given(gasCalculator.getWarmStorageReadCost()).willReturn(160L);
         given(gasCalculator.getColdSloadCost()).willReturn(2100L);
         given(gasCalculator.getSloadOperationGasCost()).willReturn(0L);
