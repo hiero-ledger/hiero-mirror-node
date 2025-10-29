@@ -136,7 +136,7 @@ final class EVMHookHandler {
             com.hedera.hapi.node.hooks.legacy.HookExtensionPoint protoExtensionPoint) {
         return switch (protoExtensionPoint) {
             case ACCOUNT_ALLOWANCE_HOOK -> HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK;
-            case UNRECOGNIZED -> {
+            default -> {
                 Utility.handleRecoverableError(
                         "Unrecognized HookExtensionPoint: {}, defaulting to ACCOUNT_ALLOWANCE_HOOK",
                         protoExtensionPoint);
