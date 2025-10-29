@@ -39,7 +39,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
     void getHooks() {
         // given
         final var request = HooksRequest.builder()
-                .accountId(new EntityIdNumParameter(ownerId))
+                .ownerId(new EntityIdNumParameter(ownerId))
                 .limit(5)
                 .order(Direction.ASC)
                 .build();
@@ -56,7 +56,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         // given – no hooks for this account
         final var nonexistent = EntityId.of(domainBuilder.id());
         final var request = HooksRequest.builder()
-                .accountId(new EntityIdNumParameter(nonexistent))
+                .ownerId(new EntityIdNumParameter(nonexistent))
                 .limit(5)
                 .order(Direction.ASC)
                 .build();

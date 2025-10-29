@@ -49,7 +49,7 @@ final class HooksController {
     @GetMapping("/{accountId}/hooks")
     ResponseEntity<HooksResponse> getHooks(
             @PathVariable EntityIdParameter accountId,
-            @RequestParam(name = "hook.id", required = false) @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
+            @RequestParam(name = HOOK_ID, required = false) @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
                     NumberRangeParameter[] hookIds,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Sort.Direction order) {
@@ -57,7 +57,7 @@ final class HooksController {
         final var hookIdBound = new Bound(hookIds, true, HOOK_ID, HOOK.HOOK_ID);
 
         final var hooksRequest = HooksRequest.builder()
-                .accountId(accountId)
+                .ownerId(accountId)
                 .hookIds(hookIdBound)
                 .limit(limit)
                 .order(order)
@@ -68,12 +68,11 @@ final class HooksController {
         final var hooksResponse = new HooksResponse();
         hooksResponse.setHooks(hooks);
 
-        if (!hooks.isEmpty() && hooks.size() == limit) {
-            final var sort = Sort.by(order, HOOK_ID);
-            final var pageable = PageRequest.of(0, limit, sort);
-            final var links = linkFactory.create(hooks, pageable, EXTRACTOR);
-            hooksResponse.setLinks(links);
-        }
+        final var sort = Sort.by(order, HOOK_ID);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(hooks, pageable, EXTRACTOR);
+        hooksResponse.setLinks(links);
+
         return ResponseEntity.ok(hooksResponse);
     }
 }

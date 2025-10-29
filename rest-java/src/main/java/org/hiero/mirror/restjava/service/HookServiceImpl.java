@@ -20,7 +20,7 @@ final class HookServiceImpl implements HookService {
 
     @Override
     public Collection<Hook> getHooks(HooksRequest request) {
-        final var id = entityService.lookup(request.getAccountId());
+        final var id = entityService.lookup(request.getOwnerId());
         return hookRepository.findAll(request, id);
     }
 }

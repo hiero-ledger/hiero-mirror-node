@@ -36,7 +36,7 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
     void findAllSorted(Direction direction) {
         // given
         final var request = HooksRequest.builder()
-                .accountId(EntityIdParameter.valueOf("0.0" + ownerId))
+                .ownerId(EntityIdParameter.valueOf("0.0" + ownerId))
                 .limit(5)
                 .order(direction)
                 .build();
@@ -65,7 +65,7 @@ final class HookRepositoryTest extends RestJavaIntegrationTest {
     void findAllNoMatch() {
         // Request with a non-existent account
         final var request = HooksRequest.builder()
-                .accountId(EntityIdParameter.valueOf("999999"))
+                .ownerId(EntityIdParameter.valueOf("999999"))
                 .limit(5)
                 .order(Direction.ASC)
                 .build();

@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -176,6 +177,52 @@ final class CommonMapperTest {
         range.setFrom("0.110000000");
         range.setTo("1.100000000");
         assertThat(commonMapper.mapRange(Range.openClosed(110000000L, 1100000000L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+    }
+
+    @Test
+    void mapTimestampRangeNullable() {
+        var range = new TimestampRangeNullable();
+        var now = System.nanoTime();
+        var timestampString = StringUtils.leftPad(String.valueOf(now), 10, '0');
+
+        // test1
+        assertThat(commonMapper.mapTimestampRangeNullable(null)).isNull();
+
+        // test2
+        range.setFrom("0.0");
+        range.setTo(null);
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.atLeast(0L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test3
+        range.setFrom("0.0");
+        range.setTo(timestampString.substring(0, timestampString.length() - NANO_DIGITS) + "."
+                + timestampString.substring(timestampString.length() - NANO_DIGITS));
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(0L, now)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test4
+        range.setFrom("1586567700.453054000");
+        range.setTo("1586567700.453054000");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(1586567700453054000L, 1586567700453054000L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test5
+        range.setFrom("0.000000001");
+        range.setTo("0.000000100");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(1L, 100L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test6
+        range.setFrom("0.110000000");
+        range.setTo("1.100000000");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(110000000L, 1100000000L)))
                 .usingRecursiveComparison()
                 .isEqualTo(range);
     }

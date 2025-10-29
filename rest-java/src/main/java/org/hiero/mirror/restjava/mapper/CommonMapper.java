@@ -117,14 +117,19 @@ public interface CommonMapper {
     }
 
     default TimestampRangeNullable mapTimestampRangeNullable(Range<Long> source) {
-        final var timestampRange = mapRange(source);
-        if (timestampRange == null) {
+        if (source == null) {
             return null;
         }
 
-        final var target = new TimestampRangeNullable();
-        target.setFrom(timestampRange.getFrom());
-        target.setTo(timestampRange.getTo());
+        var target = new TimestampRangeNullable();
+        if (source.hasLowerBound()) {
+            target.setFrom(mapTimestamp(source.lowerEndpoint()));
+        }
+
+        if (source.hasUpperBound()) {
+            target.setTo(mapTimestamp(source.upperEndpoint()));
+        }
+
         return target;
     }
 
