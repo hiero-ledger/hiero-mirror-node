@@ -70,11 +70,13 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenResponse;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.CollectionUtils;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class TokenFeature extends AbstractFeature {
 
     private final AcceptanceTestProperties properties;

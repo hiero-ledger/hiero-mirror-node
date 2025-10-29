@@ -38,9 +38,11 @@ import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
+import org.springframework.context.annotation.Scope;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class ERCContractFeature extends AbstractFeature {
 
     private final AccountClient accountClient;
