@@ -32,12 +32,12 @@ public abstract class AbstractHook implements History {
 
     public static final String UPSERTABLE_COLUMN_COALESCE =
             """
-                    case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then {0}
+                    case when created_timestamp = lower(timestamp_range) then {0}
                          else coalesce({0}, e_{0})
                     end""";
     public static final String UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE =
             """
-                    case when coalesce(e_created_timestamp, 0) != coalesce(created_timestamp, 0) then coalesce({0}, {1})
+                    case when created_timestamp = lower(timestamp_range) then coalesce({0}, {1})
                          else coalesce({0}, e_{0}, {1})
                     end""";
 
@@ -65,7 +65,6 @@ public abstract class AbstractHook implements History {
     @jakarta.persistence.Id
     private long ownerId;
 
-    @UpsertColumn(coalesce = UPSERTABLE_COLUMN_COALESCE)
     private Range<Long> timestampRange;
 
     @Enumerated(EnumType.STRING)

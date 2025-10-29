@@ -640,23 +640,25 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             previous.setTimestampUpper(current.getTimestampLower() + 1);
         }
 
-        final var src = current.hasHistory() ? current : previous;
-        final var dest = current.hasHistory() ? previous : current;
+        if (current.getCreatedTimestamp() != null && current.getCreatedTimestamp() == current.getTimestampLower()) {
+            // hook creation, don't merge
+            return current;
+        }
 
-        if (dest.getExtensionPoint() == null) {
-            dest.setExtensionPoint(src.getExtensionPoint());
+        if (current.getExtensionPoint() == null) {
+            current.setExtensionPoint(previous.getExtensionPoint());
         }
-        if (dest.getType() == null) {
-            dest.setType(src.getType());
+        if (current.getType() == null) {
+            current.setType(previous.getType());
         }
-        if (dest.getContractId() == null) {
-            dest.setContractId(src.getContractId());
+        if (current.getContractId() == null) {
+            current.setContractId(previous.getContractId());
         }
-        if (dest.getAdminKey() == null) {
-            dest.setAdminKey(src.getAdminKey());
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
         }
-        if (dest.getCreatedTimestamp() == null) {
-            dest.setCreatedTimestamp(src.getCreatedTimestamp());
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
         }
         return current;
     }

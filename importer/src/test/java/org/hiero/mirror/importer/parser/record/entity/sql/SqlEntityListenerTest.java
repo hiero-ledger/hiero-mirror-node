@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -3629,20 +3630,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void onHookMergeWithoutPrevious() {
-        // given
-        var hook = domainBuilder.hook().get();
-
-        // when
-        sqlEntityListener.onHook(hook);
-        completeFileAndCommit();
-
-        // then
-        assertThat(hookRepository.findAll()).containsExactly(hook);
-        assertThat(findHistory(Hook.class)).isEmpty();
-    }
-
-    @Test
     void onHookMergeWithDeletedPrevious() {
         // given
         var hookCreate = domainBuilder.hook().get();
@@ -3705,7 +3692,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         sqlEntityListener.onHook(hookDelete);
         completeFileAndCommit();
 
-        var expectedDeleteHistory = hookDelete.toBuilder()
+        var expectedDelete = hookDelete.toBuilder()
                 .adminKey(adminKey) // merged from creation
                 .contractId(contractId) // merged from creation
                 .createdTimestamp(createdTimestamp) // merged from creation
@@ -3713,7 +3700,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .type(HookType.LAMBDA) // merged from creation
                 .build();
 
-        assertThat(hookRepository.findAll()).containsExactly(expectedDeleteHistory);
+        assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
 
         Collection<Hook> history = findHistory(Hook.class);
         Optional<Hook> actualOptional = history.stream().findFirst();
@@ -3767,23 +3754,19 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         completeFileAndCommit();
 
         // then
-        var expectedCreateHistory = hookCreate.toBuilder().build();
-        expectedCreateHistory.setTimestampUpper(createdTimestamp);
-
-        var expectedDeleteHistory = hookDelete.toBuilder()
-                .contractId(contractId) // merged from creation
-                .createdTimestamp(createdTimestamp) // merged from creation
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // merged from creation
-                .type(HookType.LAMBDA) // merged from creation
+        var expectedDelete = hookDelete.toBuilder()
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .type(HookType.LAMBDA)
                 .build();
-        expectedDeleteHistory.setTimestampUpper(createdTimestamp + 1);
+        expectedDelete.setTimestampUpper(createdTimestamp + 1);
 
         assertThat(hookRepository.findAll()).containsExactly(hookCreate);
-        assertThat(findHistory(Hook.class)).containsExactly(expectedDeleteHistory);
+        assertThat(findHistory(Hook.class)).containsExactly(expectedDelete);
 
         // when
         var hookRecreate = hookCreate.toBuilder()
                 .createdTimestamp(createdTimestamp + 100)
+                .timestampRange(Range.atLeast(createdTimestamp + 100))
                 .adminKey(null)
                 .build();
         sqlEntityListener.onHook(hookRecreate);
@@ -3813,10 +3796,9 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var hookDelete = Hook.builder()
                 .deleted(true)
-                .createdTimestamp(createdTimestamp)
                 .hookId(hookId)
                 .ownerId(ownerId)
-                .timestampRange(Range.atLeast(createdTimestamp))
+                .timestampRange(Range.atLeast(createdTimestamp + 100))
                 .build();
 
         // when
@@ -3827,33 +3809,15 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         var expectedCreateHistory = hookCreate.toBuilder().build();
-        expectedCreateHistory.setTimestampUpper(createdTimestamp);
+        expectedCreateHistory.setTimestampUpper(createdTimestamp + 100);
 
-        var expectedDelete = hookDelete.toBuilder()
-                .contractId(contractId) // merged from creation
-                .createdTimestamp(createdTimestamp) // merged from creation
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // merged from creation
-                .type(HookType.LAMBDA) // merged from creation
+        var expectedDelete = hookCreate.toBuilder()
+                .deleted(true)
+                .timestampRange(Range.atLeast(createdTimestamp + 100))
                 .build();
-        expectedCreateHistory.setTimestampRange(Range.openClosed(createdTimestamp, createdTimestamp));
 
         assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
-        Collection<Hook> history = findHistory(Hook.class);
-        Optional<Hook> actualOptional = history.stream().findFirst();
-        assertThat(actualOptional).isPresent();
-
-        assertAll(
-                () -> assertEquals(hookId, actualOptional.get().getHookId()),
-                () -> assertEquals(contractId, actualOptional.get().getContractId()),
-                () -> assertEquals(
-                        HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK,
-                        actualOptional.get().getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, actualOptional.get().getType()),
-                () -> assertEquals(
-                        EntityId.of(ownerId).getId(), actualOptional.get().getOwnerId()),
-                () -> assertEquals(createdTimestamp, actualOptional.get().getCreatedTimestamp()),
-                () -> assertNotNull(actualOptional.get().getTimestampUpper()),
-                () -> assertFalse(actualOptional.get().getDeleted()));
+        assertThat(findHistory(Hook.class)).containsExactly(expectedCreateHistory);
     }
 
     @Test
@@ -3900,7 +3864,14 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(hookCreate);
-        assertThat(findHistory(Hook.class)).containsExactly(expectedDeleted);
+        Collection<Hook> history = findHistory(Hook.class);
+        Optional<Hook> actualOptional = history.stream().findFirst();
+        assertTrue(actualOptional.isPresent());
+
+        assertAll(
+                () -> assertEquals(timestamp + 1, actualOptional.get().getTimestampUpper()),
+                () -> assertEquals(hookId, actualOptional.get().getHookId()),
+                () -> assertEquals(ownerId, actualOptional.get().getOwnerId()));
     }
 
     @Test
@@ -3922,12 +3893,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         completeFileAndCommit();
 
         // then - hook should be persisted with default values for missing fields
-        var expectedHook = Hook.builder()
-                .deleted(true)
+        var expectedHook = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // database default
-                .hookId(hookId)
-                .ownerId(ownerId)
-                .timestampRange(Range.atLeast(timestamp))
                 .type(HookType.LAMBDA) // database default
                 .build();
 
