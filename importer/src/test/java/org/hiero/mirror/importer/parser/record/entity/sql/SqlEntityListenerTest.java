@@ -6,9 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
-import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
@@ -16,10 +14,8 @@ import com.hederahashgraph.api.proto.java.Key;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -3652,8 +3648,81 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(findHistory(Hook.class)).containsExactly(expectedPrevious);
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onHookCreateAndDeleteWithBlockBoundaries(int commitIndex) {
+        // given
+        var ownerId = EntityId.of(domainBuilder.id()).getId();
+        var hookId = 1L;
+        var contractId = EntityId.of(domainBuilder.id());
+        var adminKey = domainBuilder.bytes(32);
+        var createdTimestamp = domainBuilder.timestamp();
+        var deletedTimestamp = commitIndex > 1 ? createdTimestamp + 100 : createdTimestamp;
+
+        // Transaction B: Hook deletion
+        var hookDelete = Hook.builder()
+                .deleted(true)
+                .hookId(hookId)
+                .ownerId(ownerId)
+                .timestampRange(Range.atLeast(deletedTimestamp))
+                .build();
+
+        // Transaction A: Hook creation
+        var hookCreate = hookDelete.toBuilder()
+                .adminKey(adminKey)
+                .contractId(contractId)
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .type(HookType.LAMBDA)
+                .build();
+
+        // when
+
+        // then
+        var expectedHookCreate = hookCreate.toBuilder().build();
+
+        if (commitIndex > 1) {
+            // when
+            sqlEntityListener.onHook(hookCreate);
+            completeFileAndCommit();
+            // then
+            assertThat(hookRepository.findAll()).containsExactly(expectedHookCreate);
+            expectedHookCreate.setTimestampUpper(deletedTimestamp);
+
+            // when
+            sqlEntityListener.onHook(hookDelete);
+            completeFileAndCommit();
+
+            // then
+            var expectedDelete = hookCreate.toBuilder()
+                    .deleted(true)
+                    .timestampRange(Range.atLeast(deletedTimestamp))
+                    .build();
+            assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
+            assertThat(findHistory(Hook.class)).containsExactly(expectedHookCreate);
+        } else {
+            // when
+            sqlEntityListener.onHook(hookDelete);
+            sqlEntityListener.onHook(hookCreate);
+
+            completeFileAndCommit();
+            // then
+            var expectedDelete = hookDelete.toBuilder()
+                    .deleted(true)
+                    .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                    .type(HookType.LAMBDA)
+                    .timestampRange(Range.atLeast(deletedTimestamp))
+                    .build();
+            expectedDelete.setTimestampUpper(deletedTimestamp + 1);
+            assertThat(hookRepository.findAll()).containsExactly(expectedHookCreate);
+            assertThat(findHistory(Hook.class)).containsExactly(expectedDelete);
+        }
+    }
+
     @Test
-    void onHookCreateAndDeleteLifecycle() {
+    void onHookCreateAndLifecycleWithinSameBlockButDifferentTransaction() {
         // given
         var ownerId = EntityId.of(domainBuilder.id()).getId();
         var hookId = 1L;
@@ -3661,49 +3730,98 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var adminKey = domainBuilder.bytes(32);
         var createdTimestamp = domainBuilder.timestamp();
         var deletedTimestamp = createdTimestamp + 100;
+        var createdTimestamp2 = createdTimestamp + 200;
 
-        var hookCreate = Hook.builder()
+        var hookDelete = Hook.builder()
+                .deleted(true)
+                .hookId(hookId)
+                .ownerId(ownerId)
+                .timestampRange(Range.atLeast(deletedTimestamp))
+                .build();
+
+        var hookCreate = hookDelete.toBuilder()
                 .adminKey(adminKey)
                 .contractId(contractId)
                 .createdTimestamp(createdTimestamp)
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .hookId(hookId)
-                .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
                 .type(HookType.LAMBDA)
                 .build();
 
-        var hookDelete = Hook.builder()
-                .deleted(true)
-                .hookId(hookId)
-                .createdTimestamp(createdTimestamp)
-                .ownerId(ownerId)
-                .timestampRange(Range.atLeast(deletedTimestamp))
+        var hookCreate2 = hookCreate.toBuilder()
+                .createdTimestamp(createdTimestamp2)
+                .timestampRange(Range.atLeast(createdTimestamp2))
                 .build();
 
         // when
         sqlEntityListener.onHook(hookCreate);
-        completeFileAndCommit();
-        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
-
         sqlEntityListener.onHook(hookDelete);
+        sqlEntityListener.onHook(hookCreate2);
         completeFileAndCommit();
 
-        var expectedDelete = hookDelete.toBuilder()
-                .adminKey(adminKey) // merged from creation
-                .contractId(contractId) // merged from creation
-                .createdTimestamp(createdTimestamp) // merged from creation
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // merged from creation
-                .type(HookType.LAMBDA) // merged from creation
+        var expectedHookDelete = hookCreate.toBuilder()
+                .deleted(true)
+                .timestampRange(Range.closedOpen(deletedTimestamp, createdTimestamp2 + 1))
+                .build();
+        var expectedHookCreate = hookCreate.toBuilder()
+                .timestampRange(Range.closedOpen(createdTimestamp, deletedTimestamp + 1))
                 .build();
 
-        var expectedHookHistory = hookCreate.toBuilder()
-                .timestampRange(Range.closedOpen(createdTimestamp, deletedTimestamp))
+        assertThat(hookRepository.findAll()).containsExactly(hookCreate2);
+        assertThat(findHistory(Hook.class)).contains(expectedHookCreate, expectedHookDelete);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onHookDeleteAndCreateLifecycle(int commitIndex) {
+        // given
+        var ownerId = EntityId.of(domainBuilder.id()).getId();
+        var hookId = 1L;
+        var contractId = EntityId.of(domainBuilder.id());
+        var adminKey = domainBuilder.bytes(32);
+        var deletedTimestamp = domainBuilder.timestamp();
+        var createdTimestamp = commitIndex > 1 ? deletedTimestamp + 100 : deletedTimestamp;
+
+        var hookDelete = Hook.builder()
+                .deleted(true)
+                .hookId(hookId)
+                .ownerId(ownerId)
+                .timestampRange(Range.atLeast(deletedTimestamp))
                 .build();
 
-        assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
-        assertThat(findHistory(Hook.class)).containsExactly(expectedHookHistory);
+        var hookCreate = hookDelete.toBuilder()
+                .adminKey(adminKey)
+                .contractId(contractId)
+                .createdTimestamp(createdTimestamp)
+                .deleted(false)
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .timestampRange(Range.atLeast(createdTimestamp))
+                .type(HookType.LAMBDA)
+                .build();
+
+        // when
+        sqlEntityListener.onHook(hookDelete);
+
+        // then
+        var expectedHookDelete = hookDelete.toBuilder()
+                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .type(HookType.LAMBDA)
+                .build();
+
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+            assertThat(hookRepository.findAll()).containsExactly(expectedHookDelete);
+            expectedHookDelete.setTimestampUpper(createdTimestamp);
+        } else {
+            // due to merge logic setting upper +1
+            expectedHookDelete.setTimestampUpper(createdTimestamp + 1);
+        }
+        sqlEntityListener.onHook(hookCreate);
+        completeFileAndCommit();
+
+        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
+        assertThat(findHistory(Hook.class)).containsExactly(expectedHookDelete);
     }
 
     @Test
@@ -3727,38 +3845,42 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .type(HookType.LAMBDA)
                 .build();
 
-        var hookDelete = Hook.builder()
-                .deleted(true)
-                .hookId(hookId)
-                .ownerId(ownerId)
-                .timestampRange(Range.atLeast(createdTimestamp))
-                .build();
-
         // when
-        sqlEntityListener.onHook(hookDelete);
         sqlEntityListener.onHook(hookCreate);
         completeFileAndCommit();
+
+        // then
+        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
+
+        // when
+
+        var hookDelete = hookCreate.toBuilder()
+                .deleted(true)
+                .timestampRange(Range.atLeast(createdTimestamp + 100))
+                .build();
+
+        var hookRecreate = hookCreate.toBuilder()
+                .createdTimestamp(createdTimestamp + 100)
+                .timestampRange(Range.atLeast(createdTimestamp + 100))
+                .adminKey(null)
+                .build();
 
         // then
         var expectedDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .type(HookType.LAMBDA)
                 .build();
-        expectedDelete.setTimestampUpper(createdTimestamp + 1);
+        expectedDelete.setTimestampUpper(createdTimestamp + 101);
 
-        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
-        assertThat(findHistory(Hook.class)).containsExactly(expectedDelete);
+        var expectedHookCreateHistory = hookCreate.toBuilder().build();
+        expectedHookCreateHistory.setTimestampUpper(createdTimestamp + 100);
 
-        // when
-        var hookRecreate = hookCreate.toBuilder()
-                .createdTimestamp(createdTimestamp + 100)
-                .timestampRange(Range.atLeast(createdTimestamp + 100))
-                .adminKey(null)
-                .build();
+        sqlEntityListener.onHook(hookDelete);
         sqlEntityListener.onHook(hookRecreate);
         completeFileAndCommit();
 
         assertThat(hookRepository.findAll()).containsExactly(hookRecreate);
+        assertThat(findHistory(Hook.class)).containsExactly(expectedHookCreateHistory, expectedDelete);
     }
 
     @Test
@@ -3804,60 +3926,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         assertThat(hookRepository.findAll()).containsExactly(expectedDelete);
         assertThat(findHistory(Hook.class)).containsExactly(expectedCreateHistory);
-    }
-
-    @Test
-    void onHookCreateDeleteInSameTransaction() {
-        // given
-        var ownerId = EntityId.of(domainBuilder.id()).getId();
-        var hookId = 1L;
-        var contractId = EntityId.of(domainBuilder.id());
-        var adminKey = domainBuilder.bytes(32);
-        var timestamp = domainBuilder.timestamp();
-
-        var hookCreate = Hook.builder()
-                .adminKey(adminKey)
-                .contractId(contractId)
-                .createdTimestamp(timestamp)
-                .deleted(false)
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .hookId(hookId)
-                .ownerId(ownerId)
-                .timestampRange(Range.atLeast(timestamp))
-                .type(HookType.LAMBDA)
-                .build();
-
-        var hookDelete = Hook.builder()
-                .deleted(true)
-                .hookId(hookId)
-                .ownerId(ownerId)
-                .timestampRange(Range.atLeast(timestamp)) // different timestamp
-                .build();
-
-        // when
-        sqlEntityListener.onHook(hookDelete);
-        sqlEntityListener.onHook(hookCreate);
-
-        completeFileAndCommit();
-
-        // then - delete should merge properties and override deleted flag
-        var expectedDeleted = hookDelete.toBuilder()
-                .adminKey(adminKey)
-                .contractId(contractId)
-                .createdTimestamp(timestamp)
-                .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
-                .build();
-
-        assertThat(hookRepository.findAll()).containsExactly(hookCreate);
-        Collection<Hook> history = findHistory(Hook.class);
-        Optional<Hook> actualOptional = history.stream().findFirst();
-        assertTrue(actualOptional.isPresent());
-
-        assertAll(
-                () -> assertEquals(timestamp + 1, actualOptional.get().getTimestampUpper()),
-                () -> assertEquals(hookId, actualOptional.get().getHookId()),
-                () -> assertEquals(ownerId, actualOptional.get().getOwnerId()));
     }
 
     @Test

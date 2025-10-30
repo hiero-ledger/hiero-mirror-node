@@ -636,9 +636,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     private Hook mergeHook(Hook previous, Hook current) {
-        if (previous != null && previous.getDeleted() && current.getTimestampUpper() == null) {
-            previous.setTimestampUpper(current.getTimestampLower() + 1);
-        }
+        long adjustment = previous.getDeleted() && previous.getTimestampLower() == current.getTimestampLower() ? 1 : 0;
+        previous.setTimestampUpper(current.getTimestampLower() + 1);
 
         if (current.getCreatedTimestamp() != null && current.getCreatedTimestamp() == current.getTimestampLower()) {
             // hook creation, don't merge
