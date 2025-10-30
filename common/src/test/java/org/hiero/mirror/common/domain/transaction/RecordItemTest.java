@@ -147,14 +147,12 @@ class RecordItemTest {
     }
 
     @Test
-    void parentConsensusTimestampRecordItemIsTopLevel() {
+    void missingParentConsensusTimestampRecordItemIsTopLevel() {
         var tr = TRANSACTION_RECORD.toBuilder()
                 .setTransactionID(TransactionID.newBuilder()
                         .setNonce(2)
                         .setScheduled(false)
                         .build())
-                .setParentConsensusTimestamp(
-                        Timestamp.newBuilder().setSeconds(10).setNanos(20).build())
                 .build();
 
         var recordItem = RecordItem.builder()
@@ -173,6 +171,8 @@ class RecordItemTest {
                         .setNonce(3)
                         .setScheduled(false)
                         .build())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
                 .build();
 
         var recordItem = RecordItem.builder()
@@ -235,6 +235,8 @@ class RecordItemTest {
                 .build();
         var tr = TRANSACTION_RECORD.toBuilder()
                 .setTransactionID(txBody.getTransactionID())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
                 .build();
 
         var recordItem = RecordItem.builder()
