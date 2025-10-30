@@ -119,6 +119,7 @@ jobs:
             cat <<EOF > mirror.yaml
           importer:
             env:
+              HIERO_MIRROR_IMPORTER_SMARTCONTRACTTHROTTLINGVERSION: "0.67.0"
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
@@ -139,6 +140,9 @@ jobs:
 
           else
             cat <<EOF > mirror.yaml
+          importer:
+            env:
+              HIERO_MIRROR_IMPORTER_SMARTCONTRACTTHROTTLINGVERSION: "0.67.0"
           test:
             image:
               tag: ${TAG}
