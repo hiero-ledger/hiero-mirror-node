@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-log-downloader",
-  "version": "0.142.0-rc1",
+  "version": "0.143.0-SNAPSHOT",
   "description": "Bulk download REST API logs from google cloud logging",
   "main": "index.js",
   "private": true,
