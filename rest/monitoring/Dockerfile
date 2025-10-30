@@ -1,4 +1,4 @@
-FROM node:lts-bookworm-slim
+FROM node:22-bookworm-slim
 LABEL maintainer="mirrornode@hedera.com"
 
 # Setup
