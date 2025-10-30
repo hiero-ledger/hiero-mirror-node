@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser.domain;
 
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
-import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.inject.Named;
@@ -222,9 +221,7 @@ public class RecordFileBuilder {
                     case CONTRACT_CALL -> {
                         var transactionID = TransactionID.newBuilder()
                                 .setNonce(nonce)
-                                .setAccountID(AccountID.newBuilder()
-                                        .setAccountNum(4100)
-                                        .build())
+                                .setAccountID(recordItemBuilder.accountId())
                                 .setScheduled(scheduled);
 
                         var contractCallItemBuilder =

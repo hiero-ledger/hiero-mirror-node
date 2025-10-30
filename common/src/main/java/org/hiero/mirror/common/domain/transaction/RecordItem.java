@@ -35,6 +35,7 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -182,7 +183,12 @@ public class RecordItem implements StreamItem {
 
     // Whether we have a FileUpdate transaction that is paid by the system account 0.0.50
     private boolean isSystemFileUpdate() {
-        return transactionBody.hasFileUpdate() && EntityId.of(0L, 0L, 50L).equals(payerAccountId);
+        return transactionBody.hasFileUpdate()
+                && EntityId.of(
+                                CommonProperties.getInstance().getShard(),
+                                CommonProperties.getInstance().getRealm(),
+                                50L)
+                        .equals(payerAccountId);
     }
 
     /**
