@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.domain;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
 import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -121,11 +122,10 @@ public class RecordFileBuilder {
         private int entities = 10;
         private int nonce = 0;
         private boolean entityAutoCreation = false;
-        private boolean isScheduled = false;
+        private boolean scheduled = false;
         private SubType subType = SubType.STANDARD;
         private TransactionType type = TransactionType.UNKNOWN;
-        private Timestamp parentConsensusTimestamp =
-                Timestamp.newBuilder().setSeconds(0L).build();
+        private Timestamp parentConsensusTimestamp = Timestamp.getDefaultInstance();
         private Supplier<RecordItemBuilder.Builder<?>> template;
 
         @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -156,8 +156,8 @@ public class RecordFileBuilder {
             return this;
         }
 
-        public ItemBuilder isScheduled(boolean isScheduled) {
-            this.isScheduled = isScheduled;
+        public ItemBuilder isScheduled(boolean scheduled) {
+            this.scheduled = scheduled;
             return this;
         }
 
@@ -218,8 +218,15 @@ public class RecordFileBuilder {
             if (subType != SubType.STANDARD) {
                 return switch (subType) {
                     case TOKEN_TRANSFER -> () -> recordItemBuilder.cryptoTransfer(TransferType.TOKEN);
-                    case CONTRACT_CALL ->
-                        () -> recordItemBuilder.contractCall(nonce, parentConsensusTimestamp, isScheduled);
+                    case CONTRACT_CALL -> {
+                        var transactionID = TransactionID.newBuilder()
+                                .setNonce(nonce)
+                                //                                .setAccountID(functionResult.getSenderId())
+                                .setScheduled(scheduled);
+
+                        yield () -> recordItemBuilder.contractCall().record(r -> r.setTransactionID(transactionID)
+                                .setParentConsensusTimestamp(parentConsensusTimestamp));
+                    }
                     default -> throw new IllegalArgumentException("subType not supported: " + subType);
                 };
             }

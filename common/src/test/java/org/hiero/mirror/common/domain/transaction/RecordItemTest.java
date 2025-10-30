@@ -111,6 +111,80 @@ class RecordItemTest {
     }
 
     @Test
+    void zeroNonceRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(0)
+                        .setScheduled(false)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void scheduledRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(1)
+                        .setScheduled(true)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void parentConsensusTimestampRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(2)
+                        .setScheduled(false)
+                        .build())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(10).setNanos(20).build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void positiveNonceUnscheduledRecordItemIsNotTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(3)
+                        .setScheduled(false)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
     void getTransactionHashEthereum() {
         var recordItem = RecordItem.builder()
                 .transaction(DEFAULT_TRANSACTION)

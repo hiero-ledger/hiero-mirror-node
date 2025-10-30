@@ -176,8 +176,7 @@ public class RecordItem implements StreamItem {
 
         return transactionNonce == 0
                 || (transactionNonce > 0 && transactionRecord.getTransactionID().getScheduled())
-                || (transactionRecord.getParentConsensusTimestamp().getSeconds() == 0
-                        && transactionRecord.getParentConsensusTimestamp().getNanos() == 0);
+                || transactionRecord.hasParentConsensusTimestamp();
     }
 
     /**
