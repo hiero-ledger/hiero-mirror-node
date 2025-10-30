@@ -2,11 +2,10 @@
 
 package org.hiero.mirror.restjava.dto;
 
-import java.util.List;
+import java.util.Collection;
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
-import org.hiero.mirror.restjava.service.Bound;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -21,10 +20,9 @@ public class HooksRequest {
     @Builder.Default
     Sort.Direction order = Direction.DESC;
 
-    @Builder.Default
-    Bound hookIds = Bound.EMPTY;
+    Collection<Long> hookIdEqualsFilters;
 
-    public List<Bound> getBounds() {
-        return hookIds.isEmpty() ? List.of() : List.of(hookIds);
-    }
+    Long hookIdLowerBoundInclusive;
+
+    Long hookIdUpperBoundInclusive;
 }
