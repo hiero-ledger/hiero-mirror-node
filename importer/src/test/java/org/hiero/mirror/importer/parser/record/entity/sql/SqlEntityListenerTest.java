@@ -3715,6 +3715,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                     .type(HookType.LAMBDA)
                     .timestampRange(Range.atLeast(deletedTimestamp))
                     .build();
+            // Merge Changes
             expectedDelete.setTimestampUpper(deletedTimestamp + 1);
             assertThat(hookRepository.findAll()).containsExactly(expectedHookCreate);
             assertThat(findHistory(Hook.class)).containsExactly(expectedDelete);
@@ -3762,10 +3763,10 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var expectedHookDelete = hookCreate.toBuilder()
                 .deleted(true)
-                .timestampRange(Range.closedOpen(deletedTimestamp, createdTimestamp2 + 1))
+                .timestampRange(Range.closedOpen(deletedTimestamp, createdTimestamp2))
                 .build();
         var expectedHookCreate = hookCreate.toBuilder()
-                .timestampRange(Range.closedOpen(createdTimestamp, deletedTimestamp + 1))
+                .timestampRange(Range.closedOpen(createdTimestamp, deletedTimestamp))
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(hookCreate2);
@@ -3814,7 +3815,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             assertThat(hookRepository.findAll()).containsExactly(expectedHookDelete);
             expectedHookDelete.setTimestampUpper(createdTimestamp);
         } else {
-            // due to merge logic setting upper +1
+            // Merge Logic
             expectedHookDelete.setTimestampUpper(createdTimestamp + 1);
         }
         sqlEntityListener.onHook(hookCreate);
