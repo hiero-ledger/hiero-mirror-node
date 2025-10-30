@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.141.0-rc1'
+      version: '0.142.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -131,7 +131,7 @@ spec:
               acceptance:
                 network: MAINNET
       cucumberTags: "@critical"
-      enabled: false
+      enabled: true
     web3:
       env:
         HIERO_MIRROR_WEB3_EVM_NETWORK: MAINNET
