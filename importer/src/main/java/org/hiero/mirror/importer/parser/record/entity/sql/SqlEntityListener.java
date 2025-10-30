@@ -640,7 +640,8 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
                 previous.getDeleted() && previous.getTimestampLower().equals(current.getTimestampLower()) ? 1 : 0;
         previous.setTimestampUpper(current.getTimestampLower() + adjustment);
 
-        if (current.getCreatedTimestamp() != null && current.getCreatedTimestamp() == current.getTimestampLower()) {
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
             // hook creation, don't merge
             return current;
         }

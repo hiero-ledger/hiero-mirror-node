@@ -3607,14 +3607,19 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         return nft;
     }
 
-    @Test
-    void onHook() {
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onHook(int commitIndex) {
         // given
         var hook1 = domainBuilder.hook().get();
         var hook2 = domainBuilder.hook().get();
 
         // when
         sqlEntityListener.onHook(hook1);
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+            assertThat(hookRepository.findAll()).containsExactlyInAnyOrder(hook1);
+        }
         sqlEntityListener.onHook(hook2);
         completeFileAndCommit();
 
@@ -3770,7 +3775,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(hookCreate2);
-        assertThat(findHistory(Hook.class)).contains(expectedHookCreate, expectedHookDelete);
+        assertThat(findHistory(Hook.class)).containsExactlyInAnyOrder(expectedHookCreate, expectedHookDelete);
     }
 
     @ParameterizedTest
