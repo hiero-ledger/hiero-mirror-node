@@ -24,6 +24,7 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.StringValue;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -1077,8 +1078,6 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 .contractCall()
                 .record(r -> {
                     r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
-                    r.setParentConsensusTimestamp(
-                            Timestamp.newBuilder().setSeconds(0).setNanos(0).build());
                 })
                 .build();
 
@@ -1120,6 +1119,19 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
 
         assertThat(recordItem1.isTopLevel()).isFalse();
         assertThat(recordItem2.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void systemFileUpdateIsTopLevel() {
+        var recordItem = recordItemBuilder
+                .fileUpdate()
+                .record(r -> r.getTransactionIDBuilder()
+                        .setNonce(7)
+                        .setScheduled(false)
+                        .setAccountID(AccountID.newBuilder().setAccountNum(50)))
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
     }
 
     private void assertFailedContractCreate(TransactionBody transactionBody, TransactionRecord txnRecord) {

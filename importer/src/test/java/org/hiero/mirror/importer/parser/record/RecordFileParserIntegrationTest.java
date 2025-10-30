@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.Comparator;
@@ -141,7 +142,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
-        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
         assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
     }
 
@@ -171,12 +172,12 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
-        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
         assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
     }
 
     @Test
-    void parseSingleFileWitHavingParentConsensusTimestampNonTopLevelContractCallItems() {
+    void parseSingleFileWitHavingOneTopLevelAndOneNotTopLevelContractCallItems() {
         // given
         int transactions = 2;
         int entities = 2;
@@ -203,8 +204,8 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
-        assertThat(updatedRecordFile.getGasUsed()).isZero();
-        assertThat(updatedRecordFile.getLogsBloom()).isEmpty();
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(DEFAULT_GAS_USED);
+        assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
     }
 
     @Test
@@ -233,7 +234,7 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
-        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * 100000L);
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(transactions * DEFAULT_GAS_USED);
         assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
     }
 
@@ -265,8 +266,34 @@ class RecordFileParserIntegrationTest extends ImporterIntegrationTest {
         var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
         assertThat(updatedRecordFileOptional).isPresent();
         var updatedRecordFile = updatedRecordFileOptional.get();
-        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(entities * 100000L);
+        assertThat(updatedRecordFile.getGasUsed()).isEqualTo(entities * DEFAULT_GAS_USED);
         assertThat(updatedRecordFile.getLogsBloom()).isEqualTo(logsBloom.getBloom());
+    }
+
+    @Test
+    void parseSingleFileWithSystemFileUpdateTopLevelItems() {
+        // given
+        int transactions = 3;
+        var recordFile = recordFileBuilder
+                .recordFile()
+                .recordItems(i -> i.count(transactions)
+                        .template(() -> recordItemBuilder.fileUpdate().record(r -> r.getTransactionIDBuilder()
+                                .setNonce(7)
+                                .setScheduled(false)
+                                .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                        .setAccountNum(50)))))
+                .build();
+
+        // when
+        recordFileParser.parse(recordFile);
+
+        // then
+        assertRecordFile(recordFile);
+        var updatedRecordFileOptional = recordFileRepository.findById(recordFile.getConsensusEnd());
+        assertThat(updatedRecordFileOptional).isPresent();
+        var updatedRecordFile = updatedRecordFileOptional.get();
+        assertThat(updatedRecordFile.getGasUsed()).isZero();
+        assertThat(updatedRecordFile.getLogsBloom()).isEmpty();
     }
 
     @Test

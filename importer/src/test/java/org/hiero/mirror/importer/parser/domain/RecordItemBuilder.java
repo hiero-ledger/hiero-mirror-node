@@ -200,6 +200,7 @@ public class RecordItemBuilder {
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final byte[] LONDON_RAW_TX = Hex.decode(
             "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
+    public static final long DEFAULT_GAS_USED = 100000L;
 
     private static final long INITIAL_ID = 1000L;
     private static final RealmID REALM_ID = RealmID.getDefaultInstance();
@@ -337,28 +338,6 @@ public class RecordItemBuilder {
         return contractCall(contractId());
     }
 
-    public Builder<ContractCallTransactionBody.Builder> contractCall(
-            final int nonce, final Timestamp parentConsensusTimestamp, boolean isScheduled) {
-        var contractId = contractId();
-        ContractCallTransactionBody.Builder transactionBody = ContractCallTransactionBody.newBuilder()
-                .setAmount(5_000L)
-                .setContractID(contractId)
-                .setFunctionParameters(nonZeroBytes(64))
-                .setGas(10_000L);
-
-        var functionResult = contractFunctionResult(contractId);
-        var transactionID = TransactionID.newBuilder()
-                .setNonce(nonce)
-                .setAccountID(functionResult.getSenderId())
-                .setScheduled(isScheduled);
-
-        return new Builder<>(TransactionType.CONTRACTCALL, transactionBody)
-                .receipt(r -> r.setContractID(contractId))
-                .record(r -> r.setContractCallResult(functionResult)
-                        .setTransactionID(transactionID.build())
-                        .setParentConsensusTimestamp(parentConsensusTimestamp));
-    }
-
     @SuppressWarnings("deprecation")
     public Builder<ContractCallTransactionBody.Builder> contractCall(ContractID contractId) {
         ContractCallTransactionBody.Builder transactionBody = ContractCallTransactionBody.newBuilder()
@@ -447,7 +426,7 @@ public class RecordItemBuilder {
                 .setErrorMessage(text(10))
                 .setFunctionParameters(bytes(64))
                 .setGas(10_000L)
-                .setGasUsed(100000L)
+                .setGasUsed(DEFAULT_GAS_USED)
                 .addAllLogInfo(contractLogInfos)
                 .setSenderId(accountId())
                 .setSignerNonce(Int64Value.of(10));

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.parser.domain;
 
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.inject.Named;
@@ -221,11 +222,20 @@ public class RecordFileBuilder {
                     case CONTRACT_CALL -> {
                         var transactionID = TransactionID.newBuilder()
                                 .setNonce(nonce)
-                                //                                .setAccountID(functionResult.getSenderId())
+                                .setAccountID(AccountID.newBuilder()
+                                        .setAccountNum(4100)
+                                        .build())
                                 .setScheduled(scheduled);
 
-                        yield () -> recordItemBuilder.contractCall().record(r -> r.setTransactionID(transactionID)
-                                .setParentConsensusTimestamp(parentConsensusTimestamp));
+                        var contractCallItemBuilder =
+                                recordItemBuilder.contractCall().record(r -> r.setTransactionID(transactionID));
+
+                        if (!Timestamp.getDefaultInstance().equals(parentConsensusTimestamp)) {
+                            contractCallItemBuilder.record(
+                                    r -> r.setParentConsensusTimestamp(parentConsensusTimestamp));
+                        }
+
+                        yield () -> contractCallItemBuilder;
                     }
                     default -> throw new IllegalArgumentException("subType not supported: " + subType);
                 };
