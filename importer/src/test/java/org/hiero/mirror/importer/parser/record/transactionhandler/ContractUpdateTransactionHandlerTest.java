@@ -6,6 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,6 +19,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -37,6 +41,8 @@ import org.springframework.data.util.Version;
 
 class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    private final EVMHookHandler evmHookHandler = mock(EVMHookHandler.class);
+
     @BeforeEach
     void beforeEach() {
         when(entityIdService.lookup(ContractID.getDefaultInstance(), contractId))
@@ -45,7 +51,7 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ContractUpdateTransactionHandler(entityIdService, entityListener);
+        return new ContractUpdateTransactionHandler(entityIdService, entityListener, evmHookHandler);
     }
 
     @Override
@@ -58,6 +64,97 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
     @Override
     protected EntityType getExpectedEntityIdType() {
         return EntityType.CONTRACT;
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.clearHookIdsToDelete())
+                .build();
+        var transaction = transaction(recordItem);
+        var contractUpdateInstance = recordItem.getTransactionBody().getContractUpdateInstance();
+        var ownerId = EntityId.of(contractUpdateInstance.getContractID());
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(ownerId.getId()),
+                        eq(contractUpdateInstance.getHookCreationDetailsList()),
+                        eq(List.of()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookDeletionDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        var transaction = transaction(recordItem);
+        var contractUpdateInstance = recordItem.getTransactionBody().getContractUpdateInstance();
+        var ownerId = EntityId.of(contractUpdateInstance.getContractID());
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(ownerId.getId()),
+                        eq(contractUpdateInstance.getHookCreationDetailsList()),
+                        eq(contractUpdateInstance.getHookIdsToDeleteList()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerCalledWithBothHookCreationAndDeletionDetails() {
+        // given
+        var recordItem = recordItemBuilder.contractUpdate().build();
+        var transaction = transaction(recordItem);
+        var contractUpdateInstance = recordItem.getTransactionBody().getContractUpdateInstance();
+        var ownerId = EntityId.of(contractUpdateInstance.getContractID());
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(ownerId.getId()),
+                        eq(contractUpdateInstance.getHookCreationDetailsList()),
+                        eq(contractUpdateInstance.getHookIdsToDeleteList()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails().clearHookIdsToDelete())
+                .build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
     @Test
@@ -418,5 +515,15 @@ class ContractUpdateTransactionHandlerTest extends AbstractTransactionHandlerTes
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(
                         getExpectedEntityTransactions(aliasAccountId, recordItem, transaction));
+    }
+
+    private Transaction transaction(RecordItem recordItem) {
+        var contractId = EntityId.of(
+                recordItem.getTransactionBody().getContractUpdateInstance().getContractID());
+        var consensusTimestamp = recordItem.getConsensusTimestamp();
+        return domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp).entityId(contractId))
+                .get();
     }
 }

@@ -23,8 +23,12 @@ import org.hiero.mirror.importer.util.Utility;
 @Named
 class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
-    ContractUpdateTransactionHandler(EntityIdService entityIdService, EntityListener entityListener) {
+    private final EVMHookHandler evmHookHandler;
+
+    ContractUpdateTransactionHandler(
+            EntityIdService entityIdService, EntityListener entityListener, EVMHookHandler evmHookHandler) {
         super(entityIdService, entityListener, TransactionType.CONTRACTUPDATEINSTANCE);
+        this.evmHookHandler = evmHookHandler;
     }
 
     /**
@@ -103,6 +107,11 @@ class ContractUpdateTransactionHandler extends AbstractEntityCrudTransactionHand
         updateStakingInfo(recordItem, entity);
         entity.setType(EntityType.CONTRACT);
         entityListener.onEntity(entity);
+        evmHookHandler.process(
+                recordItem,
+                entity.getId(),
+                transactionBody.getHookCreationDetailsList(),
+                transactionBody.getHookIdsToDeleteList());
     }
 
     private void updateStakingInfo(RecordItem recordItem, Entity entity) {
