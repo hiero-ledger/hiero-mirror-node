@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.BoolValue;
@@ -206,6 +207,88 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertThat(entityRepository.findById(parentId.getId()))
                         .get()
                         .returns(2L, Entity::getEthereumNonce));
+    }
+
+    @Test
+    void contractUpdateWithHooksSequentialOperations() {
+        // Step 1: Create an contract with hooks
+        var contractUpdateWithHookDetails = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.clearHookIdsToDelete())
+                .build();
+        parseRecordItemAndCommit(contractUpdateWithHookDetails);
+
+        var ownerId = contractUpdateWithHookDetails
+                .getTransactionRecord()
+                .getReceipt()
+                .getContractID();
+        var contractUpdateBody =
+                contractUpdateWithHookDetails.getTransactionBody().getContractUpdateInstance();
+        var hookCreationDetails = contractUpdateBody.getHookCreationDetails(0);
+
+        // Extract hook details from the transaction
+        var hookId = hookCreationDetails.getHookId();
+        var contractId =
+                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var adminKey = hookCreationDetails.getAdminKey();
+
+        // Assert after creation
+        final var hookOptional = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(ownerId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional.isPresent(), "Hook should exist after creation"),
+                () -> assertFalse(hookOptional.get().getDeleted(), "Hook should not be deleted after creation"),
+                () -> assertEquals(1, hookRepository.count(), "Should have 1 hook after creation"));
+        var dbHook = hookOptional.get();
+        assertAll(
+                () -> assertEquals(hookId, dbHook.getHookId()),
+                () -> assertEquals(contractId, dbHook.getContractId()),
+                () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(EntityId.of(ownerId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(contractUpdateWithHookDetails.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                () -> assertFalse(dbHook.getDeleted()));
+
+        // Step 2: Delete and create hook in same transaction
+        var deletionAndCreationRecordItem = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.setContractID(ownerId))
+                .receipt(r -> r.setContractID(ownerId))
+                .build();
+        parseRecordItemAndCommit(deletionAndCreationRecordItem);
+
+        // Assert after deletion and creation in same transaction
+        final var hookOptional2 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(ownerId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional2.isPresent(), "Hook should exist after deletion and creation"),
+                () -> assertFalse(hookOptional2.get().getDeleted(), "Hook should not be deleted after recreation"),
+                () -> assertEquals(
+                        deletionAndCreationRecordItem.getConsensusTimestamp(),
+                        hookOptional2.get().getCreatedTimestamp(),
+                        "Hook should have creation timestamp from the transaction"),
+                () -> assertEquals(
+                        1, hookRepository.count(), "Should have 1 hook record (upsert merges delete and create)"));
+
+        // Step 3: Final deletion
+        var finalDeleteRecordItem = recordItemBuilder
+                .contractUpdate()
+                .transactionBody(b -> b.setContractID(ownerId))
+                .receipt(r -> r.setContractID(ownerId))
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        parseRecordItemAndCommit(finalDeleteRecordItem);
+
+        // Assert after final deletion
+        final var hookOptional3 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(ownerId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional3.isPresent(), "Hook should still exist after final soft delete"),
+                () -> assertTrue(
+                        hookOptional3.get().getDeleted(), "Hook should be marked as deleted after final deletion"),
+                () -> assertEquals(1, hookRepository.count(), "Hook count should remain same for soft delete"),
+                () -> assertTrue(hookOptional3.get().getDeleted()));
     }
 
     @Test

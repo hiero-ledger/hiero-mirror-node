@@ -441,6 +441,8 @@ public class RecordItemBuilder {
     public Builder<ContractUpdateTransactionBody.Builder> contractUpdate() {
         var contractId = contractId();
         ContractUpdateTransactionBody.Builder transactionBody = ContractUpdateTransactionBody.newBuilder()
+                .addHookCreationDetails(hookCreationDetails())
+                .addHookIdsToDelete(1L)
                 .setAdminKey(key())
                 .setAutoRenewAccountId(accountId())
                 .setAutoRenewPeriod(duration(30))
