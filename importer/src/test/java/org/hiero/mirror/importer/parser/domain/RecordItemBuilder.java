@@ -365,6 +365,7 @@ public class RecordItemBuilder {
     @SuppressWarnings("deprecation")
     public Builder<ContractCreateTransactionBody.Builder> contractCreate(ContractID contractId) {
         ContractCreateTransactionBody.Builder transactionBody = ContractCreateTransactionBody.newBuilder()
+                .addHookCreationDetails(hookCreationDetails())
                 .setAdminKey(key())
                 .setAutoRenewAccountId(accountId())
                 .setAutoRenewPeriod(duration(30))
