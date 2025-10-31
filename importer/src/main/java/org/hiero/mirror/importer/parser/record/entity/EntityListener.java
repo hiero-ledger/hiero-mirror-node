@@ -18,6 +18,7 @@ import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -77,6 +78,8 @@ public interface EntityListener {
     default void onFileData(FileData fileData) throws ImporterException {}
 
     default void onHook(Hook hook) {}
+
+    default void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {}
 
     default void onLiveHash(LiveHash liveHash) throws ImporterException {}
 

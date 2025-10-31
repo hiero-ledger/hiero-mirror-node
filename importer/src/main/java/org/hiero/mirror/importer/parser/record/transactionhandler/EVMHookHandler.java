@@ -5,12 +5,18 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails.HookCase;
+import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import jakarta.inject.Named;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.domain.EntityIdService;
@@ -22,7 +28,8 @@ import org.springframework.util.CollectionUtils;
 @Named
 @NullMarked
 @RequiredArgsConstructor
-final class EVMHookHandler {
+@CustomLog
+final class EVMHookHandler implements EvmHookStorageHandler {
 
     private final EntityListener entityListener;
     private final EntityIdService entityIdService;
@@ -44,6 +51,24 @@ final class EVMHookHandler {
             List<Long> hookIdsToDeleteList) {
         processHookDeletion(recordItem, entityId, hookIdsToDeleteList);
         processHookCreationDetails(recordItem, entityId, hookCreationDetailsList);
+    }
+
+    @Override
+    public void processStorageUpdates(
+            long consensusTimestamp, long hookId, long ownerId, List<LambdaStorageUpdate> storageUpdates) {
+        for (final var update : storageUpdates) {
+            switch (update.getUpdateCase()) {
+                case STORAGE_SLOT ->
+                    processStorageSlotUpdate(update.getStorageSlot(), consensusTimestamp, ownerId, hookId);
+                case MAPPING_ENTRIES ->
+                    processMappingEntries(update.getMappingEntries(), consensusTimestamp, ownerId, hookId);
+                default ->
+                    log.warn(
+                            "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
+                            update.getUpdateCase(),
+                            consensusTimestamp);
+            }
+        }
     }
 
     /**
@@ -162,5 +187,63 @@ final class EVMHookHandler {
                 yield HookType.LAMBDA;
             }
         };
+    }
+
+    private void processMappingEntries(LambdaMappingEntries entries, long consensusTs, long ownerId, long hookId) {
+        final var mappingSlot = entries.getMappingSlot().toByteArray();
+
+        for (final var entry : entries.getEntriesList()) {
+            final var mappingKey = entry.hasKey()
+                    ? leftPad32(entry.getKey().toByteArray())
+                    : keccak256(entry.getPreimage().toByteArray());
+
+            final var valueWritten = entry.getValue().toByteArray();
+            final var derivedSlot = deriveMappingSlot(mappingSlot, mappingKey);
+            persistChange(ownerId, hookId, derivedSlot, valueWritten, consensusTs);
+        }
+    }
+
+    private void processStorageSlotUpdate(LambdaStorageSlot storageSlot, long consensusTs, long ownerId, long hookId) {
+        final var slotKey = storageSlot.getKey().toByteArray();
+        final var valueWritten = storageSlot.getValue().toByteArray();
+        persistChange(ownerId, hookId, slotKey, valueWritten, consensusTs);
+    }
+
+    private void persistChange(long ownerId, long hookId, byte[] key, byte[] valueWritten, long consensusTs) {
+        final var change = new HookStorageChange();
+        change.setConsensusTimestamp(consensusTs);
+        change.setOwnerId(ownerId);
+        change.setHookId(hookId);
+        change.setKey(key);
+        change.setValueWritten(valueWritten);
+        entityListener.onHookStorageChange(change);
+    }
+
+    private static byte[] deriveMappingSlot(byte[] mappingSlot, byte[] key) {
+        final var derivedSlot = new byte[mappingSlot.length + key.length];
+        System.arraycopy(mappingSlot, 0, derivedSlot, 0, mappingSlot.length);
+        System.arraycopy(key, 0, derivedSlot, mappingSlot.length, key.length);
+        return keccak256(derivedSlot);
+    }
+
+    static byte[] keccak256(byte[] input) {
+        final var d = new Keccak.Digest256();
+        d.update(input, 0, input.length);
+        return d.digest();
+    }
+
+    static byte[] leftPad32(byte[] in) {
+        final int n = in.length;
+        if (n == 32) {
+            return in;
+        }
+
+        if (n > 32) {
+            throw new IllegalArgumentException("Input length greater than 32 bytes");
+        }
+
+        final byte[] padded = new byte[32];
+        System.arraycopy(in, 0, padded, 32 - n, n);
+        return padded;
     }
 }

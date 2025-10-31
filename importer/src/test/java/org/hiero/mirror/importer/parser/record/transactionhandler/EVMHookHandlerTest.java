@@ -3,6 +3,9 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.keccak256;
+import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.leftPad32;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.times;
@@ -11,20 +14,31 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
+import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
+import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntry;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -32,6 +46,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 final class EVMHookHandlerTest {
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
     private EntityListener entityListener;
@@ -260,6 +275,156 @@ final class EVMHookHandlerTest {
 
         // then
         verifyNoInteractions(entityListener);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 10})
+    void processesStorageSlots(int numSlots) {
+        final var consensusTimestamp = 123L;
+        final var hookId = 7L;
+        final var ownerId = 1001L;
+
+        final var updates = new ArrayList<LambdaStorageUpdate>(numSlots);
+        final var expectedKeys = new ArrayList<byte[]>(numSlots);
+        final var expectedValues = new ArrayList<byte[]>(numSlots);
+
+        for (int i = 0; i < numSlots; i++) {
+            final var key = domainBuilder.bytes(32);
+            final var value = domainBuilder.bytes(32);
+
+            expectedKeys.add(key);
+            expectedValues.add(value);
+
+            updates.add(LambdaStorageUpdate.newBuilder()
+                    .setStorageSlot(LambdaStorageSlot.newBuilder()
+                            .setKey(ByteString.copyFrom(key))
+                            .setValue(ByteString.copyFrom(value)))
+                    .build());
+        }
+
+        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, updates);
+
+        final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
+        verify(entityListener, times(numSlots)).onHookStorageChange(captor.capture());
+        final var changes = captor.getAllValues();
+
+        assertThat(changes).hasSize(numSlots);
+        for (int i = 0; i < numSlots; i++) {
+            final var change = changes.get(i);
+            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+            assertThat(change.getHookId()).isEqualTo(hookId);
+            assertThat(change.getOwnerId()).isEqualTo(ownerId);
+
+            assertThat(change.getKey()).isEqualTo(expectedKeys.get(i));
+            assertThat(change.getValueWritten()).isEqualTo(expectedValues.get(i));
+        }
+    }
+
+    @ParameterizedTest
+    @CsvSource({"4, 1", "4, 5", "32, 1", "32, 5", "33, 1"})
+    void processesMappingEntries(int keySize, int numEntries) {
+        final var consensusTimestamp = 100L;
+        final var hookId = 8L;
+        final var ownerId = 77L;
+
+        final var mappingSlot = domainBuilder.bytes(2);
+
+        final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
+
+        for (int i = 0; i < numEntries; i++) {
+            entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+                    .setKey(ByteString.copyFrom(domainBuilder.bytes(keySize)))
+                    .setValue(ByteString.copyFrom(domainBuilder.bytes(32))));
+        }
+        final var entries = entriesBuilder.build();
+
+        final var update =
+                LambdaStorageUpdate.newBuilder().setMappingEntries(entries).build();
+
+        if (keySize > 32) {
+            assertThatThrownBy(() ->
+                            eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, List.of(update)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("greater than 32");
+            return;
+        }
+
+        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, List.of(update));
+
+        final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
+        verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
+        final var invocations = captor.getAllValues();
+
+        for (int i = 0; i < invocations.size(); i++) {
+            final var invocation = invocations.get(i);
+            final var entry = entries.getEntries(i);
+
+            final var expectedKey =
+                    keccak256(concat(mappingSlot, leftPad32(entry.getKey().toByteArray())));
+            assertThat(invocation.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+            assertThat(invocation.getHookId()).isEqualTo(hookId);
+            assertThat(invocation.getOwnerId()).isEqualTo(ownerId);
+
+            assertThat(invocation.getKey()).isEqualTo(expectedKey);
+            assertThat(invocation.getValueWritten()).isEqualTo(entry.getValue().toByteArray());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 10})
+    void processesMappingEntriesWithPreimage(int numEntries) {
+        final var consensusTimestamp = 321L;
+        final var hookId = 5L;
+        final var ownerId = 2024L;
+
+        final var mappingSlot = domainBuilder.bytes(4);
+
+        final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
+
+        final var preimages = new ArrayList<byte[]>(numEntries);
+        final var values = new ArrayList<byte[]>(numEntries);
+
+        for (int i = 0; i < numEntries; i++) {
+            final var preimage = domainBuilder.bytes(8);
+            final var value = domainBuilder.bytes(32);
+
+            preimages.add(preimage);
+            values.add(value);
+
+            entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+                    .setPreimage(ByteString.copyFrom(preimage))
+                    .setValue(ByteString.copyFrom(value)));
+        }
+
+        final var update = LambdaStorageUpdate.newBuilder()
+                .setMappingEntries(entriesBuilder.build())
+                .build();
+
+        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, List.of(update));
+
+        final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
+        verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
+        final var changes = captor.getAllValues();
+        assertThat(changes).hasSize(numEntries);
+
+        for (int i = 0; i < numEntries; i++) {
+            final var expectedSlot = keccak256(concat(mappingSlot, keccak256(preimages.get(i))));
+            final var change = changes.get(i);
+
+            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+            assertThat(change.getHookId()).isEqualTo(hookId);
+            assertThat(change.getOwnerId()).isEqualTo(ownerId);
+
+            assertThat(change.getKey()).isEqualTo(expectedSlot);
+            assertThat(change.getValueWritten()).isEqualTo(values.get(i));
+        }
+    }
+
+    private static byte[] concat(final byte[] a, final byte[] b) {
+        final var out = new byte[a.length + b.length];
+        System.arraycopy(a, 0, out, 0, a.length);
+        System.arraycopy(b, 0, out, a.length, b.length);
+        return out;
     }
 
     private HookCreationDetails createHookCreationDetails(long hookId, EntityId contractId, byte[] adminKey) {

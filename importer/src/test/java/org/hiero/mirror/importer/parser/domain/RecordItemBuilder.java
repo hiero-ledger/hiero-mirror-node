@@ -25,6 +25,9 @@ import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
 import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
+import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -78,6 +81,8 @@ import com.hederahashgraph.api.proto.java.Fraction;
 import com.hederahashgraph.api.proto.java.FractionalFee;
 import com.hederahashgraph.api.proto.java.FreezeTransactionBody;
 import com.hederahashgraph.api.proto.java.FreezeType;
+import com.hederahashgraph.api.proto.java.HookEntityId;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.LiveHash;
@@ -1251,6 +1256,32 @@ public class RecordItemBuilder {
             case TopicID topicId -> consensusCreateTopic().receipt(r -> r.setTopicID(topicId));
             default -> throw new UnsupportedOperationException("ID not supported: " + id);
         };
+    }
+
+    public Builder<LambdaSStoreTransactionBody.Builder> lambdaSstore() {
+        var slotUpdate = LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(slot())
+                        .setValue(bytes(32))
+                        .build());
+
+        var slotUpdate2 = LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(slot())
+                        .setValue(bytes(32))
+                        .build());
+
+        var body = LambdaSStoreTransactionBody.newBuilder()
+                .setHookId(HookId.newBuilder()
+                        .setHookId(id())
+                        .setEntityId(HookEntityId.newBuilder()
+                                .setAccountId(accountId())
+                                .build())
+                        .build())
+                .addStorageUpdates(slotUpdate)
+                .addStorageUpdates(slotUpdate2);
+
+        return new Builder<>(TransactionType.LAMBDA_SSTORE, body);
     }
 
     public ByteString bytes(int length) {
