@@ -27,6 +27,7 @@ import org.hiero.mirror.common.domain.entity.FungibleAllowance;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
@@ -208,6 +209,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onFileData(FileData fileData) {
         context.add(fileData);
+    }
+
+    @Override
+    public void onHook(Hook hook) {
+        context.merge(hook.getId(), hook, this::mergeHook);
     }
 
     @Override
@@ -647,6 +653,35 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         return dest;
+    }
+
+    private Hook mergeHook(Hook previous, Hook current) {
+        long adjustment =
+                previous.getDeleted() && previous.getTimestampLower().equals(current.getTimestampLower()) ? 1 : 0;
+        previous.setTimestampUpper(current.getTimestampLower() + adjustment);
+
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
+            // hook creation, don't merge
+            return current;
+        }
+
+        if (current.getExtensionPoint() == null) {
+            current.setExtensionPoint(previous.getExtensionPoint());
+        }
+        if (current.getType() == null) {
+            current.setType(previous.getType());
+        }
+        if (current.getContractId() == null) {
+            current.setContractId(previous.getContractId());
+        }
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
+        }
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
+        }
+        return current;
     }
 
     private NftAllowance mergeNftAllowance(NftAllowance previous, NftAllowance current) {

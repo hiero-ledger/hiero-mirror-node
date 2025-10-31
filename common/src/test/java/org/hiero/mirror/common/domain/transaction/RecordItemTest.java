@@ -111,6 +111,177 @@ class RecordItemTest {
     }
 
     @Test
+    void zeroNonceRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(0)
+                        .setScheduled(false)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void scheduledRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(1)
+                        .setScheduled(true)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void missingParentConsensusTimestampRecordItemIsTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(2)
+                        .setScheduled(false)
+                        .build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void positiveNonceUnscheduledRecordItemIsNotTopLevel() {
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(TransactionID.newBuilder()
+                        .setNonce(3)
+                        .setScheduled(false)
+                        .build())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(DEFAULT_TRANSACTION)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void systemFileUpdatePaidBySystemAccountIsTopLevel() {
+        var payer = AccountID.newBuilder().setAccountNum(50).build();
+        var txBody = TransactionBody.newBuilder()
+                .setFileUpdate(com.hederahashgraph.api.proto.java.FileUpdateTransactionBody.getDefaultInstance())
+                .setTransactionID(TransactionID.newBuilder()
+                        .setAccountID(payer)
+                        .setNonce(7)
+                        .setScheduled(false)
+                        .build())
+                .build();
+        var signedTx = SignedTransaction.newBuilder()
+                .setBodyBytes(txBody.toByteString())
+                .setSigMap(SIGNATURE_MAP)
+                .build();
+        var tx = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTx.toByteString())
+                .build();
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(txBody.getTransactionID())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(tx)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void fileUpdateByNonSystemAccountIsNotTopLevel() {
+        var payer = AccountID.newBuilder().setAccountNum(3450L).build();
+        var txBody = TransactionBody.newBuilder()
+                .setFileUpdate(com.hederahashgraph.api.proto.java.FileUpdateTransactionBody.getDefaultInstance())
+                .setTransactionID(TransactionID.newBuilder()
+                        .setAccountID(payer)
+                        .setNonce(7)
+                        .setScheduled(false)
+                        .build())
+                .build();
+        var signedTx = SignedTransaction.newBuilder()
+                .setBodyBytes(txBody.toByteString())
+                .setSigMap(SIGNATURE_MAP)
+                .build();
+        var tx = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTx.toByteString())
+                .build();
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(txBody.getTransactionID())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(tx)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void nonFileUpdatePaidWithSystemAccountIsNotTopLevel() {
+        var payer = AccountID.newBuilder().setAccountNum(50).build();
+        var txBody = TransactionBody.newBuilder()
+                .setCryptoTransfer(CryptoTransferTransactionBody.getDefaultInstance())
+                .setTransactionID(TransactionID.newBuilder()
+                        .setAccountID(payer)
+                        .setNonce(9)
+                        .setScheduled(false)
+                        .build())
+                .build();
+        var signedTx = SignedTransaction.newBuilder()
+                .setBodyBytes(txBody.toByteString())
+                .setSigMap(SIGNATURE_MAP)
+                .build();
+        var tx = Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTx.toByteString())
+                .build();
+        var tr = TRANSACTION_RECORD.toBuilder()
+                .setTransactionID(txBody.getTransactionID())
+                .setParentConsensusTimestamp(
+                        Timestamp.newBuilder().setSeconds(2444532).build())
+                .build();
+
+        var recordItem = RecordItem.builder()
+                .hapiVersion(DEFAULT_HAPI_VERSION)
+                .transaction(tx)
+                .transactionRecord(tr)
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isFalse();
+    }
+
+    @Test
     void getTransactionHashEthereum() {
         var recordItem = RecordItem.builder()
                 .transaction(DEFAULT_TRANSACTION)

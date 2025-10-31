@@ -79,6 +79,7 @@ hiero:
         maxTimestampRange: 7d
         maxTransactionConsensusTimestampRange: 35m
         maxTransactionsTimestampRange: 60d
+        maxValidStartTimestampDrift: 1s
         strictTimestampParam: true
         topicMessageLookup: false
         transactions:

@@ -24,6 +24,7 @@ import com.google.protobuf.Int32Value;
 import com.google.protobuf.StringValue;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractCreateTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
@@ -1062,6 +1063,75 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertTransactionAndRecord(transactionBody, txnRecord),
                 () -> assertNull(dbTransaction.getEntityId()),
                 () -> assertEntityTransactions(recordItem));
+    }
+
+    @Test
+    void topLevelRecordFiles() {
+        var recordItem1 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(0);
+                })
+                .build();
+
+        var recordItem2 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                })
+                .build();
+
+        var recordItem3 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(true);
+                })
+                .build();
+
+        assertThat(recordItem1.isTopLevel()).isTrue();
+        assertThat(recordItem2.isTopLevel()).isTrue();
+        assertThat(recordItem3.isTopLevel()).isTrue();
+    }
+
+    @Test
+    void notTopLevelRecordFiles() {
+        var recordItem1 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                    r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                            .setSeconds(1499853)
+                            .setNanos(0)
+                            .build());
+                })
+                .build();
+
+        var recordItem2 = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    r.getTransactionIDBuilder().setNonce(1).setScheduled(false);
+                    r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                            .setSeconds(0)
+                            .setNanos(190024888)
+                            .build());
+                })
+                .build();
+
+        assertThat(recordItem1.isTopLevel()).isFalse();
+        assertThat(recordItem2.isTopLevel()).isFalse();
+    }
+
+    @Test
+    void systemFileUpdateIsTopLevel() {
+        var recordItem = recordItemBuilder
+                .fileUpdate()
+                .record(r -> r.getTransactionIDBuilder()
+                        .setNonce(7)
+                        .setScheduled(false)
+                        .setAccountID(AccountID.newBuilder().setAccountNum(50)))
+                .build();
+
+        assertThat(recordItem.isTopLevel()).isTrue();
     }
 
     private void assertFailedContractCreate(TransactionBody transactionBody, TransactionRecord txnRecord) {
