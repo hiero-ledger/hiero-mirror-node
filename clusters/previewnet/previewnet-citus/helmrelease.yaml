@@ -44,10 +44,7 @@ spec:
       env:
         HIERO_MIRROR_IMPORTER_NETWORK: "PREVIEWNET"
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
-    grpc:
-      enabled: true
     monitor:
-      enabled: true
       env:
         HIERO_MIRROR_MONITOR_NETWORK: "PREVIEWNET"
         HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLED: "false"
@@ -59,12 +56,6 @@ spec:
           enabled: false
         MonitorSubscribeLatency:
           enabled: false
-    rest:
-      enabled: true
-    restjava:
-      enabled: true
-      routes:
-        exchangeRate: true
     stackgres:
       coordinator:
         persistentVolume:
@@ -75,6 +66,5 @@ spec:
     test:
       enabled: true
     web3:
-      enabled: true
       env:
         HIERO_MIRROR_WEB3_EVM_NETWORK: PREVIEWNET
