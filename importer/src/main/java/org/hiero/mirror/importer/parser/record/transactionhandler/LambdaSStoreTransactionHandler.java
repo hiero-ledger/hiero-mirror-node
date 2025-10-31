@@ -17,7 +17,7 @@ import org.jspecify.annotations.NullMarked;
 @CustomLog
 final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
 
-    private final EVMHookStorageHandler storageHandler;
+    private final EvmHookStorageHandler hookHandler;
 
     @Override
     public TransactionType getType() {
@@ -26,32 +26,23 @@ final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
 
     @Override
     public EntityId getEntity(RecordItem recordItem) {
-        if (!recordItem.getTransactionBody().hasLambdaSstore()) {
-            return EntityId.EMPTY;
+        final var body = recordItem.getTransactionBody().getLambdaSstore();
+        final var hookId = body.getHookId().getEntityId();
+
+        if (hookId.hasAccountId()) {
+            return EntityId.of(hookId.getAccountId());
         }
-        return EntityId.of(recordItem
-                .getTransactionBody()
-                .getLambdaSstore()
-                .getHookId()
-                .getEntityId()
-                .getAccountId());
+
+        return EntityId.of(hookId.getContractId());
     }
 
     @Override
-    protected void doUpdateTransaction(Transaction txn, RecordItem recordItem) {
-        final var transactionBody = recordItem.getTransactionBody();
-
-        if (!transactionBody.hasLambdaSstore()) {
-            log.warn("no lambda sstore in transaction body consensus_timestamp={}", recordItem.getConsensusTimestamp());
-            return;
-        }
-
-        final var sstore = transactionBody.getLambdaSstore();
-        final var owner = getEntity(recordItem);
-        final var ownerId = owner.getId();
-        final var hookId = sstore.getHookId().getHookId();
+    protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
+        final var transactionBody = recordItem.getTransactionBody().getLambdaSstore();
+        final var ownerId = transaction.getEntityId().getId();
+        final var hookId = transactionBody.getHookId().getHookId();
         final var consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        storageHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, recordItem.getSidecarRecords());
+        hookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, transactionBody.getStorageUpdatesList());
     }
 }

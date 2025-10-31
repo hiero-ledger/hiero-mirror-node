@@ -26,6 +26,8 @@ import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
 import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
 import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -1257,19 +1259,29 @@ public class RecordItemBuilder {
     }
 
     public Builder<LambdaSStoreTransactionBody.Builder> lambdaSstore() {
+        var slotUpdate = LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(slot())
+                        .setValue(bytes(32))
+                        .build());
 
-        var contractId = contractId();
+        var slotUpdate2 = LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(slot())
+                        .setValue(bytes(32))
+                        .build());
+
         var body = LambdaSStoreTransactionBody.newBuilder()
                 .setHookId(HookId.newBuilder()
                         .setHookId(id())
                         .setEntityId(HookEntityId.newBuilder()
                                 .setAccountId(accountId())
-                                .setContractId(contractId)
                                 .build())
-                        .build());
+                        .build())
+                .addStorageUpdates(slotUpdate)
+                .addStorageUpdates(slotUpdate2);
 
-        return new Builder<>(TransactionType.LAMBDA_SSTORE, body)
-                .sidecarRecords(r -> r.add(contractStateChanges(contractId)));
+        return new Builder<>(TransactionType.LAMBDA_SSTORE, body);
     }
 
     public ByteString bytes(int length) {

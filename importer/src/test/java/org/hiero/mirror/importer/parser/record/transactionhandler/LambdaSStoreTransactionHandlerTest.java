@@ -3,123 +3,116 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.*;
 
-import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
-import com.hederahashgraph.api.proto.java.AccountID;
+import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
+class LambdaSStoreTransactionHandlerTest {
 
-    private static final long HOOK_ID = 7L;
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
-    private AccountID ownerAccount;
+    private EvmHookStorageHandler storageHandler;
+    private LambdaSStoreTransactionHandler handler;
+    private RecordItemBuilder recordItemBuilder;
 
     @BeforeEach
-    void init() {
-        ownerAccount = domainBuilder.entityNum(DEFAULT_ENTITY_NUM).toAccountID();
-    }
-
-    @Override
-    protected TransactionHandler getTransactionHandler() {
-        return new LambdaSStoreTransactionHandler(storageHandler);
-    }
-
-    @Override
-    protected EntityType getExpectedEntityIdType() {
-        return EntityType.ACCOUNT;
-    }
-
-    @Override
-    protected TransactionBody.Builder getDefaultTransactionBody() {
-        final var hookId = HookId.newBuilder()
-                .setHookId(HOOK_ID)
-                .setEntityId(HookEntityId.newBuilder().setAccountId(ownerAccount))
-                .build();
-
-        return TransactionBody.newBuilder()
-                .setLambdaSstore(LambdaSStoreTransactionBody.newBuilder().setHookId(hookId));
+    void setUp() {
+        storageHandler = mock(EvmHookStorageHandler.class);
+        handler = new LambdaSStoreTransactionHandler(storageHandler);
+        recordItemBuilder = new RecordItemBuilder();
     }
 
     @Test
-    void getTypeIsLambdaSstore() {
-        assertThat(transactionHandler.getType()).isEqualTo(TransactionType.LAMBDA_SSTORE);
+    void getType() {
+        final var type = handler.getType();
+        assertThat(type).isEqualTo(TransactionType.LAMBDA_SSTORE);
     }
 
     @Test
-    void getEntityWhenBodyPresent() {
+    void getEntityWithAccount() {
+        final var recordItem = recordItemBuilder.lambdaSstore().build();
+        final var account = recordItem
+                .getTransactionBody()
+                .getLambdaSstore()
+                .getHookId()
+                .getEntityId()
+                .getAccountId();
+
+        final var actual = handler.getEntity(recordItem);
+        assertThat(actual).isEqualTo(EntityId.of(account));
+    }
+
+    @Test
+    void getEntityWithContract() {
+        final var contract = recordItemBuilder.contractId();
+
         final var recordItem = recordItemBuilder
                 .lambdaSstore()
-                .transactionBody((LambdaSStoreTransactionBody.Builder b) -> b.setHookId(HookId.newBuilder()
-                        .setHookId(HOOK_ID)
-                        .setEntityId(HookEntityId.newBuilder().setAccountId(ownerAccount))))
+                .transactionBody(b -> b.setHookId(HookId.newBuilder()
+                        .setEntityId(HookEntityId.newBuilder().setContractId(contract))))
                 .build();
 
-        final var entity = transactionHandler.getEntity(recordItem);
-        assertThat(entity).isEqualTo(EntityId.of(ownerAccount));
+        final var actual = handler.getEntity(recordItem);
+        assertThat(actual).isEqualTo(EntityId.of(contract));
     }
 
     @Test
-    void getEntityWhenBodyAbsentIsEmpty() {
-        final var recordItem = recordItemBuilder.contractCall().build();
-        final var entity = transactionHandler.getEntity(recordItem);
-        assertThat(entity).isEqualTo(EntityId.EMPTY);
-    }
+    void processSlotUpdates() {
+        final var recordItem = recordItemBuilder.lambdaSstore().build();
+        final var body = recordItem.getTransactionBody().getLambdaSstore();
+        final var hookIdEntityId = body.getHookId();
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void delegatesToHelperWithExpectedArgs_usesSidecarsFromBuilder() {
-        final var recordItem = recordItemBuilder
-                .lambdaSstore()
-                .transactionBody((LambdaSStoreTransactionBody.Builder b) -> b.setHookId(HookId.newBuilder()
-                        .setHookId(HOOK_ID)
-                        .setEntityId(HookEntityId.newBuilder().setAccountId(ownerAccount))))
-                .build();
+        final var ownerEntityId = EntityId.of(hookIdEntityId.getEntityId().getAccountId());
+        final var expectedHookId = hookIdEntityId.getHookId();
+        final var expectedStorageUpdates = body.getStorageUpdatesList();
 
-        final var txn = txnFor(recordItem);
-        transactionHandler.updateTransaction(txn, recordItem);
+        final var txn = txnFor(recordItem, ownerEntityId);
+        handler.updateTransaction(txn, recordItem);
 
-        final var sidecarsCaptor = ArgumentCaptor.forClass(List.class);
+        final var tsCaptor = ArgumentCaptor.forClass(Long.class);
+        final var hookIdCaptor = ArgumentCaptor.forClass(Long.class);
+        final var ownerIdCaptor = ArgumentCaptor.forClass(Long.class);
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<List<LambdaStorageUpdate>> updatesCaptor = ArgumentCaptor.forClass(List.class);
 
         verify(storageHandler, times(1))
                 .processStorageUpdates(
-                        eq(recordItem.getConsensusTimestamp()),
-                        eq(HOOK_ID),
-                        eq(EntityId.of(ownerAccount).getId()),
-                        sidecarsCaptor.capture());
+                        tsCaptor.capture(), hookIdCaptor.capture(), ownerIdCaptor.capture(), updatesCaptor.capture());
 
-        assertThat(sidecarsCaptor.getValue()).containsExactlyElementsOf(recordItem.getSidecarRecords());
+        assertThat(tsCaptor.getValue()).isEqualTo(recordItem.getConsensusTimestamp());
+        assertThat(hookIdCaptor.getValue()).isEqualTo(expectedHookId);
+        assertThat(ownerIdCaptor.getValue()).isEqualTo(ownerEntityId.getId());
+
+        final var updates = updatesCaptor.getValue();
+
+        assertThat(updates.isEmpty()).isFalse();
+        assertThat(updates).hasSize(expectedStorageUpdates.size());
+
+        for (var i = 0; i < updates.size(); i++) {
+            final var actualSlot = updates.get(i).getStorageSlot();
+            final var expectedSlot = expectedStorageUpdates.get(i).getStorageSlot();
+
+            assertThat(actualSlot.getKey()).isEqualTo(expectedSlot.getKey());
+            assertThat(actualSlot.getValue()).isEqualTo(expectedSlot.getValue());
+        }
     }
 
-    @Test
-    void ignoresWhenNoLambdaSstore() {
-        final var recordItem = recordItemBuilder.contractCall().build();
+    private static Transaction txnFor(final RecordItem recordItem, EntityId entityId) {
         final var txn = new Transaction();
         txn.setConsensusTimestamp(recordItem.getConsensusTimestamp());
-
-        transactionHandler.updateTransaction(txn, recordItem);
-
-        verifyNoInteractions(storageHandler);
-    }
-
-    private Transaction txnFor(RecordItem recordItem) {
-        final var txn = new Transaction();
-        txn.setEntityId(transactionHandler.getEntity(recordItem));
-        txn.setConsensusTimestamp(recordItem.getConsensusTimestamp());
+        txn.setEntityId(entityId);
         return txn;
     }
 }

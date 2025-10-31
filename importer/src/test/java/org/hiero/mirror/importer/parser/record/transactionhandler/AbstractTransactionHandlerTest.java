@@ -123,9 +123,6 @@ abstract class AbstractTransactionHandlerTest {
     @Mock
     protected SyntheticContractLogService syntheticContractLogService;
 
-    @Mock
-    protected EVMHookStorageHandler storageHandler;
-
     @Captor
     protected ArgumentCaptor<Entity> entityCaptor;
 

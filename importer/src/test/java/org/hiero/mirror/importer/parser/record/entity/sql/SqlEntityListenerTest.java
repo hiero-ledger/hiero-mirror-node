@@ -37,8 +37,8 @@ import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
-import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.hook.HookStorage;
+import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
@@ -3514,6 +3514,21 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         assertThat(hookStorageChangeRepository.findAll()).containsExactly(hookStorageChange);
         assertThat(hookStorageRepository.findAll()).containsExactly(expectedHookStorage);
+    }
+
+    @Test
+    void onHookStorageChangeNull() {
+        final var hookStorage = domainBuilder.hookStorage().persist();
+        final var hookStorageChange = domainBuilder
+                .hookStorageChange()
+                .customize(b -> b.valueWritten(null).hookId(hookStorage.getHookId()))
+                .get();
+
+        sqlEntityListener.onHookStorageChange(hookStorageChange);
+        completeFileAndCommit();
+
+        assertThat(hookStorageChangeRepository.findAll()).containsExactly(hookStorageChange);
+        assertThat(hookStorageRepository.findAll()).containsExactly(hookStorage);
     }
 
     @Test
