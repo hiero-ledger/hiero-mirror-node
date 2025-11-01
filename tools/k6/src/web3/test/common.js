@@ -33,6 +33,22 @@ function isNonErrorResponse(response) {
   }
 }
 
+const isValidListResponse = (response, listName) => {
+  if (!isSuccess(response)) {
+    return false;
+  }
+
+  const body = JSON.parse(response.body);
+  const list = body[listName];
+  if (!Array.isArray(list)) {
+    return false;
+  }
+
+  return list.length > 0;
+};
+
+const isSuccess = (response) => response.status >= 200 && response.status < 300;
+
 const jsonPost = (url, payload) =>
   http.post(url, payload, {
     headers: {
@@ -190,4 +206,4 @@ function ContractCallTestScenarioBuilder() {
   return this;
 }
 
-export {isNonErrorResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder};
+export {isNonErrorResponse, isValidListResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder};
