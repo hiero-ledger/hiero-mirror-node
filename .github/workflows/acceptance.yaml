@@ -48,7 +48,7 @@ jobs:
       DEFAULT_GRACEFUL_STOP: "1s"
       DEFAULT_VUS: 2
       HELM_RELEASE_NAME: mirror-1
-      MIRROR_NODE_VERSION: v0.141.0-rc1
+      MIRROR_NODE_VERSION: v0.142.0-rc1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
@@ -119,11 +119,10 @@ jobs:
             cat <<EOF > mirror.yaml
           importer:
             env:
-              HIERO_MIRROR_IMPORTER_SMARTCONTRACTTHROTTLINGVERSION: "0.68.0"
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
-            cucumberTags: "@acceptance and not @crud and not @equivalence and not @estimateprecompile and not @ethereum and not @historical and not @precompile and not @erc and not @ethcall"
+            cucumberTags: "@acceptance and not @ethereum and not @ethcall"
             image:
               tag: ${TAG}
             annotations:
@@ -140,9 +139,6 @@ jobs:
 
           else
             cat <<EOF > mirror.yaml
-          importer:
-            env:
-              HIERO_MIRROR_IMPORTER_SMARTCONTRACTTHROTTLINGVERSION: "0.68.0"
           test:
             image:
               tag: ${TAG}
