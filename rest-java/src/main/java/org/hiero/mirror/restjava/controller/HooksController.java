@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.controller;
 
+import static java.lang.Long.MAX_VALUE;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
@@ -11,11 +12,10 @@ import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Hook;
@@ -74,55 +74,27 @@ final class HooksController {
 
     private HooksRequest prepareHooksServiceRequest(
             EntityIdParameter accountId, List<NumberRangeParameter> hookIdFilters, int limit, Sort.Direction order) {
+        hookIdFilters = (hookIdFilters == null) ? List.of() : hookIdFilters;
 
-        if (hookIdFilters == null || hookIdFilters.isEmpty()) {
-            return HooksRequest.builder()
-                    .ownerId(accountId)
-                    .hookIdEqualsFilters(Collections.emptyList())
-                    .hookIdLowerBoundInclusive(null)
-                    .hookIdUpperBoundInclusive(null)
-                    .limit(limit)
-                    .order(order)
-                    .build();
-        }
-
-        Collection<Long> equalHookIds = new ArrayList<>();
-        Long gte = null; // The most restrictive lower bound (max of all gt/gte)
-        Long lte = null; // The most restrictive upper bound (min of all lt/lte)
+        Collection<Long> equalHookIds = new TreeSet<>();
+        long lowerBound = 0L; // The most restrictive lower bound (max of all gt/gte)
+        long upperBound = MAX_VALUE; // The most restrictive upper bound (min of all lt/lte)
 
         for (NumberRangeParameter param : hookIdFilters) {
             RangeOperator operator = param.operator();
 
             if (operator == RangeOperator.EQ) {
                 equalHookIds.add(param.value());
-
             } else if (param.hasLowerBound()) { // gt, gte
-                long inclusiveValue = (operator == RangeOperator.GT) ? param.value() + 1 : param.value();
-                if (gte == null || inclusiveValue > gte) {
-                    gte = inclusiveValue;
-                }
-
+                lowerBound = Math.max(lowerBound, param.getInclusiveValue());
             } else if (param.hasUpperBound()) { // lt, lte
-                long inclusiveValue = (operator == RangeOperator.LT) ? param.value() - 1 : param.value();
-                if (lte == null || inclusiveValue < lte) {
-                    lte = inclusiveValue;
-                }
-            }
-        }
-
-        // Apply defaults if a partial range is given
-        if (gte != null || lte != null) {
-            if (gte == null) {
-                gte = 0L;
-            }
-            if (lte == null) {
-                lte = Long.MAX_VALUE;
+                upperBound = Math.min(upperBound, param.getInclusiveValue());
             }
         }
 
         return HooksRequest.builder()
-                .hookIdLowerBoundInclusive(gte)
-                .hookIdUpperBoundInclusive(lte)
+                .hookIdLowerBoundInclusive(lowerBound)
+                .hookIdUpperBoundInclusive(upperBound)
                 .ownerId(accountId)
                 .hookIdEqualsFilters(equalHookIds)
                 .limit(limit)

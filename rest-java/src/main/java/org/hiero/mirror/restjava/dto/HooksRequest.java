@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.dto;
 
 import java.util.Collection;
+import java.util.Collections;
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
@@ -20,9 +21,12 @@ public class HooksRequest {
     @Builder.Default
     Sort.Direction order = Direction.DESC;
 
-    Collection<Long> hookIdEqualsFilters;
+    @Builder.Default
+    Collection<Long> hookIdEqualsFilters = Collections.emptyList();
 
-    Long hookIdLowerBoundInclusive;
+    @Builder.Default
+    Long hookIdLowerBoundInclusive = 0L;
 
-    Long hookIdUpperBoundInclusive;
+    @Builder.Default
+    Long hookIdUpperBoundInclusive = Long.MAX_VALUE;
 }

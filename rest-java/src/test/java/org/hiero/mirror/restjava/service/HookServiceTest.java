@@ -34,29 +34,6 @@ class HookServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void getHooksNoFiltersCallsFindByOwnerId() {
-        // given
-        final var ownerId = EntityId.of(OWNER_ID);
-        final var hook = new Hook();
-        when(entityService.lookup(any())).thenReturn(ownerId);
-        when(hookRepository.findByOwnerId(eq(ownerId.getId()), any())).thenReturn(List.of(hook));
-
-        final var request = HooksRequest.builder()
-                .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .limit(10)
-                .order(Sort.Direction.ASC)
-                .build();
-
-        // when
-        final var result = hookService.getHooks(request);
-
-        // then
-        assertThat(result).containsExactly(hook);
-        verify(hookRepository).findByOwnerId(eq(ownerId.getId()), any());
-        verifyNoMoreInteractions(hookRepository);
-    }
-
-    @Test
     void getHooksEqFiltersCallsFindByOwnerIdAndHookIdIn() {
         // given
         final var ownerId = EntityId.of(OWNER_ID);

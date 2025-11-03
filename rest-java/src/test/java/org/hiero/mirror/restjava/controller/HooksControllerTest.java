@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
@@ -35,9 +34,6 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 final class HooksControllerTest extends ControllerTest {
 
     private final HookMapper hookMapper;
-
-    @LocalServerPort
-    private int port;
 
     @DisplayName("/api/v1/accounts/{accountId}/hooks")
     @Nested
@@ -106,26 +102,37 @@ final class HooksControllerTest extends ControllerTest {
             assertHooksOrder(Sort.Direction.DESC, List.of(hook2, hook1));
         }
 
-        @Test
-        void limitAndNextLink() {
+        @ParameterizedTest
+        @ValueSource(strings = {"asc", "desc"})
+        void limitAndNextLink(String order) {
             // given
             final int limit = 2;
-            persistHook(accountId);
+
+            final var hook1 = persistHook(accountId);
             final var hook2 = persistHook(accountId);
             final var hook3 = persistHook(accountId);
-            final var expectedHooks = hookMapper.map(List.of(hook3, hook2));
+
+            final List<Hook> expectedHookEntities = order.equals("asc") ? List.of(hook1, hook2) : List.of(hook3, hook2);
+
+            final var expectedHooks = hookMapper.map(expectedHookEntities);
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
+
+            final var lastHook = expectedHookEntities.getLast();
+            final var operator = order.equals("asc") ? "gt" : "lt";
+
+            final var nextLink = String.format(
+                    "/api/v1/accounts/%d/hooks?limit=%d&order=%s&hook.id=%s:%d",
+                    accountId, limit, order, operator, lastHook.getHookId());
+
             final var links = new Links();
-            links.setNext(String.format(
-                    "/api/v1/accounts/%d/hooks?limit=%d&hook.id=gt:0&hook.id=lt:%d",
-                    accountId, limit, hook2.getHookId()));
+            links.setNext(nextLink);
             expectedResponse.setLinks(links);
 
             // when
             final var actual = restClient
                     .get()
-                    .uri("?limit=" + limit + "&hook.id=gt:0")
+                    .uri(String.format("?limit=%d&order=%s", limit, order))
                     .retrieve()
                     .body(HooksResponse.class);
 
@@ -327,8 +334,8 @@ final class HooksControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @ValueSource(strings = {"1234", "0.1234", "0.0.1234"})
-        void successWithDifferentAccountIdFormats(String accountIdString) {
-            this.accountId = accountIdString;
+        void successWithEntityIdAddressFormat(String entityId) {
+            this.accountId = entityId;
 
             final long ownerId = 1234L;
             final var hook1 = persistHook(ownerId);
@@ -339,7 +346,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setHooks(expectedHooks);
             expectedResponse.setLinks(new Links());
 
-            final var url = "accounts/" + accountIdString + "/hooks";
+            final var url = "accounts/" + entityId + "/hooks";
             final var actual = restClient.get().uri(url).retrieve().body(HooksResponse.class);
 
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
@@ -350,10 +357,10 @@ final class HooksControllerTest extends ControllerTest {
                 strings = {
                     "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
                     "0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
-                    "0.1.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA"
+                    "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA"
                 })
-        void successWithAliasAccountIds(String accountIdString) {
-            this.accountId = accountIdString;
+        void successWithAliasAddressFormat(String alias) {
+            this.accountId = alias;
 
             final var aliasBytes = BaseEncoding.base32()
                     .omitPadding()
@@ -372,7 +379,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setHooks(expectedHooks);
             expectedResponse.setLinks(new Links());
 
-            final var url = "accounts/" + accountIdString + "/hooks";
+            final var url = "accounts/" + alias + "/hooks";
             final var actual = restClient.get().uri(url).retrieve().body(HooksResponse.class);
 
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
@@ -380,9 +387,14 @@ final class HooksControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @ValueSource(
-                strings = {"ac384c53f03855fa1b3616052f8ba32c6c2a2fec", "0.0.ac384c53f03855fa1b3616052f8ba32c6c2a2fec"})
-        void successWithEvmAccountIds(String accountIdString) throws DecoderException {
-            this.accountId = accountIdString;
+                strings = {
+                    "ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+                    "0.ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+                    "0.0.ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+                    "0xac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+                })
+        void successWithEvmAddressFormat(String evmAddress) throws DecoderException {
+            this.accountId = evmAddress;
 
             final var evmBytes = Hex.decodeHex("ac384c53f03855fa1b3616052f8ba32c6c2a2fec");
 
@@ -399,7 +411,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setHooks(expectedHooks);
             expectedResponse.setLinks(new Links());
 
-            final var url = "accounts/" + accountIdString + "/hooks";
+            final var url = "accounts/" + evmAddress + "/hooks";
             final var actual = restClient.get().uri(url).retrieve().body(HooksResponse.class);
 
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);

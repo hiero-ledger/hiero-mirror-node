@@ -31,4 +31,14 @@ public record NumberRangeParameter(RangeOperator operator, Long value) implement
 
         return value;
     }
+
+    public long getInclusiveValue() {
+        if (operator == RangeOperator.GT) {
+            return value + 1;
+        } else if (operator == RangeOperator.LT) {
+            return value - 1;
+        } else {
+            return value;
+        }
+    }
 }

@@ -5,14 +5,11 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -30,49 +27,6 @@ class HookRepositoryTest extends RestJavaIntegrationTest {
                 .hook()
                 .customize(hook -> hook.ownerId(ownerId).hookId(hookId))
                 .persist();
-    }
-
-    @DisplayName("findByOwnerId should respect sorting")
-    @ParameterizedTest
-    @CsvSource({
-        "DESC, 3, 2", // Test descending order
-        "ASC,  1, 2" // Test ascending order
-    })
-    void findByOwnerIdRespectsSorting(Sort.Direction direction, long firstHookId, long secondHookId) {
-        // given
-        final var hooks = Map.of(
-                1L, persistHook(OWNER_ID_1, 1L),
-                2L, persistHook(OWNER_ID_1, 2L),
-                3L, persistHook(OWNER_ID_1, 3L));
-
-        final var expectedHooks = List.of(hooks.get(firstHookId), hooks.get(secondHookId));
-
-        final var pageable = PageRequest.of(0, 2, Sort.by(direction, "hookId"));
-
-        // when
-        final var result = hookRepository.findByOwnerId(OWNER_ID_1, pageable);
-
-        // then
-        assertThat(result).hasSize(2).containsExactlyElementsOf(expectedHooks);
-    }
-
-    @Test
-    @DisplayName("findByOwnerId should fetch the second page correctly")
-    void findByOwnerIdRespectsPaging() {
-        // given
-        persistHook(OWNER_ID_1, 1L);
-        persistHook(OWNER_ID_1, 2L);
-        final var hook3 = persistHook(OWNER_ID_1, 3L);
-        persistHook(OWNER_ID_2, 4L);
-
-        // Request page 1, size 2, sorted by hookId ASC
-        final var pageable = PageRequest.of(1, 2, Sort.by("hookId").ascending());
-
-        // when
-        final var result = hookRepository.findByOwnerId(OWNER_ID_1, pageable);
-
-        // then
-        assertThat(result).hasSize(1).containsExactly(hook3);
     }
 
     @Test
