@@ -61,15 +61,10 @@ spec:
         MonitorSubscribeLatency:
           enabled: false
     rest:
-      env:
-        HIERO_MIRROR_REST_RESPONSE_INCLUDEADMINKEY: "true"
       monitor:
         config:
           contract:
             contractId: "0.0.2664875"
-    restjava:
-      routes:
-        exchangeRate: true
     stackgres:
       coordinator:
         persistentVolume:
