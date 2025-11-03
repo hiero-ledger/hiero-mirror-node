@@ -16,10 +16,6 @@ const transactionIds = new SharedArray('target IDs', function () {
     .filter((s) => s.length > 0);
 });
 
-if (transactionIds.length === 0) {
-  throw new Error('TRANSACTION_IDS must be provided as a comma-separated list of transaction IDs');
-}
-
 const params = {
   headers: {
     'Accept-Encoding': 'gzip',
