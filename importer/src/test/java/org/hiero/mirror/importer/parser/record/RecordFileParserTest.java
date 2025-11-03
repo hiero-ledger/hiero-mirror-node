@@ -172,10 +172,10 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
         RecordItem recordItem2 = contractCall(contractFunctionResult2, timestamp, 0);
 
         var contractFunctionResult3 = contractFunctionResult(1000000000000L, new byte[] {0, 1, 1, 2, 2, 6, 0});
-        RecordItem recordItem3 = ethereumTransaction(contractFunctionResult3, timestamp, 0);
+        RecordItem recordItem3 = ethereumTransaction(contractFunctionResult3, timestamp, timestamp * 2, 0);
 
         var contractFunctionResult4 = contractFunctionResult(1000000000000L, new byte[] {0, 1, 1, 2, 2, 6, 0});
-        RecordItem recordItem4 = ethereumTransaction(contractFunctionResult4, timestamp, 1);
+        RecordItem recordItem4 = ethereumTransaction(contractFunctionResult4, timestamp, timestamp * 2, 1);
 
         RecordItem recordItem5 = cryptoTransferRecordItem(1L);
 
@@ -456,11 +456,17 @@ final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile
     }
 
     private RecordItem ethereumTransaction(
-            ContractFunctionResult contractFunctionResult, long timestamp, int transactionIdNonce) {
+            ContractFunctionResult contractFunctionResult,
+            long timestamp,
+            long parentTimestamp,
+            int transactionIdNonce) {
         return recordItemBuilder
                 .ethereumTransaction(true)
                 .record(builder -> builder.setContractCallResult(contractFunctionResult)
                         .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds((int) parentTimestamp)
+                                .setNanos((int) parentTimestamp))
                         .setTransactionID(TransactionID.newBuilder()
                                 .setNonce(transactionIdNonce)
                                 .build()))

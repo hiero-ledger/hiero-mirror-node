@@ -32,7 +32,7 @@ class MapReadableKVStateTest {
     @BeforeEach
     void setup() {
         accountMap = Map.of(accountID, account);
-        mapReadableKVState = new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.KEY, accountMap);
+        mapReadableKVState = new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, accountMap);
     }
 
     @Test
@@ -60,7 +60,7 @@ class MapReadableKVStateTest {
         final var accountID2 = AccountID.newBuilder().accountNum(2L).build();
         final var mapReadableKVStateBigger = new MapReadableKVState<>(
                 TokenService.NAME,
-                AccountReadableKVState.KEY,
+                AccountReadableKVState.STATE_ID,
                 Map.of(
                         accountID1,
                         Account.newBuilder().accountId(accountID1).build(),
@@ -87,14 +87,14 @@ class MapReadableKVStateTest {
     @Test
     void testEqualsSameValues() {
         MapReadableKVState<AccountID, Account> other =
-                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.KEY, accountMap);
+                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, accountMap);
         assertThat(mapReadableKVState).isEqualTo(other);
     }
 
     @Test
     void testEqualsDifferentKeys() {
         MapReadableKVState<AccountID, Account> other =
-                new MapReadableKVState<>(TokenService.NAME, AliasesReadableKVState.KEY, accountMap);
+                new MapReadableKVState<>(TokenService.NAME, AliasesReadableKVState.STATE_ID, accountMap);
         assertThat(mapReadableKVState).isNotEqualTo(other);
     }
 
@@ -102,14 +102,14 @@ class MapReadableKVStateTest {
     void testEqualsDifferentValues() {
         final var accountMapOther = Map.of(AccountID.newBuilder().accountNum(3L).build(), account);
         MapReadableKVState<AccountID, Account> other =
-                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.KEY, accountMapOther);
+                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, accountMapOther);
         assertThat(mapReadableKVState).isNotEqualTo(other);
     }
 
     @Test
     void testHashCode() {
         MapReadableKVState<AccountID, Account> other =
-                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.KEY, accountMap);
+                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, accountMap);
         assertThat(mapReadableKVState).hasSameHashCodeAs(other);
     }
 }

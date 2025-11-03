@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.parser.domain;
 
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
+import com.hederahashgraph.api.proto.java.Timestamp;
+import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -118,9 +120,12 @@ public class RecordFileBuilder {
 
         private int count = 100;
         private int entities = 10;
+        private int nonce = 0;
         private boolean entityAutoCreation = false;
+        private boolean scheduled = false;
         private SubType subType = SubType.STANDARD;
         private TransactionType type = TransactionType.UNKNOWN;
+        private Timestamp parentConsensusTimestamp = Timestamp.getDefaultInstance();
         private Supplier<RecordItemBuilder.Builder<?>> template;
 
         @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -140,8 +145,19 @@ public class RecordFileBuilder {
             return this;
         }
 
+        public ItemBuilder nonce(int nonce) {
+            Assert.isTrue(nonce > 0, "nonce must be positive");
+            this.nonce = nonce;
+            return this;
+        }
+
         public ItemBuilder entityAutoCreation(boolean entityAutoCreation) {
             this.entityAutoCreation = entityAutoCreation;
+            return this;
+        }
+
+        public ItemBuilder isScheduled(boolean scheduled) {
+            this.scheduled = scheduled;
             return this;
         }
 
@@ -161,6 +177,11 @@ public class RecordFileBuilder {
             Assert.notNull(type, "type must not be null");
             Assert.isTrue(type != TransactionType.UNKNOWN, "type must not be unknown");
             this.type = type;
+            return this;
+        }
+
+        public ItemBuilder parentConsensusTimestamp(Timestamp parentConsensusTimestamp) {
+            this.parentConsensusTimestamp = parentConsensusTimestamp;
             return this;
         }
 
@@ -197,6 +218,22 @@ public class RecordFileBuilder {
             if (subType != SubType.STANDARD) {
                 return switch (subType) {
                     case TOKEN_TRANSFER -> () -> recordItemBuilder.cryptoTransfer(TransferType.TOKEN);
+                    case CONTRACT_CALL -> {
+                        var transactionID = TransactionID.newBuilder()
+                                .setNonce(nonce)
+                                .setAccountID(recordItemBuilder.accountId())
+                                .setScheduled(scheduled);
+
+                        var contractCallItemBuilder =
+                                recordItemBuilder.contractCall().record(r -> r.setTransactionID(transactionID));
+
+                        if (!Timestamp.getDefaultInstance().equals(parentConsensusTimestamp)) {
+                            contractCallItemBuilder.record(
+                                    r -> r.setParentConsensusTimestamp(parentConsensusTimestamp));
+                        }
+
+                        yield () -> contractCallItemBuilder;
+                    }
                     default -> throw new IllegalArgumentException("subType not supported: " + subType);
                 };
             }

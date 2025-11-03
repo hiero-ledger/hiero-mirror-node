@@ -48,8 +48,8 @@ class ParserContextTest {
     @Test
     void get() {
         assertThat(parserContext.get(Entity.class, 1L)).isNull();
+        assertThat(parserContext.get(Entity.class, null)).isNull();
         assertThatThrownBy(() -> parserContext.get(null, 1L)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> parserContext.get(Entity.class, null)).isInstanceOf(NullPointerException.class);
 
         var domain = domainBuilder.entity().get();
         parserContext.merge(domain.getId(), domain, (a, b) -> a);

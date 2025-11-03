@@ -206,6 +206,7 @@ describe('Override query config', () => {
       maxTimestampRange: '1d',
       maxTransactionConsensusTimestampRange: '10m',
       maxTransactionsTimestampRange: '20d',
+      maxValidStartTimestampDrift: '1s',
     };
     const expected = {
       bindTimestampRange: true,
@@ -220,6 +221,8 @@ describe('Override query config', () => {
       maxTransactionConsensusTimestampRangeNs: 600000000000n,
       maxTransactionsTimestampRange: '20d',
       maxTransactionsTimestampRangeNs: 1728000000000000n,
+      maxValidStartTimestampDrift: '1s',
+      maxValidStartTimestampDriftNs: 1000000000n,
       strictTimestampParam: true,
       topicMessageLookup: false,
       transactions: {

@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toAccountId;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_AUTO_RENEW_PERIOD;
@@ -20,7 +21,6 @@ import com.hedera.node.app.service.token.TokenService;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,18 +36,18 @@ import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.CustomFeeRepository;
-import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.NftRepository;
 import org.hiero.mirror.web3.repository.TokenRepository;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.state.Utils;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 import org.springframework.util.CollectionUtils;
 
 @Named
 public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
 
-    public static final String KEY = "TOKENS";
+    public static final int STATE_ID = TOKENS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final CustomFeeRepository customFeeRepository;
@@ -59,10 +59,9 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
             final CommonEntityAccessor commonEntityAccessor,
             final CustomFeeRepository customFeeRepository,
             final TokenRepository tokenRepository,
-            final EntityRepository entityRepository,
             final NftRepository nftRepository,
             final SystemEntity systemEntity) {
-        super(TokenService.NAME, KEY);
+        super(TokenService.NAME, STATE_ID);
         this.commonEntityAccessor = commonEntityAccessor;
         this.customFeeRepository = customFeeRepository;
         this.tokenRepository = tokenRepository;
@@ -71,7 +70,7 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
     }
 
     @Override
-    protected Token readFromDataSource(@Nonnull TokenID key) {
+    protected Token readFromDataSource(@NonNull TokenID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var entity = commonEntityAccessor.get(key, timestamp).orElse(null);
 

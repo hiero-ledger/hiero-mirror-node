@@ -233,7 +233,8 @@ public class TransactionExecutionService {
             // transaction executor directly skips this account completion and
             // this results in failed transactions that would otherwise succeed
             // against the consensus node.
-            final var writableAccountCache = ContractCallContext.get().getWriteCacheState(AccountReadableKVState.KEY);
+            final var writableAccountCache =
+                    ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID);
             final var completedAccount = account.copyBuilder().key(DEFAULT_KEY).build();
             writableAccountCache.put(account.accountId(), completedAccount);
         }

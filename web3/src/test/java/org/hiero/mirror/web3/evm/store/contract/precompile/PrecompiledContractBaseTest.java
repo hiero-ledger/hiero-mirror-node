@@ -12,7 +12,6 @@ import com.hedera.node.app.service.evm.store.contracts.precompile.proxy.ViewExec
 import com.hedera.node.app.service.evm.store.contracts.precompile.proxy.ViewGasCalculator;
 import com.hedera.node.app.service.evm.store.tokens.TokenAccessor;
 import com.hedera.services.store.contracts.precompile.utils.PrecompilePricingUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Deque;
 import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
@@ -25,6 +24,7 @@ import org.hiero.mirror.web3.evm.store.contract.HederaEvmStackedWorldStateUpdate
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.BlockValues;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;

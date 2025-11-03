@@ -3,7 +3,7 @@
 package org.hiero.mirror.common.domain;
 
 import java.util.List;
-import lombok.NonNull;
+import org.jspecify.annotations.NonNull;
 
 public interface StreamFile<T extends StreamItem> {
 

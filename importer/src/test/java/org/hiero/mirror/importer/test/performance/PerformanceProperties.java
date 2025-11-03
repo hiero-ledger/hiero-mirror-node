@@ -32,7 +32,8 @@ public class PerformanceProperties {
 
     public enum SubType {
         STANDARD,
-        TOKEN_TRANSFER
+        TOKEN_TRANSFER,
+        CONTRACT_CALL;
     }
 
     @Data

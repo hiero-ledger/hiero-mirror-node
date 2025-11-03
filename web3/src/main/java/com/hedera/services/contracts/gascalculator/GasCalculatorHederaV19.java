@@ -32,7 +32,8 @@ public class GasCalculatorHederaV19 extends LondonGasCalculator {
     }
 
     @Override
-    public long transactionIntrinsicGasCost(final Bytes payload, final boolean isContractCreate) {
+    public long transactionIntrinsicGasCost(
+            final Bytes payload, final boolean isContractCreate, final long baselineGas) {
         return 0L;
     }
 

@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 
 import com.google.protobuf.ByteString;
 import jakarta.inject.Named;
+import java.util.List;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -22,8 +23,12 @@ import org.hiero.mirror.importer.util.Utility;
 @Named
 class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandler {
 
-    CryptoCreateTransactionHandler(EntityIdService entityIdService, EntityListener entityListener) {
+    private final EVMHookHandler evmHookHandler;
+
+    CryptoCreateTransactionHandler(
+            EntityIdService entityIdService, EntityListener entityListener, EVMHookHandler evmHookHandler) {
         super(entityIdService, entityListener, TransactionType.CRYPTOCREATEACCOUNT);
+        this.evmHookHandler = evmHookHandler;
     }
 
     @Override
@@ -87,6 +92,7 @@ class CryptoCreateTransactionHandler extends AbstractEntityCrudTransactionHandle
 
         updateStakingInfo(recordItem, entity);
         entityListener.onEntity(entity);
+        evmHookHandler.process(recordItem, entity.getId(), transactionBody.getHookCreationDetailsList(), List.of());
     }
 
     private void updateStakingInfo(RecordItem recordItem, Entity entity) {

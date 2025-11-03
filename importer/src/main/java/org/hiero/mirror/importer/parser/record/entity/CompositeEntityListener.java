@@ -22,6 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -129,6 +130,11 @@ public class CompositeEntityListener implements EntityListener {
     @Override
     public void onFileData(FileData fileData) throws ImporterException {
         onEach(EntityListener::onFileData, fileData);
+    }
+
+    @Override
+    public void onHook(Hook hook) throws ImporterException {
+        onEach(EntityListener::onHook, hook);
     }
 
     @Override

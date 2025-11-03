@@ -4,6 +4,9 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.Range;
@@ -41,9 +44,32 @@ import org.springframework.data.util.Version;
 
 class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    private final EVMHookHandler evmHookHandler = mock(EVMHookHandler.class);
+
+    private static Stream<Arguments> provideAlias() {
+        var validKey = Key.newBuilder()
+                .setECDSASecp256K1(ByteString.copyFrom(TestUtils.generateRandomByteArray(20)))
+                .build();
+        var emptyKey = Key.getDefaultInstance();
+        var validAliasForKey = ByteString.copyFrom(UtilityTest.ALIAS_ECDSA_SECP256K1);
+        var invalidAliasForKey = ByteString.fromHex("1234");
+        return Stream.of(
+                Arguments.of(validAliasForKey, validKey, validKey.toByteArray()),
+                Arguments.of(validAliasForKey, emptyKey, validAliasForKey.toByteArray()),
+                Arguments.of(invalidAliasForKey, validKey, validKey.toByteArray()),
+                Arguments.of(invalidAliasForKey, emptyKey, null));
+    }
+
+    private static Stream<Arguments> provideEvmAddresses() {
+        var evmAddress = RecordItemBuilder.EVM_ADDRESS;
+        return Stream.of(
+                Arguments.of(ByteString.empty(), UtilityTest.EVM_ADDRESS),
+                Arguments.of(evmAddress, evmAddress.toByteArray()));
+    }
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoCreateTransactionHandler(entityIdService, entityListener);
+        return new CryptoCreateTransactionHandler(entityIdService, entityListener, evmHookHandler);
     }
 
     @Override
@@ -214,20 +240,6 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
 
-    private static Stream<Arguments> provideAlias() {
-        var validKey = Key.newBuilder()
-                .setECDSASecp256K1(ByteString.copyFrom(TestUtils.generateRandomByteArray(20)))
-                .build();
-        var emptyKey = Key.getDefaultInstance();
-        var validAliasForKey = ByteString.copyFrom(UtilityTest.ALIAS_ECDSA_SECP256K1);
-        var invalidAliasForKey = ByteString.fromHex("1234");
-        return Stream.of(
-                Arguments.of(validAliasForKey, validKey, validKey.toByteArray()),
-                Arguments.of(validAliasForKey, emptyKey, validAliasForKey.toByteArray()),
-                Arguments.of(invalidAliasForKey, validKey, validKey.toByteArray()),
-                Arguments.of(invalidAliasForKey, emptyKey, null));
-    }
-
     @ParameterizedTest
     @MethodSource("provideAlias")
     void updateKeyFromTransactionBody(ByteString alias, Key key, byte[] expectedKey) {
@@ -244,13 +256,6 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         assertEntity(accountId, recordItem.getConsensusTimestamp()).returns(expectedKey, Entity::getKey);
     }
 
-    private static Stream<Arguments> provideEvmAddresses() {
-        var evmAddress = RecordItemBuilder.EVM_ADDRESS;
-        return Stream.of(
-                Arguments.of(ByteString.empty(), UtilityTest.EVM_ADDRESS),
-                Arguments.of(evmAddress, evmAddress.toByteArray()));
-    }
-
     @ParameterizedTest
     @MethodSource("provideEvmAddresses")
     void updateEvmAddress(ByteString recordEvmAddress, byte[] expected) {
@@ -265,6 +270,48 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         transactionHandler.updateTransaction(transaction(recordItem), recordItem);
 
         assertEntity(accountId, recordItem.getConsensusTimestamp()).returns(expected, Entity::getEvmAddress);
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder.cryptoCreate().build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+        var transactionBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(List.of()));
+
+        // Verify entity was created
+        assertEntity(accountId, recordItem.getConsensusTimestamp());
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
     private ObjectAssert<Entity> assertEntity(EntityId accountId, long timestamp) {

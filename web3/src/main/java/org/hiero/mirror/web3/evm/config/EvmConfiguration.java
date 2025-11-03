@@ -526,7 +526,7 @@ public class EvmConfiguration {
     }
 
     private ContractCreationProcessor contractCreationProcessor(EVM evm) {
-        return new ContractCreationProcessor(gasCalculator, evm, true, List.of(), 1);
+        return new ContractCreationProcessor(evm, true, List.of(), 1);
     }
 
     private MirrorEvmMessageCallProcessor mirrorEvmMessageCallProcessor(EVM evm) {

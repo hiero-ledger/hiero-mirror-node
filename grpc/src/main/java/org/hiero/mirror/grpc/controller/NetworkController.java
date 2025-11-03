@@ -3,6 +3,7 @@
 package org.hiero.mirror.grpc.controller;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.mirror.api.proto.AddressBookQuery;
 import com.hedera.mirror.api.proto.Fee.EstimateMode;
 import com.hedera.mirror.api.proto.Fee.FeeEstimate;
@@ -13,6 +14,8 @@ import com.hedera.mirror.api.proto.Fee.NetworkFee;
 import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
+import io.grpc.Status;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.CustomLog;
@@ -32,6 +35,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceImplBase {
 
+    static final String INVALID_TRANSACTION = "Invalid Transaction.signedTransactionBytes";
     static final FeeEstimateResponse STUB_RESPONSE = stubResponse();
 
     private final NetworkService networkService;
@@ -57,6 +61,16 @@ public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceI
 
     @Override
     public Mono<FeeEstimateResponse> getFeeEstimate(FeeEstimateQuery request) {
+        try {
+            var bytes = request.getTransaction().getSignedTransactionBytes();
+            SignedTransaction.parseFrom(bytes);
+        } catch (InvalidProtocolBufferException e) {
+            final var error = Status.INVALID_ARGUMENT
+                    .augmentDescription(INVALID_TRANSACTION)
+                    .asRuntimeException();
+            return Mono.error(error);
+        }
+
         return Mono.just(STUB_RESPONSE);
     }
 

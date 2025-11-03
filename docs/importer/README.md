@@ -21,6 +21,36 @@ table provides a compatibility matrix of the most recent changes:
 | v0.47.0+     | v0.98.0+            | False           | [HIP-844](https://hips.hedera.com/hip/hip-844): Handling and externalisation improvements for account nonce updates                                          |
 | v0.48.0+     | v0.101.0+           | False           | [HIP-646](https://hips.hedera.com/hip/hip-646)/[657](https://hips.hedera.com/hip/hip-657)/[765](https://hips.hedera.com/hip/hip-765): Mutable token metadata |
 
+## Synthetic Contract Logs
+
+Users writing dApps want to monitor for token approval and transfer events. HAPI transactions like `CryptoTransfer`,
+`CryptoApproveAllowance`, `CryptoDeleteAllowance`, `TokenMint`, `TokenWipe`, and `TokenBurn` do not emit events that
+could be captured by monitoring tools since they're executed outside the EVM. In order to not bloat the size of the
+blocks, the decision was made for the mirror node to generate synthetic events for these native HAPI transactions. It
+is assumed that any transfers that occur via the EVM on consensus nodes will emit events that will show up in the
+blocks.
+
+Whether or not to generate these synthetic contract logs is controlled by the property
+`hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogs`, which has a default of `true`. When
+enabled, the mirror node will persist synthetic contract logs from HAPI transactions to the database. This will
+generate synthetic logs for the following scenarios:
+
+- `CryptoApproveAllowanceTransaction`: Fungible and non-fungible allowances
+- `CryptoDeleteAllowanceTransaction`: Non-fungible allowances
+- `CryptoTransferTransaction`: Fungible and non-fungible only. For fungible, only if a single transfer pair.
+- `TokenAirdropTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
+- `TokenBurnTransaction`: Fungible and non-fungible
+- `TokenCreateTransaction`: Fungible
+- `TokenMintTransaction`: Fungible and non-fungible
+- `TokenRejectTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
+- `TokenWipeAccountTransaction`: Fungible and non-fungible
+- Any other current or future transaction that transfers fungible or non-fungible tokens.
+
+For now, the decision was made to omit Hbar transfers because they can be executed at 10,000 transactions per second
+and this could quickly generate a lot of logs and slow down the system. Also, we only support token transfers that
+have a single transfer pair due to the difficulty in splitting aggregated transfers in the `TransactionRecord` into
+separate transfer pairs for event emission. This could change in the future.
+
 ## Initialize Entity Balance
 
 The importer tracks up-to-date entity balance by applying balance changes from crypto transfers. This relies on the

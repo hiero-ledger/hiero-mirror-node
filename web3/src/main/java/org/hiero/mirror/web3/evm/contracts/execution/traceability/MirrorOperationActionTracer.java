@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.services.utils.EntityIdUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.CustomLog;
@@ -15,6 +14,7 @@ import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @CustomLog
@@ -26,7 +26,7 @@ public class MirrorOperationActionTracer implements OperationTracer {
 
     @Override
     public void tracePostExecution(
-            @NonNull final MessageFrame frame, @NonNull final Operation.OperationResult operationResult) {
+            final @NonNull MessageFrame frame, final Operation.@NonNull OperationResult operationResult) {
         if (!traceProperties.isEnabled()) {
             return;
         }

@@ -9,8 +9,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import lombok.NonNull;
 import org.hiero.mirror.web3.evm.exception.EvmException;
+import org.jspecify.annotations.NonNull;
 
 /** One "level" of the stacked cache: cached entries for a particular state that can be thrown away
  * when you're done, or "committed" to the upstream frame to accumulate the latest values. Entities

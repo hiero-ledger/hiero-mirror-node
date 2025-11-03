@@ -3,8 +3,8 @@
 package org.hiero.mirror.web3.evm.store;
 
 import java.util.Optional;
-import lombok.NonNull;
 import org.hiero.mirror.web3.evm.exception.WrongTypeException;
+import org.jspecify.annotations.NonNull;
 
 /** A CachingStateFrame that holds reads (falling through to an upstream cache) and disallows updates/deletes. */
 public class ROCachingStateFrame<K> extends CachingStateFrame<K> {

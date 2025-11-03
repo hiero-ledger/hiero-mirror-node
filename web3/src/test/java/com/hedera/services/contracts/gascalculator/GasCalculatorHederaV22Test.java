@@ -44,12 +44,12 @@ class GasCalculatorHederaV22Test {
                 4 * 2 + // zero byte cost
                         16 * 3 + // non-zero byte cost
                         21_000L, // base TX cost
-                subject.transactionIntrinsicGasCost(Bytes.of(0, 1, 2, 3, 0), false));
+                subject.transactionIntrinsicGasCost(Bytes.of(0, 1, 2, 3, 0), false, 0L));
         assertEquals(
                 4 * 3 + // zero byte cost
                         16 * 2 + // non-zero byte cost
                         21_000L + // base TX cost
                         32_000L, // contract creation base cost
-                subject.transactionIntrinsicGasCost(Bytes.of(0, 1, 0, 3, 0), true));
+                subject.transactionIntrinsicGasCost(Bytes.of(0, 1, 0, 3, 0), true, 0L));
     }
 }

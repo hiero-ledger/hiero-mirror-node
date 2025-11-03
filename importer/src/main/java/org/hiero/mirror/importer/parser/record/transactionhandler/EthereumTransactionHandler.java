@@ -78,7 +78,8 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
 
         byte[] callData = ethereumTransaction.getCallData();
         var callDataId = ethereumTransaction.getCallDataId();
-        if (callDataId != null) {
+        if (ArrayUtils.isEmpty(callData) && !EntityId.isEmpty(callDataId)) {
+            // call data file (callDataId) is ignored by consensus node if there's call data in ethereum data
             callData = contractBytecodeService.get(callDataId);
             if (callData == null) {
                 Utility.handleRecoverableError(

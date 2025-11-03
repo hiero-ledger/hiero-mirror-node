@@ -636,7 +636,7 @@ class OpcodesControllerTest {
         verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
         final var capturedParams = paramsCaptor.getValue();
 
-        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
+        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
     }
 
     /**

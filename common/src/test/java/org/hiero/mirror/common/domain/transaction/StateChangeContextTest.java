@@ -3,7 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_CONTRACT_BYTECODE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -121,7 +121,7 @@ final class StateChangeContextTest {
         var bytecode = bytes(128);
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(StateChange.newBuilder()
-                        .setStateId(STATE_ID_CONTRACT_BYTECODE_VALUE)
+                        .setStateId(STATE_ID_BYTECODE_VALUE)
                         .setMapUpdate(MapUpdateChange.newBuilder()
                                 .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
                                 .setValue(MapChangeValue.newBuilder()

@@ -830,6 +830,18 @@ public class TokenFeature extends AbstractFeature {
                 accountClient.deleteAllowanceForNft(reExpandedAccountId, new NftId(tokenId, nftInfo.serialNumber)));
     }
 
+    @Then("I airdrop {int} token to {account}")
+    public void airdropToken(int amount, AccountNameEnum accountName) {
+        // This method is needed only for the k6 tests in CI.
+        if (!properties.isSkipEntitiesCleanup()) {
+            return;
+        }
+        var receiver = accountClient.getAccount(accountName);
+        var sender = accountClient.getSdkClient().getExpandedOperatorAccountId();
+        networkTransactionResponse =
+                verify(tokenClient.executeFungibleTokenAirdrop(tokenId, sender, receiver.getAccountId(), amount));
+    }
+
     @Then("I airdrop {int} tokens to {account}")
     public void airdropTokens(int amount, AccountNameEnum accountName) {
         var receiver = accountClient.getAccount(accountName);

@@ -102,7 +102,8 @@ class MirrorEvmContractAliasesTest {
         when(store.getAccount(ALIAS, OnMissing.DONT_THROW)).thenReturn(account);
         when(account.getId()).thenReturn(id);
 
-        assertThat(mirrorEvmContractAliases.resolveForEvm(ALIAS)).isEqualTo(Bytes.wrap(toEvmAddress(entityId)));
+        assertThat(Bytes.wrap(mirrorEvmContractAliases.resolveForEvm(ALIAS).toArray()))
+                .isEqualTo(Bytes.wrap(toEvmAddress(entityId)));
     }
 
     @ValueSource(ints = {1, 2, 3, 4, 5, 6, 7, 8, 9})

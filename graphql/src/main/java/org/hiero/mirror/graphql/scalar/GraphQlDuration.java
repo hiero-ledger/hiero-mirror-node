@@ -13,11 +13,12 @@ import graphql.schema.CoercingParseLiteralException;
 import graphql.schema.CoercingParseValueException;
 import graphql.schema.CoercingSerializeException;
 import graphql.schema.GraphQLScalarType;
-import jakarta.annotation.Nonnull;
 import java.time.Duration;
 import java.util.Locale;
+import org.jspecify.annotations.NullMarked;
 
-public class GraphQlDuration implements Coercing<Duration, String> {
+@NullMarked
+public final class GraphQlDuration implements Coercing<Duration, String> {
 
     public static final GraphQLScalarType INSTANCE = GraphQLScalarType.newScalar()
             .name("Duration")
@@ -28,10 +29,7 @@ public class GraphQlDuration implements Coercing<Duration, String> {
 
     @Override
     public Duration parseLiteral(
-            @Nonnull Value<?> input,
-            @Nonnull CoercedVariables variables,
-            @Nonnull GraphQLContext graphQLContext,
-            @Nonnull Locale locale)
+            Value<?> input, CoercedVariables variables, GraphQLContext graphQLContext, Locale locale)
             throws CoercingParseLiteralException {
         if (input instanceof StringValue str) {
             return Duration.parse(str.getValue());
@@ -40,8 +38,7 @@ public class GraphQlDuration implements Coercing<Duration, String> {
     }
 
     @Override
-    public @Nonnull Duration parseValue(
-            @Nonnull Object input, @Nonnull GraphQLContext graphQLContext, @Nonnull Locale locale)
+    public Duration parseValue(Object input, GraphQLContext graphQLContext, Locale locale)
             throws CoercingParseValueException {
         if (input instanceof Duration duration) {
             return duration;
@@ -52,7 +49,7 @@ public class GraphQlDuration implements Coercing<Duration, String> {
     }
 
     @Override
-    public String serialize(@Nonnull Object input, @Nonnull GraphQLContext graphQLContext, @Nonnull Locale locale)
+    public String serialize(Object input, GraphQLContext graphQLContext, Locale locale)
             throws CoercingSerializeException {
         if (input instanceof Duration duration) {
             return duration.toString();

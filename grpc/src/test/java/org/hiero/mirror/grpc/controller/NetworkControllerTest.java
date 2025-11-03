@@ -11,6 +11,7 @@ import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
+import com.hederahashgraph.api.proto.java.Transaction;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.net.InetAddress;
@@ -25,6 +26,7 @@ import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
@@ -50,6 +52,19 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .thenAwait(WAIT)
                 .consumeNextWith(n -> assertThat(n).isEqualTo(NetworkController.STUB_RESPONSE))
                 .expectComplete()
+                .verify(WAIT);
+    }
+
+    @Test
+    void getFeeEstimateInvalidTransaction() {
+        final var query = FeeEstimateQuery.newBuilder()
+                .setTransaction(Transaction.newBuilder()
+                        .setSignedTransactionBytes(DomainUtils.fromBytes(domainBuilder.bytes(50))))
+                .build();
+        StepVerifier.withVirtualTime(() -> reactiveService.getFeeEstimate(Mono.just(query)))
+                .thenAwait(WAIT)
+                .expectErrorSatisfies(
+                        t -> assertException(t, Status.Code.INVALID_ARGUMENT, NetworkController.INVALID_TRANSACTION))
                 .verify(WAIT);
     }
 

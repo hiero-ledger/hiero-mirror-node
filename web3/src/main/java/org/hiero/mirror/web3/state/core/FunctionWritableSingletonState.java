@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.WritableSingletonStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Objects;
 import java.util.function.Supplier;
+import org.jspecify.annotations.NonNull;
 
 public class FunctionWritableSingletonState<S> extends WritableSingletonStateBase<S> {
 
@@ -15,15 +15,13 @@ public class FunctionWritableSingletonState<S> extends WritableSingletonStateBas
      * Creates a new instance.
      *
      * @param serviceName The name of the service that owns the state.
-     * @param stateKey The state key for this instance.
+     * @param stateId The state id for this instance.
      * @param backingStoreAccessor A {@link Supplier} that provides access to the value in the
      *     backing store.
      */
     public FunctionWritableSingletonState(
-            @Nonnull final String serviceName,
-            @Nonnull final String stateKey,
-            @Nonnull final Supplier<S> backingStoreAccessor) {
-        super(serviceName, stateKey);
+            @NonNull final String serviceName, final int stateId, @NonNull final Supplier<S> backingStoreAccessor) {
+        super(stateId, serviceName);
         this.backingStoreAccessor = Objects.requireNonNull(backingStoreAccessor);
     }
 
@@ -33,7 +31,7 @@ public class FunctionWritableSingletonState<S> extends WritableSingletonStateBas
     }
 
     @Override
-    protected void putIntoDataSource(@Nonnull S value) {
+    protected void putIntoDataSource(@NonNull S value) {
         // No-op as we don't persist updates in web3.
     }
 

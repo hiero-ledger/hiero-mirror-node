@@ -21,6 +21,10 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
+import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
+import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -200,6 +204,7 @@ public class RecordItemBuilder {
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final byte[] LONDON_RAW_TX = Hex.decode(
             "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66");
+    public static final long DEFAULT_GAS_USED = 100000L;
 
     private static final long INITIAL_ID = 1000L;
     private static final RealmID REALM_ID = RealmID.getDefaultInstance();
@@ -425,7 +430,7 @@ public class RecordItemBuilder {
                 .setErrorMessage(text(10))
                 .setFunctionParameters(bytes(64))
                 .setGas(10_000L)
-                .setGasUsed(100000L)
+                .setGasUsed(DEFAULT_GAS_USED)
                 .addAllLogInfo(contractLogInfos)
                 .setSenderId(accountId())
                 .setSignerNonce(Int64Value.of(10));
@@ -528,8 +533,19 @@ public class RecordItemBuilder {
                 .setRealmID(REALM_ID)
                 .setReceiverSigRequired(false)
                 .setShardID(SHARD_ID)
+                .addHookCreationDetails(hookCreationDetails())
                 .setStakedNodeId(1L);
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
+    }
+
+    private HookCreationDetails.Builder hookCreationDetails() {
+        return HookCreationDetails.newBuilder()
+                .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
+                .setHookId(1L)
+                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                        .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
+                        .build())
+                .setAdminKey(key());
     }
 
     public Builder<CryptoDeleteTransactionBody.Builder> cryptoDelete() {
@@ -631,7 +647,9 @@ public class RecordItemBuilder {
                 .setKey(key())
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
-                .setStakedNodeId(1L);
+                .setStakedNodeId(1L)
+                .addHookCreationDetails(hookCreationDetails())
+                .addHookIdsToDelete(1L);
         return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
     }
 
