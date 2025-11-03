@@ -143,7 +143,7 @@ if (__ENV.RUN_COMPLEX_TESTS !== 'false') {
   });
 }
 
-if (__ENV.RUN_OPCODE_TESTS !== 'false') {
+if (__ENV.RUN_OPCODE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
   Object.assign(tests, {
     contractResultsOpcodesAllDisabled,
     contractResultsOpcodesAllEnabled,

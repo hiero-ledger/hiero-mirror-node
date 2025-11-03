@@ -421,7 +421,6 @@ class MultiIdScenarioBuilder {
   build() {
     const that = this;
 
-    // create scenarios
     let combinedOptions;
     for (let i = 0; i < that._ids.length; i++) {
       const id = that._ids[i];
