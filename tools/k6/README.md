@@ -83,7 +83,7 @@ The following parameters can be used to configure a REST test:
 | DEFAULT_TOPIC_SEQUENCE             |         |                                    |
 | DEFAULT_TOPIC_TIMESTAMP            |         |                                    |
 | DEFAULT_TRANSACTION_HASH           |         |                                    |
-| DEFAULT_TRANSACTION_ID             |         |                                    |
+| DEFAULT_TRANSACTION_IDS            |         |                                    |
 | REST_TEST_EXCLUDE                  | ^$      | The rest test scenarios to exclude |
 | REST_TEST_INCLUDE                  | .\*     | The rest test scenarios to include |
 

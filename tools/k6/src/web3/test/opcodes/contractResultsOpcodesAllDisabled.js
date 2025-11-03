@@ -2,27 +2,34 @@
 
 import http from 'k6/http';
 
-import {TestScenarioBuilder} from '../../../lib/common.js';
+import {MultiIdScenarioBuilder} from '../../../lib/common.js';
 import {isValidListResponse} from '../common.js';
-
-const urlTag = '/contracts/results/{transactionId}/opcodes?stack=false&memory=false&storage=false';
+import {SharedArray} from 'k6/data';
+import {check} from 'k6';
 
 const baseUrl = __ENV.BASE_URL_PREFIX;
-const transactionId = __ENV.TRANSACTION_ID;
+const transactionIds = new SharedArray('target IDs', function () {
+  const envString = __ENV.TRANSACTION_IDS || '';
+  return envString
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+});
 
-const path = `/contracts/results/${transactionId}/opcodes`;
+if (transactionIds.length === 0) {
+  throw new Error('TRANSACTION_IDS must be provided as a comma-separated list of transaction IDs');
+}
+
 const params = {
   headers: {
     'Accept-Encoding': 'gzip',
   },
 };
 
-const {options, run} = new TestScenarioBuilder()
-  .name('opcodesAllDisabled') // use unique scenario name among all tests
-  .request(() => {
-    const url = `${baseUrl}${path}`;
-    return http.get(url, params);
-  })
+const {options, run} = new MultiIdScenarioBuilder(transactionIds)
+  .name('opcodesAllDisabled')
+  .url(`${baseUrl}/contracts/results/{id}/opcodes?stack=false&memory=false&storage=false`)
+  .request((url) => http.get(url, params))
   .check('Opcodes list is not empty.', (r) => isValidListResponse(r, 'opcodes'))
   .build();
 
