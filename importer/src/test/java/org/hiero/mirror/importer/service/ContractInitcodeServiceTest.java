@@ -17,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
 final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
@@ -111,30 +110,39 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void readFromFile(boolean withHexPrefix) {
+    @CsvSource(
+            textBlock =
+                    """
+            0a0b0c0d, true
+            '', false
+            0a0b0c0d, true
+            '', false
+            """)
+    void readFromFile(@ConvertWith(HexToByteArrayConverter.class) byte[] constructorParameters, boolean withHexPrefix) {
         // given
-        var contractId = recordItemBuilder.contractId();
-        var contractBytecode = ContractBytecode.newBuilder()
+        final var contractId = recordItemBuilder.contractId();
+        final var contractBytecode = ContractBytecode.newBuilder()
                 .setContractId(contractId)
                 .setRuntimeBytecode(recordItemBuilder.bytes(100))
                 .build();
-        var fileId = recordItemBuilder.fileId();
-        byte[] expected = recordItemBuilder.randomBytes(128);
-        byte[] dataInDb = TestUtils.toBytecodeFileContent(expected, withHexPrefix);
-        var recordItem = recordItemBuilder
+        final var fileId = recordItemBuilder.fileId();
+        final byte[] rawBytecode = recordItemBuilder.randomBytes(128);
+        final byte[] hexBytecode = TestUtils.toBytecodeFileContent(rawBytecode, withHexPrefix);
+        final var recordItem = recordItemBuilder
                 .contractCreate(contractId)
-                .transactionBody(b -> b.setFileID(fileId))
+                .transactionBody(b -> b.setConstructorParameters(DomainUtils.fromBytes(constructorParameters))
+                        .setFileID(fileId))
                 .recordItem(r -> r.blockstream(true))
                 .build();
         domainBuilder
                 .fileData()
                 .customize(b -> b.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
                         .entityId(EntityId.of(fileId))
-                        .fileData(dataInDb))
+                        .fileData(hexBytecode))
                 .persist();
 
         // when, then
+        final byte[] expected = Bytes.concat(rawBytecode, constructorParameters);
         assertThat(service.get(contractBytecode, recordItem)).isEqualTo(expected);
     }
 

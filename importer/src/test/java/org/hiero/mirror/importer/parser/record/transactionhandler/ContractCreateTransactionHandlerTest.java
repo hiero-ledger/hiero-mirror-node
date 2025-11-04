@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Descriptors;
@@ -269,12 +270,13 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
                 : key.getECDSASecp256K1().toByteArray();
         var autoRenewAccount = body.getAutoRenewAccountId();
         var fileId = EntityId.of(body.getFileID());
-        byte[] initCode;
+        byte[] initcode;
         if (blockstream) {
-            initCode = domainBuilder.bytes(1024);
-            when(contractBytecodeService.get(fileId)).thenReturn(initCode);
+            byte[] bytecode = domainBuilder.bytes(1024);
+            when(contractBytecodeService.get(fileId)).thenReturn(bytecode);
+            initcode = Bytes.concat(bytecode, DomainUtils.toBytes(body.getConstructorParameters()));
         } else {
-            initCode = DomainUtils.toBytes(recordItem
+            initcode = DomainUtils.toBytes(recordItem
                     .getSidecarRecords()
                     .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
                     .getBytecode()
@@ -291,7 +293,7 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
                 .returns(null, Entity::getEvmAddress)
                 .returns(key.toByteArray(), Entity::getKey)
                 .returns(Hex.encodeHexString(simpleKey), Entity::getPublicKey);
-        assertContract(contractId).returns(fileId, Contract::getFileId).returns(initCode, Contract::getInitcode);
+        assertContract(contractId).returns(fileId, Contract::getFileId).returns(initcode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
