@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -58,6 +60,9 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
     @Mock
     private ContractBytecodeService contractBytecodeService;
 
+    @Mock
+    private EVMHookHandler evmHookHandler;
+
     @Captor
     private ArgumentCaptor<Contract> contracts;
 
@@ -72,7 +77,8 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
                 new ContractInitcodeServiceImpl(contractBytecodeService),
                 entityIdService,
                 entityListener,
-                entityProperties);
+                entityProperties,
+                evmHookHandler);
     }
 
     @Override
@@ -135,6 +141,50 @@ final class ContractCreateTransactionHandlerTest extends AbstractTransactionHand
     @Override
     protected EntityType getExpectedEntityIdType() {
         return CONTRACT;
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearAutoRenewAccountId())
+                .build();
+        var transaction = transaction(recordItem);
+        var ownerId = EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        var transactionBody = recordItem.getTransactionBody().getContractCreateInstance();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(ownerId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(List.of()));
+
+        // Verify entity was created
+        assertEntity(ownerId, recordItem.getConsensusTimestamp());
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
     @Test
