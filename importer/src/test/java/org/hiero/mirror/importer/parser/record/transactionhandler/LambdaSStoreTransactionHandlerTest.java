@@ -5,12 +5,16 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
+import java.util.Optional;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -19,24 +23,40 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class LambdaSStoreTransactionHandlerTest {
+class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
-    private EvmHookStorageHandler storageHandler;
-    private LambdaSStoreTransactionHandler handler;
-    private RecordItemBuilder recordItemBuilder;
+    private final EvmHookStorageHandler storageHandler = mock(EvmHookStorageHandler.class);
+    private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @BeforeEach
     void setUp() {
-        storageHandler = mock(EvmHookStorageHandler.class);
-        handler = new LambdaSStoreTransactionHandler(storageHandler);
-        recordItemBuilder = new RecordItemBuilder();
+        reset(storageHandler);
+        when(entityIdService.lookup(defaultEntityId.toAccountID())).thenReturn(Optional.of(defaultEntityId));
+    }
+
+    @Override
+    protected TransactionHandler getTransactionHandler() {
+        return new LambdaSStoreTransactionHandler(storageHandler, entityIdService);
+    }
+
+    @Override
+    protected TransactionBody.Builder getDefaultTransactionBody() {
+        return TransactionBody.newBuilder()
+                .setLambdaSstore(LambdaSStoreTransactionBody.newBuilder()
+                        .setHookId(HookId.newBuilder()
+                                .setEntityId(HookEntityId.newBuilder().setAccountId(defaultEntityId.toAccountID()))));
+    }
+
+    @Override
+    protected EntityType getExpectedEntityIdType() {
+        return EntityType.ACCOUNT;
     }
 
     @Test
     void getType() {
-        final var type = handler.getType();
+        final var type = transactionHandler.getType();
         assertThat(type).isEqualTo(TransactionType.LAMBDA_SSTORE);
     }
 
@@ -50,7 +70,9 @@ class LambdaSStoreTransactionHandlerTest {
                 .getEntityId()
                 .getAccountId();
 
-        final var actual = handler.getEntity(recordItem);
+        when(entityIdService.lookup(account)).thenReturn(Optional.of(EntityId.of(account)));
+
+        final var actual = transactionHandler.getEntity(recordItem);
         assertThat(actual).isEqualTo(EntityId.of(account));
     }
 
@@ -64,7 +86,9 @@ class LambdaSStoreTransactionHandlerTest {
                         .setEntityId(HookEntityId.newBuilder().setContractId(contract))))
                 .build();
 
-        final var actual = handler.getEntity(recordItem);
+        when(entityIdService.lookup(contract)).thenReturn(Optional.of(EntityId.of(contract)));
+
+        final var actual = transactionHandler.getEntity(recordItem);
         assertThat(actual).isEqualTo(EntityId.of(contract));
     }
 
@@ -79,7 +103,7 @@ class LambdaSStoreTransactionHandlerTest {
         final var expectedStorageUpdates = body.getStorageUpdatesList();
 
         final var txn = txnFor(recordItem, ownerEntityId);
-        handler.updateTransaction(txn, recordItem);
+        transactionHandler.updateTransaction(txn, recordItem);
 
         final var tsCaptor = ArgumentCaptor.forClass(Long.class);
         final var hookIdCaptor = ArgumentCaptor.forClass(Long.class);

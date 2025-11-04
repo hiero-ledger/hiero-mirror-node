@@ -220,17 +220,17 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
         context.add(storageChange);
 
-        if (storageChange.getValueWritten() != null) {
-            final var hookStorage = HookStorage.builder()
-                    .createdTimestamp(storageChange.getConsensusTimestamp())
-                    .hookId(storageChange.getHookId())
-                    .ownerId(storageChange.getOwnerId())
-                    .key(storageChange.getKey())
-                    .modifiedTimestamp(storageChange.getConsensusTimestamp())
-                    .value(storageChange.getValueWritten())
-                    .build();
-            context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
-        }
+        final var hookStorage = HookStorage.builder()
+                .createdTimestamp(storageChange.getConsensusTimestamp())
+                .deleted(storageChange.isDeleted())
+                .hookId(storageChange.getHookId())
+                .ownerId(storageChange.getOwnerId())
+                .key(storageChange.getKey())
+                .modifiedTimestamp(storageChange.getConsensusTimestamp())
+                .value(storageChange.getValueWritten())
+                .build();
+
+        context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
     }
 
     @Override
@@ -909,8 +909,15 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     private HookStorage mergeHookStorage(HookStorage previous, HookStorage current) {
+
+        if (previous.isDeleted() && !current.isDeleted()) {
+            previous.setCreatedTimestamp(~current.getCreatedTimestamp() + 1);
+        }
+
         previous.setValue(current.getValue());
         previous.setModifiedTimestamp(current.getModifiedTimestamp());
+        previous.setDeleted(current.isDeleted());
+
         return previous;
     }
 

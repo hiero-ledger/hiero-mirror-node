@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+
 import com.google.common.collect.Range;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails.HookCase;
@@ -12,6 +15,7 @@ import jakarta.inject.Named;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
@@ -190,22 +194,24 @@ final class EVMHookHandler implements EvmHookStorageHandler {
     }
 
     private void processMappingEntries(LambdaMappingEntries entries, long consensusTs, long ownerId, long hookId) {
-        final var mappingSlot = entries.getMappingSlot().toByteArray();
+        final var mappingSlot = leftPadBytes(toBytes(entries.getMappingSlot()), 32);
 
         for (final var entry : entries.getEntriesList()) {
             final var mappingKey = entry.hasKey()
-                    ? leftPad32(entry.getKey().toByteArray())
-                    : keccak256(entry.getPreimage().toByteArray());
+                    ? leftPadBytes(toBytes(entry.getKey()), 32)
+                    : keccak256(toBytes(entry.getPreimage()));
 
-            final var valueWritten = entry.getValue().toByteArray();
-            final var derivedSlot = deriveMappingSlot(mappingSlot, mappingKey);
+            final var valueWritten = toBytes(entry.getValue());
+            final var derivedSlot = keccak256(mappingKey, mappingSlot);
             persistChange(ownerId, hookId, derivedSlot, valueWritten, consensusTs);
         }
     }
 
     private void processStorageSlotUpdate(LambdaStorageSlot storageSlot, long consensusTs, long ownerId, long hookId) {
-        final var slotKey = storageSlot.getKey().toByteArray();
-        final var valueWritten = storageSlot.getValue().toByteArray();
+        final var slotKey = toBytes(storageSlot.getKey());
+
+        // Protobuff API ensures that value will never be null
+        final var valueWritten = toBytes(storageSlot.getValue());
         persistChange(ownerId, hookId, slotKey, valueWritten, consensusTs);
     }
 
@@ -215,35 +221,20 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         change.setOwnerId(ownerId);
         change.setHookId(hookId);
         change.setKey(key);
+        change.setValueRead(valueWritten);
         change.setValueWritten(valueWritten);
+        change.setDeleted(ArrayUtils.isEmpty(valueWritten));
         entityListener.onHookStorageChange(change);
-    }
-
-    private static byte[] deriveMappingSlot(byte[] mappingSlot, byte[] key) {
-        final var derivedSlot = new byte[mappingSlot.length + key.length];
-        System.arraycopy(mappingSlot, 0, derivedSlot, 0, mappingSlot.length);
-        System.arraycopy(key, 0, derivedSlot, mappingSlot.length, key.length);
-        return keccak256(derivedSlot);
     }
 
     static byte[] keccak256(byte[] input) {
         final var d = new Keccak.Digest256();
-        d.update(input, 0, input.length);
-        return d.digest();
+        return d.digest(input);
     }
 
-    static byte[] leftPad32(byte[] in) {
-        final int n = in.length;
-        if (n == 32) {
-            return in;
-        }
-
-        if (n > 32) {
-            throw new IllegalArgumentException("Input length greater than 32 bytes");
-        }
-
-        final byte[] padded = new byte[32];
-        System.arraycopy(in, 0, padded, 32 - n, n);
-        return padded;
+    static byte[] keccak256(byte[] key, byte[] mappingSlot) {
+        final var d = new Keccak.Digest256();
+        d.update(key);
+        return d.digest(mappingSlot);
     }
 }

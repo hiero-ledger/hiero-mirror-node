@@ -3,9 +3,9 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.keccak256;
-import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.leftPad32;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.times;
@@ -341,14 +341,6 @@ final class EVMHookHandlerTest {
         final var update =
                 LambdaStorageUpdate.newBuilder().setMappingEntries(entries).build();
 
-        if (keySize > 32) {
-            assertThatThrownBy(() ->
-                            eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, List.of(update)))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessageContaining("greater than 32");
-            return;
-        }
-
         eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, List.of(update));
 
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
@@ -359,14 +351,13 @@ final class EVMHookHandlerTest {
             final var invocation = invocations.get(i);
             final var entry = entries.getEntries(i);
 
-            final var expectedKey =
-                    keccak256(concat(mappingSlot, leftPad32(entry.getKey().toByteArray())));
+            final var expectedKey = keccak256(leftPadBytes(toBytes(entry.getKey()), 32), leftPadBytes(mappingSlot, 32));
             assertThat(invocation.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
             assertThat(invocation.getHookId()).isEqualTo(hookId);
             assertThat(invocation.getOwnerId()).isEqualTo(ownerId);
 
             assertThat(invocation.getKey()).isEqualTo(expectedKey);
-            assertThat(invocation.getValueWritten()).isEqualTo(entry.getValue().toByteArray());
+            assertThat(invocation.getValueWritten()).isEqualTo(toBytes(entry.getValue()));
         }
     }
 
@@ -408,7 +399,7 @@ final class EVMHookHandlerTest {
         assertThat(changes).hasSize(numEntries);
 
         for (int i = 0; i < numEntries; i++) {
-            final var expectedSlot = keccak256(concat(mappingSlot, keccak256(preimages.get(i))));
+            final var expectedSlot = keccak256(keccak256(preimages.get(i)), leftPadBytes(mappingSlot, 32));
             final var change = changes.get(i);
 
             assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
@@ -418,13 +409,6 @@ final class EVMHookHandlerTest {
             assertThat(change.getKey()).isEqualTo(expectedSlot);
             assertThat(change.getValueWritten()).isEqualTo(values.get(i));
         }
-    }
-
-    private static byte[] concat(final byte[] a, final byte[] b) {
-        final var out = new byte[a.length + b.length];
-        System.arraycopy(a, 0, out, 0, a.length);
-        System.arraycopy(b, 0, out, a.length, b.length);
-        return out;
     }
 
     private HookCreationDetails createHookCreationDetails(long hookId, EntityId contractId, byte[] adminKey) {

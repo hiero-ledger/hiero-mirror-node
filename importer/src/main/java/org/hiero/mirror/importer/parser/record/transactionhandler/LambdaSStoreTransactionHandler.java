@@ -9,6 +9,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.jspecify.annotations.NullMarked;
 
 @Named
@@ -18,6 +19,7 @@ import org.jspecify.annotations.NullMarked;
 final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
 
     private final EvmHookStorageHandler hookHandler;
+    private final EntityIdService entityIdService;
 
     @Override
     public TransactionType getType() {
@@ -26,18 +28,22 @@ final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
 
     @Override
     public EntityId getEntity(RecordItem recordItem) {
-        final var body = recordItem.getTransactionBody().getLambdaSstore();
-        final var hookId = body.getHookId().getEntityId();
+        final var hookEntityId =
+                recordItem.getTransactionBody().getLambdaSstore().getHookId().getEntityId();
 
-        if (hookId.hasAccountId()) {
-            return EntityId.of(hookId.getAccountId());
+        if (hookEntityId.hasAccountId()) {
+            return entityIdService.lookup(hookEntityId.getAccountId()).orElse(EntityId.EMPTY);
         }
 
-        return EntityId.of(hookId.getContractId());
+        return entityIdService.lookup(hookEntityId.getContractId()).orElse(EntityId.EMPTY);
     }
 
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
+        if (!recordItem.isSuccessful()) {
+            return;
+        }
+
         final var transactionBody = recordItem.getTransactionBody().getLambdaSstore();
         final var ownerId = transaction.getEntityId().getId();
         final var hookId = transactionBody.getHookId().getHookId();

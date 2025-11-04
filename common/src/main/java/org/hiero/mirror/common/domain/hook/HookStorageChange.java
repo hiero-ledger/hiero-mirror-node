@@ -26,6 +26,8 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
     @jakarta.persistence.Id
     private long consensusTimestamp;
 
+    private boolean deleted;
+
     @jakarta.persistence.Id
     private long hookId;
 

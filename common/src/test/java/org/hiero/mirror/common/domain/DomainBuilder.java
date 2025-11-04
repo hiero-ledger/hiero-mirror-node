@@ -625,13 +625,14 @@ public class DomainBuilder {
     }
 
     public DomainWrapper<HookStorageChange, HookStorageChange.HookStorageChangeBuilder> hookStorageChange() {
-        var builder = HookStorageChange.builder()
+        final var value = bytes(32);
+        final var builder = HookStorageChange.builder()
                 .consensusTimestamp(timestamp())
                 .hookId(number())
                 .key(bytes(32))
                 .ownerId(id())
-                .valueRead(bytes(32))
-                .valueWritten(bytes(32));
+                .valueRead(value)
+                .valueWritten(value);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

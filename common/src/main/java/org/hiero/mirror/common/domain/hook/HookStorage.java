@@ -3,7 +3,6 @@
 package org.hiero.mirror.common.domain.hook;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
@@ -14,6 +13,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.util.DomainUtils;
 
@@ -25,14 +25,23 @@ import org.hiero.mirror.common.util.DomainUtils;
 @NoArgsConstructor
 @Upsertable
 public class HookStorage {
+    private static final String CREATED_TS_COALESCE =
+            """
+                    case when coalesce(e_deleted, true) and NOT deleted then abs(created_timestamp)
+                         when created_timestamp < 0 and NOT deleted then abs(created_timestamp)
+                         else e_created_timestamp
+                    end
+                    """;
 
     private static final int KEY_BYTE_LENGTH = 32;
 
-    @Column(updatable = false)
+    @UpsertColumn(coalesce = CREATED_TS_COALESCE)
     private long createdTimestamp;
 
     @jakarta.persistence.Id
     private long hookId;
+
+    private boolean deleted;
 
     @jakarta.persistence.Id
     @ToString.Exclude
