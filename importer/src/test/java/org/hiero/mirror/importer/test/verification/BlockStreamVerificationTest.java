@@ -212,20 +212,18 @@ final class BlockStreamVerificationTest {
     }
 
     private String compareAndCaptureAssertError(
-            BiConsumer<List<TransactionSidecarRecord>, Transaction> comparator,
-            List<TransactionSidecarRecord> sidecarRecords,
-            Transaction transaction) {
+            BiConsumer<RecordItem, Transaction> comparator, RecordItem expectedRecordItem, Transaction transaction) {
         try {
-            comparator.accept(sidecarRecords, transaction);
+            comparator.accept(expectedRecordItem, transaction);
             return null;
         } catch (AssertionError e) {
             return e.getMessage();
         }
     }
 
-    private void compareContractActions(List<TransactionSidecarRecord> sidecarRecords, Transaction transaction) {
+    private void compareContractActions(RecordItem recordItem, Transaction transaction) {
         final var expected = new ArrayList<ContractAction>();
-        for (var sidecarRecord : sidecarRecords) {
+        for (var sidecarRecord : recordItem.getSidecarRecords()) {
             if (sidecarRecord.hasActions()) {
                 final var contractActionList = sidecarRecord.getActions().getContractActionsList();
                 for (int i = 0; i < contractActionList.size(); i++) {
@@ -278,16 +276,22 @@ final class BlockStreamVerificationTest {
     }
 
     @SneakyThrows
-    private void compareContractBytecode(List<TransactionSidecarRecord> sidecarRecords, Transaction transaction) {
+    private void compareContractBytecode(RecordItem expectedRecordItem, Transaction transaction) {
         Contract expected = null;
-        for (var sidecarRecord : sidecarRecords) {
-            if (sidecarRecord.hasBytecode()) {
-                var bytecode = sidecarRecord.getBytecode();
-                expected = Contract.builder()
-                        .initcode(DomainUtils.toBytes(bytecode.getInitcode()))
-                        .id(EntityId.of(bytecode.getContractId()).getId())
-                        .runtimeBytecode(DomainUtils.toBytes(bytecode.getRuntimeBytecode()))
-                        .build();
+
+        if (expectedRecordItem.isSuccessful()) {
+            // Only process contract bytecode sidecar when successful. Consensus node does create contract bytecode
+            // sidecar with initcode even when the contract create has failed; mirror node will not and should not store
+            // such info since there's no contract entity
+            for (var sidecarRecord : expectedRecordItem.getSidecarRecords()) {
+                if (sidecarRecord.hasBytecode()) {
+                    var bytecode = sidecarRecord.getBytecode();
+                    expected = Contract.builder()
+                            .initcode(DomainUtils.toBytes(bytecode.getInitcode()))
+                            .id(EntityId.of(bytecode.getContractId()).getId())
+                            .runtimeBytecode(DomainUtils.toBytes(bytecode.getRuntimeBytecode()))
+                            .build();
+                }
             }
         }
 
@@ -309,9 +313,9 @@ final class BlockStreamVerificationTest {
         assertThat(actual).isEqualTo(expected);
     }
 
-    private void compareContractStateChanges(List<TransactionSidecarRecord> sidecarRecords, Transaction transaction) {
+    private void compareContractStateChanges(RecordItem expectedRecordItem, Transaction transaction) {
         final var expected = new ArrayList<ContractStateChange>();
-        for (var sidecarRecord : sidecarRecords) {
+        for (var sidecarRecord : expectedRecordItem.getSidecarRecords()) {
             if (sidecarRecord.hasStateChanges()) {
                 var stateChangesList = sidecarRecord.getStateChanges().getContractStateChangesList();
                 for (var stateChange : stateChangesList) {
@@ -340,10 +344,10 @@ final class BlockStreamVerificationTest {
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     }
 
-    private List<String> compareSidecarRecords(List<TransactionSidecarRecord> sidecarRecords, Transaction transaction) {
-        return Stream.<BiConsumer<List<TransactionSidecarRecord>, Transaction>>of(
+    private List<String> compareSidecarRecords(RecordItem expectedRecordItem, Transaction transaction) {
+        return Stream.<BiConsumer<RecordItem, Transaction>>of(
                         this::compareContractActions, this::compareContractBytecode, this::compareContractStateChanges)
-                .map(f -> compareAndCaptureAssertError(f, sidecarRecords, transaction))
+                .map(f -> compareAndCaptureAssertError(f, expectedRecordItem, transaction))
                 .filter(Objects::nonNull)
                 .toList();
     }
@@ -549,7 +553,7 @@ final class BlockStreamVerificationTest {
 
         final var diffs = ListUtils.union(
                 compareTransactionRecord(expectedRecordItem, transaction),
-                compareSidecarRecords(expectedRecordItem.getSidecarRecords(), transaction));
+                compareSidecarRecords(expectedRecordItem, transaction));
         final boolean successful = diffs.isEmpty();
         log.info(
                 "Verified transaction record of {} transaction at {} - {}",
