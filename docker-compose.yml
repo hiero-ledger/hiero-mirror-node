@@ -213,7 +213,7 @@ configs:
         location ~ "^/api/v1/contracts/results/((0x)?[A-Fa-f0-9]{64}|\d+\.\d+\.\d+-\d+-\d+)/opcodes" { proxy_pass http://web3_host$$request_uri; }
 
         # rest-java host
-        location ~ "^/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops)" { proxy_pass http://rest_java_host$$request_uri; }
+        location ~ "^/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)" { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/exchangerate { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/stake { proxy_pass http://rest_java_host$$request_uri; }
         location ~ "^/api/v1/topics/(\d+\.){0,2}\d+$" { proxy_pass http://rest_java_host$$request_uri; }

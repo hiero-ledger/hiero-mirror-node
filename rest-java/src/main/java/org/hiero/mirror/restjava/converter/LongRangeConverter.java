@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.converter;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import jakarta.validation.constraints.NotNull;
 import org.jooq.postgres.extensions.types.LongRange;
 import org.springframework.core.convert.converter.Converter;
 
@@ -14,7 +13,7 @@ public class LongRangeConverter implements Converter<LongRange, Range<Long>> {
     public static final LongRangeConverter INSTANCE = new LongRangeConverter();
 
     @Override
-    public Range<Long> convert(@NotNull LongRange source) {
+    public Range<Long> convert(LongRange source) {
         var lower = source.lower();
         var lowerType = source.lowerIncluding() ? BoundType.CLOSED : BoundType.OPEN;
         var upper = source.upper();

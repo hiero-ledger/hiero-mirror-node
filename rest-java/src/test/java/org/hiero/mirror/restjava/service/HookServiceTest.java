@@ -3,7 +3,13 @@
 package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +50,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         final var request = HooksRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIdEqualsFilters(List.of(1L, 2L))
+                .hookIds(List.of(1L, 2L))
                 .limit(5)
                 .order(Sort.Direction.DESC)
                 .build();
@@ -68,8 +74,8 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         final var request = HooksRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIdLowerBoundInclusive(10L)
-                .hookIdUpperBoundInclusive(20L)
+                .lowerBound(10L)
+                .upperBound(20L)
                 .limit(10)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -93,9 +99,9 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         final var request = HooksRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIdEqualsFilters(List.of(5L, 15L, 25L))
-                .hookIdLowerBoundInclusive(10L)
-                .hookIdUpperBoundInclusive(20L)
+                .hookIds(List.of(5L, 15L, 25L))
+                .lowerBound(10L)
+                .upperBound(20L)
                 .limit(10)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -116,9 +122,9 @@ final class HookServiceTest extends RestJavaIntegrationTest {
 
         final var request = HooksRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
-                .hookIdEqualsFilters(List.of(1L, 2L))
-                .hookIdLowerBoundInclusive(10L)
-                .hookIdUpperBoundInclusive(20L)
+                .hookIds(List.of(1L, 2L))
+                .lowerBound(10L)
+                .upperBound(20L)
                 .limit(5)
                 .build();
 

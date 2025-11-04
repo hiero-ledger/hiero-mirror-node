@@ -18,7 +18,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
-class EntityServiceTest extends RestJavaIntegrationTest {
+final class EntityServiceTest extends RestJavaIntegrationTest {
 
     private final EntityService service;
 
@@ -55,7 +55,7 @@ class EntityServiceTest extends RestJavaIntegrationTest {
     @ValueSource(
             strings = {
                 "0.0.000000000000000000000000000000000186Fb1b",
-                "0.0.AABBCC22",
+                "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
             })
     void lookupNotFound(String id) {
         var entityIdParameter = EntityIdParameter.valueOf(id);

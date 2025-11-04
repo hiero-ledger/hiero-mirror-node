@@ -9,21 +9,23 @@ import com.swirlds.metrics.api.MetricConfig;
 import com.swirlds.metrics.api.Metrics;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.consensus.model.node.NodeId;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 /**
  * A no-op {@link Metrics} implementation.
  */
+@NullMarked
 @SuppressWarnings("deprecation")
-public class NoOpMetrics implements PlatformMetrics {
+public final class NoOpMetrics implements PlatformMetrics {
 
-    private final Map<String /* category */, Map<String /* name */, Metric>> metrics = new HashMap<>();
+    private final Map<String /* category */, Map<String /* name */, Metric>> metrics = new ConcurrentHashMap<>();
 
     private static final NoOpMetricsFactory FACTORY = new NoOpMetricsFactory();
 
@@ -46,7 +48,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public synchronized @Nullable Metric getMetric(@NonNull final String category, @NonNull final String name) {
+    public @Nullable Metric getMetric(final String category, final String name) {
         final Map<String, Metric> metricsInCategory = metrics.get(category);
         if (metricsInCategory == null) {
             return null;
@@ -57,9 +59,8 @@ public class NoOpMetrics implements PlatformMetrics {
     /**
      * {@inheritDoc}
      */
-    @NonNull
     @Override
-    public synchronized Collection<Metric> findMetricsByCategory(@NonNull final String category) {
+    public Collection<Metric> findMetricsByCategory(final String category) {
         final Map<String, Metric> metricsInCategory = metrics.get(category);
         if (metricsInCategory == null) {
             return List.of();
@@ -70,9 +71,8 @@ public class NoOpMetrics implements PlatformMetrics {
     /**
      * {@inheritDoc}
      */
-    @NonNull
     @Override
-    public synchronized Collection<Metric> getAll() {
+    public Collection<Metric> getAll() {
         // Not very efficient, but the no-op metrics doesn't do snapshotting, so this should rarely (if ever) be called.
         final List<Metric> allMetrics = new ArrayList<>();
         for (final Map<String, Metric> metricsInCategory : metrics.values()) {
@@ -87,12 +87,12 @@ public class NoOpMetrics implements PlatformMetrics {
     @NonNull
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <T extends Metric> T getOrCreate(@NonNull final MetricConfig<T, ?> config) {
+    public <T extends Metric> T getOrCreate(final MetricConfig<T, ?> config) {
         Objects.requireNonNull(config, "config must not be null");
         final String category = config.getCategory();
         final String name = config.getName();
 
-        final Map<String, Metric> metricsInCategory = metrics.computeIfAbsent(category, k -> new HashMap<>());
+        final Map<String, Metric> metricsInCategory = metrics.computeIfAbsent(category, k -> new ConcurrentHashMap<>());
         return (T) metricsInCategory.computeIfAbsent(name, k -> FACTORY.createMetric(config));
     }
 
@@ -100,7 +100,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public synchronized void remove(@NonNull final String category, @NonNull final String name) {
+    public void remove(final String category, final String name) {
         Objects.requireNonNull(category, "category must not be null");
         Objects.requireNonNull(name, "name must not be null");
         final Map<String, Metric> metricsInCategory = metrics.get(category);
@@ -120,7 +120,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public void remove(@NonNull final Metric metric) {
+    public void remove(final Metric metric) {
         Objects.requireNonNull(metric, "metric must not be null");
         remove(metric.getCategory(), metric.getName());
     }
@@ -129,7 +129,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public void remove(@NonNull final MetricConfig<?, ?> config) {
+    public void remove(final MetricConfig<?, ?> config) {
         Objects.requireNonNull(config, "config must not be null");
         remove(config.getCategory(), config.getName());
     }
@@ -138,7 +138,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public void addUpdater(@NonNull final Runnable updater) {
+    public void addUpdater(final Runnable updater) {
         Objects.requireNonNull(updater, "updater must not be null");
         // Intentional no-op
     }
@@ -147,7 +147,7 @@ public class NoOpMetrics implements PlatformMetrics {
      * {@inheritDoc}
      */
     @Override
-    public void removeUpdater(@NonNull final Runnable updater) {
+    public void removeUpdater(final Runnable updater) {
         Objects.requireNonNull(updater, "updater must not be null");
         // Intentional no-op
     }

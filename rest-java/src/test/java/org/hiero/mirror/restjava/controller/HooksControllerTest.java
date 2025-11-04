@@ -7,7 +7,12 @@ import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARA
 
 import com.google.common.io.BaseEncoding;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -38,8 +43,6 @@ final class HooksControllerTest extends ControllerTest {
     final class HooksEndpointTest extends EndpointTest {
 
         private static final long ACCOUNT_ID = 1234L;
-        private static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";
-        private static final String EVM_ADDRESS = "ac384c53f03855fa1b3616052f8ba32c6c2a2fec";
 
         @Override
         protected String getUrl() {
@@ -60,20 +63,18 @@ final class HooksControllerTest extends ControllerTest {
             "0.1234",
             "0.0.1234",
             // alias formats
-            "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
-            "0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
-            "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
+            ALIAS,
+            "0." + ALIAS,
+            "0.0." + ALIAS,
             // evm formats
-            "ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
-            "0.ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
-            "0.0.ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
-            "0xac384c53f03855fa1b3616052f8ba32c6c2a2fec"
+            EVM_ADDRESS,
+            "0." + EVM_ADDRESS,
+            "0.0." + EVM_ADDRESS,
+            "0x" + EVM_ADDRESS,
         })
         void success(String address) {
             // given
             persistAccount(ACCOUNT_ID, ALIAS, EVM_ADDRESS);
-
-            final var accountAddress = normalizeAddress(address);
 
             final var hook1 = persistHook(ACCOUNT_ID);
             final var hook2 = persistHook(ACCOUNT_ID);
@@ -84,8 +85,7 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setLinks(new Links());
 
             // when
-            final var actual =
-                    restClient.get().uri("", accountAddress).retrieve().body(HooksResponse.class);
+            final var actual = restClient.get().uri("", address).retrieve().body(HooksResponse.class);
 
             // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
@@ -117,7 +117,7 @@ final class HooksControllerTest extends ControllerTest {
             final var hook2 = persistHook(ACCOUNT_ID);
             final var hook3 = persistHook(ACCOUNT_ID);
 
-            final List<Hook> expectedHookEntities = order.equals("asc") ? List.of(hook1, hook2) : List.of(hook3, hook2);
+            final var expectedHookEntities = order.equals("asc") ? List.of(hook1, hook2) : List.of(hook3, hook2);
 
             final var expectedHooks = hookMapper.map(expectedHookEntities);
             final var expectedResponse = new HooksResponse();
@@ -147,8 +147,6 @@ final class HooksControllerTest extends ControllerTest {
             // then
             assertThat(actual).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getHooks()).hasSize(limit);
-            assertThat(actual.getLinks()).isNotNull();
-            assertThat(actual.getLinks().getNext()).isEqualTo(links.getNext());
         }
 
         @ParameterizedTest
@@ -247,7 +245,7 @@ final class HooksControllerTest extends ControllerTest {
                             .toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
                     // Default JSR-303 message for @Size validation
-                    "hookIdFilters size must be between 0 and " + MAX_REPEATED_QUERY_PARAMETERS);
+                    "hookId size must be between 0 and " + MAX_REPEATED_QUERY_PARAMETERS);
         }
 
         @Test
@@ -318,7 +316,6 @@ final class HooksControllerTest extends ControllerTest {
                     "Failed to convert 'hook.id'");
         }
 
-        @DisplayName("GET /api/v1/accounts/{accountId}/hooks [Invalid Account ID Formats]")
         @ParameterizedTest
         @ValueSource(
                 strings = {
@@ -335,7 +332,7 @@ final class HooksControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("", invalidAccountId).retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'accountId'");
+                    "Failed to convert 'ownerId'");
         }
 
         private void persistAccount(long accountId, String alias, String evmAddress) {
@@ -355,24 +352,6 @@ final class HooksControllerTest extends ControllerTest {
                             .alias(aliasBytes)
                             .evmAddress(evmBytes))
                     .persist();
-        }
-
-        private static String normalizeAddress(String input) {
-            if (input == null) {
-                return null;
-            }
-
-            if (input.startsWith("0.0.")) {
-                return input.substring(4);
-            } else if (input.startsWith("0.")) {
-                return input.substring(2);
-            }
-
-            if (input.startsWith("0x")) {
-                return input.substring(2);
-            }
-
-            return input;
         }
 
         private Hook persistHook(long ownerId) {

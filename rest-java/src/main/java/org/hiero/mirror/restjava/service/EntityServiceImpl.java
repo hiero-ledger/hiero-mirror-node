@@ -2,6 +2,10 @@
 
 package org.hiero.mirror.restjava.service;
 
+import jakarta.inject.Named;
+import jakarta.persistence.EntityNotFoundException;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.common.EntityIdAliasParameter;
@@ -9,26 +13,21 @@ import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
 import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.repository.EntityRepository;
-import org.jspecify.annotations.NonNull;
-import jakarta.inject.Named;
-import jakarta.persistence.EntityNotFoundException;
-import java.util.Optional;
-import lombok.RequiredArgsConstructor;
 
 @Named
 @RequiredArgsConstructor
-class EntityServiceImpl implements EntityService {
+final class EntityServiceImpl implements EntityService {
 
     private final EntityRepository entityRepository;
 
     @Override
-    public Entity findById(@NonNull EntityId id) {
+    public Entity findById(EntityId id) {
         return entityRepository.findById(id.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Entity not found: " + id));
+                .orElseThrow(() -> new EntityNotFoundException("Entity not found"));
     }
 
     @Override
-    public EntityId lookup(@NonNull EntityIdParameter accountId) {
+    public EntityId lookup(EntityIdParameter accountId) {
         var id = switch (accountId) {
             case EntityIdNumParameter p -> Optional.of(p.id());
             case EntityIdAliasParameter p -> entityRepository.findByAlias(p.alias()).map(EntityId::of);

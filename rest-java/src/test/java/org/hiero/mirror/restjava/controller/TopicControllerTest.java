@@ -116,7 +116,7 @@ class TopicControllerTest extends ControllerTest {
                     () -> restClient.get().uri("", id).retrieve().body(Topic.class);
 
             // Then
-            validateError(callable, HttpClientErrorException.BadRequest.class, "Invalid value for path variable 'id'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'id'");
         }
 
         @Test
@@ -135,8 +135,7 @@ class TopicControllerTest extends ControllerTest {
                     .body(Topic.class);
 
             // Then
-            validateError(
-                    callable, HttpClientErrorException.NotFound.class, "Entity not found: " + entity.toEntityId());
+            validateError(callable, HttpClientErrorException.NotFound.class, "Topic not found");
         }
 
         @TestFactory
@@ -152,7 +151,7 @@ class TopicControllerTest extends ControllerTest {
                         () -> restClient.get().uri("", input).retrieve().body(Topic.class);
 
                 // Then
-                validateError(callable, HttpClientErrorException.NotFound.class, "Entity not found: " + entityId);
+                validateError(callable, HttpClientErrorException.NotFound.class, "Topic not found");
             };
             return DynamicTest.stream(inputs.iterator(), Function.identity(), executor);
         }

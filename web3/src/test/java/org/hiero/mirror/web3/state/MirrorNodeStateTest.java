@@ -10,7 +10,6 @@ import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.services.ServicesRegistry;
-import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.spi.ReadableKVState;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -19,7 +18,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.core.MapReadableStates;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
@@ -42,7 +40,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 @SuppressWarnings("rawtypes")
-class MirrorNodeStateTest {
+final class MirrorNodeStateTest {
 
     @InjectMocks
     private MirrorNodeState mirrorNodeState;
@@ -79,12 +77,6 @@ class MirrorNodeStateTest {
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @Mock
-    private StateChangeListener listener;
-
-    @Mock
-    private RecordFileRepository recordFileRepository;
 
     private List<ReadableKVState> readableKVStates;
 
@@ -413,6 +405,6 @@ class MirrorNodeStateTest {
     }
 
     private MirrorNodeState buildStateObject() {
-        return new MirrorNodeState(readableKVStates, servicesRegistry, mirrorNodeEvmProperties, recordFileRepository);
+        return new MirrorNodeState(readableKVStates, servicesRegistry, mirrorNodeEvmProperties);
     }
 }

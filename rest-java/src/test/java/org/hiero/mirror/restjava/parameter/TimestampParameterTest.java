@@ -47,7 +47,7 @@ final class TimestampParameterTest {
     @EnumSource(
             value = RangeOperator.class,
             mode = EnumSource.Mode.EXCLUDE,
-            names = {"NE"})
+            names = {"NE", "UNKNOWN"})
     void rangeOperator(RangeOperator operator) {
         assertThat(new TimestampParameter(operator, 0L)).isEqualTo(TimestampParameter.valueOf(operator + ":0"));
     }

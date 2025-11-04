@@ -14,14 +14,14 @@ public sealed interface EntityIdParameter
 
         EntityIdParameter entityId;
 
-        if ((entityId = EntityIdNumParameter.valueOf(id)) != null) {
+        if ((entityId = EntityIdNumParameter.valueOfNullable(id)) != null) {
             return entityId;
-        } else if ((entityId = EntityIdEvmAddressParameter.valueOf(id)) != null) {
+        } else if ((entityId = EntityIdEvmAddressParameter.valueOfNullable(id)) != null) {
             return entityId;
-        } else if ((entityId = EntityIdAliasParameter.valueOf(id)) != null) {
+        } else if ((entityId = EntityIdAliasParameter.valueOfNullable(id)) != null) {
             return entityId;
         } else {
-            throw new IllegalArgumentException("Unsupported ID format: %s".formatted(id));
+            throw new IllegalArgumentException("Unsupported ID format");
         }
     }
 

@@ -17,7 +17,8 @@ public enum RangeOperator {
     GTE(">=", Field::ge),
     LT("<", Field::lt),
     LTE("<=", Field::le),
-    NE("!=", Field::ne);
+    NE("!=", Field::ne),
+    UNKNOWN("unknown", null);
 
     private final String operator;
     private final BiFunction<Field, Object, Condition> function;

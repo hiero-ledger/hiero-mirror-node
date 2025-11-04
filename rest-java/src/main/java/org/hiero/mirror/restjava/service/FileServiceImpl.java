@@ -14,13 +14,11 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
-import org.jspecify.annotations.NullMarked;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.function.ThrowingFunction;
 
 @CustomLog
 @Named
-@NullMarked
 @RequiredArgsConstructor
 final class FileServiceImpl implements FileService {
 

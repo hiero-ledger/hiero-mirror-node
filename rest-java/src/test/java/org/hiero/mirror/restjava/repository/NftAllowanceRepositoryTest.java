@@ -25,9 +25,11 @@ import org.hiero.mirror.restjava.common.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NftAllowanceRequest;
 import org.hiero.mirror.restjava.service.Bound;
+import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort.Direction;
 
+@NullUnmarked
 @RequiredArgsConstructor
 class NftAllowanceRepositoryTest extends RestJavaIntegrationTest {
 
@@ -39,6 +41,10 @@ class NftAllowanceRepositoryTest extends RestJavaIntegrationTest {
     private List<Long> owners;
     private List<Long> spenders;
     private List<Long> tokenIds;
+
+    private static EntityIdRangeParameter fromIndex(RangeOperator operator, List<Long> entityIds, int index) {
+        return new EntityIdRangeParameter(operator, EntityId.of(entityIds.get(index)));
+    }
 
     @Test
     void findAll() {
@@ -516,10 +522,6 @@ class NftAllowanceRepositoryTest extends RestJavaIntegrationTest {
         }
 
         softAssertion.assertAll();
-    }
-
-    private static EntityIdRangeParameter fromIndex(RangeOperator operator, List<Long> entityIds, int index) {
-        return new EntityIdRangeParameter(operator, EntityId.of(entityIds.get(index)));
     }
 
     private record TestSpec(NftAllowanceRequest request, List<Tuple> expected, String description) {}

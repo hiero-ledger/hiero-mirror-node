@@ -7,6 +7,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.CommonProperties;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("java:S6218")
 public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddress) implements EntityIdParameter {
@@ -15,7 +16,7 @@ public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddr
     public static final Pattern EVM_ADDRESS_PATTERN = Pattern.compile(EVM_ADDRESS_REGEX);
 
     @SneakyThrows(DecoderException.class)
-    public static EntityIdEvmAddressParameter valueOf(String id) {
+    static @Nullable EntityIdEvmAddressParameter valueOfNullable(String id) {
         var evmMatcher = EVM_ADDRESS_PATTERN.matcher(id);
 
         if (!evmMatcher.matches()) {
@@ -36,5 +37,15 @@ public record EntityIdEvmAddressParameter(long shard, long realm, byte[] evmAddr
 
         var evmAddress = Hex.decodeHex(evmMatcher.group(6));
         return new EntityIdEvmAddressParameter(shard, realm, evmAddress);
+    }
+
+    public static EntityIdEvmAddressParameter valueOf(String id) {
+        final var result = valueOfNullable(id);
+
+        if (result == null) {
+            throw new IllegalArgumentException("Invalid EVM Address");
+        }
+
+        return result;
     }
 }

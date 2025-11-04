@@ -13,7 +13,7 @@ import org.hiero.mirror.restjava.repository.NftAllowanceRepository;
 
 @Named
 @RequiredArgsConstructor
-public class NftAllowanceServiceImpl implements NftAllowanceService {
+final class NftAllowanceServiceImpl implements NftAllowanceService {
 
     private final NftAllowanceRepository repository;
     private final EntityService entityService;
@@ -30,8 +30,7 @@ public class NftAllowanceServiceImpl implements NftAllowanceService {
         return repository.findAll(request, id);
     }
 
-    private static void checkOwnerSpenderParamValidity(Bound ownerOrSpenderParams, Bound tokenParams) {
-
+    private void checkOwnerSpenderParamValidity(Bound ownerOrSpenderParams, Bound tokenParams) {
         if (ownerOrSpenderParams.isEmpty() && !tokenParams.isEmpty()) {
             throw new IllegalArgumentException("token.id parameter must have account.id present");
         }
@@ -54,7 +53,7 @@ public class NftAllowanceServiceImpl implements NftAllowanceService {
         }
     }
 
-    private static void verifyRangeId(Bound ids) {
+    private void verifyRangeId(Bound ids) {
         ids.verifyUnsupported(RangeOperator.NE);
         ids.verifySingleOccurrence();
         ids.verifyEqualOrRange();
