@@ -16,17 +16,17 @@ public class HooksRequest {
     EntityIdParameter ownerId;
 
     @Builder.Default
-    int limit = 25;
+    private final int limit = 25;
 
     @Builder.Default
-    Sort.Direction order = Direction.DESC;
+    private final Sort.Direction order = Direction.DESC;
 
     @Builder.Default
-    Collection<Long> hookIdEqualsFilters = Collections.emptyList();
+    private final Collection<Long> hookIdEqualsFilters = Collections.emptyList();
 
     @Builder.Default
-    Long hookIdLowerBoundInclusive = 0L;
+    private final long hookIdLowerBoundInclusive = 0L;
 
     @Builder.Default
-    Long hookIdUpperBoundInclusive = Long.MAX_VALUE;
+    private final long hookIdUpperBoundInclusive = Long.MAX_VALUE;
 }

@@ -15,7 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 @RequiredArgsConstructor
-class HookRepositoryTest extends RestJavaIntegrationTest {
+final class HookRepositoryTest extends RestJavaIntegrationTest {
 
     private final HookRepository hookRepository;
 

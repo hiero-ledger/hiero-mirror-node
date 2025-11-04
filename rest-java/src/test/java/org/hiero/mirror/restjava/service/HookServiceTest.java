@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 
 @RequiredArgsConstructor
-class HookServiceTest extends RestJavaIntegrationTest {
+final class HookServiceTest extends RestJavaIntegrationTest {
 
     private static final long OWNER_ID = 1001L;
 
