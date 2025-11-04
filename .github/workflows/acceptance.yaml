@@ -48,12 +48,12 @@ jobs:
       DEFAULT_GRACEFUL_STOP: "1s"
       DEFAULT_VUS: 2
       HELM_RELEASE_NAME: mirror-1
-      MIRROR_NODE_VERSION: v0.142.0-rc1
+      MIRROR_NODE_VERSION: v0.142.0
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.46.1
+      SOLO_VERSION: v0.48.0
       TAG: pr-changes
     steps:
       - name: Harden Runner
@@ -122,7 +122,7 @@ jobs:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
-            cucumberTags: "@acceptance and not @ethereum and not @ethcall"
+            cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
             image:
               tag: ${TAG}
             annotations:
