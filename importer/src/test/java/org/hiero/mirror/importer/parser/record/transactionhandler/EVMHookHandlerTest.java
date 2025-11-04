@@ -345,19 +345,19 @@ final class EVMHookHandlerTest {
 
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
-        final var invocations = captor.getAllValues();
+        final var changes = captor.getAllValues();
 
-        for (int i = 0; i < invocations.size(); i++) {
-            final var invocation = invocations.get(i);
+        for (int i = 0; i < numEntries; i++) {
+            final var change = changes.get(i);
             final var entry = entries.getEntries(i);
 
             final var expectedKey = keccak256(leftPadBytes(toBytes(entry.getKey()), 32), leftPadBytes(mappingSlot, 32));
-            assertThat(invocation.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
-            assertThat(invocation.getHookId()).isEqualTo(hookId);
-            assertThat(invocation.getOwnerId()).isEqualTo(ownerId);
-
-            assertThat(invocation.getKey()).isEqualTo(expectedKey);
-            assertThat(invocation.getValueWritten()).isEqualTo(toBytes(entry.getValue()));
+            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+            assertThat(change.getHookId()).isEqualTo(hookId);
+            assertThat(change.getOwnerId()).isEqualTo(ownerId);
+            assertThat(change.isDeleted()).isFalse();
+            assertThat(change.getKey()).isEqualTo(expectedKey);
+            assertThat(change.getValueWritten()).isEqualTo(toBytes(entry.getValue()));
         }
     }
 
@@ -405,7 +405,7 @@ final class EVMHookHandlerTest {
             assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
             assertThat(change.getHookId()).isEqualTo(hookId);
             assertThat(change.getOwnerId()).isEqualTo(ownerId);
-
+            assertThat(change.isDeleted()).isFalse();
             assertThat(change.getKey()).isEqualTo(expectedSlot);
             assertThat(change.getValueWritten()).isEqualTo(values.get(i));
         }

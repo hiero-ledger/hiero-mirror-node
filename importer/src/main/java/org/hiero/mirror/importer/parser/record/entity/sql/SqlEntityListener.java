@@ -220,17 +220,19 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
         context.add(storageChange);
 
-        final var hookStorage = HookStorage.builder()
-                .createdTimestamp(storageChange.getConsensusTimestamp())
-                .deleted(storageChange.isDeleted())
-                .hookId(storageChange.getHookId())
-                .ownerId(storageChange.getOwnerId())
-                .key(storageChange.getKey())
-                .modifiedTimestamp(storageChange.getConsensusTimestamp())
-                .value(storageChange.getValueWritten())
-                .build();
+        if (storageChange.getValueWritten() != null) {
+            final var hookStorage = HookStorage.builder()
+                    .createdTimestamp(storageChange.getConsensusTimestamp())
+                    .deleted(storageChange.isDeleted())
+                    .hookId(storageChange.getHookId())
+                    .ownerId(storageChange.getOwnerId())
+                    .key(storageChange.getKey())
+                    .modifiedTimestamp(storageChange.getConsensusTimestamp())
+                    .value(storageChange.getValueWritten())
+                    .build();
 
-        context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
+            context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
+        }
     }
 
     @Override

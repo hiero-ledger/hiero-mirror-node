@@ -3530,7 +3530,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 2, 3})
+    @ValueSource(ints = {1, 2, 3, 4})
     void onHookStorageDelete(int commitIndex) {
         final var hookStorageChange = domainBuilder.hookStorageChange().get();
         final var hookStorageDelete = hookStorageChange.toBuilder()
@@ -3567,10 +3567,44 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         }
 
         sqlEntityListener.onHookStorageChange(hookStorageNewValue);
+
+        if (commitIndex > 3) {
+            completeFileAndCommit();
+            assertThat(hookStorageChangeRepository.findAll())
+                    .containsExactly(hookStorageChange, hookStorageDelete, hookStorageNewValue);
+            assertThat(hookStorageRepository.findAll()).containsExactly(fromChange(hookStorageNewValue));
+        }
+
+        var secondDelete = hookStorageChange.toBuilder()
+                .consensusTimestamp(domainBuilder.timestamp())
+                .valueWritten(new byte[0])
+                .valueRead(new byte[0])
+                .deleted(true)
+                .build();
+        sqlEntityListener.onHookStorageChange(secondDelete);
+
         completeFileAndCommit();
         assertThat(hookStorageChangeRepository.findAll())
-                .containsExactly(hookStorageChange, hookStorageDelete, hookStorageNewValue);
-        assertThat(hookStorageRepository.findAll()).containsExactly(fromChange(hookStorageNewValue));
+                .containsExactly(hookStorageChange, hookStorageDelete, hookStorageNewValue, secondDelete);
+        assertThat(hookStorageRepository.findAll())
+                .containsExactly(fromChange(secondDelete).toBuilder()
+                        .createdTimestamp(hookStorageNewValue.getConsensusTimestamp())
+                        .build());
+    }
+
+    @Test
+    void onHookStorageChangeNull() {
+        final var hookStorage = domainBuilder.hookStorage().persist();
+        final var hookStorageChange = domainBuilder
+                .hookStorageChange()
+                .customize(b -> b.valueWritten(null).hookId(hookStorage.getHookId()))
+                .get();
+
+        sqlEntityListener.onHookStorageChange(hookStorageChange);
+        completeFileAndCommit();
+
+        assertThat(hookStorageChangeRepository.findAll()).containsExactly(hookStorageChange);
+        assertThat(hookStorageRepository.findAll()).containsExactly(hookStorage);
     }
 
     private void completeFileAndCommit() {
