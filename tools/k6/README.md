@@ -83,7 +83,7 @@ The following parameters can be used to configure a REST test:
 | DEFAULT_TOPIC_SEQUENCE             |         |                                    |
 | DEFAULT_TOPIC_TIMESTAMP            |         |                                    |
 | DEFAULT_TRANSACTION_HASH           |         |                                    |
-| DEFAULT_TRANSACTION_IDS            |         |                                    |
+| DEFAULT_TRANSACTION_ID             |         |                                    |
 | REST_TEST_EXCLUDE                  | ^$      | The rest test scenarios to exclude |
 | REST_TEST_INCLUDE                  | .\*     | The rest test scenarios to include |
 
@@ -148,6 +148,7 @@ The following parameters can be used to configure a web3 test:
 | STORAGE_SLOTS_CONTRACT                                    |         | 40 character hex encoded contract address without `0x` prefix                                                                                                                     |
 | TOKEN_ADDRESS                                             |         | 64 character hex encoded token address without `0x` prefix                                                                                                                        |
 | TOKEN_FREEZE_KEY_ACCOUNT_ADDRESS                          |         | 64 character hex encoded account evm address without `0x` prefix - a freeze key account for FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS and NON_FUNGIBLE_TOKEN_WITH_FREEZE_KEY_ADDRESS |
+| TRANSACTION_IDS                                           |         | Comma-separated list of transaction ids for opcode tracing                                                                                                                        |
 | WEB3_TEST_EXCLUDE                                         | ^$      | The web3 test scenarios to exclude                                                                                                                                                |
 | WEB3_TEST_INCLUDE                                         | .\*     | The web3 test scenarios to include                                                                                                                                                |
 
