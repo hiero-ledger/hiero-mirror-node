@@ -91,6 +91,8 @@ public class AccountClient extends AbstractNetworkClient {
                     + accountMap.get(accountName).getAccountId().toEvmAddress());
             System.out.println("DEFAULT_ACCOUNT_ID_" + accountName + "="
                     + accountMap.get(accountName).getAccountId());
+            System.out.println("DEFAULT_ACCOUNT_ID_KEY_" + accountName + "="
+                    + accountMap.get(accountName).getPublicKey().toStringRaw());
         }
     }
 

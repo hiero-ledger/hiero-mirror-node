@@ -202,9 +202,10 @@ jobs:
           done
 
           declare -A k6MapRest
-          k6MapRest["PRECOMPILE"]="DEFAULT_CONTRACT_ID"
+          k6MapRest["ESTIMATE_PRECOMPILE_ID"]="DEFAULT_CONTRACT_ID"
           k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
           k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
+          k6MapRest["DEFAULT_ACCOUNT_ID_KEY_TOKEN_TREASURY"]="DEFAULT_PUBLIC_KEY"
 
           for key in "${!k6MapRest[@]}"; do
             k6="${k6MapRest[$key]}"
