@@ -23,10 +23,10 @@ const params = {
 };
 
 const {options, run} = new MultiIdScenarioBuilder(transactionIds)
-  .name('opcodesAllDisabled')
-  .url(`${baseUrl}/contracts/results/{id}/opcodes?stack=false&memory=false&storage=false`)
+  .name('opcodesAllEnabled')
+  .url(`${baseUrl}/contracts/results/{id}/opcodes?stack=true&memory=true&storage=true`)
   .request((url) => http.get(url, params))
-  .check('Opcodes list is not empty.', (r) => isValidListResponse(r, 'opcodes'))
+  .check('Opcodes list is not empty.', (r) => isValidListResponse(r, 'opcodes', 4))
   .build();
 
 export {options, run};

@@ -33,7 +33,7 @@ function isNonErrorResponse(response) {
   }
 }
 
-const isValidListResponse = (response, listName) => {
+const isValidListResponse = (response, listName, minEntryCount) => {
   if (!isSuccess(response)) {
     return false;
   }
@@ -44,7 +44,7 @@ const isValidListResponse = (response, listName) => {
     return false;
   }
 
-  return list.length > 0;
+  return list.length > minEntryCount;
 };
 
 const isSuccess = (response) => response.status >= 200 && response.status < 300;
