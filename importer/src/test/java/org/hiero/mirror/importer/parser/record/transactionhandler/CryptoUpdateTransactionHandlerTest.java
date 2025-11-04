@@ -5,6 +5,10 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -14,6 +18,7 @@ import com.google.protobuf.Int32Value;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -31,9 +36,11 @@ import org.springframework.data.util.Version;
 
 class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    private final EVMHookHandler evmHookHandler = mock(EVMHookHandler.class);
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoUpdateTransactionHandler(entityIdService, entityListener);
+        return new CryptoUpdateTransactionHandler(entityIdService, entityListener, evmHookHandler);
     }
 
     @Override
@@ -150,5 +157,109 @@ class CryptoUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         assertCryptoUpdate(timestamp, extraAssertions);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookIdsToDelete())
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId = EntityId.of(
+                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
+        var transactionBody = recordItem.getTransactionBody().getCryptoUpdateAccount();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(List.of()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerCalledWithHookDeletionDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId = EntityId.of(
+                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
+        var transactionBody = recordItem.getTransactionBody().getCryptoUpdateAccount();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(transactionBody.getHookIdsToDeleteList()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerCalledWithBothHookCreationAndDeletionDetails() {
+        // given
+        var recordItem = recordItemBuilder.cryptoUpdate().build();
+        var transaction = transaction(recordItem);
+        var accountId = EntityId.of(
+                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
+        var transactionBody = recordItem.getTransactionBody().getCryptoUpdateAccount();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(accountId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(transactionBody.getHookIdsToDeleteList()));
+
+        // Verify entity was updated
+        verify(entityListener).onEntity(any(Entity.class));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails().clearHookIdsToDelete())
+                .build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
+    }
+
+    private Transaction transaction(RecordItem recordItem) {
+        var accountId = EntityId.of(
+                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate());
+        var consensusTimestamp = recordItem.getConsensusTimestamp();
+        return domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp).entityId(accountId))
+                .get();
     }
 }

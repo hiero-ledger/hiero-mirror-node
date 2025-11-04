@@ -131,6 +131,30 @@
             "amount": 10
           }
         ]
+      },
+      {
+        "charged_tx_fee": 20,
+        "payerAccountId": "0.0.11",
+        "nodeAccountId": "0.0.5",
+        "consensus_timestamp": "1234567899000000999",
+        "valid_start_timestamp": "1234567900000000000",
+        "name": "CRYPTOTRANSFER",
+        "transaction_hash": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4v",
+        "type": 14,
+        "transfers": [
+          {
+            "account": "0.0.11",
+            "amount": -30
+          },
+          {
+            "account": "0.0.12",
+            "amount": 25
+          },
+          {
+            "account": "0.0.5",
+            "amount": 5
+          }
+        ]
       }
     ],
     "cryptotransfers": [
@@ -371,6 +395,54 @@
             ],
             "valid_duration_seconds": "11",
             "valid_start_timestamp": "1234567890.000000001"
+          }
+        ]
+      }
+    },
+    {
+      "url": "/api/v1/transactions/0.0.11-1234567900-000000000",
+      "responseStatus": 200,
+      "responseJson": {
+        "transactions": [
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 20,
+            "consensus_timestamp": "1234567899.000000999",
+            "entity_id": null,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CRYPTOTRANSFER",
+            "nft_transfers": [],
+            "node": "0.0.5",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "token_transfers": [],
+            "transaction_hash": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4v",
+            "transaction_id": "0.0.11-1234567900-000000000",
+            "transfers": [
+              {
+                "account": "0.0.5",
+                "amount": 5,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.11",
+                "amount": -30,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.12",
+                "amount": 25,
+                "is_approval": false
+              }
+            ],
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567900.000000000"
           }
         ]
       }

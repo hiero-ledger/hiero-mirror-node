@@ -233,10 +233,11 @@ public final class StateChangeContext {
 
     private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
         slotKey = normalize(slotKey);
-        contractStorageChanges.put(slotKey, valueWritten);
+        final var trimmed = DomainUtils.trim(valueWritten);
+        contractStorageChanges.put(slotKey, trimmed);
         contractStorageChangesIndexed
                 .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
-                .add(new SlotValue(slotKey.getKey(), valueWritten));
+                .add(new SlotValue(slotKey.getKey(), trimmed));
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

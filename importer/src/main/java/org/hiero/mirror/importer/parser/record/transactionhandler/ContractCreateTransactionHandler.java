@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.transaction.RecordFile.HAPI_VERSION
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hederahashgraph.api.proto.java.Key;
 import jakarta.inject.Named;
+import java.util.List;
 import lombok.CustomLog;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractResult;
@@ -30,15 +31,18 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
 
     private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
+    private final EVMHookHandler evmHookHandler;
 
     ContractCreateTransactionHandler(
             ContractInitcodeService contractInitcodeService,
             EntityIdService entityIdService,
             EntityListener entityListener,
-            EntityProperties entityProperties) {
+            EntityProperties entityProperties,
+            EVMHookHandler evmHookHandler) {
         super(entityIdService, entityListener, TransactionType.CONTRACTCREATEINSTANCE);
         this.contractInitcodeService = contractInitcodeService;
         this.entityProperties = entityProperties;
+        this.evmHookHandler = evmHookHandler;
     }
 
     @Override
@@ -112,6 +116,7 @@ class ContractCreateTransactionHandler extends AbstractEntityCrudTransactionHand
         updateStakingInfo(recordItem, entity);
         createContract(recordItem, entity);
         entityListener.onEntity(entity);
+        evmHookHandler.process(recordItem, entity.getId(), transactionBody.getHookCreationDetailsList(), List.of());
     }
 
     private void createContract(RecordItem recordItem, Entity entity) {

@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -506,6 +507,29 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.toTimestamp(0)).isEqualTo("0.0");
         assertThat(DomainUtils.toTimestamp(1)).isEqualTo("0.000000001");
         assertThat(DomainUtils.toTimestamp(1123456789)).isEqualTo("1.123456789");
+    }
+
+    @Test
+    void trimByteString() {
+        assertThat(DomainUtils.trim((ByteString) null)).isNull();
+        assertThat(DomainUtils.trim(ByteString.EMPTY)).isSameAs(ByteString.EMPTY);
+        final var shouldNotTrim = ByteString.copyFrom(new byte[] {0x1, 0x2});
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2});
+        final var expected = ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2});
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
+    }
+
+    @Test
+    void trimBytesValue() {
+        assertThat(DomainUtils.trim((BytesValue) null)).isNull();
+        final var emptyValue = BytesValue.of(ByteString.EMPTY);
+        assertThat(DomainUtils.trim(emptyValue)).isSameAs(emptyValue);
+        final var shouldNotTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x2}));
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2}));
+        final var expected = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2}));
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
     }
 
     @ParameterizedTest

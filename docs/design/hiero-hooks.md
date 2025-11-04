@@ -75,6 +75,10 @@ Response format:
       "extension_point": "ACCOUNT_ALLOWANCE_HOOK",
       "hook_id": 5,
       "owner_id": "0.0.123",
+      "timestamp": {
+        "from": "1726874345.123456789",
+        "to": null
+      },
       "type": "LAMBDA"
     }
   ],
@@ -179,7 +183,7 @@ create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 -- Main hook table (current state)
 create table if not exists hook
 (
-    contract_id         bigint                not null,
+    contract_id         bigint,
     created_timestamp   bigint,
     hook_id             bigint                not null,
     owner_id            bigint                not null,

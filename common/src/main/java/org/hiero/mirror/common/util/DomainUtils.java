@@ -7,6 +7,7 @@ import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -339,6 +340,28 @@ public class DomainUtils {
         }
 
         return ArrayUtils.subarray(data, i, data.length);
+    }
+
+    public static ByteString trim(final ByteString data) {
+        if (data == null || data.isEmpty() || data.byteAt(0) != 0) {
+            return data;
+        }
+
+        final byte[] value = DomainUtils.toBytes(data);
+        final byte[] trimmed = trim(value);
+
+        return trimmed == value ? data : DomainUtils.fromBytes(trimmed);
+    }
+
+    public static BytesValue trim(final BytesValue data) {
+        if (data == null) {
+            return null;
+        }
+
+        final var value = data.getValue();
+        final var trimmed = trim(value);
+
+        return trimmed == value ? data : BytesValue.of(trimmed);
     }
 
     public static byte[] toEvmAddress(ContractID contractId) {
