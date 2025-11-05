@@ -59,11 +59,10 @@ public class HookStorage {
         this.createdTimestamp = createdTimestamp;
         this.hookId = hookId;
         this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
-        ;
         this.modifiedTimestamp = modifiedTimestamp;
         this.ownerId = ownerId;
-        this.value = value;
-        this.deleted = ArrayUtils.isEmpty(value);
+        this.value = DomainUtils.trim(value);
+        this.deleted = ArrayUtils.isEmpty(this.value);
     }
 
     @JsonIgnore
@@ -80,8 +79,8 @@ public class HookStorage {
     }
 
     public void setValue(byte[] value) {
-        this.value = value;
-        this.deleted = ArrayUtils.isEmpty(value);
+        this.value = DomainUtils.trim(value);
+        this.deleted = ArrayUtils.isEmpty(this.value);
     }
 
     @Data

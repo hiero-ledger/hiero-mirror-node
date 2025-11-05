@@ -45,10 +45,11 @@ final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
         }
 
         final var transactionBody = recordItem.getTransactionBody().getLambdaSstore();
-        final var ownerId = transaction.getEntityId().getId();
+        final var ownerEntityId = transaction.getEntityId();
         final var hookId = transactionBody.getHookId().getHookId();
         final var consensusTimestamp = recordItem.getConsensusTimestamp();
 
-        hookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, transactionBody.getStorageUpdatesList());
+        hookHandler.processStorageUpdates(
+                consensusTimestamp, hookId, ownerEntityId, transactionBody.getStorageUpdatesList());
     }
 }

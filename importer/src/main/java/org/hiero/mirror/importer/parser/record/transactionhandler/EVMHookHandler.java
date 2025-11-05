@@ -13,7 +13,6 @@ import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import jakarta.inject.Named;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -31,7 +30,6 @@ import org.springframework.util.CollectionUtils;
 @Named
 @NullMarked
 @RequiredArgsConstructor
-@CustomLog
 final class EVMHookHandler implements EvmHookStorageHandler {
 
     private final EntityListener entityListener;
@@ -58,15 +56,15 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     @Override
     public void processStorageUpdates(
-            long consensusTimestamp, long hookId, long ownerId, List<LambdaStorageUpdate> storageUpdates) {
+            long consensusTimestamp, long hookId, EntityId ownerEntityId, List<LambdaStorageUpdate> storageUpdates) {
         for (final var update : storageUpdates) {
             switch (update.getUpdateCase()) {
                 case STORAGE_SLOT ->
-                    processStorageSlotUpdate(update.getStorageSlot(), consensusTimestamp, ownerId, hookId);
+                    processStorageSlotUpdate(update.getStorageSlot(), consensusTimestamp, ownerEntityId, hookId);
                 case MAPPING_ENTRIES ->
-                    processMappingEntries(update.getMappingEntries(), consensusTimestamp, ownerId, hookId);
+                    processMappingEntries(update.getMappingEntries(), consensusTimestamp, ownerEntityId, hookId);
                 default ->
-                    log.warn(
+                    Utility.handleRecoverableError(
                             "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
                             update.getUpdateCase(),
                             consensusTimestamp);
@@ -192,7 +190,8 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         };
     }
 
-    private void processMappingEntries(LambdaMappingEntries entries, long consensusTs, long ownerId, long hookId) {
+    private void processMappingEntries(
+            LambdaMappingEntries entries, long consensusTimestamp, EntityId ownerEntityId, long hookId) {
         final var mappingSlot = leftPadBytes(toBytes(entries.getMappingSlot()), 32);
 
         for (final var entry : entries.getEntriesList()) {
@@ -202,22 +201,24 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
             final var valueWritten = toBytes(entry.getValue());
             final var derivedSlot = keccak256(mappingKey, mappingSlot);
-            persistChange(ownerId, hookId, derivedSlot, valueWritten, consensusTs);
+            persistChange(ownerEntityId, hookId, derivedSlot, valueWritten, consensusTimestamp);
         }
     }
 
-    private void processStorageSlotUpdate(LambdaStorageSlot storageSlot, long consensusTs, long ownerId, long hookId) {
+    private void processStorageSlotUpdate(
+            LambdaStorageSlot storageSlot, long consensusTimestamp, EntityId ownerEntityId, long hookId) {
         final var slotKey = toBytes(storageSlot.getKey());
 
-        // Protobuff API ensures that value will never be null
+        // Protobuf API ensures that value will never be null
         final var valueWritten = toBytes(storageSlot.getValue());
-        persistChange(ownerId, hookId, slotKey, valueWritten, consensusTs);
+        persistChange(ownerEntityId, hookId, slotKey, valueWritten, consensusTimestamp);
     }
 
-    private void persistChange(long ownerId, long hookId, byte[] key, byte[] valueWritten, long consensusTs) {
+    private void persistChange(
+            EntityId ownerEntityId, long hookId, byte[] key, byte[] valueWritten, long consensusTimestamp) {
         final var change = new HookStorageChange();
-        change.setConsensusTimestamp(consensusTs);
-        change.setOwnerId(ownerId);
+        change.setConsensusTimestamp(consensusTimestamp);
+        change.setOwnerId(ownerEntityId.getId());
         change.setHookId(hookId);
         change.setKey(key);
         change.setValueRead(valueWritten);

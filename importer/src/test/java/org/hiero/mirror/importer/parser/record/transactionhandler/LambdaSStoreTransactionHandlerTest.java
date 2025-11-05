@@ -3,7 +3,11 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
@@ -12,7 +16,6 @@ import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.List;
 import java.util.Optional;
-import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -23,9 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
-
-    private final DomainBuilder domainBuilder = new DomainBuilder();
+final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private final EvmHookStorageHandler storageHandler = mock(EvmHookStorageHandler.class);
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -107,7 +108,7 @@ class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         final var tsCaptor = ArgumentCaptor.forClass(Long.class);
         final var hookIdCaptor = ArgumentCaptor.forClass(Long.class);
-        final var ownerIdCaptor = ArgumentCaptor.forClass(Long.class);
+        final var ownerIdCaptor = ArgumentCaptor.forClass(EntityId.class);
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<LambdaStorageUpdate>> updatesCaptor = ArgumentCaptor.forClass(List.class);
 
@@ -117,7 +118,7 @@ class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
         assertThat(tsCaptor.getValue()).isEqualTo(recordItem.getConsensusTimestamp());
         assertThat(hookIdCaptor.getValue()).isEqualTo(expectedHookId);
-        assertThat(ownerIdCaptor.getValue()).isEqualTo(ownerEntityId.getId());
+        assertThat(ownerIdCaptor.getValue()).isEqualTo(ownerEntityId);
 
         final var updates = updatesCaptor.getValue();
 

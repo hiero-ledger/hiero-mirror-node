@@ -14,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
@@ -51,9 +52,9 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.hookId = hookId;
         this.key = key;
         this.ownerId = ownerId;
-        this.valueRead = valueRead;
-        this.valueWritten = valueWritten;
-        this.deleted = ArrayUtils.isEmpty(valueWritten);
+        this.valueRead = DomainUtils.trim(valueRead);
+        this.valueWritten = DomainUtils.trim(valueWritten);
+        this.deleted = ArrayUtils.isEmpty(this.valueWritten);
     }
 
     @Override
@@ -65,6 +66,15 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         id.setKey(key);
         id.setOwnerId(ownerId);
         return id;
+    }
+
+    public void setValueRead(byte[] valueRead) {
+        this.valueRead = DomainUtils.trim(valueRead);
+    }
+
+    public void setValueWritten(byte[] valueWritten) {
+        this.valueWritten = DomainUtils.trim(valueWritten);
+        this.deleted = ArrayUtils.isEmpty(this.valueWritten);
     }
 
     @JsonIgnore
