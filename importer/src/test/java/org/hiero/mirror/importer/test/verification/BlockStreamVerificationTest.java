@@ -97,6 +97,7 @@ final class BlockStreamVerificationTest {
     private static final String RECORD_FILE_PATH_TEMPLATE =
             "%s/%s%%s/%%s".formatted(StreamType.RECORD.getPath(), StreamType.RECORD.getNodePrefix());
     private static final String VALUE_DIFF_TEMPLATE = "%s: actual value - %s, expected value - %s";
+    private static final ByteString ZERO_LOGS_BLOOM = ByteString.copyFrom(new byte[256]);
 
     private final BlockStreamVerificationProperties properties;
     private final ConsensusNodeService consensusNodeService;
@@ -534,14 +535,38 @@ final class BlockStreamVerificationTest {
                 })
                 .toList();
         contractResultBuilder.clearLogInfo().addAllLogInfo(logInfoList);
+
+        // clear all-0 logs bloom, in recordstream, when there's no logs, for some transactions it's set to all-0, and
+        // left unset for others
+        if (contractResultBuilder.getBloom().equals(ZERO_LOGS_BLOOM)) {
+            contractResultBuilder.clearBloom();
+        }
     }
 
     private void patchTransactionReceipt(RecordItemContext context) {
         final var receiptBuilder = context.builder().getReceiptBuilder();
         receiptBuilder.clearExchangeRate();
 
-        if (context.recordItem().getTransactionType() == TransactionType.SCHEDULEDELETE.getProtoId()) {
+        final var recordItem = context.recordItem();
+        if (recordItem.getTransactionType() == TransactionType.SCHEDULEDELETE.getProtoId()) {
             receiptBuilder.clearScheduleID();
+        }
+
+        final var transactionRecord = recordItem.getTransactionRecord();
+        if (recordItem.isSuccessful()
+                && (transactionRecord.hasContractCallResult() || transactionRecord.hasContractCreateResult())) {
+            // in recordstream, receipt.ContractID isn't set consistently: in general, contract call, contract create,
+            // and ethereum transaction have it set; others (mainly child transactions triggered by smart contract
+            // transactions when it's neither contract call nor contract create) don't have it set
+            final var contractFunctionResult = transactionRecord.hasContractCallResult()
+                    ? transactionRecord.getContractCallResult()
+                    : transactionRecord.getContractCreateResult();
+            final var contractId = contractFunctionResult.getContractID();
+
+            if (contractId.hasContractNum()) {
+                // there can be evm address in contract function result, usually when the transaction has failed
+                receiptBuilder.setContractID(contractFunctionResult.getContractID());
+            }
         }
     }
 
