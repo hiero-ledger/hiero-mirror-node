@@ -3537,14 +3537,12 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .consensusTimestamp(domainBuilder.timestamp())
                 .valueWritten(new byte[0])
                 .valueRead(new byte[0])
-                .deleted(true)
                 .build();
         final var newValue = domainBuilder.bytes(32);
         final var hookStorageNewValue = hookStorageDelete.toBuilder()
                 .consensusTimestamp(domainBuilder.timestamp())
                 .valueWritten(newValue)
                 .valueRead(newValue)
-                .deleted(false)
                 .build();
 
         sqlEntityListener.onHookStorageChange(hookStorageChange);
@@ -3575,11 +3573,8 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             assertThat(hookStorageRepository.findAll()).containsExactly(fromChange(hookStorageNewValue));
         }
 
-        var secondDelete = hookStorageChange.toBuilder()
+        var secondDelete = hookStorageDelete.toBuilder()
                 .consensusTimestamp(domainBuilder.timestamp())
-                .valueWritten(new byte[0])
-                .valueRead(new byte[0])
-                .deleted(true)
                 .build();
         sqlEntityListener.onHookStorageChange(secondDelete);
 
@@ -4106,7 +4101,6 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private HookStorage fromChange(HookStorageChange change) {
         return HookStorage.builder()
                 .createdTimestamp(change.getConsensusTimestamp())
-                .deleted(change.isDeleted())
                 .hookId(change.getHookId())
                 .key(change.getKey())
                 .modifiedTimestamp(change.getConsensusTimestamp())

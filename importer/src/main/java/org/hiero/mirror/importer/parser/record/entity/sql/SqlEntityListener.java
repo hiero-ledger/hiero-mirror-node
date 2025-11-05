@@ -223,7 +223,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         if (storageChange.getValueWritten() != null) {
             final var hookStorage = HookStorage.builder()
                     .createdTimestamp(storageChange.getConsensusTimestamp())
-                    .deleted(storageChange.isDeleted())
                     .hookId(storageChange.getHookId())
                     .ownerId(storageChange.getOwnerId())
                     .key(storageChange.getKey())
@@ -922,7 +921,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         previous.setValue(current.getValue());
         previous.setModifiedTimestamp(current.getModifiedTimestamp());
-        previous.setDeleted(current.isDeleted());
 
         return previous;
     }

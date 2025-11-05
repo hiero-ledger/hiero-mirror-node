@@ -15,7 +15,6 @@ import jakarta.inject.Named;
 import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
@@ -223,7 +222,6 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         change.setKey(key);
         change.setValueRead(valueWritten);
         change.setValueWritten(valueWritten);
-        change.setDeleted(ArrayUtils.isEmpty(valueWritten));
         entityListener.onHookStorageChange(change);
     }
 

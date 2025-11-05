@@ -13,10 +13,10 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.data.domain.Persistable;
 
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Builder(toBuilder = true)
 @Data
 @Entity
 @IdClass(HookStorageChange.Id.class)
@@ -43,6 +43,18 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     @ToString.Exclude
     private byte[] valueWritten;
+
+    @Builder(toBuilder = true)
+    private HookStorageChange(
+            long consensusTimestamp, long hookId, byte[] key, long ownerId, byte[] valueRead, byte[] valueWritten) {
+        this.consensusTimestamp = consensusTimestamp;
+        this.hookId = hookId;
+        this.key = key;
+        this.ownerId = ownerId;
+        this.valueRead = valueRead;
+        this.valueWritten = valueWritten;
+        this.deleted = ArrayUtils.isEmpty(valueWritten);
+    }
 
     @Override
     @JsonIgnore
