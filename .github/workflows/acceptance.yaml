@@ -229,7 +229,7 @@ jobs:
           RUN_OPCODE_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$|^.*opcode.*js$"
+          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
         with:
           path: |
             ./tools/k6/src/web3/apis.js
