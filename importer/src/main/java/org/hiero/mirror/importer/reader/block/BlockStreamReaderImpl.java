@@ -137,6 +137,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
                 var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
+                    if (signedTransactionInfo.userTransactionInBatch()) {
+                        // #12313 - when a user transaction in an atomic batch fails, any subsequent user transaction
+                        // in the same batch will not execute thus won't have a TransactionResult block item
+                        context.resetBatchTransaction();
+                        continue;
+                    }
+
                     throw new InvalidStreamFileException(
                             "Missing transaction result in block " + context.getFilename());
                 }
@@ -282,6 +289,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             blockRootHashDigest.addBlockItem(blockItem);
 
             return blockItem;
+        }
+
+        void resetBatchTransaction() {
+            batchBody = null;
+            batchIndex = 0;
         }
 
         void setLastBlockTransaction(@NonNull BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
