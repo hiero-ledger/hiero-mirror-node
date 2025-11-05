@@ -87,6 +87,13 @@ public class ContractCallContext {
         return SCOPED_VALUE.isBound();
     }
 
+    /**
+     * Safe helper to check if the current context is a balance call without throwing when unbound.
+     */
+    public static boolean isBalanceCallSafe() {
+        return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
+    }
+
     public static <T> T run(Function<ContractCallContext, T> function) {
         return ScopedValue.getWhere(SCOPED_VALUE, new ContractCallContext(), () -> function.apply(SCOPED_VALUE.get()));
     }

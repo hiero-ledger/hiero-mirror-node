@@ -24,6 +24,7 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -59,8 +60,10 @@ public class OpcodeServiceImpl implements OpcodeService {
             @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
         final ContractDebugParameters params =
                 buildCallServiceParameters(transactionIdOrHashParameter, options.isModularized());
-        final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
-        return buildOpcodesResponse(result);
+        return ContractCallContext.run(ctx -> {
+            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
+            return buildOpcodesResponse(result);
+        });
     }
 
     private ContractDebugParameters buildCallServiceParameters(

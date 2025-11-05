@@ -24,7 +24,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                         cacheNames = CACHE_NAME,
                         cacheManager = CACHE_MANAGER_SYSTEM_ACCOUNT,
                         condition =
-                                "#entityId < 1000 && !(T(org.hiero.mirror.web3.common.ContractCallContext).get()?.isBalanceCall() ?: false)",
+                                "#entityId < 1000 && !T(org.hiero.mirror.web3.common.ContractCallContext).isBalanceCallSafe()",
                         unless = "#result == null")
             })
     Optional<Entity> findByIdAndDeletedIsFalse(Long entityId);
