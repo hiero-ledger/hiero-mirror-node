@@ -54,6 +54,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.Web3Properties;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -263,13 +264,17 @@ class OpcodesControllerTest {
         }
 
         when(rateLimitBucket.tryConsume(anyLong())).thenReturn(true);
+
         when(contractDebugService.processOpcodeCall(
-                        callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
-                .thenAnswer(context -> {
-                    final ContractDebugParameters params = context.getArgument(0);
-                    final OpcodeTracerOptions options = context.getArgument(1);
-                    opcodesResultCaptor.set(Builder.successfulOpcodesProcessingResult(params, options));
-                    return opcodesResultCaptor.get();
+                        callServiceParametersCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class)))
+                .thenAnswer(invocation -> {
+                    final ContractDebugParameters params = invocation.getArgument(0);
+                    final OpcodeTracerOptions options = invocation.getArgument(1);
+                    final var result = Builder.successfulOpcodesProcessingResult(params, options);
+                    opcodesResultCaptor.set(result);
+                    return result;
                 });
     }
 
@@ -351,7 +356,9 @@ class OpcodesControllerTest {
 
         reset(contractDebugService);
         when(contractDebugService.processOpcodeCall(
-                        callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
+                        callServiceParametersCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class)))
                 .thenThrow(new MirrorEvmTransactionException(
                         CONTRACT_EXECUTION_EXCEPTION, detailedErrorMessage, hexDataErrorMessage));
 
@@ -368,7 +375,9 @@ class OpcodesControllerTest {
 
         reset(contractDebugService);
         when(contractDebugService.processOpcodeCall(
-                        callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
+                        callServiceParametersCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class)))
                 .thenAnswer(context -> {
                     final OpcodeTracerOptions options = context.getArgument(1);
                     opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(options));
@@ -590,7 +599,11 @@ class OpcodesControllerTest {
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
         final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        verify(contractDebugService)
+                .processOpcodeCall(
+                        paramsCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class));
         final var capturedParams = paramsCaptor.getValue();
 
         AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
@@ -610,7 +623,11 @@ class OpcodesControllerTest {
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
         final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        verify(contractDebugService)
+                .processOpcodeCall(
+                        paramsCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class));
         final var capturedParams = paramsCaptor.getValue();
 
         AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
@@ -630,7 +647,11 @@ class OpcodesControllerTest {
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
         final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
+        verify(contractDebugService)
+                .processOpcodeCall(
+                        paramsCaptor.capture(),
+                        tracerOptionsCaptor.capture(),
+                        org.mockito.Mockito.any(ContractCallContext.class));
         final var capturedParams = paramsCaptor.getValue();
 
         AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();

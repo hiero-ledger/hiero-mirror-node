@@ -54,15 +54,15 @@ public class ContractDebugService extends ContractCallService {
     }
 
     public OpcodesProcessingResult processOpcodeCall(
-            final @Valid ContractDebugParameters params, final OpcodeTracerOptions opcodeTracerOptions) {
-        return ContractCallContext.run(ctx -> {
-            ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
-            ctx.setOpcodeTracerOptions(opcodeTracerOptions);
-            ctx.setContractActions(contractActionRepository.findFailedSystemActionsByConsensusTimestamp(
-                    params.getConsensusTimestamp()));
-            final var ethCallTxnResult = callContract(params, ctx);
-            return new OpcodesProcessingResult(ethCallTxnResult, ctx.getOpcodes());
-        });
+            final @Valid ContractDebugParameters params,
+            final OpcodeTracerOptions opcodeTracerOptions,
+            final ContractCallContext ctx) {
+        ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
+        ctx.setOpcodeTracerOptions(opcodeTracerOptions);
+        ctx.setContractActions(
+                contractActionRepository.findFailedSystemActionsByConsensusTimestamp(params.getConsensusTimestamp()));
+        final var ethCallTxnResult = callContract(params, ctx);
+        return new OpcodesProcessingResult(ethCallTxnResult, ctx.getOpcodes());
     }
 
     @Override

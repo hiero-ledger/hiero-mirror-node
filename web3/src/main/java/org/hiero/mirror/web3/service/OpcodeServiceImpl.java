@@ -61,7 +61,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         final ContractDebugParameters params =
                 buildCallServiceParameters(transactionIdOrHashParameter, options.isModularized());
         return ContractCallContext.run(ctx -> {
-            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
+            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options, ctx);
             return buildOpcodesResponse(result);
         });
     }
