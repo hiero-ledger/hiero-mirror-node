@@ -48,12 +48,7 @@ public class ContractClient extends AbstractNetworkClient {
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             System.out.println(
                     contractName + "=" + contractMap.get(contractName).toEvmAddress());
-            System.out.printf(
-                    "%s_ID=%s.%s.%s%n",
-                    contractName,
-                    contractMap.get(contractName).shard,
-                    contractMap.get(contractName).realm,
-                    contractMap.get(contractName).num);
+            System.out.printf("%s_ID=%s%n", contractName, contractMap.get(contractName).num);
         }
     }
 
