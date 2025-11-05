@@ -177,7 +177,6 @@ jobs:
           k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
           k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
           k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
-          k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
           k6Map["BOB"]="PAYER_ACCOUNT"
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
@@ -202,7 +201,9 @@ jobs:
           done
 
           declare -A k6MapRest
-          k6MapRest["ESTIMATE_PRECOMPILE_ID"]="DEFAULT_CONTRACT_ID"
+          k6MapRest["PARENT_ID"]="DEFAULT_CONTRACT_ID"
+          k6MapRest["TIMESTAMP"]="DEFAULT_CONTRACT_TIMESTAMP"
+          k6MapRest["HASH"]="DEFAULT_CONTRACT_RESULT_HASH"
           k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
           k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
           k6MapRest["DEFAULT_ACCOUNT_ID_KEY_TOKEN_TREASURY"]="DEFAULT_PUBLIC_KEY"
