@@ -233,6 +233,7 @@ jobs:
           RUN_COMPLEX_TESTS: "false"
           RUN_ESTIMATE_TESTS: "false"
           RUN_MODIFICATION_TESTS: "false"
+          RUN_OPCODE_TESTS: "false"
           RUN_WITH_VARIABLES: "true"
           SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
           WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
