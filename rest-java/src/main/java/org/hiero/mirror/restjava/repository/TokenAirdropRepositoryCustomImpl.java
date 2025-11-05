@@ -25,34 +25,34 @@ import org.springframework.data.domain.Sort.Direction;
 
 @Named
 @RequiredArgsConstructor
-class TokenAirdropRepositoryCustomImpl implements TokenAirdropRepositoryCustom {
+final class TokenAirdropRepositoryCustomImpl implements TokenAirdropRepositoryCustom {
 
-    private final DSLContext dslContext;
     private static final Map<AirdropRequestType, Map<Direction, List<SortField<?>>>> SORT_ORDERS = Map.of(
             OUTSTANDING,
-                    Map.of(
-                            Direction.ASC,
-                                    List.of(
-                                            OUTSTANDING.getPrimaryField().asc(),
-                                            TOKEN_AIRDROP.TOKEN_ID.asc(),
-                                            TOKEN_AIRDROP.SERIAL_NUMBER.asc()),
-                            Direction.DESC,
-                                    List.of(
-                                            OUTSTANDING.getPrimaryField().desc(),
-                                            TOKEN_AIRDROP.TOKEN_ID.desc(),
-                                            TOKEN_AIRDROP.SERIAL_NUMBER.desc())),
+            Map.of(
+                    Direction.ASC,
+                    List.of(
+                            OUTSTANDING.getPrimaryField().asc(),
+                            TOKEN_AIRDROP.TOKEN_ID.asc(),
+                            TOKEN_AIRDROP.SERIAL_NUMBER.asc()),
+                    Direction.DESC,
+                    List.of(
+                            OUTSTANDING.getPrimaryField().desc(),
+                            TOKEN_AIRDROP.TOKEN_ID.desc(),
+                            TOKEN_AIRDROP.SERIAL_NUMBER.desc())),
             PENDING,
-                    Map.of(
-                            Direction.ASC,
-                                    List.of(
-                                            PENDING.getPrimaryField().asc(),
-                                            TOKEN_AIRDROP.TOKEN_ID.asc(),
-                                            TOKEN_AIRDROP.SERIAL_NUMBER.asc()),
-                            Direction.DESC,
-                                    List.of(
-                                            PENDING.getPrimaryField().desc(),
-                                            TOKEN_AIRDROP.TOKEN_ID.desc(),
-                                            TOKEN_AIRDROP.SERIAL_NUMBER.desc())));
+            Map.of(
+                    Direction.ASC,
+                    List.of(
+                            PENDING.getPrimaryField().asc(),
+                            TOKEN_AIRDROP.TOKEN_ID.asc(),
+                            TOKEN_AIRDROP.SERIAL_NUMBER.asc()),
+                    Direction.DESC,
+                    List.of(
+                            PENDING.getPrimaryField().desc(),
+                            TOKEN_AIRDROP.TOKEN_ID.desc(),
+                            TOKEN_AIRDROP.SERIAL_NUMBER.desc())));
+    private final DSLContext dslContext;
 
     @Override
     public Collection<TokenAirdrop> findAll(TokenAirdropRequest request, EntityId accountId) {
@@ -62,7 +62,7 @@ class TokenAirdropRepositoryCustomImpl implements TokenAirdropRepositoryCustom {
                 .and(getBoundConditions(bounds))
                 .and(TOKEN_AIRDROP.STATE.eq(AirdropState.PENDING));
 
-        var order = SORT_ORDERS.get(type).get(request.getOrder());
+        var order = SORT_ORDERS.getOrDefault(type, Map.of()).get(request.getOrder());
         return dslContext
                 .selectFrom(TOKEN_AIRDROP)
                 .where(condition)

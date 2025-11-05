@@ -27,28 +27,34 @@ import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType;
 import org.hiero.mirror.restjava.service.Bound;
+import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.data.domain.Sort.Direction;
 
+@NullUnmarked
 @RequiredArgsConstructor
 class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
 
     private final TokenAirdropRepository repository;
-
-    // Setup objects for triple condition test
-    private Map<ExpectedIndex, TokenAirdrop> airdrops;
-
-    private record TestSpec(TokenAirdropRequest request, List<ExpectedIndex> expected, String description) {}
-
-    private List<TokenAirdropRepositoryTest.TestSpec> testSpecs;
     private final Long defaultReceiver = 100L;
     private final EntityIdParameter defaultAccountId = new EntityIdNumParameter(EntityId.of(defaultReceiver));
+    // Setup objects for triple condition test
+    private Map<ExpectedIndex, TokenAirdrop> airdrops;
+    private List<TokenAirdropRepositoryTest.TestSpec> testSpecs;
     private List<Long> senders;
     private List<Long> serialNumbers;
     private List<Long> defaultTokenIds;
+
+    private static Stream<Arguments> provideArguments() {
+        return Stream.of(
+                Arguments.of(Direction.ASC, OUTSTANDING),
+                Arguments.of(Direction.DESC, OUTSTANDING),
+                Arguments.of(Direction.ASC, PENDING),
+                Arguments.of(Direction.DESC, PENDING));
+    }
 
     @Test
     void findById() {
@@ -804,13 +810,7 @@ class TokenAirdropRepositoryTest extends RestJavaIntegrationTest {
         softAssertion.assertAll();
     }
 
-    private static Stream<Arguments> provideArguments() {
-        return Stream.of(
-                Arguments.of(Direction.ASC, OUTSTANDING),
-                Arguments.of(Direction.DESC, OUTSTANDING),
-                Arguments.of(Direction.ASC, PENDING),
-                Arguments.of(Direction.DESC, PENDING));
-    }
+    private record TestSpec(TokenAirdropRequest request, List<ExpectedIndex> expected, String description) {}
 
     private record ExpectedIndex(int senderIndex, int tokenIndex, int serialIndex) {}
 }

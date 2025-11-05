@@ -12,8 +12,6 @@ import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Function;
@@ -38,67 +36,65 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @NullMarked
-@RequestMapping("/api/v1/accounts")
+@RequestMapping("/api/v1/accounts/{ownerId}/hooks")
 @RequiredArgsConstructor
 @RestController
 final class HooksController {
-    private final HookService hookService;
-    private final HookMapper hookMapper;
-    private final LinkFactory linkFactory;
 
     private static final Function<Hook, Map<String, String>> EXTRACTOR =
             hook -> ImmutableSortedMap.of(HOOK_ID, hook.getHookId().toString());
 
-    @GetMapping("/{accountId}/hooks")
+    private final HookService hookService;
+    private final HookMapper hookMapper;
+    private final LinkFactory linkFactory;
+
+    @GetMapping
     ResponseEntity<HooksResponse> getHooks(
-            @PathVariable EntityIdParameter accountId,
-            @RequestParam(name = HOOK_ID, required = false) @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
-                    List<NumberRangeParameter> hookIdFilters,
+            @PathVariable EntityIdParameter ownerId,
+            @RequestParam(defaultValue = "", name = HOOK_ID, required = false)
+                    @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
+                    NumberRangeParameter[] hookId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Sort.Direction order) {
-        final var hooksServiceRequest = prepareHooksServiceRequest(accountId, hookIdFilters, limit, order);
+        final var hooksRequest = hooksRequest(ownerId, hookId, limit, order);
 
-        final var hooksServiceResponse = hookService.getHooks(hooksServiceRequest);
+        final var hooksServiceResponse = hookService.getHooks(hooksRequest);
         final var hooks = hookMapper.map(hooksServiceResponse);
-
-        final var hooksControllerResponse = new HooksResponse();
-        hooksControllerResponse.setHooks(hooks);
 
         final var sort = Sort.by(order, HOOK_ID);
         final var pageable = PageRequest.of(0, limit, sort);
         final var links = linkFactory.create(hooks, pageable, EXTRACTOR);
-        hooksControllerResponse.setLinks(links);
 
-        return ResponseEntity.ok(hooksControllerResponse);
+        final var response = new HooksResponse();
+        response.setHooks(hooks);
+        response.setLinks(links);
+
+        return ResponseEntity.ok(response);
     }
 
-    private HooksRequest prepareHooksServiceRequest(
-            EntityIdParameter accountId, List<NumberRangeParameter> hookIdFilters, int limit, Sort.Direction order) {
-        hookIdFilters = (hookIdFilters == null) ? List.of() : hookIdFilters;
-
-        Collection<Long> equalHookIds = new TreeSet<>();
+    private HooksRequest hooksRequest(
+            EntityIdParameter ownerId, NumberRangeParameter[] hookIdFilters, int limit, Sort.Direction order) {
+        final var hookIds = new TreeSet<Long>();
         long lowerBound = 0L; // The most restrictive lower bound (max of all gt/gte)
         long upperBound = MAX_VALUE; // The most restrictive upper bound (min of all lt/lte)
 
-        for (NumberRangeParameter param : hookIdFilters) {
-            RangeOperator operator = param.operator();
-
-            if (operator == RangeOperator.EQ) {
-                equalHookIds.add(param.value());
-            } else if (param.hasLowerBound()) { // gt, gte
-                lowerBound = Math.max(lowerBound, param.getInclusiveValue());
-            } else if (param.hasUpperBound()) { // lt, lte
-                upperBound = Math.min(upperBound, param.getInclusiveValue());
+        for (final var hookIdFilter : hookIdFilters) {
+            if (hookIdFilter.operator() == RangeOperator.EQ) {
+                hookIds.add(hookIdFilter.value());
+            } else if (hookIdFilter.hasLowerBound()) {
+                lowerBound = Math.max(lowerBound, hookIdFilter.getInclusiveValue());
+            } else if (hookIdFilter.hasUpperBound()) {
+                upperBound = Math.min(upperBound, hookIdFilter.getInclusiveValue());
             }
         }
 
         return HooksRequest.builder()
-                .hookIdLowerBoundInclusive(lowerBound)
-                .hookIdUpperBoundInclusive(upperBound)
-                .ownerId(accountId)
-                .hookIdEqualsFilters(equalHookIds)
+                .hookIds(hookIds)
+                .lowerBound(lowerBound)
+                .ownerId(ownerId)
                 .limit(limit)
                 .order(order)
+                .upperBound(upperBound)
                 .build();
     }
 }

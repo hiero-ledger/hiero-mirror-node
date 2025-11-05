@@ -18,6 +18,6 @@ public interface RangeParameter<T> {
     }
 
     default boolean isEmpty() {
-        return operator() == null && value() == null;
+        return RangeOperator.UNKNOWN.equals(operator());
     }
 }

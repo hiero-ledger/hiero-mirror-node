@@ -10,7 +10,7 @@ import org.hiero.mirror.restjava.common.RangeParameter;
 
 public record TimestampParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 
-    public static final TimestampParameter EMPTY = new TimestampParameter(null, null);
+    public static final TimestampParameter EMPTY = new TimestampParameter(RangeOperator.UNKNOWN, -1L);
 
     private static final String ERROR = "Invalid timestamp parameter";
     private static final Pattern PATTERN =

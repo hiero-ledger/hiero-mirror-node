@@ -184,7 +184,6 @@ jobs:
           k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
           k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
           k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
-          k6Map["PRECOMPILE"]="PRECOMPILE_CONTRACT"
           k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
           k6Map["BOB"]="PAYER_ACCOUNT"
           k6Map["ALICE"]="ACCOUNT_ADDRESS"
@@ -208,6 +207,20 @@ jobs:
             echo "${k6}=${value}" >> $GITHUB_ENV
           done
 
+          declare -A k6MapRest
+          k6MapRest["PARENT_ID"]="DEFAULT_CONTRACT_ID"
+          k6MapRest["TIMESTAMP"]="DEFAULT_CONTRACT_TIMESTAMP"
+          k6MapRest["HASH"]="DEFAULT_CONTRACT_RESULT_HASH"
+          k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
+          k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
+          k6MapRest["DEFAULT_ACCOUNT_ID_KEY_TOKEN_TREASURY"]="DEFAULT_PUBLIC_KEY"
+
+          for key in "${!k6MapRest[@]}"; do
+            k6="${k6MapRest[$key]}"
+            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+            echo "${k6}=${value}" >> $GITHUB_ENV
+          done
+
       - name: Install k6
         if: ${{ matrix.stream-type != 'BLOCK' }}
         uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
@@ -221,6 +234,17 @@ jobs:
         with:
           path: |
             ./tools/k6/src/rest-java/apis.js
+          debug: false
+          flags: --quiet
+
+      - name: Run rest tests
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+        env:
+          REST_TEST_EXCLUDE: ".*balances.*Timestamp.*"
+        with:
+          path: |
+            ./tools/k6/src/rest/apis.js
           debug: false
           flags: --quiet
 

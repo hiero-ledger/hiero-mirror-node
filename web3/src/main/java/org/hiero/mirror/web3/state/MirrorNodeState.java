@@ -54,7 +54,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.base.crypto.Hash;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
 import org.hiero.mirror.web3.state.components.SchemaRegistryImpl;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
@@ -82,7 +81,6 @@ public class MirrorNodeState implements State {
     private final List<ReadableKVState> readableKVStates;
     private final ServicesRegistry servicesRegistry;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    private final RecordFileRepository recordFileRepository;
 
     private static final CommonProperties commonProperties = CommonProperties.getInstance();
     private static final NodeInfoImpl DEFAULT_NODE_INFO = new NodeInfoImpl(

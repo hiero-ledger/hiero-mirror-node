@@ -9,11 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
     private Long nonceVal = 0L;
     private final List<String> childContracts = new ArrayList<>();
+
+    @Autowired
+    private AcceptanceTestProperties acceptanceTestProperties;
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
@@ -80,6 +85,10 @@ public abstract class BaseContractFeature extends AbstractFeature {
     protected void verifyContractExecutionResultByIdAndTimestamp(String timestamp) {
         final var contractResult = mirrorClient.getContractResultsByIdAndTimestamp(
                 deployedParentContract.contractId().toString(), timestamp);
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            System.out.println("TIMESTAMP=" + contractResult.getTimestamp());
+            System.out.println("HASH=" + contractResult.getHash());
+        }
 
         assertThat(contractResult).isNotNull();
         assertThat(contractResult.getContractId())

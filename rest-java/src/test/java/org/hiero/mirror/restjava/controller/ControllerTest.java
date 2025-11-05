@@ -37,7 +37,11 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class ControllerTest extends RestJavaIntegrationTest {
 
+    protected static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";
+    protected static final String EVM_ADDRESS = "000000000000000000000000000000000186Fb1b";
+
     private static final String BASE_PATH = "/api/v1/";
+
     protected RestClient.Builder restClientBuilder;
 
     @Autowired

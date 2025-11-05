@@ -42,7 +42,7 @@ final class TokenAirdropsControllerTest extends ControllerTest {
 
     @DisplayName("/api/v1/accounts/{id}/airdrops/outstanding")
     @Nested
-    class OutstandingTokenAirdropsEndpointTest extends EndpointTest {
+    final class OutstandingTokenAirdropsEndpointTest extends EndpointTest {
 
         @Override
         protected String getUrl() {
@@ -864,12 +864,12 @@ final class TokenAirdropsControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.000000000000000000000000000000000186Fb1b",
-                    "0.0.000000000000000000000000000000000186Fb1b",
-                    "0x000000000000000000000000000000000186Fb1b",
-                    "0.0.AABBCC22",
-                    "0.AABBCC22",
-                    "AABBCC22"
+                    "0." + EVM_ADDRESS,
+                    "0.0." + EVM_ADDRESS,
+                    "0x" + EVM_ADDRESS,
+                    "0.0." + ALIAS,
+                    "0." + ALIAS,
+                    ALIAS
                 })
         void notFound(String accountId) {
             // When
@@ -1887,12 +1887,12 @@ final class TokenAirdropsControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.000000000000000000000000000000000186Fb1b",
-                    "0.0.000000000000000000000000000000000186Fb1b",
-                    "0x000000000000000000000000000000000186Fb1b",
-                    "0.0.AABBCC22",
-                    "0.AABBCC22",
-                    "AABBCC22"
+                    "0." + EVM_ADDRESS,
+                    "0.0." + EVM_ADDRESS,
+                    "0x" + EVM_ADDRESS,
+                    "0.0." + ALIAS,
+                    "0." + ALIAS,
+                    ALIAS
                 })
         void notFound(String accountId) {
             // When

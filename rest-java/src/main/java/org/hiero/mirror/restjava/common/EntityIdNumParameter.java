@@ -5,13 +5,14 @@ package org.hiero.mirror.restjava.common;
 import java.util.regex.Pattern;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.jspecify.annotations.Nullable;
 
 public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
 
     private static final String ENTITY_ID_REGEX = "^((\\d{1,4})\\.)?((\\d{1,5})\\.)?(\\d{1,12})$";
     private static final Pattern ENTITY_ID_PATTERN = Pattern.compile(ENTITY_ID_REGEX);
 
-    public static EntityIdNumParameter valueOf(String id) {
+    static @Nullable EntityIdNumParameter valueOfNullable(String id) {
         var matcher = ENTITY_ID_PATTERN.matcher(id);
 
         if (!matcher.matches()) {
@@ -33,6 +34,16 @@ public record EntityIdNumParameter(EntityId id) implements EntityIdParameter {
 
         var num = Long.parseLong(matcher.group(5));
         return new EntityIdNumParameter(EntityId.of(shard, realm, num));
+    }
+
+    public static EntityIdNumParameter valueOf(String id) {
+        final var result = valueOfNullable(id);
+
+        if (result == null) {
+            throw new IllegalArgumentException("Invalid entity ID");
+        }
+
+        return result;
     }
 
     @Override

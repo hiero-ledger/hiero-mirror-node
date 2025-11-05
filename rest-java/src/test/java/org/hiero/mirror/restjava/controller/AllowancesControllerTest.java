@@ -45,7 +45,7 @@ final class AllowancesControllerTest extends ControllerTest {
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var entity = domainBuilder.entity().persist();
-            var allowance = nftAllowance(a -> a.owner(entity.getId()));
+            nftAllowance(a -> a.owner(entity.getId()));
             return uriSpec.uri("", entity.getNum());
         }
 
@@ -363,12 +363,12 @@ final class AllowancesControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.000000000000000000000000000000000186Fb1b",
-                    "0.0.000000000000000000000000000000000186Fb1b",
-                    "0x000000000000000000000000000000000186Fb1b",
-                    "0.0.AABBCC22",
-                    "0.AABBCC22",
-                    "AABBCC22"
+                    "0." + EVM_ADDRESS,
+                    "0.0." + EVM_ADDRESS,
+                    "0x" + EVM_ADDRESS,
+                    "0.0." + ALIAS,
+                    "0." + ALIAS,
+                    ALIAS
                 })
         void notFound(String accountId) {
             // When

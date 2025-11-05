@@ -15,23 +15,25 @@ import org.hiero.mirror.restjava.common.NumberRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.RangeParameter;
 import org.jooq.Field;
+import org.jspecify.annotations.NullUnmarked;
 
+@NullUnmarked
 public class Bound {
 
     public static final Bound EMPTY = new Bound(null, false, StringUtils.EMPTY, null);
 
+    private final EnumMap<RangeOperator, Integer> cardinality = new EnumMap<>(RangeOperator.class);
+
     @Getter
     private final Field<Long> field;
+
+    private final String parameterName;
 
     @Getter
     private RangeParameter<Long> lower;
 
     @Getter
     private RangeParameter<Long> upper;
-
-    private final String parameterName;
-
-    private final EnumMap<RangeOperator, Integer> cardinality = new EnumMap<>(RangeOperator.class);
 
     public Bound(RangeParameter<Long>[] params, boolean primarySortField, String parameterName, Field<Long> field) {
         this.field = field;

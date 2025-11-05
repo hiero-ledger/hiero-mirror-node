@@ -43,9 +43,17 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 @RequiredArgsConstructor
-class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
+final class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
 
     private static final String SERVICE_NAME = "testService";
+    private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
+
+    private Configuration config;
+    private MirrorNodeState mirrorNodeState;
+    private SchemaRegistryImpl schemaRegistry;
+
+    @Resource
+    private StateRegistry stateRegistry;
 
     private static Stream<Arguments> stateDefinition() {
         return Stream.of(
@@ -75,23 +83,12 @@ class SchemaRegistryImplIntegrationTest extends Web3IntegrationTest {
                         "default implementations"));
     }
 
-    private final SemanticVersion previousVersion = new SemanticVersion(0, 46, 0, "", "");
-    private MirrorNodeState mirrorNodeState;
-
-    private SchemaRegistryImpl schemaRegistry;
-
-    private Configuration config;
-
-    @Resource
-    protected StateRegistry stateRegistry;
-
     @BeforeEach
     void setup() {
         mirrorNodeState = new MirrorNodeState(
                 java.util.List.of(),
                 mock(com.hedera.node.app.services.ServicesRegistry.class),
-                mock(org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.class),
-                mock(org.hiero.mirror.web3.repository.RecordFileRepository.class));
+                mock(org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.class));
         schemaRegistry = new SchemaRegistryImpl(SERVICE_NAME, stateRegistry);
         config = new ConfigProviderImpl().getConfiguration();
     }

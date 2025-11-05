@@ -11,7 +11,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 
 public record EntityIdRangeParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 
-    public static final EntityIdRangeParameter EMPTY = new EntityIdRangeParameter(null, EntityId.EMPTY);
+    public static final EntityIdRangeParameter EMPTY =
+            new EntityIdRangeParameter(RangeOperator.UNKNOWN, EntityId.EMPTY);
 
     public EntityIdRangeParameter(RangeOperator operator, EntityId entityId) {
         this(operator, entityId.getId());
@@ -26,9 +27,7 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
         return switch (splitVal.length) {
             case 1 -> new EntityIdRangeParameter(RangeOperator.EQ, getEntityId(splitVal[0]));
             case 2 -> new EntityIdRangeParameter(RangeOperator.of(splitVal[0]), getEntityId(splitVal[1]));
-            default ->
-                throw new IllegalArgumentException(
-                        "Invalid range operator %s. Should have format rangeOperator:Id".formatted(entityIdRangeParam));
+            default -> throw new IllegalArgumentException("Invalid range operator. Should have format 'operator:ID'");
         };
     }
 
@@ -40,7 +39,7 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
                 .toList();
 
         if (parts.size() != StringUtils.countMatches(entityId, ".") + 1) {
-            throw new IllegalArgumentException("Invalid entity ID: " + entityId);
+            throw new IllegalArgumentException("Invalid entity ID");
         }
 
         var properties = CommonProperties.getInstance();
@@ -48,7 +47,7 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
             case 1 -> EntityId.of(properties.getShard(), properties.getRealm(), parts.get(0));
             case 2 -> EntityId.of(properties.getShard(), parts.get(0), parts.get(1));
             case 3 -> EntityId.of(parts.get(0), parts.get(1), parts.get(2));
-            default -> throw new IllegalArgumentException("Invalid entity ID: " + entityId);
+            default -> throw new IllegalArgumentException("Invalid entity ID");
         };
     }
 }

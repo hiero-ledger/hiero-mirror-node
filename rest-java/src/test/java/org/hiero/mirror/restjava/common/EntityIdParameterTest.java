@@ -21,14 +21,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class EntityIdParameterTest {
+final class EntityIdParameterTest {
+
+    private static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     public static Stream<Arguments> parsableAliases() {
         return Stream.of(
-                Arguments.of("AABBCC22", COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), "AABBCC22"),
-                Arguments.of("1.AABBCC22", COMMON_PROPERTIES.getShard(), 1, "AABBCC22"),
-                Arguments.of("1.2.AABBCC22", 1, 2, "AABBCC22"));
+                Arguments.of(ALIAS, COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), ALIAS),
+                Arguments.of("1." + ALIAS, COMMON_PROPERTIES.getShard(), 1, ALIAS),
+                Arguments.of("1.2." + ALIAS, 1, 2, ALIAS));
     }
 
     public static Stream<Arguments> parsableIds() {
@@ -118,7 +120,9 @@ class EntityIdParameterTest {
                 "0.0x000000000000000000000000000000000186Fb1b",
                 "0x2540be3f6001fffffffffffff001fffffffffffff",
                 "0x10000000000000000000000000000000000000000",
-                "9223372036854775807"
+                "9223372036854775807",
+                "AABBCC22",
+                "1.2.AABBCC22"
             })
     @DisplayName("EntityId parse from string tests, negative cases")
     void entityParseFromStringFailure(String inputId) {

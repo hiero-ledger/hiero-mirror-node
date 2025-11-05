@@ -86,15 +86,13 @@ public class AccountClient extends AbstractNetworkClient {
     @Override
     protected void logEntities() {
         for (var accountName : accountMap.keySet()) {
-            log.info(
-                    "Skipping cleanup of account [{}}] at address {}.",
-                    accountName,
-                    accountMap.get(accountName).getAccountId().toEvmAddress());
             // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
             System.out.println(accountName + "="
                     + accountMap.get(accountName).getAccountId().toEvmAddress());
             System.out.println("DEFAULT_ACCOUNT_ID_" + accountName + "="
                     + accountMap.get(accountName).getAccountId());
+            System.out.println("DEFAULT_ACCOUNT_ID_KEY_" + accountName + "="
+                    + accountMap.get(accountName).getPublicKey().toStringRaw());
         }
     }
 
