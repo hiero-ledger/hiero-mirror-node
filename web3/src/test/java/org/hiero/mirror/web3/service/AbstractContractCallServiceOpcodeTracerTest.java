@@ -137,7 +137,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @SneakyThrows
     protected void verifyThrowingOpcodeTracerCall(
             final ContractDebugParameters params, final ContractFunctionProviderRecord function) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS, ctx));
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
         assertThat(actual.transactionProcessingResult().isSuccessful()).isFalse();
         assertThat(actual.transactionProcessingResult().getOutput()).isEqualTo(Bytes.EMPTY);
         assertThat(actual.transactionProcessingResult())
@@ -156,7 +156,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifySuccessfulOpcodeTracerCall(final ContractDebugParameters params) {
-        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS, ctx));
+        final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
         final var expected = new OpcodesProcessingResult(resultCaptor, contextCaptor.getOpcodes());
         // Compare transaction processing result
         assertThat(actual.transactionProcessingResult())
