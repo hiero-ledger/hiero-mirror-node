@@ -913,6 +913,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private HookStorage mergeHookStorage(HookStorage previous, HookStorage current) {
 
         if (previous.isDeleted() && !current.isDeleted()) {
+            /* This is set to the negative timestamp to aid coalesce sql on the upsertable column
+             we need to be able to identify the point where the hook storage lifecycle was started again
+             in order to set the created timestamp correctly
+            */
             previous.setCreatedTimestamp(~current.getCreatedTimestamp() + 1);
         }
 

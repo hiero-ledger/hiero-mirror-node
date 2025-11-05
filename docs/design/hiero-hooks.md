@@ -216,11 +216,12 @@ For hook EVM storage data, we use a two-table approach similar to contract stora
 -- add_hook_storage_change_table.sql
 create table hook_storage_change
 (
-    consensus_timestamp bigint not null,
-    hook_id             bigint not null,
-    owner_id            bigint not null,
-    key                 bytea  not null,
-    value_read          bytea  not null,
+    deleted             boolean not null default false,
+    consensus_timestamp bigint  not null,
+    hook_id             bigint  not null,
+    owner_id            bigint  not null,
+    key                 bytea   not null,
+    value_read          bytea   not null,
     value_written       bytea,
 
     primary key (owner_id, hook_id, key, consensus_timestamp)
@@ -235,12 +236,13 @@ select create_distributed_table('hook_storage_change', 'owner_id', colocate_with
 -- add_hook_storage_table.sql
 create table hook_storage
 (
-    created_timestamp  bigint not null,
-    hook_id            bigint not null,
-    modified_timestamp bigint not null,
-    owner_id           bigint not null,
-    key                bytea  not null,
-    value              bytea  not null,
+    deleted            boolean not null default false,
+    created_timestamp  bigint  not null,
+    hook_id            bigint  not null,
+    modified_timestamp bigint  not null,
+    owner_id           bigint  not null,
+    key                bytea   not null,
+    value              bytea   not null,
 
     primary key (owner_id, hook_id, key)
 );
