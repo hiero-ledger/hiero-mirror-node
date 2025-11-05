@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.services.stream.proto.CallOperationType;
@@ -424,8 +425,10 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
             """)
     void processGasConsumedCalculationContractCreate(boolean blockstream, boolean withHexPrefix) {
         // Given RecordItem with 2 contract actions and bytecode sidecar record
+        final byte[] constructorParameters = new byte[] {1, 0, 0, 1};
         final var recordItem = recordItemBuilder
                 .contractCreate()
+                .transactionBody(b -> b.setConstructorParameters(ByteString.copyFrom(constructorParameters)))
                 .recordItem(r -> r.blockstream(blockstream))
                 .build();
 
@@ -436,7 +439,8 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                                 contractAction(CallOperationType.OP_CALL, ContractActionType.CALL, 1))))
                 .build();
 
-        final var initcode = new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1};
+        final var bytecode = new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1};
+        final var initcode = Bytes.concat(bytecode, constructorParameters);
         final var bytecodeRecord = TransactionSidecarRecord.newBuilder()
                 .setBytecode(ContractBytecode.newBuilder()
                         .setInitcode(blockstream ? ByteString.EMPTY : DomainUtils.fromBytes(initcode)))
@@ -449,7 +453,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
                     .fileData()
                     .customize(f -> f.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
                             .entityId(fileId)
-                            .fileData(TestUtils.toBytecodeFileContent(initcode, withHexPrefix)))
+                            .fileData(TestUtils.toBytecodeFileContent(bytecode, withHexPrefix)))
                     .persist();
         }
 
@@ -461,7 +465,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         // Then
         assertThat(contractResultRepository.findById(recordItem.getConsensusTimestamp()))
                 .get()
-                .returns(53146L, ContractResult::getGasConsumed);
+                .returns(53186L, ContractResult::getGasConsumed);
     }
 
     @Test

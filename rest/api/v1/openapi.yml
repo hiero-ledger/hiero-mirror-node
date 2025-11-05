@@ -53,6 +53,29 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - accounts
+  /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks:
+    get:
+      summary: List hooks for an account
+      description: Returns a list of hooks associated with a given account ID, alias, or EVM address.
+      operationId: getHooks
+      parameters:
+        - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"
+        - $ref: "#/components/parameters/hookIdQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HooksResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}/nfts:
     get:
       summary: Get nfts for an account info
@@ -1550,6 +1573,66 @@ components:
           $ref: "#/components/schemas/CryptoAllowances"
         links:
           $ref: "#/components/schemas/Links"
+    HooksResponse:
+      type: object
+      required:
+        - hooks
+        - links
+      properties:
+        hooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hook"
+        links:
+          $ref: "#/components/schemas/Links"
+    Hook:
+      type: object
+      required:
+        - admin_key
+        - contract_id
+        - created_timestamp
+        - deleted
+        - extension_point
+        - hook_id
+        - owner_id
+        - timestamp_range
+        - type
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        contract_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+          description: The contract entity that contains the hook's executing bytecode
+        created_timestamp:
+          allOf:
+            - $ref: "#/components/schemas/TimestampNullable"
+          description: The consensus timestamp when the hook was created
+        deleted:
+          description: Whether the hook has been deleted
+          example: false
+          type: boolean
+        extension_point:
+          description: The extension point this hook implements
+          enum: [ACCOUNT_ALLOWANCE_HOOK]
+          example: ACCOUNT_ALLOWANCE_HOOK
+          type: string
+        hook_id:
+          description: The unique identifier for the hook within the owner's scope
+          example: 1
+          format: int64
+          type: integer
+        owner_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+          description: The entity that owns the hook
+        timestamp_range:
+          $ref: "#/components/schemas/TimestampRangeNullable"
+        type:
+          description: The type of the hook implementation
+          enum: [LAMBDA]
+          example: LAMBDA
+          type: string
     NetworkExchangeRateSetResponse:
       type: object
       properties:
@@ -4477,6 +4560,17 @@ components:
         default: 25
         minimum: 1
         maximum: 100
+    hookIdQueryParam:
+      description: The ID of the hook
+      example: 1234
+      in: query
+      name: hook.id
+      schema:
+        format: int64
+        type: integer
+        minimum: 1
+        maximum: 9223372036854775807
+      required: false
     blockNumberQueryParam:
       name: block.number
       in: query

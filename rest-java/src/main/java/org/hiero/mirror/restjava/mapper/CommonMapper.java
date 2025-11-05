@@ -19,6 +19,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingInheritanceStrategy;
@@ -103,6 +104,23 @@ public interface CommonMapper {
         }
 
         var target = new TimestampRange();
+        if (source.hasLowerBound()) {
+            target.setFrom(mapTimestamp(source.lowerEndpoint()));
+        }
+
+        if (source.hasUpperBound()) {
+            target.setTo(mapTimestamp(source.upperEndpoint()));
+        }
+
+        return target;
+    }
+
+    default TimestampRangeNullable mapTimestampRangeNullable(Range<Long> source) {
+        if (source == null) {
+            return null;
+        }
+
+        var target = new TimestampRangeNullable();
         if (source.hasLowerBound()) {
             target.setFrom(mapTimestamp(source.lowerEndpoint()));
         }

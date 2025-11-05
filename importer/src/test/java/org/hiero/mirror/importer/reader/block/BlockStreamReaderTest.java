@@ -21,6 +21,7 @@ import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import java.util.ArrayList;
@@ -266,23 +267,23 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
-    void readBatchTransactionsMissingInnerTransactionResult() {
-        var batchTransactionTimestamp = recordItemBuilder.timestamp();
-        var innerTransactionTimestamp1 = recordItemBuilder.timestamp();
-
+    void readBatchTransactionsNoTransactionResultForSkippedInnerTransactions() {
+        // given
         var batchTransactionResult = TransactionResult.newBuilder()
-                .setConsensusTimestamp(batchTransactionTimestamp)
+                .setConsensusTimestamp(recordItemBuilder.timestamp())
                 .build();
         var batchStateChanges = StateChanges.newBuilder()
-                .setConsensusTimestamp(batchTransactionTimestamp)
+                .setConsensusTimestamp(batchTransactionResult.getConsensusTimestamp())
                 .addStateChanges(StateChange.newBuilder())
                 .build();
-
-        var innerTransactionResult1 = TransactionResult.newBuilder()
-                .setConsensusTimestamp(innerTransactionTimestamp1)
-                .setParentConsensusTimestamp(batchTransactionTimestamp)
+        var innerTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(recordItemBuilder.timestamp())
+                .setParentConsensusTimestamp(batchStateChanges.getConsensusTimestamp())
+                .setStatus(ResponseCodeEnum.INSUFFICIENT_PAYER_BALANCE)
                 .build();
-
+        var lastTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(recordItemBuilder.timestamp())
+                .build();
         var block = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader())
@@ -290,14 +291,34 @@ public final class BlockStreamReaderTest {
                 .addItems(batchTransaction())
                 .addItems(transactionResult(batchTransactionResult))
                 .addItems(stateChanges(batchStateChanges))
-                .addItems(transactionResult(innerTransactionResult1))
+                .addItems(transactionResult(innerTransactionResult))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(lastTransactionResult))
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
-        assertThatThrownBy(() -> reader.read(blockStream))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Missing transaction result in block 000000000000000000000000000000000001.blk.gz");
+        // when
+        var blockFile = reader.read(blockStream);
+
+        // then
+        long batchTransactionTimestamp =
+                DomainUtils.timestampInNanosMax(batchTransactionResult.getConsensusTimestamp());
+        long innerTransactionTimestamp =
+                DomainUtils.timestampInNanosMax(innerTransactionResult.getConsensusTimestamp());
+        long lastTransactionTimestamp = DomainUtils.timestampInNanosMax(lastTransactionResult.getConsensusTimestamp());
+        assertThat(blockFile.getItems())
+                .hasSize(3)
+                .satisfies(
+                        items -> assertThat(items.getFirst())
+                                .returns(batchTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
+                                .returns(null, BlockTransaction::getParentConsensusTimestamp),
+                        items -> assertThat(items.get(1))
+                                .returns(innerTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
+                                .returns(batchTransactionTimestamp, BlockTransaction::getParentConsensusTimestamp),
+                        items -> assertThat(items.getLast())
+                                .returns(lastTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
+                                .returns(null, BlockTransaction::getParentConsensusTimestamp));
     }
 
     @Test
