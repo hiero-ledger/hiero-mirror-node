@@ -29,13 +29,13 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.store.accessor.EntityDatabaseAccessor;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
 import org.jspecify.annotations.NonNull;
@@ -52,7 +52,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
-    private final EntityDatabaseAccessor entityDatabaseAccessor;
+    private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
     public OpcodesResponse processOpcodeCall(
@@ -108,7 +108,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                 result.transactionProcessingResult().getRecipient();
 
         final Optional<Entity> recipientEntity =
-                recipientAddress.flatMap(address -> entityDatabaseAccessor.get(address, Optional.empty()));
+                recipientAddress.flatMap(address -> commonEntityAccessor.get(address, Optional.empty()));
 
         return new OpcodesResponse()
                 .address(recipientEntity
@@ -176,7 +176,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private Address getSenderAddress(ContractResult contractResult) {
-        return entityDatabaseAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+        return commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
     }
 
     private Address getReceiverAddress(
@@ -188,7 +188,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                     }
                     Address address = Address.wrap(Bytes.wrap(transaction.getToAddress()));
                     if (isMirror(address.toArrayUnsafe())) {
-                        return entityDatabaseAccessor
+                        return commonEntityAccessor
                                 .get(address, Optional.empty())
                                 .map(this::getEntityAddress);
                     }
@@ -199,7 +199,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         return Address.ZERO;
                     }
                     final var contractId = EntityId.of(contractResult.getContractId());
-                    return entityDatabaseAccessor.evmAddressFromId(contractId, Optional.empty());
+                    return commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
                 });
     }
 
