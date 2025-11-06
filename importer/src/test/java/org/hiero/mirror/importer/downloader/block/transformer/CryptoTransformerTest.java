@@ -17,6 +17,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 final class CryptoTransformerTest extends AbstractTransformerTest {
 
@@ -115,6 +116,30 @@ final class CryptoTransformerTest extends AbstractTransformerTest {
 
         // when
         var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void cryptoUpdate(boolean hasAlias) {
+        // given
+        var expectedRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> {
+                    if (hasAlias) {
+                        b.getAccountIDToUpdateBuilder().setAlias(recordItemBuilder.bytes(34));
+                    }
+                })
+                .customize(this::finalize)
+                .build();
+        final var blockTransaction =
+                blockTransactionBuilder.cryptoUpdate(expectedRecordItem).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));

@@ -25,8 +25,10 @@ import java.util.Map;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
+@NullMarked
 public final class StateChangeContext {
 
     static final StateChangeContext EMPTY_CONTEXT = new StateChangeContext();
@@ -37,6 +39,7 @@ public final class StateChangeContext {
     private static final Comparator<TopicID> TOPIC_ID_COMPARATOR = Comparator.comparing(TopicID::getTopicNum);
 
     private final Map<AccountID, Account> accounts = new HashMap<>();
+    private final Map<ByteString, AccountID> accountIds = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
     private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
@@ -93,19 +96,23 @@ public final class StateChangeContext {
         topicIds.sort(TOPIC_ID_COMPARATOR);
     }
 
-    public Optional<Account> getAccount(@NonNull AccountID id) {
+    public Optional<Account> getAccount(AccountID id) {
         return Optional.ofNullable(accounts.get(id));
     }
 
-    public Optional<ByteString> getContractBytecode(@NonNull ContractID id) {
+    public Optional<AccountID> getAccountId(ByteString alias) {
+        return Optional.ofNullable(accountIds.get(alias));
+    }
+
+    public Optional<ByteString> getContractBytecode(ContractID id) {
         return Optional.ofNullable(contractBytecodes.get(id));
     }
 
-    public Optional<ContractID> getContractId(@NonNull ByteString evmAddress) {
+    public Optional<ContractID> getContractId(ByteString evmAddress) {
         return Optional.ofNullable(contractIds.get(evmAddress));
     }
 
-    public SlotValue getContractStorageChange(@NonNull ContractID contractId, int index) {
+    public @Nullable SlotValue getContractStorageChange(ContractID contractId, int index) {
         if (index < 0) {
             return null;
         }
@@ -118,7 +125,7 @@ public final class StateChangeContext {
         return indexed.get(index);
     }
 
-    public BytesValue getContractStorageValueWritten(@NonNull SlotKey slotKey) {
+    public @Nullable BytesValue getContractStorageValueWritten(SlotKey slotKey) {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
@@ -154,7 +161,7 @@ public final class StateChangeContext {
         return Optional.of(topicIds.removeLast());
     }
 
-    public Optional<TopicMessage> getTopicMessage(@NonNull TopicID topicId) {
+    public Optional<TopicMessage> getTopicMessage(TopicID topicId) {
         return Optional.ofNullable(topicState.remove(topicId));
     }
 
@@ -165,7 +172,7 @@ public final class StateChangeContext {
      * @param change - The amount of change to track
      * @return An optional of the pending airdrop's amount
      */
-    public Optional<Long> trackPendingFungibleAirdrop(@NonNull PendingAirdropId pendingAirdropId, long change) {
+    public Optional<Long> trackPendingFungibleAirdrop(PendingAirdropId pendingAirdropId, long change) {
         return Optional.ofNullable(pendingFungibleAirdrops.remove(pendingAirdropId))
                 .map(amount -> {
                     if (change < amount) {
@@ -184,7 +191,7 @@ public final class StateChangeContext {
      *               should be negative; for transactions which reduced the total supply, the value should be positive
      * @return An optional of the token total supply
      */
-    public Optional<Long> trackTokenTotalSupply(@NonNull TokenID tokenId, long change) {
+    public Optional<Long> trackTokenTotalSupply(TokenID tokenId, long change) {
         return Optional.ofNullable(tokenTotalSupplies.get(tokenId)).map(totalSupply -> {
             tokenTotalSupplies.put(tokenId, totalSupply + change);
             return totalSupply;
@@ -196,18 +203,24 @@ public final class StateChangeContext {
             return;
         }
 
-        var account = mapUpdate.getValue().getAccountValue();
+        final var account = mapUpdate.getValue().getAccountValue();
         accounts.putIfAbsent(account.getAccountId(), account);
 
-        if (account.getSmartContract() && account.getAlias() != ByteString.EMPTY) {
-            var accountId = account.getAccountId();
-            contractIds.put(
-                    account.getAlias(),
-                    ContractID.newBuilder()
-                            .setShardNum(accountId.getShardNum())
-                            .setRealmNum(accountId.getRealmNum())
-                            .setContractNum(accountId.getAccountNum())
-                            .build());
+        if (account.getAlias() != ByteString.EMPTY) {
+            final var accountId = account.getAccountId();
+            final var alias = account.getAlias();
+
+            if (account.getSmartContract()) {
+                contractIds.put(
+                        account.getAlias(),
+                        ContractID.newBuilder()
+                                .setShardNum(accountId.getShardNum())
+                                .setRealmNum(accountId.getRealmNum())
+                                .setContractNum(accountId.getAccountNum())
+                                .build());
+            } else {
+                accountIds.put(alias, account.getAccountId());
+            }
         }
     }
 

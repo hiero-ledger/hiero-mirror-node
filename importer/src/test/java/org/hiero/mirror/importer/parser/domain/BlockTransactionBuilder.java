@@ -392,6 +392,31 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
+    public BlockTransactionBuilder.Builder cryptoUpdate(RecordItem recordItem) {
+        final var accountIdToUpdate =
+                recordItem.getTransactionBody().getCryptoUpdateAccount().getAccountIDToUpdate();
+        final var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
+        final var account = Account.newBuilder().setAccountId(accountId);
+        if (accountIdToUpdate.hasAlias()) {
+            account.setAlias(accountIdToUpdate.getAlias());
+        }
+
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_ACCOUNTS_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
+                                .setValue(MapChangeValue.newBuilder().setAccountValue(account))))
+                .build();
+
+        return new BlockTransactionBuilder.Builder(
+                recordItem.getTransaction(),
+                transactionResult(recordItem),
+                Collections.emptyMap(),
+                List.of(stateChanges),
+                Collections.emptyList());
+    }
+
     public BlockTransactionBuilder.Builder scheduleCreate(RecordItem recordItem) {
         if (!recordItem.isSuccessful()
                 && recordItem.getTransactionStatus()

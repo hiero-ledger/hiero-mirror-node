@@ -653,7 +653,8 @@ public class RecordItemBuilder {
                 .setStakedNodeId(1L)
                 .addHookCreationDetails(hookCreationDetails())
                 .addHookIdsToDelete(1L);
-        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder);
+        return new Builder<>(TransactionType.CRYPTOUPDATEACCOUNT, builder)
+                .receipt(r -> r.setAccountID(builder.getAccountIDToUpdate()));
     }
 
     public CustomFee.Builder customFee(CustomFee.FeeCase feeCase) {

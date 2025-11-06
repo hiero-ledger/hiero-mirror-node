@@ -78,6 +78,29 @@ final class StateChangeContextTest {
     }
 
     @Test
+    void accountId() {
+        // given
+        final var accountId1 = getAccountId();
+        final var account1Alias = alias();
+        final var accountId2 = getAccountId();
+        final var contractId = getAccountId();
+        final var evmAddress = evmAddress();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(accountId1, account1Alias))
+                .addStateChanges(accountMapUpdateChange(accountId2))
+                .addStateChanges(contractMapUpdateChange(contractId, evmAddress))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getAccountId(account1Alias)).contains(accountId1);
+        assertThat(context.getAccountId(evmAddress)).isEmpty();
+    }
+
+    @Test
     void contractId() {
         // given
         var contractId1 = getAccountId();
@@ -86,7 +109,6 @@ final class StateChangeContextTest {
         var evmAddress2 = evmAddress();
         var contractId3 = getAccountId();
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(accountIdMapUpdateChange())
                 .addStateChanges(accountMapUpdateChange())
                 .addStateChanges(contractMapUpdateChange(contractId1, evmAddress1))
                 .addStateChanges(contractMapUpdateChange(contractId2, evmAddress2))
@@ -422,6 +444,10 @@ final class StateChangeContextTest {
         assertThat(topic2Messages).containsExactlyElementsOf(expectedTopic2Messages);
     }
 
+    private ByteString alias() {
+        return DomainUtils.fromBytes(CommonUtils.nextBytes(34));
+    }
+
     private ByteString evmAddress() {
         return DomainUtils.fromBytes(CommonUtils.nextBytes(20));
     }
@@ -434,24 +460,19 @@ final class StateChangeContextTest {
                 .build();
     }
 
-    private StateChange accountIdMapUpdateChange() {
-        var accountId = getAccountId();
-        return StateChange.newBuilder()
-                .setStateId(STATE_ID_ACCOUNTS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
-                        .setValue(MapChangeValue.newBuilder().setAccountIdValue(accountId))
-                        .build())
-                .build();
+    private StateChange accountMapUpdateChange(AccountID accountId) {
+        return accountMapUpdateChange(accountId, ByteString.EMPTY);
     }
 
-    private StateChange accountMapUpdateChange(AccountID accountId) {
+    private StateChange accountMapUpdateChange(AccountID accountId, ByteString alias) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
                         .setValue(MapChangeValue.newBuilder()
-                                .setAccountValue(Account.newBuilder().setAccountId(accountId)))
+                                .setAccountValue(Account.newBuilder()
+                                        .setAccountId(accountId)
+                                        .setAlias(alias)))
                         .build())
                 .build();
     }
