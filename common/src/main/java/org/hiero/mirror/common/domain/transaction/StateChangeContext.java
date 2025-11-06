@@ -206,20 +206,20 @@ public final class StateChangeContext {
         final var account = mapUpdate.getValue().getAccountValue();
         accounts.putIfAbsent(account.getAccountId(), account);
 
-        if (account.getAlias() != ByteString.EMPTY) {
+        if (!account.getAlias().equals(ByteString.EMPTY)) {
             final var accountId = account.getAccountId();
             final var alias = account.getAlias();
 
             if (account.getSmartContract()) {
                 contractIds.put(
-                        account.getAlias(),
+                        alias,
                         ContractID.newBuilder()
                                 .setShardNum(accountId.getShardNum())
                                 .setRealmNum(accountId.getRealmNum())
                                 .setContractNum(accountId.getAccountNum())
                                 .build());
             } else {
-                accountIds.put(alias, account.getAccountId());
+                accountIds.put(alias, accountId);
             }
         }
     }

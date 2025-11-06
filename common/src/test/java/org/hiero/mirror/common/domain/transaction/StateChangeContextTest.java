@@ -98,6 +98,12 @@ final class StateChangeContextTest {
         // then
         assertThat(context.getAccountId(account1Alias)).contains(accountId1);
         assertThat(context.getAccountId(evmAddress)).isEmpty();
+        assertThat(context.getContractId(evmAddress))
+                .contains(ContractID.newBuilder()
+                        .setShardNum(contractId.getShardNum())
+                        .setRealmNum(contractId.getRealmNum())
+                        .setContractNum(contractId.getAccountNum())
+                        .build());
     }
 
     @Test
