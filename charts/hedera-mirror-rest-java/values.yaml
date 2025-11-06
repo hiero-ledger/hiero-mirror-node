@@ -75,11 +75,9 @@ gateway:
         - path:
             type: RegularExpression  # GKE does not yet support RegularExpression type
             value: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
-        {{- if .Values.routes.exchangeRate }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/exchangerate'
-        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
@@ -132,7 +130,6 @@ ingress:
         # the rest of /api/v1/* is still handled by the Node.js based REST API logic, except for these paths
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
         - path: '/api/v1/network/exchangerate'
-          condition: "{{ .Values.routes.exchangeRate }}"
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
@@ -314,8 +311,6 @@ resources:
 
 revisionHistoryLimit: 3
 
-routes:
-  exchangeRate: true
 
 securityContext:
   allowPrivilegeEscalation: false

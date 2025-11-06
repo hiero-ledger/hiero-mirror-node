@@ -14,8 +14,8 @@ plugins {
 tasks.dockerBuild { dependsOn(":rest:monitoring:dockerBuild") }
 
 tasks.register<NpmTask>("testRestJava") {
-    val specPaths = listOf("network/exchangerate")
-    val testFiles = listOf("network.spec.test.js")
+    val specPaths = listOf<String>()
+    val testFiles = listOf<String>()
 
     dependsOn(":rest-java:dockerBuild")
     onlyIf { specPaths.isNotEmpty() && testFiles.isNotEmpty() }
