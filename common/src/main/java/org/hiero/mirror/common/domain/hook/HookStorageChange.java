@@ -74,7 +74,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
 
     public void setValueWritten(byte[] valueWritten) {
         this.valueWritten = DomainUtils.trim(valueWritten);
-        this.deleted = ArrayUtils.isEmpty(this.valueWritten);
+        this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
     @JsonIgnore
