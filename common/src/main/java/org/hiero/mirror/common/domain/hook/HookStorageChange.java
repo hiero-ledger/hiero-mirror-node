@@ -13,7 +13,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.domain.Persistable;
 
