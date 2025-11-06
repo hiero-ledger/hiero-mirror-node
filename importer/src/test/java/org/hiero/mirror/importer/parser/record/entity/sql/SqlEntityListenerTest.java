@@ -3588,17 +3588,19 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @Test
-    void onHookStorageChangeNull() {
+    void onHookStorageChangeWrittenNull() {
         final var hookStorage = domainBuilder.hookStorage().persist();
         final var hookStorageChange = domainBuilder
                 .hookStorageChange()
-                .customize(b -> b.valueWritten(null).hookId(hookStorage.getHookId()))
+                .customize(b ->
+                        b.valueRead(hookStorage.getValue()).valueWritten(null).hookId(hookStorage.getHookId()))
                 .get();
 
         sqlEntityListener.onHookStorageChange(hookStorageChange);
         completeFileAndCommit();
 
         assertThat(hookStorageChangeRepository.findAll()).containsExactly(hookStorageChange);
+        assertThat(hookStorageChange.isDeleted()).isFalse();
         assertThat(hookStorageRepository.findAll()).containsExactly(hookStorage);
     }
 

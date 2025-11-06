@@ -54,7 +54,7 @@ public class HookStorageChange implements Persistable<HookStorageChange.Id> {
         this.ownerId = ownerId;
         this.valueRead = DomainUtils.trim(valueRead);
         this.valueWritten = DomainUtils.trim(valueWritten);
-        this.deleted = ArrayUtils.isEmpty(this.valueWritten);
+        this.deleted = this.valueWritten != null && this.valueWritten.length == 0;
     }
 
     @Override
