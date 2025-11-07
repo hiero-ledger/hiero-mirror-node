@@ -619,11 +619,14 @@ function waitForHelmReleaseReady() {
 
     sleep 30
   done
+}
 
+function cleanupAcceptancePod() {
+  local namespace="$1"
   kubectl -n "${namespace}" wait pod -l"app.kubernetes.io/component=hedera-mirror" \
-    --for=jsonpath='{.status.phase}'=Succeeded \
-    --timeout=30m > /dev/null 2>&1 || true
-  kubectl -n "${namespace}" delete pod -l"app.kubernetes.io/component=hedera-mirror" --ignore-not-found >/dev/null 2>&1
+      --for=jsonpath='{.status.phase}'=Succeeded \
+      --timeout=30m || true
+  kubectl -n "${namespace}" delete pod -l"app.kubernetes.io/component=hedera-mirror" --ignore-not-found
 }
 
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
@@ -646,6 +649,7 @@ if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
       waitForHelmReleaseReady "${namespace}"
+      cleanupAcceptancePods "${namespace}"
       log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
       flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
     fi
