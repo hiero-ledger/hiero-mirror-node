@@ -7,10 +7,13 @@ import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
+import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
+import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
+import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
@@ -26,7 +29,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class NetworkController {
 
+    private final CommonMapper commonMapper;
     private final ExchangeRateMapper exchangeRateMapper;
+    private final FeeScheduleMapper feeScheduleMapper;
     private final FileService fileService;
     private final NetworkService networkService;
     private final NetworkStakeMapper networkStakeMapper;
@@ -37,6 +42,16 @@ final class NetworkController {
         final var bound = timestampBound(timestamp);
         final var exchangeRateSet = fileService.getExchangeRate(bound);
         return exchangeRateMapper.map(exchangeRateSet);
+    }
+
+    @GetMapping("/fees")
+    NetworkFeesResponse getFees(
+            @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
+            @RequestParam(required = false, defaultValue = "asc") String order) {
+        final var bound = timestampBound(timestamp);
+        final var feeSchedule = fileService.getFeeSchedule(bound);
+        final var exchangeRate = fileService.getExchangeRate(bound);
+        return feeScheduleMapper.map(feeSchedule, exchangeRate, order, commonMapper);
     }
 
     @GetMapping("/stake")

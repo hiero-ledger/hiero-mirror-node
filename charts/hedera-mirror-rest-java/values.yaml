@@ -80,6 +80,11 @@ gateway:
             type: RegularExpression
             value: '/api/v1/network/exchangerate'
         {{- end }}
+        {{- if .Values.routes.fees }}
+        - path:
+            type: RegularExpression
+            value: '/api/v1/network/fees$'
+        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
@@ -133,6 +138,8 @@ ingress:
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)'
         - path: '/api/v1/network/exchangerate'
           condition: "{{ .Values.routes.exchangeRate }}"
+        - path: '/api/v1/network/fees$'
+          condition: "{{ .Values.routes.fees }}"
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
@@ -316,6 +323,7 @@ revisionHistoryLimit: 3
 
 routes:
   exchangeRate: true
+  fees: false
 
 securityContext:
   allowPrivilegeEscalation: false
