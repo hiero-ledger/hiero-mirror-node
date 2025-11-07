@@ -39,4 +39,9 @@ public class FunctionWritableSingletonState<S> extends WritableSingletonStateBas
     protected void removeFromDataSource() {
         // No-op as we don't persist updates in web3.
     }
+
+    @Override
+    public void commit() {
+        // No-op as we don't persist updates in web3.
+    }
 }
