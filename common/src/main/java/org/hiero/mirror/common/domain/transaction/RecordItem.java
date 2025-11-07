@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -105,6 +106,29 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private List<TransactionSidecarRecord> sidecarRecords = Collections.emptyList();
+
+    // Transient hook execution queue for CryptoTransfer transactions that may trigger hooks
+    @NonFinal
+    @Setter
+    Queue<HookId> hookExecutionQueue;
+
+    /**
+     * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
+     *
+     * @return the next hook execution context, or null if queue is empty
+     */
+    public HookId nextHookContext() {
+        return hookExecutionQueue != null ? hookExecutionQueue.poll() : null;
+    }
+
+    /**
+     * Checks if there are more hook contexts in the execution queue.
+     *
+     * @return true if there are more hook contexts, false otherwise
+     */
+    public boolean hasMoreHookContexts() {
+        return hookExecutionQueue != null && !hookExecutionQueue.isEmpty();
+    }
 
     public void addContractTransaction(EntityId entityId) {
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
@@ -220,6 +244,11 @@ public class RecordItem implements StreamItem {
         contractTransactions.values().forEach(contractTransaction -> contractTransaction.setContractIds(ids));
         return contractTransactions.values();
     }
+
+    /**
+     * Record representing a hook execution context within a parent transaction.
+     */
+    public record HookId(long hookId, long ownerId) {}
 
     public static class RecordItemBuilder {
 

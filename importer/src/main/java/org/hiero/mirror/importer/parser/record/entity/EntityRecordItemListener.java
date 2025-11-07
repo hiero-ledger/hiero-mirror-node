@@ -19,6 +19,7 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +40,7 @@ import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.domain.transaction.RecordItem.HookId;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
@@ -115,8 +117,18 @@ public class EntityRecordItemListener implements RecordItemListener {
         Transaction transaction = buildTransaction(entityId, recordItem);
         transactionHandler.updateTransaction(transaction, recordItem);
 
+        // hook list for pre-allowance, pre and post hooks. We have to maintain the seq
+        // 1. HBAR transfers
+        // 2. Fungible Token Transfers
+        // 3. NFT Transfers
+        // Since in existing logic the seq is maintained, we will use the function calls as is
+        final var hookExecutionQueue = new LinkedList<HookId>();
+        final var allowExecHookIds = new ArrayList<HookId>();
+        final var allowPreExecHookIds = new ArrayList<HookId>();
+        final var allowPostExecHookIds = new ArrayList<HookId>();
+
         // Insert transfers even on failure
-        insertTransferList(recordItem);
+        insertTransferList(recordItem, allowExecHookIds, allowPreExecHookIds, allowPostExecHookIds);
         insertStakingRewardTransfers(recordItem);
 
         // handle scheduled transaction, even on failure
@@ -140,9 +152,15 @@ public class EntityRecordItemListener implements RecordItemListener {
         if (recordItem.isSuccessful() || recordItem.getTransactionStatus() == ResponseCodeEnum.FAIL_INVALID_VALUE) {
             insertAutomaticTokenAssociations(recordItem);
             // Record token transfers can be populated for multiple transaction types
-            insertTokenTransfers(recordItem, transaction);
+            insertTokenTransfers(recordItem, transaction, allowExecHookIds, allowPreExecHookIds, allowPostExecHookIds);
             insertAssessedCustomFees(recordItem);
         }
+
+        // Add hook queue
+        hookExecutionQueue.addAll(allowExecHookIds);
+        hookExecutionQueue.addAll(allowPreExecHookIds);
+        hookExecutionQueue.addAll(allowPostExecHookIds);
+        recordItem.setHookExecutionQueue(hookExecutionQueue);
 
         contractResultService.process(recordItem, transaction);
 
@@ -279,7 +297,11 @@ public class EntityRecordItemListener implements RecordItemListener {
      * spurious non-fee transfers that occurred due to a services bug in the past as documented in
      * ErrataMigration.spuriousTransfers().
      */
-    private void insertTransferList(RecordItem recordItem) {
+    private void insertTransferList(
+            RecordItem recordItem,
+            List<HookId> allowExecHookIds,
+            List<HookId> allowPreExecHookIds,
+            List<HookId> allowPostExecHookIds) {
         var transactionRecord = recordItem.getTransactionRecord();
         if (!transactionRecord.hasTransferList()
                 || !entityProperties.getPersist().isCryptoTransferAmounts()) {
@@ -316,6 +338,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
 
             entityListener.onCryptoTransfer(cryptoTransfer);
+            insertHookIds(aa, account, allowExecHookIds, allowPreExecHookIds, allowPostExecHookIds);
             recordItem.addEntityId(account);
         }
     }
@@ -373,7 +396,12 @@ public class EntityRecordItemListener implements RecordItemListener {
         return maxCustomFees;
     }
 
-    private void insertFungibleTokenTransfers(RecordItem recordItem, TokenTransferList tokenTransferList) {
+    private void insertFungibleTokenTransfers(
+            RecordItem recordItem,
+            TokenTransferList tokenTransferList,
+            List<HookId> allowExecHookIds,
+            List<HookId> allowPreExecHookIds,
+            List<HookId> allowPostExecHookIds) {
         if (tokenTransferList.getTransfersList().isEmpty()) {
             return;
         }
@@ -422,6 +450,28 @@ public class EntityRecordItemListener implements RecordItemListener {
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
 
             logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
+
+            insertHookIds(accountAmount, accountId, allowExecHookIds, allowPreExecHookIds, allowPostExecHookIds);
+        }
+    }
+
+    private void insertHookIds(
+            AccountAmount accountAmount,
+            EntityId accountId,
+            List<HookId> allowExecHookIds,
+            List<HookId> allowPreExecHookIds,
+            List<HookId> allowPostExecHookIds) {
+        // add allowanceHook
+        if (accountAmount.hasPreTxAllowanceHook()) {
+            final var hookCall = accountAmount.getPreTxAllowanceHook();
+            if (hookCall.hasHookId()) {
+                allowExecHookIds.add(new HookId(hookCall.getHookId(), accountId.getId()));
+            }
+        } else if (accountAmount.hasPrePostTxAllowanceHook()) {
+            final var hookCall = accountAmount.getPrePostTxAllowanceHook();
+            HookId e = new HookId(hookCall.getHookId(), accountId.getId());
+            allowPreExecHookIds.add(e);
+            allowPostExecHookIds.add(e);
         }
     }
 
@@ -510,7 +560,12 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
     }
 
-    private void insertTokenTransfers(RecordItem recordItem, Transaction transaction) {
+    private void insertTokenTransfers(
+            RecordItem recordItem,
+            Transaction transaction,
+            List<HookId> allowExecHookIds,
+            List<HookId> allowPreExecHookIds,
+            List<HookId> allowPostExecHookIds) {
         if (!entityProperties.getPersist().isTokens()) {
             return;
         }
@@ -521,8 +576,15 @@ public class EntityRecordItemListener implements RecordItemListener {
         for (int i = 0; i < tokenTransferListsList.size(); i++) {
             TokenTransferList tokenTransferList = tokenTransferListsList.get(i);
 
-            insertFungibleTokenTransfers(recordItem, tokenTransferList);
-            insertNonFungibleTokenTransfers(recordItem, transaction, tokenTransferList);
+            insertFungibleTokenTransfers(
+                    recordItem, tokenTransferList, allowExecHookIds, allowPreExecHookIds, allowPostExecHookIds);
+            insertNonFungibleTokenTransfers(
+                    recordItem,
+                    transaction,
+                    tokenTransferList,
+                    allowExecHookIds,
+                    allowPreExecHookIds,
+                    allowPostExecHookIds);
 
             if (i == 0) {
                 var tokenId = tokenTransferList.getToken();
@@ -568,7 +630,12 @@ public class EntityRecordItemListener implements RecordItemListener {
     }
 
     private void insertNonFungibleTokenTransfers(
-            RecordItem recordItem, Transaction transaction, TokenTransferList tokenTransferList) {
+            RecordItem recordItem,
+            Transaction transaction,
+            TokenTransferList tokenTransferList,
+            List<HookId> allowExecHookIds,
+            List<HookId> allowPreExecHookIds,
+            List<HookId> allowPostExecHookIds) {
         if (tokenTransferList.getNftTransfersList().isEmpty()) {
             return;
         }
@@ -596,6 +663,35 @@ public class EntityRecordItemListener implements RecordItemListener {
             recordItem.addEntityId(entityTokenId);
 
             transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
+
+            if (nftTransfer.hasPreTxSenderAllowanceHook()) {
+                final var hookCall = nftTransfer.getPreTxSenderAllowanceHook();
+                if (hookCall.hasHookId()) {
+                    allowExecHookIds.add(new HookId(hookCall.getHookId(), senderId.getId()));
+                }
+            } else if (nftTransfer.hasPrePostTxSenderAllowanceHook()) {
+                final var hookCall = nftTransfer.getPrePostTxSenderAllowanceHook();
+                if (hookCall.hasHookId()) {
+                    HookId e = new HookId(hookCall.getHookId(), senderId.getId());
+                    allowPreExecHookIds.add(e);
+                    allowPostExecHookIds.add(e);
+                }
+            }
+
+            if (nftTransfer.hasPreTxReceiverAllowanceHook()) {
+                final var hookCall = nftTransfer.getPreTxReceiverAllowanceHook();
+                if (hookCall.hasHookId()) {
+                    allowExecHookIds.add(new HookId(hookCall.getHookId(), receiverId.getId()));
+                }
+            } else if (nftTransfer.hasPrePostTxReceiverAllowanceHook()) {
+                final var hookCall = nftTransfer.getPrePostTxReceiverAllowanceHook();
+                if (hookCall.hasHookId()) {
+                    HookId e = new HookId(hookCall.getHookId(), receiverId.getId());
+                    allowPreExecHookIds.add(e);
+                    allowPostExecHookIds.add(e);
+                }
+            }
+
             syntheticContractLogService.create(
                     new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, serialNumber));
         }

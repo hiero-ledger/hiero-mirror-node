@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -302,6 +303,13 @@ final class ContractResultServiceImpl implements ContractResultService {
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         var contractId = EntityId.of(stateChange.getContractId());
         var payerAccountId = recordItem.getPayerAccountId();
+
+        // Check if this is hook storage change (contract 365 = 0x16d)
+        if (isHookExecution(recordItem) && isHookExecution(stateChange)) {
+            processHookStorageChanges(recordItem, stateChange);
+            return;
+        }
+
         for (var storageChange : stateChange.getStorageChangesList()) {
             var contractStateChange = new org.hiero.mirror.common.domain.contract.ContractStateChange();
             contractStateChange.setConsensusTimestamp(consensusTimestamp);
@@ -420,13 +428,13 @@ final class ContractResultServiceImpl implements ContractResultService {
     }
 
     /**
-     * Updates gas consumed based on HAPI version and smart contract throttling version.
-     * If the RecordItem's HAPI version is equal or greater than the smart contract throttling version,
-     * uses the gas used field from {@link ContractResult}. Otherwise, uses the existing logic with manual calculation.
+     * Updates gas consumed based on HAPI version and smart contract throttling version. If the RecordItem's HAPI
+     * version is equal or greater than the smart contract throttling version, uses the gas used field from
+     * {@link ContractResult}. Otherwise, uses the existing logic with manual calculation.
      *
-     * @param contractResult The contract result to update
+     * @param contractResult          The contract result to update
      * @param sidecarProcessingResult The sidecar processing result containing gas usage information
-     * @param recordItem The record item being processed
+     * @param recordItem              The record item being processed
      */
     private void updateGasConsumed(
             ContractResult contractResult, SidecarProcessingResult sidecarProcessingResult, RecordItem recordItem) {
@@ -492,6 +500,93 @@ final class ContractResultServiceImpl implements ContractResultService {
         return recordItem.isSuccessful()
                 && entityProperties.getPersist().isContracts()
                 && recordItem.getHapiVersion().isLessThan(RecordFile.HAPI_VERSION_0_23_0);
+    }
+
+    /**
+     * Determines if a RecordItem represents a hook execution. Hook executions are ContractCall transactions to the
+     * system hook contract (0.0.365) that have a parent consensus timestamp.
+     *
+     * @param recordItem the record item to check
+     * @return true if this is a hook execution, false otherwise
+     */
+    private boolean isHookExecution(RecordItem recordItem) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var transactionBody = recordItem.getTransactionBody();
+
+        // Must be a ContractCall transaction to 0.0.365 with a parent consensus timestamp
+        return transactionBody.hasContractCall()
+                && transactionRecord.hasParentConsensusTimestamp()
+                && entityIdService
+                        .lookup(transactionBody.getContractCall().getContractID())
+                        .map(entityId -> entityId.getId() == 365)
+                        .orElse(false);
+    }
+
+    /**
+     * Determines if a StateChange represents a hook execution. Hook executions are ContractCall transactions to the
+     * system hook contract (0.0.365).
+     *
+     * @param stateChange the state change from the sidecar
+     * @return true if this is a hook execution, false otherwise
+     */
+    private boolean isHookExecution(ContractStateChange stateChange) {
+        // Must be a ContractCall transaction to 0.0.365 with a parent consensus timestamp
+        return entityIdService
+                .lookup(stateChange.getContractId())
+                .map(entityId -> entityId.getId() == 365)
+                .orElse(false);
+    }
+
+    /**
+     * Processes hook storage changes from contract state changes targeting the hook system contract (0.0.365). Uses the
+     * transient queue in the parent RecordItem to track sequential hook execution context.
+     *
+     * @param recordItem  the record item containing the hook execution transaction
+     * @param stateChange the contract state change containing hook storage updates
+     */
+    private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        if (!transactionRecord.hasParentConsensusTimestamp()) {
+            Utility.handleRecoverableError(
+                    "Hook storage change detected but no parent consensus timestamp found at {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
+        var parentRecordItem = recordItem.getParent();
+        if (parentRecordItem == null) {
+            Utility.handleRecoverableError(
+                    "Unable to locate parent RecordItem for hook execution at consensus timestamp {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
+        // Get one hook context for this ContractStateChange
+        var hookContext = parentRecordItem.nextHookContext();
+        if (hookContext == null) {
+            Utility.handleRecoverableError(
+                    "No hook context available in parent transaction for hook execution at consensus timestamp {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
+        // Process each storage change with the same hook context
+        for (var storageChange : stateChange.getStorageChangesList()) {
+            var hookStorageChange = HookStorageChange.builder()
+                    .consensusTimestamp(recordItem.getConsensusTimestamp())
+                    .hookId(hookContext.hookId())
+                    .ownerId(hookContext.ownerId())
+                    .key(DomainUtils.toBytes(storageChange.getSlot()))
+                    .valueRead(DomainUtils.toBytes(storageChange.getValueRead()))
+                    .valueWritten(
+                            storageChange.hasValueWritten()
+                                    ? DomainUtils.toBytes(
+                                            storageChange.getValueWritten().getValue())
+                                    : null)
+                    .build();
+
+            entityListener.onHookStorageChange(hookStorageChange);
+        }
     }
 
     /**

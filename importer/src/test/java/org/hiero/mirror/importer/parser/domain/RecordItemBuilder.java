@@ -1382,7 +1382,7 @@ public class RecordItemBuilder {
                 .build();
     }
 
-    private TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
+    public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
         var contractStateChange = ContractStateChange.newBuilder()
                 .setContractId(contractId)
                 .addStorageChanges(storageChange())

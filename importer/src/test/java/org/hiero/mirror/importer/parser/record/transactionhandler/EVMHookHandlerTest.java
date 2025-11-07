@@ -75,7 +75,23 @@ final class EVMHookHandlerTest {
                 .setContractId(contractId.toContractID())
                 .build();
 
-        var lambdaEvmHook = LambdaEvmHook.newBuilder().setSpec(evmHookSpec).build();
+        final var key = domainBuilder.bytes(32);
+        final var leadingZeros = new byte[16];
+        final var trimmedValue = ByteBuffer.allocate(16)
+                .put((byte) 0x01)
+                .put(domainBuilder.bytes(15))
+                .array();
+        final var value =
+                ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
+
+        var lambdaEvmHook = LambdaEvmHook.newBuilder()
+                .addStorageUpdates(LambdaStorageUpdate.newBuilder()
+                        .setStorageSlot(LambdaStorageSlot.newBuilder()
+                                .setKey(ByteString.copyFrom(key))
+                                .setValue(ByteString.copyFrom(value)))
+                        .build())
+                .setSpec(evmHookSpec)
+                .build();
 
         var hookCreationDetails = HookCreationDetails.newBuilder()
                 .setExtensionPoint(com.hedera.hapi.node.hooks.legacy.HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
@@ -98,7 +114,11 @@ final class EVMHookHandlerTest {
         ArgumentCaptor<Hook> hookCaptor = forClass(Hook.class);
         verify(entityListener).onHook(hookCaptor.capture());
 
+        ArgumentCaptor<HookStorageChange> hookStorageCaptor = forClass(HookStorageChange.class);
+        verify(entityListener, times(1)).onHookStorageChange(hookStorageCaptor.capture());
+
         var capturedHook = hookCaptor.getValue();
+        var capturedHookStorageChange = hookStorageCaptor.getValue();
         assertAll(
                 () -> assertThat(capturedHook.getHookId()).isEqualTo(hookId),
                 () -> assertThat(capturedHook.getContractId()).isEqualTo(contractId),
@@ -109,7 +129,12 @@ final class EVMHookHandlerTest {
                 () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
-                () -> assertThat(capturedHook.getDeleted()).isFalse());
+                () -> assertThat(capturedHook.getDeleted()).isFalse(),
+                () -> assertThat(capturedHookStorageChange.getHookId()).isEqualTo(hookId),
+                () -> assertThat(capturedHookStorageChange.getOwnerId()).isEqualTo(entityId.getNum()),
+                () -> assertThat(capturedHookStorageChange.getKey()).isEqualTo(key),
+                () -> assertThat(capturedHookStorageChange.getValueRead()).isEqualTo(trimmedValue),
+                () -> assertThat(capturedHookStorageChange.getValueWritten()).isEqualTo(trimmedValue));
     }
 
     @Test

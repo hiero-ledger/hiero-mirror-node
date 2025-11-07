@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.domain;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
@@ -11,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.ContractCallTransactionBody.Builder;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenType;
@@ -20,6 +23,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.CommonProperties;
@@ -259,5 +263,124 @@ final class ContractResultServiceImplTest {
         verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
         var capturedContractResult = contractResultCaptor.getValue();
         assertThat(capturedContractResult.getGasConsumed()).isLessThan(capturedContractResult.getGasUsed());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"1", "2", "3", "4"})
+    void processHookStorageChanges_SuccessfulHookExecution(int hookCount) {
+        // Given
+        var parentRecordItem = recordItemBuilder.cryptoTransfer().build();
+        var hookQueue = new java.util.LinkedList<RecordItem.HookId>();
+        // Add 2 hook contexts since default contractCall creates 2 storage changes
+        final var hookId = 123L;
+        final var ownerId = 1001L;
+        IntStream.range(0, hookCount).forEach(i -> {
+            hookQueue.add(new RecordItem.HookId(hookId + i, ownerId + i));
+        });
+        parentRecordItem.setHookExecutionQueue(hookQueue);
+
+        final var contractId = ContractID.newBuilder().setContractNum(365).build();
+        RecordItemBuilder.Builder<Builder> recordItemBuilder = this.recordItemBuilder
+                .contractCall(contractId)
+                .record(r -> r.setParentConsensusTimestamp(this.recordItemBuilder.timestamp()))
+                .recordItem(r -> r.parent(parentRecordItem));
+
+        IntStream.range(0, hookCount - 1).forEach(index -> {
+            recordItemBuilder.sidecarRecords(r -> r.add(this.recordItemBuilder.contractStateChanges(contractId)));
+        });
+
+        var recordItem = recordItemBuilder.build();
+
+        when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(365L)));
+
+        var transaction = domainBuilder.transaction().get();
+        var hookStorageChangeCaptor =
+                ArgumentCaptor.forClass(org.hiero.mirror.common.domain.hook.HookStorageChange.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // then
+        verify(entityListener, times(2 * hookCount)).onHookStorageChange(hookStorageChangeCaptor.capture());
+        var capturedHookStorageChanges = hookStorageChangeCaptor.getAllValues();
+
+        assertThat(capturedHookStorageChanges).hasSize(2 * hookCount);
+
+        IntStream.range(0, hookCount).forEach(index -> {
+            assertAll(
+                    () -> assertEquals(
+                            recordItem.getConsensusTimestamp(),
+                            capturedHookStorageChanges.get(index * 2).getConsensusTimestamp()),
+                    () -> assertEquals(
+                            hookId + index,
+                            capturedHookStorageChanges.get(index * 2).getHookId()),
+                    () -> assertEquals(
+                            ownerId + index,
+                            capturedHookStorageChanges.get(index * 2).getOwnerId()),
+                    () -> assertThat(capturedHookStorageChanges.get(index * 2).getValueWritten())
+                            .isNotEmpty(),
+                    () -> assertEquals(
+                            recordItem.getConsensusTimestamp(),
+                            capturedHookStorageChanges.get(index * 2 + 1).getConsensusTimestamp()),
+                    () -> assertEquals(
+                            hookId + index,
+                            capturedHookStorageChanges.get(index * 2 + 1).getHookId()),
+                    () -> assertEquals(
+                            ownerId + index,
+                            capturedHookStorageChanges.get(index * 2 + 1).getOwnerId()),
+                    () -> assertThat(capturedHookStorageChanges
+                                    .get(index * 2 + 1)
+                                    .getValueWritten())
+                            .isEmpty());
+        });
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "true, true, true, true", // Valid hook execution with value written
+        "true, true, true, false", // Valid hook execution without value written
+        "false, false, false, true", // Not hook execution (wrong contract)
+        "true, false, false, true", // Hook execution but no parent timestamp
+        "true, true, false, true", // Hook execution with parent timestamp but no parent record
+    })
+    void processHookStorageChanges_VariousScenarios(
+            boolean isHookContract, boolean hasParentTimestamp, boolean hasParentRecord, boolean hasValueWritten) {
+
+        // Given
+        var contractNum = isHookContract ? 365L : 999L;
+        var recordItemBuilder_ = recordItemBuilder.contractCall(
+                ContractID.newBuilder().setContractNum(contractNum).build());
+
+        if (hasParentTimestamp) {
+            recordItemBuilder_.record(r -> r.setParentConsensusTimestamp(recordItemBuilder.timestamp()));
+        }
+
+        if (hasParentRecord) {
+            var parentRecordItem = recordItemBuilder.cryptoTransfer().build();
+            var hookQueue = new java.util.LinkedList<RecordItem.HookId>();
+            // Add enough hook contexts for the default 2 storage changes
+            hookQueue.add(new RecordItem.HookId(1L, 1001L));
+            hookQueue.add(new RecordItem.HookId(2L, 1002L));
+            parentRecordItem.setHookExecutionQueue(hookQueue);
+            recordItemBuilder_.recordItem(r -> r.parent(parentRecordItem));
+        }
+
+        var recordItem = recordItemBuilder_.build();
+
+        when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(contractNum)));
+
+        var transaction = domainBuilder.transaction().get();
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        boolean shouldProcessHook = isHookContract && hasParentTimestamp && hasParentRecord;
+        if (shouldProcessHook) {
+            // Should process 2 hook storage changes (default contractCall creates 2 storage changes)
+            verify(entityListener, times(2)).onHookStorageChange(any());
+        } else {
+            verify(entityListener, times(0)).onHookStorageChange(any());
+        }
     }
 }
