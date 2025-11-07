@@ -311,6 +311,7 @@ resources:
 
 revisionHistoryLimit: 3
 
+routes: {}
 
 securityContext:
   allowPrivilegeEscalation: false
