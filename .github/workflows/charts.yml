@@ -38,7 +38,7 @@ jobs:
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
 
       - name: Install ct
-        uses: helm/chart-testing-action@0d28d3144d3a25ea2cc349d6e59901c4ff469b3b # v2.7.0
+        uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
 
       - name: Run lint
         run: ct lint --config .github/ct.yaml --all
@@ -80,7 +80,7 @@ jobs:
           helm install stackgres stackgres/stackgres-operator --version 1.17.0 --create-namespace -n stackgres
 
       - name: Install ct
-        uses: helm/chart-testing-action@0d28d3144d3a25ea2cc349d6e59901c4ff469b3b # v2.7.0
+        uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
 
       - name: Install chart
         run: ct install --config .github/ct.yaml --charts=charts/hedera-mirror --helm-extra-args="--timeout 10m"
