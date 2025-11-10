@@ -19,6 +19,7 @@ import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.FileService;
 import org.hiero.mirror.restjava.service.NetworkService;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -47,11 +48,11 @@ final class NetworkController {
     @GetMapping("/fees")
     NetworkFeesResponse getFees(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
-            @RequestParam(required = false, defaultValue = "asc") String order) {
+            @RequestParam(required = false, defaultValue = "ASC") Sort.Direction order) {
         final var bound = timestampBound(timestamp);
         final var feeSchedule = fileService.getFeeSchedule(bound);
         final var exchangeRate = fileService.getExchangeRate(bound);
-        return feeScheduleMapper.map(feeSchedule, exchangeRate, order, commonMapper);
+        return feeScheduleMapper.map(feeSchedule, exchangeRate, order);
     }
 
     @GetMapping("/stake")

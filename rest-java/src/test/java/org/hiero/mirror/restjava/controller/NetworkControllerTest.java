@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.springframework.data.domain.Sort;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
@@ -257,7 +258,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, "asc", commonMapper);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.ASC);
 
             // when
             final var actual = restClient.get().uri("").retrieve().body(NetworkFeesResponse.class);
@@ -271,10 +272,14 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, "desc", commonMapper);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.DESC);
 
             // when
-            final var actual = restClient.get().uri("?order=desc").retrieve().body(NetworkFeesResponse.class);
+            final var actual = restClient
+                    .get()
+                    .uri("?order=" + Sort.Direction.DESC.name())
+                    .retrieve()
+                    .body(NetworkFeesResponse.class);
 
             // then
             assertThat(actual).isNotNull().isEqualTo(expected);
@@ -285,7 +290,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, "asc", commonMapper);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.ASC);
             feeScheduleFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
 
             // when
@@ -333,10 +338,10 @@ final class NetworkControllerTest extends ControllerTest {
                     commonMapper.mapTimestamp(fee1.fileData().getConsensusTimestamp()),
                     commonMapper.mapTimestamp(fee2.fileData().getConsensusTimestamp()));
 
-            final var expected0 = feeScheduleMapper.map(fee0, exchangeRate0, "asc", commonMapper);
-            final var expected1 = feeScheduleMapper.map(fee1, exchangeRate1, "asc", commonMapper);
+            final var expected0 = feeScheduleMapper.map(fee0, exchangeRate0, Sort.Direction.ASC);
+            final var expected1 = feeScheduleMapper.map(fee1, exchangeRate1, Sort.Direction.ASC);
             // For fee2, use exchangeRate3 as it will be found by gte queries
-            final var expected2 = feeScheduleMapper.map(fee2, exchangeRate3, "asc", commonMapper);
+            final var expected2 = feeScheduleMapper.map(fee2, exchangeRate3, Sort.Direction.ASC);
             final var expected = List.of(expected0, expected1, expected2);
 
             // when
