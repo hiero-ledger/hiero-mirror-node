@@ -204,7 +204,7 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
-        uses: kubeshop/setup-testkube@12a1cb43ab0cc9a90aef8c8447fa22a3b2c7e7c8 # v1.0.10
+        uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
         with:
           version: v2.3.0
 
