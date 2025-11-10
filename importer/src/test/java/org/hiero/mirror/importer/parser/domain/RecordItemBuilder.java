@@ -1312,6 +1312,15 @@ public class RecordItemBuilder {
         return fromBytes(trim(randomBytes(32)));
     }
 
+    public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
+        var contractStateChange = ContractStateChange.newBuilder()
+                .setContractId(contractId)
+                .addStorageChanges(storageChange())
+                .addStorageChanges(storageChange().setValueWritten(BytesValue.of(ByteString.EMPTY)));
+        return TransactionSidecarRecord.newBuilder()
+                .setStateChanges(ContractStateChanges.newBuilder().addContractStateChanges(contractStateChange));
+    }
+
     // Helper methods
     private AccountAmount accountAmount(EntityId accountId, long amount) {
         return accountAmount(accountId.toAccountID(), amount);
@@ -1380,15 +1389,6 @@ public class RecordItemBuilder {
                 .setData(bytes(128))
                 .addAllTopic(topics)
                 .build();
-    }
-
-    public TransactionSidecarRecord.Builder contractStateChanges(ContractID contractId) {
-        var contractStateChange = ContractStateChange.newBuilder()
-                .setContractId(contractId)
-                .addStorageChanges(storageChange())
-                .addStorageChanges(storageChange().setValueWritten(BytesValue.of(ByteString.EMPTY)));
-        return TransactionSidecarRecord.newBuilder()
-                .setStateChanges(ContractStateChanges.newBuilder().addContractStateChanges(contractStateChange));
     }
 
     private Duration duration(int seconds) {

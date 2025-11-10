@@ -21,7 +21,6 @@ import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
@@ -32,6 +31,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
 import org.hiero.mirror.importer.service.ContractInitcodeService;
@@ -43,6 +43,7 @@ import org.jspecify.annotations.NonNull;
 @RequiredArgsConstructor
 final class ContractResultServiceImpl implements ContractResultService {
 
+    public static final int HOOK_CONTRACT_NUM = 365;
     private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
@@ -50,6 +51,7 @@ final class ContractResultServiceImpl implements ContractResultService {
     private final ImporterProperties importerProperties;
     private final SidecarContractMigration sidecarContractMigration;
     private final TransactionHandlerFactory transactionHandlerFactory;
+    private final EvmHookStorageHandler evmHookStorageHandler;
 
     @Override
     @SuppressWarnings("java:S2259")
@@ -518,7 +520,7 @@ final class ContractResultServiceImpl implements ContractResultService {
                 && transactionRecord.hasParentConsensusTimestamp()
                 && entityIdService
                         .lookup(transactionBody.getContractCall().getContractID())
-                        .map(entityId -> entityId.getId() == 365)
+                        .map(entityId -> entityId.getNum() == HOOK_CONTRACT_NUM)
                         .orElse(false);
     }
 
@@ -533,7 +535,7 @@ final class ContractResultServiceImpl implements ContractResultService {
         // Must be a ContractCall transaction to 0.0.365 with a parent consensus timestamp
         return entityIdService
                 .lookup(stateChange.getContractId())
-                .map(entityId -> entityId.getId() == 365)
+                .map(entityId -> entityId.getNum() == HOOK_CONTRACT_NUM)
                 .orElse(false);
     }
 
@@ -545,24 +547,8 @@ final class ContractResultServiceImpl implements ContractResultService {
      * @param stateChange the contract state change containing hook storage updates
      */
     private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
-        var transactionRecord = recordItem.getTransactionRecord();
-        if (!transactionRecord.hasParentConsensusTimestamp()) {
-            Utility.handleRecoverableError(
-                    "Hook storage change detected but no parent consensus timestamp found at {}",
-                    recordItem.getConsensusTimestamp());
-            return;
-        }
-
-        var parentRecordItem = recordItem.getParent();
-        if (parentRecordItem == null) {
-            Utility.handleRecoverableError(
-                    "Unable to locate parent RecordItem for hook execution at consensus timestamp {}",
-                    recordItem.getConsensusTimestamp());
-            return;
-        }
-
         // Get one hook context for this ContractStateChange
-        var hookContext = parentRecordItem.nextHookContext();
+        var hookContext = recordItem.nextHookContext();
         if (hookContext == null) {
             Utility.handleRecoverableError(
                     "No hook context available in parent transaction for hook execution at consensus timestamp {}",
@@ -571,22 +557,11 @@ final class ContractResultServiceImpl implements ContractResultService {
         }
 
         // Process each storage change with the same hook context
-        for (var storageChange : stateChange.getStorageChangesList()) {
-            var hookStorageChange = HookStorageChange.builder()
-                    .consensusTimestamp(recordItem.getConsensusTimestamp())
-                    .hookId(hookContext.hookId())
-                    .ownerId(hookContext.ownerId())
-                    .key(DomainUtils.toBytes(storageChange.getSlot()))
-                    .valueRead(DomainUtils.toBytes(storageChange.getValueRead()))
-                    .valueWritten(
-                            storageChange.hasValueWritten()
-                                    ? DomainUtils.toBytes(
-                                            storageChange.getValueWritten().getValue())
-                                    : null)
-                    .build();
-
-            entityListener.onHookStorageChange(hookStorageChange);
-        }
+        evmHookStorageHandler.processStorageUpdatesForSidecar(
+                recordItem.getConsensusTimestamp(),
+                hookContext.getHookId(),
+                hookContext.getOwnerId(),
+                stateChange.getStorageChangesList());
     }
 
     /**

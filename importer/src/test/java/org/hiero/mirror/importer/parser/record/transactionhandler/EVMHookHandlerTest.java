@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.importer.parser.record.transactionhandler.EVMHookHandler.keccak256;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -21,6 +22,7 @@ import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
 import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntry;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.services.stream.proto.StorageChange;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -487,6 +489,82 @@ final class EVMHookHandlerTest {
         assertThat(output.getAll())
                 .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 3, 5})
+    void processStorageUpdatesForSidecar(int numStorageChanges) {
+        // Given
+        final var consensusTimestamp = 456L;
+        final var hookId = 10L;
+        final var ownerId = 2000L;
+
+        final var storageChanges = new ArrayList<StorageChange>(numStorageChanges);
+        final var expectedKeys = new ArrayList<byte[]>(numStorageChanges);
+        final var expectedValuesRead = new ArrayList<byte[]>(numStorageChanges);
+        final var expectedValuesWritten = new ArrayList<byte[]>(numStorageChanges);
+
+        for (int i = 0; i < numStorageChanges; i++) {
+            final var key = domainBuilder.bytes(32);
+            final var valueRead = domainBuilder.bytes(32);
+            final var valueWritten = domainBuilder.bytes(32);
+
+            expectedKeys.add(key);
+            expectedValuesRead.add(valueRead);
+            expectedValuesWritten.add(valueWritten);
+
+            var storageChangeBuilder = StorageChange.newBuilder()
+                    .setSlot(ByteString.copyFrom(key))
+                    .setValueRead(ByteString.copyFrom(valueRead));
+
+            // Add valueWritten for some storage changes
+            if (i % 2 == 0) {
+                storageChangeBuilder.setValueWritten(
+                        com.google.protobuf.BytesValue.of(ByteString.copyFrom(valueWritten)));
+            }
+
+            storageChanges.add(storageChangeBuilder.build());
+        }
+
+        // When
+        eVMHookHandler.processStorageUpdatesForSidecar(consensusTimestamp, hookId, ownerId, storageChanges);
+
+        // Then
+        final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
+        verify(entityListener, times(numStorageChanges)).onHookStorageChange(captor.capture());
+        final var changes = captor.getAllValues();
+
+        assertThat(changes).hasSize(numStorageChanges);
+        for (int i = 0; i < numStorageChanges; i++) {
+            final var change = changes.get(i);
+            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
+            assertThat(change.getHookId()).isEqualTo(hookId);
+            assertThat(change.getOwnerId()).isEqualTo(ownerId);
+            assertThat(change.getKey()).isEqualTo(expectedKeys.get(i));
+            assertThat(change.getValueRead()).isEqualTo(expectedValuesRead.get(i));
+
+            // Check valueWritten - should be null for odd indices, set for even indices
+            if (i % 2 == 0) {
+                assertThat(change.getValueWritten()).isEqualTo(expectedValuesWritten.get(i));
+            } else {
+                assertThat(change.getValueWritten()).isNull();
+            }
+        }
+    }
+
+    @Test
+    void processStorageUpdatesForSidecarWithEmptyList() {
+        // Given
+        final var consensusTimestamp = 789L;
+        final var hookId = 15L;
+        final var ownerId = 3000L;
+        final var emptyStorageChanges = List.<StorageChange>of();
+
+        // When
+        eVMHookHandler.processStorageUpdatesForSidecar(consensusTimestamp, hookId, ownerId, emptyStorageChanges);
+
+        // Then
+        verify(entityListener, times(0)).onHookStorageChange(any());
     }
 
     private HookCreationDetails createHookCreationDetails(long hookId, EntityId contractId, byte[] adminKey) {

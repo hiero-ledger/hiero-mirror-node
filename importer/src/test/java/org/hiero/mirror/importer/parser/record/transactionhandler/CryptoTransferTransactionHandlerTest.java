@@ -3,11 +3,23 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.HookCall;
+import com.hederahashgraph.api.proto.java.NftTransfer;
+import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
+import com.hederahashgraph.api.proto.java.TransferList;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTest {
@@ -43,5 +55,152 @@ class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTes
         // then
         verifyNoInteractions(entityListener);
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    @DisplayName("Hook execution queue handles empty case gracefully")
+    void testHookExecutionQueueEmpty() {
+        var recordItem = recordItemBuilder.cryptoTransfer().build();
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        var queue = recordItem.getHookExecutionQueue();
+        assertNotNull(queue, "Hook execution queue should exist even when empty");
+        assertThat(queue).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Hook execution queue covers all use cases from HIP-1195 specification")
+    void testComprehensiveHookExecutionQueueSequence() {
+        var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(body -> body.setTransfers(TransferList.newBuilder()
+                                // HBAR transfers - PreTx hooks (allowExec phase)
+                                .addAccountAmounts(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(1001L))
+                                        .setAmount(100L)
+                                        .setPreTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(101L)))
+                                .addAccountAmounts(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(1002L))
+                                        .setAmount(200L)
+                                        .setPreTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(102L)))
+                                // HBAR transfers - PrePostTx hooks (allowPre and allowPost phases)
+                                .addAccountAmounts(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(1003L))
+                                        .setAmount(-150L)
+                                        .setPrePostTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(103L)))
+                                .addAccountAmounts(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(1004L))
+                                        .setAmount(-150L)
+                                        .setPrePostTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(104L))))
+                        // Token transfers
+                        .addTokenTransfers(TokenTransferList.newBuilder()
+                                .setToken(TokenID.newBuilder().setTokenNum(2000L))
+                                // Fungible token transfers - PreTx hooks (allowExec phase)
+                                .addTransfers(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(2001L))
+                                        .setAmount(50L)
+                                        .setPreTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(201L)))
+                                .addTransfers(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(2002L))
+                                        .setAmount(75L)
+                                        .setPreTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(202L)))
+                                // Fungible token transfers - PrePostTx hooks (allowPre and allowPost phases)
+                                .addTransfers(AccountAmount.newBuilder()
+                                        .setAccountID(AccountID.newBuilder().setAccountNum(2003L))
+                                        .setAmount(-125L)
+                                        .setPrePostTxAllowanceHook(
+                                                HookCall.newBuilder().setHookId(203L)))
+                                // NFT transfers with both sender and receiver hooks
+                                .addNftTransfers(NftTransfer.newBuilder()
+                                        .setSenderAccountID(
+                                                AccountID.newBuilder().setAccountNum(3001L))
+                                        .setReceiverAccountID(
+                                                AccountID.newBuilder().setAccountNum(3101L))
+                                        .setSerialNumber(1L)
+                                        .setPreTxSenderAllowanceHook(
+                                                HookCall.newBuilder().setHookId(301L))
+                                        .setPreTxReceiverAllowanceHook(
+                                                HookCall.newBuilder().setHookId(311L)))
+                                .addNftTransfers(NftTransfer.newBuilder()
+                                        .setSenderAccountID(
+                                                AccountID.newBuilder().setAccountNum(3002L))
+                                        .setReceiverAccountID(
+                                                AccountID.newBuilder().setAccountNum(3102L))
+                                        .setSerialNumber(2L)
+                                        .setPrePostTxSenderAllowanceHook(
+                                                HookCall.newBuilder().setHookId(302L))
+                                        .setPrePostTxReceiverAllowanceHook(
+                                                HookCall.newBuilder().setHookId(312L)))))
+                .build();
+
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        var queue = recordItem.getHookExecutionQueue();
+        assertNotNull(queue, "Hook execution queue should be created");
+
+        // Expected: 2 HBAR PreTx + 2 Token PreTx + 2 NFT PreTx (sender first) + 2 NFT PreTx (receiver)
+        //         + 2 HBAR PrePostTx Pre + 1 Token PrePostTx Pre + 2 NFT PrePostTx Pre (sender first) + 2 NFT PrePostTx
+        // Pre (receiver)
+        //         + 2 HBAR PrePostTx Post + 1 Token PrePostTx Post + 2 NFT PrePostTx Post (sender first) + 2 NFT
+        // PrePostTx Post (receiver)
+        // Expected: 2 HBAR PreTx + 2 Token PreTx + 2 NFT PreTx (1 sender + 1 receiver) = 6 allowExec
+        //         + 2 HBAR PrePostTx Pre + 1 Token PrePostTx Pre + 2 NFT PrePostTx Pre (1 sender + 1 receiver) = 5
+        // allowPre
+        //         + 2 HBAR PrePostTx Post + 1 Token PrePostTx Post + 2 NFT PrePostTx Post (1 sender + 1 receiver) = 5
+        // allowPost
+        //         Total: 6 + 5 + 5 = 16 hooks
+        assertEquals(16, queue.size(), "Queue should contain 16 hooks total");
+
+        // Verify the exact execution sequence according to HIP-1195:
+
+        // Phase 1: allowExec (PreTx hooks)
+        // 1. All pre_tx_allowance_hook calls in HBAR transfers (in order)
+        assertEquals(new AbstractHook.Id(101L, 1001L), recordItem.nextHookContext());
+        assertEquals(new AbstractHook.Id(102L, 1002L), recordItem.nextHookContext());
+
+        // 2. All pre_tx_allowance_hook calls in fungible token transfers (in order)
+        assertEquals(new AbstractHook.Id(201L, 2001L), recordItem.nextHookContext());
+        assertEquals(new AbstractHook.Id(202L, 2002L), recordItem.nextHookContext());
+
+        // 3. All NFT pre_tx hooks (sender first, then receiver for each NFT)
+        assertEquals(new AbstractHook.Id(301L, 3001L), recordItem.nextHookContext()); // NFT1 sender PreTx
+        assertEquals(new AbstractHook.Id(311L, 3101L), recordItem.nextHookContext()); // NFT1 receiver PreTx
+
+        // Phase 2: allowPre (Pre hooks from PrePostTx)
+        // 4. All pre_post_tx_allowance_hook calls in HBAR transfers (in order) - Pre phase
+        assertEquals(new AbstractHook.Id(103L, 1003L), recordItem.nextHookContext());
+        assertEquals(new AbstractHook.Id(104L, 1004L), recordItem.nextHookContext());
+
+        // 5. All pre_post_tx_allowance_hook calls in fungible token transfers (in order) - Pre phase
+        assertEquals(new AbstractHook.Id(203L, 2003L), recordItem.nextHookContext());
+
+        // 6. All NFT pre_post_tx hooks (sender first, then receiver for each NFT) - Pre phase
+        assertEquals(new AbstractHook.Id(302L, 3002L), recordItem.nextHookContext()); // NFT2 sender PrePostTx Pre
+        assertEquals(new AbstractHook.Id(312L, 3102L), recordItem.nextHookContext()); // NFT2 receiver PrePostTx Pre
+
+        // Phase 3: allowPost (Post hooks from PrePostTx - same order as Pre)
+        // 7. All pre_post_tx hooks from phases 4-6, same order - Post phase
+        assertEquals(new AbstractHook.Id(103L, 1003L), recordItem.nextHookContext()); // HBAR PrePostTx Post
+        assertEquals(new AbstractHook.Id(104L, 1004L), recordItem.nextHookContext()); // HBAR PrePostTx Post
+        assertEquals(new AbstractHook.Id(203L, 2003L), recordItem.nextHookContext()); // Token PrePostTx Post
+        assertEquals(new AbstractHook.Id(302L, 3002L), recordItem.nextHookContext()); // NFT2 sender PrePostTx Post
+        assertEquals(new AbstractHook.Id(312L, 3102L), recordItem.nextHookContext()); // NFT2 receiver PrePostTx Post
+
+        // Verify queue is exhausted
+        assertNull(recordItem.nextHookContext());
     }
 }

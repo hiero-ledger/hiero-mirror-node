@@ -13,6 +13,7 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,7 +22,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -41,6 +41,7 @@ import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.util.Version;
@@ -110,15 +111,18 @@ public class RecordItem implements StreamItem {
     // Transient hook execution queue for CryptoTransfer transactions that may trigger hooks
     @NonFinal
     @Setter
-    Queue<HookId> hookExecutionQueue;
+    private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
      *
      * @return the next hook execution context, or null if queue is empty
      */
-    public HookId nextHookContext() {
-        return hookExecutionQueue != null ? hookExecutionQueue.poll() : null;
+    public AbstractHook.Id nextHookContext() {
+        if (hookExecutionQueue == null) {
+            return parent != null ? parent.nextHookContext() : null;
+        }
+        return hookExecutionQueue.poll();
     }
 
     /**
@@ -244,11 +248,6 @@ public class RecordItem implements StreamItem {
         contractTransactions.values().forEach(contractTransaction -> contractTransaction.setContractIds(ids));
         return contractTransactions.values();
     }
-
-    /**
-     * Record representing a hook execution context within a parent transaction.
-     */
-    public record HookId(long hookId, long ownerId) {}
 
     public static class RecordItemBuilder {
 

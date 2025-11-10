@@ -11,6 +11,7 @@ import com.hedera.hapi.node.hooks.legacy.HookCreationDetails.HookCase;
 import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.services.stream.proto.StorageChange;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
@@ -68,23 +70,40 @@ final class EVMHookHandler implements EvmHookStorageHandler {
     @Override
     public void processStorageUpdates(
             long consensusTimestamp, long hookId, EntityId ownerEntityId, List<LambdaStorageUpdate> storageUpdates) {
-        processStorageUpdates(consensusTimestamp, hookId, ownerEntityId.getId(), storageUpdates);
-    }
-
-    void processStorageUpdates(
-            long consensusTimestamp, long hookId, long ownerEntityId, List<LambdaStorageUpdate> storageUpdates) {
         for (final var update : storageUpdates) {
             switch (update.getUpdateCase()) {
                 case STORAGE_SLOT ->
-                    processStorageSlotUpdate(update.getStorageSlot(), consensusTimestamp, ownerEntityId, hookId);
+                    processStorageSlotUpdate(
+                            update.getStorageSlot(), consensusTimestamp, ownerEntityId.getId(), hookId);
                 case MAPPING_ENTRIES ->
-                    processMappingEntries(update.getMappingEntries(), consensusTimestamp, ownerEntityId, hookId);
+                    processMappingEntries(
+                            update.getMappingEntries(), consensusTimestamp, ownerEntityId.getId(), hookId);
                 default ->
                     Utility.handleRecoverableError(
                             "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
                             update.getUpdateCase(),
                             consensusTimestamp);
             }
+        }
+    }
+
+    @Override
+    public void processStorageUpdatesForSidecar(
+            long consensusTimestamp, long hookId, long ownerId, List<StorageChange> storageUpdates) {
+        for (var storageChange : storageUpdates) {
+            byte[] valueWritten = storageChange.hasValueWritten()
+                    ? toBytes(storageChange.getValueWritten().getValue())
+                    : null;
+            var hookStorageChange = HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .ownerId(ownerId)
+                    .key(DomainUtils.toBytes(storageChange.getSlot()))
+                    .valueRead(DomainUtils.toBytes(storageChange.getValueRead()))
+                    .valueWritten(valueWritten)
+                    .build();
+
+            entityListener.onHookStorageChange(hookStorageChange);
         }
     }
 
@@ -149,7 +168,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             processStorageUpdates(
                     recordItem.getConsensusTimestamp(),
                     hookCreationDetails.getHookId(),
-                    entityId,
+                    EntityId.of(entityId),
                     lambdaEvmHook.getStorageUpdatesList());
         }
     }
