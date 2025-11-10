@@ -107,6 +107,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         blockFileBuilder.index(blockHeader.getNumber());
     }
 
+    @SuppressWarnings("deprecation")
     private void readBlockProof(ReaderContext context) {
         var blockItem = context.readBlockItemFor(BLOCK_PROOF);
         if (blockItem == null) {

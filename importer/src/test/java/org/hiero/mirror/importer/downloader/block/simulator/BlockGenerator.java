@@ -54,6 +54,7 @@ public final class BlockGenerator {
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
 
+    @SuppressWarnings("deprecation")
     private BlockItemSet next() {
         var builder = BlockItemSet.newBuilder();
         // block header
