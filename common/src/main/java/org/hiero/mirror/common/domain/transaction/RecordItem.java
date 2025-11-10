@@ -125,15 +125,6 @@ public class RecordItem implements StreamItem {
         return hookExecutionQueue.poll();
     }
 
-    /**
-     * Checks if there are more hook contexts in the execution queue.
-     *
-     * @return true if there are more hook contexts, false otherwise
-     */
-    public boolean hasMoreHookContexts() {
-        return hookExecutionQueue != null && !hookExecutionQueue.isEmpty();
-    }
-
     public void addContractTransaction(EntityId entityId) {
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
             return;
