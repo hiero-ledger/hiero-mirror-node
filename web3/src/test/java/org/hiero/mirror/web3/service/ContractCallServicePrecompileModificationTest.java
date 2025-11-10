@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.ACCOUNT_STILL_OWNS_NFTS;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
@@ -274,6 +275,32 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void associateTokenNotExistingSenderFails(final Boolean single) {
+        // Given
+        final var notAssociatedAccount = accountEntityPersist();
+        final var notExistingAccountAddress = toAddress(domainBuilder.entityId());
+
+        final var token = fungibleTokenPersist();
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        testWeb3jService.setSender(notExistingAccountAddress.toHexString());
+
+        // When
+        final var functionCall = single
+                ? contract.call_associateTokenExternal(
+                        getAddressFromEntity(notAssociatedAccount),
+                        toAddress(token.getTokenId()).toHexString())
+                : contract.call_associateTokensExternal(
+                        getAddressFromEntity(notAssociatedAccount),
+                        List.of(toAddress(token.getTokenId()).toHexString()));
+
+        // Then
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
     }
 
     @ParameterizedTest

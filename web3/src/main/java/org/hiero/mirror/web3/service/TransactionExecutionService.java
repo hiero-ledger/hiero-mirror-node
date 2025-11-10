@@ -224,7 +224,7 @@ public class TransactionExecutionService {
 
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
-            throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
+            //            throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
         } else if (account.smartContract()) {
             throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {

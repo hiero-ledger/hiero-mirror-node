@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -380,6 +381,24 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var functionCall = contract.send_balanceOfNonStatic(tokenAddress, ownerAlias);
         assertThat(result).isEqualTo(BigInteger.valueOf(tokenAccount.getBalance()));
         verifyEthCallAndEstimateGas(functionCall, contract);
+    }
+
+    @Test
+    void ethCallBalanceOfNonStaticNotExistingSenderFails() {
+        final var ownerEntityId = accountPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(ownerEntityId);
+        final var tokenId = token.getTokenId();
+        final var tokenAddress = toAddress(tokenId).toHexString();
+        final var ownerAddress = toAddress(ownerEntityId).toHexString();
+        final var notExistingAccountAddress = toAddress(domainBuilder.entityId());
+        final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
+        testWeb3jService.setSender(notExistingAccountAddress.toHexString());
+
+        final var functionCall = contract.send_balanceOfNonStatic(tokenAddress, ownerAddress);
+
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
     }
 
     @Test
