@@ -503,6 +503,13 @@ final class DomainUtilsTest {
     }
 
     @Test
+    void toTimestamp() {
+        assertThat(DomainUtils.toTimestamp(0)).isEqualTo("0.0");
+        assertThat(DomainUtils.toTimestamp(1)).isEqualTo("0.000000001");
+        assertThat(DomainUtils.toTimestamp(1123456789)).isEqualTo("1.123456789");
+    }
+
+    @Test
     void trimByteString() {
         assertThat(DomainUtils.trim((ByteString) null)).isNull();
         assertThat(DomainUtils.trim(ByteString.EMPTY)).isSameAs(ByteString.EMPTY);
