@@ -42,6 +42,13 @@ public interface CommonMapper {
     long SECONDS_PER_DAY = 86400L;
     String TIMESTAMP_ZERO = "0.0";
 
+    default String mapByteArrayToHexString(byte[] source) {
+        if (source == null) {
+            return null;
+        }
+        return Hex.encodeHexString(source);
+    }
+
     default String mapEntityId(Long source) {
         if (source == null || source == 0) {
             return null;

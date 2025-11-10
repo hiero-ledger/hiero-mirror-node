@@ -83,6 +83,16 @@ public class HookStorage {
         this.deleted = ArrayUtils.isEmpty(this.value);
     }
 
+    public HookStorage hookStorage(HookStorageChange change) {
+        return this.toBuilder()
+                .hookId(change.getHookId())
+                .key(change.getKey())
+                .ownerId(change.getOwnerId())
+                .value(change.getValueWritten())
+                .modifiedTimestamp(change.getConsensusTimestamp())
+                .build();
+    }
+
     @Data
     @AllArgsConstructor
     @NoArgsConstructor

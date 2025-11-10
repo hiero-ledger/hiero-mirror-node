@@ -19,6 +19,8 @@ import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.repository.HookRepository;
+import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
+import org.hiero.mirror.restjava.repository.HookStorageRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
@@ -29,14 +31,19 @@ final class HookServiceTest extends RestJavaIntegrationTest {
     private static final long OWNER_ID = 1001L;
 
     private HookRepository hookRepository;
+    private HookStorageRepository hookStorageRepository;
+    private HookStorageChangeRepository hookStorageChangeRepository;
     private EntityService entityService;
     private HookService hookService;
 
     @BeforeEach
     void setup() {
         hookRepository = mock(HookRepository.class);
+        hookStorageRepository = mock(HookStorageRepository.class);
+        hookStorageChangeRepository = mock(HookStorageChangeRepository.class);
         entityService = mock(EntityService.class);
-        hookService = new HookServiceImpl(hookRepository, entityService);
+        hookService =
+                new HookServiceImpl(hookRepository, hookStorageRepository, hookStorageChangeRepository, entityService);
     }
 
     @Test

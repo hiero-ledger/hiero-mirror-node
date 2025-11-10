@@ -76,6 +76,31 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - accounts
+  /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks/{hookId}/storage:
+    get:
+      summary: Get hook storage
+      description: Returns a list of hook storage keys associated with a given hook ID and owner address.
+      operationId: getHookStorage
+      parameters:
+        - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"
+        - $ref: "#/components/parameters/hookIdQueryParam"
+        - $ref: "#/components/parameters/keyQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamAsc"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HooksStorageResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}/nfts:
     get:
       summary: Get nfts for an account info
@@ -1633,6 +1658,48 @@ components:
           enum: [LAMBDA]
           example: LAMBDA
           type: string
+    HookStorage:
+      type: object
+      required:
+        - key
+        - timestamp
+        - value
+      properties:
+        key:
+          example: "0x00000000000000000000000000000000000000000000000000000000000f9a17"
+          format: binary
+          nullable: false
+          type: string
+        value:
+          example: "0x00000000000000000000000000000000000000000000000000000000000f9a17"
+          format: binary
+          nullable: true
+          type: string
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+    HooksStorageResponse:
+      type: object
+      required:
+        - hookId
+        - links
+        - ownerId
+        - storage
+      properties:
+        hook_id:
+          description: The unique identifier of the hook within the owner's scope
+          example: 1
+          format: int64
+          type: integer
+        links:
+          $ref: "#/components/schemas/Links"
+        owner_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+            - description: The entity that owns the hook
+        storage:
+          type: array
+          items:
+            $ref: "#/components/schemas/HookStorage"
     NetworkExchangeRateSetResponse:
       type: object
       properties:
@@ -4571,6 +4638,39 @@ components:
         minimum: 1
         maximum: 9223372036854775807
       required: false
+    keyQueryParam:
+      description: A string representing a pair of operator:address of a hook storage entry
+      examples:
+        zeroXPrefix:
+          summary: Example of key equals operator with 0x prefix
+          value: eq:0x00000000000000000000000000000000000000000000000000000000000f9a15
+        noZeroPadding:
+          summary: Example of key equals operator without zero padding
+          value: eq:f9a15
+        noOperator:
+          summary: Example of key equals with no operator
+          value: 00000000000000000000000000000000000000000000000000000000000f9a15
+        eqOperator:
+          summary: Example of key equals operator
+          value: eq:00000000000000000000000000000000000000000000000000000000000f9a15
+        gtOperator:
+          summary: Example of key gt operator
+          value: gt:00000000000000000000000000000000000000000000000000000000000f9a15
+        gteOperator:
+          summary: Example of key gte operator
+          value: gte:00000000000000000000000000000000000000000000000000000000000f9a15
+        ltOperator:
+          summary: Example of key lt operator
+          value: lt:00000000000000000000000000000000000000000000000000000000000f9a15
+        lteOperator:
+          summary: Example of key lte operator
+          value: lte:00000000000000000000000000000000000000000000000000000000000f9a15
+      in: query
+      name: key
+      schema:
+        example: eq:0x00000000000000000000000000000000000000000000000000000000000f9a10
+        pattern: ^((eq|gte?|lte?)\:)?(0x)?[0-9A-Fa-f]{1,64}$
+        type: string
     blockNumberQueryParam:
       name: block.number
       in: query
@@ -4656,6 +4756,14 @@ components:
         default: 0
         minimum: 0
     orderQueryParam:
+      name: order
+      in: query
+      description: The order in which items are listed
+      example: desc
+      schema:
+        enum: [asc, desc]
+        default: asc
+    orderQueryParamAsc:
       name: order
       in: query
       description: The order in which items are listed
