@@ -98,6 +98,10 @@ jobs:
             "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
             "com/hedera/node/app/service/contract/impl/utils/ConversionUtils.java"
             "com/hedera/node/app/service/contract/impl/exec/operations/CustomBalanceOperation.java"
+            "com/hedera/node/app/service/entityid/impl/EntityIdServiceImpl.java"
+            "com/hedera/node/app/service/entityid/impl/AppEntityIdFactory.java"
+            "com/hedera/node/app/service/entityid/impl/schemas/V0490EntityIdSchema.java"
+            "com/hedera/node/app/service/entityid/impl/schemas/V0590EntityIdSchema.java"
           )
 
           # Temp directories to store cloned repos
