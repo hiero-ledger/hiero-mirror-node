@@ -19,6 +19,7 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
+import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -344,14 +345,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         return feesTokenTransferUsageMultiplier;
     }
 
-    private AccountID toAccountID(long num) {
-        return AccountID.newBuilder()
-                .shardNum(commonProperties.getShard())
-                .realmNum(commonProperties.getRealm())
-                .accountNum(num)
-                .build();
-    }
-
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
         props.put("contracts.chainId", chainIdBytes32().toBigInteger().toString());
@@ -367,6 +360,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("nodes.gossipFqdnRestricted", "false");
         props.put("nodes.nodeRewardsEnabled", "true");
         props.put("nodes.preserveMinNodeRewardBalance", "true");
+        // Set max value to intentionally fail a balance check logic in upstream and thus disable reward logic
         props.put("nodes.minNodeRewardBalance", String.valueOf(Long.MAX_VALUE));
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
@@ -391,9 +385,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
         if (CollectionUtils.isEmpty(systemAccounts)) {
             final var configuredSystemAccounts = Set.of(
-                    toAccountID(systemEntity.feeCollectorAccount().getNum()),
-                    toAccountID(systemEntity.stakingRewardAccount().getNum()),
-                    toAccountID(systemEntity.nodeRewardAccount().getNum()));
+                    EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
+                    EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
+                    EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
             systemAccounts = new HashSet<>(configuredSystemAccounts);
         }
     }
