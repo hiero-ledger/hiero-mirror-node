@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
@@ -135,18 +134,7 @@ public interface CommonMapper {
 
     @Named(QUALIFIER_TIMESTAMP)
     default String mapTimestamp(Long timestamp) {
-        if (timestamp == null) {
-            return null;
-        }
-
-        if (timestamp == 0) {
-            return TIMESTAMP_ZERO;
-        }
-
-        var timestampString = StringUtils.leftPad(String.valueOf(timestamp), NANO_DIGITS + 1, '0');
-        return new StringBuilder(timestampString)
-                .insert(timestampString.length() - NANO_DIGITS, '.')
-                .toString();
+        return timestamp != null ? DomainUtils.toTimestamp(timestamp) : null;
     }
 
     default Long mapTimestampSeconds(TimestampSeconds source) {
