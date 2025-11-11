@@ -12,6 +12,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
+import com.hederahashgraph.api.proto.java.SemanticVersion;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,11 +29,13 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class BlockStreamVerifierTest {
+final class BlockStreamVerifierTest {
 
     @Mock(strictness = LENIENT)
     private BlockFileTransformer blockFileTransformer;
@@ -48,8 +52,8 @@ class BlockStreamVerifierTest {
     @BeforeEach
     void setup() {
         var meterRegistry = new SimpleMeterRegistry();
-        verifier =
-                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
+        verifier = new BlockStreamVerifier(
+                blockFileTransformer, new BlockProperties(), recordFileRepository, streamFileNotifier, meterRegistry);
         expectedRecordFile = RecordFile.builder().build();
         when(blockFileTransformer.transform(any())).thenReturn(expectedRecordFile);
     }
@@ -158,17 +162,39 @@ class BlockStreamVerifierTest {
         assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
     }
 
-    private BlockFile getBlockFile(StreamFile<?> previous) {
-        long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
-        String previousHash = previous != null ? previous.getHash() : sha384Hash();
-        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
-        return BlockFile.builder()
-                .hash(sha384Hash())
-                .index(blockNumber)
-                .name(BlockFile.getFilename(blockNumber, true))
-                .previousHash(previousHash)
-                .consensusStart(consensusStart)
-                .build();
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 68, 1,
+            0, 68, 1, rc.1
+            0, 69, 0,
+            """)
+    void hashMismatchIgnoredWithNewRootHashAlgorithm(
+            final int major, final int minor, final int patch, final String pre) {
+        // given
+        final var previous = getRecordFile();
+        when(recordFileRepository.findLatest()).thenReturn(Optional.of(previous));
+        final var blockFile = getBlockFile(previous);
+        final var versionBuilder =
+                SemanticVersion.newBuilder().setMajor(major).setMinor(minor).setPatch(patch);
+        if (pre != null) {
+            versionBuilder.setPre(pre);
+        }
+
+        final var version = versionBuilder.build();
+        blockFile.setBlockHeader(BlockHeader.newBuilder()
+                .setSoftwareVersion(version)
+                .setHapiProtoVersion(version)
+                .build());
+        blockFile.setPreviousHash(sha384Hash());
+
+        // when
+        verifier.verify(blockFile);
+
+        // then
+        verify(blockFileTransformer).transform(blockFile);
+        verify(recordFileRepository).findLatest();
+        verify(streamFileNotifier).verified(expectedRecordFile);
+        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
     }
 
     @Test
@@ -201,6 +227,20 @@ class BlockStreamVerifierTest {
         verifyNoInteractions(blockFileTransformer);
         verify(recordFileRepository).findLatest();
         verifyNoInteractions(streamFileNotifier);
+    }
+
+    private BlockFile getBlockFile(StreamFile<?> previous) {
+        long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
+        String previousHash = previous != null ? previous.getHash() : sha384Hash();
+        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
+        return BlockFile.builder()
+                .blockHeader(BlockHeader.newBuilder().build())
+                .hash(sha384Hash())
+                .index(blockNumber)
+                .name(BlockFile.getFilename(blockNumber, true))
+                .previousHash(previousHash)
+                .consensusStart(consensusStart)
+                .build();
     }
 
     private RecordFile getRecordFile() {

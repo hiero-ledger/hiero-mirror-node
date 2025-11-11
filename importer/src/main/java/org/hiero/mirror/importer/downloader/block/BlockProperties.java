@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.data.util.Version;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
@@ -25,6 +26,9 @@ public class BlockProperties {
 
     @NotNull
     private Duration frequency = Duration.ofMillis(100L);
+
+    @NotNull
+    private Version newRootHashAlgorithmVersion = Version.parse("0.68.1");
 
     @NotNull
     @Valid
