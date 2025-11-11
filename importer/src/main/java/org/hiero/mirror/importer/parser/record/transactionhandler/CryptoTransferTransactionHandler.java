@@ -7,81 +7,71 @@ import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import jakarta.inject.Named;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.HookExecutionCollector;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.domain.EntityIdService;
+import org.jspecify.annotations.NullMarked;
 
 @Named
+@NullMarked
+@RequiredArgsConstructor
 class CryptoTransferTransactionHandler extends AbstractTransactionHandler {
+
+    private final EntityIdService entityIdService;
 
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
         final var transactionBody = recordItem.getTransactionBody().getCryptoTransfer();
-        HookExecutionCollector hookExecutionCollector = HookExecutionCollector.create();
+        final var hookExecutionCollector = HookExecutionCollector.create();
         addHookCalls(transactionBody.getTransfers().getAccountAmountsList(), hookExecutionCollector);
         addTokenHookCalls(transactionBody.getTokenTransfersList(), hookExecutionCollector);
         recordItem.setHookExecutionQueue(hookExecutionCollector.buildExecutionQueue());
-        super.doUpdateTransaction(transaction, recordItem);
     }
 
     private void addTokenHookCalls(
             List<TokenTransferList> tokenTransfersList, HookExecutionCollector hookExecutionCollector) {
         for (TokenTransferList transferList : tokenTransfersList) {
-            for (AccountAmount accountAmount : transferList.getTransfersList()) {
-                addHookCalls(hookExecutionCollector, accountAmount);
-            }
+            addHookCalls(transferList.getTransfersList(), hookExecutionCollector);
             addNftHookCalls(transferList.getNftTransfersList(), hookExecutionCollector);
-        }
-    }
-
-    private void addHookCalls(HookExecutionCollector hookExecutionCollector, AccountAmount accountAmount) {
-        final var accountId = EntityId.of(accountAmount.getAccountID());
-        if (accountAmount.hasPreTxAllowanceHook()) {
-            final var hookCall = accountAmount.getPreTxAllowanceHook();
-            if (hookCall.hasHookId()) {
-                hookExecutionCollector.addAllowExecHook(hookCall.getHookId(), accountId.getId());
-            }
-        } else if (accountAmount.hasPrePostTxAllowanceHook()) {
-            final var hookCall = accountAmount.getPrePostTxAllowanceHook();
-            hookExecutionCollector.addPrePostExecHook(hookCall.getHookId(), accountId.getId());
         }
     }
 
     private void addNftHookCalls(List<NftTransfer> nftTransfersList, HookExecutionCollector hookExecutionCollector) {
         for (NftTransfer nftTransfer : nftTransfersList) {
-            var receiverId = EntityId.of(nftTransfer.getReceiverAccountID());
-            var senderId = EntityId.of(nftTransfer.getSenderAccountID());
+            final var receiverId =
+                    entityIdService.lookup(nftTransfer.getReceiverAccountID()).orElse(EntityId.EMPTY);
+            final var senderId =
+                    entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
             if (nftTransfer.hasPreTxSenderAllowanceHook()) {
-                final var hookCall = nftTransfer.getPreTxSenderAllowanceHook();
-                if (hookCall.hasHookId()) {
-                    hookExecutionCollector.addAllowExecHook(hookCall.getHookId(), senderId.getId());
-                }
+                hookExecutionCollector.addAllowExecHook(nftTransfer.getPreTxSenderAllowanceHook(), senderId.getId());
             } else if (nftTransfer.hasPrePostTxSenderAllowanceHook()) {
-                final var hookCall = nftTransfer.getPrePostTxSenderAllowanceHook();
-                if (hookCall.hasHookId()) {
-                    hookExecutionCollector.addPrePostExecHook(hookCall.getHookId(), senderId.getId());
-                }
+                hookExecutionCollector.addPrePostExecHook(
+                        nftTransfer.getPrePostTxSenderAllowanceHook(), senderId.getId());
             }
 
             if (nftTransfer.hasPreTxReceiverAllowanceHook()) {
-                final var hookCall = nftTransfer.getPreTxReceiverAllowanceHook();
-                if (hookCall.hasHookId()) {
-                    hookExecutionCollector.addAllowExecHook(hookCall.getHookId(), receiverId.getId());
-                }
+                hookExecutionCollector.addAllowExecHook(
+                        nftTransfer.getPreTxReceiverAllowanceHook(), receiverId.getId());
             } else if (nftTransfer.hasPrePostTxReceiverAllowanceHook()) {
-                final var hookCall = nftTransfer.getPrePostTxReceiverAllowanceHook();
-                if (hookCall.hasHookId()) {
-                    hookExecutionCollector.addPrePostExecHook(hookCall.getHookId(), receiverId.getId());
-                }
+                hookExecutionCollector.addPrePostExecHook(
+                        nftTransfer.getPrePostTxReceiverAllowanceHook(), receiverId.getId());
             }
         }
     }
 
     private void addHookCalls(List<AccountAmount> accountAmountsList, HookExecutionCollector hookExecutionCollector) {
         for (AccountAmount accountAmount : accountAmountsList) {
-            addHookCalls(hookExecutionCollector, accountAmount);
+            final var accountId =
+                    entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
+            if (accountAmount.hasPreTxAllowanceHook()) {
+                hookExecutionCollector.addAllowExecHook(accountAmount.getPreTxAllowanceHook(), accountId.getId());
+            } else if (accountAmount.hasPrePostTxAllowanceHook()) {
+                hookExecutionCollector.addPrePostExecHook(accountAmount.getPrePostTxAllowanceHook(), accountId.getId());
+            }
         }
     }
 

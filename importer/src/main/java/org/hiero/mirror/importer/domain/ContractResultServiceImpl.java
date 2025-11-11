@@ -549,7 +549,7 @@ final class ContractResultServiceImpl implements ContractResultService {
     private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
         // Get one hook context for this ContractStateChange
         var hookContext = recordItem.nextHookContext();
-        if (hookContext == null) {
+        if (hookContext == null || hookContext.getOwnerId() == EntityId.EMPTY.getId()) {
             Utility.handleRecoverableError(
                     "No hook context available in parent transaction for hook execution at consensus timestamp {}",
                     recordItem.getConsensusTimestamp());

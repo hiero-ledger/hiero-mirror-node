@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.hederahashgraph.api.proto.java.HookCall;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.junit.jupiter.api.Test;
 
@@ -15,8 +16,9 @@ class HookExecutionCollectorTest {
     void createEmptyCollector() {
         var collector = HookExecutionCollector.create();
 
-        assertFalse(collector.hasHooks());
-        assertEquals(0, collector.totalHookCount());
+        assertTrue(collector.allowExecHookIds().isEmpty());
+        assertTrue(collector.allowPreExecHookIds().isEmpty());
+        assertTrue(collector.allowPostExecHookIds().isEmpty());
         assertTrue(collector.buildExecutionQueue().isEmpty());
     }
 
@@ -24,10 +26,11 @@ class HookExecutionCollectorTest {
     void addAllowExecHook() {
         var collector = HookExecutionCollector.create();
 
-        collector.addAllowExecHook(101L, 1001L);
+        collector.addAllowExecHook(HookCall.newBuilder().setHookId(101L).build(), 1001L);
 
-        assertTrue(collector.hasHooks());
-        assertEquals(1, collector.totalHookCount());
+        assertFalse(collector.allowExecHookIds().isEmpty());
+        assertTrue(collector.allowPreExecHookIds().isEmpty());
+        assertTrue(collector.allowPostExecHookIds().isEmpty());
         assertEquals(1, collector.allowExecHookIds().size());
         assertEquals(0, collector.allowPreExecHookIds().size());
         assertEquals(0, collector.allowPostExecHookIds().size());
@@ -41,10 +44,11 @@ class HookExecutionCollectorTest {
     void addPrePostExecHook() {
         var collector = HookExecutionCollector.create();
 
-        collector.addPrePostExecHook(102L, 1002L);
+        collector.addPrePostExecHook(HookCall.newBuilder().setHookId(102L).build(), 1002L);
 
-        assertTrue(collector.hasHooks());
-        assertEquals(2, collector.totalHookCount()); // Pre + Post = 2
+        assertTrue(collector.allowExecHookIds().isEmpty());
+        assertFalse(collector.allowPreExecHookIds().isEmpty());
+        assertFalse(collector.allowPostExecHookIds().isEmpty());
         assertEquals(0, collector.allowExecHookIds().size());
         assertEquals(1, collector.allowPreExecHookIds().size());
         assertEquals(1, collector.allowPostExecHookIds().size());
@@ -58,13 +62,20 @@ class HookExecutionCollectorTest {
     @Test
     void correctExecutionOrder() {
         var collector = HookExecutionCollector.create()
-                .addAllowExecHook(101L, 1001L) // First: allowExec
-                .addAllowExecHook(201L, 1001L)
-                .addPrePostExecHook(102L, 1002L) // Second: allowPre, Third: allowPost
-                .addPrePostExecHook(202L, 1002L);
+                .addAllowExecHook(HookCall.newBuilder().setHookId(101L).build(), 1001L) // First: allowExec
+                .addAllowExecHook(HookCall.newBuilder().setHookId(201L).build(), 1001L)
+                .addPrePostExecHook(
+                        HookCall.newBuilder().setHookId(102L).build(), 1002L) // Second: allowPre, Third: allowPost
+                .addPrePostExecHook(HookCall.newBuilder().setHookId(202L).build(), 1002L);
 
-        assertTrue(collector.hasHooks());
-        assertEquals(6, collector.totalHookCount()); // 2 allowExec + 2 allowPre + 2 allowPost
+        assertEquals(2, collector.allowExecHookIds().size());
+        assertEquals(2, collector.allowPreExecHookIds().size());
+        assertEquals(2, collector.allowPostExecHookIds().size());
+
+        int totalHooks = collector.allowExecHookIds().size()
+                + collector.allowPreExecHookIds().size()
+                + collector.allowPostExecHookIds().size();
+        assertEquals(6, totalHooks); // 2 allowExec + 2 allowPre + 2 allowPost
 
         var queue = collector.buildExecutionQueue();
         assertEquals(6, queue.size());
@@ -81,9 +92,9 @@ class HookExecutionCollectorTest {
     @Test
     void methodChaining() {
         var queue = HookExecutionCollector.create()
-                .addAllowExecHook(1L, 100L)
-                .addPrePostExecHook(2L, 200L)
-                .addAllowExecHook(3L, 300L)
+                .addAllowExecHook(HookCall.newBuilder().setHookId(1L).build(), 100L)
+                .addPrePostExecHook(HookCall.newBuilder().setHookId(2L).build(), 200L)
+                .addAllowExecHook(HookCall.newBuilder().setHookId(3L).build(), 300L)
                 .buildExecutionQueue();
 
         assertEquals(4, queue.size());

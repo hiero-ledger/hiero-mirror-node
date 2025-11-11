@@ -22,7 +22,6 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
@@ -98,8 +97,8 @@ final class EVMHookHandler implements EvmHookStorageHandler {
                     .consensusTimestamp(consensusTimestamp)
                     .hookId(hookId)
                     .ownerId(ownerId)
-                    .key(DomainUtils.toBytes(storageChange.getSlot()))
-                    .valueRead(DomainUtils.toBytes(storageChange.getValueRead()))
+                    .key(toBytes(storageChange.getSlot()))
+                    .valueRead(toBytes(storageChange.getValueRead()))
                     .valueWritten(valueWritten)
                     .build();
 

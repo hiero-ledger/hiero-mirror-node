@@ -6,7 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
@@ -17,6 +19,8 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransferList;
+import java.util.Optional;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +29,7 @@ import org.junit.jupiter.api.Test;
 class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTest {
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new CryptoTransferTransactionHandler();
+        return new CryptoTransferTransactionHandler(entityIdService);
     }
 
     @Override
@@ -75,6 +79,11 @@ class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTes
     @Test
     @DisplayName("Hook execution queue covers all use cases from HIP-1195 specification")
     void testComprehensiveHookExecutionQueueSequence() {
+        // Mock EntityIdService to return proper EntityId objects for each account ID
+        when(entityIdService.lookup(any(AccountID.class))).thenAnswer(invocation -> {
+            AccountID accountId = invocation.getArgument(0);
+            return Optional.of(EntityId.of(accountId));
+        });
         var recordItem = recordItemBuilder
                 .cryptoTransfer()
                 .transactionBody(body -> body.setTransfers(TransferList.newBuilder()
