@@ -40,10 +40,8 @@ import com.hedera.node.app.service.contract.impl.exec.scope.ActiveContractVerifi
 import com.hedera.node.app.service.contract.impl.exec.scope.HandleHederaNativeOperations;
 import com.hedera.node.app.service.contract.impl.exec.scope.HederaNativeOperations;
 import com.hedera.node.app.service.contract.impl.utils.RedirectBytecodeUtils;
-import com.hedera.node.app.spi.ids.EntityIdFactory;
+import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.swirlds.state.spi.WritableKVState;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -61,6 +59,8 @@ import org.hyperledger.besu.evm.account.MutableAccount;
 import org.hyperledger.besu.evm.code.CodeFactory;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.hyperledger.besu.evm.frame.MessageFrame;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An implementation of {@link EvmFrameState} that uses {@link WritableKVState}s to manage
@@ -104,7 +104,7 @@ public class DispatchingEvmFrameState implements EvmFrameState {
      */
     @Override
     public void setStorageValue(
-            @Nullable final ContractID contractID, @NonNull final UInt256 key, @NonNull final UInt256 value) {
+            @NonNull final ContractID contractID, @NonNull final UInt256 key, @NonNull final UInt256 value) {
         final var slotKey = new SlotKey(contractID, tuweniToPbjBytes(requireNonNull(key)));
         final var oldSlotValue = contractStateStore.getSlotValue(slotKey);
         if (oldSlotValue == null && value.isZero()) {
@@ -177,8 +177,15 @@ public class DispatchingEvmFrameState implements EvmFrameState {
      * {@inheritDoc}
      */
     @Override
-    public @NonNull RentFactors getRentFactorsFor(final ContractID contractID) {
+    public @NonNull RentFactors getRentFactorsFor(@NonNull final ContractID contractID) {
         final var account = validatedAccount(contractID);
+        return new RentFactors(account.contractKvPairsNumber(), account.expirationSecond());
+    }
+
+    @NonNull
+    @Override
+    public RentFactors getRentFactorsFor(@NonNull AccountID accountId) {
+        final var account = validatedAccount(accountId);
         return new RentFactors(account.contractKvPairsNumber(), account.expirationSecond());
     }
 
@@ -585,8 +592,7 @@ public class DispatchingEvmFrameState implements EvmFrameState {
     }
 
     // Workaround to allow long zero addresses (formed by shard/realm/num) to be accepted by the EVM
-    private boolean isNotPriority(
-            final Address address, final @NonNull com.hedera.hapi.node.state.token.Account account) {
+    private boolean isNotPriority(final Address address, final com.hedera.hapi.node.state.token.Account account) {
         requireNonNull(account);
 
         final var longZeroAddressPermitted = Boolean.parseBoolean(System.getProperty(ALLOW_LONG_ZERO_ADDRESSES));

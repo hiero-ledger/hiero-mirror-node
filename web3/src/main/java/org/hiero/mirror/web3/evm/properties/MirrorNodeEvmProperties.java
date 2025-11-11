@@ -347,6 +347,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByOpsDuration", "false");
         props.put("contracts.throttle.throttleByGas", "false");
+        props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
         props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));

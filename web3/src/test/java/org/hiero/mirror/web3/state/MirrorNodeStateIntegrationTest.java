@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
-import static com.hedera.node.app.ids.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING_HASHES_STATE_ID;
+import static com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID;
@@ -14,10 +14,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.node.app.blocks.BlockStreamService;
 import com.hedera.node.app.fees.FeeService;
-import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.records.BlockRecordService;
 import com.hedera.node.app.service.contract.ContractService;
 import com.hedera.node.app.service.contract.impl.ContractServiceImpl;
+import com.hedera.node.app.service.entityid.EntityIdService;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.file.impl.FileServiceImpl;
 import com.hedera.node.app.service.schedule.impl.ScheduleServiceImpl;
@@ -44,6 +44,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.components.ServicesRegistryImpl;
+import org.hiero.mirror.web3.state.components.entity.EntityIdServiceImpl;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AirdropsReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -162,7 +163,7 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
     private void verifyRegisteredServices() {
         Set<Class<? extends Service>> expectedServices = new HashSet<>(List.of(
-                EntityIdService.class,
+                EntityIdServiceImpl.class,
                 TokenServiceImpl.class,
                 FileServiceImpl.class,
                 ContractServiceImpl.class,

@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.components;
 
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.swirlds.config.api.Configuration;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.SchemaRegistry;
@@ -18,7 +19,7 @@ import org.jspecify.annotations.NonNull;
 
 @RequiredArgsConstructor
 @CustomLog
-public class SchemaRegistryImpl implements SchemaRegistry {
+public class SchemaRegistryImpl implements SchemaRegistry<SemanticVersion> {
 
     /**
      * The name of the service using this registry.
@@ -57,7 +58,7 @@ public class SchemaRegistryImpl implements SchemaRegistry {
 
     private void applyStateDefinitions(
             @NonNull final String serviceName,
-            @NonNull final Schema schema,
+            @NonNull final Schema<SemanticVersion> schema,
             @NonNull final Configuration configuration,
             @NonNull final MirrorNodeState state) {
         final Map<Integer, Object> stateDataSources = new HashMap<>();

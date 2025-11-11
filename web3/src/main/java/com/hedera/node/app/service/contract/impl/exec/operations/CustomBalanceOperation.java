@@ -8,7 +8,8 @@ import static com.hedera.node.app.service.contract.impl.exec.utils.OperationUtil
 
 import com.hedera.node.app.service.contract.impl.exec.AddressChecks;
 import com.hedera.node.app.service.contract.impl.exec.FeatureFlags;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils;
+import com.hedera.node.app.service.contract.impl.exec.utils.InvalidAddressContext;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.evm.EVM;
@@ -18,25 +19,25 @@ import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.hyperledger.besu.evm.internal.UnderflowException;
 import org.hyperledger.besu.evm.internal.Words;
 import org.hyperledger.besu.evm.operation.BalanceOperation;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * A Hedera customization of the Besu {@link org.hyperledger.besu.evm.operation.BalanceOperation}.
  */
+@NullMarked
 public class CustomBalanceOperation extends BalanceOperation {
     private final AddressChecks addressChecks;
     private final FeatureFlags featureFlags;
 
     public CustomBalanceOperation(
-            @NonNull final GasCalculator gasCalculator,
-            @NonNull final AddressChecks addressChecks,
-            @NonNull final FeatureFlags featureFlags) {
+            final GasCalculator gasCalculator, final AddressChecks addressChecks, final FeatureFlags featureFlags) {
         super(gasCalculator);
         this.addressChecks = addressChecks;
         this.featureFlags = featureFlags;
     }
 
     @Override
-    public OperationResult execute(@NonNull final MessageFrame frame, @NonNull final EVM evm) {
+    public OperationResult execute(final MessageFrame frame, final EVM evm) {
         try {
             // NOTE: This line is the ONLY modification from the upstream class.
             // It sets a flag indicating a balance read, allowing custom behavior downstream.
@@ -55,6 +56,8 @@ public class CustomBalanceOperation extends BalanceOperation {
             }
             // Otherwise continue to enforce existence checks for backward compatibility
             if (contractRequired(frame, address, featureFlags) && !addressChecks.isPresent(address, frame)) {
+                FrameUtils.invalidAddressContext(frame)
+                        .set(address, InvalidAddressContext.InvalidAddressType.NonCallTarget);
                 return new OperationResult(cost, INVALID_SOLIDITY_ADDRESS);
             }
             return super.execute(frame, evm);

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.ids.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
+import static com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.node.config.data.HederaConfig;

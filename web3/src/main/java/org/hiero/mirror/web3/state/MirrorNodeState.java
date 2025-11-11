@@ -3,7 +3,7 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.node.app.service.token.impl.handlers.BaseCryptoHandler.asAccount;
-import static com.hedera.node.app.spi.fees.NoopFeeCharging.NOOP_FEE_CHARGING;
+import static com.hedera.node.app.spi.fees.NoopFeeCharging.UNIVERSAL_NOOP_FEE_CHARGING;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.Key;
@@ -11,8 +11,6 @@ import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.transaction.ThrottleDefinitions;
 import com.hedera.node.app.blocks.BlockStreamService;
 import com.hedera.node.app.fees.FeeService;
-import com.hedera.node.app.ids.AppEntityIdFactory;
-import com.hedera.node.app.ids.EntityIdService;
 import com.hedera.node.app.info.NodeInfoImpl;
 import com.hedera.node.app.records.BlockRecordService;
 import com.hedera.node.app.service.contract.impl.ContractServiceImpl;
@@ -28,9 +26,6 @@ import com.hedera.node.app.throttle.AppThrottleFactory;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.ThrottleAccumulator;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.swirlds.base.time.Time;
-import com.swirlds.common.merkle.crypto.MerkleCryptography;
-import com.swirlds.config.api.Configuration;
 import com.swirlds.metrics.api.Metrics;
 import com.swirlds.state.State;
 import com.swirlds.state.spi.EmptyWritableStates;
@@ -49,13 +44,14 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
-import java.util.function.LongSupplier;
 import lombok.RequiredArgsConstructor;
 import org.hiero.base.crypto.Hash;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;
 import org.hiero.mirror.web3.state.components.SchemaRegistryImpl;
+import org.hiero.mirror.web3.state.components.entity.AppEntityIdFactory;
+import org.hiero.mirror.web3.state.components.entity.EntityIdServiceImpl;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
@@ -111,16 +107,6 @@ public class MirrorNodeState implements State {
             schemaRegistry.migrate(
                     registration.serviceName(), this, mirrorNodeEvmProperties.getVersionedConfiguration());
         });
-    }
-
-    @Override
-    public void init(
-            Time time,
-            Configuration configuration,
-            Metrics metrics,
-            MerkleCryptography merkleCryptography,
-            LongSupplier roundSupplier) {
-        // No-op
     }
 
     public MirrorNodeState addService(@NonNull final String serviceName, @NonNull final Map<Integer, ?> dataSources) {
@@ -223,7 +209,7 @@ public class MirrorNodeState implements State {
         return Collections.unmodifiableMap(states);
     }
 
-    private void registerServices(ServicesRegistry servicesRegistry) {
+    private void registerServices(final ServicesRegistry servicesRegistry) {
         // Register all service schema RuntimeConstructable factories before platform init
         final var config = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var appContext = new AppContextImpl(
@@ -235,10 +221,10 @@ public class MirrorNodeState implements State {
                 () -> NO_OP_METRICS,
                 new AppThrottleFactory(
                         () -> config, () -> this, () -> ThrottleDefinitions.DEFAULT, ThrottleAccumulator::new),
-                () -> NOOP_FEE_CHARGING,
+                () -> UNIVERSAL_NOOP_FEE_CHARGING,
                 new AppEntityIdFactory(config));
         Set.of(
-                        new EntityIdService(),
+                        new EntityIdServiceImpl(),
                         new TokenServiceImpl(appContext),
                         new FileServiceImpl(),
                         new ContractServiceImpl(appContext, NO_OP_METRICS),

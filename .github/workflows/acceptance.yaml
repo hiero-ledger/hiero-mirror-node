@@ -43,7 +43,7 @@ jobs:
     env:
       BASE_URL: "http://127.0.0.1:8081"
       BLOCK_NODE_CHART_VERSION: v0.20.1
-      CONSENSUS_VERSION: v0.67.2
+      CONSENSUS_VERSION: v0.68.0
       DEFAULT_DURATION: "3s"
       DEFAULT_GRACEFUL_STOP: "1s"
       DEFAULT_VUS: 2
