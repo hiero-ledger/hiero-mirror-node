@@ -91,8 +91,14 @@ jobs:
       - name: Build Mirror Node Test JAR
         run: ./gradlew test:build -x test
 
+      - name: Build Mirror Node Web3 JAR
+        run: ./gradlew web3:build -x test
+
       - name: Build Mirror Node Test Docker image
         run: docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
+
+      - name: Build Mirror Node Test Docker image
+        run: docker build -t gcr.io/mirrornode/hedera-mirror-web3:${TAG} ./web3
 
       - name: Setup Solo Cluster
         run: |
@@ -100,6 +106,7 @@ jobs:
 
           kind create cluster -n "${SOLO_CLUSTER_NAME}"
           kind load docker-image gcr.io/mirrornode/hedera-mirror-test:${TAG} -n "${SOLO_CLUSTER_NAME}"
+          kind load docker-image gcr.io/mirrornode/hedera-mirror-web3:${TAG} -n "${SOLO_CLUSTER_NAME}"
 
           solo init
           solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
@@ -135,6 +142,8 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            image:
+              tag: ${TAG}
           EOF
 
           else
@@ -153,6 +162,8 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            image:
+              tag: ${TAG}
           EOF
           fi
 
