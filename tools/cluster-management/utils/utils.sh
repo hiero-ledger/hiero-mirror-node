@@ -255,6 +255,12 @@ function scaleDeployment() {
   local replicas="${2}"
   local deploymentLabel="${3}"
 
+  local deployments
+  deployments="$(kubectl -n "${namespace}" get deploy -l "${deploymentLabel}" -o name 2>/dev/null | xargs -r)"
+  if [[ -z "${deployments}" ]]; then
+    log "No Deployment found in namespace ${namespace} with label '${deploymentLabel}'. Skipping."
+    return 0
+  fi
   if [[ "${replicas}" -gt 0 ]]; then # scale up
     kubectl scale deployment -n "${namespace}" -l "${deploymentLabel}" --replicas="${replicas}"
     sleep 5

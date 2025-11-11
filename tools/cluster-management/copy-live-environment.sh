@@ -421,15 +421,28 @@ function scaleDownNodePools() {
   done
 }
 
+function cleanupCommonChartResources() {
+  suspendCommonChart
+  kubectl delete pdb -n "${COMMON_NAMESPACE}" --all --ignore-not-found 1>&2
 
-function removeDisks() {
+  log "Deleting common chart deployments"
+  kubectl_common delete deployments "${HELM_RELEASE_NAME}-minio" "${HELM_RELEASE_NAME}-prometheus-operator" --ignore-not-found
+  kubectl_common delete sts --all
+
+  log "Deleting common chart disks"
+
+  # All pvcs use storage class with reclaim policy Delete
+  kubectl delete pvc -n "${COMMON_NAMESPACE}" --all --ignore-not-found
+}
+
+function removeCitusDisks() {
   local disksToDelete
   local diskJson
   local diskName
   local diskZone
   local zoneLink
   disksToDelete="$(getCitusDiskNames "${GCP_TARGET_PROJECT}" "${DISK_PREFIX}")"
-  log "Will delete disks ${disksToDelete}"
+  log "Will delete citus disks ${disksToDelete}"
   doContinue
   jq -c '.[]' <<< "${disksToDelete}" | while read -r diskJson; do
     diskName="$(jq -r '.name' <<<"${diskJson}")"
@@ -438,29 +451,22 @@ function removeDisks() {
     log "Deleting ${diskName}"
     deleteDisk "${diskName}" "${diskZone}"
   done
-
-  diskName="$(getMinioDiskName)"
-  diskZone="$(getZoneFromPv "${diskName}")"
-
-  log "Deleting minio sg backup disk"
-  doContinue
-  deleteDisk "${diskName}" "${diskZone}"
 }
 
 function resolveHpaName() {
    local component="$1"
-   local ns="$2"
+   local namespace="$2"
    local -a hpas
-   mapfile -t hpas < <(kubectl get hpa -n "${ns}" \
+   mapfile -t hpas < <(kubectl get hpa -n "${namespace}" \
      -l "app.kubernetes.io/component=${component}" \
      -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
 
    if [[ ${#hpas[@]} -eq 0 || -z "${hpas[0]}" ]]; then
-     log "No HPA found in ${ns} with label app.kubernetes.io/component=${component}"
+     log "No HPA found in ${namespace} with label app.kubernetes.io/component=${component}"
      return 0
    fi
    if [[ ${#hpas[@]} -gt 1 ]]; then
-     log "Expected exactly 1 HPA in ${ns} for component=${component}, found ${#hpas[@]}: ${hpas[*]}"
+     log "Expected exactly 1 HPA in ${namespace} for component=${component}, found ${#hpas[@]}: ${hpas[*]}"
      return 0
    fi
 
@@ -468,25 +474,25 @@ function resolveHpaName() {
 }
 
 function getHpaMaxReplicas() {
-  local ns="$1"
+  local namespace="$1"
   local hpaName="$2"
-  if [[ -z "$ns" || -z "$hpaName" ]]; then
+  if [[ -z "${namespace}" || -z "$hpaName" ]]; then
     echo ""
     return 0
   fi
-  kubectl get hpa "${hpaName}" -n "${ns}" -o jsonpath='{.spec.maxReplicas}' 2>/dev/null || true
+  kubectl get hpa "${hpaName}" -n "${namespace}" -o jsonpath='{.spec.maxReplicas}' 2>/dev/null || true
 }
 
 function scaleHpaMin() {
-  local ns="$1"
+  local namespace="$1"
   local hpaName="$2"
   local min="${3:-1}"
-  if [[ -z "$ns" || -z "$hpaName" ]]; then
+  if [[ -z "${namespace}" || -z "$hpaName" ]]; then
     echo ""
     return 0
   fi
-  log "Patching HPA ${hpaName} in ${ns}: minReplicas=${min}"
-  kubectl patch hpa "${hpaName}" -n "${ns}" --type='merge' \
+  log "Patching HPA ${hpaName} in ${namespace}: minReplicas=${min}"
+  kubectl patch hpa "${hpaName}" -n "${namespace}" --type='merge' \
     -p "{\"spec\":{\"minReplicas\":${min}}}" >/dev/null || true
 }
 
@@ -498,11 +504,9 @@ function teardownResources() {
     kubectl delete pdb -n "${namespace}" --all --ignore-not-found 1>&2
   done
 
-  suspendCommonChart
-  kubectl delete pdb -n "${COMMON_NAMESPACE}" --all --ignore-not-found 1>&2
-
+  cleanupCommonChartResources
   scaleDownNodePools
-  removeDisks
+  removeCitusDisks
 }
 
 function waitForK6PodExecution() {
@@ -577,6 +581,54 @@ function waitForK6PodExecution() {
   scaleHpaMin "${targetNamespace}" "${hpaName}"
 }
 
+function waitForHelmReleaseReady() {
+  local namespace="$1"
+  local hrJson
+  local testsEnabled
+  local testStatus
+  local testMsg
+  local readyStatus
+  local readyReason
+
+  log "Waiting for helm tests to finish in namespace ${namespace}"
+  while true; do
+    hrJson="$(kubectl -n "${namespace}" get helmrelease "${HELM_RELEASE_NAME}" -o json 2>/dev/null || true)"
+    testsEnabled="$(jq -r '.spec.test.enable // false' <<<"${hrJson}")"
+
+    if [[ "${testsEnabled}" != "true" ]]; then
+      log "Helm tests not enabled for ${HELM_RELEASE_NAME} in ${namespace}; proceeding without waiting."
+      break
+    fi
+
+    testStatus="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .status // empty' <<<"${hrJson}")"
+    testMsg="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .message // empty' <<<"${hrJson}")"
+    readyStatus="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .status // empty' <<<"${hrJson}")"
+    readyReason="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .reason // empty' <<<"${hrJson}")"
+
+    if [[ "${testStatus}" == "True" ]] || { [[ "${readyStatus}" == "True" && "${readyReason}" == "TestSucceeded" ]]; }; then
+      log "Helm tests SUCCEEDED for ${HELM_RELEASE_NAME} in ${namespace}"
+      break
+    fi
+
+    if [[ "${testStatus}" == "False" ]]; then
+      log "Helm tests FAILED for ${HELM_RELEASE_NAME} in ${namespace} ${testMsg}"
+      log "Waiting for manual intervention to re-run tests and succeed..."
+    else
+      log "Helm tests running or not yet reported for ${HELM_RELEASE_NAME} in ${namespace}"
+    fi
+
+    sleep 30
+  done
+}
+
+function cleanupAcceptancePod() {
+  local namespace="$1"
+  kubectl -n "${namespace}" wait pod -l"app.kubernetes.io/component=hedera-mirror" \
+      --for=jsonpath='{.status.phase}'=Succeeded \
+      --timeout=30m || true
+  kubectl -n "${namespace}" delete pod -l"app.kubernetes.io/component=hedera-mirror" --ignore-not-found
+}
+
 if [[ -z "${K8S_SOURCE_CLUSTER_CONTEXT}" || -z "${K8S_TARGET_CLUSTER_CONTEXT}" ]]; then
   log "K8S_SOURCE_CLUSTER_CONTEXT and K8S_TARGET_CLUSTER_CONTEXT are required"
   exit 1
@@ -594,14 +646,16 @@ deleteSnapshots
 
 if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   log "Awaiting k6 results"
-  for ns in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
-    if kubectl get helmrelease -n "${ns}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-      log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${ns}"
-      flux suspend helmrelease -n "${ns}" "${HELM_RELEASE_NAME}"
+  for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
+    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
+      waitForHelmReleaseReady "${namespace}"
+      cleanupAcceptancePods "${namespace}"
+      log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
+      flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
     fi
-    waitForK6PodExecution "rest" "${ns}"
-    waitForK6PodExecution "rest-java" "${ns}"
-    waitForK6PodExecution "web3" "${ns}"
+    waitForK6PodExecution "rest" "${namespace}"
+    waitForK6PodExecution "rest-java" "${namespace}"
+    waitForK6PodExecution "web3" "${namespace}"
   done
   log "K6 tests completed"
   teardownResources
