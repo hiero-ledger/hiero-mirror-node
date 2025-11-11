@@ -37,6 +37,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
+    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     public AccountReadableKVState(
             @NonNull CommonEntityAccessor commonEntityAccessor,
@@ -61,10 +62,16 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 mirrorNodeEvmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
+        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
     }
 
     @Override
     protected Account readFromDataSource(@NonNull AccountID key) {
+        if (ContractCallContext.get().isBalanceCallSafe()
+                && mirrorNodeEvmProperties.getSystemAccounts().contains(key)) {
+            return getDummySystemAccountIfApplicable(key).orElse(null);
+        }
+
         final var timestamp = ContractCallContext.get().getTimestamp();
         return commonEntityAccessor
                 .get(key, timestamp)
@@ -90,7 +97,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         if (accountID != null && accountID.hasAccountNum()) {
             final var accountNum = accountID.accountNum();
             return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
-                    ? Optional.of(Account.newBuilder().accountId(accountID).build())
+                    ? Optional.of(Account.newBuilder()
+                            .accountId(accountID)
+                            .tinybarBalance(1_000_000L)
+                            .build())
                     : Optional.empty();
         }
         return Optional.empty();

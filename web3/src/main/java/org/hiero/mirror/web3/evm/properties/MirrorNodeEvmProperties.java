@@ -14,6 +14,7 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
 import com.google.common.collect.ImmutableSortedMap;
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
@@ -77,6 +78,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @NotNull
     private Set<EntityType> autoRenewTargetTypes = new HashSet<>();
+
+    @Getter
+    @NotNull
+    private Set<AccountID> systemAccounts = new HashSet<>();
 
     @Getter
     @Positive
@@ -339,6 +344,14 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         return feesTokenTransferUsageMultiplier;
     }
 
+    private AccountID toAccountID(long num) {
+        return AccountID.newBuilder()
+                .shardNum(commonProperties.getShard())
+                .realmNum(commonProperties.getRealm())
+                .accountNum(num)
+                .build();
+    }
+
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
         props.put("contracts.chainId", chainIdBytes32().toBigInteger().toString());
@@ -352,6 +365,9 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
+        props.put("nodes.nodeRewardsEnabled", "true");
+        props.put("nodes.preserveMinNodeRewardBalance", "true");
+        props.put("nodes.minNodeRewardBalance", String.valueOf(Long.MAX_VALUE));
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
@@ -372,6 +388,14 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @PostConstruct
     public void init() {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
+
+        if (CollectionUtils.isEmpty(systemAccounts)) {
+            final var configuredSystemAccounts = Set.of(
+                    toAccountID(systemEntity.feeCollectorAccount().getNum()),
+                    toAccountID(systemEntity.stakingRewardAccount().getNum()),
+                    toAccountID(systemEntity.nodeRewardAccount().getNum()));
+            systemAccounts = new HashSet<>(configuredSystemAccounts);
+        }
     }
 
     @Getter
