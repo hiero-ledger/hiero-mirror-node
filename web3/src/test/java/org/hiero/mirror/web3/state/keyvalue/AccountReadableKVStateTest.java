@@ -651,7 +651,7 @@ class AccountReadableKVStateTest {
         assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
                 .isNotNull()
                 .returns(systemKey, Account::accountId)
-                .returns(1_000_000L, Account::tinybarBalance));
+                .returns(100_000_000_000L, Account::tinybarBalance));
     }
 
     private AccountID getAccountId(final Long num) {

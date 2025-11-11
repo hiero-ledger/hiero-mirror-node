@@ -99,7 +99,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
                     ? Optional.of(Account.newBuilder()
                             .accountId(accountID)
-                            .tinybarBalance(1_000_000L)
+                            .tinybarBalance(100_000_000_000L)
                             .build())
                     : Optional.empty();
         }
