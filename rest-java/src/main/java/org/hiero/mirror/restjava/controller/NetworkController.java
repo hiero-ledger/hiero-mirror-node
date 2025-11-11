@@ -11,7 +11,6 @@ import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
-import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
@@ -30,7 +29,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class NetworkController {
 
-    private final CommonMapper commonMapper;
     private final ExchangeRateMapper exchangeRateMapper;
     private final FeeScheduleMapper feeScheduleMapper;
     private final FileService fileService;
