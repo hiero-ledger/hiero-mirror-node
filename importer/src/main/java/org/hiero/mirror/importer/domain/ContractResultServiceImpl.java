@@ -506,7 +506,7 @@ final class ContractResultServiceImpl implements ContractResultService {
 
     /**
      * Determines if a RecordItem represents a hook execution. Hook executions are ContractCall transactions to the
-     * system hook contract (0.0.365) that have a parent consensus timestamp.
+     * system hook contract (0x16d) that have a parent consensus timestamp.
      *
      * @param recordItem the record item to check
      * @return true if this is a hook execution, false otherwise

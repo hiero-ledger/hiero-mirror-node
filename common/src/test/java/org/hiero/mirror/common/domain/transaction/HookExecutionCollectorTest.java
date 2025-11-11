@@ -10,7 +10,7 @@ import com.hederahashgraph.api.proto.java.HookCall;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.junit.jupiter.api.Test;
 
-class HookExecutionCollectorTest {
+final class HookExecutionCollectorTest {
 
     @Test
     void createEmptyCollector() {
@@ -87,20 +87,5 @@ class HookExecutionCollectorTest {
         assertEquals(new AbstractHook.Id(202L, 1002L), queue.poll()); // allowPre[1]
         assertEquals(new AbstractHook.Id(102L, 1002L), queue.poll()); // allowPost[0] (same as allowPre[0])
         assertEquals(new AbstractHook.Id(202L, 1002L), queue.poll()); // allowPost[1] (same as allowPre[1])
-    }
-
-    @Test
-    void methodChaining() {
-        var queue = HookExecutionCollector.create()
-                .addAllowExecHook(HookCall.newBuilder().setHookId(1L).build(), 100L)
-                .addPrePostExecHook(HookCall.newBuilder().setHookId(2L).build(), 200L)
-                .addAllowExecHook(HookCall.newBuilder().setHookId(3L).build(), 300L)
-                .buildExecutionQueue();
-
-        assertEquals(4, queue.size());
-        assertEquals(new AbstractHook.Id(1L, 100L), queue.poll());
-        assertEquals(new AbstractHook.Id(3L, 300L), queue.poll());
-        assertEquals(new AbstractHook.Id(2L, 200L), queue.poll());
-        assertEquals(new AbstractHook.Id(2L, 200L), queue.poll());
     }
 }

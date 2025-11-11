@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
@@ -78,13 +79,8 @@ final class EVMHookHandlerTest {
                 .build();
 
         final var key = domainBuilder.bytes(32);
-        final var leadingZeros = new byte[16];
-        final var trimmedValue = ByteBuffer.allocate(16)
-                .put((byte) 0x01)
-                .put(domainBuilder.bytes(15))
-                .array();
-        final var value =
-                ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
+        final var trimmedValue = Bytes.concat(new byte[] {0x1}, domainBuilder.bytes(15));
+        final var value = leftPadBytes(trimmedValue, 32);
 
         var lambdaEvmHook = LambdaEvmHook.newBuilder()
                 .addStorageUpdates(LambdaStorageUpdate.newBuilder()
@@ -433,10 +429,8 @@ final class EVMHookHandlerTest {
 
         for (int i = 0; i < numEntries; i++) {
             final var preimage = domainBuilder.bytes(8);
-            final var leadingZeros = new byte[15];
-            final var trimmedValue = domainBuilder.bytes(17);
-            final var value =
-                    ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
+            final var trimmedValue = Bytes.concat(new byte[] {0x1}, domainBuilder.bytes(16));
+            final var value = leftPadBytes(trimmedValue, 32);
 
             preimages.add(preimage);
             expectedValues.add(trimmedValue);

@@ -42,21 +42,27 @@ class CryptoTransferTransactionHandler extends AbstractTransactionHandler {
 
     private void addNftHookCalls(List<NftTransfer> nftTransfersList, HookExecutionCollector hookExecutionCollector) {
         for (NftTransfer nftTransfer : nftTransfersList) {
-            final var receiverId =
-                    entityIdService.lookup(nftTransfer.getReceiverAccountID()).orElse(EntityId.EMPTY);
-            final var senderId =
-                    entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
             if (nftTransfer.hasPreTxSenderAllowanceHook()) {
+                final var senderId =
+                        entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
                 hookExecutionCollector.addAllowExecHook(nftTransfer.getPreTxSenderAllowanceHook(), senderId.getId());
             } else if (nftTransfer.hasPrePostTxSenderAllowanceHook()) {
+                final var senderId =
+                        entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
                 hookExecutionCollector.addPrePostExecHook(
                         nftTransfer.getPrePostTxSenderAllowanceHook(), senderId.getId());
             }
 
             if (nftTransfer.hasPreTxReceiverAllowanceHook()) {
+                final var receiverId = entityIdService
+                        .lookup(nftTransfer.getReceiverAccountID())
+                        .orElse(EntityId.EMPTY);
                 hookExecutionCollector.addAllowExecHook(
                         nftTransfer.getPreTxReceiverAllowanceHook(), receiverId.getId());
             } else if (nftTransfer.hasPrePostTxReceiverAllowanceHook()) {
+                final var receiverId = entityIdService
+                        .lookup(nftTransfer.getReceiverAccountID())
+                        .orElse(EntityId.EMPTY);
                 hookExecutionCollector.addPrePostExecHook(
                         nftTransfer.getPrePostTxReceiverAllowanceHook(), receiverId.getId());
             }
@@ -65,11 +71,13 @@ class CryptoTransferTransactionHandler extends AbstractTransactionHandler {
 
     private void addHookCalls(List<AccountAmount> accountAmountsList, HookExecutionCollector hookExecutionCollector) {
         for (AccountAmount accountAmount : accountAmountsList) {
-            final var accountId =
-                    entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
             if (accountAmount.hasPreTxAllowanceHook()) {
+                final var accountId =
+                        entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
                 hookExecutionCollector.addAllowExecHook(accountAmount.getPreTxAllowanceHook(), accountId.getId());
             } else if (accountAmount.hasPrePostTxAllowanceHook()) {
+                final var accountId =
+                        entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
                 hookExecutionCollector.addPrePostExecHook(accountAmount.getPrePostTxAllowanceHook(), accountId.getId());
             }
         }

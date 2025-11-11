@@ -72,7 +72,6 @@ class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTes
 
         // then
         var queue = recordItem.getHookExecutionQueue();
-        assertNotNull(queue, "Hook execution queue should exist even when empty");
         assertThat(queue).isEmpty();
     }
 
@@ -208,6 +207,110 @@ class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTes
         assertEquals(new AbstractHook.Id(203L, 2003L), recordItem.nextHookContext()); // Token PrePostTx Post
         assertEquals(new AbstractHook.Id(302L, 3002L), recordItem.nextHookContext()); // NFT2 sender PrePostTx Post
         assertEquals(new AbstractHook.Id(312L, 3102L), recordItem.nextHookContext()); // NFT2 receiver PrePostTx Post
+
+        // Verify queue is exhausted
+        assertNull(recordItem.nextHookContext());
+    }
+
+    @Test
+    @DisplayName("Hook execution queue handles unresolvable alias/EVM address")
+    void testHookExecutionQueueWithUnresolvableAlias() {
+        // Mock EntityIdService to fail to resolve alias
+        when(entityIdService.lookup(any(AccountID.class))).thenReturn(Optional.empty());
+
+        var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(body -> body.setTransfers(TransferList.newBuilder()
+                        .addAccountAmounts(AccountAmount.newBuilder()
+                                .setAccountID(AccountID.newBuilder()
+                                        .setAlias(com.google.protobuf.ByteString.copyFromUtf8("unresolvable_alias")))
+                                .setAmount(100L)
+                                .setPreTxAllowanceHook(HookCall.newBuilder().setHookId(502L)))))
+                .build();
+
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        var queue = recordItem.getHookExecutionQueue();
+        assertNotNull(queue, "Hook execution queue should be created");
+        assertEquals(1, queue.size(), "Queue should contain 1 hook with EntityId.EMPTY");
+        assertEquals(new AbstractHook.Id(502L, 0L), recordItem.nextHookContext()); // EntityId.EMPTY has ID 0
+        assertNull(recordItem.nextHookContext());
+    }
+
+    @Test
+    @DisplayName("Hook execution queue handles mixed resolvable and unresolvable aliases in NFT transfers")
+    void testHookExecutionQueueWithMixedNftAliases() {
+        // Mock EntityIdService to resolve some aliases and fail others
+        when(entityIdService.lookup(any(AccountID.class))).thenAnswer(invocation -> {
+            AccountID accountId = invocation.getArgument(0);
+            if (accountId.hasAlias()) {
+                var alias = accountId.getAlias().toStringUtf8();
+                if ("resolvable_sender".equals(alias)) {
+                    return Optional.of(EntityId.of(6001L));
+                } else if ("resolvable_receiver".equals(alias)) {
+                    return Optional.of(EntityId.of(6002L));
+                }
+                // Unresolvable aliases return empty
+                return Optional.empty();
+            }
+            return Optional.of(EntityId.of(accountId));
+        });
+
+        var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBody(body -> body.addTokenTransfers(TokenTransferList.newBuilder()
+                        .setToken(TokenID.newBuilder().setTokenNum(7000L))
+                        .addNftTransfers(NftTransfer.newBuilder()
+                                .setSenderAccountID(AccountID.newBuilder()
+                                        .setAlias(com.google.protobuf.ByteString.copyFromUtf8("resolvable_sender")))
+                                .setReceiverAccountID(AccountID.newBuilder()
+                                        .setAlias(com.google.protobuf.ByteString.copyFromUtf8("unresolvable_receiver")))
+                                .setSerialNumber(1L)
+                                .setPreTxSenderAllowanceHook(
+                                        HookCall.newBuilder().setHookId(701L))
+                                .setPreTxReceiverAllowanceHook(
+                                        HookCall.newBuilder().setHookId(702L)))
+                        .addNftTransfers(NftTransfer.newBuilder()
+                                .setSenderAccountID(AccountID.newBuilder()
+                                        .setAlias(com.google.protobuf.ByteString.copyFromUtf8("unresolvable_sender")))
+                                .setReceiverAccountID(AccountID.newBuilder()
+                                        .setAlias(com.google.protobuf.ByteString.copyFromUtf8("resolvable_receiver")))
+                                .setSerialNumber(2L)
+                                .setPrePostTxSenderAllowanceHook(
+                                        HookCall.newBuilder().setHookId(703L))
+                                .setPrePostTxReceiverAllowanceHook(
+                                        HookCall.newBuilder().setHookId(704L)))))
+                .build();
+
+        var transaction = domainBuilder.transaction().get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        var queue = recordItem.getHookExecutionQueue();
+        assertNotNull(queue, "Hook execution queue should be created");
+        assertEquals(
+                6, queue.size(), "Queue should contain 6 hooks total"); // 2 PreTx + 2 PrePostTx Pre + 2 PrePostTx Post
+
+        // Phase 1: allowExec (PreTx hooks)
+        assertEquals(new AbstractHook.Id(701L, 6001L), recordItem.nextHookContext()); // Resolvable sender
+        assertEquals(
+                new AbstractHook.Id(702L, 0L), recordItem.nextHookContext()); // Unresolvable receiver -> EntityId.EMPTY
+
+        // Phase 2: allowPre (Pre hooks from PrePostTx)
+        assertEquals(
+                new AbstractHook.Id(703L, 0L), recordItem.nextHookContext()); // Unresolvable sender -> EntityId.EMPTY
+        assertEquals(new AbstractHook.Id(704L, 6002L), recordItem.nextHookContext()); // Resolvable receiver
+
+        // Phase 3: allowPost (Post hooks from PrePostTx - same order as Pre)
+        assertEquals(
+                new AbstractHook.Id(703L, 0L), recordItem.nextHookContext()); // Unresolvable sender -> EntityId.EMPTY
+        assertEquals(new AbstractHook.Id(704L, 6002L), recordItem.nextHookContext()); // Resolvable receiver
 
         // Verify queue is exhausted
         assertNull(recordItem.nextHookContext());
