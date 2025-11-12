@@ -6,41 +6,164 @@ import java.util.List;
 import org.hiero.mirror.common.domain.hook.HookStorage.Id;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface HookStorageChangeRepository extends PagingAndSortingRepository<HookStorageChange, Id> {
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndConsensusTimestampIn(
-            long ownerId, long hookId, List<Long> timestamp, PageRequest page);
+    @Query(
+            value =
+                    """
+        SELECT DISTINCT ON (key) *
+        FROM hook_storage_change
+        WHERE owner_id = :ownerId
+          AND hook_id = :hookId
+          AND key >= :keyLowerBound
+          AND key <= :keyUpperBound
+          AND consensus_timestamp BETWEEN :timestampLowerBound AND :timestampUpperBound
+        ORDER BY key DESC, consensus_timestamp DESC
+        """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyDesc(
+            long ownerId,
+            long hookId,
+            byte[] keyLowerBound,
+            byte[] keyUpperBound,
+            long timestampLowerBound,
+            long timestampUpperBound,
+            PageRequest pageable);
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndConsensusTimestampBetween(
-            long ownerId, long hookId, long timestampLowerBound, long timestampUpperBound, PageRequest page);
+    @Query(
+            value =
+                    """
+        SELECT DISTINCT ON (key) *
+        FROM hook_storage_change
+        WHERE owner_id = :ownerId
+          AND hook_id = :hookId
+          AND key >= :keyLowerBound
+          AND key <= :keyUpperBound
+          AND consensus_timestamp BETWEEN :timestampLowerBound AND :timestampUpperBound
+        ORDER BY key ASC, consensus_timestamp DESC
+        """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyAsc(
+            long ownerId,
+            long hookId,
+            byte[] keyLowerBound,
+            byte[] keyUpperBound,
+            long timestampLowerBound,
+            long timestampUpperBound,
+            PageRequest pageable);
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndKeyInAndConsensusTimestampIn(
-            long ownerId, long hookId, List<byte[]> keys, List<Long> timestamps, PageRequest page);
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key IN (:keys)
+              AND consensus_timestamp IN (:timestamps)
+            ORDER BY key DESC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyDesc(
+            long ownerId, long hookId, List<byte[]> keys, List<Long> timestamps, PageRequest pageable);
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndKeyInAndConsensusTimestampBetween(
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key IN (:keys)
+              AND consensus_timestamp IN (:timestamps)
+            ORDER BY key ASC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyAsc(
+            long ownerId, long hookId, List<byte[]> keys, List<Long> timestamps, PageRequest pageable);
+
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key IN (:keys)
+              AND consensus_timestamp BETWEEN :timestampLowerBound AND :timestampUpperBound
+            ORDER BY key DESC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyDesc(
             long ownerId,
             long hookId,
             List<byte[]> keys,
             long timestampLowerBound,
             long timestampUpperBound,
-            PageRequest page);
+            PageRequest pageable);
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndKeyBetweenAndConsensusTimestampIn(
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key IN (:keys)
+              AND consensus_timestamp BETWEEN :timestampLowerBound AND :timestampUpperBound
+            ORDER BY key ASC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyAsc(
+            long ownerId,
+            long hookId,
+            List<byte[]> keys,
+            long timestampLowerBound,
+            long timestampUpperBound,
+            PageRequest pageable);
+
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key >= :keyLowerBound
+              AND key <= :keyUpperBound
+              AND consensus_timestamp IN (:timestamps)
+            ORDER BY key ASC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyAsc(
             long ownerId,
             long hookId,
             byte[] keyLowerBound,
             byte[] keyUpperBound,
             List<Long> timestamps,
-            PageRequest page);
+            PageRequest pageable);
 
-    List<HookStorageChange> findByOwnerIdAndHookIdAndKeyBetweenAndConsensusTimestampBetween(
-            long id,
+    @Query(
+            value =
+                    """
+            SELECT DISTINCT ON (key) *
+            FROM hook_storage_change
+            WHERE owner_id = :ownerId
+              AND hook_id = :hookId
+              AND key >= :keyLowerBound
+              AND key <= :keyUpperBound
+              AND consensus_timestamp IN (:timestamps)
+            ORDER BY key DESC, consensus_timestamp DESC
+            """,
+            nativeQuery = true)
+    List<HookStorageChange> findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyDesc(
+            long ownerId,
             long hookId,
             byte[] keyLowerBound,
             byte[] keyUpperBound,
-            long timestampLowerBound,
-            long timestampUpperBound,
-            PageRequest page);
+            List<Long> timestamps,
+            PageRequest pageable);
 }

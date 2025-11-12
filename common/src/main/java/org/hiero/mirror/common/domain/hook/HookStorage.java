@@ -88,7 +88,7 @@ public class HookStorage {
                 .hookId(change.getHookId())
                 .key(change.getKey())
                 .ownerId(change.getOwnerId())
-                .value(change.getValueWritten())
+                .value(change.getValueWritten() != null ? change.getValueWritten() : change.getValueRead())
                 .modifiedTimestamp(change.getConsensusTimestamp())
                 .build();
     }

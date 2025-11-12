@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import lombok.Builder;
 import lombok.Value;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Sort.Direction;
 
 @Value
@@ -28,7 +28,7 @@ public class HookStorageRequest {
     @Builder.Default
     private final Direction order = Direction.DESC;
 
-    private final EntityIdParameter ownerId;
+    private final EntityId ownerId;
 
     @Builder.Default
     private final Collection<Long> timestamp = List.of();

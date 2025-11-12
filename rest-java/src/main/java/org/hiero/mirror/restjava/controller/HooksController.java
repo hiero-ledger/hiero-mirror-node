@@ -9,6 +9,7 @@ import static org.hiero.mirror.restjava.common.Constants.KEY;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
+import static org.hiero.mirror.restjava.utils.RangeHelper.timestampBound;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
@@ -22,22 +23,24 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.HookStorage;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
-import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.common.NumberRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HooksRequest;
-import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
+import org.hiero.mirror.restjava.jooq.domain.tables.HookStorageChange;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
+import org.hiero.mirror.restjava.service.EntityService;
 import org.hiero.mirror.restjava.service.HookService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.PageRequest;
@@ -57,12 +60,15 @@ import org.web3j.utils.Numeric;
 @RestController
 final class HooksController {
 
+    public static final BigInteger MAX_KEY_SIZE = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE);
+
     private static final Function<Hook, Map<String, String>> HOOK_EXTRACTOR =
             hook -> ImmutableSortedMap.of(HOOK_ID, hook.getHookId().toString());
 
     private static final Function<HookStorage, Map<String, String>> HOOK_STORAGE_EXTRACTOR =
             hook -> ImmutableSortedMap.of(KEY, hook.getKey());
 
+    private final EntityService entityService;
     private final HookService hookService;
     private final HookMapper hookMapper;
     private final HookStorageMapper hookStorageMapper;
@@ -103,14 +109,16 @@ final class HooksController {
                                             message = "Key must be in format <hex> or <op>:<64 or less char hex>")
                                     String>
                             keys,
-            @RequestParam(name = TIMESTAMP, required = false) @Size(max = 2) TimestampParameter[] timestamps,
+            @RequestParam(name = TIMESTAMP, required = false) @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
+                    List<TimestampParameter> timestamps,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "asc") Direction order) {
 
-        final var request = hookStorageChangeRequest(ownerId, hookId, keys, timestamps, limit, order);
+        final var id = entityService.lookup(ownerId);
+        final var request = hookStorageChangeRequest(id, hookId, keys, timestamps, limit, order);
 
         Collection<org.hiero.mirror.common.domain.hook.HookStorage> response;
-        if (timestamps == null || timestamps.length == 0) {
+        if (timestamps == null || timestamps.isEmpty()) {
             response = hookService.getHookStorage(request);
         } else {
             response = hookService.getHookStorageChange(request);
@@ -120,7 +128,7 @@ final class HooksController {
         final var hookStorageResponse = new HooksStorageResponse();
 
         hookStorageResponse.setHookId(hookId);
-        hookStorageResponse.setOwnerId(((EntityIdNumParameter) ownerId).id().toString());
+        hookStorageResponse.setOwnerId(id.toString());
         hookStorageResponse.setStorage(hookStorage);
 
         final var sort = Sort.by(order, KEY);
@@ -158,15 +166,15 @@ final class HooksController {
     }
 
     private HookStorageRequest hookStorageChangeRequest(
-            EntityIdParameter ownerId,
+            EntityId ownerId,
             long hookId,
             List<String> keys,
-            TimestampParameter[] timestamps,
+            List<TimestampParameter> timestamps,
             int limit,
             Direction order) {
         final Collection<String> keyFilters = new TreeSet<>();
         var lowerBound = BigInteger.ZERO;
-        var upperBound = BigInteger.valueOf(MAX_VALUE);
+        var upperBound = MAX_KEY_SIZE;
 
         if (keys != null) {
             for (final var key : keys) {
@@ -174,20 +182,27 @@ final class HooksController {
                 if (parts.length < 2) {
                     keyFilters.add(normalizeHexKey(key)); // operator is not specified - assume equals
                 } else {
-                    final var operator = parts[0];
+                    final var operator = RangeOperator.valueOf(parts[0].toUpperCase());
                     final var hex = normalizeHexKey(parts[1]);
 
                     switch (operator) {
-                        case "eq" -> keyFilters.add(hex);
-                        case "gt", "gte" -> lowerBound = lowerBound.max(getInclusiveValue(operator, hex));
-                        case "lt", "lte" -> upperBound = upperBound.min(getInclusiveValue(operator, hex));
+                        case RangeOperator.EQ -> keyFilters.add(hex);
+                        case RangeOperator.GT, RangeOperator.GTE ->
+                            lowerBound = lowerBound.max(getInclusiveValue(operator, hex));
+                        case RangeOperator.LT, RangeOperator.LTE ->
+                            upperBound = upperBound.min(getInclusiveValue(operator, hex));
                         default -> throw new IllegalStateException("Unsupported value for operator: " + operator);
                     }
                 }
             }
         }
 
-        final var bound = timestampBound(timestamps);
+        final var bound = timestamps == null
+                ? Bound.EMPTY
+                : timestampBound(
+                        timestamps.toArray(TimestampParameter[]::new),
+                        TIMESTAMP,
+                        HookStorageChange.HOOK_STORAGE_CHANGE.CONSENSUS_TIMESTAMP);
         final var timestampLowerBound = bound.getAdjustedLowerRangeValue();
         final var timestampUpperBound = bound.adjustUpperBound();
 
@@ -199,47 +214,36 @@ final class HooksController {
                 .keyUpperBound(Numeric.hexStringToByteArray(zeroPadHex(upperBound)))
                 .order(order)
                 .ownerId(ownerId)
+                .timestamp(
+                        timestamps == null
+                                ? List.of()
+                                : timestamps.stream()
+                                        .filter(ts -> ts.operator() == RangeOperator.EQ)
+                                        .map(TimestampParameter::value)
+                                        .toList())
                 .timestampLowerBound(timestampLowerBound)
                 .timestampUpperBound(timestampUpperBound)
                 .build();
     }
 
-    public String normalizeHexKey(String hexValue) {
-        var hex = hexValue.replaceFirst("^(0x|0X)", ""); // strip 0x if present
-        if (hex.length() < 64) {
-            hex = String.format("%064x", new BigInteger(hex, 16)); // left-pad with zeros
-        }
-        return hex;
+    private String normalizeHexKey(String hexValue) {
+        final var hex = hexValue.replaceFirst("^(0x|0X)", "");
+        return StringUtils.leftPad(hex, 64, '0');
     }
 
-    public String zeroPadHex(BigInteger value) {
-        return String.format("%064x", value); // left-pad with zeros
+    private String zeroPadHex(BigInteger value) {
+        return String.format("%064x", value);
     }
 
-    public BigInteger getInclusiveValue(String operator, String hexValue) {
+    private BigInteger getInclusiveValue(RangeOperator operator, String hexValue) {
         final var value = new BigInteger(hexValue, 16);
 
-        if (operator.equals("gt")) {
+        if (operator == RangeOperator.GT) {
             return value.add(BigInteger.ONE);
-        } else if (operator.equals("lt")) {
+        } else if (operator == RangeOperator.LT) {
             return value.subtract(BigInteger.ONE);
         } else {
             return value;
         }
-    }
-
-    private Bound timestampBound(TimestampParameter[] timestamp) {
-        if (timestamp == null || timestamp.length == 0) {
-            return Bound.EMPTY;
-        }
-
-        for (int i = 0; i < timestamp.length; ++i) {
-            final var param = timestamp[i];
-            if (param.operator() == RangeOperator.EQ) {
-                timestamp[i] = new TimestampParameter(RangeOperator.LTE, param.value());
-            }
-        }
-
-        return new Bound(timestamp, false, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
     }
 }

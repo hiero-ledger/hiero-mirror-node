@@ -10,7 +10,8 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface HookStorageRepository extends PagingAndSortingRepository<HookStorage, Id> {
 
-    List<HookStorage> findByOwnerIdAndHookIdAndKeyIn(long ownerId, long hookId, List<byte[]> key, Pageable pageable);
+    List<HookStorage> findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
+            long ownerId, long hookId, List<byte[]> key, Pageable pageable);
 
     List<HookStorage> findByOwnerIdAndHookIdAndKeyBetween(
             long ownerId, long hookId, byte[] fromKey, byte[] toKey, Pageable pageable);
