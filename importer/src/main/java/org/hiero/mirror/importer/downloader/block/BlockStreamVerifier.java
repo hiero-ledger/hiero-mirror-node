@@ -29,7 +29,6 @@ final class BlockStreamVerifier {
 
     private final BlockFileTransformer blockFileTransformer;
     private final BlockProperties blockProperties;
-    ;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
