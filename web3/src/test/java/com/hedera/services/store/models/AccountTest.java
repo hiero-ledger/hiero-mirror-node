@@ -15,6 +15,8 @@ import org.bouncycastle.util.encoders.Hex;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 class AccountTest {
     private static final byte[] mockCreate2Addr = unhex("aaaaaaaaaaaaaaaaaaaaaaaa9abcdefabcdefbbb");
@@ -110,6 +112,7 @@ class AccountTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void canonicalAddressIsEVMAddressIfCorrectAlias() {
         // default truffle address #0
         subject.setAlias(ByteString.copyFrom(
@@ -120,6 +123,7 @@ class AccountTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void invalidCanonicalAddresses() {
         Address untranslatedAddress = Address.wrap(Bytes.fromHexString("0000000000000000000000000000000000003039"));
 

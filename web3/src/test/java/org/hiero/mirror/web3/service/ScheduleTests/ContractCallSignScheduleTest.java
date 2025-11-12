@@ -25,6 +25,8 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HRC755Contract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
@@ -32,6 +34,7 @@ import org.web3j.utils.Numeric;
 class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKey() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
@@ -110,6 +113,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyWhichAlreadySignedFails() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
@@ -148,6 +152,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyAndAlreadyExistingPayerEdSignature() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
@@ -285,6 +290,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyFailsWhenEd25519Expected() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
@@ -337,6 +343,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
         return new Keccak.Digest256().digest(getMessageBytes(scheduleEntity));
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     private byte[] getSignatureMapBytesEcdsa(final byte[] messageHash, final ECKeyPair keyPair) {
         final var signedMessage = signMessageECDSA(messageHash, Numeric.toBytesPadded(keyPair.getPrivateKey(), 32));
         var publicKeyBytestring = convertToCompressedPublicKey(keyPair.getPublicKey());

@@ -17,12 +17,15 @@ import org.hiero.mirror.web3.service.AbstractContractCallServiceTest;
 import org.hiero.mirror.web3.web3j.generated.SelfDestructContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.testcontainers.shaded.org.bouncycastle.util.encoders.Hex;
 
 @RequiredArgsConstructor
 class SelfDestructOperationTest extends AbstractContractCallServiceTest {
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void testSuccessfulExecute() throws Exception {
         final var senderPublicKey = ByteString.copyFrom(
                 Hex.decode("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d"));

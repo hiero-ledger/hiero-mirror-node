@@ -59,6 +59,8 @@ import org.hiero.mirror.web3.evm.store.contract.EntityAddressSequencer;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -159,6 +161,7 @@ class AutoCreationLogicTest {
             53, -1
             52, 0
             """)
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void hollowAccountWithHbarChangeWorks(int hapiMinorVersion, int expectedMaxAutoAssociations) {
         final var jKey = mapKey(Key.parseFrom(ECDSA_PUBLIC_KEY));
         final var evmAddressAlias =

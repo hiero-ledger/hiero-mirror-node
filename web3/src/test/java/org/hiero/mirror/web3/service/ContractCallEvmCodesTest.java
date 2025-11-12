@@ -35,6 +35,8 @@ import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes.G1Point;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -241,6 +243,7 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void selfDestructCall() throws Exception {
         // Given
         final var senderEntityId = domainBuilder.entityId();

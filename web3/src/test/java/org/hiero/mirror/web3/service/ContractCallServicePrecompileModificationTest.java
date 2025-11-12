@@ -66,6 +66,8 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -973,6 +975,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void create2ContractAndTransferFromIt() throws Exception {
         // Given
         final var receiver = accountEntityWithEvmAddressPersist();

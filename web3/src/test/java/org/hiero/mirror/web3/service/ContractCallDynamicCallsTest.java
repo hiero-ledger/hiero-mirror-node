@@ -33,6 +33,8 @@ import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls.TokenTransferList;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls.TransferList;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -470,6 +472,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void approveTokenTransferFromGetAllowanceGetBalance(
             final TokenTypeEnum tokenType, final long amount, final long serialNumber) {
         // Given
