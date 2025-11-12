@@ -358,10 +358,12 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
+        // The following 3 properties are needed to deliberately fail conditions in upstream to avoid paying rewards to
+        // multiple system accounts
         props.put("nodes.nodeRewardsEnabled", "true");
         props.put("nodes.preserveMinNodeRewardBalance", "true");
-        // Set max value to intentionally fail a balance check logic in upstream and thus disable reward logic
         props.put("nodes.minNodeRewardBalance", String.valueOf(Long.MAX_VALUE));
+
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
@@ -384,11 +386,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
 
         if (CollectionUtils.isEmpty(systemAccounts)) {
-            final var configuredSystemAccounts = Set.of(
+            systemAccounts = Set.of(
                     EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
                     EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
                     EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
-            systemAccounts = new HashSet<>(configuredSystemAccounts);
         }
     }
 
