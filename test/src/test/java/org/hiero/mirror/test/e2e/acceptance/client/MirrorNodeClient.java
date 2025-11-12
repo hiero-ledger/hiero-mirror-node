@@ -331,7 +331,7 @@ public class MirrorNodeClient {
 
     public NetworkExchangeRateSetResponse getExchangeRates() {
         log.debug("Get exchange rates by Mirror Node");
-        return callConvertedRestEndpoint("/network/exchangerate", NetworkExchangeRateSetResponse.class);
+        return callRestJavaEndpoint("/network/exchangerate", NetworkExchangeRateSetResponse.class);
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {

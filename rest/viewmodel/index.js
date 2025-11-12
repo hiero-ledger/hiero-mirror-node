@@ -12,8 +12,6 @@ import ContractResultDetailsViewModel from './contractResultDetailsViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
 import ContractResultViewModel from './contractResultViewModel';
 import CryptoAllowanceViewModel from './cryptoAllowanceViewModel';
-import ExchangeRateSetViewModel from './exchangeRateSetViewModel';
-import ExchangeRateViewModel from './exchangeRateViewModel';
 import NetworkNodeViewModel from './networkNodeViewModel';
 import NetworkSupplyViewModel from './networkSupplyViewModel';
 import NftTransactionHistoryViewModel from './nftTransactionHistoryViewModel';
@@ -41,8 +39,6 @@ export {
   ContractResultStateChangeViewModel,
   ContractResultViewModel,
   CryptoAllowanceViewModel,
-  ExchangeRateSetViewModel,
-  ExchangeRateViewModel,
   NetworkNodeViewModel,
   NetworkSupplyViewModel,
   NftTransactionHistoryViewModel,

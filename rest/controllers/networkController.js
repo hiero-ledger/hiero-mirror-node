@@ -17,12 +17,7 @@ import {InvalidArgumentError, NotFoundError} from '../errors';
 import {AddressBookEntry, FileData} from '../model';
 import {FileDataService, NetworkNodeService} from '../service';
 import * as utils from '../utils';
-import {
-  ExchangeRateSetViewModel,
-  FeeScheduleViewModel,
-  NetworkNodeViewModel,
-  NetworkSupplyViewModel,
-} from '../viewmodel';
+import {FeeScheduleViewModel, NetworkNodeViewModel, NetworkSupplyViewModel} from '../viewmodel';
 import EntityId from '../entityId';
 
 const networkNodesDefaultSize = 10;
@@ -30,7 +25,6 @@ const networkNodesMaxSize = 25;
 
 class NetworkController extends BaseController {
   static contentTypeTextPlain = 'text/plain; charset=utf-8';
-  acceptedExchangeRateParameters = new Set([filterKeys.TIMESTAMP]);
   acceptedFeesParameters = new Set([filterKeys.ORDER, filterKeys.TIMESTAMP]);
   acceptedNodeParameters = new Set([filterKeys.FILE_ID, filterKeys.LIMIT, filterKeys.NODE_ID, filterKeys.ORDER]);
   acceptedSupplyParameters = new Set([filterKeys.TIMESTAMP, filterKeys.Q]);
@@ -206,27 +200,6 @@ class NetworkController extends BaseController {
       conditions,
       q,
     };
-  };
-
-  /**
-   * Handler function for /network/exchangerate API
-   * @param {Request} req HTTP request object
-   * @param {Response} res HTTP response object
-   * @returns {Promise<void>}
-   */
-  getExchangeRate = async (req, res) => {
-    // extract filters from query param
-    const filters = utils.buildAndValidateFilters(req.query, this.acceptedExchangeRateParameters);
-
-    const {filterQuery} = this.extractFileDataQuery(filters);
-
-    const exchangeRate = await FileDataService.getExchangeRate(filterQuery);
-
-    if (_.isNil(exchangeRate)) {
-      throw new NotFoundError('Not found');
-    }
-
-    res.locals[responseDataLabel] = new ExchangeRateSetViewModel(exchangeRate);
   };
 
   /**
