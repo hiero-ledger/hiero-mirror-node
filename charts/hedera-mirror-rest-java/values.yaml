@@ -78,7 +78,6 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/network/exchangerate'
-        {{- end }}
         {{- if .Values.routes.fees }}
         - path:
             type: RegularExpression
