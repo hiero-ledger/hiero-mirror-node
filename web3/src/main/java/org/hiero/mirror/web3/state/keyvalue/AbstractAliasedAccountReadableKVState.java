@@ -47,10 +47,10 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
-    private final SystemEntity systemEntity;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected final SystemEntity systemEntity;
 
     protected AbstractAliasedAccountReadableKVState(
             int stateId,

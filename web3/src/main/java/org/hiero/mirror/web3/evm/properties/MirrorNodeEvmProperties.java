@@ -14,12 +14,10 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
-import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -79,10 +77,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     @NotNull
     private Set<EntityType> autoRenewTargetTypes = new HashSet<>();
-
-    @Getter
-    @NotNull
-    private Set<AccountID> systemAccounts = new HashSet<>();
 
     @Getter
     @Positive
@@ -384,13 +378,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @PostConstruct
     public void init() {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
-
-        if (CollectionUtils.isEmpty(systemAccounts)) {
-            systemAccounts = Set.of(
-                    EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
-                    EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
-                    EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
-        }
     }
 
     @Getter

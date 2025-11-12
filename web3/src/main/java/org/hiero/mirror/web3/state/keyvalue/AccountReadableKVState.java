@@ -8,8 +8,10 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
+import java.util.Set;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -37,7 +39,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     private final CommonEntityAccessor commonEntityAccessor;
     private final AliasedAccountCacheManager aliasedAccountCacheManager;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final Set<AccountID> systemAccounts;
 
     public AccountReadableKVState(
             @NonNull CommonEntityAccessor commonEntityAccessor,
@@ -62,13 +64,15 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 mirrorNodeEvmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
-        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
+        this.systemAccounts = Set.of(
+                EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
+                EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
+                EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
     }
 
     @Override
     protected Account readFromDataSource(@NonNull AccountID key) {
-        if (!ContractCallContext.get().isBalanceCallSafe()
-                && mirrorNodeEvmProperties.getSystemAccounts().contains(key)) {
+        if (!ContractCallContext.get().isBalanceCallSafe() && systemAccounts.contains(key)) {
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
