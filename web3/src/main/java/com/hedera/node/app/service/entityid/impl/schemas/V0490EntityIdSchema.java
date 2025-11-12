@@ -8,6 +8,7 @@ import static com.swirlds.state.lifecycle.StateMetadata.computeLabel;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.hapi.platform.state.SingletonType;
+import com.hedera.node.app.service.entityid.impl.EntityIdServiceImpl;
 import com.hedera.node.config.data.HederaConfig;
 import com.swirlds.state.lifecycle.MigrationContext;
 import com.swirlds.state.lifecycle.Schema;
@@ -17,7 +18,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.util.Set;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.hiero.mirror.web3.state.components.entity.EntityIdServiceImpl;
 
 public class V0490EntityIdSchema extends Schema<SemanticVersion> {
 

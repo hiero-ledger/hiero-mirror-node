@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.state.components.entity;
+package com.hedera.node.app.service.entityid.impl;
 
 import static java.lang.System.arraycopy;
 import static java.util.Objects.requireNonNull;
@@ -18,31 +18,31 @@ import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.hedera.node.config.data.HederaConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.config.api.Configuration;
-import org.jspecify.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class AppEntityIdFactory implements EntityIdFactory {
-
     private final long shard;
     private final long realm;
 
     public AppEntityIdFactory(@NonNull final Configuration bootstrapConfig) {
+        requireNonNull(bootstrapConfig);
         final var hederaConfig = bootstrapConfig.getConfigData(HederaConfig.class);
         this.shard = hederaConfig.shard();
         this.realm = hederaConfig.realm();
     }
 
     @Override
-    public TokenID newTokenId(long number) {
+    public TokenID newTokenId(final long number) {
         return new TokenID(shard, realm, number);
     }
 
     @Override
-    public TopicID newTopicId(long number) {
+    public TopicID newTopicId(final long number) {
         return new TopicID(shard, realm, number);
     }
 
     @Override
-    public ScheduleID newScheduleId(long number) {
+    public ScheduleID newScheduleId(final long number) {
         return new ScheduleID(shard, realm, number);
     }
 
@@ -75,7 +75,7 @@ public class AppEntityIdFactory implements EntityIdFactory {
     }
 
     @Override
-    public ContractID newContractId(long number) {
+    public ContractID newContractId(final long number) {
         return ContractID.newBuilder()
                 .shardNum(shard)
                 .realmNum(realm)
@@ -84,7 +84,7 @@ public class AppEntityIdFactory implements EntityIdFactory {
     }
 
     @Override
-    public ContractID newContractIdWithEvmAddress(@NonNull Bytes evmAddress) {
+    public ContractID newContractIdWithEvmAddress(@NonNull final Bytes evmAddress) {
         requireNonNull(evmAddress);
         return ContractID.newBuilder()
                 .shardNum(shard)
@@ -94,7 +94,7 @@ public class AppEntityIdFactory implements EntityIdFactory {
     }
 
     @Override
-    public String hexLongZero(long number) {
+    public String hexLongZero(final long number) {
         final byte[] evmAddress = new byte[20];
         final var shardBytes = Ints.toByteArray((int) shard);
         final var realmBytes = Longs.toByteArray(realm);
