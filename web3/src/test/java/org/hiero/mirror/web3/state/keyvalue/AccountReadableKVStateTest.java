@@ -60,9 +60,7 @@ import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mock.Strictness;
 import org.mockito.MockedStatic;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -119,7 +117,6 @@ class AccountReadableKVStateTest {
     private Entity token;
     private EntityId treasuryAccountId;
 
-    @InjectMocks
     private AccountReadableKVState accountReadableKVState;
 
     @Mock
@@ -152,12 +149,23 @@ class AccountReadableKVStateTest {
     @Spy
     private ContractCallContext contractCallContext;
 
-    @Mock(strictness = Strictness.LENIENT)
     private SystemEntity systemEntity;
 
     @BeforeEach
     void setup() {
         var systemEntity = new SystemEntity(CommonProperties.getInstance());
+        accountReadableKVState = new AccountReadableKVState(
+                commonEntityAccessor,
+                nftAllowanceRepository,
+                nftRepository,
+                systemEntity,
+                tokenAllowanceRepository,
+                cryptoAllowanceRepository,
+                tokenAccountRepository,
+                accountBalanceRepository,
+                mirrorNodeEvmProperties,
+                aliasedAccountCacheManager);
+
         treasuryAccountId = systemEntity.treasuryAccount();
         entity = new Entity();
         entity.setId(EntityIdUtils.toAccountId(SHARD, REALM, NUM).accountNum());
@@ -184,7 +192,6 @@ class AccountReadableKVStateTest {
         token.setType(EntityType.TOKEN);
 
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
-        when(this.systemEntity.treasuryAccount()).thenReturn(treasuryAccountId);
     }
 
     @Test
