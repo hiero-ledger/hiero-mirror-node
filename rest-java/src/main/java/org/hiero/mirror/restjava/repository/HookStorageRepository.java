@@ -13,6 +13,6 @@ public interface HookStorageRepository extends PagingAndSortingRepository<HookSt
     List<HookStorage> findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
             long ownerId, long hookId, List<byte[]> key, Pageable pageable);
 
-    List<HookStorage> findByOwnerIdAndHookIdAndKeyBetween(
+    List<HookStorage> findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
             long ownerId, long hookId, byte[] fromKey, byte[] toKey, Pageable pageable);
 }

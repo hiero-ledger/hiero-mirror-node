@@ -64,7 +64,7 @@ final class HookServiceImpl implements HookService {
         final var keys = request.getKeys();
 
         if (keys.isEmpty()) {
-            return hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetween(
+            return hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
                     request.getOwnerId().getId(),
                     request.getHookId(),
                     request.getKeyLowerBound(),
