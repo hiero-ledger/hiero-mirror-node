@@ -61,8 +61,9 @@ const protoToName = {
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types
+// this provides mapping from a transaction's name to its proto id
 const custom = {
-  75: 'LAMBDASSTORE',
+  'LAMBDASSTORE': 75,
 };
 
 const UNKNOWN = 'UNKNOWN';
