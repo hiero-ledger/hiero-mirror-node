@@ -40,8 +40,10 @@ final class HookServiceTest extends RestJavaIntegrationTest {
     private static final String KEY_MAX = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
     private static final byte[] KEY_MIN_BYTES = Numeric.hexStringToByteArray(KEY_MIN);
     private static final byte[] KEY_MAX_BYTES = Numeric.hexStringToByteArray(KEY_MAX);
-
+    public static final int DEFAULT_LIMIT = 25;
     private static final long OWNER_ID = 1001L;
+    private static final long TIMESTAMP_MIN = 1000L;
+    private static final long TIMESTAMP_MAX = 5000L;
 
     private HookRepository hookRepository;
     private HookStorageRepository hookStorageRepository;
@@ -71,7 +73,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var request = HooksRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .hookIds(List.of(1L, 2L))
-                .limit(5)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.DESC)
                 .build();
 
@@ -96,7 +98,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .lowerBound(10L)
                 .upperBound(20L)
-                .limit(10)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();
 
@@ -122,7 +124,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                 .hookIds(List.of(5L, 15L, 25L))
                 .lowerBound(10L)
                 .upperBound(20L)
-                .limit(10)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();
 
@@ -145,7 +147,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                 .hookIds(List.of(1L, 2L))
                 .lowerBound(10L)
                 .upperBound(20L)
-                .limit(5)
+                .limit(DEFAULT_LIMIT)
                 .build();
 
         // when
@@ -171,7 +173,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                 .keys(List.of()) // empty keys
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MAX_BYTES)
-                .limit(5)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();
 
@@ -205,7 +207,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                 .keys(List.of(KEY_MIN, KEY_MAX))
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MAX_BYTES)
-                .limit(5)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();
 
@@ -243,7 +245,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
                         "0000000000000000000000000000000000000000000000000000000000000000"))
                 .keyUpperBound(Numeric.hexStringToByteArray(
                         "00000000000000000000000000000000000000000000000000000000000000FF"))
-                .limit(5)
+                .limit(DEFAULT_LIMIT)
                 .order(Sort.Direction.ASC)
                 .build();
 
@@ -260,5 +262,167 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         verify(hookStorageRepository, never())
                 .findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
                         anyLong(), anyLong(), any(), any(), any(PageRequest.class));
+    }
+
+    @Test
+    void getHookStorageChangeEmptyKeysAndTimestamps() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of())
+                .timestamp(List.of())
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MAX_BYTES)
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        hookService.getHookStorageChange(request);
+
+        verify(hookStorageChangeRepository)
+                .findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyAsc(
+                        eq(ownerId.getId()),
+                        eq(1L),
+                        eq(KEY_MIN_BYTES),
+                        eq(KEY_MAX_BYTES),
+                        eq(TIMESTAMP_MIN),
+                        eq(TIMESTAMP_MAX),
+                        any());
+    }
+
+    @Test
+    void getHookStorageChangeNoTimestampsKeysInRange() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of(KEY_MIN, KEY_MAX))
+                .timestamp(List.of())
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MAX_BYTES)
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        hookService.getHookStorageChange(request);
+
+        verify(hookStorageChangeRepository)
+                .findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyAsc(
+                        eq(ownerId.getId()),
+                        eq(1L),
+                        argThat(list -> list.size() == 2),
+                        eq(TIMESTAMP_MIN),
+                        eq(TIMESTAMP_MAX),
+                        any());
+    }
+
+    @Test
+    void getHookStorageChangeNoKeysTimestampsInRange() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of())
+                .timestamp(List.of(TIMESTAMP_MIN, TIMESTAMP_MAX))
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MAX_BYTES)
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        hookService.getHookStorageChange(request);
+
+        verify(hookStorageChangeRepository)
+                .findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyAsc(
+                        eq(ownerId.getId()),
+                        eq(1L),
+                        eq(KEY_MIN_BYTES),
+                        eq(KEY_MAX_BYTES),
+                        argThat(list -> list.size() == 2),
+                        any());
+    }
+
+    @Test
+    void getHookStorageChangeKeysAndTimestampsInRange() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of(KEY_MIN, KEY_MAX))
+                .timestamp(List.of(TIMESTAMP_MIN, TIMESTAMP_MAX))
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MAX_BYTES)
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        hookService.getHookStorageChange(request);
+
+        verify(hookStorageChangeRepository)
+                .findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyAsc(
+                        eq(ownerId.getId()),
+                        eq(1L),
+                        argThat(list -> list.size() == 2),
+                        argThat(list -> list.size() == 2),
+                        any());
+    }
+
+    @Test
+    void getHookStorageChangeKeysOutOfRangeReturnsEmpty() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of(KEY_MAX)) // out of key range
+                .timestamp(List.of())
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MIN_BYTES) // exclusive range
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        final var result = hookService.getHookStorageChange(request);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(hookStorageChangeRepository);
+    }
+
+    @Test
+    void getHookStorageChangeTimestampsOutOfRangeReturnsEmpty() {
+        final var ownerId = EntityId.of(OWNER_ID);
+
+        final var request = HookStorageRequest.builder()
+                .ownerId(ownerId)
+                .hookId(1L)
+                .keys(List.of())
+                .timestamp(List.of(TIMESTAMP_MAX + 1)) // out of timestamp range
+                .keyLowerBound(KEY_MIN_BYTES)
+                .keyUpperBound(KEY_MAX_BYTES)
+                .timestampLowerBound(TIMESTAMP_MIN)
+                .timestampUpperBound(TIMESTAMP_MAX)
+                .limit(DEFAULT_LIMIT)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        final var result = hookService.getHookStorageChange(request);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(hookStorageChangeRepository);
     }
 }
