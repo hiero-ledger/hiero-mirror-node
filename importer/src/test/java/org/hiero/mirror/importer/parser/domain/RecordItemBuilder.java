@@ -1236,6 +1236,14 @@ public class RecordItemBuilder {
         return contractId;
     }
 
+    public ContractID contractId(long num) {
+        return ContractID.newBuilder()
+                .setShardNum(commonProperties.getShard())
+                .setRealmNum(commonProperties.getRealm())
+                .setContractNum(num)
+                .build();
+    }
+
     public List<? extends Builder<?>> getCreateTransactions() {
         autoCreation.set(true);
         var createTransactions = state.entrySet().stream()
@@ -1262,7 +1270,7 @@ public class RecordItemBuilder {
         };
     }
 
-    public Builder<LambdaSStoreTransactionBody.Builder> lambdaSstore() {
+    public Builder<LambdaSStoreTransactionBody.Builder> lambdaSStore() {
         var slotUpdate = LambdaStorageUpdate.newBuilder()
                 .setStorageSlot(LambdaStorageSlot.newBuilder()
                         .setKey(slot())

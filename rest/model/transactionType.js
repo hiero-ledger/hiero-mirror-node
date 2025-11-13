@@ -61,7 +61,9 @@ const protoToName = {
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types
-const custom = {};
+const custom = {
+  75: 'LAMBDASSTORE',
+};
 
 const UNKNOWN = 'UNKNOWN';
 
