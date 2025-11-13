@@ -26,7 +26,7 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
         with:
           egress-policy: audit
 
@@ -63,7 +63,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@f4a75cfd619ee5ce8d5b864b0d183aff3c69b55a # v2.13.1
+        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
         with:
           egress-policy: audit
 
@@ -98,6 +98,10 @@ jobs:
             "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
             "com/hedera/node/app/service/contract/impl/utils/ConversionUtils.java"
             "com/hedera/node/app/service/contract/impl/exec/operations/CustomBalanceOperation.java"
+            "com/hedera/node/app/service/entityid/impl/EntityIdServiceImpl.java"
+            "com/hedera/node/app/service/entityid/impl/AppEntityIdFactory.java"
+            "com/hedera/node/app/service/entityid/impl/schemas/V0490EntityIdSchema.java"
+            "com/hedera/node/app/service/entityid/impl/schemas/V0590EntityIdSchema.java"
           )
 
           # Temp directories to store cloned repos

@@ -7,6 +7,7 @@ import static com.hedera.hapi.streams.ContractActionType.SYSTEM;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INSUFFICIENT_CHILD_RECORDS;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INVALID_CONTRACT_ID;
 import static com.hedera.node.app.service.contract.impl.exec.failure.CustomExceptionalHaltReason.INVALID_SIGNATURE;
+import static com.hedera.node.app.service.contract.impl.exec.systemcontracts.HtsSystemContract.HTS_HOOKS_CONTRACT_ADDRESS;
 import static com.hedera.node.app.service.contract.impl.exec.systemcontracts.hts.create.CreateCommons.createMethodsSet;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.acquiredSenderAuthorizationViaDelegateCall;
 import static com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils.alreadyHalted;
@@ -152,7 +153,10 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         }
 
         // Check to see if the code address is a system account and possibly halt
-        if (addressChecks.isSystemAccount(codeAddress)) {
+        // Note that we allow calls to the allowance hook address(0x16d) if the call is part of
+        // a hook dispatch; in that case, the allowance hook is being treated as a normal
+        // contract, not as a system account.
+        if (addressChecks.isSystemAccount(codeAddress) && isNotAllowanceHook(frame, codeAddress)) {
             doHaltIfInvalidSystemCall(frame, tracer);
             if (alreadyHalted(frame)) {
                 return;
@@ -189,6 +193,19 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         }
 
         frame.setState(MessageFrame.State.CODE_EXECUTING);
+    }
+
+    /**
+     * Checks if the message frame is not executing a hook dispatch and if the contract address is not
+     * the allowance hook address
+     *
+     * @param codeAddress the address of the precompile to check
+     * @param frame the current message frame
+     * @return true if the frame is not executing a hook dispatch or the code address is not the allowance hook
+     * address, false otherwise
+     */
+    private static boolean isNotAllowanceHook(final @NonNull MessageFrame frame, final Address codeAddress) {
+        return !FrameUtils.isHookExecution(frame) || !HTS_HOOKS_CONTRACT_ADDRESS.equals(codeAddress);
     }
 
     /**

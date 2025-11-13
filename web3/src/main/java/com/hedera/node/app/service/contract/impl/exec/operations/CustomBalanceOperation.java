@@ -8,6 +8,8 @@ import static com.hedera.node.app.service.contract.impl.exec.utils.OperationUtil
 
 import com.hedera.node.app.service.contract.impl.exec.AddressChecks;
 import com.hedera.node.app.service.contract.impl.exec.FeatureFlags;
+import com.hedera.node.app.service.contract.impl.exec.utils.FrameUtils;
+import com.hedera.node.app.service.contract.impl.exec.utils.InvalidAddressContext;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -26,6 +28,12 @@ public class CustomBalanceOperation extends BalanceOperation {
     private final AddressChecks addressChecks;
     private final FeatureFlags featureFlags;
 
+    /**
+     * Constructor for custom balance operations.
+     * @param gasCalculator the gas calculator to use
+     * @param addressChecks checks against addresses reserved for Hedera
+     * @param featureFlags current evm module feature flags
+     */
     public CustomBalanceOperation(
             @NonNull final GasCalculator gasCalculator,
             @NonNull final AddressChecks addressChecks,
@@ -55,6 +63,8 @@ public class CustomBalanceOperation extends BalanceOperation {
             }
             // Otherwise continue to enforce existence checks for backward compatibility
             if (contractRequired(frame, address, featureFlags) && !addressChecks.isPresent(address, frame)) {
+                FrameUtils.invalidAddressContext(frame)
+                        .set(address, InvalidAddressContext.InvalidAddressType.NonCallTarget);
                 return new OperationResult(cost, INVALID_SOLIDITY_ADDRESS);
             }
             return super.execute(frame, evm);

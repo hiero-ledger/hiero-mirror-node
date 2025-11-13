@@ -18,7 +18,7 @@ import org.junit.jupiter.api.condition.EnabledIf;
 
 class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
 
-    private static final BigInteger EXPIRY_SHIFT = BigInteger.valueOf(40);
+    private static final BigInteger EXPIRY_SHIFT = BigInteger.valueOf(1800);
     private static final BigInteger GAS_LIMIT = BigInteger.valueOf(2_000_000L);
 
     private boolean isSystemCallEnabled() {

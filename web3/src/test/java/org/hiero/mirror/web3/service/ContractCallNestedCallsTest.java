@@ -27,6 +27,8 @@ import org.hiero.mirror.web3.web3j.generated.NestedCalls.KeyValue;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.TokenKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -439,6 +441,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
 
     @Test
     @SuppressWarnings("deprecation")
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void nestedDeployTwoContracts() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);

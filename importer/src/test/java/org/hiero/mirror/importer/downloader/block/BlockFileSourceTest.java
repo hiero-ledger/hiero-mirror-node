@@ -79,7 +79,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class BlockFileSourceTest {
+final class BlockFileSourceTest {
 
     private final CommonProperties commonProperties = CommonProperties.getInstance();
 
@@ -153,7 +153,7 @@ class BlockFileSourceTest {
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
+                blockFileTransformer, properties, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,

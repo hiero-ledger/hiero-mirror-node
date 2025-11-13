@@ -3,19 +3,32 @@
   "setup": {},
   "url": "/api/v1/network/fees?timestamp=test&limit=c&order=d",
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Invalid parameter: timestamp"
-        },
-        {
-          "message": "Invalid parameter: order"
-        },
-        {
-          "message": "Unknown query parameter: limit"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: timestamp"
+          },
+          {
+            "message": "Invalid parameter: order"
+          },
+          {
+            "message": "Unknown query parameter: limit"
+          }
+        ]
+      }
     }
   }
 }

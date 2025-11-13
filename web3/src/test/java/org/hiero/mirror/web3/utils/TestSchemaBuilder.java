@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.utils;
 
+import static com.hedera.hapi.util.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
+
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.swirlds.state.lifecycle.Schema;
 import com.swirlds.state.lifecycle.StateDefinition;
@@ -29,8 +31,8 @@ public class TestSchemaBuilder {
         return this;
     }
 
-    public Schema build() {
-        return new Schema(version) {
+    public Schema<SemanticVersion> build() {
+        return new Schema<>(version, SEMANTIC_VERSION_COMPARATOR) {
             @Override
             public Set<StateDefinition> statesToCreate() {
                 // Create a raw-typed copy compatible with Schema's signature

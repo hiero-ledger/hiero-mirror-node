@@ -3,9 +3,9 @@
 package org.hiero.mirror.web3.evm.config;
 
 import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.ids.AppEntityIdFactory;
 import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
-import com.hedera.node.app.spi.ids.EntityIdFactory;
+import com.hedera.node.app.service.entityid.EntityIdFactory;
+import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.components.NoOpMetrics;

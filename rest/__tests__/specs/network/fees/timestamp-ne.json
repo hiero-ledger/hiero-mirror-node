@@ -3,13 +3,26 @@
   "setup": {},
   "url": "/api/v1/network/fees?timestamp=ne:4",
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Not equals (ne) operator is not supported for timestamp"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Not equals (ne) operator is not supported for timestamp"
+          }
+        ]
+      }
     }
   }
 }

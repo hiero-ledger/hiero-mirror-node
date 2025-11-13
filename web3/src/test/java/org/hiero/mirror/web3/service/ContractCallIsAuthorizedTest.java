@@ -13,6 +13,8 @@ import java.security.KeyPairGenerator;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HRC632Contract;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.web3j.crypto.Keys;
@@ -23,6 +25,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void isAuthorizedRawECDSA(boolean longZeroAddressAllowed) throws Exception {
         // Given
 
@@ -59,6 +62,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void isAuthorizedRawECDSADifferentHash(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
@@ -88,6 +92,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void isAuthorizedRawECDSAInvalidSignedValue(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair
@@ -130,6 +135,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void isAuthorizedRawECDSAInvalidSignatureLength(boolean longZeroAddressAllowed) throws Exception {
         // Given
         final byte[] invalidSignature = new byte[64];
@@ -251,6 +257,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void isAuthorizedRawECDSAKeyWighLongZero(boolean longZeroAddressAllowed) throws Exception {
         // Given
         // Generate new key pair

@@ -18,10 +18,6 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 @SuppressWarnings("unchecked")
 public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V> {
 
-    /** State label used in logs, typically serviceName.stateKey (may be null) */
-    @Nullable
-    protected final String label;
-
     // The state ID
     protected final int stateId;
 
@@ -34,7 +30,6 @@ public abstract class ReadableKVStateBase<K, V> implements ReadableKVState<K, V>
      * @param label The state label (may be null)
      */
     protected ReadableKVStateBase(final int stateId, @Nullable final String label) {
-        this.label = label; // allow null to match platform-sdk behavior
         this.stateId = stateId;
     }
 

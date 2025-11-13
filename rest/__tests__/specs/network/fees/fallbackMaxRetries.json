@@ -93,13 +93,26 @@
     "/api/v1/network/fees"
   ],
   "responseStatus": 404,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Not found"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "File 0.0.111 not found",
+            "message": "Not Found"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Not found"
+          }
+        ]
+      }
     }
   }
 }

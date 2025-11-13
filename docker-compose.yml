@@ -39,7 +39,7 @@ services:
     environment:
       HIERO_MIRROR_GRAPHQL_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
-    image: gcr.io/mirrornode/hedera-mirror-graphql:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-graphql:0.144.0-SNAPSHOT
     ports:
       - 8083:8083
     pull_policy: always
@@ -56,7 +56,7 @@ services:
       HIERO_MIRROR_GRPC_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
       SPRING_DATA_REDIS_HOST: redis
-    image: gcr.io/mirrornode/hedera-mirror-grpc:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-grpc:0.144.0-SNAPSHOT
     ports:
       - 5600:5600
     pull_policy: always
@@ -73,7 +73,7 @@ services:
       HIERO_MIRROR_IMPORTER_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
       SPRING_DATA_REDIS_HOST: redis
-    image: gcr.io/mirrornode/hedera-mirror-importer:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-importer:0.144.0-SNAPSHOT
     pull_policy: always
     restart: unless-stopped
     tty: true
@@ -88,7 +88,7 @@ services:
       replicas: 0
     environment:
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
-    image: gcr.io/mirrornode/hedera-mirror-monitor:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-monitor:0.144.0-SNAPSHOT
     pull_policy: always
     restart: unless-stopped
 
@@ -111,7 +111,7 @@ services:
       CONFIG_PATH: /usr/etc/hiero/
       HIERO_MIRROR_REST_DB_HOST: db
       HIERO_MIRROR_REST_REDIS_URI: redis://redis:6379
-    image: gcr.io/mirrornode/hedera-mirror-rest:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-rest:0.144.0-SNAPSHOT
     pull_policy: always
     ports:
       - 5551:5551
@@ -127,7 +127,7 @@ services:
     environment:
       HIERO_MIRROR_RESTJAVA_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
-    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-rest-java:0.144.0-SNAPSHOT
     pull_policy: always
     ports:
       - 8084:8084
@@ -145,7 +145,7 @@ services:
     environment:
       HIERO_MIRROR_ROSETTA_API_CONFIG: /usr/etc/hiero/application.yml
       HIERO_MIRROR_ROSETTA_DB_HOST: db
-    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-rosetta:0.144.0-SNAPSHOT
     pull_policy: always
     ports:
       - 5700:5700
@@ -161,7 +161,7 @@ services:
     environment:
       HIERO_MIRROR_WEB3_DB_HOST: db
       SPRING_CONFIG_ADDITIONAL_LOCATION: file:/usr/etc/hiero/
-    image: gcr.io/mirrornode/hedera-mirror-web3:0.143.0-SNAPSHOT
+    image: gcr.io/mirrornode/hedera-mirror-web3:0.144.0-SNAPSHOT
     pull_policy: always
     ports:
       - 8545:8545
@@ -215,6 +215,7 @@ configs:
         # rest-java host
         location ~ "^/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/(allowances/nfts|airdrops|hooks)" { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/exchangerate { proxy_pass http://rest_java_host$$request_uri; }
+        location = /api/v1/network/fees { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/stake { proxy_pass http://rest_java_host$$request_uri; }
         location ~ "^/api/v1/topics/(\d+\.){0,2}\d+$" { proxy_pass http://rest_java_host$$request_uri; }
 

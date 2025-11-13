@@ -621,6 +621,7 @@ public final class BlockStreamReaderTest {
                 .build();
     }
 
+    @SuppressWarnings("deprecation")
     private BlockItem blockProof() {
         return BlockItem.newBuilder()
                 .setBlockProof(BlockProof.newBuilder()

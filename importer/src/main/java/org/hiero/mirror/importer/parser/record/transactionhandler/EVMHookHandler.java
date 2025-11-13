@@ -11,10 +11,11 @@ import com.hedera.hapi.node.hooks.legacy.HookCreationDetails.HookCase;
 import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.services.stream.proto.StorageChange;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.bouncycastle.jcajce.provider.digest.Keccak;
+import org.bouncycastle.jcajce.provider.digest.Keccak.Digest256;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
@@ -34,6 +35,17 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     private final EntityListener entityListener;
     private final EntityIdService entityIdService;
+
+    static byte[] keccak256(byte[] input) {
+        final var d = new Digest256();
+        return d.digest(input);
+    }
+
+    static byte[] keccak256(byte[] key, byte[] mappingSlot) {
+        final var d = new Digest256();
+        d.update(key);
+        return d.digest(mappingSlot);
+    }
 
     /**
      * Processes both hook deletions and hook creations for a given transaction. This method serves as the main entry
@@ -60,15 +72,37 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         for (final var update : storageUpdates) {
             switch (update.getUpdateCase()) {
                 case STORAGE_SLOT ->
-                    processStorageSlotUpdate(update.getStorageSlot(), consensusTimestamp, ownerEntityId, hookId);
+                    processStorageSlotUpdate(
+                            update.getStorageSlot(), consensusTimestamp, ownerEntityId.getId(), hookId);
                 case MAPPING_ENTRIES ->
-                    processMappingEntries(update.getMappingEntries(), consensusTimestamp, ownerEntityId, hookId);
+                    processMappingEntries(
+                            update.getMappingEntries(), consensusTimestamp, ownerEntityId.getId(), hookId);
                 default ->
                     Utility.handleRecoverableError(
                             "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
                             update.getUpdateCase(),
                             consensusTimestamp);
             }
+        }
+    }
+
+    @Override
+    public void processStorageUpdatesForSidecar(
+            long consensusTimestamp, long hookId, long ownerId, List<StorageChange> storageUpdates) {
+        for (var storageChange : storageUpdates) {
+            byte[] valueWritten = storageChange.hasValueWritten()
+                    ? toBytes(storageChange.getValueWritten().getValue())
+                    : null;
+            var hookStorageChange = HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .ownerId(ownerId)
+                    .key(toBytes(storageChange.getSlot()))
+                    .valueRead(toBytes(storageChange.getValueRead()))
+                    .valueWritten(valueWritten)
+                    .build();
+
+            entityListener.onHookStorageChange(hookStorageChange);
         }
     }
 
@@ -130,7 +164,11 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
         // Process storage updates if present
         if (!CollectionUtils.isEmpty(lambdaEvmHook.getStorageUpdatesList())) {
-            // TODO: Process storage updates when hook storage functionality is implemented
+            processStorageUpdates(
+                    recordItem.getConsensusTimestamp(),
+                    hookCreationDetails.getHookId(),
+                    EntityId.of(entityId),
+                    lambdaEvmHook.getStorageUpdatesList());
         }
     }
 
@@ -191,7 +229,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
     }
 
     private void processMappingEntries(
-            LambdaMappingEntries entries, long consensusTimestamp, EntityId ownerEntityId, long hookId) {
+            LambdaMappingEntries entries, long consensusTimestamp, long ownerEntityId, long hookId) {
         final var mappingSlot = leftPadBytes(toBytes(entries.getMappingSlot()), 32);
 
         for (final var entry : entries.getEntriesList()) {
@@ -206,7 +244,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
     }
 
     private void processStorageSlotUpdate(
-            LambdaStorageSlot storageSlot, long consensusTimestamp, EntityId ownerEntityId, long hookId) {
+            LambdaStorageSlot storageSlot, long consensusTimestamp, long ownerEntityId, long hookId) {
         final var slotKey = toBytes(storageSlot.getKey());
 
         // Protobuf API ensures that value will never be null
@@ -215,25 +253,14 @@ final class EVMHookHandler implements EvmHookStorageHandler {
     }
 
     private void persistChange(
-            EntityId ownerEntityId, long hookId, byte[] key, byte[] valueWritten, long consensusTimestamp) {
+            long ownerEntityId, long hookId, byte[] key, byte[] valueWritten, long consensusTimestamp) {
         final var change = new HookStorageChange();
         change.setConsensusTimestamp(consensusTimestamp);
-        change.setOwnerId(ownerEntityId.getId());
+        change.setOwnerId(ownerEntityId);
         change.setHookId(hookId);
         change.setKey(key);
         change.setValueRead(valueWritten);
         change.setValueWritten(valueWritten);
         entityListener.onHookStorageChange(change);
-    }
-
-    static byte[] keccak256(byte[] input) {
-        final var d = new Keccak.Digest256();
-        return d.digest(input);
-    }
-
-    static byte[] keccak256(byte[] key, byte[] mappingSlot) {
-        final var d = new Keccak.Digest256();
-        d.update(key);
-        return d.digest(mappingSlot);
     }
 }

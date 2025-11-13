@@ -148,6 +148,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         verify(streamFileNotifier, never()).verified(any(RecordFile.class));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     void corruptedBlockProof() {
         // given

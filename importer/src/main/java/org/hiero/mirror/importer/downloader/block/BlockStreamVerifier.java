@@ -5,9 +5,9 @@ package org.hiero.mirror.importer.downloader.block;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
-import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -18,13 +18,17 @@ import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.data.util.Version;
 
 @Named
-public class BlockStreamVerifier {
+@NullMarked
+final class BlockStreamVerifier {
 
     static final BlockFile EMPTY = BlockFile.builder().build();
 
     private final BlockFileTransformer blockFileTransformer;
+    private final BlockProperties blockProperties;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
@@ -37,10 +41,12 @@ public class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             BlockFileTransformer blockFileTransformer,
+            BlockProperties blockProperties,
             RecordFileRepository recordFileRepository,
             StreamFileNotifier streamFileNotifier,
             MeterRegistry meterRegistry) {
         this.blockFileTransformer = blockFileTransformer;
+        this.blockProperties = blockProperties;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
         this.meterRegistry = meterRegistry;
@@ -56,7 +62,7 @@ public class BlockStreamVerifier {
     }
 
     public Optional<BlockFile> getLastBlockFile() {
-        return lastBlockFile.get().or(() -> {
+        return Objects.requireNonNull(lastBlockFile.get()).or(() -> {
             var last = recordFileRepository
                     .findLatest()
                     .map(r -> BlockFile.builder()
@@ -71,7 +77,7 @@ public class BlockStreamVerifier {
         });
     }
 
-    public void verify(@NotNull BlockFile blockFile) {
+    public void verify(BlockFile blockFile) {
         var startTime = Instant.now();
         boolean success = true;
         try {
@@ -132,6 +138,13 @@ public class BlockStreamVerifier {
     }
 
     private void verifyHashChain(BlockFile blockFile) {
+        final var consensusNodeVersion = blockFile.getBlockHeader().getSoftwareVersion();
+        final var version = new Version(
+                consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
+        if (version.isGreaterThanOrEqualTo(blockProperties.getNewRootHashAlgorithmVersion())) {
+            return;
+        }
+
         getExpectedPreviousHash().ifPresent(expected -> {
             if (!blockFile.getPreviousHash().contentEquals(expected)) {
                 throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
