@@ -649,7 +649,7 @@ if [[ "${WAIT_FOR_K6}" == "true" ]]; then
   for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
       waitForHelmReleaseReady "${namespace}"
-      cleanupAcceptancePods "${namespace}"
+      cleanupAcceptancePod "${namespace}"
       log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
       flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
     fi
