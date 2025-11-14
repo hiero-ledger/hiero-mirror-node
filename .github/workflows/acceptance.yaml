@@ -8,8 +8,8 @@ on:
       - "main"
       - "release/**"
     paths:
+      - ".github/actions/k6.yaml"
       - ".github/workflows/acceptance.yaml"
-      - ".github/workflows/k6.yaml"
       - "test/**"
   push:
     branches:
@@ -167,7 +167,7 @@ jobs:
 
       - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: ./.github/workflows/k6.yaml
+        uses: ./.github/actions/k6.yaml
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
