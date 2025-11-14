@@ -10,6 +10,7 @@ public class Constants {
     // Parameter names
     public static final String ACCOUNT_ID = "account.id";
     public static final String HOOK_ID = "hook.id";
+    public static final String KEY = "key";
     public static final String RECEIVER_ID = "receiver.id";
     public static final String SENDER_ID = "sender.id";
     public static final String SERIAL_NUMBER = "serialnumber";
