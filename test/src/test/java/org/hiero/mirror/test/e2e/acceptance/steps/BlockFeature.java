@@ -9,10 +9,12 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
+import org.springframework.context.annotation.Scope;
 import org.springframework.util.CollectionUtils;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class BlockFeature {
 
     private final MirrorNodeClient mirrorClient;

@@ -37,10 +37,12 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.boot.convert.DurationStyle;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpStatus;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class ScheduleFeature extends AbstractFeature {
 
     private static final int DEFAULT_TINY_HBAR = 1_000;

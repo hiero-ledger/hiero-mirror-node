@@ -18,10 +18,12 @@ import org.hiero.mirror.rest.model.TransactionDetail;
 import org.hiero.mirror.test.e2e.acceptance.client.FileClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpStatus;
 
 @CustomLog
 @RequiredArgsConstructor
+@Scope("cucumber-glue")
 public class FileFeature {
     private static final String ORIGINAL_FILE_CONTENTS = "Mirror Node v1";
     private static final String UPDATE_BASE_FILE_CONTENTS = "Mirror Node v2,";
