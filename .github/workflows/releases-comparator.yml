@@ -93,6 +93,7 @@ jobs:
             "com/hedera/hapi/node/state/schedule/Schedule.java"
             "com/swirlds/state/spi/ReadableKVStateBase.java"
             "com/swirlds/state/spi/WritableKVStateBase.java"
+            "com/swirlds/state/spi/WritableSingletonStateBase.java"
             "com/hedera/node/app/service/contract/impl/exec/processors/CustomMessageCallProcessor.java"
             "com/hedera/node/app/service/contract/impl/state/DispatchingEvmFrameState.java"
             "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
