@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: K6 Tests
+
+runs:
+  using: "composite"
+  env:
+    BASE_URL: "http://127.0.0.1:8081"
+    DEFAULT_DURATION: "3s"
+    DEFAULT_GRACEFUL_STOP: "1s"
+    DEFAULT_VUS: 2
+  steps:
+    - name: Parse acceptance tests logs and set k6 environment variables
+      run: |
+        set -ex
+        LOG_FILE="./output_log.txt"
+
+        declare -A k6Map
+        k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
+        k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
+        k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
+        k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
+        k6Map["BOB"]="PAYER_ACCOUNT"
+        k6Map["ALICE"]="ACCOUNT_ADDRESS"
+        k6Map["fungible"]="TOKEN_ADDRESS"
+        k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
+
+        for key in "${!k6Map[@]}"; do
+          k6="${k6Map[$key]}"
+          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          echo "${k6}=${value}" >> $GITHUB_ENV
+        done
+
+        declare -A k6MapRestJava
+        k6MapRestJava["DEFAULT_TOPIC"]="DEFAULT_TOPIC_WITH_FEE_ID"
+        k6MapRestJava["PRECOMPILE"]="DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER"
+        k6MapRestJava["DEFAULT_ACCOUNT_ID_BOB"]="DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER"
+
+        for key in "${!k6MapRestJava[@]}"; do
+          k6="${k6MapRestJava[$key]}"
+          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          echo "${k6}=${value}" >> $GITHUB_ENV
+        done
+
+        declare -A k6MapRest
+        k6MapRest["PARENT_ID"]="DEFAULT_CONTRACT_ID"
+        k6MapRest["TIMESTAMP"]="DEFAULT_CONTRACT_TIMESTAMP"
+        k6MapRest["HASH"]="DEFAULT_CONTRACT_RESULT_HASH"
+        k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
+        k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
+        k6MapRest["DEFAULT_ACCOUNT_ID_KEY_TOKEN_TREASURY"]="DEFAULT_PUBLIC_KEY"
+
+        for key in "${!k6MapRest[@]}"; do
+          k6="${k6MapRest[$key]}"
+          value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
+          echo "${k6}=${value}" >> $GITHUB_ENV
+        done
+
+    - name: Install k6
+      uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
+
+    - name: Run rest-java tests
+      uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      env:
+        DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
+        DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
+      with:
+        path: |
+          ./tools/k6/src/rest-java/apis.js
+        debug: false
+        flags: --quiet
+
+    - name: Run rest tests
+      uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      env:
+        REST_TEST_EXCLUDE: ".*balances.*Timestamp.*"
+      with:
+        path: |
+          ./tools/k6/src/rest/apis.js
+        debug: false
+        flags: --quiet
+
+    - name: Run k6 web3 tests
+      uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
+      env:
+        AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
+        KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
+        RUN_COMPLEX_TESTS: "false"
+        RUN_ESTIMATE_TESTS: "false"
+        RUN_MODIFICATION_TESTS: "false"
+        RUN_OPCODE_TESTS: "false"
+        RUN_WITH_VARIABLES: "true"
+        SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
+        WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
+      with:
+        path: |
+          ./tools/k6/src/web3/apis.js
+        debug: false
+        flags: --quiet
