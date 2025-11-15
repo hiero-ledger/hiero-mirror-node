@@ -8,7 +8,6 @@ on:
       - "main"
       - "release/**"
     paths:
-      - ".github/actions/k6.yaml"
       - ".github/workflows/acceptance.yaml"
       - "test/**"
   push:
@@ -63,6 +62,16 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+
+      - name: Determine base
+        run: |
+          set -ex
+          
+          BASE=''
+
+          [[ "${{ github.event_name }}" = 'push' &&
+          
+          echo "BASE=${BASE}" >> $GITHUB_ENV
 
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -167,7 +176,7 @@ jobs:
 
       - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: ./.github/actions/k6.yaml
+        uses: ./.github/actions/k6
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
