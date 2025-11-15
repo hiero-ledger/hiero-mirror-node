@@ -4,13 +4,9 @@ name: K6 Tests
 
 runs:
   using: "composite"
-  env:
-    BASE_URL: "http://127.0.0.1:8081"
-    DEFAULT_DURATION: "3s"
-    DEFAULT_GRACEFUL_STOP: "1s"
-    DEFAULT_VUS: 2
   steps:
     - name: Parse acceptance tests logs and set k6 environment variables
+      shell: bash
       run: |
         set -ex
         LOG_FILE="./output_log.txt"
