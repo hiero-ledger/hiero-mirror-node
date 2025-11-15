@@ -3733,62 +3733,60 @@ components:
     TransactionTypes:
       type: string
       enum:
-        - ATOMICBATCH
-        - CONSENSUSCREATETOPIC
-        - CONSENSUSDELETETOPIC
-        - CONSENSUSSUBMITMESSAGE
-        - CONSENSUSUPDATETOPIC
-        - CONTRACTCALL
-        - CONTRACTCREATEINSTANCE
-        - CONTRACTDELETEINSTANCE
-        - CONTRACTUPDATEINSTANCE
-        - CRYPTOADDLIVEHASH
-        - CRYPTOAPPROVEALLOWANCE
-        - CRYPTOCREATEACCOUNT
-        - CRYPTODELETE
-        - CRYPTODELETEALLOWANCE
-        - CRYPTODELETELIVEHASH
-        - CRYPTOTRANSFER
-        - CRYPTOUPDATEACCOUNT
-        - ETHEREUMTRANSACTION
-        - FILEAPPEND
-        - FILECREATE
-        - FILEDELETE
-        - FILEUPDATE
-        - FREEZE
-        - NODE
-        - NODECREATE
-        - NODEDELETE
-        - NODESTAKEUPDATE
-        - NODEUPDATE
-        - SCHEDULECREATE
-        - SCHEDULEDELETE
-        - SCHEDULESIGN
-        - SYSTEMDELETE
-        - SYSTEMUNDELETE
-        - TOKENAIRDROP
-        - TOKENASSOCIATE
-        - TOKENBURN
-        - TOKENCANCELAIRDROP
-        - TOKENCLAIMAIRDROP
-        - TOKENCREATION
-        - TOKENDELETION
-        - TOKENDISSOCIATE
-        - TOKENFEESCHEDULEUPDATE
-        - TOKENFREEZE
-        - TOKENGRANTKYC
-        - TOKENMINT
-        - TOKENPAUSE
-        - TOKENREJECT
-        - TOKENREVOKEKYC
-        - TOKENUNFREEZE
-        - TOKENUNPAUSE
-        - TOKENUPDATE
-        - TOKENUPDATENFTS
-        - TOKENWIPE
-        - UNCHECKEDSUBMIT
-        - UNKNOWN
-        - UTILPRNG
+        - AtomicBatch
+        - ConsensusCreateTopic
+        - ConsensusDeleteTopic
+        - ConsensusSubmitMessage
+        - ConsensusUpdateTopic
+        - ContractCall
+        - ContractCreateInstance
+        - ContractDeleteInstance
+        - ContractUpdateInstance
+        - CryptoAddLiveHash
+        - CryptoCreateAccount
+        - CryptoDelete
+        - CryptoDeleteLiveHash
+        - CryptoApproveAllowance
+        - CryptoDeleteAllowance
+        - CryptoTransfer
+        - CryptoUpdateAccount
+        - EthereumTransaction
+        - FileAppend
+        - FileCreate
+        - FileDelete
+        - FileUpdate
+        - Freeze
+        - NodeCreate
+        - NodeDelete
+        - NodeStakeUpdate
+        - NodeUpdate
+        - ScheduleCreate
+        - ScheduleDelete
+        - ScheduleSign
+        - SystemDelete
+        - SystemUnDelete
+        - TokenAirDrop
+        - TokenAssociate
+        - TokenBurn
+        - TokenCancelAirDrop
+        - TokenClaimAirDrop
+        - TokenCreation
+        - TokenDeletion
+        - TokenDissociate
+        - TokenFeeScheduleUpdate
+        - TokenFreeze
+        - TokenGrantKyc
+        - TokenMint
+        - TokenPause
+        - TokenReject
+        - TokenRevokeKyc
+        - TokenUnfreeze
+        - TokenUnPause
+        - TokenUpdate
+        - TokenUpdateNfts
+        - TokenWipe
+        - UncheckedSubmit
+        - UtilPrng
     Tokens:
       type: array
       items:
@@ -5111,7 +5109,7 @@ components:
     transactionTypeQueryParam:
       name: transactiontype
       in: query
-      example: cryptotransfer
+      example:
       schema:
         $ref: "#/components/schemas/TransactionTypes"
     transactionIdPathParam:
