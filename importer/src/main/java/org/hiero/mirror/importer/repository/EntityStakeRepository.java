@@ -90,7 +90,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                   limit 1
                 )
               )
-              order by epoch_day
+              order by consensus_timestamp
               limit 1
             ), ending_period_stake_state as (
               select
@@ -106,9 +106,10 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                 where ns.consensus_timestamp = ending_period.consensus_timestamp
               ) node_stake on es.staked_node_id_start = node_id
             ), forfeited_period as (
-              select node_id, reward_rate
+              select distinct on(node_id) node_id, reward_rate
               from node_stake
               where epoch_day = (select epoch_day from ending_period) - 365
+              order by node_id, consensus_timestamp
             ), proxy_staking as (
               select staked_account_id, sum(balance) as staked_to_me
               from entity_state_start
