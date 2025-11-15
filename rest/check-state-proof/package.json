@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/check-state-proof",
-  "version": "0.142.1",
+  "version": "0.142.2",
   "description": "An example implementation of a state proof flow for a transaction utilizing the mirror node.",
   "engines": {
     "node": ">= 22"
