@@ -63,15 +63,15 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
 
-      - name: Determine base
-        run: |
-          set -ex
-          
-          BASE=''
-
-          [[ "${{ github.event_name }}" = 'push' &&
-          
-          echo "BASE=${BASE}" >> $GITHUB_ENV
+#      - name: Determine base
+#        run: |
+#          set -ex
+#
+#          BASE=''
+#
+#          [[ "${{ github.event_name }}" = 'push' &&
+#
+#          echo "BASE=${BASE}" >> $GITHUB_ENV
 
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
