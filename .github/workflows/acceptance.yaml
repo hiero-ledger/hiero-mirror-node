@@ -131,7 +131,7 @@ jobs:
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs != ''
         run: |
           set -ex
-          echo "${{ steps.changeset.outputs.changes }}" | jq -r '.[]' | while read module; do
+          echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
             if [[ "$module" != "rest" ]]; then
               ./gradlew "$module":build -x test
             fi
