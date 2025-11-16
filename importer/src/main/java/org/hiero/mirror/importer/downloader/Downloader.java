@@ -206,7 +206,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         var stopwatch = Stopwatch.createStarted();
         var nodes = partialCollection(consensusNodeService.getNodes());
         var startAfterFilename = getStartAfterFilename();
-        log.debug("Asking for new signature files created after file: {}", startAfterFilename);
+        log.info("Asking for new signature files created after file: {}", startAfterFilename);
 
         final var signatures = Objects.requireNonNull(Flux.fromIterable(nodes)
                 .flatMap(node -> streamFileProvider

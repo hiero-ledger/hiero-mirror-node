@@ -202,6 +202,9 @@ jobs:
           helm dependency update charts/hedera-mirror
           solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --deployment "${SOLO_DEPLOYMENT}" \
             -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
+          APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
+            | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
+          echo "Installed hedera-mirror chart version $APP_VERSION"
 
           echo "Solo cluster setup completed successfully!"
 
