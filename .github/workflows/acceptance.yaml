@@ -71,6 +71,7 @@ jobs:
       - name: Setup Kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
         with:
+          cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
           kubectl_version: v1.32.3
 
       - name: Install JDK
@@ -93,6 +94,7 @@ jobs:
           git describe --exact-match $(git rev-parse HEAD) 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || true
 
           echo "BASE=${BASE}" >> $GITHUB_ENV
+          echo "TAG=${TAG}" >> $GITHUB_ENV
           echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
 
           if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
@@ -123,9 +125,6 @@ jobs:
             - 'test/**'
             web3:
             - 'web3/**'
-
-      - name: Create Cluster for Solo
-        run: kind create cluster -n "${SOLO_CLUSTER_NAME}"
 
       - name: Build images
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs != ''

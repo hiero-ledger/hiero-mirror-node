@@ -80,7 +80,7 @@ if (config.response.compression) {
   app.use(compression());
 }
 
-// logging middleware
+// logging middleware, test change
 app.use(httpContext.middleware);
 app.useExt(requestLogger);
 

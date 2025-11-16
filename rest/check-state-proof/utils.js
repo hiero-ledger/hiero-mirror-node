@@ -18,7 +18,7 @@ const makeStateProofDir = (transactionId, stateProofJson) => {
 
 const storeFile = (data, file, ext) => {
   if (!Buffer.isBuffer(data) && typeof data !== 'string') {
-    logger.info(`Skipping saving file "${file}" since the data is neither a Buffer nor a string`);
+    logger.info(`Skip saving file "${file}" since the data is neither a Buffer nor a string`);
     return;
   }
 
