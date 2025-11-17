@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
@@ -45,6 +46,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.jspecify.annotations.NonNull;
 
+@CustomLog
 @Named
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
@@ -130,7 +132,9 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         blockRootHashDigest.setStartOfBlockStateHash(DomainUtils.toBytes(blockProof.getStartOfBlockStateRootHash()));
 
         // Read remaining blockProof block items. In a later release, implement new block & state merkle tree support
-        while (context.readBlockItemFor(BLOCK_PROOF) != null) {}
+        while (context.readBlockItemFor(BLOCK_PROOF) != null) {
+            log.debug("Skip remaining block proof block items");
+        }
     }
 
     private void readEvents(ReaderContext context) {
