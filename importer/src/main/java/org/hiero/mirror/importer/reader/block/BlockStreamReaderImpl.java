@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.reader.block;
 
+import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_FOOTER;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.EVENT_HEADER;
@@ -68,6 +69,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         readBlockHeader(context);
         readRounds(context);
         readNonTransactionStateChanges(context);
+        readBlockFooter(context);
         readBlockProof(context);
 
         var blockFile = blockFileBuilder.build();
@@ -84,6 +86,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         }
 
         return blockFile;
+    }
+
+    private void readBlockFooter(ReaderContext context) {
+        // make it mandatory post release 0.68.x
+        context.readBlockItemFor(BLOCK_FOOTER);
     }
 
     private void readBlockHeader(ReaderContext context) {
@@ -121,6 +128,9 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         blockFile.blockProof(blockProof).previousHash(DomainUtils.bytesToHex(previousHash));
         blockRootHashDigest.setPreviousHash(previousHash);
         blockRootHashDigest.setStartOfBlockStateHash(DomainUtils.toBytes(blockProof.getStartOfBlockStateRootHash()));
+
+        // Read remaining blockProof block items. In a later release, implement new block & state merkle tree support
+        while (context.readBlockItemFor(BLOCK_PROOF) != null) {}
     }
 
     private void readEvents(ReaderContext context) {
@@ -142,11 +152,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         // #12313 - when a user transaction in an atomic batch fails, any subsequent user transaction
                         // in the same batch will not execute thus won't have a TransactionResult block item
                         context.resetBatchTransaction();
-                        continue;
                     }
 
-                    throw new InvalidStreamFileException(
-                            "Missing transaction result in block " + context.getFilename());
+                    // System transactions won't have transactionResult either, continue to next block item
+                    continue;
                 }
 
                 var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);

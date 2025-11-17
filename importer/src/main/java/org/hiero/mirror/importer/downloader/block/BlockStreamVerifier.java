@@ -20,12 +20,15 @@ import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.util.Version;
+import org.web3j.utils.Strings;
 
 @Named
 @NullMarked
 final class BlockStreamVerifier {
 
     static final BlockFile EMPTY = BlockFile.builder().build();
+
+    private static final String EMPTY_HASH = Strings.repeat('0', 96);
 
     private final BlockFileTransformer blockFileTransformer;
     private final BlockProperties blockProperties;
@@ -142,6 +145,9 @@ final class BlockStreamVerifier {
         final var version = new Version(
                 consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
         if (version.isGreaterThanOrEqualTo(blockProperties.getNewRootHashAlgorithmVersion())) {
+            // Set both hash and previousHash to all 0s to pass parser validation
+            blockFile.setHash(EMPTY_HASH);
+            blockFile.setPreviousHash(EMPTY_HASH);
             return;
         }
 
