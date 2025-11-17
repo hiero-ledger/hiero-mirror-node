@@ -42,20 +42,20 @@ public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceI
 
     private static FeeEstimateResponse stubResponse() {
         final var feeExtra = FeeExtra.newBuilder()
-                .setCharged(0)
-                .setCount(1)
-                .setFeePerUnit(0L)
+                .setCharged(1)
+                .setCount(2)
+                .setFeePerUnit(10_000L)
                 .setIncluded(1)
                 .setName("Test data")
-                .setSubtotal(0L);
-        final var feeEstimate = FeeEstimate.newBuilder().setBase(0L).addExtras(feeExtra);
+                .setSubtotal(10_000L);
+        final var feeEstimate = FeeEstimate.newBuilder().setBase(100_000L).addExtras(feeExtra);
         return FeeEstimateResponse.newBuilder()
                 .addNotes("This API is not yet implemented and only returns stubbed test data")
                 .setMode(EstimateMode.STATE)
-                .setNetwork(NetworkFee.newBuilder().setMultiplier(1).setSubtotal(0L))
+                .setNetwork(NetworkFee.newBuilder().setMultiplier(2).setSubtotal(220_000L))
                 .setNode(feeEstimate)
                 .setService(feeEstimate)
-                .setTotal(0)
+                .setTotal(440_000L)
                 .build();
     }
 
