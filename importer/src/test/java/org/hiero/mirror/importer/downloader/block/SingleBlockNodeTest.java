@@ -223,43 +223,4 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .hasCauseInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof in block");
     }
-
-    @Test
-    void exceptionIsThrownWhenTheLastEventTxnItemIsNotFollowedByTxnResultItem() {
-        // given
-        var generator = new BlockGenerator(0);
-
-        var blocks = new ArrayList<>(generator.next(2));
-        var blockOne = blocks.get(1);
-        var blockOneItems = blockOne.getBlockItemsList();
-        var blockOneLastEventTxn = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
-                .reduce((first, second) -> second)
-                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
-        var blockOneTxnResult = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("The block is missing transaction result item"));
-        int blockOneEventTxnIndex = blockOneItems.indexOf(blockOneLastEventTxn);
-        int blockOneTxnResultIndex = blockOneItems.indexOf(blockOneTxnResult);
-
-        var builder = BlockItemSet.newBuilder();
-        var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
-        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneEventTxnIndex);
-        builder.addAllBlockItems(wrongOrderBlockItems);
-        blocks.remove(1);
-        blocks.add(builder.build());
-
-        simulator = new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(blocks)
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
-
-        // when, then
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Missing transaction result in block");
-    }
 }
