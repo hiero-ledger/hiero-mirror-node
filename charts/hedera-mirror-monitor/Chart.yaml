@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: v2
-appVersion: 0.143.0-rc2
+appVersion: 0.143.0-rc3
 description: End to End Monitor for the Mirror Node
 home: https://github.com/hiero-ledger/hiero-mirror-node
 icon: https://camo.githubusercontent.com/cca6b767847bb8ca5c7059481ba13a5fc81c5938/68747470733a2f2f7777772e6865646572612e636f6d2f6c6f676f2d6361706974616c2d686261722d776f72646d61726b2e6a7067
@@ -9,4 +9,4 @@ maintainers:
   - name: Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror-monitor
-version: 0.143.0-rc2
+version: 0.143.0-rc3
