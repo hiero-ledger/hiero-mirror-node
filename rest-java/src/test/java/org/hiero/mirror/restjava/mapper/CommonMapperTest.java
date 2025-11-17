@@ -244,6 +244,14 @@ final class CommonMapperTest {
                 .isEqualTo(12345);
     }
 
+    @Test
+    void mapByteArrayToHexString() {
+        assertThat(commonMapper.mapByteArrayToHexString(null)).isNull();
+        assertThat(commonMapper.mapByteArrayToHexString(new byte[] {})).isEqualTo("");
+        assertThat(commonMapper.mapByteArrayToHexString(new byte[] {0x0A, 0x1B, 0x2C}))
+                .isEqualTo("0a1b2c");
+    }
+
     private org.hiero.mirror.rest.model.Key toKey(byte[] bytes, TypeEnum type) {
         return new org.hiero.mirror.rest.model.Key()
                 .key(Hex.encodeHexString(bytes))

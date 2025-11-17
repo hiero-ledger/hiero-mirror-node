@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
+import org.hiero.mirror.restjava.dto.HookStorageResult;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.repository.HookRepository;
 import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
@@ -57,19 +58,25 @@ final class HookServiceImpl implements HookService {
     }
 
     @Override
-    public Collection<HookStorage> getHookStorage(HookStorageRequest request) {
+    public HookStorageResult getHookStorage(HookStorageRequest request) {
+        if (!request.getTimestamp().isEmpty()) {
+            return getHookStorageChange(request);
+        }
+
         final var sort = Sort.by(request.getOrder(), Constants.KEY);
         final var page = PageRequest.of(0, request.getLimit(), sort);
 
+        final var ownerId = entityService.lookup(request.getOwnerId());
         final var keys = request.getKeys();
-
         if (keys.isEmpty()) {
-            return hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                    request.getOwnerId().getId(),
-                    request.getHookId(),
-                    request.getKeyLowerBound(),
-                    request.getKeyUpperBound(),
-                    page);
+            return new HookStorageResult(
+                    ownerId,
+                    hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
+                            ownerId.getId(),
+                            request.getHookId(),
+                            request.getKeyLowerBound(),
+                            request.getKeyUpperBound(),
+                            page));
         }
 
         final var keyBytesList =
@@ -79,18 +86,20 @@ final class HookServiceImpl implements HookService {
                 filterKeysInRange(keyBytesList, request.getKeyLowerBound(), request.getKeyUpperBound());
 
         if (filteredKeys.isEmpty()) {
-            return List.of();
+            return new HookStorageResult(ownerId, List.of());
         }
-        return hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                request.getOwnerId().getId(), request.getHookId(), filteredKeys, page);
+        return new HookStorageResult(
+                ownerId,
+                hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
+                        ownerId.getId(), request.getHookId(), filteredKeys, page));
     }
 
     @Override
-    public Collection<HookStorage> getHookStorageChange(HookStorageRequest request) {
+    public HookStorageResult getHookStorageChange(HookStorageRequest request) {
         final var sort = Sort.by(request.getOrder(), Constants.KEY);
         final var page = PageRequest.of(0, request.getLimit(), sort);
 
-        final long ownerId = request.getOwnerId().getId();
+        final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
 
         var keyEqualsList =
@@ -101,49 +110,30 @@ final class HookServiceImpl implements HookService {
         final var filteredKeys =
                 keyEqualsList.isEmpty() ? List.of() : filterKeysInRange(keyEqualsList, keyLowerBound, keyUpperBound);
 
-        if (filteredKeys.isEmpty() && !keyEqualsList.isEmpty()) return List.of();
+        if (filteredKeys.isEmpty() && !keyEqualsList.isEmpty()) {
+            return new HookStorageResult(ownerId, List.of());
+        }
 
-        var timestampEqualsList = request.getTimestamp().stream().toList();
         final long timestampLowerBound = request.getTimestampLowerBound();
         final long timestampUpperBound = request.getTimestampUpperBound();
-
-        final var filteredTimestamps = timestampEqualsList.isEmpty()
-                ? List.<Long>of()
-                : filterTimestampsInRange(timestampEqualsList, timestampLowerBound, timestampUpperBound);
-
-        if (filteredTimestamps.isEmpty() && !timestampEqualsList.isEmpty()) return List.of();
 
         final boolean sortDesc = sort.getOrderFor(Constants.KEY) != null
                 && sort.getOrderFor(Constants.KEY).isDescending();
 
         List<HookStorageChange> results;
 
-        if (!keyEqualsList.isEmpty() && !timestampEqualsList.isEmpty()) {
-            results = fetchLatestByKeySorted(
-                    sortDesc,
-                    () -> hookStorageChangeRepository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyAsc(
-                            ownerId, hookId, keyEqualsList, timestampEqualsList, page),
-                    () -> hookStorageChangeRepository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyDesc(
-                            ownerId, hookId, keyEqualsList, timestampEqualsList, page));
-        } else if (!keyEqualsList.isEmpty()) {
+        if (!keyEqualsList.isEmpty()) {
             results = fetchLatestByKeySorted(
                     sortDesc,
                     () -> hookStorageChangeRepository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyAsc(
-                            ownerId, hookId, keyEqualsList, timestampLowerBound, timestampUpperBound, page),
+                            ownerId.getId(), hookId, keyEqualsList, timestampLowerBound, timestampUpperBound, page),
                     () -> hookStorageChangeRepository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyDesc(
-                            ownerId, hookId, keyEqualsList, timestampLowerBound, timestampUpperBound, page));
-        } else if (!timestampEqualsList.isEmpty()) {
-            results = fetchLatestByKeySorted(
-                    sortDesc,
-                    () -> hookStorageChangeRepository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyAsc(
-                            ownerId, hookId, keyLowerBound, keyUpperBound, timestampEqualsList, page),
-                    () -> hookStorageChangeRepository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyDesc(
-                            ownerId, hookId, keyLowerBound, keyUpperBound, timestampEqualsList, page));
+                            ownerId.getId(), hookId, keyEqualsList, timestampLowerBound, timestampUpperBound, page));
         } else {
             results = fetchLatestByKeySorted(
                     sortDesc,
                     () -> hookStorageChangeRepository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyAsc(
-                            ownerId,
+                            ownerId.getId(),
                             hookId,
                             keyLowerBound,
                             keyUpperBound,
@@ -151,7 +141,7 @@ final class HookServiceImpl implements HookService {
                             timestampUpperBound,
                             page),
                     () -> hookStorageChangeRepository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyDesc(
-                            ownerId,
+                            ownerId.getId(),
                             hookId,
                             keyLowerBound,
                             keyUpperBound,
@@ -160,7 +150,9 @@ final class HookServiceImpl implements HookService {
                             page));
         }
 
-        return results.stream().map(c -> new HookStorage().hookStorage(c)).toList();
+        return new HookStorageResult(
+                ownerId,
+                results.stream().map(c -> new HookStorage().hookStorage(c)).toList());
     }
 
     private List<byte[]> filterKeysInRange(List<byte[]> keys, byte[] lower, byte[] upper) {

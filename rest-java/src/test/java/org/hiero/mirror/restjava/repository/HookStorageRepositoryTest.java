@@ -16,7 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
-public class HookStorageRepositoryTest extends RestJavaIntegrationTest {
+final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
     private final HookStorageRepository repository;
 

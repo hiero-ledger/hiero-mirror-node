@@ -106,56 +106,6 @@ public class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest
     @ValueSource(strings = {ASC, DESC})
-    void findLatestChangePerKeyForKeyListAndTimestampListRespectsOrderLimitAndPagination(String order) {
-        // given
-        final var change1 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_1, KEY_1);
-        final var change2 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_2, KEY_2);
-        final var change3 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_3, KEY_3);
-
-        final var keys = List.of(KEY_1_BYTES, KEY_2_BYTES, KEY_3_BYTES);
-        final var timestamps = List.of(TIMESTAMP_1, TIMESTAMP_2, TIMESTAMP_3);
-
-        final var orderedAll =
-                ASC.equalsIgnoreCase(order) ? List.of(change1, change2, change3) : List.of(change3, change2, change1);
-        final var expectedPage0 = orderedAll.subList(0, LIMIT);
-        final var expectedPage1 = orderedAll.subList(LIMIT, orderedAll.size());
-
-        // when
-        final var page0Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        timestamps,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        timestamps,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).descending()));
-
-        final var page1Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        timestamps,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyForKeyListAndTimestampListOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        timestamps,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).descending()));
-
-        // then
-        assertThat(page0Result).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-        assertThat(page1Result).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {ASC, DESC})
     void findLatestChangePerKeyInTimestampRangeForKeysRespectsOrderLimitAndPagination(String order) {
         // given
         final var change1 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_1, KEY_1);
@@ -200,59 +150,6 @@ public class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
                         keys,
                         TIMESTAMP_1,
                         TIMESTAMP_3,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).descending()));
-
-        // then
-        assertThat(page0Result).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-        assertThat(page1Result).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
-    }
-
-    @ParameterizedTest
-    @ValueSource(strings = {ASC, DESC})
-    void findLatestChangePerKeyForTimestampListAndKeyRangeRespectsOrderLimitAndPagination(String order) {
-        // given
-        final var change1 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_1, KEY_1);
-        final var change2 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_2, KEY_2);
-        final var change3 = persistChange(OWNER_ID_1, HOOK_ID_1, TIMESTAMP_3, KEY_3);
-
-        final var timestamps = List.of(TIMESTAMP_1, TIMESTAMP_2, TIMESTAMP_3);
-
-        final var orderedAll =
-                ASC.equalsIgnoreCase(order) ? List.of(change1, change2, change3) : List.of(change3, change2, change1);
-        final var expectedPage0 = orderedAll.subList(0, LIMIT);
-        final var expectedPage1 = orderedAll.subList(LIMIT, orderedAll.size());
-
-        // when
-        final var page0Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_3_BYTES,
-                        timestamps,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_3_BYTES,
-                        timestamps,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).descending()));
-
-        final var page1Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_3_BYTES,
-                        timestamps,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyForTimestampListAndKeyRangeOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_3_BYTES,
-                        timestamps,
                         PageRequest.of(1, LIMIT, Sort.by(KEY).descending()));
 
         // then
