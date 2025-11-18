@@ -89,9 +89,9 @@ jobs:
           set -ex
 
           TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
-          [[ "$TAG" != *SNAPSHOT ]] && BASE="v$TAG" || true
+          [[ "$TAG" != *SNAPSHOT ]] && BASE="v$TAG" || BASE=""
 
-          git describe --exact-match HEAD 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || true
+          git describe --exact-match HEAD 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || TRIGGERED_BY_TAG=false
 
           echo "BASE=${BASE}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
@@ -99,7 +99,7 @@ jobs:
 
           if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
             # wait for images becoming ready if it's a tagged commit
-            for module in grpc importer rest rest-java test web3; do
+            for module in grpc importer monitor rest rest-java test web3; do
               while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-$module:$TAG" >/dev/null 2>&1; do
                 sleep 10
               done
@@ -117,6 +117,8 @@ jobs:
             - 'grpc/**'
             importer:
             - 'importer/**'
+            monitor:
+            - 'monitor/**'
             rest:
             - 'rest/!(check-state-proof|monitoring)?(/**)'
             rest-java:
@@ -131,13 +133,8 @@ jobs:
         run: |
           set -ex
           echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
-            if [[ "$module" != "rest" ]]; then
-              ./gradlew "$module":build -x test
-            fi
-
-            IMAGE_NAME="gcr.io/mirrornode/hedera-mirror-$module:$TAG"
-            docker build -t "$IMAGE_NAME" ./"$module"
-            kind load docker-image "$IMAGE_NAME" -n "${SOLO_CLUSTER_NAME}"
+            ./gradlew ":${module}:dockerBuild" -x :rest:monitoring:dockerBuild -PimageTag="${TAG}"
+            kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" -n "${SOLO_CLUSTER_NAME}"
           done
 
       - name: Setup Solo Cluster
