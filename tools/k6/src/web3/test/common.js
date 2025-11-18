@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {check, sleep} from 'k6';
-import {vu} from 'k6/execution';
+import {vu, scenario as k6Scenario} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
 
@@ -62,6 +62,20 @@ const loadVuDataOrDefault = (filepath, key) =>
     return key in data ? data[key] : [];
   });
 
+function sanitizeScenarioName(name) {
+  // k6 requires [0-9A-Za-z_-]
+  return name.replace(/[^0-9A-Za-z_-]/g, '_');
+}
+
+function getHistoricalBlock() {
+  const n = 81374986;
+  return '0x' + n.toString(16);
+}
+
+function getMixedBlocks() {
+  return ['latest', getHistoricalBlock()];
+}
+
 function ContractCallTestScenarioBuilder() {
   this._args = null;
   this._name = null;
@@ -72,7 +86,7 @@ function ContractCallTestScenarioBuilder() {
   this._vuData = null;
   this._shouldRevert = false;
 
-  this._block = 'latest';
+  this._blocks = ['latest'];
   this._data = null;
   this._estimate = null;
   this._from = null;
@@ -83,46 +97,73 @@ function ContractCallTestScenarioBuilder() {
 
   this.build = function () {
     const that = this;
-    return {
-      options: utils.getOptionsWithScenario(that._name, that._scenario, that._tags),
-      run: function (testParameters) {
-        let sleepSecs = 0;
-        const payload = {
-          to: that._to,
-          estimate: that._estimate || false, // Set default to false
-          value: that._value,
-          from: that._from,
-        };
 
-        if (that._selector && that._args) {
-          payload.data = that._selector + that._args;
-        } else {
-          const {_vuData: vuData} = that;
-          const data = vuData
-            ? Object.assign({}, defaultVuData, vuData[vu.idInTest % vuData.length])
-            : {
-                block: that._block,
-                data: that._data,
-                gas: that._gas,
-                from: that._from,
-                value: that._value,
-              };
-          sleepSecs = data.sleep;
-          delete data.sleep;
+    // Ensure we always operate in multi-block mode: if not provided, default to mixed blocks
+    if (!that._blocks || that._blocks.length === 0) {
+      that._blocks = getMixedBlocks();
+    }
 
-          Object.assign(payload, data);
-        }
+    // Create separate scenarios per provided block
+    let combinedOptions = null;
+    for (let i = 0; i < that._blocks.length; i++) {
+      const block = that._blocks[i];
+      const sanitized = sanitizeScenarioName(String(block));
+      const scenarioName = `${that._name}-${sanitized}`;
+      const tags = Object.assign({}, that._tags, {test: that._name, block});
+      const options = utils.getOptionsWithScenario(scenarioName, that._scenario, tags);
+      if (!combinedOptions) {
+        combinedOptions = options;
+      } else {
+        combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
+      }
+    }
 
-        const response = jsonPost(that._url, JSON.stringify(payload));
-        check(response, {
-          [`${that._name}`]: (r) => (that._shouldRevert ? !isNonErrorResponse(r) : isNonErrorResponse(r)),
-        });
+    const run = function () {
+      const active = k6Scenario.name;
+      const scenarioDef = combinedOptions.scenarios[active] || {};
+      const scenarioTags = scenarioDef.tags || {};
+      const activeBlock = scenarioTags.block || 'latest';
 
-        if (sleepSecs > 0) {
-          sleep(sleepSecs);
-        }
-      },
+      let sleepSecs = 0;
+      const payload = {
+        to: that._to,
+        estimate: that._estimate || false,
+        value: that._value,
+        from: that._from,
+        block: activeBlock,
+      };
+
+      if (that._selector && that._args) {
+        payload.data = that._selector + that._args;
+      } else {
+        const {_vuData: vuData} = that;
+        const data = vuData
+          ? Object.assign({}, defaultVuData, vuData[vu.idInTest % vuData.length])
+          : {
+              block: activeBlock,
+              data: that._data,
+              gas: that._gas,
+              from: that._from,
+              value: that._value,
+            };
+        sleepSecs = data.sleep;
+        delete data.sleep;
+
+        Object.assign(payload, data);
+        payload.block = activeBlock;
+      }
+
+      const response = jsonPost(that._url, JSON.stringify(payload));
+      check(response, {
+        [`${k6Scenario.name}`]: (r) => (that._shouldRevert ? !isNonErrorResponse(r) : isNonErrorResponse(r)),
+      });
+
+      if (sleepSecs > 0) {
+        sleep(sleepSecs);
+      }
     };
+
+    return {options: combinedOptions, run};
   };
 
   // Common methods
@@ -157,9 +198,8 @@ function ContractCallTestScenarioBuilder() {
     return this;
   };
 
-  // Methods specific to eth_estimateGas
-  this.block = function (block) {
-    this._block = block;
+  this.blocks = function (blocks) {
+    this._blocks = Array.isArray(blocks) ? blocks : [blocks];
     return this;
   };
 
@@ -198,12 +238,14 @@ function ContractCallTestScenarioBuilder() {
     return this;
   };
 
-  this.estimate = function (estimate) {
-    this._estimate = estimate;
-    return this;
-  };
-
   return this;
 }
 
-export {isNonErrorResponse, isValidListResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder};
+export {
+  isNonErrorResponse,
+  isValidListResponse,
+  jsonPost,
+  loadVuDataOrDefault,
+  ContractCallTestScenarioBuilder,
+  getMixedBlocks,
+};

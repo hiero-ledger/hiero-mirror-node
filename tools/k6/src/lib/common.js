@@ -268,6 +268,13 @@ function markdownReport(data, includeUrlColumn, funcs, scenarios, getUrlFuncs = 
     scenarioMetrics[scenario] = Object.assign(existingMetrics, {[name]: value});
   }
 
+  // ensure every configured scenario appears in the report, even if it produced no metrics
+  for (const name of Object.keys(scenarios)) {
+    if (!scenarioMetrics[name]) {
+      scenarioMetrics[name] = defaultMetrics();
+    }
+  }
+
   const scenarioUrls = {};
   if (includeUrlColumn) {
     for (const [name, scenario] of Object.entries(scenarios)) {

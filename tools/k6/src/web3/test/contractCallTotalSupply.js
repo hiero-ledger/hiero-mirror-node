@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractCallTestScenarioBuilder} from './common.js';
+import {ContractCallTestScenarioBuilder, getMixedBlocks} from './common.js';
 
 const contract = __ENV.ERC_CONTRACT_ADDRESS;
 const selector = '0xe4dc2aa4';
@@ -11,6 +11,7 @@ const {options, run} = new ContractCallTestScenarioBuilder()
   .selector(selector)
   .args([token])
   .to(contract)
+  .blocks(getMixedBlocks())
   .build();
 
 export {options, run};
