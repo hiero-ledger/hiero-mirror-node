@@ -8,7 +8,7 @@ import {SharedArray} from 'k6/data';
 import * as utils from '../../lib/common.js';
 
 const defaultVuData = {
-  block: '',
+  blocks: ['latest'],
   data: '',
   to: '',
   gas: 0,
@@ -67,13 +67,26 @@ function sanitizeScenarioName(name) {
   return name.replace(/[^0-9A-Za-z_-]/g, '_');
 }
 
-function getHistoricalBlock() {
-  const n = 81374986;
-  return '0x' + n.toString(16);
+const HISTORICAL_BLOCK_NUMBER = __ENV.HISTORICAL_BLOCK_NUMBER || 'earliest';
+
+function toHexBlockNumber(value) {
+  const v = (value ?? '').toString().trim();
+  if (v === '' || v === 'earliest' || v === 'latest' || v === 'pending' || /^0x[0-9a-fA-F]+$/.test(v)) {
+    return v === '' ? 'earliest' : v;
+  }
+  // If purely decimal digits, convert to 0x-prefixed hex
+  if (/^\d+$/.test(v)) {
+    const n = parseInt(v, 10);
+    if (!Number.isNaN(n)) {
+      return '0x' + n.toString(16);
+    }
+  }
+
+  return 'earliest';
 }
 
 function getMixedBlocks() {
-  return ['latest', getHistoricalBlock()];
+  return ['latest', toHexBlockNumber(HISTORICAL_BLOCK_NUMBER)];
 }
 
 function ContractCallTestScenarioBuilder() {

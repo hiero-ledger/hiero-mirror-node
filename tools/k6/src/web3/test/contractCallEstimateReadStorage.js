@@ -9,15 +9,15 @@ const data = __ENV.STORAGE_SLOTS_CALLDATA;
 const testName = 'estimateReadStorageSlots';
 
 // If RUN_WITH_VARIABLES=false, use the generic estimate template; otherwise build from provided ENV variables
-const {options} =
+const {options, run} =
   runMode === 'false'
     ? new ContractCallEstimateTestTemplate(testName, false)
     : new ContractCallTestScenarioBuilder()
         .name(testName) // use unique scenario name among all tests
         .data(data)
         .to(contract)
-        // .blocks(getMixedBlocks())
+        .blocks(getMixedBlocks())
         .estimate(true)
         .build();
 
-export {options};
+export {options, run};
