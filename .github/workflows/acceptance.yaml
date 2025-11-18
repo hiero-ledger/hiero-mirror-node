@@ -109,7 +109,7 @@ jobs:
       - name: Find changed modules
         id: changeset
         if: env.TRIGGERED_BY_TAG != 'true'
-        uses: step-security/paths-filter@v3
+        uses: step-security/paths-filter@6eee183b0d2fd101d3f8ee2935c127bca14c5625 # v3.0.5
         with:
           base: ${{ env.BASE }}
           filters: |
