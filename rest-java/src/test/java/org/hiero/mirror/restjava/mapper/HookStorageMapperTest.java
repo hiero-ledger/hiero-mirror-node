@@ -37,9 +37,9 @@ public class HookStorageMapperTest {
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getKey()).isEqualTo("00000000000000000000000000000000000000000000000000000000000003e7");
+        assertThat(result.getKey()).isEqualTo("0x00000000000000000000000000000000000000000000000000000000000003e7");
         assertThat(result.getTimestamp()).isEqualTo("1726874345.123456789");
-        assertThat(result.getValue()).isEqualTo("03e8");
+        assertThat(result.getValue()).isEqualTo("0x03e8");
     }
 
     @Test

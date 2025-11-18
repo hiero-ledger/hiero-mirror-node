@@ -486,7 +486,7 @@ final class HooksControllerTest extends ControllerTest {
 
             final var links = new Links();
             final var nextLink = String.format(
-                    "/api/v1/accounts/%d/hooks/%d/storage?limit=%d&order=%s&key=%s:%s",
+                    "/api/v1/accounts/%d/hooks/%d/storage?limit=%d&order=%s&key=%s:0x%s",
                     OWNER_ID, HOOK_ID, limit, order, operator, Hex.encodeHexString(lastHookStorage.getKey()));
             links.setNext(nextLink);
             expectedResponse.setLinks(links);
@@ -578,7 +578,7 @@ final class HooksControllerTest extends ControllerTest {
 
                 final var links = new Links();
                 final var next = String.format(
-                        "/api/v1/accounts/%d/hooks/%d/storage?limit=%d&order=%s&timestamp=%s&key=%s:%s",
+                        "/api/v1/accounts/%d/hooks/%d/storage?limit=%d&order=%s&timestamp=%s&key=%s:0x%s",
                         OWNER_ID,
                         HOOK_ID,
                         limit,
