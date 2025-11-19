@@ -150,36 +150,39 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                     Long createdTimestamp = entity.getCreatedTimestamp();
                     if (createdTimestamp == null || t >= createdTimestamp) {
                         long treasuryAccountId = systemEntity.treasuryAccount().getId();
-                        return accountBalanceRepository
+                        final var historicalBalance = accountBalanceRepository
                                 .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t, treasuryAccountId)
                                 .orElse(0L);
+                        return getBalanceOrDefaultToMinimum(entity, historicalBalance);
                     } else {
-                        return 0L;
+                        return getBalanceOrDefaultToMinimum(entity, 0L);
                     }
                 })
                 .orElseGet(() -> {
-                    final Long currentBalance = entity.getBalance();
-                    if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
-                        return Objects.requireNonNullElse(currentBalance, 0L);
-                    }
-
-                    final ContractCallContext context = ContractCallContext.get();
-                    final boolean isBalanceCall = context.isBalanceCallSafe();
-                    final long minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
-
-                    try {
-                        // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
-                        if (!isBalanceCall
-                                && entity.getType() != CONTRACT
-                                && (currentBalance == null || currentBalance < minimumBalance)) {
-                            return minimumBalance;
-                        }
-                        return currentBalance;
-                    } finally {
-                        // Always reset the balanceCall flag
-                        context.setBalanceCall(false);
-                    }
+                    final var currentBalance = entity.getBalance();
+                    return getBalanceOrDefaultToMinimum(entity, currentBalance);
                 }));
+    }
+
+    private Long getBalanceOrDefaultToMinimum(final Entity entity, final Long balance) {
+        if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
+            return Objects.requireNonNullElse(balance, 0L);
+        }
+
+        final ContractCallContext context = ContractCallContext.get();
+        final var isBalanceCall = context.isBalanceCallSafe();
+        final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
+
+        try {
+            // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
+            if (!isBalanceCall && entity.getType() != CONTRACT && (balance == null || balance < minimumBalance)) {
+                return minimumBalance;
+            }
+            return balance;
+        } finally {
+            // Always reset the balanceCall flag
+            context.setBalanceCall(false);
+        }
     }
 
     private Supplier<List<AccountCryptoAllowance>> getCryptoAllowances(
