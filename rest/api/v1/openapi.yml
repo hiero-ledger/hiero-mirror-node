@@ -3756,7 +3756,6 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
-        - NODE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
@@ -3787,7 +3786,6 @@ components:
         - TOKENUPDATENFTS
         - TOKENWIPE
         - UNCHECKEDSUBMIT
-        - UNKNOWN
         - UTILPRNG
     Tokens:
       type: array
@@ -5111,7 +5109,7 @@ components:
     transactionTypeQueryParam:
       name: transactiontype
       in: query
-      example: cryptotransfer
+      example:
       schema:
         $ref: "#/components/schemas/TransactionTypes"
     transactionIdPathParam:

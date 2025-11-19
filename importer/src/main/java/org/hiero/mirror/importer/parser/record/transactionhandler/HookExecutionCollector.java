@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.domain.transaction;
+package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.hederahashgraph.api.proto.java.HookCall;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.common.domain.hook.AbstractHook;
+import org.jspecify.annotations.NullMarked;
 
 /**
  * Collects hook IDs for different execution phases and provides methods to build the final execution queue.
@@ -17,7 +18,8 @@ import org.hiero.mirror.common.domain.hook.AbstractHook;
  * <p>
  * The execution order is: allowExecHookIds → allowPreExecHookIds → allowPostExecHookIds
  */
-public record HookExecutionCollector(
+@NullMarked
+record HookExecutionCollector(
         List<AbstractHook.Id> allowExecHookIds,
         List<AbstractHook.Id> allowPreExecHookIds,
         List<AbstractHook.Id> allowPostExecHookIds) {
@@ -25,7 +27,7 @@ public record HookExecutionCollector(
     /**
      * Creates a new HookExecutionCollector with empty lists.
      */
-    public static HookExecutionCollector create() {
+    static HookExecutionCollector create() {
         return new HookExecutionCollector(new ArrayList<>(), new ArrayList<>(), new ArrayList<>());
     }
 
@@ -34,13 +36,11 @@ public record HookExecutionCollector(
      *
      * @param hookCall the hook call to add
      * @param ownerId  the owner ID for the hook
-     * @return this collector for method chaining
      */
-    public HookExecutionCollector addAllowExecHook(HookCall hookCall, long ownerId) {
+    void addAllowExecHook(HookCall hookCall, long ownerId) {
         if (hookCall.hasHookId()) {
             allowExecHookIds.add(new AbstractHook.Id(hookCall.getHookId(), ownerId));
         }
-        return this;
     }
 
     /**
@@ -48,15 +48,13 @@ public record HookExecutionCollector(
      *
      * @param hookCall the hook to add
      * @param ownerId  the owner ID for the hook
-     * @return this collector for method chaining
      */
-    public HookExecutionCollector addPrePostExecHook(HookCall hookCall, long ownerId) {
+    void addPrePostExecHook(HookCall hookCall, long ownerId) {
         if (hookCall.hasHookId()) {
-            var hookIdObj = new AbstractHook.Id(hookCall.getHookId(), ownerId);
-            allowPreExecHookIds.add(hookIdObj);
-            allowPostExecHookIds.add(hookIdObj);
+            final var hookId = new AbstractHook.Id(hookCall.getHookId(), ownerId);
+            allowPreExecHookIds.add(hookId);
+            allowPostExecHookIds.add(hookId);
         }
-        return this;
     }
 
     /**
@@ -65,8 +63,8 @@ public record HookExecutionCollector(
      *
      * @return ArrayDeque containing all hook IDs in execution order
      */
-    public ArrayDeque<AbstractHook.Id> buildExecutionQueue() {
-        var hookExecutionQueue = new ArrayDeque<AbstractHook.Id>();
+    ArrayDeque<AbstractHook.Id> buildExecutionQueue() {
+        final var hookExecutionQueue = new ArrayDeque<AbstractHook.Id>();
         hookExecutionQueue.addAll(allowExecHookIds);
         hookExecutionQueue.addAll(allowPreExecHookIds);
         hookExecutionQueue.addAll(allowPostExecHookIds);

@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
+import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
 
 import com.google.common.io.BaseEncoding;
 import java.text.MessageFormat;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
@@ -85,10 +87,11 @@ final class HooksControllerTest extends ControllerTest {
             expectedResponse.setLinks(new Links());
 
             // when
-            final var actual = restClient.get().uri("", address).retrieve().body(HooksResponse.class);
+            final var actual = restClient.get().uri("", address).retrieve().toEntity(HooksResponse.class);
 
             // then
-            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
+            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
+            assertThat(actual.getHeaders()).doesNotContainKey(HttpHeaders.LINK);
         }
 
         @Test
@@ -142,11 +145,12 @@ final class HooksControllerTest extends ControllerTest {
                             .queryParam("order", order)
                             .build(Map.of("account_id", ACCOUNT_ID)))
                     .retrieve()
-                    .body(HooksResponse.class);
+                    .toEntity(HooksResponse.class);
 
             // then
-            assertThat(actual).isNotNull().isEqualTo(expectedResponse);
-            assertThat(actual.getHooks()).hasSize(limit);
+            assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
+            assertThat(actual.getBody().getHooks()).hasSize(limit);
+            assertThat(actual.getHeaders()).containsEntry(HttpHeaders.LINK, List.of(LINK_HEADER.formatted(nextLink)));
         }
 
         @ParameterizedTest

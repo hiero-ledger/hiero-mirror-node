@@ -63,7 +63,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
     @Test
     void getEntityWithAccount() {
-        final var recordItem = recordItemBuilder.lambdaSstore().build();
+        final var recordItem = recordItemBuilder.lambdaSStore().build();
         final var account = recordItem
                 .getTransactionBody()
                 .getLambdaSstore()
@@ -82,7 +82,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
         final var contract = recordItemBuilder.contractId();
 
         final var recordItem = recordItemBuilder
-                .lambdaSstore()
+                .lambdaSStore()
                 .transactionBody(b -> b.setHookId(HookId.newBuilder()
                         .setEntityId(HookEntityId.newBuilder().setContractId(contract))))
                 .build();
@@ -95,7 +95,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
     @Test
     void processSlotUpdates() {
-        final var recordItem = recordItemBuilder.lambdaSstore().build();
+        final var recordItem = recordItemBuilder.lambdaSStore().build();
         final var body = recordItem.getTransactionBody().getLambdaSstore();
         final var hookIdEntityId = body.getHookId();
 

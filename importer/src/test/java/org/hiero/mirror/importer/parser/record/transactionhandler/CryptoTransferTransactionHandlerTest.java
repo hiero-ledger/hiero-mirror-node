@@ -26,7 +26,8 @@ import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class CryptoTransferTransactionHandlerTest extends AbstractTransactionHandlerTest {
+
     @Override
     protected TransactionHandler getTransactionHandler() {
         return new CryptoTransferTransactionHandler(entityIdService);
