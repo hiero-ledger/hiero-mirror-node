@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {PrecompileModificationTestTemplate} from '../commonPrecompileModificationFunctionsTemplate.js';
-import {ContractCallTestScenarioBuilder} from '../common.js';
+import {ContractCallTestScenarioBuilder, getMixedBlocks} from '../common.js';
 
 const contract = __ENV.COMPLEX_FUNCTIONS_CONTRACT_ADDRESS;
 const firstReceiver = __ENV.RECEIVER_ADDRESS;
@@ -42,7 +42,7 @@ const {options, run} =
         .from(payer)
         .value(933333333) // Value is needed because the first operation in the contract call is token create
         .to(contract)
-        .block('latest')
+        .blocks(getMixedBlocks())
         .build();
 
 export {options, run};

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {PrecompileModificationTestTemplate} from '../commonPrecompileModificationFunctionsTemplate.js';
-import {ContractCallTestScenarioBuilder} from '../common.js';
+import {ContractCallTestScenarioBuilder, getMixedBlocks} from '../common.js';
 
 const contract = __ENV.ESTIMATE_PRECOMPILE_CONTRACT;
 const account = __ENV.SPENDER_ADDRESS;
@@ -19,6 +19,7 @@ const {options, run} =
         .selector(selector)
         .args([account, token])
         .to(contract)
+        .blocks(getMixedBlocks())
         .build();
 
 export {options, run};
