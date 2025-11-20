@@ -34,6 +34,7 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
+import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
 
 @CustomLog
@@ -207,7 +208,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         void onEndOfBlock(final BlockEnd blockEnd) {
             final long blockNumber = blockEnd.getBlockNumber();
             if (pending.isEmpty()) {
-                log.warn(
+                Utility.handleRecoverableError(
                         "Received end-of-block message for block {} while there's no pending block items", blockNumber);
                 return;
             }
@@ -215,7 +216,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var firstBlockItem = pending.getFirst().getFirst();
             if (firstBlockItem.getItemCase() == BLOCK_HEADER
                     && firstBlockItem.getBlockHeader().getNumber() != blockNumber) {
-                log.warn(
+                Utility.handleRecoverableError(
                         "Block number mismatch in BlockHeader({}) and EndOfBlock({})",
                         firstBlockItem.getBlockHeader().getNumber(),
                         blockNumber);
