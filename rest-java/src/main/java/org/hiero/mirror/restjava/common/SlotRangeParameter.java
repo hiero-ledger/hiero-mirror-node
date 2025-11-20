@@ -9,51 +9,46 @@ import org.apache.commons.lang3.StringUtils;
 public record SlotRangeParameter(RangeOperator operator, String value) implements RangeParameter<String> {
 
     public static final SlotRangeParameter EMPTY = new SlotRangeParameter(RangeOperator.UNKNOWN, "");
-    private static final Pattern SLOT_PATTERN = Pattern.compile("^((eq|gt|gte|lt|lte):)?(0x)?[0-9a-fA-F]{1,64}$");
+    private static final String HEX_GROUP_NAME = "hex";
+    private static final String OPERATOR_GROUP_NAME = "op";
+    private static final Pattern SLOT_PATTERN =
+            Pattern.compile("^(?:(?<op>eq|gt|gte|lt|lte):)?(?<hex>(?:0x)?[0-9a-fA-F]{1,64})$");
 
     public static SlotRangeParameter valueOf(String valueRangeParam) {
         if (StringUtils.isBlank(valueRangeParam)) {
             return EMPTY;
         }
 
-        if (!SLOT_PATTERN.matcher(valueRangeParam).matches()) {
-            throw new IllegalArgumentException(
-                    "Invalid key format: " + valueRangeParam + " must match <hex> or <op>:<64 or less char hex>");
+        final var matcher = SLOT_PATTERN.matcher(valueRangeParam);
+        if (!matcher.matches()) {
+            throw new IllegalArgumentException("Invalid storage slot. Must match pattern " + SLOT_PATTERN);
         }
 
-        var splitVal = valueRangeParam.split(":");
+        final var operatorGroup = matcher.group(OPERATOR_GROUP_NAME);
+        final var hexGroup = matcher.group(HEX_GROUP_NAME);
 
-        RangeOperator operator;
-        String hex;
-        if (splitVal.length == 1) {
-            operator = RangeOperator.EQ;
-            hex = normalizeHexKey(splitVal[0]);
-        } else {
-            operator = RangeOperator.of(splitVal[0]);
-            hex = normalizeHexKey(splitVal[1]);
-        }
+        final var operator = (operatorGroup == null) ? RangeOperator.EQ : RangeOperator.of(operatorGroup);
+        final var hex = normalizeHexKey(hexGroup);
 
-        return switch (operator) {
-            case RangeOperator.EQ -> new SlotRangeParameter(RangeOperator.EQ, hex);
-            case RangeOperator.GT, RangeOperator.GTE ->
-                new SlotRangeParameter(RangeOperator.GTE, getInclusiveValue(operator, hex));
-            case RangeOperator.LT, RangeOperator.LTE ->
-                new SlotRangeParameter(RangeOperator.LTE, getInclusiveValue(operator, hex));
-            default -> throw new IllegalStateException("Unsupported value for operator: " + operator);
-        };
+        return new SlotRangeParameter(operator.toInclusive(), getInclusiveValue(operator, hex));
     }
 
     private static String normalizeHexKey(String hexValue) {
-        final var hex = hexValue.replaceFirst("^(0x|0X)", "");
+        final var hex = hexValue.toLowerCase().startsWith("0x") ? hexValue.substring(2) : hexValue;
+
         return StringUtils.leftPad(hex, 64, '0');
     }
 
     private static String getInclusiveValue(RangeOperator operator, String hexValue) {
+        if (operator != RangeOperator.GT && operator != RangeOperator.LT) {
+            return hexValue;
+        }
+
         var value = new BigInteger(hexValue, 16);
 
         if (operator == RangeOperator.GT) {
             value = value.add(BigInteger.ONE);
-        } else if (operator == RangeOperator.LT) {
+        } else {
             value = value.subtract(BigInteger.ONE);
         }
 

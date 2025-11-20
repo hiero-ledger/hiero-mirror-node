@@ -3,7 +3,6 @@
 package org.hiero.mirror.restjava.controller;
 
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
-import static org.hiero.mirror.restjava.utils.RangeHelper.timestampBound;
 
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +14,7 @@ import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
+import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.FileService;
 import org.hiero.mirror.restjava.service.NetworkService;
 import org.springframework.data.domain.Sort;
@@ -37,7 +37,7 @@ final class NetworkController {
     @GetMapping("/exchangerate")
     NetworkExchangeRateSetResponse getExchangeRate(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp) {
-        final var bound = timestampBound(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
+        final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var exchangeRateSet = fileService.getExchangeRate(bound);
         return exchangeRateMapper.map(exchangeRateSet);
     }
@@ -46,7 +46,7 @@ final class NetworkController {
     NetworkFeesResponse getFees(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
             @RequestParam(required = false, defaultValue = "ASC") Sort.Direction order) {
-        final var bound = timestampBound(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
+        final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var feeSchedule = fileService.getFeeSchedule(bound);
         final var exchangeRate = fileService.getExchangeRate(bound);
         return feeScheduleMapper.map(feeSchedule, exchangeRate, order);

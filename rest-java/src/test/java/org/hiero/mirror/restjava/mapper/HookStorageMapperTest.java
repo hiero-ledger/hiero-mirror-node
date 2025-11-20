@@ -6,10 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-public class HookStorageMapperTest {
+final class HookStorageMapperTest {
+    private final DomainBuilder domainBuilder = new DomainBuilder();
     private CommonMapper commonMapper;
     private HookStorageMapper mapper;
 
@@ -22,38 +25,36 @@ public class HookStorageMapperTest {
     @Test
     void map() throws DecoderException {
         // given
-        final var source = new org.hiero.mirror.common.domain.hook.HookStorage();
-        source.setCreatedTimestamp(1234567890000000000L);
-        source.setDeleted(false);
-        source.setHookId(10L);
-        source.setOwnerId(200L);
-
-        source.setKey(Hex.decodeHex("03e7"));
-        source.setModifiedTimestamp(1726874345123456789L);
-        source.setValue(Hex.decodeHex("00000000000000000000000000000000000000000000000000000000000003e8"));
+        final byte[] key = Hex.decodeHex("03e7");
+        final byte[] value = Hex.decodeHex("03e8");
+        final var hookStorage = domainBuilder
+                .hookStorage()
+                .customize(
+                        h -> h.key(key).modifiedTimestamp(1726874345123456789L).value(value))
+                .get();
 
         // when
-        final var result = mapper.map(source);
+        final var result = mapper.map(hookStorage);
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.getKey()).isEqualTo("0x00000000000000000000000000000000000000000000000000000000000003e7");
         assertThat(result.getTimestamp()).isEqualTo("1726874345.123456789");
-        assertThat(result.getValue()).isEqualTo("0x03e8");
+        assertThat(result.getValue()).isEqualTo("0x00000000000000000000000000000000000000000000000000000000000003e8");
     }
 
     @Test
     void mapNulls() {
         // given
-        final var source = new org.hiero.mirror.common.domain.hook.HookStorage();
+        final var hookStorage = new HookStorage();
 
         // when
-        final var result = mapper.map(source);
+        final var result = mapper.map(hookStorage);
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.getKey()).isNull();
-        assertThat(result.getTimestamp()).isEqualTo("0.0");
+        assertThat(result.getTimestamp()).isNull();
         assertThat(result.getValue()).isNull();
     }
 }

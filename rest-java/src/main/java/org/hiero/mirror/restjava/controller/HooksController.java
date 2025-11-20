@@ -9,19 +9,19 @@ import static org.hiero.mirror.restjava.common.Constants.KEY;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
-import static org.hiero.mirror.restjava.utils.RangeHelper.timestampBound;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
-import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.HookStorage;
 import org.hiero.mirror.rest.model.HooksResponse;
@@ -37,6 +37,7 @@ import org.hiero.mirror.restjava.jooq.domain.tables.HookStorageChange;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
+import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.HookService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.PageRequest;
@@ -56,13 +57,20 @@ import org.web3j.utils.Numeric;
 @RestController
 final class HooksController {
 
-    public static final BigInteger MAX_KEY_SIZE = BigInteger.ONE.shiftLeft(256).subtract(BigInteger.ONE);
+    private static final int KEY_BYTE_LENGTH = 32;
+    private static final byte[] MIN_KEY_BYTES = new byte[KEY_BYTE_LENGTH]; // A 32-byte array of 0x00
+    private static final byte[] MAX_KEY_BYTES;
 
     private static final Function<Hook, Map<String, String>> HOOK_EXTRACTOR =
             hook -> ImmutableSortedMap.of(HOOK_ID, hook.getHookId().toString());
 
     private static final Function<HookStorage, Map<String, String>> HOOK_STORAGE_EXTRACTOR =
             hook -> ImmutableSortedMap.of(KEY, hook.getKey());
+
+    static {
+        MAX_KEY_BYTES = new byte[KEY_BYTE_LENGTH];
+        Arrays.fill(MAX_KEY_BYTES, (byte) 0xFF); // A 32-byte array of 0xFF
+    }
 
     private final HookService hookService;
     private final HookMapper hookMapper;
@@ -156,39 +164,40 @@ final class HooksController {
             int limit,
             Direction order) {
         final var keyFilters = new TreeSet<String>();
-        var lowerBound = BigInteger.ZERO;
-        var upperBound = MAX_KEY_SIZE;
+
+        var lowerBound = MIN_KEY_BYTES;
+        var upperBound = MAX_KEY_BYTES;
 
         for (final var key : keys) {
             if (key.operator() == RangeOperator.EQ) {
                 keyFilters.add(key.value());
-            } else if (key.hasLowerBound()) {
-                lowerBound = lowerBound.max(new BigInteger(key.value(), 16));
-            } else if (key.hasUpperBound()) {
-                upperBound = upperBound.min(new BigInteger(key.value(), 16));
+            } else {
+                var keyBytes = Numeric.hexStringToByteArray(key.value());
+                keyBytes = DomainUtils.leftPadBytes(keyBytes, KEY_BYTE_LENGTH);
+
+                if (key.hasLowerBound()) {
+                    if (Arrays.compareUnsigned(keyBytes, lowerBound) > 0) {
+                        lowerBound = keyBytes;
+                    }
+                } else if (key.hasUpperBound()) {
+                    if (Arrays.compareUnsigned(keyBytes, upperBound) < 0) {
+                        upperBound = keyBytes;
+                    }
+                }
             }
         }
 
-        final var bound =
-                timestampBound(timestamps, TIMESTAMP, HookStorageChange.HOOK_STORAGE_CHANGE.CONSENSUS_TIMESTAMP);
-        final var timestampLowerBound = bound.getAdjustedLowerRangeValue();
-        final var timestampUpperBound = bound.adjustUpperBound();
+        final var bound = Bound.of(timestamps, TIMESTAMP, HookStorageChange.HOOK_STORAGE_CHANGE.CONSENSUS_TIMESTAMP);
 
         return HookStorageRequest.builder()
                 .hookId(hookId)
                 .keys(keyFilters)
                 .limit(limit)
-                .keyLowerBound(Numeric.hexStringToByteArray(zeroPadHex(lowerBound)))
-                .keyUpperBound(Numeric.hexStringToByteArray(zeroPadHex(upperBound)))
+                .keyLowerBound(lowerBound)
+                .keyUpperBound(upperBound)
                 .order(order)
                 .ownerId(ownerId)
                 .timestamp(bound)
-                .timestampLowerBound(timestampLowerBound)
-                .timestampUpperBound(timestampUpperBound)
                 .build();
-    }
-
-    private String zeroPadHex(BigInteger value) {
-        return String.format("%064x", value);
     }
 }

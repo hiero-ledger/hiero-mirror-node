@@ -13,6 +13,4 @@ public interface HookService {
     Collection<Hook> getHooks(HooksRequest hooksRequest);
 
     HookStorageResult getHookStorage(HookStorageRequest request);
-
-    HookStorageResult getHookStorageChange(HookStorageRequest request);
 }

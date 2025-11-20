@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
@@ -45,7 +46,7 @@ public interface CommonMapper {
         if (source == null) {
             return null;
         }
-        return Hex.encodeHexString(source);
+        return "0x" + StringUtils.leftPad(Hex.encodeHexString(source), 64, '0');
     }
 
     default String mapEntityId(Long source) {

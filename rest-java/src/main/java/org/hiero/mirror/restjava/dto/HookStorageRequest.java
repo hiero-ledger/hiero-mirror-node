@@ -27,16 +27,10 @@ public class HookStorageRequest {
     private final int limit = 25;
 
     @Builder.Default
-    private final Direction order = Direction.DESC;
+    private final Direction order = Direction.ASC;
 
     private final EntityIdParameter ownerId;
 
     @Builder.Default
     private final Bound timestamp = Bound.EMPTY;
-
-    @Builder.Default
-    private final long timestampLowerBound = 0L;
-
-    @Builder.Default
-    private final long timestampUpperBound = Long.MAX_VALUE;
 }

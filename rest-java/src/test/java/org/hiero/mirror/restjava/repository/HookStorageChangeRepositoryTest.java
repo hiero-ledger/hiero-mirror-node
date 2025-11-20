@@ -8,14 +8,16 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.common.Constants;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.web3j.utils.Numeric;
 
 @RequiredArgsConstructor
-public class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
+final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
     private final HookStorageChangeRepository repository;
 
@@ -63,41 +65,23 @@ public class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         final var expectedPage1 = orderedAll.subList(LIMIT, orderedAll.size());
 
         // when
-        final var page0Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_4_BYTES,
-                        TIMESTAMP_1,
-                        TIMESTAMP_4,
-                        PageRequest.of(0, LIMIT, sort))
-                : repository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_4_BYTES,
-                        TIMESTAMP_1,
-                        TIMESTAMP_4,
-                        PageRequest.of(0, LIMIT, sort));
+        final var page0Result = repository.findByKeyBetweenAndTimestampBetween(
+                OWNER_ID_1,
+                HOOK_ID_1,
+                KEY_1_BYTES,
+                KEY_4_BYTES,
+                TIMESTAMP_1,
+                TIMESTAMP_4,
+                PageRequest.of(0, LIMIT, sort));
 
-        final var page1Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_4_BYTES,
-                        TIMESTAMP_1,
-                        TIMESTAMP_4,
-                        PageRequest.of(1, LIMIT, sort))
-                : repository.findLatestChangePerKeyInTimestampRangeForKeyRangeOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        KEY_1_BYTES,
-                        KEY_4_BYTES,
-                        TIMESTAMP_1,
-                        TIMESTAMP_4,
-                        PageRequest.of(1, LIMIT, sort));
+        final var page1Result = repository.findByKeyBetweenAndTimestampBetween(
+                OWNER_ID_1,
+                HOOK_ID_1,
+                KEY_1_BYTES,
+                KEY_4_BYTES,
+                TIMESTAMP_1,
+                TIMESTAMP_4,
+                PageRequest.of(1, LIMIT, sort));
 
         // then
         assertThat(page0Result).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
@@ -119,38 +103,23 @@ public class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         final var expectedPage0 = orderedAll.subList(0, LIMIT);
         final var expectedPage1 = orderedAll.subList(LIMIT, orderedAll.size());
 
-        // when
-        final var page0Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        TIMESTAMP_1,
-                        TIMESTAMP_3,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        TIMESTAMP_1,
-                        TIMESTAMP_3,
-                        PageRequest.of(0, LIMIT, Sort.by(KEY).descending()));
+        final var sort = new Sort.Order(Direction.fromString(order), Constants.KEY);
 
-        final var page1Result = ASC.equalsIgnoreCase(order)
-                ? repository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyAsc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        TIMESTAMP_1,
-                        TIMESTAMP_3,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).ascending()))
-                : repository.findLatestChangePerKeyInTimestampRangeForKeysOrderByKeyDesc(
-                        OWNER_ID_1,
-                        HOOK_ID_1,
-                        keys,
-                        TIMESTAMP_1,
-                        TIMESTAMP_3,
-                        PageRequest.of(1, LIMIT, Sort.by(KEY).descending()));
+        // when
+        final var page0Result = repository.findByKeyInAndTimestampBetween(
+                OWNER_ID_1,
+                HOOK_ID_1,
+                keys,
+                TIMESTAMP_1,
+                TIMESTAMP_3,
+                PageRequest.of(0, LIMIT, sort.getDirection(), Constants.KEY));
+        final var page1Result = repository.findByKeyInAndTimestampBetween(
+                OWNER_ID_1,
+                HOOK_ID_1,
+                keys,
+                TIMESTAMP_1,
+                TIMESTAMP_3,
+                PageRequest.of(1, LIMIT, sort.getDirection(), Constants.KEY));
 
         // then
         assertThat(page0Result).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
