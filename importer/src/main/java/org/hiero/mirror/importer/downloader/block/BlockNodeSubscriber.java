@@ -2,9 +2,12 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.grpc.stub.BlockingClientCall;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -13,6 +16,7 @@ import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 final class BlockNodeSubscriber extends AbstractBlockSource implements AutoCloseable {
 
     private final List<BlockNode> nodes;
+    private final ExecutorService executor;
 
     BlockNodeSubscriber(
             BlockStreamReader blockStreamReader,
@@ -21,9 +25,10 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             ManagedChannelBuilderProvider channelBuilderProvider,
             BlockProperties properties) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
+        executor = Executors.newSingleThreadExecutor();
         nodes = properties.getNodes().stream()
-                .map(blockNodeProperties ->
-                        new BlockNode(channelBuilderProvider, blockNodeProperties, properties.getStream()))
+                .map(blockNodeProperties -> new BlockNode(
+                        channelBuilderProvider, this::drainGrpcBuffer, blockNodeProperties, properties.getStream()))
                 .sorted()
                 .toList();
     }
@@ -31,6 +36,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
     @Override
     public void close() {
         nodes.forEach(BlockNode::close);
+        executor.shutdown();
     }
 
     @Override
@@ -45,6 +51,18 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         var node = getNode(blockNumber);
         log.info("Start streaming block {} from {}", blockNumber, node);
         node.streamBlocks(blockNumber, commonDownloaderProperties, this::onBlockStream);
+    }
+
+    private void drainGrpcBuffer(BlockingClientCall<?, ?> grpcCall) {
+        executor.submit(() -> {
+            try {
+                while (grpcCall.read() != null) {
+                    log.debug("Drained grpc buffer");
+                }
+            } catch (Exception ex) {
+                log.debug("Exception when trying to drain grpc buffer", ex);
+            }
+        });
     }
 
     private BlockNode getNode(long blockNumber) {

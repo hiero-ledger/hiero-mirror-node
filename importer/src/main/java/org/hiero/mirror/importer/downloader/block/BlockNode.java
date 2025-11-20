@@ -41,8 +41,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
+
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
+    private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
     private final BlockNodeProperties properties;
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
@@ -52,6 +54,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     BlockNode(
             ManagedChannelBuilderProvider channelBuilderProvider,
+            Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer,
             BlockNodeProperties properties,
             StreamProperties streamProperties) {
         this.channel = channelBuilderProvider
@@ -59,6 +62,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 .maxInboundMessageSize(
                         (int) streamProperties.getMaxStreamResponseSize().toBytes())
                 .build();
+        this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
         this.streamProperties = streamProperties;
     }
@@ -144,7 +148,9 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             throw new BlockStreamException(ex);
         } finally {
             if (grpcCall.get() != null) {
-                grpcCall.get().cancel("unsubscribe", null);
+                final var call = grpcCall.get();
+                call.cancel("unsubscribe", null);
+                grpcBufferDisposer.accept(call);
             }
         }
     }
