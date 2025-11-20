@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.repository;
 
+import java.util.Collection;
 import java.util.List;
 import org.hiero.mirror.common.domain.hook.HookStorage.Id;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
@@ -46,7 +47,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
     List<HookStorageChange> findByKeyInAndTimestampBetween(
             long ownerId,
             long hookId,
-            List<byte[]> keys,
+            Collection<byte[]> keys,
             long timestampLowerBound,
             long timestampUpperBound,
             PageRequest pageable);

@@ -2,13 +2,14 @@
 
 package org.hiero.mirror.restjava.common;
 
-import java.math.BigInteger;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tomcat.util.buf.HexUtils;
+import org.hiero.mirror.common.util.DomainUtils;
 
-public record SlotRangeParameter(RangeOperator operator, String value) implements RangeParameter<String> {
+public record SlotRangeParameter(RangeOperator operator, byte[] value) implements RangeParameter<byte[]> {
 
-    public static final SlotRangeParameter EMPTY = new SlotRangeParameter(RangeOperator.UNKNOWN, "");
+    public static final SlotRangeParameter EMPTY = new SlotRangeParameter(RangeOperator.UNKNOWN, new byte[0]);
     private static final String HEX_GROUP_NAME = "hex";
     private static final String OPERATOR_GROUP_NAME = "op";
     private static final Pattern SLOT_PATTERN =
@@ -39,19 +40,49 @@ public record SlotRangeParameter(RangeOperator operator, String value) implement
         return StringUtils.leftPad(hex, 64, '0');
     }
 
-    private static String getInclusiveValue(RangeOperator operator, String hexValue) {
-        if (operator != RangeOperator.GT && operator != RangeOperator.LT) {
-            return hexValue;
-        }
-
-        var value = new BigInteger(hexValue, 16);
+    private static byte[] getInclusiveValue(RangeOperator operator, String hexValue) {
+        byte[] bytes = HexUtils.fromHexString(hexValue);
+        bytes = DomainUtils.leftPadBytes(bytes, 32);
 
         if (operator == RangeOperator.GT) {
-            value = value.add(BigInteger.ONE);
-        } else {
-            value = value.subtract(BigInteger.ONE);
+            return incrementByteArray(bytes);
+        } else if (operator == RangeOperator.LT) {
+            return decrementByteArray(bytes);
+        }
+        return bytes;
+    }
+
+    public static byte[] incrementByteArray(byte[] bytes) {
+        byte[] result = bytes.clone();
+
+        for (int i = result.length - 1; i >= 0; i--) {
+            int v = (result[i] & 0xFF) + 1;
+            result[i] = (byte) v;
+
+            if (v <= 0xFF) {
+                break;
+            }
+
+            result[i] = 0;
         }
 
-        return value.toString(16);
+        return result;
+    }
+
+    public static byte[] decrementByteArray(byte[] bytes) {
+        byte[] result = bytes.clone();
+
+        for (int i = result.length - 1; i >= 0; i--) {
+            int v = (result[i] & 0xFF) - 1;
+            result[i] = (byte) v;
+
+            if (v >= 0) {
+                break;
+            }
+
+            result[i] = (byte) 0xFF;
+        }
+
+        return result;
     }
 }

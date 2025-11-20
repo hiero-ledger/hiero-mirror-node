@@ -5,7 +5,7 @@ package org.hiero.mirror.restjava.service;
 import static org.hiero.mirror.restjava.common.Constants.CONSENSUS_TIMESTAMP;
 
 import jakarta.inject.Named;
-import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,6 @@ import org.hiero.mirror.restjava.repository.HookStorageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
-import org.web3j.utils.Numeric;
 
 @Named
 @RequiredArgsConstructor
@@ -77,11 +76,7 @@ final class HookServiceImpl implements HookService {
             return new HookStorageResult(ownerId, queryResult);
         }
 
-        final var keyBytesList =
-                keys.stream().map(Numeric::hexStringToByteArray).toList();
-
-        final var filteredKeys =
-                filterKeysInRange(keyBytesList, request.getKeyLowerBound(), request.getKeyUpperBound());
+        final var filteredKeys = filterKeysInRange(keys, request.getKeyLowerBound(), request.getKeyUpperBound());
 
         if (filteredKeys.isEmpty()) {
             return new HookStorageResult(ownerId, List.of());
@@ -102,15 +97,13 @@ final class HookServiceImpl implements HookService {
         final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
 
-        var keyEqualsList =
-                request.getKeys().stream().map(Numeric::hexStringToByteArray).toList();
         final byte[] keyLowerBound = request.getKeyLowerBound();
         final byte[] keyUpperBound = request.getKeyUpperBound();
 
-        final var filteredKeys =
-                keyEqualsList.isEmpty() ? List.of() : filterKeysInRange(keyEqualsList, keyLowerBound, keyUpperBound);
+        final var keys = request.getKeys();
+        final var filteredKeys = keys.isEmpty() ? List.of() : filterKeysInRange(keys, keyLowerBound, keyUpperBound);
 
-        if (filteredKeys.isEmpty() && !keyEqualsList.isEmpty()) {
+        if (filteredKeys.isEmpty() && !keys.isEmpty()) {
             return new HookStorageResult(ownerId, List.of());
         }
 
@@ -119,9 +112,9 @@ final class HookServiceImpl implements HookService {
 
         List<HookStorageChange> results;
 
-        if (!keyEqualsList.isEmpty()) {
+        if (!keys.isEmpty()) {
             results = hookStorageChangeRepository.findByKeyInAndTimestampBetween(
-                    ownerId.getId(), hookId, keyEqualsList, timestampLowerBound, timestampUpperBound, page);
+                    ownerId.getId(), hookId, keys, timestampLowerBound, timestampUpperBound, page);
         } else {
             results = hookStorageChangeRepository.findByKeyBetweenAndTimestampBetween(
                     ownerId.getId(),
@@ -138,14 +131,9 @@ final class HookServiceImpl implements HookService {
                 results.stream().map(c -> new HookStorage().hookStorage(c)).toList());
     }
 
-    private List<byte[]> filterKeysInRange(List<byte[]> keys, byte[] lower, byte[] upper) {
-        final var lowerBound = new BigInteger(1, lower);
-        final var upperBound = new BigInteger(1, upper);
+    private List<byte[]> filterKeysInRange(Collection<byte[]> keys, byte[] lower, byte[] upper) {
         return keys.stream()
-                .filter(k -> {
-                    final var keyAsBigInt = new BigInteger(1, k);
-                    return keyAsBigInt.compareTo(lowerBound) >= 0 && keyAsBigInt.compareTo(upperBound) <= 0;
-                })
+                .filter(key -> Arrays.compareUnsigned(key, lower) >= 0 && Arrays.compareUnsigned(key, upper) <= 0)
                 .toList();
     }
 }

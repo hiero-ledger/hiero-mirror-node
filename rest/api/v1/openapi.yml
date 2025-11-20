@@ -86,7 +86,7 @@ paths:
         - $ref: "#/components/parameters/hookIdPathParam"
         - $ref: "#/components/parameters/keyQueryParam"
         - $ref: "#/components/parameters/limitQueryParam"
-        - $ref: "#/components/parameters/orderQueryParamAsc"
+        - $ref: "#/components/parameters/orderQueryParam"
         - $ref: "#/components/parameters/timestampQueryParam"
       responses:
         "200":
@@ -1680,9 +1680,9 @@ components:
     HooksStorageResponse:
       type: object
       required:
-        - hookId
+        - hook_id
         - links
-        - ownerId
+        - owner_id
         - storage
       properties:
         hook_id:
@@ -4646,7 +4646,7 @@ components:
       schema:
         format: int64
         type: integer
-        minimum: 1
+        minimum: 0
         maximum: 9223372036854775807
       required: true
     keyQueryParam:
@@ -4767,14 +4767,6 @@ components:
         default: 0
         minimum: 0
     orderQueryParam:
-      name: order
-      in: query
-      description: The order in which items are listed
-      example: desc
-      schema:
-        enum: [asc, desc]
-        default: asc
-    orderQueryParamAsc:
       name: order
       in: query
       description: The order in which items are listed

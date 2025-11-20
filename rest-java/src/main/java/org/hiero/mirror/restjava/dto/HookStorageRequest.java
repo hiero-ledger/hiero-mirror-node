@@ -19,7 +19,7 @@ public class HookStorageRequest {
     private final byte[] keyLowerBound;
 
     @Builder.Default
-    private final Collection<String> keys = List.of();
+    private final Collection<byte[]> keys = List.of();
 
     private final byte[] keyUpperBound;
 

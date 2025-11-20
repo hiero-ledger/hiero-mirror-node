@@ -15,6 +15,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +50,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.web3j.utils.Numeric;
 
 @NullMarked
 @RequestMapping("/api/v1/accounts/{ownerId}/hooks")
@@ -163,17 +163,17 @@ final class HooksController {
             TimestampParameter[] timestamps,
             int limit,
             Direction order) {
-        final var keyFilters = new TreeSet<String>();
+        final var keyFilters = new ArrayList<byte[]>();
 
         var lowerBound = MIN_KEY_BYTES;
         var upperBound = MAX_KEY_BYTES;
 
         for (final var key : keys) {
+            final byte[] value = key.value();
             if (key.operator() == RangeOperator.EQ) {
-                keyFilters.add(key.value());
+                keyFilters.add(value);
             } else {
-                var keyBytes = Numeric.hexStringToByteArray(key.value());
-                keyBytes = DomainUtils.leftPadBytes(keyBytes, KEY_BYTE_LENGTH);
+                final var keyBytes = DomainUtils.leftPadBytes(value, KEY_BYTE_LENGTH);
 
                 if (key.hasLowerBound()) {
                     if (Arrays.compareUnsigned(keyBytes, lowerBound) > 0) {

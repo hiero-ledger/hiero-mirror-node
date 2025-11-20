@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
@@ -194,7 +195,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var request = HookStorageRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .hookId(1L)
-                .keys(List.of(KEY_MIN, KEY_MAX))
+                .keys(List.of(KEY_MIN_BYTES, KEY_MAX_BYTES))
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MAX_BYTES)
                 .limit(DEFAULT_LIMIT)
@@ -228,7 +229,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var request = HookStorageRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .hookId(1L)
-                .keys(List.of(outOfRangeKey1, outOfRangeKey2))
+                .keys(List.of(Hex.decode(outOfRangeKey1), Hex.decode(outOfRangeKey2)))
                 .keyLowerBound(Numeric.hexStringToByteArray(KEY_MIN))
                 .keyUpperBound(Numeric.hexStringToByteArray(
                         "00000000000000000000000000000000000000000000000000000000000000FF"))
@@ -254,7 +255,7 @@ final class HookServiceTest extends RestJavaIntegrationTest {
         final var request = HookStorageRequest.builder()
                 .ownerId(EntityIdParameter.valueOf(String.valueOf(OWNER_ID)))
                 .hookId(1L)
-                .keys(List.of(KEY_MAX)) // out of key range
+                .keys(List.of(KEY_MAX_BYTES)) // out of key range
                 .keyLowerBound(KEY_MIN_BYTES)
                 .keyUpperBound(KEY_MIN_BYTES) // exclusive
                 .limit(DEFAULT_LIMIT)
