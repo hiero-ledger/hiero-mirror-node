@@ -15,6 +15,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
@@ -174,7 +175,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
                 return;
             }
 
-            // no other sanity checks,  add when needed
+            // no other sanity checks, add when needed
             int index = (int) (request.getStartBlockNumber() - firstBlockNumber);
             for (; index < blocks.size(); index++) {
                 var block = blocks.get(index);
@@ -188,6 +189,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
                         responseObserver.onNext(blockResponse(chunk));
                     }
                 }
+                responseObserver.onNext(endOfBlock(firstBlockNumber + index));
             }
 
             responseObserver.onNext(SUCCESS);
@@ -201,6 +203,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
         private static SubscribeStreamResponse blockResponse(Collection<BlockItem> items) {
             return blockResponse(
                     BlockItemSet.newBuilder().addAllBlockItems(items).build());
+        }
+
+        private static SubscribeStreamResponse endOfBlock(final long blockNumber) {
+            return SubscribeStreamResponse.newBuilder()
+                    .setEndOfBlock(BlockEnd.newBuilder().setBlockNumber(blockNumber))
+                    .build();
         }
     }
 }

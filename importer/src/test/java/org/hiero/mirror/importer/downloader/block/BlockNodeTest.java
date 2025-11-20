@@ -47,7 +47,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
 @ExtendWith(GrpcCleanupExtension.class)
-class BlockNodeTest extends BlockNodeTestBase {
+final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final Consumer<BlockStream> IGNORE = b -> {};
     private static final String SERVER = "test1";
@@ -268,7 +268,9 @@ class BlockNodeTest extends BlockNodeTestBase {
         // given
         var responses = List.of(
                 subscribeStreamResponse(blockItemSet(recordFileItem())),
-                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1),
+                subscribeStreamResponse(blockItemSet(blockHead(2), eventHeader(), blockProof())),
+                subscribeStreamResponse(2),
                 subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
@@ -281,7 +283,7 @@ class BlockNodeTest extends BlockNodeTestBase {
                 .hasSize(2)
                 .satisfies(
                         blocks -> assertRecordItem(blocks.getFirst()),
-                        blocks -> assertBlockStream(blocks.getLast(), 1));
+                        blocks -> assertBlockStream(blocks.getLast(), 2));
     }
 
     @Test
@@ -429,11 +431,11 @@ class BlockNodeTest extends BlockNodeTestBase {
 
     private Server runBlockStreamSubscribeService(Resources resources, ResponsesOrError responsesOrError) {
         return runBlockStreamSubscribeService(resources, responseObserver -> {
-            if (!responsesOrError.responses().isEmpty()) {
-                responsesOrError.responses().forEach(responseObserver::onNext);
+            if (!responsesOrError.getResponses().isEmpty()) {
+                responsesOrError.getResponses().forEach(responseObserver::onNext);
                 responseObserver.onCompleted();
             } else {
-                responseObserver.onError(responsesOrError.error());
+                responseObserver.onError(responsesOrError.getError());
             }
         });
     }
