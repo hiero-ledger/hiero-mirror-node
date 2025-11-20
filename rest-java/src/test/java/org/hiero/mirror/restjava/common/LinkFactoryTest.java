@@ -5,9 +5,11 @@ package org.hiero.mirror.restjava.common;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
 import static org.hiero.mirror.restjava.common.Constants.TOKEN_ID;
+import static org.hiero.mirror.restjava.common.LinkFactory.LINK_HEADER;
 import static org.mockito.Mockito.when;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,15 +32,19 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class LinkFactoryTest {
+final class LinkFactoryTest {
 
     @Mock
     private HttpServletRequest request;
+
+    private HttpServletResponse response;
 
     @Mock
     private ServletRequestAttributes attributes;
@@ -59,7 +65,9 @@ class LinkFactoryTest {
     void setUp() {
         context = Mockito.mockStatic(RequestContextHolder.class);
         context.when(RequestContextHolder::getRequestAttributes).thenReturn(attributes);
+        response = new MockHttpServletResponse();
         when(attributes.getRequest()).thenReturn(request);
+        when(attributes.getResponse()).thenReturn(response);
         when(request.getRequestURI()).thenReturn(URI);
         when(extractor.apply(nftAllowance))
                 .thenReturn(Map.of(ACCOUNT_ID, nftAllowance.getOwner(), TOKEN_ID, nftAllowance.getTokenId()));
@@ -111,6 +119,12 @@ class LinkFactoryTest {
 
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
+
+        if (expectedLink != null) {
+            assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
+        } else {
+            assertThat(response.getHeader(HttpHeaders.LINK)).isNull();
+        }
     }
 
     @DisplayName("Get pagination links with no primary sort")
@@ -130,6 +144,7 @@ class LinkFactoryTest {
 
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
     @DisplayName("Get pagination links unknown parameter")
@@ -143,10 +158,10 @@ class LinkFactoryTest {
         var sort = Sort.by(Direction.ASC, ACCOUNT_ID, TOKEN_ID);
         var pageable = PageRequest.of(0, 1, sort);
 
+        final var expectedLink = "/api?limit=1&account.id=0.0.1000&unknown=value&unknown=value2&token.id=gt:0.0.6458";
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
-                .returns(
-                        "/api?limit=1&account.id=0.0.1000&unknown=value&unknown=value2&token.id=gt:0.0.6458",
-                        Links::getNext);
+                .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
     @DisplayName("Get pagination links with multiple parameter values")
@@ -178,6 +193,7 @@ class LinkFactoryTest {
 
         assertThat(linkFactory.create(List.of(nftAllowance), pageable, extractor))
                 .returns(expectedLink, Links::getNext);
+        assertThat(response.getHeader(HttpHeaders.LINK)).isEqualTo(LINK_HEADER.formatted(expectedLink));
     }
 
     @Test
@@ -200,5 +216,6 @@ class LinkFactoryTest {
         assertThat(linkFactory.create(null, PageRequest.ofSize(1), extractor)).returns(null, Links::getNext);
         assertThat(linkFactory.create(List.of(), PageRequest.ofSize(1), extractor))
                 .returns(null, Links::getNext);
+        assertThat(attributes.getResponse().getHeader(HttpHeaders.LINK)).isNull();
     }
 }
