@@ -80,7 +80,7 @@ import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
-class ContractCallServiceTest extends AbstractContractCallServiceTest {
+class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
     private final BinaryGasEstimator binaryGasEstimator;
     private final Store store;
@@ -552,7 +552,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var payer = accountEntityPersist(); // Account without alias
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -568,8 +568,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var receiverEntity = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var notExistingAccountAddress = toAddress(domainBuilder.entityId());
-        final var serviceParameters =
-                getContractExecutionParametersWithValue(Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                BlockType.LATEST, Bytes.EMPTY, notExistingAccountAddress, receiverAddress, 10L);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -591,7 +591,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var senderEntity = accountEntityPersistCustomizable(e -> e.key(null));
         final var serviceParameters = getContractExecutionParametersWithValue(
-                Bytes.EMPTY, toAddress(senderEntity.toEntityId()), receiverAddress, 10L);
+                BlockType.LATEST, Bytes.EMPTY, toAddress(senderEntity.toEntityId()), receiverAddress, 10L);
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -608,8 +608,8 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var receiverAddress = getAliasAddressFromEntity(receiverEntity);
         final var contractAddress = toAddress(accountEntityPersistCustomizable(e -> e.type(EntityType.CONTRACT))
                 .toEntityId());
-        final var serviceParameters =
-                getContractExecutionParametersWithValue(Bytes.EMPTY, contractAddress, receiverAddress, 10L);
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                BlockType.LATEST, Bytes.EMPTY, contractAddress, receiverAddress, 10L);
 
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
@@ -653,7 +653,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var payer = accountEntityWithEvmAddressPersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         final var serviceParameters = getContractExecutionParametersWithValue(
-                Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, -5L);
+                BlockType.LATEST, Bytes.EMPTY, toAddress(payer.toEntityId()), receiverAddress, -5L);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
@@ -677,8 +677,44 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
         final var senderEntity = accountEntityWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(senderEntity);
         final var value = senderEntity.getBalance() + 5L;
-        final var serviceParameters =
-                getContractExecutionParametersWithValue(Bytes.EMPTY, senderAddress, receiverAddress, value);
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                BlockType.LATEST, Bytes.EMPTY, senderAddress, receiverAddress, value);
+        // Then
+        if (mirrorNodeEvmProperties.isModularizedServices()) {
+            if (mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
+                assertThat(contractExecutionService.processCall(serviceParameters))
+                        .isEqualTo(HEX_PREFIX);
+            } else {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+            }
+        } else {
+            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(
+                            "Cannot remove %s wei from account, balance is only %s",
+                            toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
+        }
+        assertGasLimit(serviceParameters);
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void transferExceedsBalanceHistorical(boolean overridePayerBalance) {
+        // Given
+        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+
+        final var blockNumber = 150L;
+        final var historicalRange = setUpHistoricalContext(blockNumber);
+        final var receiver = accountEntityPersistHistoricalCustomizable(historicalRange, e -> {});
+        final var receiverAddress = getAliasAddressFromEntity(receiver);
+        final var senderEntity = accountEntityPersistHistoricalCustomizable(historicalRange, e -> {});
+        final var senderAddress = getAliasAddressFromEntity(senderEntity);
+        final var value = senderEntity.getBalance() + 5L;
+        final var serviceParameters = getContractExecutionParametersWithValue(
+                BlockType.of("0x96"), Bytes.EMPTY, senderAddress, receiverAddress, value);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             if (mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
@@ -899,7 +935,12 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 toAddress(token.getTokenId()).toHexString(), getAliasFromEntity(payer), BigInteger.valueOf(2));
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                Bytes.fromHexString(functionCall.encodeFunctionCall()), Address.ZERO, Address.ZERO, callType, 100L);
+                BlockType.LATEST,
+                Bytes.fromHexString(functionCall.encodeFunctionCall()),
+                Address.ZERO,
+                Address.ZERO,
+                callType,
+                100L);
 
         final long expectedUsedGasByThrottle =
                 (long) (TRANSACTION_GAS_LIMIT * throttleProperties.getGasLimitRefundPercent() / 100f);
@@ -1050,7 +1091,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
                 .balance(tokenAmount));
 
         final var serviceParameters = getContractExecutionParametersWithValue(
-                Bytes.fromHexString(hexData), toAddress(senderAccount.getId()), tokenAddress, 0L);
+                BlockType.LATEST, Bytes.fromHexString(hexData), toAddress(senderAccount.getId()), tokenAddress, 0L);
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
 
@@ -1123,22 +1164,28 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
             final Bytes data, final Address receiverAddress, final long value) {
-        return getContractExecutionParametersWithValue(data, Address.ZERO, receiverAddress, value);
+        return getContractExecutionParametersWithValue(BlockType.LATEST, data, Address.ZERO, receiverAddress, value);
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
-            final Bytes data, final Address senderAddress, final Address receiverAddress, final long value) {
-        return getContractExecutionParametersWithValue(data, senderAddress, receiverAddress, ETH_CALL, value);
+            final BlockType blockType,
+            final Bytes data,
+            final Address senderAddress,
+            final Address receiverAddress,
+            final long value) {
+        return getContractExecutionParametersWithValue(
+                blockType, data, senderAddress, receiverAddress, ETH_CALL, value);
     }
 
     private ContractExecutionParameters getContractExecutionParametersWithValue(
+            final BlockType blockType,
             final Bytes data,
             final Address senderAddress,
             final Address receiverAddress,
             final CallType callType,
             final long value) {
         return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
+                .block(blockType)
                 .callData(data)
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
@@ -1190,7 +1237,7 @@ class ContractCallServiceTest extends AbstractContractCallServiceTest {
             // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
             // public key), otherwise INVALID_ALIAS_KEY could be thrown
             final var serviceParameters = getContractExecutionParametersWithValue(
-                    Bytes.EMPTY, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
+                    BlockType.LATEST, Bytes.EMPTY, getAliasAddressFromEntity(payer), NON_EXISTING_ADDRESS, 1L);
 
             // When
             final var result = contractExecutionService.processCall(serviceParameters);
