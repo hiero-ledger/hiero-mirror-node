@@ -12,4 +12,8 @@ where $notUpdatableColumn
 and coalesce(e_created_timestamp, created_timestamp) is not null
 #end
 on conflict ($conflictColumns)
+#if($updateColumns && $updateColumns.trim() != "")
 do update set $updateColumns
+#else
+do nothing
+#end

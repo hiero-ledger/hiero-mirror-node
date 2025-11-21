@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.domain.addressbook.NodeStake;
+import org.hiero.mirror.common.domain.balance.AccountBalanceChange;
+import org.hiero.mirror.common.domain.balance.TokenBalanceChange;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -186,7 +188,9 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
                 && !entityProperties.getPersist().isEntityHistory()) {
             return;
         }
-
+        if (entity.getBalanceTimestamp() != null) {
+            context.merge(id, new AccountBalanceChange(id), this::noopMerge);
+        }
         context.merge(id, entity, this::mergeEntity);
         entityIdService.notify(entity);
     }
@@ -319,6 +323,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             return;
         }
 
+        if (tokenAccount.getBalanceTimestamp() != null) {
+            context.merge(id, new TokenBalanceChange(id), this::noopMerge);
+        }
+
         context.merge(id, tokenAccount, this::mergeTokenAccount);
     }
 
@@ -441,6 +449,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private ContractState mergeContractState(ContractState previous, ContractState current) {
         previous.setValue(current.getValue());
         previous.setModifiedTimestamp(current.getModifiedTimestamp());
+        return previous;
+    }
+
+    private <T> T noopMerge(T previous, T current) {
         return previous;
     }
 

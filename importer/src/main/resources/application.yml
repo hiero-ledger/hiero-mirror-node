@@ -96,12 +96,15 @@ spring:
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
       api-user: ${hiero.mirror.importer.db.restUsername}
+      balancePartitionTimeInterval: "'6 months'"
       db-name: ${hiero.mirror.importer.db.name}
       db-user: ${hiero.mirror.importer.db.username}
       hashShardCount: 6 # Higher shard count here causes a performance issue due to the nature of how hash indexes work
       partitionStartDate: "'2019-09-01'"
       partitionTimeInterval: "'1 month'"
+      realm: ${hiero.mirror.common.realm}
       schema: ${hiero.mirror.importer.db.schema}
+      shard: ${hiero.mirror.common.shard}
       shardCount: 16
       tempSchema: ${hiero.mirror.importer.db.tempSchema}
       transactionHashLookbackInterval: "'60 days'"
