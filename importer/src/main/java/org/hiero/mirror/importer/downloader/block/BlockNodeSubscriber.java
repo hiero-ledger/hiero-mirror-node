@@ -54,6 +54,8 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
     }
 
     private void drainGrpcBuffer(BlockingClientCall<?, ?> grpcCall) {
+        // Run a task to drain grpc buffer to avoid memory leak. Remove the logic when grpc-java releases the fix for
+        // https://github.com/grpc/grpc-java/issues/12355
         executor.submit(() -> {
             try {
                 while (grpcCall.read() != null) {
