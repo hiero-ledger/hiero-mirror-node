@@ -11,7 +11,6 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
-import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HookStorageResult;
@@ -109,7 +108,7 @@ final class HookServiceImpl implements HookService {
         final long timestampLowerBound = timestamp.getAdjustedLowerRangeValue();
         final long timestampUpperBound = timestamp.adjustUpperBound();
 
-        List<HookStorageChange> changes;
+        List<HookStorage> changes;
 
         if (requestHasKeys) {
             changes = hookStorageChangeRepository.findByKeyInAndTimestampBetween(
@@ -125,9 +124,7 @@ final class HookServiceImpl implements HookService {
                     page);
         }
 
-        return new HookStorageResult(
-                ownerId,
-                changes.stream().map(c -> new HookStorage().hookStorage(c)).toList());
+        return new HookStorageResult(ownerId, changes);
     }
 
     /**

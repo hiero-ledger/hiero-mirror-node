@@ -7,6 +7,7 @@ import static org.hiero.mirror.restjava.common.Constants.CONSENSUS_TIMESTAMP;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
@@ -56,8 +57,12 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
                 new Sort.Order(Direction.DESC, CONSENSUS_TIMESTAMP));
 
         final var orderedAll = ASC.equalsIgnoreCase(order)
-                ? List.of(change1, change2, change3, change4)
-                : List.of(change4, change3, change2, change1);
+                ? Stream.of(change1, change2, change3, change4)
+                        .map(this::hookStorage)
+                        .toList()
+                : Stream.of(change4, change3, change2, change1)
+                        .map(this::hookStorage)
+                        .toList();
 
         final var expectedPage0 = orderedAll.subList(0, LIMIT);
         final var expectedPage1 = orderedAll.subList(LIMIT, orderedAll.size());
@@ -98,7 +103,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         final var sort = Sort.by(
                 new Sort.Order(Direction.ASC, Constants.KEY), new Sort.Order(Direction.DESC, CONSENSUS_TIMESTAMP));
 
-        final var expectedChanges = List.of(change2, change3, change4);
+        final var expectedChanges =
+                Stream.of(change2, change3, change4).map(this::hookStorage).toList();
 
         // when
         final var timestamp1 = change1.getConsensusTimestamp();
@@ -140,8 +146,9 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
         final var keys = List.of(key1, key2, key3);
 
-        final var orderedChanges =
-                ASC.equalsIgnoreCase(order) ? List.of(change1, change2, change3) : List.of(change3, change2, change1);
+        final var orderedChanges = ASC.equalsIgnoreCase(order)
+                ? Stream.of(change1, change2, change3).map(this::hookStorage).toList()
+                : Stream.of(change3, change2, change1).map(this::hookStorage).toList();
 
         final var expectedPage0 = orderedChanges.subList(0, LIMIT);
         final var expectedPage1 = orderedChanges.subList(LIMIT, orderedChanges.size());

@@ -563,9 +563,7 @@ final class HooksControllerTest extends ControllerTest {
 
             final var limited = ordered.stream().limit(limit).toList();
 
-            final var mapped = limited.stream()
-                    .map(hs -> new HookStorage().hookStorage(hs))
-                    .toList();
+            final var mapped = limited.stream().map(h -> hookStorage(h)).toList();
 
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
@@ -795,9 +793,8 @@ final class HooksControllerTest extends ControllerTest {
                         .toList();
             }
 
-            final var list = expectedHookStorageList.stream()
-                    .map(hs -> new HookStorage().hookStorage(hs))
-                    .toList();
+            final var list =
+                    expectedHookStorageList.stream().map(h -> hookStorage(h)).toList();
             final var expectedHookStorage = hookStorageMapper.map(list);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
