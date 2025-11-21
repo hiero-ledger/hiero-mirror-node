@@ -14,8 +14,6 @@ on:
     branches:
       - "main"
       - "release/**"
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       branch:
@@ -39,22 +37,18 @@ jobs:
         stream-type:
           - RECORD
           - BLOCK
-    timeout-minutes: 40
+    timeout-minutes: 50
     env:
-      BASE_URL: "http://127.0.0.1:8081"
-      BLOCK_NODE_CHART_VERSION: v0.20.1
-      CONSENSUS_VERSION: v0.67.2
-      DEFAULT_DURATION: "3s"
-      DEFAULT_GRACEFUL_STOP: "1s"
-      DEFAULT_VUS: 2
+      BLOCK_NODE_CHART_VERSION: v0.22.1
+      CONSENSUS_VERSION: v0.68.0
       HELM_RELEASE_NAME: mirror-1
-      MIRROR_NODE_VERSION: v0.142.0
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.48.0
-      TAG: pr-changes
+      SOLO_VERSION: v0.49.0
+    permissions:
+      pull-requests: read
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
@@ -64,7 +58,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
@@ -77,6 +71,7 @@ jobs:
       - name: Setup Kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
         with:
+          cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
           kubectl_version: v1.32.3
 
       - name: Install JDK
@@ -88,27 +83,75 @@ jobs:
       - name: Install Solo CLI via npm
         run: npm install -g @hashgraph/solo@${SOLO_VERSION}
 
-      - name: Build Mirror Node Test JAR
-        run: ./gradlew test:build -x test
+      - name: Determine base and tag
+        timeout-minutes: 15
+        run: |
+          set -ex
 
-      - name: Build Mirror Node Test Docker image
-        run: docker build -t gcr.io/mirrornode/hedera-mirror-test:${TAG} ./test
+          TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
+          [[ "$TAG" != *SNAPSHOT ]] && BASE="v$TAG" || BASE=""
+
+          git describe --exact-match HEAD 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || TRIGGERED_BY_TAG=false
+
+          echo "BASE=${BASE}" >> $GITHUB_ENV
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
+
+          if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
+            # wait for images becoming ready if it's a tagged commit
+            for module in grpc importer monitor rest rest-java test web3; do
+              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-$module:$TAG" >/dev/null 2>&1; do
+                sleep 10
+              done
+            done
+          fi
+
+      - name: Find changed modules
+        id: changeset
+        if: env.TRIGGERED_BY_TAG != 'true'
+        uses: step-security/paths-filter@6eee183b0d2fd101d3f8ee2935c127bca14c5625 # v3.0.5
+        with:
+          base: ${{ env.BASE }}
+          filters: |
+            grpc:
+            - 'grpc/**'
+            importer:
+            - 'importer/**'
+            monitor:
+            - 'monitor/**'
+            rest:
+            - 'rest/!(check-state-proof|monitoring)?(/**)'
+            rest-java:
+            - 'rest-java/**'
+            test:
+            - 'test/**'
+            web3:
+            - 'web3/**'
+
+      - name: Build images
+        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs != ''
+        run: |
+          set -ex
+          echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
+            ./gradlew ":${module}:dockerBuild" -x :rest:monitoring:dockerBuild -PimageTag="${TAG}"
+            kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" -n "${SOLO_CLUSTER_NAME}"
+          done
 
       - name: Setup Solo Cluster
         run: |
           set -ex
 
-          kind create cluster -n "${SOLO_CLUSTER_NAME}"
-          kind load docker-image gcr.io/mirrornode/hedera-mirror-test:${TAG} -n "${SOLO_CLUSTER_NAME}"
-
           solo init
-          solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
+          solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --context kind-"${SOLO_CLUSTER_NAME}"
           solo deployment config create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
-          solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1
+          solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --num-consensus-nodes 1
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
+            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+              --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
           fi
           solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
           solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
@@ -123,8 +166,6 @@ jobs:
               SPRING_PROFILES_ACTIVE: 'blocknode'
           test:
             cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
-            image:
-              tag: ${TAG}
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
@@ -140,8 +181,6 @@ jobs:
           else
             cat <<EOF > mirror.yaml
           test:
-            image:
-              tag: ${TAG}
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
             env:
@@ -156,105 +195,28 @@ jobs:
           EOF
           fi
 
-          solo mirror node add --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --mirror-node-version "${MIRROR_NODE_VERSION}" --pinger --enable-ingress
+          helm dependency update charts/hedera-mirror
+          solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --deployment "${SOLO_DEPLOYMENT}" \
+            -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
+          APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
+            | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
+          echo "Installed hedera-mirror chart version $APP_VERSION"
 
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" --timeout 20m | tee output_log.txt
-
-      - name: Parse acceptance tests logs and set k6 environment variables
-        if: ${{ matrix.stream-type != 'BLOCK' }}
         run: |
-          set -ex
-          LOG_FILE="./output_log.txt"
+          helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
+            --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" --timeout 20m | tee output_log.txt
 
-          declare -A k6Map
-          k6Map["PARENT"]="DEFAULT_CONTRACT_ADDRESS"
-          k6Map["ERC"]="ERC_CONTRACT_ADDRESS"
-          k6Map["ESTIMATE_PRECOMPILE"]="ESTIMATE_PRECOMPILE_CONTRACT"
-          k6Map["PRECOMPILE"]="HTS_CONTRACT_ADDRESS"
-          k6Map["BOB"]="PAYER_ACCOUNT"
-          k6Map["ALICE"]="ACCOUNT_ADDRESS"
-          k6Map["fungible"]="TOKEN_ADDRESS"
-          k6Map["non_fungible"]="NON_FUNGIBLE_TOKEN_ADDRESS"
-
-          for key in "${!k6Map[@]}"; do
-            k6="${k6Map[$key]}"
-            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
-            echo "${k6}=${value}" >> $GITHUB_ENV
-          done
-
-          declare -A k6MapRestJava
-          k6MapRestJava["DEFAULT_TOPIC"]="DEFAULT_TOPIC_WITH_FEE_ID"
-          k6MapRestJava["PRECOMPILE"]="DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_SPENDER"
-          k6MapRestJava["DEFAULT_ACCOUNT_ID_BOB"]="DEFAULT_ACCOUNT_ID_AIRDROP_RECEIVER"
-
-          for key in "${!k6MapRestJava[@]}"; do
-            k6="${k6MapRestJava[$key]}"
-            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
-            echo "${k6}=${value}" >> $GITHUB_ENV
-          done
-
-          declare -A k6MapRest
-          k6MapRest["PARENT_ID"]="DEFAULT_CONTRACT_ID"
-          k6MapRest["TIMESTAMP"]="DEFAULT_CONTRACT_TIMESTAMP"
-          k6MapRest["HASH"]="DEFAULT_CONTRACT_RESULT_HASH"
-          k6MapRest["non_fungible_airdrop"]="DEFAULT_TOKEN_ID"
-          k6MapRest["TOKEN_TREASURY"]="DEFAULT_ACCOUNT_ID"
-          k6MapRest["DEFAULT_ACCOUNT_ID_KEY_TOKEN_TREASURY"]="DEFAULT_PUBLIC_KEY"
-
-          for key in "${!k6MapRest[@]}"; do
-            k6="${k6MapRest[$key]}"
-            value=$(grep -oP "^${key}=(\K.+)$" "$LOG_FILE" | tail -n 1  || true)
-            echo "${k6}=${value}" >> $GITHUB_ENV
-          done
-
-      - name: Install k6
+      - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/setup-k6-action@ffe7d7290dfa715e48c2ccc924d068444c94bde2 # v1
-
-      - name: Run rest-java tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
         env:
-          DEFAULT_ACCOUNT_ID_NFTS_ALLOWANCE_OWNER: "0.0.1003"
-          DEFAULT_ACCOUNT_ID_AIRDROP_SENDER: "0.0.1003"
-        with:
-          path: |
-            ./tools/k6/src/rest-java/apis.js
-          debug: false
-          flags: --quiet
-
-      - name: Run rest tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          REST_TEST_EXCLUDE: ".*balances.*Timestamp.*"
-        with:
-          path: |
-            ./tools/k6/src/rest/apis.js
-          debug: false
-          flags: --quiet
-
-      - name: Run k6 web3 tests
-        if: ${{ matrix.stream-type != 'BLOCK' }}
-        uses: grafana/run-k6-action@a15e2072ede004e8d46141e33d7f7dad8ad08d9d # v1
-        env:
-          AMOUNT: "0000000000000000000000000000000000000000000000000000000000000001"
-          KEY_TYPE: "0000000000000000000000000000000000000000000000000000000000000001"
-          RUN_COMPLEX_TESTS: "false"
-          RUN_ESTIMATE_TESTS: "false"
-          RUN_MODIFICATION_TESTS: "false"
-          RUN_OPCODE_TESTS: "false"
-          RUN_WITH_VARIABLES: "true"
-          SERIAL_NUMBER: "0000000000000000000000000000000000000000000000000000000000000001"
-          WEB3_TEST_EXCLUDE: "^contractCall(Allowance|ApprovedForAll|BalanceOf|IsFrozen|IsKyc|Receive).*$"
-        with:
-          path: |
-            ./tools/k6/src/web3/apis.js
-          debug: false
-          flags: --quiet
+          BASE_URL: "http://127.0.0.1:8081"
+          DEFAULT_DURATION: "3s"
+          DEFAULT_GRACEFUL_STOP: "1s"
+          DEFAULT_VUS: 2
+        uses: ./.github/actions/k6
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
@@ -274,8 +236,3 @@ jobs:
               kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
-
-      - name: Cleanup
-        continue-on-error: true
-        if: always()
-        run: kind delete cluster -n "${SOLO_CLUSTER_NAME}"

@@ -33,11 +33,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.transaction.support.TransactionOperations;
 
 @RequiredArgsConstructor
-class EntityStakeRepositoryTest extends ImporterIntegrationTest {
+final class EntityStakeRepositoryTest extends ImporterIntegrationTest {
 
     private static final String[] ENTITY_STATE_START_FIELDS =
             new String[] {"balance", "id", "stakedAccountId", "stakedNodeId", "stakePeriodStart"};
@@ -849,8 +850,10 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
         }
     }
 
-    @Test
-    void updateEntityStakePendingRewardExceedsMaxNumberOfStakingPeriods() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void updateEntityStakePendingRewardExceedsMaxNumberOfStakingPeriods(
+            final boolean multipleNodeStakeUpdatesOnForfeitedPeriod) {
         // given
         long epochDay = Utility.getEpochDay(domainBuilder.timestamp());
         long forfeitedStakingPeriod = epochDay - 365;
@@ -880,6 +883,16 @@ class EntityStakeRepositoryTest extends ImporterIntegrationTest {
                         .nodeId(0L)
                         .rewardRate(300))
                 .persist();
+        if (multipleNodeStakeUpdatesOnForfeitedPeriod) {
+            domainBuilder
+                    .nodeStake()
+                    .customize(ns -> ns.consensusTimestamp(forfeitedNodeStakeTimestamp + 1)
+                            .epochDay(forfeitedStakingPeriod)
+                            .nodeId(0L)
+                            .rewardRate(300))
+                    .persist();
+        }
+
         var nodeStake = domainBuilder
                 .nodeStake()
                 .customize(ns -> ns.consensusTimestamp(nodeStakeTimestamp)

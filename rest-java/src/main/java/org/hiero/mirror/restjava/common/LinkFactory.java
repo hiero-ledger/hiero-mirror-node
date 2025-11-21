@@ -11,5 +11,8 @@ import org.springframework.data.domain.Pageable;
 
 @NullMarked
 public interface LinkFactory {
+
+    String LINK_HEADER = "<%s>; rel=\"next\"";
+
     <T> Links create(List<T> items, Pageable pageable, Function<T, Map<String, String>> extractor);
 }

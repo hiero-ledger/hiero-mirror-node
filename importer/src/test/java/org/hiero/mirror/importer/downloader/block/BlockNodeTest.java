@@ -13,6 +13,7 @@ import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.StreamObserver;
 import java.time.Duration;
 import java.time.Instant;
@@ -47,9 +48,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
 
 @ExtendWith(GrpcCleanupExtension.class)
-class BlockNodeTest extends BlockNodeTestBase {
+final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final Consumer<BlockStream> IGNORE = b -> {};
+    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = grpcCall -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -72,7 +74,11 @@ class BlockNodeTest extends BlockNodeTestBase {
         blockNodeProperties = new BlockNodeProperties();
         blockNodeProperties.setHost(SERVER);
         streamProperties = new StreamProperties();
-        node = new BlockNode(InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties, streamProperties);
+        node = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                blockNodeProperties,
+                streamProperties);
     }
 
     @AfterEach
@@ -84,16 +90,22 @@ class BlockNodeTest extends BlockNodeTestBase {
     void compareTo() {
         var first = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 100, 0),
                 streamProperties);
         var second = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 101, 0),
                 streamProperties);
         var third = new BlockNode(
-                InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties("peer", 99, 0), streamProperties);
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                blockNodeProperties("peer", 99, 0),
+                streamProperties);
         var forth = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 50, 1),
                 streamProperties);
         var all = Stream.of(forth, third, second, first).sorted().toList();

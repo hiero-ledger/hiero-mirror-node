@@ -3,13 +3,13 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import jakarta.inject.Named;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.HookExecutionCollector;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -32,59 +32,56 @@ class CryptoTransferTransactionHandler extends AbstractTransactionHandler {
         recordItem.setHookExecutionQueue(hookExecutionCollector.buildExecutionQueue());
     }
 
+    @Override
+    public TransactionType getType() {
+        return TransactionType.CRYPTOTRANSFER;
+    }
+
+    private void addHookCalls(
+            final List<AccountAmount> accountAmountsList, final HookExecutionCollector hookExecutionCollector) {
+        for (final var accountAmount : accountAmountsList) {
+            final var accountId = accountAmount.getAccountID();
+            if (accountAmount.hasPreTxAllowanceHook()) {
+                hookExecutionCollector.addAllowExecHook(accountAmount.getPreTxAllowanceHook(), lookup(accountId));
+            } else if (accountAmount.hasPrePostTxAllowanceHook()) {
+                hookExecutionCollector.addPrePostExecHook(accountAmount.getPrePostTxAllowanceHook(), lookup(accountId));
+            }
+        }
+    }
+
+    private void addNftHookCalls(
+            final List<NftTransfer> nftTransfersList, final HookExecutionCollector hookExecutionCollector) {
+        for (final var nftTransfer : nftTransfersList) {
+            // sender hook is executed first
+            final var senderAccountId = nftTransfer.getSenderAccountID();
+            if (nftTransfer.hasPreTxSenderAllowanceHook()) {
+                hookExecutionCollector.addAllowExecHook(
+                        nftTransfer.getPreTxSenderAllowanceHook(), lookup(senderAccountId));
+            } else if (nftTransfer.hasPrePostTxSenderAllowanceHook()) {
+                hookExecutionCollector.addPrePostExecHook(
+                        nftTransfer.getPrePostTxSenderAllowanceHook(), lookup(senderAccountId));
+            }
+
+            final var receiverAccountId = nftTransfer.getReceiverAccountID();
+            if (nftTransfer.hasPreTxReceiverAllowanceHook()) {
+                hookExecutionCollector.addAllowExecHook(
+                        nftTransfer.getPreTxReceiverAllowanceHook(), lookup(receiverAccountId));
+            } else if (nftTransfer.hasPrePostTxReceiverAllowanceHook()) {
+                hookExecutionCollector.addPrePostExecHook(
+                        nftTransfer.getPrePostTxReceiverAllowanceHook(), lookup(receiverAccountId));
+            }
+        }
+    }
+
     private void addTokenHookCalls(
-            List<TokenTransferList> tokenTransfersList, HookExecutionCollector hookExecutionCollector) {
-        for (TokenTransferList transferList : tokenTransfersList) {
+            final List<TokenTransferList> tokenTransfersList, final HookExecutionCollector hookExecutionCollector) {
+        for (final var transferList : tokenTransfersList) {
             addHookCalls(transferList.getTransfersList(), hookExecutionCollector);
             addNftHookCalls(transferList.getNftTransfersList(), hookExecutionCollector);
         }
     }
 
-    private void addNftHookCalls(List<NftTransfer> nftTransfersList, HookExecutionCollector hookExecutionCollector) {
-        for (NftTransfer nftTransfer : nftTransfersList) {
-            if (nftTransfer.hasPreTxSenderAllowanceHook()) {
-                final var senderId =
-                        entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
-                hookExecutionCollector.addAllowExecHook(nftTransfer.getPreTxSenderAllowanceHook(), senderId.getId());
-            } else if (nftTransfer.hasPrePostTxSenderAllowanceHook()) {
-                final var senderId =
-                        entityIdService.lookup(nftTransfer.getSenderAccountID()).orElse(EntityId.EMPTY);
-                hookExecutionCollector.addPrePostExecHook(
-                        nftTransfer.getPrePostTxSenderAllowanceHook(), senderId.getId());
-            }
-
-            if (nftTransfer.hasPreTxReceiverAllowanceHook()) {
-                final var receiverId = entityIdService
-                        .lookup(nftTransfer.getReceiverAccountID())
-                        .orElse(EntityId.EMPTY);
-                hookExecutionCollector.addAllowExecHook(
-                        nftTransfer.getPreTxReceiverAllowanceHook(), receiverId.getId());
-            } else if (nftTransfer.hasPrePostTxReceiverAllowanceHook()) {
-                final var receiverId = entityIdService
-                        .lookup(nftTransfer.getReceiverAccountID())
-                        .orElse(EntityId.EMPTY);
-                hookExecutionCollector.addPrePostExecHook(
-                        nftTransfer.getPrePostTxReceiverAllowanceHook(), receiverId.getId());
-            }
-        }
-    }
-
-    private void addHookCalls(List<AccountAmount> accountAmountsList, HookExecutionCollector hookExecutionCollector) {
-        for (AccountAmount accountAmount : accountAmountsList) {
-            if (accountAmount.hasPreTxAllowanceHook()) {
-                final var accountId =
-                        entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
-                hookExecutionCollector.addAllowExecHook(accountAmount.getPreTxAllowanceHook(), accountId.getId());
-            } else if (accountAmount.hasPrePostTxAllowanceHook()) {
-                final var accountId =
-                        entityIdService.lookup(accountAmount.getAccountID()).orElse(EntityId.EMPTY);
-                hookExecutionCollector.addPrePostExecHook(accountAmount.getPrePostTxAllowanceHook(), accountId.getId());
-            }
-        }
-    }
-
-    @Override
-    public TransactionType getType() {
-        return TransactionType.CRYPTOTRANSFER;
+    private long lookup(final AccountID accountId) {
+        return entityIdService.lookup(accountId).orElse(EntityId.EMPTY).getId();
     }
 }

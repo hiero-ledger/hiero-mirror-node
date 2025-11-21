@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
+import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
@@ -19,6 +20,7 @@ import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
+import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -42,6 +44,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public final class BlockStreamReaderTest {
 
@@ -466,29 +469,30 @@ public final class BlockStreamReaderTest {
                 .returns(BlockStreamReader.VERSION, BlockFile::getVersion);
     }
 
-    @Test
-    void mixedStateChanges() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void mixedStateChanges(final boolean postConsensusNodeRelease68) {
         // given non-transaction state changes
         // - appear after first round header and before the first even header in the round
         // - appear right before the next round header
         // - right before block proof
-        var nonTransactionStateChangesType1 = StateChanges.newBuilder()
+        final var nonTransactionStateChangesType1 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
                 .build();
-        var nonTransactionStateChangesType2 = StateChanges.newBuilder()
+        final var nonTransactionStateChangesType2 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
                 .build();
-        var transactionTimestamp = recordItemBuilder.timestamp();
-        var transactionResult = TransactionResult.newBuilder()
+        final var transactionTimestamp = recordItemBuilder.timestamp();
+        final var transactionResult = TransactionResult.newBuilder()
                 .setConsensusTimestamp(transactionTimestamp)
                 .build();
-        var transactionStateChanges = StateChanges.newBuilder()
+        final var transactionStateChanges = StateChanges.newBuilder()
                 .setConsensusTimestamp(transactionTimestamp)
                 .build();
-        var nonTransactionStateChangeType3 = StateChanges.newBuilder()
+        final var nonTransactionStateChangeType3 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
                 .build();
-        var block = Block.newBuilder()
+        final var blockBuilder = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader())
                 .addItems(stateChanges(nonTransactionStateChangesType1))
@@ -499,13 +503,16 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction())
                 .addItems(transactionResult(transactionResult))
                 .addItems(stateChanges(transactionStateChanges))
-                .addItems(stateChanges(nonTransactionStateChangeType3))
-                .addItems(blockProof())
-                .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+                .addItems(stateChanges(nonTransactionStateChangeType3));
+        if (postConsensusNodeRelease68) {
+            blockBuilder.addItems(blockFooter()).addItems(blockProof());
+        }
+
+        final var block = blockBuilder.addItems(blockProof()).build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         // when
-        var blockFile = reader.read(blockStream);
+        final var blockFile = reader.read(blockStream);
 
         // then the block item should only have its own state changes
         assertThat(blockFile)
@@ -516,6 +523,29 @@ public final class BlockStreamReaderTest {
                 .hasSize(1)
                 .first()
                 .returns(transactionTimestamp, StateChanges::getConsensusTimestamp);
+    }
+
+    @Test
+    void systemTransactionWithoutTransactionResult() {
+        // given
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setStateSignatureTransaction(StateSignatureTransaction.getDefaultInstance())
+                        .build()))
+                .addItems(blockProof())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+
+        // when
+        final var blockFile = reader.read(blockStream);
+
+        // then
+        assertThat(blockFile)
+                .extracting(BlockFile::getItems, InstanceOfAssertFactories.collection(BlockTransaction.class))
+                .isEmpty();
     }
 
     @Test
@@ -534,21 +564,6 @@ public final class BlockStreamReaderTest {
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
-    }
-
-    @Test
-    void throwWhenMissingTransactionResult() {
-        var block = Block.newBuilder()
-                .addItems(blockHeader())
-                .addItems(roundHeader())
-                .addItems(eventHeader())
-                .addItems(signedTransaction())
-                .addItems(blockProof())
-                .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-        assertThatThrownBy(() -> reader.read(blockStream))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Missing transaction result");
     }
 
     @Test
@@ -613,6 +628,12 @@ public final class BlockStreamReaderTest {
                         .build())
                 .build();
         return signedTransaction(transaction);
+    }
+
+    private BlockItem blockFooter() {
+        return BlockItem.newBuilder()
+                .setBlockFooter(BlockFooter.getDefaultInstance())
+                .build();
     }
 
     private BlockItem blockHeader() {

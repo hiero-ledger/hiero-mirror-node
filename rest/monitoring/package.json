@@ -30,9 +30,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
-  },
-  "overrides": {
-    "cross-spawn": "^7.0.6",
-    "micromatch": "^4.0.8"
   }
 }

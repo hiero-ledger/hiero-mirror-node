@@ -10,6 +10,7 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import lombok.Setter;
 import org.hiero.mirror.common.util.DomainUtils;
 
 /**
@@ -27,8 +28,13 @@ public final class BlockRootHashDigest {
     private boolean finalized;
     private final List<byte[]> inputHashes = new ArrayList<>();
     private final List<byte[]> outputHashes = new ArrayList<>();
+
+    @Setter
     private byte[] previousHash;
+
+    @Setter
     private byte[] startOfBlockStateHash;
+
     private final List<byte[]> stateChangeHashes = new ArrayList<>();
     private final List<byte[]> traceDataHashes = new ArrayList<>();
 
@@ -53,9 +59,6 @@ public final class BlockRootHashDigest {
             throw new IllegalStateException("Block root hash is already calculated");
         }
 
-        validateHash(previousHash, "previousHash");
-        validateHash(startOfBlockStateHash, "startOfBlockStateHash");
-
         List<byte[]> leaves = new ArrayList<>(8);
         leaves.add(previousHash);
         leaves.add(startOfBlockStateHash);
@@ -70,16 +73,6 @@ public final class BlockRootHashDigest {
         finalized = true;
 
         return DomainUtils.bytesToHex(rootHash);
-    }
-
-    public void setPreviousHash(byte[] previousHash) {
-        validateHash(previousHash, "previousHash");
-        this.previousHash = previousHash;
-    }
-
-    public void setStartOfBlockStateHash(byte[] startOfBlockStateHash) {
-        validateHash(startOfBlockStateHash, "startOfBlockStateHash");
-        this.startOfBlockStateHash = startOfBlockStateHash;
     }
 
     private byte[] getRootHash(List<byte[]> leaves) {
