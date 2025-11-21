@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.restjava.common;
 
+import static org.hiero.mirror.restjava.util.BytesUtil.decrementByteArray;
+import static org.hiero.mirror.restjava.util.BytesUtil.incrementByteArray;
+
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tomcat.util.buf.HexUtils;
@@ -50,39 +53,5 @@ public record SlotRangeParameter(RangeOperator operator, byte[] value) implement
             return decrementByteArray(bytes);
         }
         return bytes;
-    }
-
-    public static byte[] incrementByteArray(byte[] bytes) {
-        byte[] result = bytes.clone();
-
-        for (int i = result.length - 1; i >= 0; i--) {
-            int v = (result[i] & 0xFF) + 1;
-            result[i] = (byte) v;
-
-            if (v <= 0xFF) {
-                break;
-            }
-
-            result[i] = 0;
-        }
-
-        return result;
-    }
-
-    public static byte[] decrementByteArray(byte[] bytes) {
-        byte[] result = bytes.clone();
-
-        for (int i = result.length - 1; i >= 0; i--) {
-            int v = (result[i] & 0xFF) - 1;
-            result[i] = (byte) v;
-
-            if (v >= 0) {
-                break;
-            }
-
-            result[i] = (byte) 0xFF;
-        }
-
-        return result;
     }
 }

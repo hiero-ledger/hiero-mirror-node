@@ -60,39 +60,35 @@ final class HookServiceImpl implements HookService {
 
     @Override
     public HookStorageResult getHookStorage(HookStorageRequest request) {
-        if (!request.getTimestamp().isEmpty()) {
+        if (isHistorical(request)) {
             return getHookStorageChange(request);
         }
 
-        final var sort = Sort.by(request.getOrder(), Constants.KEY);
-        final var page = PageRequest.of(0, request.getLimit(), sort);
-
         final var ownerId = entityService.lookup(request.getOwnerId());
+
+        final var page = pageRequest(request, false);
         final var keys = request.getKeys();
         if (keys.isEmpty()) {
-            final var queryResult = hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
+            final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
                     ownerId.getId(), request.getHookId(), request.getKeyLowerBound(), request.getKeyUpperBound(), page);
 
-            return new HookStorageResult(ownerId, queryResult);
+            return new HookStorageResult(ownerId, hookStorage);
         }
 
-        final var filteredKeys = filterKeysInRange(keys, request.getKeyLowerBound(), request.getKeyUpperBound());
+        final var keysInRange = getKeysInRange(keys, request.getKeyLowerBound(), request.getKeyUpperBound());
 
-        if (filteredKeys.isEmpty()) {
+        if (keysInRange.isEmpty()) {
             return new HookStorageResult(ownerId, List.of());
         }
 
-        final var queryResult = hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                ownerId.getId(), request.getHookId(), filteredKeys, page);
+        final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
+                ownerId.getId(), request.getHookId(), keysInRange, page);
 
-        return new HookStorageResult(ownerId, queryResult);
+        return new HookStorageResult(ownerId, hookStorage);
     }
 
     private HookStorageResult getHookStorageChange(HookStorageRequest request) {
-        final var sort = Sort.by(
-                new Sort.Order(request.getOrder(), Constants.KEY), new Sort.Order(Direction.DESC, CONSENSUS_TIMESTAMP));
-
-        final var page = PageRequest.of(0, request.getLimit(), sort);
+        final var page = pageRequest(request, true);
 
         final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
@@ -101,22 +97,25 @@ final class HookServiceImpl implements HookService {
         final byte[] keyUpperBound = request.getKeyUpperBound();
 
         final var keys = request.getKeys();
-        final var filteredKeys = keys.isEmpty() ? List.of() : filterKeysInRange(keys, keyLowerBound, keyUpperBound);
+        final boolean requestHasKeys = !keys.isEmpty();
 
-        if (filteredKeys.isEmpty() && !keys.isEmpty()) {
+        final var keysInRange = requestHasKeys ? getKeysInRange(keys, keyLowerBound, keyUpperBound) : List.of();
+
+        if (keysInRange.isEmpty() && requestHasKeys) {
             return new HookStorageResult(ownerId, List.of());
         }
 
-        final long timestampLowerBound = request.getTimestamp().getAdjustedLowerRangeValue();
-        final long timestampUpperBound = request.getTimestamp().adjustUpperBound();
+        final var timestamp = request.getTimestamp();
+        final long timestampLowerBound = timestamp.getAdjustedLowerRangeValue();
+        final long timestampUpperBound = timestamp.adjustUpperBound();
 
-        List<HookStorageChange> results;
+        List<HookStorageChange> changes;
 
-        if (!keys.isEmpty()) {
-            results = hookStorageChangeRepository.findByKeyInAndTimestampBetween(
+        if (requestHasKeys) {
+            changes = hookStorageChangeRepository.findByKeyInAndTimestampBetween(
                     ownerId.getId(), hookId, keys, timestampLowerBound, timestampUpperBound, page);
         } else {
-            results = hookStorageChangeRepository.findByKeyBetweenAndTimestampBetween(
+            changes = hookStorageChangeRepository.findByKeyBetweenAndTimestampBetween(
                     ownerId.getId(),
                     hookId,
                     keyLowerBound,
@@ -128,12 +127,34 @@ final class HookServiceImpl implements HookService {
 
         return new HookStorageResult(
                 ownerId,
-                results.stream().map(c -> new HookStorage().hookStorage(c)).toList());
+                changes.stream().map(c -> new HookStorage().hookStorage(c)).toList());
     }
 
-    private List<byte[]> filterKeysInRange(Collection<byte[]> keys, byte[] lower, byte[] upper) {
+    /**
+     * Checks if request has timestamp parameter. If present - historical call should be made,
+     * if not - call to the current state should be initiated.
+     */
+    private boolean isHistorical(HookStorageRequest request) {
+        return !request.getTimestamp().isEmpty();
+    }
+
+    private List<byte[]> getKeysInRange(Collection<byte[]> keys, byte[] lower, byte[] upper) {
         return keys.stream()
                 .filter(key -> Arrays.compareUnsigned(key, lower) >= 0 && Arrays.compareUnsigned(key, upper) <= 0)
                 .toList();
+    }
+
+    private PageRequest pageRequest(HookStorageRequest request, boolean historical) {
+        Sort sort;
+
+        if (historical) {
+            sort = Sort.by(
+                    new Sort.Order(request.getOrder(), Constants.KEY),
+                    new Sort.Order(Direction.DESC, CONSENSUS_TIMESTAMP));
+        } else {
+            sort = Sort.by(request.getOrder(), Constants.KEY);
+        }
+
+        return PageRequest.of(0, request.getLimit(), sort);
     }
 }
