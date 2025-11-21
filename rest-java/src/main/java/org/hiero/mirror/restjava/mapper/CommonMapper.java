@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.regex.Pattern;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
@@ -40,6 +41,13 @@ public interface CommonMapper {
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
     long SECONDS_PER_DAY = 86400L;
     String TIMESTAMP_ZERO = "0.0";
+
+    default String mapByteArrayToHexString(byte[] source) {
+        if (source == null) {
+            return null;
+        }
+        return "0x" + StringUtils.leftPad(Hex.encodeHexString(source), 64, '0');
+    }
 
     default String mapEntityId(Long source) {
         if (source == null || source == 0) {

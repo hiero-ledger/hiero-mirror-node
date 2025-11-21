@@ -40,4 +40,12 @@ public enum RangeOperator {
                     .formatted(rangeOperator.toLowerCase()));
         }
     }
+
+    public RangeOperator toInclusive() {
+        return switch (this) {
+            case GT -> GTE;
+            case LT -> LTE;
+            case EQ, GTE, LTE, NE, UNKNOWN -> this;
+        };
+    }
 }

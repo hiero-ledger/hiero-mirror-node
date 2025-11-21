@@ -14,6 +14,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.restjava.common.NumberRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.RangeParameter;
+import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.jooq.Field;
 import org.jspecify.annotations.NullUnmarked;
 
@@ -163,6 +164,21 @@ public class Bound {
                         || this.getCardinality(RangeOperator.LT, RangeOperator.LTE) != 0)) {
             throw new IllegalArgumentException("Can't support both range and equal for %s".formatted(parameterName));
         }
+    }
+
+    public static Bound of(TimestampParameter[] timestamp, String parameterName, Field<Long> field) {
+        if (timestamp == null || timestamp.length == 0) {
+            return Bound.EMPTY;
+        }
+
+        for (int i = 0; i < timestamp.length; ++i) {
+            final var param = timestamp[i];
+            if (param.operator() == RangeOperator.EQ) {
+                timestamp[i] = new TimestampParameter(RangeOperator.LTE, param.value());
+            }
+        }
+
+        return new Bound(timestamp, false, parameterName, field);
     }
 
     private Bound createBound(RangeParameter<Long> param) {

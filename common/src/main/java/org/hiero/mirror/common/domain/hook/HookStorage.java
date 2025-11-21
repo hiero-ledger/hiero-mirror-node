@@ -45,7 +45,7 @@ public class HookStorage {
     @ToString.Exclude
     private byte[] key;
 
-    private long modifiedTimestamp;
+    private Long modifiedTimestamp;
 
     @jakarta.persistence.Id
     private long ownerId;
@@ -55,7 +55,7 @@ public class HookStorage {
 
     @Builder(toBuilder = true)
     private HookStorage(
-            long createdTimestamp, long hookId, byte[] key, long modifiedTimestamp, long ownerId, byte[] value) {
+            long createdTimestamp, long hookId, byte[] key, Long modifiedTimestamp, long ownerId, byte[] value) {
         this.createdTimestamp = createdTimestamp;
         this.hookId = hookId;
         this.key = DomainUtils.leftPadBytes(key, KEY_BYTE_LENGTH);
