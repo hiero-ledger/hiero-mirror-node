@@ -13,6 +13,7 @@ import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.StreamObserver;
 import java.time.Duration;
 import java.time.Instant;
@@ -50,6 +51,7 @@ import org.mockito.Mockito;
 final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final Consumer<BlockStream> IGNORE = b -> {};
+    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = grpcCall -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
