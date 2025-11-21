@@ -138,20 +138,38 @@ public class HistoricalBalanceService {
                 boolean full = maxConsensusTimestamp.isEmpty();
                 int accountBalancesCount;
                 int tokenBalancesCount;
+
                 if (full) {
                     // get a full snapshot
                     accountBalancesCount = accountBalanceRepository.balanceSnapshot(timestamp, treasuryAccountId);
                     tokenBalancesCount = properties.isTokenBalances()
                             ? tokenBalanceRepository.balanceSnapshot(timestamp, treasuryAccountId)
                             : 0;
+                    tokenBalanceRepository.deleteSnapshotRows();
+                    accountBalanceRepository.deleteSnapshotRows();
                 } else {
                     // get a snapshot that has no duplicates
                     accountBalancesCount = accountBalanceRepository.balanceSnapshotDeduplicate(
                             maxConsensusTimestamp.get(), timestamp, treasuryAccountId);
+                    final var deletedAccountBalanceChangeRows = accountBalanceRepository.deleteSnapshotRows();
                     tokenBalancesCount = properties.isTokenBalances()
                             ? tokenBalanceRepository.balanceSnapshotDeduplicate(
                                     maxConsensusTimestamp.get(), timestamp, treasuryAccountId)
                             : 0;
+                    final var deletedTokenBalanceChangeRows = tokenBalanceRepository.deleteSnapshotRows();
+
+                    if (deletedAccountBalanceChangeRows != accountBalancesCount) {
+                        log.error(
+                                "Deleted account_balance_change rows {} does not match inserted account_balance rows {}",
+                                deletedAccountBalanceChangeRows,
+                                accountBalancesCount);
+                    }
+                    if (deletedTokenBalanceChangeRows != tokenBalancesCount) {
+                        log.error(
+                                "Deleted token_balance_change rows {} does not match inserted token_balance rows {}",
+                                deletedTokenBalanceChangeRows,
+                                tokenBalancesCount);
+                    }
                 }
 
                 long loadEnd = System.currentTimeMillis();

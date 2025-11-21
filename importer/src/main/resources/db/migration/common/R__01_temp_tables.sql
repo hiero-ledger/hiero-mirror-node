@@ -20,6 +20,7 @@ begin
 end
 $$ language plpgsql;
 
+call create_temp_table_safe('account_balance_change', 'account_id');
 call create_temp_table_safe('contract_state', 'contract_id', 'slot');
 call create_temp_table_safe('crypto_allowance', 'owner', 'spender');
 call create_temp_table_safe('custom_fee', 'entity_id');
@@ -35,6 +36,7 @@ call create_temp_table_safe('token_account', 'account_id', 'token_id');
 call create_temp_table_safe('token_airdrop', 'receiver_account_id', 'sender_account_id', 'serial_number', 'token_id');
 call create_temp_table_safe('token_allowance', 'owner', 'spender', 'token_id');
 call create_temp_table_safe('token', 'token_id');
+call create_temp_table_safe('token_balance_change', 'account_id', 'token_id');
 call create_temp_table_safe('topic', 'id');
 call create_temp_table_safe('topic_message_lookup', 'topic_id', 'partition');
 
