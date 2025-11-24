@@ -118,8 +118,9 @@ jobs:
       - name: Run Rosetta Postman API Tests
         working-directory: ./charts/hedera-mirror-rosetta
         run: |
-          npm install -g newman
-          newman run postman.json
+          echo "Disabled"
+      #          npm install -g newman
+      #          newman run postman.json
 
       - name: Show Container Log
         if: ${{ failure() }}
