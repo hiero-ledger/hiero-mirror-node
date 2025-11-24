@@ -48,7 +48,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Get tag
         run: echo "TAG=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
@@ -123,7 +123,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Publish helm chart
         uses: step-security/helm-gh-pages@616180123f50f1296942fd9982119baa053e1daf # v1.7.5
@@ -149,7 +149,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Authenticate to Google Cloud
         id: google-auth

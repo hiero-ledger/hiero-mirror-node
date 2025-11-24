@@ -47,7 +47,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Get version
         run: echo "VERSION=$(grep -oP 'version=\K.+' gradle.properties)" >> $GITHUB_ENV
@@ -118,7 +118,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           ref: deploy
           token: ${{ secrets.HEDERA_BOT_TOKEN }}
@@ -128,6 +128,8 @@ jobs:
         uses: step-security/ghaction-import-gpg@69c854a83c7f79463f8bdf46772ab09826c560cd # v6.3.1
         with:
           git_commit_gpgsign: true
+          git_committer_email: ${{ vars.GIT_USER_EMAIL }}
+          git_committer_name: ${{ vars.GIT_USER_NAME }}
           git_tag_gpgsign: true
           git_user_signingkey: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
