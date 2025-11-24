@@ -8,7 +8,7 @@ repositories {
 }
 
 dependencies {
-    val dockerJavaVersion = "3.6.0"
+    val dockerJavaVersion = "3.7.0"
     val jooqVersion = "3.20.8" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
