@@ -29,7 +29,7 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.flywaydb:flyway-database-postgresql:11.16.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:2.4.1")
-    implementation("org.graalvm.buildtools:native-gradle-plugin:0.11.2")
+    implementation("org.graalvm.buildtools:native-gradle-plugin:0.11.3")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.4")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
