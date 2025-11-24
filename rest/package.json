@@ -52,7 +52,7 @@
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.8.0",
+    "@testcontainers/postgresql": "^11.8.1",
     "@testcontainers/redis": "^11.8.0",
     "app-root-path": "^3.1.0",
     "cross-env": "^10.1.0",
