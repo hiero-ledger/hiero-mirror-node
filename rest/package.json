@@ -61,7 +61,7 @@
     "jest-extended": "^7.0.0",
     "jest-junit": "^16.0.0",
     "node-flywaydb": "^3.0.7",
-    "nodemon": "^3.1.10",
+    "nodemon": "^3.1.11",
     "pg-format": "^1.0.4",
     "pgsql-parser": "^17.8.2",
     "rewire": "^9.0.1",
