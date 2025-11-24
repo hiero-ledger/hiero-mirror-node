@@ -319,7 +319,7 @@ resources:
 revisionHistoryLimit: 3
 
 routes:
-  fees: false
+  fees: true
 
 securityContext:
   allowPrivilegeEscalation: false
