@@ -17,9 +17,9 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
             value =
                     """
                     select distinct on (key)
-                         owner_id            as "owner_id",
-                         hook_id             as "hook_id",
-                         key                 as "key",
+                         owner_id,
+                         hook_id,
+                         key,
                          value_written       as "value",
                          consensus_timestamp as "modified_timestamp",
                          consensus_timestamp as "consensus_timestamp",
@@ -46,9 +46,9 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
             value =
                     """
                     select distinct on (key)
-                         owner_id            as "owner_id",
-                         hook_id             as "hook_id",
-                         key                 as "key",
+                         owner_id,
+                         hook_id,
+                         key,
                          value_written       as "value",
                          consensus_timestamp as "modified_timestamp",
                          consensus_timestamp as "consensus_timestamp",

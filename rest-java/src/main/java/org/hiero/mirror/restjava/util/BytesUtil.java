@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.util;
 
+import org.apache.tuweni.bytes.MutableBytes32;
+
 public final class BytesUtil {
 
     private BytesUtil() {
@@ -9,36 +11,10 @@ public final class BytesUtil {
     }
 
     public static byte[] incrementByteArray(byte[] bytes) {
-        byte[] result = bytes.clone();
-
-        for (int i = result.length - 1; i >= 0; i--) {
-            int v = (result[i] & 0xFF) + 1;
-            result[i] = (byte) v;
-
-            if (v <= 0xFF) {
-                break;
-            }
-
-            result[i] = 0;
-        }
-
-        return result;
+        return MutableBytes32.wrap(bytes.clone()).increment().toArray();
     }
 
     public static byte[] decrementByteArray(byte[] bytes) {
-        byte[] result = bytes.clone();
-
-        for (int i = result.length - 1; i >= 0; i--) {
-            int v = (result[i] & 0xFF) - 1;
-            result[i] = (byte) v;
-
-            if (v >= 0) {
-                break;
-            }
-
-            result[i] = (byte) 0xFF;
-        }
-
-        return result;
+        return MutableBytes32.wrap(bytes.clone()).decrement().toArray();
     }
 }

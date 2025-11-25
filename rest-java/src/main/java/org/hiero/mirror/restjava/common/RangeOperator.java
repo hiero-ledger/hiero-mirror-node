@@ -45,7 +45,7 @@ public enum RangeOperator {
         return switch (this) {
             case GT -> GTE;
             case LT -> LTE;
-            case EQ, GTE, LTE, NE, UNKNOWN -> this;
+            default -> this;
         };
     }
 }

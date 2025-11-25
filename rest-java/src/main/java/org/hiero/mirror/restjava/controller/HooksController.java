@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.HookStorage;
 import org.hiero.mirror.rest.model.HooksResponse;
@@ -173,15 +172,13 @@ final class HooksController {
             if (key.operator() == RangeOperator.EQ) {
                 keyFilters.add(value);
             } else {
-                final var keyBytes = DomainUtils.leftPadBytes(value, KEY_BYTE_LENGTH);
-
                 if (key.hasLowerBound()) {
-                    if (Arrays.compareUnsigned(keyBytes, lowerBound) > 0) {
-                        lowerBound = keyBytes;
+                    if (Arrays.compareUnsigned(value, lowerBound) > 0) {
+                        lowerBound = value;
                     }
                 } else if (key.hasUpperBound()) {
-                    if (Arrays.compareUnsigned(keyBytes, upperBound) < 0) {
-                        upperBound = keyBytes;
+                    if (Arrays.compareUnsigned(value, upperBound) < 0) {
+                        upperBound = value;
                     }
                 }
             }

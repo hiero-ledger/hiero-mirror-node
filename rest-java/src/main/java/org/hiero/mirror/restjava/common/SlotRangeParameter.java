@@ -6,9 +6,9 @@ import static org.hiero.mirror.restjava.util.BytesUtil.decrementByteArray;
 import static org.hiero.mirror.restjava.util.BytesUtil.incrementByteArray;
 
 import java.util.regex.Pattern;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tomcat.util.buf.HexUtils;
-import org.hiero.mirror.common.util.DomainUtils;
 
 public record SlotRangeParameter(RangeOperator operator, byte[] value) implements RangeParameter<byte[]> {
 
@@ -16,9 +16,9 @@ public record SlotRangeParameter(RangeOperator operator, byte[] value) implement
     private static final String HEX_GROUP_NAME = "hex";
     private static final String OPERATOR_GROUP_NAME = "op";
     private static final Pattern SLOT_PATTERN =
-            Pattern.compile("^(?:(?<op>eq|gt|gte|lt|lte):)?(?<hex>(?:0x)?[0-9a-fA-F]{1,64})$");
+            Pattern.compile("^(?:(?<op>eq|gt|gte|lt|lte):)?(?:0x)?(?<hex>[0-9a-fA-F]{1,64})$");
 
-    public static SlotRangeParameter valueOf(String valueRangeParam) {
+    public static SlotRangeParameter valueOf(String valueRangeParam) throws DecoderException {
         if (StringUtils.isBlank(valueRangeParam)) {
             return EMPTY;
         }
@@ -32,20 +32,13 @@ public record SlotRangeParameter(RangeOperator operator, byte[] value) implement
         final var hexGroup = matcher.group(HEX_GROUP_NAME);
 
         final var operator = (operatorGroup == null) ? RangeOperator.EQ : RangeOperator.of(operatorGroup);
-        final var hex = normalizeHexKey(hexGroup);
+        final var hex = StringUtils.leftPad(hexGroup, 64, '0');
 
         return new SlotRangeParameter(operator.toInclusive(), getInclusiveValue(operator, hex));
     }
 
-    private static String normalizeHexKey(String hexValue) {
-        final var hex = hexValue.toLowerCase().startsWith("0x") ? hexValue.substring(2) : hexValue;
-
-        return StringUtils.leftPad(hex, 64, '0');
-    }
-
-    private static byte[] getInclusiveValue(RangeOperator operator, String hexValue) {
-        byte[] bytes = HexUtils.fromHexString(hexValue);
-        bytes = DomainUtils.leftPadBytes(bytes, 32);
+    private static byte[] getInclusiveValue(RangeOperator operator, String hexValue) throws DecoderException {
+        byte[] bytes = Hex.decodeHex(hexValue);
 
         if (operator == RangeOperator.GT) {
             return incrementByteArray(bytes);
