@@ -408,23 +408,23 @@ final class HooksControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @CsvSource(
-                // entity ID formats
                 delimiter = '|',
                 value = {
+                    // еntity id (shard.realm.num)
                     OWNER_ID + " | " + HOOK_ID,
                     "0." + OWNER_ID + " | " + HOOK_ID,
                     "0.0." + OWNER_ID + " | " + HOOK_ID,
-                    // alias formats
+                    // alias
                     ALIAS + " | " + HOOK_ID,
                     "0." + ALIAS + " | " + HOOK_ID,
                     "0.0." + ALIAS + " | " + HOOK_ID,
-                    // evm formats
+                    // evm address
                     EVM_ADDRESS + " | " + HOOK_ID,
                     "0." + EVM_ADDRESS + " | " + HOOK_ID,
                     "0.0." + EVM_ADDRESS + " | " + HOOK_ID,
                     "0x" + EVM_ADDRESS + " | " + HOOK_ID,
                 })
-        void success(String ownerId, String hookId) {
+        void getHookStorageValidOwnerId(String ownerId, String hookId) {
             // given
             persistAccount(OWNER_ID, ALIAS, EVM_ADDRESS);
 

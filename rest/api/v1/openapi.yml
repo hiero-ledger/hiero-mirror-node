@@ -78,8 +78,8 @@ paths:
         - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks/{hookId}/storage:
     get:
-      summary: Get hook storage
-      description: Returns a list of hook storage associated with a given hook.
+      summary: Get hook storage slots
+      description: Returns a list of hook storage slots associated with a given hook.
       operationId: getHookStorage
       parameters:
         - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"

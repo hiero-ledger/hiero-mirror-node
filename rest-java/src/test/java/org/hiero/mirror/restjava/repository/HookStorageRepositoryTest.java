@@ -12,7 +12,6 @@ import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.Constants;
-import org.hiero.mirror.restjava.util.BytesUtil;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.domain.PageRequest;
@@ -22,7 +21,7 @@ import org.springframework.data.domain.Sort.Direction;
 @RequiredArgsConstructor
 final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
-    private static final EntityId OWNER_ID = EntityId.of(0, 0, 1000);
+    private static final long HOOK_ID = 2000;
     private static final int LIMIT = 2;
 
     private final HookStorageRepository repository;
@@ -31,35 +30,16 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(Direction order) {
         // given
-        final var storage1 = persistHookStorage(OWNER_ID);
-        final var hookId1 = storage1.getHookId();
+        final var keys = generateKeys(6);
+        final var ownerId = domainBuilder.entityId();
 
-        final var storage2 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage1.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage1.getKey())); // KEY_2 won't be passed to the method params
-        final var storage3 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage2.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage2.getKey()),
-                ArrayUtils.EMPTY_BYTE_ARRAY); // deleted
-        final var storage4 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage3.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage3.getKey()));
-        final var storage5 = persistHookStorage(
-                EntityId.of(OWNER_ID.getId() + 1),
-                hookId1,
-                storage4.getModifiedTimestamp() + 1,
-                storage4.getKey()); // different ownerId
-        final var storage6 = persistHookStorage(
-                OWNER_ID,
-                hookId1 + 1,
-                storage5.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage5.getKey())); // different hookId
+        final var storage1 = persistHookStorage(ownerId, HOOK_ID, keys.get(0));
+        persistHookStorage(ownerId, HOOK_ID, keys.get(1)); //  won't be passed to the method params
+        final var storage3 = persistHookStorage(ownerId, HOOK_ID, keys.get(2), ArrayUtils.EMPTY_BYTE_ARRAY); // deleted
+        final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
+        final var storage5 =
+                persistHookStorage(EntityId.of(ownerId.getId() + 1), HOOK_ID, keys.get(4)); // different ownerId
+        final var storage6 = persistHookStorage(ownerId, HOOK_ID + 1, keys.get(5)); // different hookId
 
         final var sort = Sort.by(order, Constants.KEY);
 
@@ -67,8 +47,8 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var hookStorage = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 List.of(
                         storage1.getKey(),
                         storage3.getKey(), // deleted because of empty key value
@@ -87,35 +67,15 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(Direction order) {
         // given
-        final var storage1 = persistHookStorage(OWNER_ID);
-        final var hookId1 = storage1.getHookId();
+        final var keys = generateKeys(6);
+        final var ownerId = domainBuilder.entityId();
 
-        final var storage2 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage1.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage1.getKey()));
-        final var storage3 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage2.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage2.getKey()),
-                ArrayUtils.EMPTY_BYTE_ARRAY); // deleted
-        final var storage4 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage3.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage3.getKey()));
-        final var storage5 = persistHookStorage(
-                EntityId.of(OWNER_ID.getId() + 1),
-                hookId1,
-                storage4.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage4.getKey())); // different ownerId
-        final var storage6 = persistHookStorage(
-                OWNER_ID,
-                hookId1 + 1,
-                storage5.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage5.getKey())); // different hookId
+        final var storage1 = persistHookStorage(ownerId, HOOK_ID, keys.get(0));
+        final var storage2 = persistHookStorage(ownerId, HOOK_ID, keys.get(1));
+        persistHookStorage(ownerId, HOOK_ID, keys.get(2), ArrayUtils.EMPTY_BYTE_ARRAY); // deleted
+        final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
+        persistHookStorage(EntityId.of(ownerId.getId() + 1), HOOK_ID, keys.get(4)); // different ownerId
+        final var storage6 = persistHookStorage(ownerId, HOOK_ID + 1, keys.get(5)); // different hookId
 
         final var sort = Sort.by(order, Constants.KEY);
 
@@ -124,7 +84,7 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var hookStorage = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                OWNER_ID.getId(), hookId1, storage1.getKey(), storage6.getKey(), PageRequest.of(0, 10, sort));
+                ownerId.getId(), HOOK_ID, storage1.getKey(), storage6.getKey(), PageRequest.of(0, 10, sort));
 
         // then
         assertThat(hookStorage).isNotNull().containsExactlyElementsOf(expectedResponse);
@@ -134,23 +94,13 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalseRespectsOrderLimitAndPagination(Direction order) {
         // given
-        final var storage1 = persistHookStorage(OWNER_ID);
-        final var hookId1 = storage1.getHookId();
-        final var storage2 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage1.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage1.getKey()));
-        final var storage3 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage2.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage2.getKey()));
-        final var storage4 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage3.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage3.getKey()));
+        final var keys = generateKeys(4);
+        final var ownerId = domainBuilder.entityId();
+
+        final var storage1 = persistHookStorage(ownerId, HOOK_ID, keys.get(0));
+        final var storage2 = persistHookStorage(ownerId, HOOK_ID, keys.get(1));
+        final var storage3 = persistHookStorage(ownerId, HOOK_ID, keys.get(2));
+        final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
 
         final var sort = Sort.by(order, Constants.KEY);
 
@@ -163,19 +113,18 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var page0 = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 List.of(storage1.getKey(), storage2.getKey(), storage3.getKey(), storage4.getKey()),
                 PageRequest.of(0, LIMIT, sort));
 
         final var page1 = repository.findByOwnerIdAndHookIdAndKeyInAndDeletedIsFalse(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 List.of(storage1.getKey(), storage2.getKey(), storage3.getKey(), storage4.getKey()),
                 PageRequest.of(1, LIMIT, sort));
 
         assertThat(page0).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-
         assertThat(page1).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
     }
 
@@ -183,29 +132,14 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalseRespectsOrderLimitAndPagination(Direction order) {
         // given
-        final var storage1 = persistHookStorage(OWNER_ID);
-        final var hookId1 = storage1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var storage2 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage1.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage1.getKey()));
-        final var storage3 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage2.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage2.getKey()));
-        final var storage4 = persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage3.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage3.getKey()));
-        persistHookStorage(
-                OWNER_ID,
-                hookId1,
-                storage4.getModifiedTimestamp() + 1,
-                BytesUtil.incrementByteArray(storage4.getKey()));
+        persistHookStorage(ownerId, HOOK_ID, keys.get(0));
+        final var storage2 = persistHookStorage(ownerId, HOOK_ID, keys.get(1));
+        final var storage3 = persistHookStorage(ownerId, HOOK_ID, keys.get(2));
+        final var storage4 = persistHookStorage(ownerId, HOOK_ID, keys.get(3));
+        persistHookStorage(ownerId, HOOK_ID, keys.get(4));
 
         final var sort = Sort.by(order, Constants.KEY);
 
@@ -217,42 +151,28 @@ final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var page0 = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                OWNER_ID.getId(), hookId1, storage2.getKey(), storage4.getKey(), PageRequest.of(0, LIMIT, sort));
-
+                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), PageRequest.of(0, LIMIT, sort));
         final var page1 = repository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
-                OWNER_ID.getId(), hookId1, storage2.getKey(), storage4.getKey(), PageRequest.of(1, LIMIT, sort));
+                ownerId.getId(), HOOK_ID, storage2.getKey(), storage4.getKey(), PageRequest.of(1, LIMIT, sort));
 
         // then
         assertThat(page0).isNotNull().hasSize(expectedPage0.size()).containsExactlyElementsOf(expectedPage0);
-
         assertThat(page1).isNotNull().hasSize(expectedPage1.size()).containsExactlyElementsOf(expectedPage1);
     }
 
-    private HookStorage persistHookStorage(EntityId ownerId) {
+    private HookStorage persistHookStorage(EntityId ownerId, long hookId, byte[] key) {
         return domainBuilder
                 .hookStorage()
-                .customize(hookStorage -> hookStorage.ownerId(ownerId.getId()))
+                .customize(hookStorage -> hookStorage.hookId(hookId).key(key).ownerId(ownerId.getId()))
                 .persist();
     }
 
-    private HookStorage persistHookStorage(EntityId ownerId, long hookId, long timestamp, byte[] key) {
-        return domainBuilder
-                .hookStorage()
-                .customize(hookStorage -> hookStorage
-                        .hookId(hookId)
-                        .key(key)
-                        .modifiedTimestamp(timestamp)
-                        .ownerId(ownerId.getId()))
-                .persist();
-    }
-
-    private HookStorage persistHookStorage(EntityId ownerId, long hookId, long timestamp, byte[] keyHex, byte[] value) {
+    private HookStorage persistHookStorage(EntityId ownerId, long hookId, byte[] keyHex, byte[] value) {
         return domainBuilder
                 .hookStorage()
                 .customize(hookStorage -> hookStorage
                         .hookId(hookId)
                         .key(keyHex)
-                        .modifiedTimestamp(timestamp)
                         .ownerId(ownerId.getId())
                         .value(value))
                 .persist();

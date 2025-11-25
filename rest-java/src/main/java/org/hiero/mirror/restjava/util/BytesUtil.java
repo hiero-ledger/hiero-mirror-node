@@ -11,10 +11,10 @@ public final class BytesUtil {
     }
 
     public static byte[] incrementByteArray(byte[] bytes) {
-        return MutableBytes32.wrap(bytes.clone()).increment().toArray();
+        return MutableBytes32.wrap(bytes).increment().toArrayUnsafe();
     }
 
     public static byte[] decrementByteArray(byte[] bytes) {
-        return MutableBytes32.wrap(bytes.clone()).decrement().toArray();
+        return MutableBytes32.wrap(bytes).decrement().toArrayUnsafe();
     }
 }

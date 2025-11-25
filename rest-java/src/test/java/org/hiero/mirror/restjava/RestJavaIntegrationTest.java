@@ -2,7 +2,11 @@
 
 package org.hiero.mirror.restjava;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
@@ -23,5 +27,21 @@ public abstract class RestJavaIntegrationTest extends CommonIntegrationTest {
                         .value(change.getValueWritten() != null ? change.getValueWritten() : change.getValueRead())
                         .modifiedTimestamp(change.getConsensusTimestamp())
                         .build();
+    }
+
+    /**
+     *  Generates a list of consecutive byte arrays based on 64 char hex strings
+     */
+    public static List<byte[]> generateKeys(int count) {
+        var consecutiveKeys = new ArrayList<byte[]>(count);
+
+        for (int i = 1; i <= count; i++) {
+            final var hex = Integer.toHexString(i);
+            final var paddedHex = StringUtils.leftPad(hex, 64, '0');
+            final var bytes = Hex.decode(paddedHex);
+            consecutiveKeys.add(bytes);
+        }
+
+        return consecutiveKeys;
     }
 }

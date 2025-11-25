@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.util.BytesUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -26,7 +25,7 @@ import org.springframework.data.domain.Sort.Direction;
 @RequiredArgsConstructor
 final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
-    private static final EntityId OWNER_ID = EntityId.of(0, 0, 1000);
+    private static final long HOOK_ID = 2000;
     private static final int LIMIT = 2;
 
     private final HookStorageChangeRepository repository;
@@ -35,14 +34,14 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByKeyBetweenAndTimestampBetweenInRange(Direction order) {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var ownerId = domainBuilder.entityId();
+        final var keys = generateKeys(5);
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(
-                OWNER_ID, hookId1 + 1, BytesUtil.incrementByteArray(change2.getKey())); // different hookId
-        final var change4 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change3.getKey()));
-        final var change5 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change4.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        final var change2 = persistChange(ownerId, HOOK_ID, keys.get(1));
+        persistChange(ownerId, HOOK_ID + 1, keys.get(2)); // different hookId
+        final var change4 = persistChange(ownerId, HOOK_ID, keys.get(3));
+        final var change5 = persistChange(ownerId, HOOK_ID, keys.get(4));
 
         final var sort = sort(order);
 
@@ -57,8 +56,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var page0Result = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 change1.getKey(),
                 change5.getKey(),
                 change1.getConsensusTimestamp(),
@@ -66,8 +65,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
                 PageRequest.of(0, LIMIT, sort));
 
         final var page1Result = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 change1.getKey(),
                 change5.getKey(),
                 change1.getConsensusTimestamp(),
@@ -82,13 +81,14 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @Test
     void findByKeyBetweenAndTimestampBetweenInRangePartialOverlap() {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change2.getKey()));
-        final var change4 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change3.getKey()));
-        final var change5 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change4.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        final var change2 = persistChange(ownerId, HOOK_ID, keys.get(1));
+        final var change3 = persistChange(ownerId, HOOK_ID, keys.get(2));
+        final var change4 = persistChange(ownerId, HOOK_ID, keys.get(3));
+        final var change5 = persistChange(ownerId, HOOK_ID, keys.get(4));
 
         final var sort = sort(ASC);
 
@@ -97,8 +97,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var keyPartialOverlap = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 change2.getKey(),
                 change4.getKey(),
                 change1.getConsensusTimestamp(),
@@ -106,8 +106,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
                 PageRequest.of(0, 10, sort));
 
         final var timestampPartialOverlap = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 change1.getKey(),
                 change5.getKey(),
                 change2.getConsensusTimestamp(),
@@ -123,15 +123,15 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @EnumSource(Direction.class)
     void findByKeyInAndTimestampBetweenInRange(Direction order) {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(
-                OWNER_ID, hookId1 + 1, BytesUtil.incrementByteArray(change2.getKey())); // different hookId
-        final var change4 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change3.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        final var change2 = persistChange(ownerId, HOOK_ID, keys.get(1));
+        persistChange(ownerId, HOOK_ID + 1, keys.get(2)); // different hookId
+        final var change4 = persistChange(ownerId, HOOK_ID, keys.get(3));
 
-        final var keys = List.of(change1.getKey(), change2.getKey(), change4.getKey());
+        final var queryKeys = List.of(change1.getKey(), change2.getKey(), change4.getKey());
 
         final var expectedChanges =
                 order.isAscending() ? List.of(change1, change2, change4) : List.of(change4, change2, change1);
@@ -145,17 +145,17 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
 
         // when
         final var page0Result = repository.findByKeyInAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
-                keys,
+                ownerId.getId(),
+                HOOK_ID,
+                queryKeys,
                 change1.getConsensusTimestamp(),
                 change4.getConsensusTimestamp(),
                 PageRequest.of(0, LIMIT, sort));
 
         final var page1Result = repository.findByKeyInAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
-                keys,
+                ownerId.getId(),
+                HOOK_ID,
+                queryKeys,
                 change1.getConsensusTimestamp(),
                 change4.getConsensusTimestamp(),
                 PageRequest.of(1, LIMIT, sort));
@@ -168,19 +168,20 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @Test
     void findByKeyBetweenAndTimestampBetweenDifferentOwnerAndHookIdEmptyResults() {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change2.getKey()));
-        final var change4 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change3.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        persistChange(ownerId, HOOK_ID, keys.get(1));
+        persistChange(ownerId, HOOK_ID, keys.get(2));
+        final var change4 = persistChange(ownerId, HOOK_ID, keys.get(3));
 
         final var sort = sort(ASC);
 
         // when
         final var differentOwnerChanges = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId() + 1,
-                hookId1,
+                ownerId.getId() + 1,
+                HOOK_ID,
                 change1.getKey(),
                 change4.getKey(),
                 change1.getConsensusTimestamp(),
@@ -188,8 +189,8 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
                 PageRequest.of(0, LIMIT, sort));
 
         final var differentHookIdChanges = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1 + 1,
+                ownerId.getId(),
+                HOOK_ID + 1,
                 change1.getKey(),
                 change4.getKey(),
                 change1.getConsensusTimestamp(),
@@ -204,29 +205,30 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @Test
     void findByKeyInAndTimestampBetweenDifferentOwnerAndHookIdEmptyResult() {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change2.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        final var change2 = persistChange(ownerId, HOOK_ID, keys.get(1));
+        final var change3 = persistChange(ownerId, HOOK_ID, keys.get(2));
 
-        final var keys = List.of(change1.getKey(), change2.getKey(), change3.getKey());
+        final var keysDifferentOwner = List.of(change1.getKey(), change2.getKey(), change3.getKey());
 
         final var sort = sort(ASC);
 
         // when
         final var differentOwnerChanges = repository.findByKeyInAndTimestampBetween(
-                OWNER_ID.getId() + 1,
-                hookId1,
-                keys,
+                ownerId.getId() + 1,
+                HOOK_ID,
+                keysDifferentOwner,
                 change1.getConsensusTimestamp(),
                 change3.getConsensusTimestamp(),
                 PageRequest.of(0, LIMIT, sort));
 
         final var differentHookIdChanges = repository.findByKeyInAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1 + 1,
-                keys,
+                ownerId.getId(),
+                HOOK_ID + 1,
+                keysDifferentOwner,
                 change1.getConsensusTimestamp(),
                 change3.getConsensusTimestamp(),
                 PageRequest.of(1, LIMIT, sort));
@@ -239,19 +241,20 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @Test
     void findByKeyInAndTimestampBetweenOutOfRange() {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change2.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        persistChange(ownerId, HOOK_ID, keys.get(1));
+        final var change3 = persistChange(ownerId, HOOK_ID, keys.get(2));
 
         final var sort = sort(ASC);
 
         // when
         final var keysOutOfRangeQueryResult = repository.findByKeyInAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
-                List.of(BytesUtil.incrementByteArray(change3.getKey())),
+                ownerId.getId(),
+                HOOK_ID,
+                List.of(keys.get(3)),
                 change1.getConsensusTimestamp(),
                 change3.getConsensusTimestamp(),
                 PageRequest.of(0, LIMIT, sort));
@@ -263,19 +266,20 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
     @Test
     void findByKeyBetweenAndTimestampBetweenOutOfRange() {
         // given
-        final var change1 = persistChange(OWNER_ID);
-        final var hookId1 = change1.getHookId();
+        final var keys = generateKeys(5);
+        final var ownerId = domainBuilder.entityId();
 
-        final var change2 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change1.getKey()));
-        final var change3 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change2.getKey()));
-        final var change4 = persistChange(OWNER_ID, hookId1, BytesUtil.incrementByteArray(change3.getKey()));
+        final var change1 = persistChange(ownerId, HOOK_ID, keys.get(0));
+        persistChange(ownerId, HOOK_ID, keys.get(1));
+        persistChange(ownerId, HOOK_ID, keys.get(2));
+        final var change4 = persistChange(ownerId, HOOK_ID, keys.get(3));
 
         final var sort = sort(ASC);
 
         // when
         final var timestampsOutOfRange = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
+                ownerId.getId(),
+                HOOK_ID,
                 change1.getKey(),
                 change4.getKey(),
                 change4.getConsensusTimestamp() + 1,
@@ -286,9 +290,9 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         Arrays.fill(maxBytes, (byte) 0xFF);
 
         final var keysOutOfRange = repository.findByKeyBetweenAndTimestampBetween(
-                OWNER_ID.getId(),
-                hookId1,
-                BytesUtil.incrementByteArray(change4.getKey()),
+                ownerId.getId(),
+                HOOK_ID,
+                keys.get(4),
                 maxBytes,
                 change1.getConsensusTimestamp(),
                 change4.getConsensusTimestamp(),
@@ -299,18 +303,17 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(keysOutOfRange).isEmpty();
     }
 
-    private HookStorageChange persistChange(EntityId ownerId, long hookId, byte[] key) {
+    private HookStorageChange persistChange(EntityId ownerId, long hookId) {
         return domainBuilder
                 .hookStorageChange()
-                .customize(
-                        change -> change.ownerId(ownerId.getId()).hookId(hookId).key(key))
+                .customize(change -> change.hookId(hookId).ownerId(ownerId.getId()))
                 .persist();
     }
 
-    private HookStorageChange persistChange(EntityId ownerId) {
+    private HookStorageChange persistChange(EntityId ownerId, long hookId, byte[] key) {
         return domainBuilder
                 .hookStorageChange()
-                .customize(change -> change.ownerId(ownerId.getId()))
+                .customize(change -> change.hookId(hookId).key(key).ownerId(ownerId.getId()))
                 .persist();
     }
 
