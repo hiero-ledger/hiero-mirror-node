@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.142.2'
+      version: '0.143.0'
   driftDetection:
     mode: enabled
     ignore:
