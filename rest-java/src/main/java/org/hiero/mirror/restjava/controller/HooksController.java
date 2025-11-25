@@ -169,17 +169,16 @@ final class HooksController {
 
         for (final var key : keys) {
             final byte[] value = key.value();
-            if (key.operator() == RangeOperator.EQ) {
-                keyFilters.add(value);
-            } else {
-                if (key.hasLowerBound()) {
-                    if (Arrays.compareUnsigned(value, lowerBound) > 0) {
-                        lowerBound = value;
-                    }
-                } else if (key.hasUpperBound()) {
-                    if (Arrays.compareUnsigned(value, upperBound) < 0) {
-                        upperBound = value;
-                    }
+
+            if (key.hasLowerBound()) {
+                if (key.operator() == RangeOperator.EQ) {
+                    keyFilters.add(value);
+                } else if (Arrays.compareUnsigned(value, lowerBound) > 0) {
+                    lowerBound = value;
+                }
+            } else if (key.hasUpperBound()) {
+                if (Arrays.compareUnsigned(value, upperBound) < 0) {
+                    upperBound = value;
                 }
             }
         }

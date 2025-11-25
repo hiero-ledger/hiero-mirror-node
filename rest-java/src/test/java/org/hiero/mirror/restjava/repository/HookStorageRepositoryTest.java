@@ -22,7 +22,7 @@ import org.springframework.data.domain.Sort.Direction;
 @RequiredArgsConstructor
 final class HookStorageRepositoryTest extends RestJavaIntegrationTest {
 
-    private static final EntityId OWNER_ID = EntityId.of(1000L);
+    private static final EntityId OWNER_ID = EntityId.of(0, 0, 1000);
     private static final int LIMIT = 2;
 
     private final HookStorageRepository repository;
