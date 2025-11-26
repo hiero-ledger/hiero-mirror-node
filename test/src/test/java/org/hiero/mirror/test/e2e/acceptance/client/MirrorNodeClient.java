@@ -380,7 +380,7 @@ public class MirrorNodeClient {
 
     public NetworkSupplyResponse getNetworkSupply() {
         String supplyEndpoint = "/network/supply";
-        return callRestEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
+        return callConvertedRestEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {

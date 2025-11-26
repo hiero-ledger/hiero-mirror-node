@@ -18,6 +18,7 @@ const Pool = getPoolClass();
 const REDIS_IMAGE = 'redis:7.2';
 
 const restJavaContainers = new Map();
+const restJavaContainerConfigs = new Map();
 
 const readOnlyUser = 'mirror_rest';
 const readOnlyPassword = 'mirror_rest_pass';
@@ -47,12 +48,19 @@ const createRestJavaContainer = async () => {
   const connectionParams = await getDbConnectionParams();
   await flywayMigrate(connectionParams);
   const bridgeHost = os.type() === 'Linux' ? '127.0.0.1' : 'host.docker.internal';
+  const environment = {
+    HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
+    HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
+    HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
+  };
+
+  // Pass currencyFormat config if set
+  if (config.network?.currencyFormat) {
+    environment.HIERO_MIRROR_REST_NETWORK_CURRENCYFORMAT = config.network.currencyFormat;
+  }
+
   return new GenericContainer('gcr.io/mirrornode/hedera-mirror-rest-java:latest')
-    .withEnvironment({
-      HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
-      HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
-      HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
-    })
+    .withEnvironment(environment)
     .withExposedPorts(8084)
     .withPullPolicy(PullPolicy.defaultPolicy())
     .start();
@@ -85,10 +93,21 @@ const initializeContainers = async () => {
 const startRedisContainer = async () => new RedisContainer(REDIS_IMAGE).withStartupTimeout(20000).start();
 
 const startRestJavaContainer = async () => {
+  const currentCurrencyFormat = config.network?.currencyFormat;
+  const previousCurrencyFormat = restJavaContainerConfigs.get(workerId);
   let container = restJavaContainers.get(workerId);
+
+  // Restart container if currencyFormat has changed
+  if (container && currentCurrencyFormat !== previousCurrencyFormat) {
+    await container.stop();
+    container = null;
+    restJavaContainers.delete(workerId);
+  }
+
   if (!container) {
     container = await createRestJavaContainer();
     restJavaContainers.set(workerId, container);
+    restJavaContainerConfigs.set(workerId, currentCurrencyFormat);
   }
 
   global.REST_JAVA_BASE_URL = `http://${container.getHost()}:${container.getMappedPort(8084)}`;

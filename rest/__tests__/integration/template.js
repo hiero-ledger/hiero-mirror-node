@@ -83,6 +83,7 @@ const getResponseHeaders = (spec, specPath) => {
     ...getResponseHeadersFromFileOrDefault(specPath),
     ...(spec.responseHeaders ?? {}),
   };
+  spec.responseHeadersMatrix = spec.responseHeadersMatrix ?? {};
 };
 
 const getSpecs = async () => {
@@ -164,8 +165,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseJsonMatrix, responseStatus} = test;
-        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus}));
+        const {responseJson, responseJsonMatrix, responseStatus, responseStatusMatrix} = test;
+        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus, responseStatusMatrix}));
       })
     );
   };
@@ -351,7 +352,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
               const target = spec.java ? global.REST_JAVA_BASE_URL : server;
               const response = await request(target).get(tt.url);
 
-              expect(response.status).toEqual(tt.responseStatus);
+              const expectedStatus = (tt.responseStatusMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseStatus;
+              expect(response.status).toEqual(expectedStatus);
               const contentType = response.get('Content-Type');
               expect(contentType).not.toBeNull();
 
@@ -363,11 +365,14 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                 const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
                 expect(jsonObj).toEqual(responseJson);
               } else {
-                expect(response.text).toEqual(tt.responseJson);
+                const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
+                expect(response.text).toEqual(responseJson);
               }
 
               if (response.status >= 200 && response.status < 300) {
-                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(spec.responseHeaders));
+                const expectedHeaders =
+                  spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ?? spec.responseHeaders ?? {};
+                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(expectedHeaders));
               }
             });
           });

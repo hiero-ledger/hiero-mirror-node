@@ -19,9 +19,11 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
@@ -522,6 +524,332 @@ final class NetworkControllerTest extends ControllerTest {
                     () -> restClient.get().uri("").retrieve().toEntity(String.class),
                     HttpClientErrorException.NotFound.class,
                     "No network stake data found");
+        }
+    }
+
+    @DisplayName("/api/v1/network/supply")
+    @Nested
+    final class SupplyEndpointTest extends EndpointTest {
+
+        private static final long BALANCE_PER_ACCOUNT = 1_000_000 * DomainUtils.TINYBARS_IN_ONE_HBAR;
+
+        @Override
+        protected String getUrl() {
+            return "network/supply";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            createUnreleasedSupplyAccounts(null);
+            return uriSpec.uri("");
+        }
+
+        @Test
+        void success() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when
+            final var response = restClient.get().uri("").retrieve().body(NetworkSupplyResponse.class);
+
+            // then - 548 accounts * 1M hbars = 548M hbars unreleased
+            // released = 50B - 548M = 49,452,000,000 hbars
+            assertThat(response).isNotNull();
+            assertThat(response.getTotalSupply()).isEqualTo("5000000000000000000");
+            assertThat(response.getReleasedSupply()).isEqualTo("4945200000000000000");
+        }
+
+        @Test
+        void withQueryParameterTotalcoins() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when
+            final var result = restClient.get().uri("?q=totalcoins").retrieve().body(String.class);
+
+            // then
+            assertThat(result).isEqualTo("50000000000.00000000");
+        }
+
+        @Test
+        void withQueryParameterCirculating() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when
+            final var result = restClient.get().uri("?q=circulating").retrieve().body(String.class);
+
+            // then - 49,452,000,000 hbars
+            assertThat(result).isEqualTo("49452000000.00000000");
+        }
+
+        @Test
+        void withTimestamp() {
+            // given
+            final var timestamp = domainBuilder.timestamp();
+            createUnreleasedSupplyAccounts(timestamp);
+
+            // when
+            final var response = restClient
+                    .get()
+                    .uri("?timestamp=" + commonMapper.mapTimestamp(timestamp))
+                    .retrieve()
+                    .body(NetworkSupplyResponse.class);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getTotalSupply()).isEqualTo("5000000000000000000");
+            assertThat(response.getReleasedSupply()).isEqualTo("4945200000000000000");
+            assertThat(response.getTimestamp()).isEqualTo(commonMapper.mapTimestamp(timestamp));
+        }
+
+        @Test
+        void withTimestampLte() {
+            // given
+            final var timestamp1 = domainBuilder.timestamp();
+            final var timestamp2 = domainBuilder.timestamp();
+            createUnreleasedSupplyAccounts(timestamp1);
+            createUnreleasedSupplyAccounts(timestamp2);
+
+            // when
+            final var response = restClient
+                    .get()
+                    .uri("?timestamp=lte:" + commonMapper.mapTimestamp(timestamp1))
+                    .retrieve()
+                    .body(NetworkSupplyResponse.class);
+
+            // then - should return data at timestamp1
+            assertThat(response).isNotNull();
+            assertThat(response.getTimestamp()).isEqualTo(commonMapper.mapTimestamp(timestamp1));
+        }
+
+        @Test
+        void invalidQueryParameter() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?q=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to convert 'q'");
+        }
+
+        @Test
+        void multipleTimestamps() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when/then
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?timestamp=1&timestamp=lt:2&timestamp=gt:0")
+                            .retrieve()
+                            .toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "timestamp size must be between 0 and 2");
+        }
+
+        @Test
+        void invalidTimestamp() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?timestamp=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to convert 'timestamp'");
+        }
+
+        @Test
+        void notFoundWithTimestamp() {
+            // given
+            final var timestamp = domainBuilder.timestamp();
+
+            // when/then - no data for this timestamp
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?timestamp=" + commonMapper.mapTimestamp(timestamp))
+                            .retrieve()
+                            .toEntity(String.class),
+                    HttpClientErrorException.NotFound.class,
+                    "Network supply not found");
+        }
+
+        @Test
+        void notFoundNoAccounts() {
+            // when/then - no accounts in database
+            validateError(
+                    () -> restClient.get().uri("").retrieve().toEntity(String.class),
+                    HttpClientErrorException.NotFound.class,
+                    "Network supply not found");
+        }
+
+        @Test
+        void invalidParametersBounds() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when/then - invalid range (lower > upper)
+            validateError(
+                    () -> restClient
+                            .get()
+                            .uri("?timestamp=gt:2&timestamp=lt:1")
+                            .retrieve()
+                            .toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid range provided for timestamp");
+        }
+
+        @Test
+        void invalidParametersNe() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when/then - ne: operator not supported
+            validateError(
+                    () -> restClient.get().uri("?timestamp=ne:1").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to convert 'timestamp'");
+        }
+
+        @ParameterizedTest
+        @CsvSource({
+            "?timestamp={1}, 1",
+            "?timestamp={2}, 2",
+            "?timestamp=eq:{1}, 1",
+            "?timestamp=eq:{2}, 2",
+            "?timestamp=lte:{1}, 1",
+            "?timestamp=lte:{2}, 2",
+            "?timestamp=lt:{2}, 1",
+            "?timestamp=gte:{1}&timestamp=lte:{1}, 1",
+            "?timestamp=gte:{1}&timestamp=lte:{2}, 2",
+            "?timestamp=gt:{0}&timestamp=lt:{2}, 1"
+        })
+        void timestampBounds(String parameters, int expectedIndex) {
+            // given - create account balances at different timestamps
+            final var timestamp1 = domainBuilder.timestamp();
+            final var timestamp2 = domainBuilder.timestamp();
+            createUnreleasedSupplyAccounts(timestamp1);
+            createUnreleasedSupplyAccounts(timestamp2);
+            final var timestamp0 = timestamp1 - 1000000;
+
+            final var formattedParams = MessageFormat.format(
+                    parameters,
+                    commonMapper.mapTimestamp(timestamp0),
+                    commonMapper.mapTimestamp(timestamp1),
+                    commonMapper.mapTimestamp(timestamp2));
+
+            final var expected1Timestamp = commonMapper.mapTimestamp(timestamp1);
+            final var expected2Timestamp = commonMapper.mapTimestamp(timestamp2);
+            final var expectedTimestamps = List.of(expected1Timestamp, expected1Timestamp, expected2Timestamp);
+
+            // when
+            final var response =
+                    restClient.get().uri(formattedParams).retrieve().body(NetworkSupplyResponse.class);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getTimestamp()).isEqualTo(expectedTimestamps.get(expectedIndex));
+        }
+
+        @Test
+        void timestampDeduplicated() {
+            // given - multiple balances at different timestamps, ensure latest is used
+            final var timestamp1 = 1_600_000_000_000_000_000L;
+            final var timestamp2 = 1_700_000_000_000_000_000L;
+            final var timestamp3 = 1_700_000_000_000_000_005L;
+
+            // Create different balances at different timestamps for same accounts
+            createCustomBalance(2, 10L, timestamp1);
+            createCustomBalance(42, 20L, timestamp1);
+            createCustomBalance(2, 1L, timestamp2);
+            createCustomBalance(42, 1L, timestamp2);
+            createCustomBalance(2, 4_000_000_000_000_000_000L, timestamp3);
+            createCustomBalance(42, 50L, timestamp3);
+
+            // when - query for timestamp range that includes latest data
+            final var response = restClient
+                    .get()
+                    .uri("?timestamp=lte:1700000000.000000000")
+                    .retrieve()
+                    .body(NetworkSupplyResponse.class);
+
+            // then - should use latest balances within range (timestamp2)
+            assertThat(response).isNotNull();
+            assertThat(response.getTimestamp()).isEqualTo("1700000000.000000000");
+        }
+
+        @Test
+        void contentTypeForQueryParameterTotalcoins() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when
+            final var response =
+                    restClient.get().uri("?q=totalcoins").retrieve().toEntity(String.class);
+
+            // then - verify Content-Type is text/plain
+            assertThat(response.getHeaders().getContentType()).isNotNull();
+            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
+        }
+
+        @Test
+        void contentTypeForQueryParameterCirculating() {
+            // given
+            createUnreleasedSupplyAccounts(null);
+
+            // when
+            final var response =
+                    restClient.get().uri("?q=circulating").retrieve().toEntity(String.class);
+
+            // then - verify Content-Type is text/plain
+            assertThat(response.getHeaders().getContentType()).isNotNull();
+            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
+        }
+
+        private void createCustomBalance(long accountNum, long balance, long timestamp) {
+            final var accountId = EntityId.of(0, 0, accountNum);
+            domainBuilder
+                    .accountBalance()
+                    .customize(ab -> ab.balance(balance)
+                            .id(new org.hiero.mirror.common.domain.balance.AccountBalance.Id(timestamp, accountId)))
+                    .persist();
+        }
+
+        private void createUnreleasedSupplyAccounts(Long timestamp) {
+            final var accountRanges = List.of(
+                    new long[] {2, 2},
+                    new long[] {42, 42},
+                    new long[] {44, 71},
+                    new long[] {73, 87},
+                    new long[] {99, 100},
+                    new long[] {200, 349},
+                    new long[] {400, 750});
+
+            for (final var range : accountRanges) {
+                for (long accountNum = range[0]; accountNum <= range[1]; accountNum++) {
+                    final var accountId = EntityId.of(0, 0, accountNum);
+                    if (timestamp != null) {
+                        domainBuilder
+                                .accountBalance()
+                                .customize(ab -> ab.balance(BALANCE_PER_ACCOUNT)
+                                        .id(new org.hiero.mirror.common.domain.balance.AccountBalance.Id(
+                                                timestamp, accountId)))
+                                .persist();
+                    } else {
+                        domainBuilder
+                                .entity()
+                                .customize(e -> e.id(accountId.getId())
+                                        .balance(BALANCE_PER_ACCOUNT)
+                                        .balanceTimestamp(domainBuilder.timestamp()))
+                                .persist();
+                    }
+                }
+            }
         }
     }
 }

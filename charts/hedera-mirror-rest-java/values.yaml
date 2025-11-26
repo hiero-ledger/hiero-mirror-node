@@ -86,6 +86,11 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
+        {{- if .Values.routes.supply }}
+        - path:
+            type: RegularExpression
+            value: '/api/v1/network/supply$'
+        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -320,6 +325,7 @@ revisionHistoryLimit: 3
 
 routes:
   fees: true
+  supply: false
 
 securityContext:
   allowPrivilegeEscalation: false

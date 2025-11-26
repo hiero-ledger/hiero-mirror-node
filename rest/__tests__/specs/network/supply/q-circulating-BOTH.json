@@ -30,8 +30,13 @@
     ]
   },
   "url": "/api/v1/network/supply?q=circulating",
-  "responseHeaders": {
-    "Content-Type": "text/plain; charset=utf-8"
+  "responseHeadersMatrix": {
+    "js": {
+      "Content-Type": "text/plain; charset=utf-8"
+    },
+    "java": {
+      "Content-Type": "text/plain;charset=UTF-8"
+    }
   },
   "responseStatus": 200,
   "responseJson": "9999999999.99999949"
