@@ -39,14 +39,14 @@ jobs:
           - BLOCK
     timeout-minutes: 50
     env:
-      BLOCK_NODE_CHART_VERSION: v0.22.1
+      BLOCK_NODE_CHART_VERSION: v0.23.2
       CONSENSUS_VERSION: v0.68.0
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.49.0
+      SOLO_VERSION: v0.50.0
     permissions:
       pull-requests: read
     steps:
@@ -56,14 +56,14 @@ jobs:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
