@@ -10,6 +10,7 @@ import * as accountsOutstandingAirdrop from './accountsOutstandingAirdrop.js';
 import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkFees from './networkFees.js';
 import * as networkStake from './networkStake.js';
+import * as networkSupply from './networkSupply.js';
 import * as topicsId from './topicsId.js';
 import * as rampUp from './rampUp.js';
 
@@ -22,6 +23,7 @@ const tests = {
   networkExchangeRate,
   networkFees,
   networkStake,
+  networkSupply,
   topicsId,
   rampUp,
 };

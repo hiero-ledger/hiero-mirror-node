@@ -54,11 +54,6 @@ const createRestJavaContainer = async () => {
     HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
   };
 
-  // Pass currencyFormat config if set
-  if (config.network?.currencyFormat) {
-    environment.HIERO_MIRROR_REST_NETWORK_CURRENCYFORMAT = config.network.currencyFormat;
-  }
-
   return new GenericContainer('gcr.io/mirrornode/hedera-mirror-rest-java:latest')
     .withEnvironment(environment)
     .withExposedPorts(8084)
@@ -93,21 +88,11 @@ const initializeContainers = async () => {
 const startRedisContainer = async () => new RedisContainer(REDIS_IMAGE).withStartupTimeout(20000).start();
 
 const startRestJavaContainer = async () => {
-  const currentCurrencyFormat = config.network?.currencyFormat;
-  const previousCurrencyFormat = restJavaContainerConfigs.get(workerId);
   let container = restJavaContainers.get(workerId);
-
-  // Restart container if currencyFormat has changed
-  if (container && currentCurrencyFormat !== previousCurrencyFormat) {
-    await container.stop();
-    container = null;
-    restJavaContainers.delete(workerId);
-  }
 
   if (!container) {
     container = await createRestJavaContainer();
     restJavaContainers.set(workerId, container);
-    restJavaContainerConfigs.set(workerId, currentCurrencyFormat);
   }
 
   global.REST_JAVA_BASE_URL = `http://${container.getHost()}:${container.getMappedPort(8084)}`;

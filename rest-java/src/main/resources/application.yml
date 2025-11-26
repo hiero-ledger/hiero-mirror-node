@@ -2,24 +2,6 @@
 
 hiero:
   mirror:
-    rest:
-      network:
-        unreleasedSupplyAccounts:
-          - from: 2
-            to: 2
-          - from: 42
-            to: 42
-          - from: 44
-            to: 71
-          - from: 73
-            to: 87
-          - from: 99
-            to: 100
-          - from: 200
-            to: 349
-          - from: 400
-            to: 750
-        currencyFormat: "BOTH"
     restJava:
       db:
         host: 127.0.0.1

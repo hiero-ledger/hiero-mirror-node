@@ -59,6 +59,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // when, then
         assertThatThrownBy(() -> networkService.getSupply(Bound.EMPTY))
                 .isInstanceOf(EntityNotFoundException.class)
-                .hasMessage("Network supply not found");
+                .hasMessageContaining("Network supply not found");
     }
 }

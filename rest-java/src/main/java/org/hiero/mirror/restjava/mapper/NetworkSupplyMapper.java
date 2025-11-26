@@ -6,7 +6,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.mapstruct.Mapper;
-import org.mapstruct.Named;
 
 @Mapper(config = MapperConfiguration.class)
 public interface NetworkSupplyMapper {
@@ -20,37 +19,19 @@ public interface NetworkSupplyMapper {
         }
 
         return new NetworkSupplyResponse()
-                .releasedSupply(networkSupply.releasedSupply())
+                .releasedSupply(String.valueOf(networkSupply.releasedSupply()))
                 .timestamp(DomainUtils.toTimestamp(networkSupply.consensusTimestamp()))
-                .totalSupply(networkSupply.totalSupply());
+                .totalSupply(String.valueOf(networkSupply.totalSupply()));
     }
 
-    @Named("convertToCurrencyFormat")
-    default String convertToCurrencyFormat(String valueInTinyCoins, String currencyFormat) {
-        return switch (currencyFormat) {
-            case "TINYBARS" -> valueInTinyCoins;
-            case "HBARS" -> convertToHbars(valueInTinyCoins);
-            default -> convertToBoth(valueInTinyCoins);
-        };
-    }
-
-    @Named("convertToHbars")
-    default String convertToHbars(String valueInTinyCoins) {
-        // Emulate integer division via substring
-        if (valueInTinyCoins.length() <= DECIMAL_DIGITS) {
-            return "0";
-        }
-        return valueInTinyCoins.substring(0, valueInTinyCoins.length() - DECIMAL_DIGITS);
-    }
-
-    @Named("convertToBoth")
-    default String convertToBoth(String valueInTinyCoins) {
+    default String convertToCurrencyFormat(long valueInTinyCoins) {
+        final var valueStr = String.valueOf(valueInTinyCoins);
         // Emulate floating point division via adding leading zeroes or substring/slice
-        if (valueInTinyCoins.length() <= DECIMAL_DIGITS) {
-            return "0." + String.format("%0" + DECIMAL_DIGITS + "d", Long.parseLong(valueInTinyCoins));
+        if (valueStr.length() <= DECIMAL_DIGITS) {
+            return "0." + String.format("%0" + DECIMAL_DIGITS + "d", valueInTinyCoins);
         }
-        return valueInTinyCoins.substring(0, valueInTinyCoins.length() - DECIMAL_DIGITS)
+        return valueStr.substring(0, valueStr.length() - DECIMAL_DIGITS)
                 + "."
-                + valueInTinyCoins.substring(valueInTinyCoins.length() - DECIMAL_DIGITS);
+                + valueStr.substring(valueStr.length() - DECIMAL_DIGITS);
     }
 }

@@ -17,6 +17,7 @@ import java.text.MessageFormat;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -815,8 +816,7 @@ final class NetworkControllerTest extends ControllerTest {
             final var accountId = EntityId.of(0, 0, accountNum);
             domainBuilder
                     .accountBalance()
-                    .customize(ab -> ab.balance(balance)
-                            .id(new org.hiero.mirror.common.domain.balance.AccountBalance.Id(timestamp, accountId)))
+                    .customize(ab -> ab.balance(balance).id(new AccountBalance.Id(timestamp, accountId)))
                     .persist();
         }
 
@@ -836,9 +836,8 @@ final class NetworkControllerTest extends ControllerTest {
                     if (timestamp != null) {
                         domainBuilder
                                 .accountBalance()
-                                .customize(ab -> ab.balance(BALANCE_PER_ACCOUNT)
-                                        .id(new org.hiero.mirror.common.domain.balance.AccountBalance.Id(
-                                                timestamp, accountId)))
+                                .customize(ab ->
+                                        ab.balance(BALANCE_PER_ACCOUNT).id(new AccountBalance.Id(timestamp, accountId)))
                                 .persist();
                     } else {
                         domainBuilder

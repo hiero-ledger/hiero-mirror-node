@@ -1,5 +1,5 @@
 {
-  "description": "Network supply API with q=totalcoins with currencyFormat defaulting to BOTH",
+  "description": "Network supply API with q=totalcoins",
   "setup": {
     "accounts": [
       {

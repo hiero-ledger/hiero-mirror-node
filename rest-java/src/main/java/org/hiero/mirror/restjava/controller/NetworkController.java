@@ -11,6 +11,7 @@ import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.common.SupplyQuery;
 import org.hiero.mirror.restjava.jooq.domain.tables.AccountBalance;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;

@@ -143,6 +143,8 @@ ingress:
         - path: '/api/v1/network/fees$'
           condition: "{{ .Values.routes.fees }}"
         - path: '/api/v1/network/stake$'
+        - path: '/api/v1/network/supply$'
+          condition: "{{ .Values.routes.supply }}"
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
     enabled: false

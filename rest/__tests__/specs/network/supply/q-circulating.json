@@ -1,5 +1,5 @@
 {
-  "description": "Network supply API with q=circulating with currencyFormat defaulting to BOTH",
+  "description": "Network supply API with q=circulating",
   "setup": {
     "accounts": [
       {
