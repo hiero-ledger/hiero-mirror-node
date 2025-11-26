@@ -50,6 +50,7 @@ import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.ContractStateResponse;
 import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
+import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
@@ -533,6 +534,18 @@ public class MirrorNodeClient {
     public BalancesResponse getBalancesForAccountId(String accountId) {
         return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
+
+    public HooksResponse getAccountHooks(String accountId) {
+        log.debug("Get hooks for account '{}'", accountId);
+        return callRestEndpoint("/accounts/{accountId}/hooks", HooksResponse.class, accountId);
+    }
+
+    // TODO: Hook storage API not yet implemented - placeholder for future use
+    // public HookStorageResponse getHookStorage(String accountId, long hookId) {
+    //     log.debug("Get hook storage for account '{}' hook '{}'", accountId, hookId);
+    //     return callRestEndpoint("/accounts/{accountId}/hooks/{hookId}/storage", HookStorageResponse.class, accountId,
+    // hookId);
+    // }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         final var restResponse = callRestEndpoint(uri, classType, uriVariables);
