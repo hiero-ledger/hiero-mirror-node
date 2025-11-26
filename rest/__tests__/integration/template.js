@@ -165,8 +165,8 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseJsonMatrix, responseStatus, responseStatusMatrix} = test;
-        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus, responseStatusMatrix}));
+        const {responseJson, responseJsonMatrix, responseStatus} = test;
+        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus}));
       })
     );
   };
@@ -352,8 +352,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
               const target = spec.java ? global.REST_JAVA_BASE_URL : server;
               const response = await request(target).get(tt.url);
 
-              const expectedStatus = (tt.responseStatusMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseStatus;
-              expect(response.status).toEqual(expectedStatus);
+              expect(response.status).toEqual(tt.responseStatus);
               const contentType = response.get('Content-Type');
               expect(contentType).not.toBeNull();
 
