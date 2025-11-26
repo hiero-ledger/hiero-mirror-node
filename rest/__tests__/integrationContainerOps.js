@@ -18,7 +18,6 @@ const Pool = getPoolClass();
 const REDIS_IMAGE = 'redis:7.2';
 
 const restJavaContainers = new Map();
-const restJavaContainerConfigs = new Map();
 
 const readOnlyUser = 'mirror_rest';
 const readOnlyPassword = 'mirror_rest_pass';
@@ -48,14 +47,12 @@ const createRestJavaContainer = async () => {
   const connectionParams = await getDbConnectionParams();
   await flywayMigrate(connectionParams);
   const bridgeHost = os.type() === 'Linux' ? '127.0.0.1' : 'host.docker.internal';
-  const environment = {
-    HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
-    HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
-    HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
-  };
-
   return new GenericContainer('gcr.io/mirrornode/hedera-mirror-rest-java:latest')
-    .withEnvironment(environment)
+    .withEnvironment({
+      HEDERA_MIRROR_RESTJAVA_DB_HOST: bridgeHost,
+      HEDERA_MIRROR_RESTJAVA_DB_PORT: connectionParams.port,
+      HEDERA_MIRROR_RESTJAVA_DB_NAME: connectionParams.database,
+    })
     .withExposedPorts(8084)
     .withPullPolicy(PullPolicy.defaultPolicy())
     .start();
@@ -89,7 +86,6 @@ const startRedisContainer = async () => new RedisContainer(REDIS_IMAGE).withStar
 
 const startRestJavaContainer = async () => {
   let container = restJavaContainers.get(workerId);
-
   if (!container) {
     container = await createRestJavaContainer();
     restJavaContainers.set(workerId, container);
