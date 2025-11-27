@@ -5,29 +5,44 @@ package org.hiero.mirror.restjava.controller;
 import static java.lang.Long.MAX_VALUE;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
+import static org.hiero.mirror.restjava.common.Constants.KEY;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_REPEATED_QUERY_PARAMETERS;
+import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Hook;
+import org.hiero.mirror.rest.model.HookStorage;
 import org.hiero.mirror.rest.model.HooksResponse;
+import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.common.NumberRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
+import org.hiero.mirror.restjava.common.SlotRangeParameter;
+import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HooksRequest;
+import org.hiero.mirror.restjava.jooq.domain.tables.HookStorageChange;
 import org.hiero.mirror.restjava.mapper.HookMapper;
+import org.hiero.mirror.restjava.mapper.HookStorageMapper;
+import org.hiero.mirror.restjava.parameter.TimestampParameter;
+import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.HookService;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -41,11 +56,24 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class HooksController {
 
-    private static final Function<Hook, Map<String, String>> EXTRACTOR =
+    private static final int KEY_BYTE_LENGTH = 32;
+    private static final byte[] MIN_KEY_BYTES = new byte[KEY_BYTE_LENGTH]; // A 32-byte array of 0x00
+    private static final byte[] MAX_KEY_BYTES;
+
+    private static final Function<Hook, Map<String, String>> HOOK_EXTRACTOR =
             hook -> ImmutableSortedMap.of(HOOK_ID, hook.getHookId().toString());
+
+    private static final Function<HookStorage, Map<String, String>> HOOK_STORAGE_EXTRACTOR =
+            hook -> ImmutableSortedMap.of(KEY, hook.getKey());
+
+    static {
+        MAX_KEY_BYTES = new byte[KEY_BYTE_LENGTH];
+        Arrays.fill(MAX_KEY_BYTES, (byte) 0xFF); // A 32-byte array of 0xFF
+    }
 
     private final HookService hookService;
     private final HookMapper hookMapper;
+    private final HookStorageMapper hookStorageMapper;
     private final LinkFactory linkFactory;
 
     @GetMapping
@@ -63,13 +91,42 @@ final class HooksController {
 
         final var sort = Sort.by(order, HOOK_ID);
         final var pageable = PageRequest.of(0, limit, sort);
-        final var links = linkFactory.create(hooks, pageable, EXTRACTOR);
+        final var links = linkFactory.create(hooks, pageable, HOOK_EXTRACTOR);
 
         final var response = new HooksResponse();
         response.setHooks(hooks);
         response.setLinks(links);
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{hookId}/storage")
+    ResponseEntity<HooksStorageResponse> getHookStorage(
+            @PathVariable EntityIdParameter ownerId,
+            @PathVariable @Min(0) long hookId,
+            @RequestParam(name = KEY, required = false, defaultValue = "") @Size(max = MAX_REPEATED_QUERY_PARAMETERS)
+                    List<SlotRangeParameter> keys,
+            @RequestParam(name = TIMESTAMP, required = false, defaultValue = "") @Size(max = 2)
+                    TimestampParameter[] timestamps,
+            @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
+            @RequestParam(defaultValue = "asc") Direction order) {
+
+        final var request = hookStorageChangeRequest(ownerId, hookId, keys, timestamps, limit, order);
+        final var response = hookService.getHookStorage(request);
+
+        final var hookStorage = hookStorageMapper.map(response.storage());
+        final var hookStorageResponse = new HooksStorageResponse();
+
+        hookStorageResponse.setHookId(hookId);
+        hookStorageResponse.setOwnerId(response.ownerId().toString());
+        hookStorageResponse.setStorage(hookStorage);
+
+        final var sort = Sort.by(order, KEY);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(hookStorage, pageable, HOOK_STORAGE_EXTRACTOR);
+        hookStorageResponse.setLinks(links);
+
+        return ResponseEntity.ok(hookStorageResponse);
     }
 
     private HooksRequest hooksRequest(
@@ -95,6 +152,48 @@ final class HooksController {
                 .limit(limit)
                 .order(order)
                 .upperBound(upperBound)
+                .build();
+    }
+
+    private HookStorageRequest hookStorageChangeRequest(
+            EntityIdParameter ownerId,
+            long hookId,
+            List<SlotRangeParameter> keys,
+            TimestampParameter[] timestamps,
+            int limit,
+            Direction order) {
+        final var keyFilters = new ArrayList<byte[]>();
+
+        var lowerBound = MIN_KEY_BYTES;
+        var upperBound = MAX_KEY_BYTES;
+
+        for (final var key : keys) {
+            final byte[] value = key.value();
+
+            if (key.hasLowerBound()) {
+                if (key.operator() == RangeOperator.EQ) {
+                    keyFilters.add(value);
+                } else if (Arrays.compareUnsigned(value, lowerBound) > 0) {
+                    lowerBound = value;
+                }
+            } else if (key.hasUpperBound()) {
+                if (Arrays.compareUnsigned(value, upperBound) < 0) {
+                    upperBound = value;
+                }
+            }
+        }
+
+        final var bound = Bound.of(timestamps, TIMESTAMP, HookStorageChange.HOOK_STORAGE_CHANGE.CONSENSUS_TIMESTAMP);
+
+        return HookStorageRequest.builder()
+                .hookId(hookId)
+                .keys(keyFilters)
+                .limit(limit)
+                .keyLowerBound(lowerBound)
+                .keyUpperBound(upperBound)
+                .order(order)
+                .ownerId(ownerId)
+                .timestamp(bound)
                 .build();
     }
 }
