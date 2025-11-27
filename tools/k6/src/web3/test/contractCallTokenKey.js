@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractCallTestScenarioBuilder, getMixedBlocks} from './common.js';
+import {ContractCallTestScenarioBuilder} from './common.js';
 
 const contract = __ENV.HTS_CONTRACT_ADDRESS;
 const selector = '0x1955de0b';
@@ -12,7 +12,6 @@ const {options, run} = new ContractCallTestScenarioBuilder()
   .selector(selector)
   .args([token, keyType])
   .to(contract)
-  .blocks(getMixedBlocks())
   .build();
 
 export {options, run};

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {ContractCallTestScenarioBuilder, getMixedBlocks} from './common.js';
+import {ContractCallTestScenarioBuilder} from './common.js';
 import {ContractCallEstimateTestTemplate} from './commonContractCallEstimateTemplate.js';
 
 const contract = __ENV.STORAGE_SLOTS_CONTRACT;
@@ -16,7 +16,6 @@ const {options, run} =
         .name(testName) // use unique scenario name among all tests
         .data(data)
         .to(contract)
-        .blocks(getMixedBlocks())
         .estimate(true)
         .build();
 

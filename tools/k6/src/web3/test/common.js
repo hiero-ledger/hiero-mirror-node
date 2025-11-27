@@ -86,7 +86,11 @@ function toHexBlockNumber(value) {
 }
 
 function getMixedBlocks() {
-  return ['latest', toHexBlockNumber(HISTORICAL_BLOCK_NUMBER)];
+  const historical = toHexBlockNumber(HISTORICAL_BLOCK_NUMBER);
+  if (historical === 'latest' || historical === '') {
+    return ['latest'];
+  }
+  return ['latest', historical];
 }
 
 function ContractCallTestScenarioBuilder() {
