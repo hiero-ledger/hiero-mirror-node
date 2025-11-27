@@ -278,9 +278,9 @@ function markdownReport(data, includeUrlColumn, funcs, scenarios, getUrlFuncs = 
 
   // Generate the markdown report
   let markdown = `${header}\n`;
-  for (const scenario of Object.keys(scenarios).sort()) {
+  for (const scenario of Object.keys(scenarioMetrics).sort()) {
     try {
-      const scenarioMetric = scenarioMetrics[scenario] || defaultMetrics();
+      const scenarioMetric = scenarioMetrics[scenario];
       const passPercentage = (scenarioMetric['checks'].values.rate * 100.0).toFixed(2);
       const httpReqs = scenarioMetric['http_reqs'].values.count;
       const duration = scenarioMetric['scenario_duration'].values.value; // in ms
