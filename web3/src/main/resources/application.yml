@@ -19,8 +19,9 @@ logging:
     root: warn
     org.hiero.mirror.web3: info
     org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
+    org.hibernate.SQL: DEBUG
   pattern:
-    console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
+    console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSS}Z){faint} %clr([%thread]){magenta} %clr(%-5level) %clr(%logger{36}){cyan} %msg%n"
 management:
   endpoint:
     health:
