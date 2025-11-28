@@ -4,6 +4,7 @@ import {check, sleep} from 'k6';
 import {vu, scenario as k6Scenario} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
+import {sanitizeScenarioName} from '../../lib/common.js';
 
 import * as utils from '../../lib/common.js';
 
@@ -62,35 +63,37 @@ const loadVuDataOrDefault = (filepath, key) =>
     return key in data ? data[key] : [];
   });
 
-function sanitizeScenarioName(name) {
-  // k6 requires [0-9A-Za-z_-]
-  return name.replace(/[^0-9A-Za-z_-]/g, '_');
-}
+const HISTORICAL_BLOCK_NUMBER = __ENV.HISTORICAL_BLOCK_NUMBER || 'latest';
 
-const HISTORICAL_BLOCK_NUMBER = __ENV.HISTORICAL_BLOCK_NUMBER || 'earliest';
+function extractBlockFromScenarioName(name) {
+  if (typeof name !== 'string') {
+    return null;
+  }
+  const idx = name.lastIndexOf('-');
+  if (idx === -1 || idx === name.length - 1) {
+    return null;
+  }
+  return name.substring(idx + 1);
+}
 
 function toHexBlockNumber(value) {
   const v = (value ?? '').toString().trim();
-  if (v === '' || v === 'earliest' || v === 'latest' || v === 'pending' || /^0x[0-9a-fA-F]+$/.test(v)) {
-    return v === '' ? 'earliest' : v;
+  if (v === 'latest' || v === 'pending' || v === 'safe' || v === 'finalized') {
+    return 'latest';
+  } else if (/^0x[0-9a-fA-F]+$/.test(v) || /^\d+$/.test(v)) {
+    return v;
+  } else {
+    return 'earliest';
   }
-  // If purely decimal digits, convert to 0x-prefixed hex
-  if (/^\d+$/.test(v)) {
-    const n = parseInt(v, 10);
-    if (!Number.isNaN(n)) {
-      return '0x' + n.toString(16);
-    }
-  }
-
-  return 'earliest';
 }
 
 function getMixedBlocks() {
   const historical = toHexBlockNumber(HISTORICAL_BLOCK_NUMBER);
-  if (historical === 'latest' || historical === '') {
+  if (historical === 'latest') {
     return ['latest'];
+  } else {
+    return ['latest', historical];
   }
-  return ['latest', historical];
 }
 
 function ContractCallTestScenarioBuilder() {
@@ -102,8 +105,7 @@ function ContractCallTestScenarioBuilder() {
   this._to = null;
   this._vuData = null;
   this._shouldRevert = false;
-
-  this._blocks = ['latest'];
+  this._blocks = null;
   this._data = null;
   this._estimate = null;
   this._from = null;
@@ -115,7 +117,6 @@ function ContractCallTestScenarioBuilder() {
   this.build = function () {
     const that = this;
 
-    // Ensure we always operate in multi-block mode: if not provided, default to mixed blocks
     if (!that._blocks || that._blocks.length === 0) {
       that._blocks = getMixedBlocks();
     }
@@ -126,8 +127,8 @@ function ContractCallTestScenarioBuilder() {
       const block = that._blocks[i];
       const sanitized = sanitizeScenarioName(String(block));
       const scenarioName = `${that._name}-${sanitized}`;
-      const tags = Object.assign({}, that._tags, {test: that._name, block});
-      const options = utils.getOptionsWithScenario(scenarioName, that._scenario, tags);
+      const options = utils.getOptionsWithScenario(scenarioName, that._scenario);
+
       if (!combinedOptions) {
         combinedOptions = options;
       } else {
@@ -136,10 +137,7 @@ function ContractCallTestScenarioBuilder() {
     }
 
     const run = function () {
-      const active = k6Scenario.name;
-      const scenarioDef = combinedOptions.scenarios[active] || {};
-      const scenarioTags = scenarioDef.tags || {};
-      const activeBlock = scenarioTags.block || 'latest';
+      const activeBlock = extractBlockFromScenarioName(k6Scenario.name);
 
       let sleepSecs = 0;
       const payload = {
@@ -167,7 +165,6 @@ function ContractCallTestScenarioBuilder() {
         delete data.sleep;
 
         Object.assign(payload, data);
-        payload.block = activeBlock;
       }
 
       const response = jsonPost(that._url, JSON.stringify(payload));
