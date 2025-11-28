@@ -78,7 +78,7 @@ spec:
           size: 65Gi
       worker:
         persistentVolume:
-          size: 90Gi
+          size: 180Gi
     test:
       cucumberTags: "@acceptance and not @call and not @estimateprecompile"
       enabled: true
