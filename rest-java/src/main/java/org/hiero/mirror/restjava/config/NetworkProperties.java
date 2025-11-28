@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.restjava.config;
 
-import jakarta.validation.constraints.NotNull;
-import java.util.ArrayList;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
+import java.util.TreeSet;
 import lombok.Data;
+import lombok.Getter;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -16,7 +18,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties("hiero.mirror.rest-java.network")
 public class NetworkProperties {
 
-    @NotNull
+    @NotEmpty
     private List<AccountRange> unreleasedSupplyAccounts = List.of(
             new AccountRange(2, 2),
             new AccountRange(42, 42),
@@ -26,16 +28,14 @@ public class NetworkProperties {
             new AccountRange(200, 349),
             new AccountRange(400, 750));
 
-    /**
-     * Get the unreleased supply account IDs as a list of entity IDs.
-     *
-     * @return List of EntityId objects representing unreleased supply accounts
-     */
-    public List<Long> getUnreleasedSupplyAccountIds() {
+    @Getter(lazy = true)
+    private final TreeSet<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
+
+    private TreeSet<Long> createUnreleasedSupplyAccountIds() {
         final var commonProperties = CommonProperties.getInstance();
         final var shard = commonProperties.getShard();
         final var realm = commonProperties.getRealm();
-        final var accountIds = new ArrayList<Long>();
+        final var accountIds = new TreeSet<Long>();
 
         for (final var range : unreleasedSupplyAccounts) {
             for (long num = range.from(); num <= range.to(); num++) {
@@ -46,5 +46,11 @@ public class NetworkProperties {
         return accountIds;
     }
 
-    public record AccountRange(long from, long to) {}
+    public record AccountRange(@Min(1) long from, @Min(1) long to) {
+        public AccountRange {
+            if (from > to) {
+                throw new IllegalArgumentException("from must be less than or equal to to");
+            }
+        }
+    }
 }

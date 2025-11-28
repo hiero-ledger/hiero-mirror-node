@@ -21,8 +21,8 @@ final class NetworkSupplyMapperTest {
     void map() {
         // given
         final var consensusTimestamp = domainBuilder.timestamp();
-        final var networkSupply =
-                new NetworkSupply(1593057374165809903L, consensusTimestamp, NetworkSupply.TOTAL_SUPPLY);
+        final var unreleasedSupply = 54_800_000_000_000_000L; // 548M HBAR unreleased
+        final var networkSupply = new NetworkSupply(unreleasedSupply, consensusTimestamp);
 
         // when
         final var response = mapper.map(networkSupply);
@@ -30,7 +30,7 @@ final class NetworkSupplyMapperTest {
         // then
         assertThat(response)
                 .returns(String.valueOf(networkSupply.releasedSupply()), NetworkSupplyResponse::getReleasedSupply)
-                .returns(String.valueOf(networkSupply.totalSupply()), NetworkSupplyResponse::getTotalSupply)
+                .returns(String.valueOf(NetworkSupply.TOTAL_SUPPLY), NetworkSupplyResponse::getTotalSupply)
                 .returns(commonMapper.mapTimestamp(consensusTimestamp), NetworkSupplyResponse::getTimestamp);
     }
 

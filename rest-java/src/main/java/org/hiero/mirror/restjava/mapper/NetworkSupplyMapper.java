@@ -21,7 +21,7 @@ public interface NetworkSupplyMapper {
         return new NetworkSupplyResponse()
                 .releasedSupply(String.valueOf(networkSupply.releasedSupply()))
                 .timestamp(DomainUtils.toTimestamp(networkSupply.consensusTimestamp()))
-                .totalSupply(String.valueOf(networkSupply.totalSupply()));
+                .totalSupply(String.valueOf(NetworkSupply.TOTAL_SUPPLY));
     }
 
     default String convertToCurrencyFormat(long valueInTinyCoins) {

@@ -25,6 +25,7 @@ import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
+import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
@@ -47,6 +48,7 @@ final class NetworkControllerTest extends ControllerTest {
     private final ExchangeRateMapper exchangeRateMapper;
     private final FeeScheduleMapper feeScheduleMapper;
     private final NetworkStakeMapper networkStakeMapper;
+    private final NetworkProperties networkProperties;
     private final SystemEntity systemEntity;
 
     @DisplayName("/api/v1/network/exchangerate")
@@ -553,11 +555,15 @@ final class NetworkControllerTest extends ControllerTest {
             // when
             final var response = restClient.get().uri("").retrieve().body(NetworkSupplyResponse.class);
 
-            // then - 548 accounts * 1M hbars = 548M hbars unreleased
-            // released = 50B - 548M = 49,452,000,000 hbars
+            // then
+            final var expectedUnreleasedSupply =
+                    networkProperties.getUnreleasedSupplyAccountIds().size() * BALANCE_PER_ACCOUNT;
+            final var actualUnreleasedSupply =
+                    Long.parseLong(response.getTotalSupply()) - Long.parseLong(response.getReleasedSupply());
+
             assertThat(response).isNotNull();
             assertThat(response.getTotalSupply()).isEqualTo("5000000000000000000");
-            assertThat(response.getReleasedSupply()).isEqualTo("4945200000000000000");
+            assertThat(actualUnreleasedSupply).isEqualTo(expectedUnreleasedSupply);
         }
 
         @Test
@@ -566,10 +572,13 @@ final class NetworkControllerTest extends ControllerTest {
             createUnreleasedSupplyAccounts(null);
 
             // when
-            final var result = restClient.get().uri("?q=totalcoins").retrieve().body(String.class);
+            final var response =
+                    restClient.get().uri("?q=totalcoins").retrieve().toEntity(String.class);
 
             // then
-            assertThat(result).isEqualTo("50000000000.00000000");
+            assertThat(response.getBody()).isEqualTo("50000000000.00000000");
+            assertThat(response.getHeaders().getContentType()).isNotNull();
+            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
         }
 
         @Test
@@ -578,10 +587,13 @@ final class NetworkControllerTest extends ControllerTest {
             createUnreleasedSupplyAccounts(null);
 
             // when
-            final var result = restClient.get().uri("?q=circulating").retrieve().body(String.class);
+            final var response =
+                    restClient.get().uri("?q=circulating").retrieve().toEntity(String.class);
 
             // then - 49,452,000,000 hbars
-            assertThat(result).isEqualTo("49452000000.00000000");
+            assertThat(response.getBody()).isEqualTo("49452000000.00000000");
+            assertThat(response.getHeaders().getContentType()).isNotNull();
+            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
         }
 
         @Test
@@ -633,7 +645,7 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("?q=invalid").retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'q'");
+                    "Invalid parameter: 'q'. Valid values: totalcoins, circulating");
         }
 
         @Test
@@ -744,9 +756,10 @@ final class NetworkControllerTest extends ControllerTest {
                     commonMapper.mapTimestamp(timestamp1),
                     commonMapper.mapTimestamp(timestamp2));
 
+            final var expected0Timestamp = commonMapper.mapTimestamp(timestamp0);
             final var expected1Timestamp = commonMapper.mapTimestamp(timestamp1);
             final var expected2Timestamp = commonMapper.mapTimestamp(timestamp2);
-            final var expectedTimestamps = List.of(expected1Timestamp, expected1Timestamp, expected2Timestamp);
+            final var expectedTimestamps = List.of(expected0Timestamp, expected1Timestamp, expected2Timestamp);
 
             // when
             final var response =
@@ -784,34 +797,6 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(response.getTimestamp()).isEqualTo("1700000000.000000000");
         }
 
-        @Test
-        void contentTypeForQueryParameterTotalcoins() {
-            // given
-            createUnreleasedSupplyAccounts(null);
-
-            // when
-            final var response =
-                    restClient.get().uri("?q=totalcoins").retrieve().toEntity(String.class);
-
-            // then - verify Content-Type is text/plain
-            assertThat(response.getHeaders().getContentType()).isNotNull();
-            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
-        }
-
-        @Test
-        void contentTypeForQueryParameterCirculating() {
-            // given
-            createUnreleasedSupplyAccounts(null);
-
-            // when
-            final var response =
-                    restClient.get().uri("?q=circulating").retrieve().toEntity(String.class);
-
-            // then - verify Content-Type is text/plain
-            assertThat(response.getHeaders().getContentType()).isNotNull();
-            assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
-        }
-
         private void createCustomBalance(long accountNum, long balance, long timestamp) {
             final var accountId = EntityId.of(0, 0, accountNum);
             domainBuilder
@@ -821,32 +806,20 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private void createUnreleasedSupplyAccounts(Long timestamp) {
-            final var accountRanges = List.of(
-                    new long[] {2, 2},
-                    new long[] {42, 42},
-                    new long[] {44, 71},
-                    new long[] {73, 87},
-                    new long[] {99, 100},
-                    new long[] {200, 349},
-                    new long[] {400, 750});
-
-            for (final var range : accountRanges) {
-                for (long accountNum = range[0]; accountNum <= range[1]; accountNum++) {
-                    final var accountId = EntityId.of(0, 0, accountNum);
-                    if (timestamp != null) {
-                        domainBuilder
-                                .accountBalance()
-                                .customize(ab ->
-                                        ab.balance(BALANCE_PER_ACCOUNT).id(new AccountBalance.Id(timestamp, accountId)))
-                                .persist();
-                    } else {
-                        domainBuilder
-                                .entity()
-                                .customize(e -> e.id(accountId.getId())
-                                        .balance(BALANCE_PER_ACCOUNT)
-                                        .balanceTimestamp(domainBuilder.timestamp()))
-                                .persist();
-                    }
+            for (final var accountId : networkProperties.getUnreleasedSupplyAccountIds()) {
+                if (timestamp != null) {
+                    domainBuilder
+                            .accountBalance()
+                            .customize(ab -> ab.balance(BALANCE_PER_ACCOUNT)
+                                    .id(new AccountBalance.Id(timestamp, EntityId.of(accountId))))
+                            .persist();
+                } else {
+                    domainBuilder
+                            .entity()
+                            .customize(e -> e.id(accountId)
+                                    .balance(BALANCE_PER_ACCOUNT)
+                                    .balanceTimestamp(domainBuilder.timestamp()))
+                            .persist();
                 }
             }
         }

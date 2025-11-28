@@ -8,9 +8,10 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
-import org.hiero.mirror.restjava.dto.NetworkSupplyProjection;
+import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 
@@ -18,6 +19,7 @@ import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 @RequiredArgsConstructor
 final class NetworkServiceImpl implements NetworkService {
 
+    private final AccountBalanceRepository accountBalanceRepository;
     private final EntityRepository entityRepository;
     private final NetworkStakeRepository networkStakeRepository;
     private final NetworkProperties networkProperties;
@@ -32,33 +34,38 @@ final class NetworkServiceImpl implements NetworkService {
     @Override
     public NetworkSupply getSupply(Bound timestamp) {
         final var unreleasedSupplyAccountIds = networkProperties.getUnreleasedSupplyAccountIds();
-        NetworkSupplyProjection projection;
+        final NetworkSupply networkSupply;
 
         if (timestamp.isEmpty()) {
-            projection = entityRepository.getSupply(unreleasedSupplyAccountIds);
+            networkSupply = entityRepository.getSupply(unreleasedSupplyAccountIds);
         } else {
             var minTimestamp = timestamp.getAdjustedLowerRangeValue();
             final var maxTimestamp = timestamp.adjustUpperBound();
 
+            // Validate timestamp range
+            if (minTimestamp > maxTimestamp) {
+                throw new IllegalArgumentException("Invalid range provided for timestamp");
+            }
+
             final var optimalLowerBound = getFirstDayOfMonth(maxTimestamp, -1);
             minTimestamp = Math.max(minTimestamp, optimalLowerBound);
 
-            projection = entityRepository.getSupplyHistory(unreleasedSupplyAccountIds, minTimestamp, maxTimestamp);
+            networkSupply =
+                    accountBalanceRepository.getSupplyHistory(unreleasedSupplyAccountIds, minTimestamp, maxTimestamp);
         }
 
-        if (projection.getConsensusTimestamp() == 0L) {
+        if (networkSupply.consensusTimestamp() == 0L) {
             throw new EntityNotFoundException("Network supply not found");
         }
 
-        final var releasedSupply = NetworkSupply.TOTAL_SUPPLY - projection.getUnreleasedSupply();
-        return new NetworkSupply(releasedSupply, projection.getConsensusTimestamp(), NetworkSupply.TOTAL_SUPPLY);
+        return networkSupply;
     }
 
     private long getFirstDayOfMonth(long timestamp, int monthOffset) {
-        final var instant = Instant.ofEpochSecond(timestamp / 1_000_000_000);
+        final var instant = Instant.ofEpochSecond(0, timestamp);
         final var dateTime = instant.atZone(ZoneOffset.UTC);
         final var firstDay = dateTime.plusMonths(monthOffset).withDayOfMonth(1);
 
-        return firstDay.toLocalDate().atStartOfDay(ZoneOffset.UTC).toEpochSecond() * 1_000_000_000L;
+        return firstDay.toLocalDate().atStartOfDay(ZoneOffset.UTC).toEpochSecond() * DomainUtils.NANOS_PER_SECOND;
     }
 }

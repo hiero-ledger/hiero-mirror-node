@@ -50,7 +50,6 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.consensusTimestamp()).isEqualTo(timestamp);
-        assertThat(result.totalSupply()).isNotNull();
         assertThat(result.releasedSupply()).isNotNull();
     }
 
