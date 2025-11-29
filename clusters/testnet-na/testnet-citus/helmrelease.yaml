@@ -73,6 +73,19 @@ spec:
         persistentVolume:
           size: 65Gi
       worker:
+        overrides:
+          - index: 0
+            pods:
+              persistentVolume:
+                size: 400Gi
+          - index: 1
+            pods:
+              persistentVolume:
+                size: 180Gi
+          - index: 2
+            pods:
+              persistentVolume:
+                size: 600Gi
         persistentVolume:
           size: 180Gi
     test:
