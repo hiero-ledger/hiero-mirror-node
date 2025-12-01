@@ -61,7 +61,7 @@ spec:
       enabled: false
     restjava:
       routes:
-        fees: true
+        fees: false
     rosetta:
       enabled: true
     test:
