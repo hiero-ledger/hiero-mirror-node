@@ -4,7 +4,6 @@ metadata:
   name: mirror
 resources:
 - ../../base/common
-- ../../base/testkube
 - helmrelease.yaml
 - sealed-secret.yaml
 - sealed-secret-grafana-cloud.yaml
