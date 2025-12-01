@@ -47,7 +47,6 @@ class TrafficReplayScenarioBuilder extends utils.BaseMultiScenarioBuilder {
     let combinedOptions;
     for (let i = 0; i < that._parsedRequests.length; i++) {
       const data = that._parsedRequests[i];
-      // Add the index in the scenario name as there might be requests with the same timestamp
       const scenarioName = `${that._name}_${data.scenarioKey}`;
       const options = utils.getOptionsWithScenario(scenarioName, null, {url: that._url, payload: data.payload});
       options.scenarios[scenarioName].duration = __ENV.TRAFFIC_REPLAY_DURATION ? __ENV.TRAFFIC_REPLAY_DURATION : '5s';
