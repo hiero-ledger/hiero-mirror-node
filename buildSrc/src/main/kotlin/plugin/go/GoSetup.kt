@@ -23,11 +23,7 @@ open class GoSetup : DefaultTask() {
     @TaskAction
     fun prepare() {
         go.goRoot.mkdirs()
-        val url =
-            URI.create(
-                    "https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.tar.gz"
-                )
-                .toURL()
+        val url = URI.create("https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.tar.gz").toURL()
         val filename = Paths.get(url.path).fileName
         val targetFile = go.cacheDir.toPath().resolve(filename)
 
