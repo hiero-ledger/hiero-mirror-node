@@ -56,9 +56,6 @@ spec:
           enabled: false
         MonitorSubscribeLatency:
           enabled: false
-    restjava:
-      routes:
-        fees: true
     stackgres:
       coordinator:
         persistentVolume:
