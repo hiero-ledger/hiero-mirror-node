@@ -25,7 +25,7 @@
     "assert": "^2.1.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
-    "express": "^5.1.0",
+    "express": "^5.2.0",
     "express-http-context": "^2.0.1",
     "express-openapi-validator": "^5.6.0",
     "extend": "^3.0.2",
