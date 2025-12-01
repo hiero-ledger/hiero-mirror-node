@@ -8,7 +8,7 @@ metadata:
 spec:
   interval: 1m0s
   ref:
-    branch: deploy
+    branch: 8822-standalone-sm
   secretRef:
     name: flux-system
   url: ssh://git@github.com/hiero-ledger/hiero-mirror-node
@@ -19,7 +19,7 @@ metadata:
   name: flux-system
   namespace: flux-system
 spec:
-  interval: 1m0s
+  interval: 10m0s
   path: ./clusters/preprod
   prune: true
   sourceRef:
