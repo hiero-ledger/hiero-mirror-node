@@ -25,7 +25,7 @@ open class GoSetup : DefaultTask() {
         go.goRoot.mkdirs()
         val url =
             URI.create(
-                    "https://storage.googleapis.com/golang/go${go.version}.${go.os}-${go.arch}.tar.gz"
+                    "https://go.dev/dl/go${go.version}.${go.os}-${go.arch}.tar.gz"
                 )
                 .toURL()
         val filename = Paths.get(url.path).fileName
