@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {check, sleep} from 'k6';
-import {vu} from 'k6/execution';
+import {vu, scenario} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
 
@@ -206,4 +206,49 @@ function ContractCallTestScenarioBuilder() {
   return this;
 }
 
-export {isNonErrorResponse, isValidListResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder};
+class TrafficReplayScenarioBuilder extends utils.BaseMultiScenarioBuilder {
+  constructor(parsedRequests) {
+    super();
+    this._parsedRequests = parsedRequests;
+  }
+
+  build() {
+    const that = this;
+
+    let combinedOptions;
+    for (let i = 0; i < that._parsedRequests.length; i++) {
+      const data = that._parsedRequests[i];
+      // Add the index in the scenario name as there might be requests with the same timestamp
+      const scenarioName = `${that._name}_${i}_ts_${data.scenarioKey}`;
+      const options = utils.getOptionsWithScenario(scenarioName, null, {url: that._url, payload: data.payload});
+      options.scenarios[scenarioName].duration = __ENV.TRAFFIC_REPLAY_DURATION ? __ENV.TRAFFIC_REPLAY_DURATION : '5s';
+      if (!combinedOptions) {
+        combinedOptions = options;
+      } else {
+        combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
+      }
+    }
+
+    function run() {
+      const active = scenario.name;
+      const scenarioDef = combinedOptions.scenarios[active];
+      const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
+      const payload = (scenarioDef && scenarioDef.tags && scenarioDef.tags.payload) || '';
+      const response = that._request(url, payload);
+      check(response, {
+        [that._checkName]: (r) => that._checkFunc(r),
+      });
+    }
+
+    return {options: combinedOptions, run};
+  }
+}
+
+export {
+  isNonErrorResponse,
+  isValidListResponse,
+  jsonPost,
+  loadVuDataOrDefault,
+  ContractCallTestScenarioBuilder,
+  TrafficReplayScenarioBuilder,
+};

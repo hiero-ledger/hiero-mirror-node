@@ -63,6 +63,7 @@ import * as contractCallComplexFunctionTokenLifecycle from './complex-functions/
 import * as contractCallComplexFunctionNFTLifecycle from './complex-functions/contractCallComplexFunctionsNFTLifecycle.js';
 import * as contractResultsOpcodesAllPropertiesDisabled from './opcodes/contractResultsOpcodesAllPropertiesDisabled.js';
 import * as contractResultsOpcodesAllPropertiesEnabled from './opcodes/contractResultsOpcodesAllPropertiesEnabled.js';
+import * as trafficReplay from './traffic-replay/trafficReplay.js';
 import * as rampUp from './rampUp.js';
 
 // add test modules here
@@ -147,6 +148,12 @@ if (__ENV.RUN_OPCODE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
   Object.assign(tests, {
     contractResultsOpcodesAllPropertiesDisabled,
     contractResultsOpcodesAllPropertiesEnabled,
+  });
+}
+
+if (__ENV.RUN_TRAFFIC_REPLAY !== 'false') {
+  Object.assign(tests, {
+    trafficReplay,
   });
 }
 

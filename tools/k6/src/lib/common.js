@@ -390,9 +390,8 @@ class TestScenarioBuilder {
   }
 }
 
-class MultiIdScenarioBuilder {
-  constructor(ids) {
-    this._ids = ids;
+class BaseMultiScenarioBuilder {
+  constructor() {
     this._name = null;
     this._request = null;
     this._checkName = null;
@@ -419,6 +418,13 @@ class MultiIdScenarioBuilder {
     this._checkName = name;
     this._checkFunc = func;
     return this;
+  }
+}
+
+class MultiIdScenarioBuilder extends BaseMultiScenarioBuilder {
+  constructor(ids) {
+    super();
+    this._ids = ids;
   }
 
   build() {
@@ -458,5 +464,6 @@ export {
   getTestReportFilename,
   markdownReport,
   TestScenarioBuilder,
+  BaseMultiScenarioBuilder,
   MultiIdScenarioBuilder,
 };
