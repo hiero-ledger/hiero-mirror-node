@@ -38,6 +38,44 @@ const params = {
   },
 };
 
+class TrafficReplayScenarioBuilder extends utils.BaseMultiScenarioBuilder {
+  constructor(parsedRequests) {
+    super();
+    this._parsedRequests = parsedRequests;
+  }
+
+  build() {
+    const that = this;
+
+    let combinedOptions;
+    for (let i = 0; i < that._parsedRequests.length; i++) {
+      const data = that._parsedRequests[i];
+      // Add the index in the scenario name as there might be requests with the same timestamp
+      const scenarioName = `${that._name}_${i}_ts_${data.scenarioKey}`;
+      const options = utils.getOptionsWithScenario(scenarioName, null, {url: that._url, payload: data.payload});
+      options.scenarios[scenarioName].duration = __ENV.TRAFFIC_REPLAY_DURATION ? __ENV.TRAFFIC_REPLAY_DURATION : '5s';
+      if (!combinedOptions) {
+        combinedOptions = options;
+      } else {
+        combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
+      }
+    }
+
+    function run() {
+      const active = scenario.name;
+      const scenarioDef = combinedOptions.scenarios[active];
+      const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
+      const payload = (scenarioDef && scenarioDef.tags && scenarioDef.tags.payload) || '';
+      const response = that._request(url, payload);
+      check(response, {
+        [that._checkName]: (r) => that._checkFunc(r),
+      });
+    }
+
+    return {options: combinedOptions, run};
+  }
+}
+
 const {options, run} = new TrafficReplayScenarioBuilder(parsedRequests)
   .name('trafficReplay')
   .url(`${__ENV.BASE_URL}/api/v1/contracts/call`)
