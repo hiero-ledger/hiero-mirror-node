@@ -453,8 +453,8 @@ github.com/cockroachdb/apd v1.1.0/go.mod h1:8Sl8LxpKi29FqWXR16WEFZRNSz3SoPzUzeMe
 github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd/go.mod h1:sE/e/2PUdi/liOCUjSTXgM1o87ZssimdTWN964YiIeI=
 github.com/coinbase/rosetta-sdk-go v0.9.0 h1:6o7CbkIpTxI5VZR79eJ07gXTINZxgt3QGNAriQWI7JU=
 github.com/coinbase/rosetta-sdk-go v0.9.0/go.mod h1:xIu+9M4EN/WkAy/H67lP8iu+/Fy3Wbyihmv8L+XacWM=
-github.com/coinbase/rosetta-sdk-go/types v1.0.0 h1:jpVIwLcPoOeCR6o1tU+Xv7r5bMONNbHU7MuEHboiFuA=
-github.com/coinbase/rosetta-sdk-go/types v1.0.0/go.mod h1:eq7W2TMRH22GTW0N0beDnN931DW0/WOI1R2sdHNHG4c=
+github.com/coinbase/rosetta-sdk-go/types v1.6.1 h1:oRbyHxOoV0+glusmSXdpaBPZ2N/WLD0kmIiPlR6DuWo=
+github.com/coinbase/rosetta-sdk-go/types v1.6.1/go.mod h1:bN5JAIEG/dGZNnYzsfizeHhzFOf9s5rkJoaNM/7L5QI=
 github.com/containerd/continuity v0.4.5 h1:ZRoN1sXq9u7V6QoHMcVWGhOwDFqZ4B9i5H6un1Wh0x4=
 github.com/containerd/continuity v0.4.5/go.mod h1:/lNJvtJKUQStBzpVQ1+rasXO1LAWtUQssk28EZvJ3nE=
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
