@@ -24,5 +24,5 @@ public class Web3Properties {
     @DurationMin(millis = 100L)
     private Duration frequency = Duration.ofMillis(500L);
 
-    private boolean schedulerEnabled = false;
+    private boolean schedulerEnabled = true;
 }
