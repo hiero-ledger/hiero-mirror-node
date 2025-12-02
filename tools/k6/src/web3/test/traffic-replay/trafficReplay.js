@@ -1,32 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-const FILE_PATH = './input.txt';
 const BASE_URL = __ENV.BASE_URL;
 
 // Read a full line containing only the JSON request body uncompressed.
 const DATA_REGEX = /(^\{.*\}$)/gm;
-
-const parsedRequests = new SharedArray('parsed payloads', function () {
-  const fileContent = open(FILE_PATH);
-  const requests = [];
-
-  let requestIndex = 0;
-  let match;
-  while ((match = DATA_REGEX.exec(fileContent)) !== null) {
-    const rawJsonBody = match[1];
-
-    try {
-      requests.push({
-        scenarioKey: String(requestIndex),
-        payload: rawJsonBody,
-      });
-      requestIndex++;
-    } catch (e) {
-      console.error(`Failed to parse JSON for index ${requestIndex}: ${e.message}`);
-    }
-  }
-  return requests;
-});
 
 const params = {
   headers: {
@@ -37,7 +14,40 @@ const params = {
 
 const options = utils.getOptionsWithScenario('trafficReplay', null, {});
 
-function run() {
+function parseRequests(fileContent) {
+  const requests = [];
+  let requestIndex = 0;
+  let match;
+
+  while ((match = DATA_REGEX.exec(fileContent)) !== null) {
+    const rawJsonBody = match[1];
+    try {
+      requests.push({
+        scenarioKey: String(requestIndex),
+        payload: rawJsonBody,
+      });
+      requestIndex++;
+    } catch (e) {
+      console.error(`Failed to parse JSON at index ${requestIndex}: ${e.message}`);
+    }
+  }
+  return requests;
+}
+
+function run(testParameters) {
+  if (!testParameters) {
+    // This test case must be run via apis.js in order to download the traffic input file from github only once
+    // instead of once for each VU. With a large amount of VUs, github rejects some of the request which
+    // causes the tests to fail and contaminates the results.
+    console.log('Skipping test execution as no parsed requests found.');
+    return;
+  }
+  const parsedRequests = testParameters.trafficReplayRequests || [];
+  if (parsedRequests.length === 0) {
+    console.log(`No traffic replay requests found.`);
+    return;
+  }
+
   const totalRequests = parsedRequests.length;
   const requestIndex = __ITER % totalRequests;
   const requestData = parsedRequests[requestIndex];
@@ -60,4 +70,4 @@ function run() {
   });
 }
 
-export {options, run};
+export {options, run, parseRequests};

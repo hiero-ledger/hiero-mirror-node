@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {getSequentialTestScenarios} from '../../lib/common.js';
+import http from 'k6/http';
 
 // import test modules
 import * as contractCallAllowance from './contractCallAllowance.js';
@@ -151,10 +152,25 @@ if (__ENV.RUN_OPCODE_TESTS !== 'false' && __ENV.TRANSACTION_IDS) {
   });
 }
 
-if (__ENV.RUN_TRAFFIC_REPLAY !== 'false') {
+if (__ENV.RUN_TRAFFIC_REPLAY !== 'false' && __ENV.GITHUB_URL_TRAFFIC_REPLAY_FILE) {
   Object.assign(tests, {
     trafficReplay,
   });
+}
+
+// This method is executed only once regarding of the VUs count.
+export function setup() {
+  if (__ENV.RUN_TRAFFIC_REPLAY !== 'false' && __ENV.GITHUB_URL_TRAFFIC_REPLAY_FILE) {
+    console.log(`Downloading the traffic replay file from github.`);
+    const res = http.get(__ENV.GITHUB_URL_TRAFFIC_REPLAY_FILE);
+    if (res.status !== 200) {
+      throw new Error(`Could not fetch input file. Status: ${res.status}`);
+    }
+    const trafficReplayRequests = trafficReplay.parseRequests(res.body);
+    console.log(`Parsed ${trafficReplayRequests.length} traffic replay requests.`);
+    return {trafficReplayRequests};
+  }
+  return [];
 }
 
 const {funcs, options, scenarioDurationGauge, scenarios} = getSequentialTestScenarios(tests, 'WEB3');
