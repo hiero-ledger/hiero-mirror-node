@@ -20,6 +20,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.rest.model.ContractAction;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractResult;
@@ -42,6 +43,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
     @Autowired
     protected FeatureProperties featureProperties;
 
+    // Temporary until consensus node with code deposit change is deployed to all environments.
     private final Supplier<Boolean> shouldUseCodeDepositCost = Suppliers.memoize(() -> {
         try {
             var blocksResponse = mirrorClient.getBlocks(Order.DESC, 1);
@@ -253,7 +255,8 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         byte[] values;
         if (data instanceof String) {
             values = Hex.decodeHex(((String) data).replaceFirst(HEX_PREFIX, ""));
-            total += ADDITIONAL_FEE_FOR_CREATE;
+            int initCodeCost = (values.length + Bytes32.SIZE - 1) / Bytes32.SIZE * 2;
+            total += ADDITIONAL_FEE_FOR_CREATE + (shouldUseCodeDepositCost.get() ? initCodeCost : 0);
         } else if (data instanceof byte[]) {
             values = (byte[]) data;
         } else {
