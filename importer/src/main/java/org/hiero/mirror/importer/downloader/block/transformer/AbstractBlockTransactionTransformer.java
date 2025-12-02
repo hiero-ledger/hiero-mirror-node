@@ -153,8 +153,16 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
         }
 
+        if (evmTransactionResult.getContractNoncesCount() > 0) {
+            contractResultbuilder.addAllContractNonces(evmTransactionResult.getContractNoncesList());
+        }
+
         if (evmTransactionResult.hasSenderId()) {
             contractResultbuilder.setSenderId(evmTransactionResult.getSenderId());
+        }
+
+        if (evmTransactionResult.hasSignerNonce()) {
+            contractResultbuilder.setSignerNonce(evmTransactionResult.getSignerNonce());
         }
 
         if (evmTransactionInfo.isContractCreate() && evmTransactionResult.hasContractId()) {

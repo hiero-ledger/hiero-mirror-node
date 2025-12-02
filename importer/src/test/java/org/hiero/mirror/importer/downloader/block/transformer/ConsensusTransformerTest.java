@@ -219,22 +219,22 @@ final class ConsensusTransformerTest extends AbstractTransformerTest {
     @Test
     void scheduledConsensusSubmitMessageTransform() {
         // given
-        var scheduledTransactionId = TransactionID.newBuilder()
+        final var scheduledTransactionId = TransactionID.newBuilder()
                 .setAccountID(recordItemBuilder.accountId())
                 .setScheduled(true)
                 .setTransactionValidStart(recordItemBuilder.timestamp())
                 .build();
-        var topicId = recordItemBuilder.topicId();
-        var runningHash = recordItemBuilder.bytes(48);
-        var scheduleSignRecordItem = recordItemBuilder
-                .scheduleCreate()
+        final var topicId = recordItemBuilder.topicId();
+        final var runningHash = recordItemBuilder.bytes(48);
+        final var scheduleSignRecordItem = recordItemBuilder
+                .scheduleSign()
                 .receipt(r -> r.setScheduledTransactionID(scheduledTransactionId))
                 .customize(this::finalize)
                 .build();
-        var scheduleSignBlockTransaction = blockTransactionBuilder
-                .scheduleCreate(scheduleSignRecordItem)
+        final var scheduleSignBlockTransaction = blockTransactionBuilder
+                .scheduleSign(scheduleSignRecordItem)
                 .stateChanges(s -> {
-                    var stateChanges = s.getFirst().toBuilder()
+                    final var stateChanges = StateChanges.newBuilder()
                             .addStateChanges(StateChange.newBuilder()
                                     .setStateId(StateIdentifier.STATE_ID_TOPICS_VALUE)
                                     .setMapUpdate(MapUpdateChange.newBuilder()
@@ -245,37 +245,38 @@ final class ConsensusTransformerTest extends AbstractTransformerTest {
                                                             .setRunningHash(runningHash)
                                                             .setSequenceNumber(10)))))
                             .build();
-                    s.clear();
                     s.add(stateChanges);
                 })
                 .build();
-        var consensusSubmitMessageRecordItem = recordItemBuilder
+        final var parentConsensusTimestamp =
+                scheduleSignRecordItem.getTransactionRecord().getConsensusTimestamp();
+        final var consensusSubmitMessageRecordItem = recordItemBuilder
                 .consensusSubmitMessage()
                 .clearIncrementer()
                 .receipt(r -> r.setTopicRunningHash(runningHash).setTopicSequenceNumber(10))
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
                 .transactionBody(b -> b.setTopicID(topicId))
                 .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
                 .recordItem(r -> r.transactionIndex(1))
                 .customize(this::finalize)
                 .build();
-        var consensusSubmitMessageBlockTransaction = blockTransactionBuilder
+        final var consensusSubmitMessageBlockTransaction = blockTransactionBuilder
                 .consensusSubmitMessage(consensusSubmitMessageRecordItem)
                 .previous(scheduleSignBlockTransaction)
                 .stateChanges(List::clear)
-                .trigger(scheduleSignBlockTransaction)
                 .build();
-        var blockFile = blockFileBuilder
+        final var blockFile = blockFileBuilder
                 .items(List.of(scheduleSignBlockTransaction, consensusSubmitMessageBlockTransaction))
                 .build();
 
         // when
-        var recordFile = blockFileTransformer.transform(blockFile);
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
-        var expected = List.of(scheduleSignRecordItem, consensusSubmitMessageRecordItem);
+        final var expected = List.of(scheduleSignRecordItem, consensusSubmitMessageRecordItem);
         assertRecordFile(recordFile, blockFile, items -> {
             assertRecordItems(items, expected);
-            assertThat(items).map(RecordItem::getParent).containsOnlyNulls();
+            assertThat(items).map(RecordItem::getParent).containsExactly(null, items.getFirst());
         });
     }
 }

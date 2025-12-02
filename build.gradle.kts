@@ -52,7 +52,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:0.68.0")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.68.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.69.0-rc.1")
         api("com.hedera.hashgraph:sdk:2.64.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
