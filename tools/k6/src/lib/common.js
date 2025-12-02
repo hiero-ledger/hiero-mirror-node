@@ -233,7 +233,7 @@ function defaultMetrics() {
 }
 
 function satisfyParameters(available, required) {
-  return required.length === 0 || required.every((param) => available.hasOwnProperty(param));
+  return required.length === 0 || required.every((param) => available.hasOwnProperty(param) && available[param]);
 }
 
 function markdownReport(data, includeUrlColumn, funcs, scenarios, getUrlFuncs = {}) {
@@ -332,6 +332,9 @@ class TestScenarioBuilder {
     const run = function (testParameters) {
       if (that._shouldSkip == null) {
         that._shouldSkip = !satisfyParameters(testParameters, that._requiredParameters);
+        if (that._shouldSkip) {
+          console.warn(`Skipping test scenario ${that._name}`);
+        }
       }
 
       if (!that._shouldSkip) {
