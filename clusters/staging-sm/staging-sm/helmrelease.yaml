@@ -79,6 +79,8 @@ spec:
       monitor:
         test:
           enabled: false
+      test:
+        enabled: false
     test:
       config:
         hiero:
