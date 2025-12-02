@@ -213,7 +213,11 @@ public class SDKClient implements Cleanable {
                 }
 
                 var accountId = queryReceipt.accountId;
-                log.info("Created operator account {} with public key {}", accountId, publicKey);
+                log.info(
+                        "Created operator account {} with public key {} via {}",
+                        accountId,
+                        publicKey,
+                        response.transactionId);
                 return new ExpandedAccountId(accountId, privateKey);
             }
         } catch (Exception e) {
