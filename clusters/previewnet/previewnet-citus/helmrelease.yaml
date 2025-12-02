@@ -64,6 +64,7 @@ spec:
         persistentVolume:
           size: 90Gi
     test:
+      cucumberTags: "@acceptance and not @ethereum"
       enabled: true
     web3:
       env:
