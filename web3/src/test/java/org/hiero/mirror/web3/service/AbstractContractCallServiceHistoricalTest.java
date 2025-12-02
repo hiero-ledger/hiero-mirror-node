@@ -88,7 +88,7 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                 .entity()
                 .customize(e -> {
                     e.type(EntityType.ACCOUNT)
-                            .balance(DEFAULT_ACCOUNT_BALANCE)
+                            .balance(getDefaultAccountBalance())
                             .createdTimestamp(timestampRange.lowerEndpoint())
                             .timestampRange(timestampRange);
                     customizer.accept(e);
@@ -399,5 +399,16 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
                             .timestampRange(timestampRange))
                     .persist();
         }
+    }
+
+    /**
+     * Returns the default account balance depending on override setting.
+     *
+     * @return the default account balance
+     */
+    private long getDefaultAccountBalance() {
+        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
+                ? DEFAULT_SMALL_ACCOUNT_BALANCE
+                : DEFAULT_ACCOUNT_BALANCE;
     }
 }

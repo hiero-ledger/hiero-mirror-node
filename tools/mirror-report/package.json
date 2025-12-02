@@ -29,6 +29,7 @@
   "main": "index.js",
   "name": "@hiero-ledger/mirror-report",
   "overrides": {
+    "glob": "^12.0.0",
     "js-yaml": "^3.14.2"
   },
   "repository": {

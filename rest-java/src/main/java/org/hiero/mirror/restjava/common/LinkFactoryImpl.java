@@ -16,6 +16,7 @@ import org.jspecify.annotations.NullMarked;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.http.HttpHeaders;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -25,7 +26,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Named
 @RequiredArgsConstructor
 @NullMarked
-class LinkFactoryImpl implements LinkFactory {
+final class LinkFactoryImpl implements LinkFactory {
 
     private static final Links DEFAULT_LINKS = new Links();
 
@@ -43,6 +44,7 @@ class LinkFactoryImpl implements LinkFactory {
         var request = servletRequestAttributes.getRequest();
         var lastItem = CollectionUtils.lastElement(items);
         var nextLink = createNextLink(lastItem, pageable, extractor, request);
+        servletRequestAttributes.getResponse().setHeader(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink));
         return new Links().next(nextLink);
     }
 

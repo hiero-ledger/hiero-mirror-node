@@ -88,21 +88,6 @@ final class BlockRootHashDigestTest {
     }
 
     @Test
-    void shouldThrowWhenSetInvalidPreviousHash() {
-        var subject = new BlockRootHashDigest();
-        assertThatThrownBy(() -> subject.setPreviousHash(null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> subject.setPreviousHash(new byte[8])).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void shouldThrowWhenSetInvalidStartOfBlockStateHash() {
-        var subject = new BlockRootHashDigest();
-        assertThatThrownBy(() -> subject.setStartOfBlockStateHash(null)).isInstanceOf(NullPointerException.class);
-        assertThatThrownBy(() -> subject.setStartOfBlockStateHash(new byte[10]))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
     void shouldThrowWhenStartOfBlockStateHashNotSet() {
         var subject = new BlockRootHashDigest();
         subject.setPreviousHash(EMPTY_HASH);

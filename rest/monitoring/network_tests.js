@@ -201,7 +201,7 @@ const runTests = async (server, testResult) => {
   const runTest = testRunner(server, testResult, resource);
   return Promise.all([
     runTest(getNetworkExchangeRate, 'REST_JAVA'),
-    runTest(getNetworkFees),
+    runTest(getNetworkFees, 'REST_JAVA'),
     runTest(getNetworkNodes),
     runTest(getNetworkStake, 'REST_JAVA'),
     runTest(getNetworkSupply),

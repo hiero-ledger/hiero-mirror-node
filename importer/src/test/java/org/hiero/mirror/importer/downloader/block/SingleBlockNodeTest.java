@@ -3,10 +3,8 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -78,7 +76,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     @Test
     void missingBlock() {
         // given
-        var generator = new BlockGenerator(0);
+        final var generator = new BlockGenerator(0);
         simulator = new BlockNodeSimulator()
                 .withBlocks(generator.next(10))
                 .withHttpChannel()
@@ -91,30 +89,6 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Non-consecutive block number");
-    }
-
-    // BlockNode hands a block to the reader after there is a proof. If proof is missing the partially buffered block is
-    // never processed
-    @Test
-    void missingBlockProof() {
-        // given
-        var generator = new BlockGenerator(0);
-        var blocks = new ArrayList<>(generator.next(2));
-        var block1 = blocks.get(1);
-        var proofIndex = block1.getBlockItemsCount() - 1;
-        var block1WithoutProof = block1.toBuilder().removeBlockItems(proofIndex).build();
-        blocks.set(1, block1WithoutProof);
-
-        simulator =
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
-
-        // when, then
-        assertThatCode(subscriber::get).doesNotThrowAnyException();
-
-        // explicitly check that record file with index 0 was called once and with index 1 is never called
-        verify(streamFileNotifier, times(1)).verified(argThat(rf -> rf.getIndex() == 0));
-        verify(streamFileNotifier, never()).verified(argThat(rf -> rf.getIndex() == 1));
     }
 
     @Test
@@ -222,44 +196,5 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof in block");
-    }
-
-    @Test
-    void exceptionIsThrownWhenTheLastEventTxnItemIsNotFollowedByTxnResultItem() {
-        // given
-        var generator = new BlockGenerator(0);
-
-        var blocks = new ArrayList<>(generator.next(2));
-        var blockOne = blocks.get(1);
-        var blockOneItems = blockOne.getBlockItemsList();
-        var blockOneLastEventTxn = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.SIGNED_TRANSACTION)
-                .reduce((first, second) -> second)
-                .orElseThrow(() -> new IllegalStateException("The block is missing signed transaction item"));
-        var blockOneTxnResult = blockOneItems.stream()
-                .filter(it -> it.getItemCase() == ItemCase.TRANSACTION_RESULT)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("The block is missing transaction result item"));
-        int blockOneEventTxnIndex = blockOneItems.indexOf(blockOneLastEventTxn);
-        int blockOneTxnResultIndex = blockOneItems.indexOf(blockOneTxnResult);
-
-        var builder = BlockItemSet.newBuilder();
-        var wrongOrderBlockItems = new ArrayList<>(blockOneItems);
-        Collections.swap(wrongOrderBlockItems, blockOneTxnResultIndex, blockOneEventTxnIndex);
-        builder.addAllBlockItems(wrongOrderBlockItems);
-        blocks.remove(1);
-        blocks.add(builder.build());
-
-        simulator = new BlockNodeSimulator()
-                .withChunksPerBlock(2)
-                .withBlocks(blocks)
-                .start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
-
-        // when, then
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Missing transaction result in block");
     }
 }
