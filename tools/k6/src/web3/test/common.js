@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {check, sleep} from 'k6';
-import {vu, scenario} from 'k6/execution';
+import {vu} from 'k6/execution';
 import http from 'k6/http';
 import {SharedArray} from 'k6/data';
 

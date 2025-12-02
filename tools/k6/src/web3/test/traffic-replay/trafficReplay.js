@@ -2,8 +2,8 @@
 
 const FILE_PATH = './input.txt';
 const BASE_URL = __ENV.BASE_URL;
-const VUS_COUNT = __ENV.DEFAULT_VUS ? parseInt(__ENV.DEFAULT_VUS) : 1;
 
+// Read a full line containing only the JSON request body uncompressed.
 const DATA_REGEX = /(^\{.*\}$)/gm;
 
 const parsedRequests = new SharedArray('parsed payloads', function () {
@@ -22,7 +22,7 @@ const parsedRequests = new SharedArray('parsed payloads', function () {
       });
       requestIndex++;
     } catch (e) {
-      console.error(`Failed to parse JSON for timestamp ${scenarioKey}: ${e.message}`);
+      console.error(`Failed to parse JSON for index ${requestIndex}: ${e.message}`);
     }
   }
   return requests;
@@ -35,48 +35,29 @@ const params = {
   },
 };
 
-class TrafficReplayScenarioBuilder extends utils.BaseMultiScenarioBuilder {
-  constructor(parsedRequests) {
-    super();
-    this._parsedRequests = parsedRequests;
-  }
+const options = utils.getOptionsWithScenario('trafficReplay', null, {});
 
-  build() {
-    const that = this;
+function run() {
+  const totalRequests = parsedRequests.length;
+  const requestIndex = __ITER % totalRequests;
+  const requestData = parsedRequests[requestIndex];
 
-    let combinedOptions;
-    for (let i = 0; i < that._parsedRequests.length; i++) {
-      const data = that._parsedRequests[i];
-      const scenarioName = `${that._name}_${data.scenarioKey}`;
-      const options = utils.getOptionsWithScenario(scenarioName, null, {url: that._url, payload: data.payload});
-      options.scenarios[scenarioName].duration = __ENV.TRAFFIC_REPLAY_DURATION ? __ENV.TRAFFIC_REPLAY_DURATION : '5s';
-      if (!combinedOptions) {
-        combinedOptions = options;
-      } else {
-        combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
-      }
-    }
+  const rawPayload = requestData.payload;
+  const scenarioKey = requestData.scenarioKey;
 
-    function run() {
-      const active = scenario.name;
-      const scenarioDef = combinedOptions.scenarios[active];
-      const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
-      const payload = (scenarioDef && scenarioDef.tags && scenarioDef.tags.payload) || '';
-      const response = that._request(url, payload);
-      check(response, {
-        [that._checkName]: (r) => that._checkFunc(r),
-      });
-    }
+  const url = `${BASE_URL}/api/v1/contracts/call`;
+  const dynamicParams = Object.assign({}, params, {
+    tags: {
+      name: `traffic_replay_index_${requestIndex}`,
+      scenario_key: scenarioKey,
+    },
+  });
 
-    return {options: combinedOptions, run};
-  }
+  const res = http.post(url, rawPayload, dynamicParams);
+  check(res, {
+    [`Traffic replay index ${requestIndex} processed in ${res.timings.duration}ms`]: (r) =>
+      r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
+  });
 }
-
-const {options, run} = new TrafficReplayScenarioBuilder(parsedRequests)
-  .name('trafficReplay')
-  .url(`${__ENV.BASE_URL}/api/v1/contracts/call`)
-  .request((url, payload) => http.post(url, payload, params))
-  .check('Traffic replay OK', (r) => r.status === 200)
-  .build();
 
 export {options, run};
