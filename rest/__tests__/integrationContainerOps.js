@@ -124,6 +124,7 @@ const flywayMigrate = async (connectionParams) => {
       password: password,
       'placeholders.api-password': defaultDbConfig.password,
       'placeholders.api-user': defaultDbConfig.username,
+      'placeholders.balancePartitionTimeInterval': "'10years'",
       'placeholders.db-name': database,
       'placeholders.db-user': user,
       'placeholders.hashShardCount': 2,
