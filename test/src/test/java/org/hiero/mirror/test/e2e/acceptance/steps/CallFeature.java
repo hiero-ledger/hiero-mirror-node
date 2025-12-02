@@ -228,7 +228,10 @@ public class CallFeature extends AbstractFeature {
     }
 
     // ETHCALL-017
-    @RetryAsserts
+    @Retryable(
+            retryFor = {HttpClientErrorException.class},
+            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
+            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     @Then("I call function with IERC721Metadata token {string} name")
     public void ierc721MetadataTokenName(String tokenName) {
         var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
