@@ -22,10 +22,7 @@ function parseRequests(fileContent) {
   while ((match = DATA_REGEX.exec(fileContent)) !== null) {
     const rawJsonBody = match[1];
     try {
-      requests.push({
-        scenarioKey: String(requestIndex),
-        payload: rawJsonBody,
-      });
+      requests.push(rawJsonBody);
       requestIndex++;
     } catch (e) {
       console.error(`Failed to parse JSON at index ${requestIndex}: ${e.message}`);
@@ -51,22 +48,12 @@ function run(testParameters) {
   const totalRequests = parsedRequests.length;
   const requestIndex = __ITER % totalRequests;
   const requestData = parsedRequests[requestIndex];
-
   const rawPayload = requestData.payload;
-  const scenarioKey = requestData.scenarioKey;
 
   const url = `${BASE_URL}/api/v1/contracts/call`;
-  const dynamicParams = Object.assign({}, params, {
-    tags: {
-      name: `traffic_replay_index_${requestIndex}`,
-      scenario_key: scenarioKey,
-    },
-  });
-
-  const res = http.post(url, rawPayload, dynamicParams);
+  const res = http.post(url, rawPayload, params);
   check(res, {
-    [`Traffic replay index ${requestIndex} processed in ${res.timings.duration}ms`]: (r) =>
-      r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
+    'Traffic replay OK': (r) => r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
   });
 }
 
