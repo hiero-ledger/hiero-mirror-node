@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.config;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
+import java.util.Set;
 import java.util.TreeSet;
 import lombok.Data;
 import lombok.Getter;
@@ -29,9 +30,9 @@ public class NetworkProperties {
             new AccountRange(400, 750));
 
     @Getter(lazy = true)
-    private final TreeSet<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
+    private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
 
-    private TreeSet<Long> createUnreleasedSupplyAccountIds() {
+    private Set<Long> createUnreleasedSupplyAccountIds() {
         final var commonProperties = CommonProperties.getInstance();
         final var shard = commonProperties.getShard();
         final var realm = commonProperties.getRealm();
