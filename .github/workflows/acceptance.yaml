@@ -36,16 +36,17 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-          - BLOCK
+    #          - BLOCK # re-enable in PR for #12192
     timeout-minutes: 50
     env:
       BLOCK_NODE_CHART_VERSION: v0.23.2
-      CONSENSUS_VERSION: v0.68.0
+      CONSENSUS_VERSION: v0.68.2
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
+      SOLO_CHART_VERSION: "0.58.1" # Temporary until next Solo
       SOLO_VERSION: v0.50.0
     permissions:
       pull-requests: read
@@ -67,6 +68,8 @@ jobs:
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: "3.19.2"
 
       - name: Setup Kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
@@ -89,9 +92,15 @@ jobs:
           set -ex
 
           TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
-          [[ "$TAG" != *SNAPSHOT ]] && BASE="v$TAG" || BASE=""
-
-          git describe --exact-match HEAD 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || TRIGGERED_BY_TAG=false
+          BASE=""
+          TRIGGERED_BY_TAG=false
+          if [[ "$TAG" != *SNAPSHOT ]]; then
+            BASE="v$TAG"
+            # The dereferenced tag corresponds to the commit the annotated tag refers to
+            DEREFERENCED_TAG="v${TAG}^{}"
+            git ls-remote --tags origin "${DEREFERENCED_TAG}" | grep $(git rev-parse HEAD) && TRIGGERED_BY_TAG=true \
+              || true
+          fi
 
           echo "BASE=${BASE}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
@@ -129,7 +138,7 @@ jobs:
             - 'web3/**'
 
       - name: Build images
-        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs != ''
+        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
         run: |
           set -ex
           echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
