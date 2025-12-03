@@ -29,7 +29,7 @@ public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
 
     protected final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(30L));
 
-    @Resource
+    @Resource(name = "grpcDomainBuilder")
     protected ReactiveDomainBuilder domainBuilder;
 
     @Resource
