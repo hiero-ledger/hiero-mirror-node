@@ -19,7 +19,7 @@ extra.apply {
     set("blockNodeVersion", "0.23.2")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.77.0")
-    set("jooq.version", "3.20.8") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.9") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
     set("protobufVersion", "4.33.1")
@@ -50,10 +50,10 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.68.0")
+        api("com.hedera.hashgraph:app:0.68.2")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.68.0")
-        api("com.hedera.hashgraph:sdk:2.64.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.68.2")
+        api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
