@@ -4,19 +4,15 @@ package org.hiero.mirror.web3.service;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.StackedStateFrames;
-import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -31,13 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(ContextExtension.class)
 class ContractCallServiceUnitTest {
-
-    @Mock
-    MirrorEvmTxProcessor mirrorEvmTxProcessor;
-
-    @Mock
-    private Store store;
 
     @Mock
     private MirrorNodeEvmProperties mirrorNodeEvmProperties;
@@ -50,9 +41,6 @@ class ContractCallServiceUnitTest {
 
     @Mock
     private RecordFileService recordFileService;
-
-    @Mock
-    private StackedStateFrames stackedStateFrames;
 
     @Mock
     private ThrottleManager throttleManager;
@@ -68,12 +56,10 @@ class ContractCallServiceUnitTest {
     void setup() {
         isModularized = mirrorNodeEvmProperties.isModularizedServices();
         contractCallService = new ContractCallService(
-                mirrorEvmTxProcessor,
                 throttleManager,
                 new ThrottleProperties(),
                 new SimpleMeterRegistry(),
                 recordFileService,
-                store,
                 mirrorNodeEvmProperties,
                 transactionExecutionService) {};
     }
@@ -89,11 +75,8 @@ class ContractCallServiceUnitTest {
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
         final var successResult = HederaEvmTransactionProcessingResult.successful(null, 1000, 0, 0, null, Address.ZERO);
-        when(store.getStackedStateFrames()).thenReturn(stackedStateFrames);
-        when(mirrorEvmTxProcessor.execute(any(), anyLong())).thenReturn(successResult);
 
         contractCallService.callContract(params, ctx);
-        verify(ctx).initializeStackFrames(stackedStateFrames);
     }
 
     @Test
@@ -103,11 +86,8 @@ class ContractCallServiceUnitTest {
         when(params.getCallType()).thenReturn(CallType.ETH_CALL);
         when(recordFileService.findByBlockType(any())).thenReturn(Optional.of(new RecordFile()));
         final var successResult = HederaEvmTransactionProcessingResult.successful(null, 1000, 0, 0, null, Address.ZERO);
-        when(store.getStackedStateFrames()).thenReturn(stackedStateFrames);
-        when(mirrorEvmTxProcessor.execute(any(), anyLong())).thenReturn(successResult);
 
         contractCallService.callContract(params, ctx);
-        verify(ctx).initializeStackFrames(stackedStateFrames);
     }
 
     @Test
@@ -120,6 +100,5 @@ class ContractCallServiceUnitTest {
         when(transactionExecutionService.execute(any(), anyLong())).thenReturn(successResult);
 
         contractCallService.callContract(params, ctx);
-        verify(ctx, never()).initializeStackFrames(any());
     }
 }

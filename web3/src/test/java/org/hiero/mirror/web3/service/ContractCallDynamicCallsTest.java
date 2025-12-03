@@ -8,6 +8,7 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.PostConstruct;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -17,12 +18,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.store.Store.OnMissing;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
@@ -35,9 +37,11 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+@ExtendWith(ContextExtension.class)
 class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final BigInteger DEFAULT_TOKEN_AMOUNT = BigInteger.ONE;
@@ -838,19 +842,17 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Given
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
-        final var contractAlias = ContractCallContext.run(ctx -> {
-            ctx.initializeStackFrames(store.getStackedStateFrames());
-            final var contractAccount =
-                    store.getAccount(Address.fromHexString(contract.getContractAddress()), OnMissing.THROW);
-            return contractAccount.canonicalAddress();
-        });
+        final var contractEntityOptional =
+                commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
+        final var contractEntity = contractEntityOptional.orElseThrow();
+        final var contractAlias = EntityIdUtils.toAccountId(contractEntity).alias();
 
         // When
         final var functionCall = contract.call_getAddressThis();
-        final String result = functionCall.send();
+        final var result = functionCall.send();
 
         // Then
-        assertEquals(contractAlias.toHexString(), result);
+        assertEquals(Bytes.wrap(contractAlias.toByteArray()).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
@@ -859,19 +861,17 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Given
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
-        final var contractAlias = ContractCallContext.run(ctx -> {
-            ctx.initializeStackFrames(store.getStackedStateFrames());
-            final var contractAccount =
-                    store.getAccount(Address.fromHexString(contract.getContractAddress()), OnMissing.THROW);
-            return contractAccount.canonicalAddress();
-        });
+        final var contractEntityOptional =
+                commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
+        final var contractEntity = contractEntityOptional.orElseThrow();
+        final var contractAlias = EntityIdUtils.toAccountId(contractEntity).alias();
 
         // When
         final var functionCall = contract.call_getAddressThis();
         final String result = functionCall.send();
 
         // Then
-        assertEquals(contractAlias.toHexString(), result);
+        assertEquals(Bytes.wrap(contractAlias.toByteArray()).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 

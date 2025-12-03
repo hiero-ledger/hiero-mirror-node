@@ -9,15 +9,18 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.data.Percentage;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 @RequiredArgsConstructor
+@ExtendWith(ContextExtension.class)
 class BinaryGasEstimatorTest extends Web3IntegrationTest {
     private final BinaryGasEstimator binaryGasEstimator;
     private final MirrorNodeEvmProperties properties;

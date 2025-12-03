@@ -32,7 +32,6 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -61,7 +60,8 @@ import org.mockito.quality.Strictness;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith({ContextExtension.class, MockitoExtension.class})
+@ExtendWith({MockitoExtension.class})
+@ExtendWith(ContextExtension.class)
 class TransactionExecutionServiceTest {
     private static final Long DEFAULT_GAS = 50000L;
 
@@ -70,9 +70,6 @@ class TransactionExecutionServiceTest {
 
     @Mock
     private AliasesReadableKVState aliasesReadableKVState;
-
-    @Mock
-    private OpcodeTracer opcodeTracer;
 
     @Mock
     private MirrorOperationTracer mirrorOperationTracer;

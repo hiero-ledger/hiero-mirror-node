@@ -35,6 +35,7 @@ import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
@@ -50,12 +51,14 @@ import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.web3j.abi.TypeEncoder;
 import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
+@ExtendWith(ContextExtension.class)
 class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final long ZERO_AMOUNT = 0L;

@@ -8,10 +8,13 @@ import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 @RequiredArgsConstructor
+@ExtendWith(ContextExtension.class)
 class FileReadableKVStateIntegrationTest extends Web3IntegrationTest {
 
     private final FileReadableKVState fileReadableKVState;

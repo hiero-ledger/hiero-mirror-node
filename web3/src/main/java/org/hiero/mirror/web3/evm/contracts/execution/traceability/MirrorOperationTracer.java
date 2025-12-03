@@ -4,12 +4,14 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import com.hedera.node.app.service.evm.contracts.execution.traceability.HederaEvmOperationTracer;
 import jakarta.inject.Named;
+import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.evm.account.MirrorEvmContractAliases;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 
@@ -19,7 +21,7 @@ import org.hyperledger.besu.evm.operation.Operation;
 public class MirrorOperationTracer implements HederaEvmOperationTracer {
 
     private final TraceProperties traceProperties;
-    private final MirrorEvmContractAliases mirrorEvmContractAliases;
+    private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
     public void tracePostExecution(final MessageFrame currentFrame, final Operation.OperationResult operationResult) {
@@ -31,9 +33,16 @@ public class MirrorOperationTracer implements HederaEvmOperationTracer {
         }
 
         final var recipientAddress = currentFrame.getRecipientAddress();
-        final var recipientNum = mirrorEvmContractAliases.resolveForEvm(recipientAddress);
+        final var recipientEntity = commonEntityAccessor.get(recipientAddress, Optional.empty());
+        EntityId recipientNum;
+        if (recipientEntity.isPresent()) {
+            recipientNum = recipientEntity.get().toEntityId();
+        } else {
+            recipientNum = EntityId.EMPTY;
+        }
 
-        if (traceProperties.contractFilterCheck(recipientNum.toHexString())) {
+        if (traceProperties.contractFilterCheck(
+                Bytes.wrap(recipientNum.toAccountID().toByteArray()).toHexString())) {
             return;
         }
 

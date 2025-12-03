@@ -6,12 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asContract;
-import static com.hedera.services.utils.IdUtils.asToken;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,7 +21,6 @@ import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -67,60 +61,6 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void asContractWorks() {
-        final var expected = ContractID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setContractNum(NUM)
-                .build();
-        final var id = AccountID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setAccountNum(NUM)
-                .build();
-
-        final var cid = asContract(id);
-
-        assertEquals(expected, cid);
-    }
-
-    @Test
-    void serializesExpectedSolidityAddress() {
-        final byte[] shardBytes = Ints.toByteArray(0);
-        final byte[] realmBytes = Longs.toByteArray(0);
-        final byte[] numBytes = Longs.toByteArray(NUM);
-        final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
-
-        final var create2AddressBytes = Hex.decode("0102030405060708090a0b0c0d0e0f1011121314");
-        final var equivAccount = asAccount(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var equivContract = asContract(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var equivToken = asToken(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var create2Contract = ContractID.newBuilder()
-                .setEvmAddress(ByteString.copyFrom(create2AddressBytes))
-                .build();
-
-        final var actual = toEvmAddress(NUM);
-        final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
-        final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
-        final var typedContract = EntityIdUtils.asTypedEvmAddress(equivContract);
-
-        final var anotherActual = toEvmAddress(equivContract);
-        final var create2Actual = toEvmAddress(create2Contract);
-        final var actualHex = EntityIdUtils.asHexedEvmAddress(equivAccount);
-
-        assertArrayEquals(expected, actual);
-        assertArrayEquals(expected, anotherActual);
-        assertArrayEquals(expected, typedActual.toArray());
-        assertArrayEquals(expected, typedToken.toArray());
-        assertArrayEquals(expected, typedContract.toArray());
-        assertArrayEquals(create2AddressBytes, create2Actual);
-        assertEquals(CommonUtils.hex(expected), actualHex);
-        assertEquals(equivAccount, accountIdFromEvmAddress(actual));
-        assertEquals(equivContract, contractIdFromEvmAddress(actual));
-        assertEquals(equivToken, tokenIdFromEvmAddress(actual));
-    }
-
-    @Test
     void fromAddressToIdNonLongZeroAlias() {
         var evmAddress = ArrayUtils.addAll(
                 ArrayUtils.addAll(Ints.toByteArray(Integer.MAX_VALUE), Longs.toByteArray(Long.MAX_VALUE)),
@@ -134,12 +74,6 @@ class EntityIdUtilsTest {
         assertEquals(ContractID.getDefaultInstance(), contractIdFromEvmAddress(address));
         assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(evmAddress));
         assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(address));
-    }
-
-    @ParameterizedTest
-    @CsvSource({"1.0.0", "0.1.0", "0.0.1", "1.2.3"})
-    void parsesValidLiteral(final String goodLiteral) {
-        assertEquals(asAccount(goodLiteral), EntityId.of(goodLiteral).toAccountID());
     }
 
     @ParameterizedTest

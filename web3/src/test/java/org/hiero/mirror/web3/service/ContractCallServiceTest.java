@@ -48,9 +48,7 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -83,8 +81,6 @@ import org.web3j.tx.Contract;
 class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
     private final BinaryGasEstimator binaryGasEstimator;
-    private final Store store;
-    private final MirrorEvmTxProcessor mirrorEvmTxProcessor;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final TransactionExecutionService transactionExecutionService;
@@ -948,8 +944,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var contractCallServiceWithMockedGasLimitBucket = new ContractExecutionService(
                 meterRegistry,
                 binaryGasEstimator,
-                store,
-                mirrorEvmTxProcessor,
                 recordFileService,
                 throttleProperties,
                 throttleManager,
@@ -986,8 +980,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var contractCallServiceWithMockedGasLimitBucket = new ContractExecutionService(
                 meterRegistry,
                 binaryGasEstimator,
-                store,
-                mirrorEvmTxProcessor,
                 recordFileService,
                 throttleProperties,
                 throttleManager,
@@ -1021,8 +1013,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var contractCallServiceWithMockedGasLimitBucket = new ContractExecutionService(
                 meterRegistry,
                 binaryGasEstimator,
-                store,
-                mirrorEvmTxProcessor,
                 recordFileService,
                 throttleProperties,
                 throttleManager,
@@ -1277,10 +1267,9 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             final long estimatedGas = 1000L;
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
-            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
 
-            ContractCallService contractCallService = new ContractCallService(
-                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
+            ContractCallService contractCallService =
+                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(true);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(1.0);
@@ -1294,7 +1283,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             contractCallService.doProcessCall(params, estimatedGas, true);
 
             verify(txnExecutionService, times(1)).execute(any(), anyLong());
-            verify(mirrorEvmTxProcessor, never()).execute(any(), anyLong());
         }
 
         @ParameterizedTest
@@ -1304,26 +1292,18 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             final long estimatedGas = 1000L;
             MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
-            MirrorEvmTxProcessor mirrorEvmTxProcessor = mock(MirrorEvmTxProcessor.class);
             CallServiceParameters params = mock(CallServiceParameters.class);
 
-            ContractCallService contractCallService = new ContractCallService(
-                    mirrorEvmTxProcessor, null, null, null, null, null, spyEvmProperties, txnExecutionService) {};
+            ContractCallService contractCallService =
+                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
 
             when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
             when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
             var result =
                     HederaEvmTransactionProcessingResult.successful(List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO);
-            if (isModularizedServices && trafficShare == 1.0) {
-                when(txnExecutionService.execute(params, estimatedGas)).thenReturn(result);
-            } else {
-                when(mirrorEvmTxProcessor.execute(params, estimatedGas)).thenReturn(result);
-            }
-
+            when(txnExecutionService.execute(params, estimatedGas)).thenReturn(result);
             contractCallService.doProcessCall(params, estimatedGas, true);
-
             verify(txnExecutionService, never()).execute(any(), anyLong());
-            verify(mirrorEvmTxProcessor, times(1)).execute(any(), anyLong());
         }
     }
 }

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import static com.hedera.services.store.contracts.precompile.SyntheticTxnFactory.HTS_PRECOMPILED_CONTRACT_ADDRESS;
+import static com.hedera.node.app.service.contract.impl.utils.SystemContractUtils.HTS_PRECOMPILED_CONTRACT_ADDRESS;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REVERT_REASON;
 import static org.assertj.core.api.Assertions.assertThat;

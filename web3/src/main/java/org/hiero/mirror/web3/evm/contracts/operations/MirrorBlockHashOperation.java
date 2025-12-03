@@ -25,7 +25,7 @@ import org.hyperledger.besu.evm.operation.BlockHashOperation;
  * returned as well.
  */
 @Named
-class MirrorBlockHashOperation extends BlockHashOperation implements ModularizedOperation {
+public class MirrorBlockHashOperation extends BlockHashOperation implements ModularizedOperation {
 
     private final RecordFileRepository recordFileRepository;
 
@@ -34,7 +34,7 @@ class MirrorBlockHashOperation extends BlockHashOperation implements Modularized
      *
      * @param gasCalculator the gas calculator
      */
-    MirrorBlockHashOperation(GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
+    public MirrorBlockHashOperation(GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
         super(gasCalculator);
         this.recordFileRepository = recordFileRepository;
     }

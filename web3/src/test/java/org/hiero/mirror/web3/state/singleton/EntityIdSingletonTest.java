@@ -17,7 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith({MockitoExtension.class, ContextExtension.class})
+@ExtendWith({MockitoExtension.class})
+@ExtendWith(ContextExtension.class)
 class EntityIdSingletonTest {
 
     private static final long DEFAULT_ENTITY_NUM_BUFFER = 1000L;

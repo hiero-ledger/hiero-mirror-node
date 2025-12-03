@@ -17,9 +17,7 @@ import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -35,13 +33,11 @@ public abstract class ContractCallService {
     static final String GAS_LIMIT_METRIC = "hiero.mirror.web3.evm.gas.limit";
     static final String GAS_USED_METRIC = "hiero.mirror.web3.evm.gas.used";
 
-    protected final Store store;
     protected final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     private final MeterProvider<Counter> invocationCounter;
     private final MeterProvider<Counter> gasLimitCounter;
     private final MeterProvider<Counter> gasUsedCounter;
-    private final MirrorEvmTxProcessor mirrorEvmTxProcessor;
     private final RecordFileService recordFileService;
     private final ThrottleProperties throttleProperties;
     private final ThrottleManager throttleManager;
@@ -49,12 +45,10 @@ public abstract class ContractCallService {
 
     @SuppressWarnings("java:S107")
     protected ContractCallService(
-            MirrorEvmTxProcessor mirrorEvmTxProcessor,
             ThrottleManager throttleManager,
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
-            Store store,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
@@ -66,8 +60,6 @@ public abstract class ContractCallService {
         this.gasUsedCounter = Counter.builder(GAS_USED_METRIC)
                 .description("The amount of gas consumed by the EVM")
                 .withRegistry(meterRegistry);
-        this.store = store;
-        this.mirrorEvmTxProcessor = mirrorEvmTxProcessor;
         this.recordFileService = recordFileService;
         this.throttleProperties = throttleProperties;
         this.throttleManager = throttleManager;
@@ -108,11 +100,6 @@ public abstract class ContractCallService {
                     .orElseThrow(BlockNumberNotFoundException::new));
         }
 
-        // initializes the stack frame with the current state or historical state (if the call is historical)
-        if (!params.isModularized()) {
-            ctx.initializeStackFrames(store.getStackedStateFrames());
-        }
-
         return doProcessCall(params, params.getGas(), false);
     }
 
@@ -125,7 +112,7 @@ public abstract class ContractCallService {
             if (params.isModularized()) {
                 result = transactionExecutionService.execute(params, estimatedGas);
             } else {
-                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
+                //                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
             }
 
             if (!estimate) {
