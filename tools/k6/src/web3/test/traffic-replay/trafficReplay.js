@@ -41,17 +41,16 @@ function run(testParameters) {
   }
   const parsedRequests = testParameters.trafficReplayRequests || [];
   if (parsedRequests.length === 0) {
-    console.log(`No traffic replay requests found.`);
+    console.log('No traffic replay requests found.');
     return;
   }
 
   const totalRequests = parsedRequests.length;
   const requestIndex = __ITER % totalRequests;
   const requestData = parsedRequests[requestIndex];
-  const rawPayload = requestData.payload;
 
   const url = `${BASE_URL}/api/v1/contracts/call`;
-  const res = http.post(url, rawPayload, params);
+  const res = http.post(url, requestData, params);
   check(res, {
     'Traffic replay OK': (r) => r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
   });
