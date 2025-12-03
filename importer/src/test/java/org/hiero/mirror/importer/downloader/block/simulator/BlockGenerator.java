@@ -17,8 +17,6 @@ import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 
 public final class BlockGenerator {
 
-    //    private static final byte[] ALL_ZERO_HASH = new byte[48];
-
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     private long blockNumber;
