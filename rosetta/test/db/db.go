@@ -228,6 +228,7 @@ func runFlywayMigration(pool *dockertest.Pool, network *dockertest.Network, para
 		"password":                                      params.ownerPassword,
 		"placeholders.api-password":                     "mirror_api",
 		"placeholders.api-user":                         "mirror_api_password",
+		"placeholders.balancePartitionTimeInterval":     "'10 years'",
 		"placeholders.partitionStartDate":               "'1970-01-01'",
 		"placeholders.partitionTimeInterval":            "'10 years'",
 		"placeholders.db-name":                          dbName,

@@ -102,7 +102,7 @@ class ExpandBalancePartitionsMigrationTest extends AbstractAsyncJavaMigrationTes
         final var t1 = partition.getTimestampRange().lowerEndpoint();
         final var t2 = t1 + 1_000_000L;
         final var t3 = partition.getTimestampRange().upperEndpoint() - 1_000_000L;
-        final var t4 = partition.getTimestampRange().upperEndpoint();
+        final var t4 = partition.getTimestampRange().upperEndpoint() - 1;
         final var t5 = partition.getTimestampRange().lowerEndpoint() - 1;
 
         domainBuilder
