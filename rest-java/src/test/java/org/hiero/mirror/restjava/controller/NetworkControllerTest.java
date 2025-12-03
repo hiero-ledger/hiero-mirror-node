@@ -25,6 +25,7 @@ import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
+import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.CommonMapper;
@@ -548,7 +549,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
-        void success() {
+        void getNetworkSupplyNoQueryParams() {
             // given
             createUnreleasedSupplyAccounts(null);
 
@@ -798,7 +799,8 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private void createCustomBalance(long accountNum, long balance, long timestamp) {
-            final var accountId = EntityId.of(0, 0, accountNum);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(accountNum));
+            final var accountId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), accountNum);
             domainBuilder
                     .accountBalance()
                     .customize(ab -> ab.balance(balance).id(new AccountBalance.Id(timestamp, accountId)))
