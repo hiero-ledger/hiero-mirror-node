@@ -8,7 +8,7 @@ const runMode = __ENV.RUN_WITH_VARIABLES;
 const data = __ENV.STORAGE_SLOTS_CALLDATA;
 const testName = 'estimateReadStorageSlots';
 
-// If RUN_WITH_VARIABLES=false, use the generic estimate template; otherwise build from provided ENV variables
+//If RUN_WITH_VARIABLES=true will run tests with __ENV variables
 const {options, run} =
   runMode === 'false'
     ? new ContractCallEstimateTestTemplate(testName, false)
