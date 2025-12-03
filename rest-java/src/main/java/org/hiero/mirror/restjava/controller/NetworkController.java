@@ -68,7 +68,7 @@ final class NetworkController {
     @GetMapping("/supply")
     ResponseEntity<?> getSupply(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
-            @RequestParam(name = "supplyType", required = false) String supplyType) {
+            @RequestParam(name = "q", required = false) String supplyType) {
         final var type = SupplyType.of(supplyType);
         final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var networkSupply = networkService.getSupply(bound);
