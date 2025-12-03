@@ -218,6 +218,7 @@ configs:
         location = /api/v1/network/exchangerate { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/fees { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/stake { proxy_pass http://rest_java_host$$request_uri; }
+        location = /api/v1/network/supply { proxy_pass http://rest_java_host$$request_uri; }
         location ~ "^/api/v1/topics/(\d+\.){0,2}\d+$" { proxy_pass http://rest_java_host$$request_uri; }
 
         # rest host

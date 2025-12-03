@@ -3,13 +3,26 @@
   "setup": {},
   "urls": ["/api/v1/network/supply?q=foo"],
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Invalid parameter: q"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Invalid parameter: 'q'. Valid values: totalcoins, circulating",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: q"
+          }
+        ]
+      }
     }
   }
 }
