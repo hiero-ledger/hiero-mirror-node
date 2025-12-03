@@ -83,6 +83,7 @@ const getResponseHeaders = (spec, specPath) => {
     ...getResponseHeadersFromFileOrDefault(specPath),
     ...(spec.responseHeaders ?? {}),
   };
+  spec.responseHeadersMatrix = spec.responseHeadersMatrix ?? {};
 };
 
 const getSpecs = async () => {
@@ -363,11 +364,14 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                 const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
                 expect(jsonObj).toEqual(responseJson);
               } else {
-                expect(response.text).toEqual(tt.responseJson);
+                const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
+                expect(response.text).toEqual(responseJson);
               }
 
               if (response.status >= 200 && response.status < 300) {
-                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(spec.responseHeaders));
+                const expectedHeaders =
+                  spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ?? spec.responseHeaders ?? {};
+                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(expectedHeaders));
               }
             });
           });
