@@ -15,20 +15,21 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.domain.ReactiveDomainBuilder;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
+import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
-import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
+@NullUnmarked
 public abstract class AbstractTopicListenerTest extends GrpcIntegrationTest {
 
     protected final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(30L));
 
-    @Autowired
+    @Resource
     protected ReactiveDomainBuilder domainBuilder;
 
     @Resource
