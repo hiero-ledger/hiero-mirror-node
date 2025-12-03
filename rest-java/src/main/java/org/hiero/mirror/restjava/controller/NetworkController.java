@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
-import org.hiero.mirror.restjava.common.SupplyQuery;
+import org.hiero.mirror.restjava.common.SupplyType;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
@@ -68,14 +68,14 @@ final class NetworkController {
     @GetMapping("/supply")
     ResponseEntity<?> getSupply(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
-            @RequestParam(required = false) String q) {
-        final var supplyQuery = SupplyQuery.of(q);
+            @RequestParam(name = "supplyType", required = false) String supplyType) {
+        final var type = SupplyType.of(supplyType);
         final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var networkSupply = networkService.getSupply(bound);
 
-        if (supplyQuery != null) {
+        if (type != null) {
             final var valueInTinyCoins =
-                    supplyQuery == SupplyQuery.TOTALCOINS ? NetworkSupply.TOTAL_SUPPLY : networkSupply.releasedSupply();
+                    type == SupplyType.TOTALCOINS ? NetworkSupply.TOTAL_SUPPLY : networkSupply.releasedSupply();
             final var formattedValue = networkSupplyMapper.convertToCurrencyFormat(valueInTinyCoins);
 
             return ResponseEntity.ok()

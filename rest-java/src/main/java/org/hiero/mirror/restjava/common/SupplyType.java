@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.restjava.common;
 
-public enum SupplyQuery {
+public enum SupplyType {
     TOTALCOINS,
     CIRCULATING;
 
@@ -11,13 +11,13 @@ public enum SupplyQuery {
         return name().toLowerCase();
     }
 
-    public static SupplyQuery of(String supplyQuery) {
-        if (supplyQuery == null) {
+    public static SupplyType of(String type) {
+        if (type == null) {
             return null;
         }
 
         try {
-            return SupplyQuery.valueOf(supplyQuery.toUpperCase());
+            return SupplyType.valueOf(type.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid parameter: 'q'. Valid values: totalcoins, circulating");
         }
