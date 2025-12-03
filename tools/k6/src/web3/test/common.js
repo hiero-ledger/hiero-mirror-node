@@ -9,7 +9,7 @@ import {sanitizeScenarioName} from '../../lib/common.js';
 import * as utils from '../../lib/common.js';
 
 const defaultVuData = {
-  blocks: ['latest'],
+  block: '',
   data: '',
   to: '',
   gas: 0,
@@ -118,7 +118,7 @@ function ContractCallTestScenarioBuilder() {
     const that = this;
 
     if (!that._blocks || that._blocks.length === 0) {
-      that._blocks = getMixedBlocks();
+      that._blocks = [`latest`];
     }
 
     // Create separate scenarios per provided block
