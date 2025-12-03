@@ -148,13 +148,13 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                 .setErrorMessage(evmTransactionResult.getErrorMessage())
                 .setGasUsed(evmTransactionResult.getGasUsed());
 
+        if (evmTransactionResult.getContractNoncesCount() > 0) {
+            contractResultbuilder.addAllContractNonces(evmTransactionResult.getContractNoncesList());
+        }
+
         if (evmTransactionResult.hasContractId()) {
             contractResultbuilder.setContractID(evmTransactionResult.getContractId());
             transactionRecordBuilder.getReceiptBuilder().setContractID(evmTransactionResult.getContractId());
-        }
-
-        if (evmTransactionResult.getContractNoncesCount() > 0) {
-            contractResultbuilder.addAllContractNonces(evmTransactionResult.getContractNoncesList());
         }
 
         if (evmTransactionResult.hasSenderId()) {

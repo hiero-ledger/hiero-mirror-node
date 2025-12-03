@@ -975,12 +975,20 @@ public class BlockTransactionBuilder {
                 .setGasUsed(contractResult.getGasUsed())
                 .setResultData(contractResult.getContractCallResult());
 
+        if (!contractResult.getContractNoncesList().isEmpty()) {
+            builder.addAllContractNonces(contractResult.getContractNoncesList());
+        }
+
         if (contractResult.hasContractID()) {
             builder.setContractId(contractResult.getContractID());
         }
 
         if (contractResult.hasSenderId()) {
             builder.setSenderId(contractResult.getSenderId());
+        }
+
+        if (contractResult.hasSignerNonce()) {
+            builder.setSignerNonce(contractResult.getSignerNonce());
         }
 
         return builder.build();
