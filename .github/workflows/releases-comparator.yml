@@ -99,10 +99,6 @@ jobs:
             "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
             "com/hedera/node/app/service/contract/impl/utils/ConversionUtils.java"
             "com/hedera/node/app/service/contract/impl/exec/operations/CustomBalanceOperation.java"
-            "com/hedera/node/app/service/entityid/impl/EntityIdServiceImpl.java"
-            "com/hedera/node/app/service/entityid/impl/AppEntityIdFactory.java"
-            "com/hedera/node/app/service/entityid/impl/schemas/V0490EntityIdSchema.java"
-            "com/hedera/node/app/service/entityid/impl/schemas/V0590EntityIdSchema.java"
           )
 
           # Temp directories to store cloned repos
@@ -142,9 +138,6 @@ jobs:
             elif [[ "$input_file_path" == com/hedera/node/app/service/contract/* ]]; then
               branch_one_file_path="$TMP_DIR_ONE/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_file_path"
               branch_two_file_path="$TMP_DIR_TWO/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_file_path"
-            elif [[ "$input_file_path" == com/hedera/node/app/service/entityid/* ]]; then
-              branch_one_file_path="$TMP_DIR_ONE/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_file_path"
-              branch_two_file_path="$TMP_DIR_TWO/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_file_path"
             fi
 
             if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
