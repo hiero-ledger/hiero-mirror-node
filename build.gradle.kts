@@ -25,6 +25,7 @@ extra.apply {
     set("protobufVersion", "4.33.1")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
+    set("consensusNodeVersion", "0.69.0-rc.2")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -38,6 +39,7 @@ dependencies {
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
+        val consensusNodeVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
@@ -50,10 +52,10 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.69.0-rc.2")
-        api("com.hedera.hashgraph:app-service-entity-id-impl:0.69.0-rc.2")
+        api("com.hedera.hashgraph:app:$consensusNodeVersion")
+        api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.69.0-rc.2")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
