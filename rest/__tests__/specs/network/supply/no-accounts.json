@@ -5,13 +5,26 @@
   },
   "url": "/api/v1/network/supply",
   "responseStatus": 404,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Not found"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Network supply not found",
+            "message": "Not Found"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Not found"
+          }
+        ]
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "description": "Network supply API with q=totalcoins with currencyFormat defaulting to BOTH",
+  "description": "Network supply API with q=totalcoins",
   "setup": {
     "accounts": [
       {
@@ -25,8 +25,13 @@
     ]
   },
   "url": "/api/v1/network/supply?q=totalcoins",
-  "responseHeaders": {
-    "Content-Type": "text/plain; charset=utf-8"
+  "responseHeadersMatrix": {
+    "js": {
+      "Content-Type": "text/plain; charset=utf-8"
+    },
+    "java": {
+      "Content-Type": "text/plain;charset=UTF-8"
+    }
   },
   "responseStatus": 200,
   "responseJson": "50000000000.00000000"

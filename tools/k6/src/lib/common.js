@@ -457,6 +457,7 @@ export {
   getSequentialTestScenarios,
   getTestReportFilename,
   markdownReport,
+  sanitizeScenarioName,
   TestScenarioBuilder,
   MultiIdScenarioBuilder,
 };

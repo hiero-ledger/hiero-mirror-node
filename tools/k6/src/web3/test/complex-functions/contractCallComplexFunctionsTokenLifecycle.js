@@ -35,7 +35,6 @@ const {options, run} =
         .from(payer)
         .value(933333333) // Value is needed because the first operation in the contract call is token create
         .to(contract)
-        .block('latest')
         .build();
 
 export {options, run};
