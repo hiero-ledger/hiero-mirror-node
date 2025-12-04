@@ -22,7 +22,6 @@ import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
-import com.hedera.hapi.block.stream.trace.protoc.AutoAssociateTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.SubmitMessageTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
@@ -501,9 +500,6 @@ final class BlockTransactionTest {
                 .transactionBody(transactionBody)
                 .traceData(List.of(
                         TraceData.newBuilder()
-                                .setAutoAssociateTraceData(AutoAssociateTraceData.getDefaultInstance())
-                                .build(),
-                        TraceData.newBuilder()
                                 .setEvmTraceData(EvmTraceData.getDefaultInstance())
                                 .build(),
                         TraceData.newBuilder()
@@ -513,10 +509,8 @@ final class BlockTransactionTest {
 
         // when, then
         assertThat(blockTransaction)
-                .satisfies(
-                        b -> assertThat(b.getAutoAssociateTraceData()).isNotNull(),
-                        b -> assertThat(b.getEvmTraceData()).isNotNull(),
-                        b -> assertThat(b.getTopicMessage()).isNotNull());
+                .satisfies(b -> assertThat(b.getEvmTraceData()).isNotNull(), b -> assertThat(b.getTopicMessage())
+                        .isNotNull());
     }
 
     @Test
@@ -526,7 +520,6 @@ final class BlockTransactionTest {
 
         // when, then
         assertThat(blockTransaction)
-                .returns(null, BlockTransaction::getAutoAssociateTraceData)
                 .returns(null, BlockTransaction::getEvmTraceData)
                 .returns(null, BlockTransaction::getTopicMessage);
     }

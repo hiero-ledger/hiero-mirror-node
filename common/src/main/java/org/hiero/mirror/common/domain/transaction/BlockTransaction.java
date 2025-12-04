@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.AUTO_ASSOCIATE_TRACE_DATA;
 import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.EVM_TRACE_DATA;
 import static com.hedera.hapi.block.stream.trace.protoc.TraceData.DataCase.SUBMIT_MESSAGE_TRACE_DATA;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
@@ -15,7 +14,6 @@ import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
-import com.hedera.hapi.block.stream.trace.protoc.AutoAssociateTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
@@ -56,7 +54,6 @@ public class BlockTransaction implements StreamItem {
 
     private static final MessageDigest DIGEST = createSha384Digest();
 
-    private final AutoAssociateTraceData autoAssociateTraceData;
     private final long consensusTimestamp;
 
     @NonFinal
@@ -77,7 +74,6 @@ public class BlockTransaction implements StreamItem {
     private final SignedTransaction signedTransaction;
     private final byte[] signedTransactionBytes;
     private final TopicID topicId; // for consensus submit message transaction
-    private final BlockTransaction trigger;
 
     @Getter(AccessLevel.NONE)
     private final AtomicReference<TopicMessage> topicMessage = new AtomicReference<>();
@@ -100,15 +96,14 @@ public class BlockTransaction implements StreamItem {
 
     @Builder(toBuilder = true)
     public BlockTransaction(
-            BlockTransaction previous,
-            SignedTransaction signedTransaction,
-            byte[] signedTransactionBytes,
-            List<StateChanges> stateChanges,
-            List<TraceData> traceData,
-            TransactionBody transactionBody,
-            TransactionResult transactionResult,
-            Map<TransactionCase, TransactionOutput> transactionOutputs,
-            BlockTransaction trigger) {
+            final BlockTransaction previous,
+            final SignedTransaction signedTransaction,
+            final byte[] signedTransactionBytes,
+            final List<StateChanges> stateChanges,
+            final List<TraceData> traceData,
+            final TransactionBody transactionBody,
+            final TransactionResult transactionResult,
+            final Map<TransactionCase, TransactionOutput> transactionOutputs) {
         this.previous = previous;
         this.signedTransaction = signedTransaction;
         this.signedTransactionBytes = signedTransactionBytes;
@@ -117,7 +112,6 @@ public class BlockTransaction implements StreamItem {
         this.transactionBody = transactionBody;
         this.transactionResult = transactionResult;
         this.transactionOutputs = transactionOutputs;
-        this.trigger = trigger;
 
         consensusTimestamp = DomainUtils.timestampInNanosMax(transactionResult.getConsensusTimestamp());
         parentConsensusTimestamp = transactionResult.hasParentConsensusTimestamp()
@@ -126,12 +120,10 @@ public class BlockTransaction implements StreamItem {
         parent = parseParent();
         successful = parseSuccess();
 
-        var traceDataMap = parseTraceData();
-        autoAssociateTraceData =
-                getTraceDataItem(traceDataMap, AUTO_ASSOCIATE_TRACE_DATA, TraceData::getAutoAssociateTraceData);
+        final var traceDataMap = parseTraceData();
         evmTraceData = getTraceDataItem(traceDataMap, EVM_TRACE_DATA, TraceData::getEvmTraceData);
 
-        var submitMessageTraceData =
+        final var submitMessageTraceData =
                 getTraceDataItem(traceDataMap, SUBMIT_MESSAGE_TRACE_DATA, TraceData::getSubmitMessageTraceData);
         if (submitMessageTraceData != null) {
             topicMessage.set(TopicMessage.builder()
@@ -158,7 +150,7 @@ public class BlockTransaction implements StreamItem {
     }
 
     public Transaction getTransaction() {
-        var builder = Transaction.newBuilder();
+        final var builder = Transaction.newBuilder();
         if (signedTransaction.getUseSerializedTxMessageHashAlgorithm()) {
             return builder.setBodyBytes(signedTransaction.getBodyBytes())
                     .setSigMap(signedTransaction.getSigMap())
@@ -176,20 +168,20 @@ public class BlockTransaction implements StreamItem {
      * @param slotKey - The contract storage's slot key
      * @return The value written
      */
-    public BytesValue getValueWritten(SlotKey slotKey) {
-        slotKey = normalize(slotKey);
+    public BytesValue getValueWritten(final SlotKey slotKey) {
+        final var normalizedSlotKey = normalize(slotKey);
         for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
-            var valueRead = nextInner.getValueRead(slotKey);
+            final var valueRead = nextInner.getValueRead(normalizedSlotKey);
             if (valueRead != null) {
                 return BytesValue.of(valueRead);
             }
         }
 
         // fall back to statechanges
-        return getStateChangeContext().getContractStorageValueWritten(slotKey);
+        return getStateChangeContext().getContractStorageValueWritten(normalizedSlotKey);
     }
 
-    public Optional<TransactionOutput> getTransactionOutput(TransactionCase transactionCase) {
+    public Optional<TransactionOutput> getTransactionOutput(final TransactionCase transactionCase) {
         return Optional.ofNullable(transactionOutputs.get(transactionCase));
     }
 
@@ -200,7 +192,7 @@ public class BlockTransaction implements StreamItem {
 
         // handle SignedTransaction unified by consensus nodes from a Transaction proto message with
         // Transaction.bodyBytes and Transaction.sigMap set
-        var transaction = Transaction.newBuilder()
+        final var transaction = Transaction.newBuilder()
                 .setBodyBytes(signedTransaction.getBodyBytes())
                 .setSigMap(signedTransaction.getSigMap())
                 .build();
@@ -212,16 +204,12 @@ public class BlockTransaction implements StreamItem {
             return parent.getStateChangeContext();
         }
 
-        if (trigger != null) {
-            return trigger.getStateChangeContext();
-        }
-
         return !CollectionUtils.isEmpty(stateChanges)
                 ? new StateChangeContext(stateChanges)
                 : StateChangeContext.EMPTY_CONTEXT;
     }
 
-    private ByteString getValueRead(SlotKey slotKey) {
+    private ByteString getValueRead(final SlotKey slotKey) {
         return contractStorageReads.get(slotKey);
     }
 
@@ -248,7 +236,7 @@ public class BlockTransaction implements StreamItem {
             return false;
         }
 
-        var status = transactionResult.getStatus();
+        final var status = transactionResult.getStatus();
         return status == ResponseCodeEnum.FEE_SCHEDULE_FILE_PART_UPLOADED
                 || status == ResponseCodeEnum.SUCCESS
                 || status == ResponseCodeEnum.SUCCESS_BUT_MISSING_EXPECTED_OPERATION;
@@ -259,11 +247,10 @@ public class BlockTransaction implements StreamItem {
             return Collections.emptyMap();
         }
 
-        var result = new HashMap<TraceData.DataCase, TraceData>();
+        final var result = new HashMap<TraceData.DataCase, TraceData>();
         for (var item : traceData) {
-            var dataCase = item.getDataCase();
+            final var dataCase = item.getDataCase();
             switch (dataCase) {
-                case AUTO_ASSOCIATE_TRACE_DATA:
                 case EVM_TRACE_DATA:
                 case SUBMIT_MESSAGE_TRACE_DATA:
                     // there should be at most one for each case
@@ -278,13 +265,15 @@ public class BlockTransaction implements StreamItem {
         return result;
     }
 
-    private static ByteString digest(byte[] data) {
+    private static ByteString digest(final byte[] data) {
         return DomainUtils.fromBytes(DIGEST.digest(data));
     }
 
     private static <T extends MessageLite> T getTraceDataItem(
-            Map<TraceData.DataCase, TraceData> data, TraceData.DataCase dataCase, Function<TraceData, T> getter) {
-        var traceData = data.get(dataCase);
+            final Map<TraceData.DataCase, TraceData> data,
+            final TraceData.DataCase dataCase,
+            final Function<TraceData, T> getter) {
+        final var traceData = data.get(dataCase);
         return traceData != null ? getter.apply(traceData) : null;
     }
 }

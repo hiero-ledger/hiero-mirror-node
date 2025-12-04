@@ -662,21 +662,23 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         var optionalSidecarRegex = streamType == StreamType.RECORD ? "(sidecar/)?" : "";
 
         String regex;
+        final long realm = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getRealm();
+        final long shard = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getShard();
         if (commonDownloaderProperties.getPathType() == PathType.ACCOUNT_ID) {
             regex = "^/%s%s/%s%d\\.%d\\.\\d+/%s[^/]+$"
                     .formatted(
                             optionalDatePrefix,
                             streamType.getPath(),
                             streamType.getNodePrefix(),
-                            commonProperties.getShard(),
-                            commonProperties.getRealm(),
+                            shard,
+                            realm,
                             optionalSidecarRegex);
         } else {
             regex = "^/%s%s/%d/\\d+/%s/%s[^/]+$"
                     .formatted(
                             optionalDatePrefix,
                             importerProperties.getNetwork(),
-                            commonProperties.getShard(),
+                            shard,
                             streamType.getNodeIdBasedSuffix(),
                             optionalSidecarRegex);
         }

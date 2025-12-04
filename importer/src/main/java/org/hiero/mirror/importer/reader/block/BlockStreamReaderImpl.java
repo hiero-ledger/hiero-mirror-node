@@ -15,8 +15,6 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
-import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
@@ -26,36 +24,38 @@ import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.BlockHashAlgorithm;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionID;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @Named
+@NullMarked
 public final class BlockStreamReaderImpl implements BlockStreamReader {
 
+    private static final String ALL_ZERO_HASH = StringUtils.repeat("00", 48);
+
     @Override
-    public BlockFile read(@NonNull BlockStream blockStream) {
-        var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
-        byte[] bytes = blockStream.bytes();
-        Integer size = bytes != null ? bytes.length : null;
-        var blockFileBuilder = context.getBlockFile()
+    public BlockFile read(final BlockStream blockStream) {
+        final var context = new ReaderContext(blockStream.blockItems(), blockStream.filename());
+        final byte[] bytes = blockStream.bytes();
+        final Integer size = bytes != null ? bytes.length : null;
+        final var blockFileBuilder = context.getBlockFile()
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
@@ -63,7 +63,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .size(size)
                 .version(VERSION);
 
-        var blockItem = context.readBlockItemFor(RECORD_FILE);
+        final var blockItem = context.readBlockItemFor(RECORD_FILE);
         if (blockItem != null) {
             return blockFileBuilder.recordFileItem(blockItem.getRecordFile()).build();
         }
@@ -74,10 +74,12 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         readBlockFooter(context);
         readBlockProof(context);
 
-        var blockFile = blockFileBuilder.build();
-        var items = blockFile.getItems();
+        final var blockFile = blockFileBuilder.build();
+        final var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
-        blockFile.setHash(context.getBlockRootHashDigest().digest());
+        // Implement new block root hash algorithm and set the hashes properly in the PR for #12192
+        blockFile.setHash(ALL_ZERO_HASH);
+        blockFile.setPreviousHash(ALL_ZERO_HASH);
 
         if (!items.isEmpty()) {
             blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
@@ -90,19 +92,19 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         return blockFile;
     }
 
-    private void readBlockFooter(ReaderContext context) {
+    private void readBlockFooter(final ReaderContext context) {
         // make it mandatory post release 0.68.x
         context.readBlockItemFor(BLOCK_FOOTER);
     }
 
-    private void readBlockHeader(ReaderContext context) {
-        var blockItem = context.readBlockItemFor(BLOCK_HEADER);
+    private void readBlockHeader(final ReaderContext context) {
+        final var blockItem = context.readBlockItemFor(BLOCK_HEADER);
         if (blockItem == null) {
             throw new InvalidStreamFileException("Missing block header in block " + context.getFilename());
         }
 
-        var blockFileBuilder = context.getBlockFile();
-        var blockHeader = blockItem.getBlockHeader();
+        final var blockFileBuilder = context.getBlockFile();
+        final var blockHeader = blockItem.getBlockHeader();
 
         if (blockHeader.getHashAlgorithm().equals(BlockHashAlgorithm.SHA2_384)) {
             blockFileBuilder.digestAlgorithm(DigestAlgorithm.SHA_384);
@@ -116,20 +118,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         blockFileBuilder.index(blockHeader.getNumber());
     }
 
-    @SuppressWarnings("deprecation")
-    private void readBlockProof(ReaderContext context) {
-        var blockItem = context.readBlockItemFor(BLOCK_PROOF);
+    private void readBlockProof(final ReaderContext context) {
+        final var blockItem = context.readBlockItemFor(BLOCK_PROOF);
         if (blockItem == null) {
             throw new InvalidStreamFileException("Missing block proof in block " + context.getFilename());
         }
 
-        var blockFile = context.getBlockFile();
-        var blockProof = blockItem.getBlockProof();
-        var blockRootHashDigest = context.getBlockRootHashDigest();
-        byte[] previousHash = DomainUtils.toBytes(blockProof.getPreviousBlockRootHash());
-        blockFile.blockProof(blockProof).previousHash(DomainUtils.bytesToHex(previousHash));
-        blockRootHashDigest.setPreviousHash(previousHash);
-        blockRootHashDigest.setStartOfBlockStateHash(DomainUtils.toBytes(blockProof.getStartOfBlockStateRootHash()));
+        context.getBlockFile().blockProof(blockItem.getBlockProof());
 
         // Read remaining blockProof block items. In a later release, implement new block & state merkle tree support
         while (context.readBlockItemFor(BLOCK_PROOF) != null) {
@@ -137,20 +132,20 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         }
     }
 
-    private void readEvents(ReaderContext context) {
+    private void readEvents(final ReaderContext context) {
         while (context.readBlockItemFor(EVENT_HEADER) != null) {
             readSignedTransactions(context);
         }
     }
 
-    private void readSignedTransactions(ReaderContext context) {
+    private void readSignedTransactions(final ReaderContext context) {
         BlockItem protoBlockItem;
         SignedTransactionInfo signedTransactionInfo;
         try {
             while ((signedTransactionInfo = context.getSignedTransaction()) != null) {
-                var signedTransaction = SignedTransaction.parseFrom(signedTransactionInfo.signedTransaction());
-                var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-                var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
+                final var signedTransaction = SignedTransaction.parseFrom(signedTransactionInfo.signedTransaction());
+                final var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+                final var transactionResultProtoBlockItem = context.readBlockItemFor(TRANSACTION_RESULT);
                 if (transactionResultProtoBlockItem == null) {
                     if (signedTransactionInfo.userTransactionInBatch()) {
                         // #12313 - when a user transaction in an atomic batch fails, any subsequent user transaction
@@ -162,21 +157,21 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     continue;
                 }
 
-                var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
+                final var transactionOutputs = new EnumMap<TransactionCase, TransactionOutput>(TransactionCase.class);
                 while ((protoBlockItem = context.readBlockItemFor(TRANSACTION_OUTPUT)) != null) {
-                    var transactionOutput = protoBlockItem.getTransactionOutput();
+                    final var transactionOutput = protoBlockItem.getTransactionOutput();
                     transactionOutputs.put(transactionOutput.getTransactionCase(), transactionOutput);
                 }
 
-                var traceDataList = new ArrayList<TraceData>();
+                final var traceDataList = new ArrayList<TraceData>();
                 while ((protoBlockItem = context.readBlockItemFor(TRACE_DATA)) != null) {
                     traceDataList.add(protoBlockItem.getTraceData());
                 }
 
-                var stateChangesList = new ArrayList<StateChanges>();
-                var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
+                final var stateChangesList = new ArrayList<StateChanges>();
+                final var transactionResult = transactionResultProtoBlockItem.getTransactionResult();
                 while ((protoBlockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
-                    var stateChanges = protoBlockItem.getStateChanges();
+                    final var stateChanges = protoBlockItem.getStateChanges();
                     if (!Objects.equals(
                             transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
                         context.setLastMetaTimestamp(
@@ -187,7 +182,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     stateChangesList.add(stateChanges);
                 }
 
-                var blockTransaction = BlockTransaction.builder()
+                final var blockTransaction = BlockTransaction.builder()
                         .previous(context.getLastBlockTransaction())
                         .signedTransaction(signedTransaction)
                         .signedTransactionBytes(signedTransactionInfo.signedTransaction())
@@ -196,7 +191,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionBody(transactionBody)
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
-                        .trigger(context.getScheduledTransactionTriggers().get(transactionBody.getTransactionID()))
                         .build();
                 context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
@@ -239,39 +233,40 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         private BlockFile.BlockFileBuilder blockFile;
         private List<BlockItem> blockItems;
-        private BlockRootHashDigest blockRootHashDigest;
         private String filename;
 
         @NonFinal
         private int batchIndex;
 
         @NonFinal
+        @Nullable
         private AtomicBatchTransactionBody batchBody;
 
         @NonFinal
         private int index;
 
         @NonFinal
+        @Nullable
         private BlockTransaction lastBlockTransaction;
 
         @NonFinal
+        @Nullable
         private BlockTransaction lastUserTransactionInBatch;
 
         @NonFinal
+        @Nullable
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
-        private Map<TransactionID, BlockTransaction> scheduledTransactionTriggers = new HashMap<>();
-
-        ReaderContext(@NonNull List<BlockItem> blockItems, @NonNull String filename) {
+        ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
-            this.blockRootHashDigest = new BlockRootHashDigest();
             this.filename = filename;
         }
 
+        @Nullable
         SignedTransactionInfo getSignedTransaction() {
-            var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
+            final var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
             if (blockItemProto != null) {
                 return new SignedTransactionInfo(DomainUtils.toBytes(blockItemProto.getSignedTransaction()), false);
             }
@@ -289,19 +284,18 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
          * @param itemCase - block item case
          * @return The matching block item, or null
          */
-        BlockItem readBlockItemFor(BlockItem.ItemCase itemCase) {
+        @Nullable
+        BlockItem readBlockItemFor(final BlockItem.ItemCase itemCase) {
             if (index >= blockItems.size()) {
                 return null;
             }
 
-            var blockItem = blockItems.get(index);
+            final var blockItem = blockItems.get(index);
             if (blockItem.getItemCase() != itemCase) {
                 return null;
             }
 
             index++;
-            blockRootHashDigest.addBlockItem(blockItem);
-
             return blockItem;
         }
 
@@ -310,7 +304,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
             batchIndex = 0;
         }
 
-        void setLastBlockTransaction(@NonNull BlockTransaction lastBlockTransaction, boolean userTransactionInBatch) {
+        void setLastBlockTransaction(
+                final BlockTransaction lastBlockTransaction, final boolean userTransactionInBatch) {
             if (userTransactionInBatch) {
                 if (lastUserTransactionInBatch != null
                         && batchBody != null
@@ -331,22 +326,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 this.batchBody = lastBlockTransaction.getTransactionBody().getAtomicBatch();
                 this.lastUserTransactionInBatch = null;
             }
-
-            // A short-term scheduled transaction and its triggering transaction (either a schedule create or a schedule
-            // sign) belong to one transactional unit, thus the statechanges are attached to the triggering transaction.
-            // Build the map to link a short-term scheduled transaction to its trigger
-            lastBlockTransaction
-                    .getTransactionOutput(TransactionCase.CREATE_SCHEDULE)
-                    .map(TransactionOutput::getCreateSchedule)
-                    .filter(CreateScheduleOutput::hasScheduledTransactionId)
-                    .map(CreateScheduleOutput::getScheduledTransactionId)
-                    .or(() -> lastBlockTransaction
-                            .getTransactionOutput(TransactionCase.SIGN_SCHEDULE)
-                            .map(TransactionOutput::getSignSchedule)
-                            .filter(SignScheduleOutput::hasScheduledTransactionId)
-                            .map(SignScheduleOutput::getScheduledTransactionId))
-                    .ifPresent(scheduledTransactionId ->
-                            scheduledTransactionTriggers.put(scheduledTransactionId, lastBlockTransaction));
         }
     }
 

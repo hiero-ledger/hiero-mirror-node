@@ -320,6 +320,14 @@ func (c *constructionAPIService) ConstructionPreprocess(
 	}, nil
 }
 
+// ConstructionPreprocessOperations implements the /construction/preprocess_operations endpoint.
+func (c *constructionAPIService) ConstructionPreprocessOperations(
+	_ context.Context,
+	_ *rTypes.ConstructionPreprocessOperationsRequest,
+) (*rTypes.ConstructionPreprocessOperationsResponse, *rTypes.Error) {
+	return nil, errors.ErrNotImplemented
+}
+
 // ConstructionSubmit implements the /construction/submit endpoint.
 func (c *constructionAPIService) ConstructionSubmit(
 	_ context.Context,

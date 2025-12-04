@@ -56,8 +56,7 @@
     "/api/v1/network/supply?timestamp=lt:1700000000.000000005",
     "/api/v1/network/supply?timestamp=gte:1700000000.000000000&timestamp=lte:1700000000.000000000",
     "/api/v1/network/supply?timestamp=gt:0&timestamp=lt:1700000000.000000005",
-    "/api/v1/network/supply?timestamp=gte:1700000000.000000000&timestamp=lt:1700000000.000000005",
-    "/api/v1/network/supply?timestamp=gte:1500000000.000000000&timestamp=gte:1700000000.000000000&timestamp=lte:1700000000.00000000&timestamp=lt:1800000000.000000000"
+    "/api/v1/network/supply?timestamp=gte:1700000000.000000000&timestamp=lt:1700000000.000000005"
   ],
   "responseStatus": 200,
   "responseJson": {
