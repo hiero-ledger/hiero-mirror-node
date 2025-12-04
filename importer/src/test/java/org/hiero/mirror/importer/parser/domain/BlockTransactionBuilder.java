@@ -975,12 +975,20 @@ public class BlockTransactionBuilder {
                 .setGasUsed(contractResult.getGasUsed())
                 .setResultData(contractResult.getContractCallResult());
 
+        if (!contractResult.getContractNoncesList().isEmpty()) {
+            builder.addAllContractNonces(contractResult.getContractNoncesList());
+        }
+
         if (contractResult.hasContractID()) {
             builder.setContractId(contractResult.getContractID());
         }
 
         if (contractResult.hasSenderId()) {
             builder.setSenderId(contractResult.getSenderId());
+        }
+
+        if (contractResult.hasSignerNonce()) {
+            builder.setSignerNonce(contractResult.getSignerNonce());
         }
 
         return builder.build();
@@ -995,7 +1003,6 @@ public class BlockTransactionBuilder {
         private final List<TraceData> traceDataList;
         private final Map<TransactionCase, TransactionOutput> transactionOutputs;
         private final TransactionResult.Builder transactionResultBuilder;
-        private BlockTransaction trigger;
 
         @SneakyThrows
         @SuppressWarnings({"java:S1640", "deprecation"})
@@ -1036,7 +1043,6 @@ public class BlockTransactionBuilder {
                     .transactionBody(TransactionBody.parseFrom(signedTransaction.getBodyBytes()))
                     .transactionResult(transactionResultBuilder.build())
                     .transactionOutputs(transactionOutputs)
-                    .trigger(trigger)
                     .build();
         }
 
@@ -1062,11 +1068,6 @@ public class BlockTransactionBuilder {
 
         public Builder transactionResult(Consumer<TransactionResult.Builder> consumer) {
             consumer.accept(transactionResultBuilder);
-            return this;
-        }
-
-        public Builder trigger(BlockTransaction trigger) {
-            this.trigger = trigger;
             return this;
         }
     }

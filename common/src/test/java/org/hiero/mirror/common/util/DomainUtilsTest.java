@@ -3,10 +3,8 @@
 package org.hiero.mirror.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -196,9 +194,8 @@ final class DomainUtilsTest {
         var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
         var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
-        assertAll(
-                () -> assertEquals(seconds, fromTimeStamp.getEpochSecond()),
-                () -> assertEquals(nanos, fromTimeStamp.getNano()));
+        assertAll(() -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()), () -> assertThat(nanos)
+                .isEqualTo(fromTimeStamp.getNano()));
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -210,7 +207,7 @@ final class DomainUtilsTest {
         "-9223372036, -854775809"
     })
     void convertInstantToNanosThrows(long seconds, int nanos) {
-        assertThrows(ArithmeticException.class, () -> DomainUtils.convertToNanos(seconds, nanos));
+        assertThatThrownBy(() -> DomainUtils.convertToNanos(seconds, nanos)).isInstanceOf(ArithmeticException.class);
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -300,8 +297,8 @@ final class DomainUtilsTest {
         var fromTimeStamp = Instant.ofEpochSecond(0, timeStampInNanos);
 
         assertAll(
-                () -> assertEquals(timestamp.getSeconds(), fromTimeStamp.getEpochSecond()),
-                () -> assertEquals(timestamp.getNanos(), fromTimeStamp.getNano()));
+                () -> assertThat(timestamp.getSeconds()).isEqualTo(fromTimeStamp.getEpochSecond()),
+                () -> assertThat(timestamp.getNanos()).isEqualTo(fromTimeStamp.getNano()));
     }
 
     @Test
@@ -309,9 +306,7 @@ final class DomainUtilsTest {
     void timeStampInNanosInvalid() {
         var timestamp =
                 Timestamp.newBuilder().setSeconds(1568376750538L).setNanos(0).build();
-        assertThrows(ArithmeticException.class, () -> {
-            DomainUtils.timeStampInNanos(timestamp);
-        });
+        assertThatThrownBy(() -> DomainUtils.timeStampInNanos(timestamp)).isInstanceOf(ArithmeticException.class);
     }
 
     @Test
@@ -364,8 +359,8 @@ final class DomainUtilsTest {
 
     @Test
     void fromEvmAddressIncorrectSize() {
-        assertNull(DomainUtils.fromEvmAddress(null));
-        assertNull(DomainUtils.fromEvmAddress(new byte[10]));
+        assertThat(DomainUtils.fromEvmAddress(null)).isNull();
+        assertThat(DomainUtils.fromEvmAddress(new byte[10])).isNull();
     }
 
     @Test
@@ -373,8 +368,8 @@ final class DomainUtilsTest {
         var entityId = EntityId.of(1, 2, 255);
         var expected = "00000000000000000000000000000000000000FF";
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((EntityId) null)).isInstanceOf(InvalidEntityException.class);
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress(EntityId.EMPTY)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -390,7 +385,7 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
                 .asHexString()
                 .isEqualTo(EMPTY_EVM_ADDRESS);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((AccountID) null));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((AccountID) null)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -414,8 +409,10 @@ final class DomainUtilsTest {
         var contractIdDefault = ContractID.getDefaultInstance();
         assertThat(DomainUtils.toEvmAddress(contractId)).asHexString().isEqualTo(expected);
         assertThat(DomainUtils.toEvmAddress(contractIdEvm)).asHexString().isEqualTo(expected);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((ContractID) null));
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(contractIdDefault));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((ContractID) null))
+                .isInstanceOf(InvalidEntityException.class);
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress(contractIdDefault))
+                .isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -431,7 +428,7 @@ final class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(TokenID.getDefaultInstance()))
                 .asHexString()
                 .isEqualTo(EMPTY_EVM_ADDRESS);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((TokenID) null));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((TokenID) null)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -538,7 +535,7 @@ final class DomainUtilsTest {
         byte[] result = DomainUtils.trim(input);
 
         if (input == null) {
-            assertNull(result);
+            assertThat(result).isNull();
         } else {
             assertArrayEquals(expected, result);
         }
@@ -562,7 +559,7 @@ final class DomainUtilsTest {
         var result = DomainUtils.fromTrimmedEvmAddress(input);
 
         if (expectedNum == null) {
-            assertNull(result);
+            assertThat(result).isNull();
         } else {
             assertThat(result.getNum()).isEqualTo(expectedNum);
         }

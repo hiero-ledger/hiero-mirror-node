@@ -3,6 +3,10 @@
 version: 2
 updates:
   - directory: "/"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "github-actions"
     schedule:
@@ -15,42 +19,70 @@ updates:
       interval: "weekly"
 
   - directory: "/charts"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "helm"
     schedule:
       interval: "weekly"
 
   - directory: "/rest"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
   - directory: "/rest/monitoring"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
   - directory: "/rest/check-state-proof"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
   - directory: "/rosetta"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "gomod"
     schedule:
       interval: "weekly"
 
   - directory: "/tools/traffic-replay/log-downloader"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
   - directory: "/tools/mirror-report"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
