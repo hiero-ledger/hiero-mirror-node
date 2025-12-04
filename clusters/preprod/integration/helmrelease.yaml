@@ -59,6 +59,9 @@ spec:
           enabled: false
     postgresql:
       enabled: false
+    restjava:
+      routes:
+        supply: true
     rosetta:
       enabled: true
     test:
