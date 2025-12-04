@@ -34,6 +34,28 @@ spec:
     - kind: Secret
       name: mirror
   values:
+    importer:
+      env:
+        HIERO_MIRROR_IMPORTER_NETWORK: "OTHER"
+        HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
+    monitor:
+      env:
+        HIERO_MIRROR_MONITOR_NETWORK: "OTHER"
+        HIERO_MIRROR_MONITOR_NODEVALIDATION_ENABLED: "false"
+        HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.5"
+      prometheusRules:
+        MonitorPublishErrors:
+          enabled: false
+        MonitorPublishLatency:
+          enabled: false
+        MonitorSubscribeLatency:
+          enabled: false
+    rest:
+      monitor:
+        test:
+          enabled: false
+      test:
+        enabled: false
     stackgres:
       backup:
         enabled: false
@@ -57,37 +79,13 @@ spec:
             containers:
               patroni:
                 cpu: 4500m
-    importer:
-      env:
-        HIERO_MIRROR_IMPORTER_NETWORK: "OTHER"
-        HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
-    monitor:
-      env:
-        HIERO_MIRROR_MONITOR_NETWORK: "OTHER"
-        HIERO_MIRROR_MONITOR_NODEVALIDATION_ENABLED: "false"
-        HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.5"
-      prometheusRules:
-        MonitorPublishErrors:
-          enabled: false
-        MonitorPublishLatency:
-          enabled: false
-        MonitorSubscribeLatency:
-          enabled: false
-    postgresql:
-      enabled: false
-    rest:
-      monitor:
-        test:
-          enabled: false
-      test:
-        enabled: false
     test:
       config:
         hiero:
           mirror:
             test:
               acceptance:
-                network: OTHER
+                network: TESTNET
       cucumberTags: "@acceptance and not @contractbase"
       enabled: true
     web3:
