@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.common;
+package org.hiero.mirror.restjava.parameter;
 
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;

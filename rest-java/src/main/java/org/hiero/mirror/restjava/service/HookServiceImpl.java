@@ -2,16 +2,12 @@
 
 package org.hiero.mirror.restjava.service;
 
-import static org.hiero.mirror.restjava.common.Constants.CONSENSUS_TIMESTAMP;
-
 import jakarta.inject.Named;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
-import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HookStorageResult;
 import org.hiero.mirror.restjava.dto.HooksRequest;
@@ -20,7 +16,6 @@ import org.hiero.mirror.restjava.repository.HookStorageChangeRepository;
 import org.hiero.mirror.restjava.repository.HookStorageRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 
 @Named
 @RequiredArgsConstructor
@@ -59,14 +54,14 @@ final class HookServiceImpl implements HookService {
 
     @Override
     public HookStorageResult getHookStorage(HookStorageRequest request) {
-        if (isHistorical(request)) {
+        if (request.isHistorical()) {
             return getHookStorageChange(request);
         }
 
         final var ownerId = entityService.lookup(request.getOwnerId());
-
-        final var page = pageRequest(request, false);
+        final var page = request.getPageRequest();
         final var keys = request.getKeys();
+
         if (keys.isEmpty()) {
             final var hookStorage = hookStorageRepository.findByOwnerIdAndHookIdAndKeyBetweenAndDeletedIsFalse(
                     ownerId.getId(), request.getHookId(), request.getKeyLowerBound(), request.getKeyUpperBound(), page);
@@ -74,7 +69,7 @@ final class HookServiceImpl implements HookService {
             return new HookStorageResult(ownerId, hookStorage);
         }
 
-        final var keysInRange = getKeysInRange(keys, request.getKeyLowerBound(), request.getKeyUpperBound());
+        final var keysInRange = request.getKeysInRange();
 
         if (keysInRange.isEmpty()) {
             return new HookStorageResult(ownerId, List.of());
@@ -87,18 +82,13 @@ final class HookServiceImpl implements HookService {
     }
 
     private HookStorageResult getHookStorageChange(HookStorageRequest request) {
-        final var page = pageRequest(request, true);
-
+        final var page = request.getPageRequest();
         final var ownerId = entityService.lookup(request.getOwnerId());
         final long hookId = request.getHookId();
 
-        final byte[] keyLowerBound = request.getKeyLowerBound();
-        final byte[] keyUpperBound = request.getKeyUpperBound();
-
         final var keys = request.getKeys();
         final boolean requestHasKeys = !keys.isEmpty();
-
-        final var keysInRange = requestHasKeys ? getKeysInRange(keys, keyLowerBound, keyUpperBound) : List.of();
+        final var keysInRange = request.getKeysInRange();
 
         if (keysInRange.isEmpty() && requestHasKeys) {
             return new HookStorageResult(ownerId, List.of());
@@ -117,41 +107,13 @@ final class HookServiceImpl implements HookService {
             changes = hookStorageChangeRepository.findByKeyBetweenAndTimestampBetween(
                     ownerId.getId(),
                     hookId,
-                    keyLowerBound,
-                    keyUpperBound,
+                    request.getKeyLowerBound(),
+                    request.getKeyUpperBound(),
                     timestampLowerBound,
                     timestampUpperBound,
                     page);
         }
 
         return new HookStorageResult(ownerId, changes);
-    }
-
-    /**
-     * Checks if request has timestamp parameter. If present - historical call should be made,
-     * if not - call to the current state should be initiated.
-     */
-    private boolean isHistorical(HookStorageRequest request) {
-        return !request.getTimestamp().isEmpty();
-    }
-
-    private List<byte[]> getKeysInRange(Collection<byte[]> keys, byte[] lower, byte[] upper) {
-        return keys.stream()
-                .filter(key -> Arrays.compareUnsigned(key, lower) >= 0 && Arrays.compareUnsigned(key, upper) <= 0)
-                .toList();
-    }
-
-    private PageRequest pageRequest(HookStorageRequest request, boolean historical) {
-        Sort sort;
-
-        if (historical) {
-            sort = Sort.by(
-                    new Sort.Order(request.getOrder(), Constants.KEY),
-                    new Sort.Order(Direction.DESC, CONSENSUS_TIMESTAMP));
-        } else {
-            sort = Sort.by(request.getOrder(), Constants.KEY);
-        }
-
-        return PageRequest.of(0, request.getLimit(), sort);
     }
 }

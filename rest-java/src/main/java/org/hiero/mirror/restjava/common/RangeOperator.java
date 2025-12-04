@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.common;
 import java.util.function.BiFunction;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.jooq.Condition;
 import org.jooq.Field;
 
@@ -34,10 +35,17 @@ public enum RangeOperator {
 
     public static RangeOperator of(String rangeOperator) {
         try {
-            return RangeOperator.valueOf(rangeOperator.toUpperCase());
+            if (StringUtils.isBlank(rangeOperator)) {
+                throw invalidOperator(rangeOperator);
+            }
+
+            final var operator = RangeOperator.valueOf(rangeOperator.toUpperCase());
+            if (operator == UNKNOWN) {
+                throw invalidOperator(rangeOperator);
+            }
+            return operator;
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Invalid range operator %s. Valid values: eq, gt, gte, lt, lte, ne"
-                    .formatted(rangeOperator.toLowerCase()));
+            throw invalidOperator(rangeOperator);
         }
     }
 
@@ -47,5 +55,11 @@ public enum RangeOperator {
             case LT -> LTE;
             default -> this;
         };
+    }
+
+    private static IllegalArgumentException invalidOperator(String rangeOperator) {
+        final var name = rangeOperator != null ? rangeOperator.toLowerCase() : null;
+        throw new IllegalArgumentException(
+                "Invalid range operator %s. Valid values: eq, gt, gte, lt, lte, ne".formatted(name));
     }
 }

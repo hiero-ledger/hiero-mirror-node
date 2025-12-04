@@ -9,7 +9,7 @@
         "messages": [
           {
             "data": null,
-            "detail": "Invalid parameter: 'q'. Valid values: totalcoins, circulating",
+            "detail": "Failed to convert 'q'",
             "message": "Bad Request"
           }
         ]
