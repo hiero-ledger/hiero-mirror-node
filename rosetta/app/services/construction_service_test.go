@@ -1177,6 +1177,21 @@ func TestConstructionPayloadsThrowsWithConstructorConstructFailure(t *testing.T)
 	assert.Nil(t, actual)
 }
 
+func TestConstructionPreprocessOperationsNotImplemented(t *testing.T) {
+	// given:
+	request := &rTypes.ConstructionPreprocessOperationsRequest{
+		NetworkIdentifier: networkIdentifier(),
+	}
+
+	// when:
+	service, _ := NewConstructionAPIService(nil, onlineBaseService, defaultConfig, nil)
+	res, e := service.ConstructionPreprocessOperations(defaultContext, request)
+
+	// then:
+	assert.Nil(t, res)
+	assert.Equal(t, errors.ErrNotImplemented, e)
+}
+
 func TestConstructionSubmitThrowsWhenDecodeStringFails(t *testing.T) {
 	// given:
 	request := &rTypes.ConstructionSubmitRequest{
