@@ -28,7 +28,7 @@ public class RestProperties implements ApiProperties {
     private String baseUrl;
 
     @Min(1)
-    private int maxAttempts = 20;
+    private int maxAttempts = 40;
 
     @NotNull
     @DurationMin(millis = 500L)
@@ -36,7 +36,7 @@ public class RestProperties implements ApiProperties {
 
     @NotNull
     @DurationMin(millis = 100L)
-    private Duration minBackoff = Duration.ofMillis(500L);
+    private Duration minBackoff = Duration.ofSeconds(1L);
 
     // Don't retry negative test cases
     public boolean shouldRetry(Throwable t) {

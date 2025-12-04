@@ -102,6 +102,7 @@ public class ContractFeature extends BaseContractFeature {
         assertNotNull(networkTransactionResponse.getReceipt());
     }
 
+    @RetryConnection
     @Then("the mirror node REST API should return status {int} for the contract transaction")
     public void verifyMirrorAPIContractResponses(int status) {
         var mirrorTransaction = verifyMirrorTransactionsResponse(mirrorClient, status);
