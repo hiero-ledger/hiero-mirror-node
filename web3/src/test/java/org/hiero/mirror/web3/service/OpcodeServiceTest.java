@@ -721,7 +721,28 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private TransactionIdOrHashParameter setUpEthereumTransactionWithSenderBalance(
             final Contract contract, final byte[] callData, final long transactionValue, final byte[] expectedResult) {
-        final var senderEntity = accountPersistWithAccountBalances();
+        // Create sender with sufficient balance for value transfer
+        // With dynamic balance validation, value > 0 triggers validation
+        final Entity senderEntity;
+        if (transactionValue > 0) {
+            senderEntity = accountEntityPersistCustomizable(
+                    e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+            // Persist account balance records
+            domainBuilder
+                    .accountBalance()
+                    .customize(ab -> ab.id(new AccountBalance.Id(
+                                    senderEntity.getCreatedTimestamp(), systemEntity.treasuryAccount()))
+                            .balance(senderEntity.getBalance()))
+                    .persist();
+            domainBuilder
+                    .accountBalance()
+                    .customize(ab -> ab.id(new AccountBalance.Id(
+                                    senderEntity.getCreatedTimestamp(), senderEntity.toEntityId()))
+                            .balance(senderEntity.getBalance()))
+                    .persist();
+        } else {
+            senderEntity = accountPersistWithAccountBalances();
+        }
         return setUpForSuccessWithExpectedResultAndBalance(
                 ETHEREUMTRANSACTION,
                 contract,

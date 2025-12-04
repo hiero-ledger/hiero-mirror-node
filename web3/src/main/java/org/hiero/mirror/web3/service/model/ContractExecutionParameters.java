@@ -16,6 +16,9 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final Bytes callData;
     private final CallType callType;
     private final long gas;
+    private final long gasPrice;
+    private final long maxFeePerGas;
+    private final long maxPriorityFeePerGas;
     private final boolean isEstimate;
     private final boolean isModularized;
     private final boolean isStatic;

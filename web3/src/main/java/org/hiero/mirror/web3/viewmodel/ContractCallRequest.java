@@ -38,6 +38,12 @@ public class ContractCallRequest {
     @Min(0)
     private long gasPrice;
 
+    @Min(0)
+    private long maxFeePerGas;
+
+    @Min(0)
+    private long maxPriorityFeePerGas;
+
     @JsonIgnore
     private Boolean modularized;
 
