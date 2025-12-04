@@ -7,16 +7,29 @@
     "/api/v1/network/supply?timestamp=lte:1.2.3&limit=1"
   ],
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Invalid parameter: timestamp"
-        },
-        {
-          "message": "Unknown query parameter: limit"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: timestamp"
+          },
+          {
+            "message": "Unknown query parameter: limit"
+          }
+        ]
+      }
     }
   }
 }

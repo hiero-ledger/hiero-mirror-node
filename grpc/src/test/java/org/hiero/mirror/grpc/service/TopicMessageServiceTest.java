@@ -27,6 +27,7 @@ import org.hiero.mirror.grpc.listener.TopicListener;
 import org.hiero.mirror.grpc.repository.EntityRepository;
 import org.hiero.mirror.grpc.retriever.RetrieverProperties;
 import org.hiero.mirror.grpc.retriever.TopicMessageRetriever;
+import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import org.mockito.Mockito;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 
+@NullUnmarked
 @RequiredArgsConstructor
 class TopicMessageServiceTest extends GrpcIntegrationTest {
 

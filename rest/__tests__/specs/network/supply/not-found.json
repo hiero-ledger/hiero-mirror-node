@@ -38,17 +38,30 @@
   "urls": [
     "/api/v1/network/supply?timestamp=0.0001",
     "/api/v1/network/supply?timestamp=eq:0.0001",
-    "/api/v1/network/supply?timestamp=lt:0",
+    "/api/v1/network/supply?timestamp=lt:0.0001",
     "/api/v1/network/supply?timestamp=gt:999"
   ],
   "responseStatus": 404,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Not found"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Network supply not found",
+            "message": "Not Found"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Not found"
+          }
+        ]
+      }
     }
   }
 }
