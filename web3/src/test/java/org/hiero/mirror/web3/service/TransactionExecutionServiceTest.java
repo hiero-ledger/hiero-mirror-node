@@ -423,8 +423,6 @@ class TransactionExecutionServiceTest {
                 .callType(CallType.ETH_CALL)
                 .gas(DEFAULT_GAS)
                 .gasPrice(0L)
-                .maxFeePerGas(0L)
-                .maxPriorityFeePerGas(0L)
                 .isEstimate(false)
                 .isStatic(true)
                 .receiver(isContractCreate ? Address.ZERO : Address.fromHexString("0x1234"))

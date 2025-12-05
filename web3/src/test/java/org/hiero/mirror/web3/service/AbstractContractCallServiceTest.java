@@ -320,8 +320,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .maxFeePerGas(0L)
-                .maxPriorityFeePerGas(0L)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
                 .isModularized(isModularized)
                 .isStatic(false)

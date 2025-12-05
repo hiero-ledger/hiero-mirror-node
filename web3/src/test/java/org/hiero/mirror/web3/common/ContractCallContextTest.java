@@ -46,8 +46,6 @@ class ContractCallContextTest {
         context.setCallServiceParameters(ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .gasPrice(0L)
-                .maxFeePerGas(0L)
-                .maxPriorityFeePerGas(0L)
                 .build());
 
         assertThat(context.getTimestamp()).isEmpty();
@@ -61,8 +59,6 @@ class ContractCallContextTest {
         context.setCallServiceParameters(ContractExecutionParameters.builder()
                 .block(BlockType.EARLIEST)
                 .gasPrice(0L)
-                .maxFeePerGas(0L)
-                .maxPriorityFeePerGas(0L)
                 .build());
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));

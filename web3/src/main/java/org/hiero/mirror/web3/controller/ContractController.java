@@ -84,8 +84,6 @@ class ContractController {
                 .callType(callType)
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())
-                .maxFeePerGas(request.getMaxFeePerGas())
-                .maxPriorityFeePerGas(request.getMaxPriorityFeePerGas())
                 .isEstimate(request.isEstimate())
                 .isModularized(true)
                 .isStatic(isStaticCall)

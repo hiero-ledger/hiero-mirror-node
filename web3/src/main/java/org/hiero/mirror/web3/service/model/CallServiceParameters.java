@@ -18,10 +18,6 @@ public interface CallServiceParameters {
 
     long getGasPrice();
 
-    long getMaxFeePerGas();
-
-    long getMaxPriorityFeePerGas();
-
     Address getReceiver();
 
     Address getSender();

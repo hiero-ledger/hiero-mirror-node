@@ -96,14 +96,12 @@ public class ContractCallContext {
             return true;
         }
 
-        // If sender is provided, check if any gas or value fields are non-zero
+        // If sender is provided, check if gasPrice or value fields are non-zero
         boolean hasGasPrice = callServiceParameters.getGasPrice() > 0;
-        boolean hasMaxFeePerGas = callServiceParameters.getMaxFeePerGas() > 0;
-        boolean hasMaxPriorityFeePerGas = callServiceParameters.getMaxPriorityFeePerGas() > 0;
         boolean hasValue = callServiceParameters.getValue() > 0;
 
         // If any of these are non-zero, DON'T override (enable validation)
-        if (hasGasPrice || hasMaxFeePerGas || hasMaxPriorityFeePerGas || hasValue) {
+        if (hasGasPrice || hasValue) {
             return false;
         }
 
