@@ -20,9 +20,4 @@ public class Web3Properties {
 
     @DurationMin(seconds = 1L)
     private Duration requestTimeout = Duration.ofSeconds(10L);
-
-    @DurationMin(millis = 100L)
-    private Duration frequency = Duration.ofMillis(500L);
-
-    private boolean schedulerEnabled = true;
 }

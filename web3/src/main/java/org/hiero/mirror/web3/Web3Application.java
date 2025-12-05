@@ -9,12 +9,10 @@ import org.hiero.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.util.FileSystemUtils;
 
 @Import(CommonConfiguration.class)
 @SpringBootApplication
-@EnableScheduling
 public class Web3Application {
 
     public static void main(String[] args) {

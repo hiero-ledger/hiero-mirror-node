@@ -143,7 +143,7 @@ class OpcodesControllerTest {
     @MockitoBean
     private CommonEntityAccessor commonEntityAccessor;
 
-    @Resource
+    @MockitoBean
     private Web3Properties web3Properties;
 
     @Captor
@@ -823,14 +823,8 @@ class OpcodesControllerTest {
         }
 
         @Bean
-        RecordFileService recordFileService(
-                final RecordFileRepository recordFileRepository, final Web3Properties web3Properties) {
-            return new RecordFileServiceImpl(recordFileRepository, web3Properties);
-        }
-
-        @Bean
-        Web3Properties web3Properties() {
-            return new Web3Properties();
+        RecordFileService recordFileService(final RecordFileRepository recordFileRepository) {
+            return new RecordFileServiceImpl(recordFileRepository);
         }
 
         @Bean
