@@ -65,9 +65,6 @@ spec:
         config:
           contract:
             contractId: "0.0.2664875"
-    restjava:
-      routes:
-        fees: true
     stackgres:
       coordinator:
         persistentVolume:
