@@ -43,8 +43,10 @@ class ContractCallContextTest {
     void testGetTimestampNonHistorical() {
         var context = ContractCallContext.get();
         context.setTimestamp(Optional.of(123L));
-        context.setCallServiceParameters(
-                ContractExecutionParameters.builder().block(BlockType.LATEST).build());
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .gasPrice(0L)
+                .build());
 
         assertThat(context.getTimestamp()).isEmpty();
     }
@@ -54,8 +56,10 @@ class ContractCallContextTest {
         var context = ContractCallContext.get();
         var timestamp = 123L;
         context.setTimestamp(Optional.of(timestamp));
-        context.setCallServiceParameters(
-                ContractExecutionParameters.builder().block(BlockType.EARLIEST).build());
+        context.setCallServiceParameters(ContractExecutionParameters.builder()
+                .block(BlockType.EARLIEST)
+                .gasPrice(0L)
+                .build());
 
         assertThat(context.getTimestamp()).isEqualTo(Optional.of(timestamp));
     }

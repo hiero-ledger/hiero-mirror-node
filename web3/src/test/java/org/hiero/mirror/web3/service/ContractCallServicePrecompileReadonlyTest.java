@@ -1054,6 +1054,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .callData(Bytes.fromHexString(functionCall.encodeFunctionCall()))
                 .callType(CallServiceParameters.CallType.ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isEstimate(false)
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)

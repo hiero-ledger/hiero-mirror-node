@@ -422,6 +422,7 @@ class TransactionExecutionServiceTest {
                 .callData(callData)
                 .callType(CallType.ETH_CALL)
                 .gas(DEFAULT_GAS)
+                .gasPrice(0L)
                 .isEstimate(false)
                 .isStatic(true)
                 .receiver(isContractCreate ? Address.ZERO : Address.fromHexString("0x1234"))

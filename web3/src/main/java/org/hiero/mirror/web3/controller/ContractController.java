@@ -83,6 +83,7 @@ class ContractController {
                 .callData(data)
                 .callType(callType)
                 .gas(request.getGas())
+                .gasPrice(request.getGasPrice())
                 .isEstimate(request.isEstimate())
                 .isModularized(true)
                 .isStatic(isStaticCall)

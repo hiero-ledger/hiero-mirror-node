@@ -16,6 +16,8 @@ public interface CallServiceParameters {
 
     long getGas();
 
+    long getGasPrice();
+
     Address getReceiver();
 
     Address getSender();
