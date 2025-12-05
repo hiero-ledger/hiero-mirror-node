@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block.transformer;
 
-import com.google.protobuf.Int64Value;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionCase;
 import jakarta.inject.Named;
@@ -25,12 +24,6 @@ final class EthereumTransactionTransformer extends AbstractBlockTransactionTrans
         if (resultBuilder.getGasUsed() == 0) {
             recordBuilder.getReceiptBuilder().clearContractID();
         }
-
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
-        blockTransaction
-                .getStateChangeContext()
-                .getAccount(resultBuilder.getSenderId())
-                .ifPresent(account -> resultBuilder.setSignerNonce(Int64Value.of(account.getEthereumNonce())));
     }
 
     @Override
