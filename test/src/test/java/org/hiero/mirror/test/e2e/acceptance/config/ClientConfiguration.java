@@ -19,6 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 @Configuration
 @EnableRetry
@@ -61,7 +63,9 @@ class ClientConfiguration {
                 PrecheckStatusException.class,
                 ReceiptStatusException.class,
                 RuntimeException.class,
-                TimeoutException.class);
+                TimeoutException.class,
+                HttpClientErrorException.class,
+                ResourceAccessException.class);
         return RetryTemplate.builder()
                 .fixedBackoff(acceptanceTestProperties.getBackOffPeriod().toMillis())
                 .maxAttempts(acceptanceTestProperties.getMaxRetries())

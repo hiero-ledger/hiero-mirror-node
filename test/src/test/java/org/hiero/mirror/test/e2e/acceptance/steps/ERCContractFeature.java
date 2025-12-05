@@ -237,7 +237,6 @@ public class ERCContractFeature extends AbstractFeature {
         tokenSerialNumbers.get(nonFungibleTokenId).add(serialNumber);
     }
 
-    @RetryConnection
     @Then("the mirror node REST API should return status {int} for the erc contract transaction")
     public void verifyMirrorAPIResponses(int status) {
         verifyMirrorTransactionsResponse(mirrorClient, status);

@@ -689,7 +689,6 @@ public class TokenFeature extends AbstractFeature {
 
     @Then("the mirror node REST API should return the transaction")
     @RetryAsserts
-    @RetryConnection
     public void verifyMirrorAPIResponses() {
         verifyTransactions();
     }

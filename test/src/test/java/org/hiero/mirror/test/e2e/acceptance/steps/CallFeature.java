@@ -109,7 +109,6 @@ public class CallFeature extends AbstractFeature {
     }
 
     @RetryAsserts
-    @RetryConnection
     @Then("the mirror node should return status {int} for the HAPI transaction")
     public void ethCallVerifyMirrorAPIResponses(int status) {
         verifyMirrorTransactionsResponse(mirrorClient, status);
@@ -226,7 +225,6 @@ public class CallFeature extends AbstractFeature {
     }
 
     // ETHCALL-017
-    @RetryConnection
     @Then("I call function with IERC721Metadata token {string} name")
     public void ierc721MetadataTokenName(String tokenName) {
         var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
