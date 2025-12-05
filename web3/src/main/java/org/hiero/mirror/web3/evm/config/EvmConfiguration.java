@@ -6,13 +6,13 @@ import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMod
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
+import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
 import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmEncodingFacade;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.contracts.operations.MirrorBlockHashOperation;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hyperledger.besu.datatypes.Address;
@@ -68,16 +68,6 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
     public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
     private final CacheProperties cacheProperties;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    //    private final GasCalculatorHederaV22 gasCalculator;
-
-    //    private final CustomGasCalculator customGasCalculator;
-    //    private final HederaBlockHashOperation hederaBlockHashOperation;
-    //    private final HederaExtCodeHashOperation hederaExtCodeHashOperation;
-    //    private final HederaExtCodeHashOperationV038 hederaExtCodeHashOperationV038;
-    //    private final PrecompiledContractProvider precompilesHolder;
-    //    private final BiPredicate<Address, MessageFrame> addressValidator;
-    //    private final Predicate<Address> systemAccountDetector;
 
     @Bean(CACHE_MANAGER_CONTRACT)
     CacheManager cacheManagerContract() {
@@ -241,5 +231,10 @@ public class EvmConfiguration {
     MirrorBlockHashOperation provideMirrorBlockHashOperation(
             GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
         return new MirrorBlockHashOperation(gasCalculator, recordFileRepository);
+    }
+
+    @Bean
+    public GasCalculator provideGasCalculator() {
+        return new CustomGasCalculator();
     }
 }

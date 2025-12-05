@@ -109,11 +109,7 @@ public abstract class ContractCallService {
         var status = ResponseCodeEnum.SUCCESS.toString();
 
         try {
-            if (params.isModularized()) {
-                result = transactionExecutionService.execute(params, estimatedGas);
-            } else {
-                //                result = mirrorEvmTxProcessor.execute(params, estimatedGas);
-            }
+            result = transactionExecutionService.execute(params, estimatedGas);
 
             if (!estimate) {
                 validateResult(result, params);

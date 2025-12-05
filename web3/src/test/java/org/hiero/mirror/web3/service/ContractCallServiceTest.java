@@ -30,7 +30,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -51,7 +50,6 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
@@ -1283,27 +1281,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             contractCallService.doProcessCall(params, estimatedGas, true);
 
             verify(txnExecutionService, times(1)).execute(any(), anyLong());
-        }
-
-        @ParameterizedTest
-        @CsvSource({"true, 0.0", "false, 1.0", "false, 0.0"})
-        void shouldNotCallTransactionExecutionService(boolean isModularizedServices, double trafficShare)
-                throws MirrorEvmTransactionException {
-            final long estimatedGas = 1000L;
-            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
-            TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
-            CallServiceParameters params = mock(CallServiceParameters.class);
-
-            ContractCallService contractCallService =
-                    new ContractCallService(null, null, null, null, spyEvmProperties, txnExecutionService) {};
-
-            when(spyEvmProperties.isModularizedServices()).thenReturn(isModularizedServices);
-            when(spyEvmProperties.getModularizedTrafficPercent()).thenReturn(trafficShare);
-            var result =
-                    HederaEvmTransactionProcessingResult.successful(List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO);
-            when(txnExecutionService.execute(params, estimatedGas)).thenReturn(result);
-            contractCallService.doProcessCall(params, estimatedGas, true);
-            verify(txnExecutionService, never()).execute(any(), anyLong());
         }
     }
 }
