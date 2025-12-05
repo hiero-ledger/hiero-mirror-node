@@ -4,8 +4,8 @@
 
 This design document outlines the implementation plan for supporting HIP-1340 EOA code delegation in the Hiero mirror node.
 The implementation will enable extraction, storage, and querying of code delegation data from consensus node transactions,
-performing `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction` transactions with code delegations in the mirror node
-and querying the persisted code delegations from the existing REST APIs.
+performing `eth_call`, `eth_estimateGas` transactions with code delegations in the mirror node and querying the persisted
+code delegations from the existing REST APIs.
 
 ## Goals
 
@@ -20,7 +20,7 @@ and querying the persisted code delegations from the existing REST APIs.
 ## Non-Goals
 
 - Validating code delegation logic (code delegations are executed by consensus nodes)
-- Simulating code delegation creation, deletion or update in web3
+- Simulating code delegation creation, deletion or update in web3 (only execution will be supported)
 
 ## Architecture
 
@@ -28,8 +28,9 @@ The HIP-1340 implementation follows the established mirror node architecture pat
 
 1. **Transaction Processing**: Code delegation-related transactions are processed by dedicated transaction handlers
 2. **Database Storage**: Code delegation data is stored in normalized tables with proper indexing for efficient queries
-3. **REST APIs**: The existing accounts endpoints expose the new code delegation field
-4. **WEB3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction`.
+3. **REST APIs**: The existing accounts endpoints expose the new code delegation field. The existing contract endpoints will
+   be enhanced to work for EOAs with code delegations as if they are contracts.
+4. **WEB3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas`.
 
 ## Background
 
@@ -67,6 +68,14 @@ GET /api/v1/contracts/results/{transactionIdOrHash}
 
 In both API endpoints the returned response needs to contain the new `authorization_list` bytes field.
 
+In all `GET /api/v1/contracts/*` endpoints the DB queries need to be modified so that they work with an EOA account the
+same way as the existing queries with contract id:
+
+1. Create a subquery that gets the contract id from the `contract` table. If it is found then return it. Otherwise, try to
+   find the id in the `code_delegation` table. We don't have an effective way to determine in which table to search directly,
+   so we keep the old implementation with priority.
+2. The rest of the join statements in the existing queries will remain the same.
+
 ## Database Schema Design
 
 ### Query Requirements
@@ -103,7 +112,7 @@ select create_distributed_table('code_delegation_history', 'entity_id', colocate
 ```
 
 Each EOA can have only one `delegation_identifier` set. To delete it, the address part of the identifier is set to the empty
-hash - 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470.
+address - 0x0000000000000000000000000000000000000000.
 
 ### 2. Ethereum Table
 
@@ -115,6 +124,8 @@ alter table if exists ethereum_transaction add column if not exists authorizatio
 ```
 
 ## Importer Module Changes
+
+### 1. Create Domain Models
 
 Create new domain classes following the EntityHistory pattern:
 
@@ -158,7 +169,7 @@ Existing transaction handlers will be enhanced to extract code delegation inform
 The following transaction handlers will be modified to process `CodeDelegation`:
 
 - `EthereumTransactionHandler.java` - the `authorization_list` field from the `EthereumTransactionBody` needs to be saved
-  similarly to the other fields.
+  similarly to the other byte array fields.
 
 A child frame of the parent Ethereum transaction will be a `CryptoCreateTransaction` or a `CryptoUpdateTransaction`
 (depending on whether the affected EOA already exists or not). Their protobufs will be changed to have an additional
@@ -187,7 +198,7 @@ public interface EntityListener {
 }
 ```
 
-### 4. Repository Classes
+### 4. Create Repositories
 
 #### CodeDelegationRepository.java
 
@@ -196,6 +207,18 @@ public interface EntityListener {
 @Repository
 public interface CodeDelegationRepository extends JpaRepository<CodeDelegation, Long> {
     // Methods for querying code delegations by entity id and timestamp
+}
+```
+
+#### CodeDelegationHistoryRepository.java
+
+```java
+
+public interface CodeDelegationHistoryRepository extends CrudRepository<CodeDelegation, Long>, RetentionRepository {
+
+    @Modifying
+    @Query(nativeQuery = true, value = "delete from code_delegation_history where timestamp_range << int8range(?1, null)")
+    int prune(long consensusTimestamp);
 }
 ```
 
@@ -220,6 +243,52 @@ public final class Eip7702EthereumTransactionParser extends AbstractEthereumTran
 
 It will parse the rlp encoded transaction similarly to the existing `Eip2930EthereumTransactionParser`. The only difference
 will be that the new transaction type will need to decode the authorizationList field as well.
+
+## Web3 Module Changes
+
+### 1. Create Repository
+
+```java
+//org.hiero.mirror.web3.repository.CodeDelegationRepository
+@Repository
+public interface CodeDelegationRepository extends CrudRepository<CodeDelegation, Long> {
+
+    Optional<CodeDelegation> findByEntityId(final long entityId);
+
+    /**
+     *  Finds the historical code delegation for a specific block timestamp. The query needs to reflect what was the
+     *  latest state of the code delegation up until the given block timestamp. The code_delegation and code_delegation_history
+     *  tables to be queried with a union.
+     */
+    @Query(
+            value =
+                    """
+                    (
+                        select *
+                        from code_delegation
+                        where entity_id = ?1 and lower(timestamp_range) <= ?2
+                    )
+                    union all
+                    (
+                        select *
+                        from code_delegation_history
+                        where entity_id = ?1 and lower(timestamp_range) <= ?2
+                        order by lower(timestamp_range) desc
+                        limit 1
+                    )
+                    order by timestamp_range desc
+                    limit 1
+                    """,
+            nativeQuery = true)
+    Optional<CodeDelegation> findByEntityIdAndTimestamp(final long entityId, final long blockTimestamp);
+}
+```
+
+### 2. Update ContractBytecodeReadableKVState
+
+`protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
+This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
+search by contract id in the `codeDelegationRepository`.
 
 ## Testing Strategy
 
