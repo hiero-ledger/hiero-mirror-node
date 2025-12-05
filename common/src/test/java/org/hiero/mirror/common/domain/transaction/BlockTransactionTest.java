@@ -543,8 +543,7 @@ final class BlockTransactionTest {
 
     @SneakyThrows
     private static Stream<Arguments> provideTransactionHashTestArguments() {
-        var signedTransactionHex =
-                """
+        var signedTransactionHex = """
                 0a440a0f0a0908b9c1e4c00610aa07120218021202180318988c0522020878320766756e642d3536721c0a1a0a0b0a02183810\
                 80d0dbc3f4020a0b0a02180210ffcfdbc3f40212470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b2\
                 01ecc51581126d8efd29db0ebed54cae5130eff35013d1f219ce3bd33459488e164427b5cbb21f6707\
@@ -552,8 +551,7 @@ final class BlockTransactionTest {
         var signedTransactionHash =
                 "364747682d512bf8cdd4323a277b8bdb81734b96fcdacfccef3e213de7f29db07e8465c8d9ed05d5276108b5f2f2d1a7";
         // fields serialized in the reverse order, sigMap first then bodyBytes
-        var invertedSignedTransactionHex =
-                """
+        var invertedSignedTransactionHex = """
                 12470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b201ecc51581126d8efd29db0ebed54cae5130ef\
                 f35013d1f219ce3bd33459488e164427b5cbb21f67070a440a0f0a0908b9c1e4c00610aa07120218021202180318988c052202\
                 0878320766756e642d3536721c0a1a0a0b0a0218381080d0dbc3f4020a0b0a02180210ffcfdbc3f402\
