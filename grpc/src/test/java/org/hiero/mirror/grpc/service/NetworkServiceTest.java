@@ -208,7 +208,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     private List<AddressBookEntry> getNodes(AddressBookFilter filter) {
-        return networkService.getNodes(filter).collectList().block(Duration.ofMillis(1000L));
+        final var nodes = networkService.getNodes(filter).collectList().block(Duration.ofMillis(1000L));
+        return nodes != null ? nodes : List.of();
     }
 
     private AddressBook addressBook() {

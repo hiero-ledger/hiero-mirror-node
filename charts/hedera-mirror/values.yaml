@@ -386,7 +386,7 @@ stackgres:
     enableMetricsExporter: true
   podAntiAffinity: true
   postgresVersion: "16.2"
-  priorityClassName: ""
+  priorityClassName: system-cluster-critical  # This fails on Helm 4 without a default. values-prod.yaml overrides it.
   replication:
     initialization:
       mode: FromReplica

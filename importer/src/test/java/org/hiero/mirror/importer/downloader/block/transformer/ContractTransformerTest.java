@@ -72,17 +72,10 @@ final class ContractTransformerTest extends AbstractTransformerTest {
     private static final ContractID HTS_PRECOMPILE_ADDRESS =
             ContractID.newBuilder().setContractNum(0x167).build();
 
-    private static final Consumer<TransactionRecord.Builder> DEFAULT_CONTRACT_RESULT_CUSTOMIZER =
-            b -> contractResultBuilder(b)
-                    // - will test contract nonces once support is added
-                    // - signer nonce should only be set for ethereum transactions
-                    .ifPresent(builder -> builder.clearContractNonces().clearSignerNonce());
-
     private static final Consumer<TransactionRecord.Builder> ETHEREUM_RECORD_CUSTOMIZER = b -> {
         // calculated in parser
         b.clearEthereumHash();
-        contractResultBuilder(b)
-                .ifPresent(builder -> builder.clearCreatedContractIDs().clearContractNonces());
+        contractResultBuilder(b).ifPresent(ContractFunctionResult.Builder::clearCreatedContractIDs);
     };
 
     private static final Consumer<TransactionRecord.Builder> EXPLICIT_CONTRACT_RESULT_CUSTOMIZER =
@@ -99,7 +92,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedRecordItem = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 // will add back contract bytecode and contract state change sidecar records once support is added
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
@@ -124,7 +116,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var expectedContractCall = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
                 .customize(this::finalize)
                 .build();
@@ -142,7 +133,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .recordItem(r -> r.transactionIndex(1))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records, false, contractBytecode(contractId, explicitInitcode, runtimeBytecode, false)))
                 .customize(this::finalize)
@@ -233,7 +223,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     }
                 })
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records,
                         true,
@@ -411,7 +400,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                         .clearBloom()
                         .clearLogInfo())
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(DEFAULT_CONTRACT_RESULT_CUSTOMIZER)
                 .customize(this::finalize)
                 .build();
         var childCreateBlockTransaction = blockTransactionBuilder
@@ -754,15 +742,17 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         //   - slot 2 RW by the second inner contract call
         var contractIdA = recordItemBuilder.contractId();
         var contractASlot1 = recordItemBuilder.slot();
-        var contractASlot1Values =
-                List.of(recordItemBuilder.bytes(8), recordItemBuilder.bytes(10), recordItemBuilder.bytes(12));
+        var contractASlot1Values = List.of(
+                recordItemBuilder.nonZeroBytes(8),
+                recordItemBuilder.nonZeroBytes(10),
+                recordItemBuilder.nonZeroBytes(12));
         var contractASlot2 = recordItemBuilder.slot();
-        var contractASlot2Value = recordItemBuilder.bytes(12);
+        var contractASlot2Value = recordItemBuilder.nonZeroBytes(12);
         var contractIdB = recordItemBuilder.contractId();
         var contractBSlot1 = recordItemBuilder.slot();
-        var contractBSlot1Value = recordItemBuilder.bytes(16);
+        var contractBSlot1Value = recordItemBuilder.nonZeroBytes(16);
         var contractBSlot2 = recordItemBuilder.slot();
-        var contractBSlot2Values = List.of(recordItemBuilder.bytes(10), recordItemBuilder.bytes(16));
+        var contractBSlot2Values = List.of(recordItemBuilder.nonZeroBytes(10), recordItemBuilder.nonZeroBytes(16));
         // statechanges only have the final values
         var stateChanges = StateChanges.newBuilder()
                 .addStateChanges(
@@ -797,10 +787,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var contractCallRecordItem1 = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(r -> {
-                    r.setParentConsensusTimestamp(parentConsensusTimestamp);
-                    DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
-                })
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records, true, b -> b.setStateChanges(contractCall1ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(1))
@@ -848,10 +835,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var contractCallRecordItem2 = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(r -> {
-                    r.setParentConsensusTimestamp(parentConsensusTimestamp);
-                    DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
-                })
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records, true, b -> b.setStateChanges(contractCall2ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(2))
@@ -890,10 +874,7 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         var contractCallRecordItem3 = recordItemBuilder
                 .contractCall()
                 .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
-                .record(r -> {
-                    r.setParentConsensusTimestamp(parentConsensusTimestamp);
-                    DEFAULT_CONTRACT_RESULT_CUSTOMIZER.accept(r);
-                })
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
                 .sidecarRecords(records -> customizeSidecarRecords(
                         records, true, b -> b.setStateChanges(contractCall3ContractStateChanges)))
                 .recordItem(r -> r.transactionIndex(3))
@@ -1047,25 +1028,25 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                 .setContractId(recordItemBuilder.contractId())
                 .addStorageChanges(StorageChange.newBuilder()
                         .setSlot(recordItemBuilder.slot())
-                        .setValueRead(recordItemBuilder.bytes(8)))
+                        .setValueRead(recordItemBuilder.nonZeroBytes(8)))
                 .addStorageChanges(StorageChange.newBuilder()
                         .setSlot(recordItemBuilder.slot())
-                        .setValueRead(recordItemBuilder.bytes(8))
-                        .setValueWritten(BytesValue.of(recordItemBuilder.bytes(4))))
+                        .setValueRead(recordItemBuilder.nonZeroBytes(8))
+                        .setValueWritten(BytesValue.of(recordItemBuilder.nonZeroBytes(4))))
                 .addStorageChanges(StorageChange.newBuilder()
                         .setSlot(recordItemBuilder.slot())
-                        .setValueRead(recordItemBuilder.bytes(8))
+                        .setValueRead(recordItemBuilder.nonZeroBytes(8))
                         .setValueWritten(BytesValue.getDefaultInstance()))
                 .build();
         var contractStateChange2 = ContractStateChange.newBuilder()
                 .setContractId(recordItemBuilder.contractId())
                 .addStorageChanges(StorageChange.newBuilder()
                         .setSlot(recordItemBuilder.slot())
-                        .setValueRead(recordItemBuilder.bytes(8)))
+                        .setValueRead(recordItemBuilder.nonZeroBytes(8)))
                 .addStorageChanges(StorageChange.newBuilder()
                         .setSlot(recordItemBuilder.slot())
-                        .setValueRead(recordItemBuilder.bytes(8))
-                        .setValueWritten(BytesValue.of(recordItemBuilder.bytes(4))))
+                        .setValueRead(recordItemBuilder.nonZeroBytes(8))
+                        .setValueWritten(BytesValue.of(recordItemBuilder.nonZeroBytes(4))))
                 .build();
         var contractStateChanges = ContractStateChanges.newBuilder()
                 .addContractStateChanges(contractStateChange1)

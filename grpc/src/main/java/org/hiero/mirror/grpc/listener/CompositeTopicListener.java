@@ -4,9 +4,10 @@ package org.hiero.mirror.grpc.listener;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
@@ -19,19 +20,16 @@ import reactor.core.publisher.Flux;
 final class CompositeTopicListener implements TopicListener {
 
     private final ListenerProperties listenerProperties;
+    private final MeterRegistry meterRegistry;
     private final PollingTopicListener pollingTopicListener;
     private final RedisTopicListener redisTopicListener;
     private final SharedPollingTopicListener sharedPollingTopicListener;
-    private final MeterRegistry meterRegistry;
-    private Timer consensusLatencyTimer;
 
-    @PostConstruct
-    public void registerMetrics() {
-        consensusLatencyTimer = Timer.builder("hiero.mirror.grpc.consensus.latency")
-                .description("The difference in ms between the time consensus was achieved and the message was sent")
-                .tag("type", TopicMessage.class.getSimpleName())
-                .register(meterRegistry);
-    }
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final Timer consensusLatencyTimer = Timer.builder("hiero.mirror.grpc.consensus.latency")
+            .description("The difference in ms between the time consensus was achieved and the message was sent")
+            .tag("type", TopicMessage.class.getSimpleName())
+            .register(meterRegistry);
 
     @Override
     public Flux<TopicMessage> listen(TopicMessageFilter filter) {
@@ -67,6 +65,6 @@ final class CompositeTopicListener implements TopicListener {
 
     private void recordMetric(TopicMessage topicMessage) {
         long latency = System.currentTimeMillis() - (topicMessage.getConsensusTimestamp() / 1000000);
-        consensusLatencyTimer.record(latency, TimeUnit.MILLISECONDS);
+        getConsensusLatencyTimer().record(latency, TimeUnit.MILLISECONDS);
     }
 }
