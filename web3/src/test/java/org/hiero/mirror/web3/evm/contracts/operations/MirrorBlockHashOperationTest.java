@@ -24,8 +24,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith({MockitoExtension.class})
-@ExtendWith(ContextExtension.class)
+@ExtendWith({MockitoExtension.class, ContextExtension.class})
 class MirrorBlockHashOperationTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();

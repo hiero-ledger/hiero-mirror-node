@@ -59,8 +59,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith({MockitoExtension.class})
-@ExtendWith(ContextExtension.class)
+@ExtendWith({MockitoExtension.class, ContextExtension.class})
 class TransactionExecutionServiceTest {
     private static final Long DEFAULT_GAS = 50000L;
 
