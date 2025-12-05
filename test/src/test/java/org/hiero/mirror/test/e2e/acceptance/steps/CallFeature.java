@@ -63,9 +63,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
-import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -228,7 +225,6 @@ public class CallFeature extends AbstractFeature {
     }
 
     // ETHCALL-017
-    @RetryAsserts
     @Then("I call function with IERC721Metadata token {string} name")
     public void ierc721MetadataTokenName(String tokenName) {
         var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
@@ -508,10 +504,6 @@ public class CallFeature extends AbstractFeature {
                 .isEqualTo(intValue(results.get(3)));
     }
 
-    @Retryable(
-            retryFor = {HttpClientErrorException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     @Then("I burn NFT and get the total supply and balance")
     public void ethCallBurnNftTokenGetTotalSupplyAndBalanceOfTreasury() {
         var data = encodeData(

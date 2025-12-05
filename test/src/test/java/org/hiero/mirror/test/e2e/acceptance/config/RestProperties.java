@@ -24,6 +24,8 @@ public class RestProperties implements ApiProperties {
 
     public static final String URL_PREFIX = "/api/v1";
 
+    private final FeatureProperties featureProperties;
+
     @NotBlank
     private String baseUrl;
 
@@ -38,10 +40,19 @@ public class RestProperties implements ApiProperties {
     @DurationMin(millis = 100L)
     private Duration minBackoff = Duration.ofMillis(500L);
 
+    private boolean retryOnHttpException = true;
+
     // Don't retry negative test cases
     public boolean shouldRetry(Throwable t) {
-        return !(t instanceof HttpClientErrorException e)
-                || (e.getStatusCode() != HttpStatus.BAD_REQUEST && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED);
+        boolean shouldRetry;
+        if (retryOnHttpException) {
+            shouldRetry = !(t instanceof HttpClientErrorException e) || e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED;
+        } else {
+            shouldRetry = !(t instanceof HttpClientErrorException e)
+                    || (e.getStatusCode() != HttpStatus.BAD_REQUEST && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED);
+        }
+
+        return shouldRetry;
     }
 
     public String getBaseUrl() {

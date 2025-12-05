@@ -217,6 +217,7 @@ public class HistoricalFeature extends AbstractEstimateFeature {
         assertThat(initialResponse.getResultAsNumber()).isEqualTo(response.getResultAsNumber());
     }
 
+    @RetryAsserts
     @Then("I successfully update the balance of an account and get the initial balance via historical data")
     public void getHistoricalBalance() {
         var data = encodeData(ESTIMATE_GAS, ADDRESS_BALANCE, receiverAccountAddress);
