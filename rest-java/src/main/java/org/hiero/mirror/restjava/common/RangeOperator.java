@@ -59,7 +59,7 @@ public enum RangeOperator {
 
     private static IllegalArgumentException invalidOperator(String rangeOperator) {
         final var name = rangeOperator != null ? rangeOperator.toLowerCase() : null;
-        throw new IllegalArgumentException(
+        return new IllegalArgumentException(
                 "Invalid range operator %s. Valid values: eq, gt, gte, lt, lte, ne".formatted(name));
     }
 }
