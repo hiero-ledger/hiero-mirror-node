@@ -25,6 +25,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.ContextExtension;
+import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
@@ -845,14 +846,18 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractEntityOptional =
                 commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
         final var contractEntity = contractEntityOptional.orElseThrow();
-        final var contractAlias = EntityIdUtils.toAccountId(contractEntity).alias();
+        final var contractAccount =
+                accountReadableKVState.readFromDataSource(EntityIdUtils.toAccountId(contractEntity));
+        final var canonicalAddress = contractAccount.alias().length() > 0
+                ? contractAccount.alias().toByteArray()
+                : EvmTokenUtils.toAddress(contractEntity.toEntityId()).toArray();
 
         // When
         final var functionCall = contract.call_getAddressThis();
         final var result = functionCall.send();
 
         // Then
-        assertEquals(Bytes.wrap(contractAlias.toByteArray()).toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
@@ -864,14 +869,18 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractEntityOptional =
                 commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
         final var contractEntity = contractEntityOptional.orElseThrow();
-        final var contractAlias = EntityIdUtils.toAccountId(contractEntity).alias();
+        final var contractAccount =
+                accountReadableKVState.readFromDataSource(EntityIdUtils.toAccountId(contractEntity));
+        final var canonicalAddress = contractAccount.alias().length() > 0
+                ? contractAccount.alias().toByteArray()
+                : EvmTokenUtils.toAddress(contractEntity.toEntityId()).toArray();
 
         // When
         final var functionCall = contract.call_getAddressThis();
         final String result = functionCall.send();
 
         // Then
-        assertEquals(Bytes.wrap(contractAlias.toByteArray()).toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
