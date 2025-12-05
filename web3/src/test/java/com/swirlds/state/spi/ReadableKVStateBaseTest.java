@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(ContextExtension.class)
 @ExtendWith(MockitoExtension.class)
+@ExtendWith(ContextExtension.class)
 class ReadableKVStateBaseTest {
 
     @Test

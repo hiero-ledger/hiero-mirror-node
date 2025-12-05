@@ -10,7 +10,6 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.node.config.data.ContractsConfig;
 import java.math.BigInteger;
 import java.time.Instant;
-import org.hiero.mirror.web3.evm.store.CachingStateFrame.CacheAccessIncorrectTypeException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HIP1215Contract;
 import org.junit.jupiter.api.Test;
@@ -137,13 +136,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_deleteScheduleProxyExample(getAddressFromEntity(scheduleEntity));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            assertThat(callFunctionResult).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
-        } else {
-            assertThrows(CacheAccessIncorrectTypeException.class, sendFunction::send);
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        assertThat(callFunctionResult).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
     }
 
     @EnabledIf("isSystemCallEnabled")

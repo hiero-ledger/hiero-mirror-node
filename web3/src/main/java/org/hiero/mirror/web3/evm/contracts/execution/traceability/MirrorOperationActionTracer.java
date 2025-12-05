@@ -37,8 +37,7 @@ public class MirrorOperationActionTracer implements OperationTracer {
 
         final var recipientAddress = frame.getRecipientAddress();
         final var recipientNum = recipientAddress != null
-                ? commonEntityAccessor.get(
-                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(recipientAddress.toArray()), Optional.empty())
+                ? commonEntityAccessor.get(recipientAddress, Optional.empty())
                 : Optional.empty();
 
         if (recipientNum.isPresent()

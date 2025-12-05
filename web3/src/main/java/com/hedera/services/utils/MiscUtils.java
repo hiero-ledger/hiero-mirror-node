@@ -2,9 +2,6 @@
 
 package com.hedera.services.utils;
 
-import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.EVM_ADDRESS_LEN;
-import static com.hedera.services.jproto.JKey.mapJKey;
-import static com.hedera.services.jproto.JKey.mapKey;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCall;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractCreate;
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.ContractDelete;
@@ -34,22 +31,10 @@ import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenUnpaus
 import static com.hederahashgraph.api.proto.java.HederaFunctionality.TokenUpdate;
 import static java.util.Objects.requireNonNull;
 
-import com.google.protobuf.ByteString;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.services.jproto.JKey;
-import com.hedera.services.utils.accessors.SignedTxnAccessor;
-import com.hedera.services.utils.accessors.TxnAccessor;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
-import com.hederahashgraph.api.proto.java.Key;
-import com.hederahashgraph.api.proto.java.SignatureMap;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionBody.DataCase;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.security.InvalidKeyException;
-import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 public final class MiscUtils {
@@ -122,70 +107,5 @@ public final class MiscUtils {
         x ^= x >>> 24;
         x += x << 30;
         return x;
-    }
-
-    public static Key asPrimitiveKeyUnchecked(final ByteString alias) {
-        try {
-            return Key.parseFrom(alias);
-        } catch (final InvalidProtocolBufferException internal) {
-            throw new IllegalStateException(internal);
-        }
-    }
-
-    public static Key asKeyUnchecked(final JKey fcKey) {
-        try {
-            return mapJKey(fcKey);
-        } catch (final Exception impossible) {
-            return Key.getDefaultInstance();
-        }
-    }
-
-    public static JKey asFcKeyUnchecked(final Key key) {
-        try {
-            return mapKey(key);
-        } catch (final InvalidKeyException impermissible) {
-            throw new IllegalArgumentException("Key " + key + " should have been decode-able!", impermissible);
-        }
-    }
-
-    public static Optional<JKey> asUsableFcKey(final Key key) {
-        try {
-            final var fcKey = mapKey(key);
-            if (!fcKey.isValid()) {
-                return Optional.empty();
-            }
-            return Optional.of(fcKey);
-        } catch (final InvalidKeyException ignore) {
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Returns a {@link TxnAccessor} for the given in-progress synthetic op.
-     *
-     * @param syntheticOp the synthetic op
-     * @return an accessor for the synthetic op
-     */
-    public static @NonNull TxnAccessor synthAccessorFor(@NonNull final TransactionBody.Builder syntheticOp) {
-        final var signedTxn = SignedTransaction.newBuilder()
-                .setBodyBytes(syntheticOp.build().toByteString())
-                .setSigMap(SignatureMap.getDefaultInstance())
-                .build();
-        final var txn = Transaction.newBuilder()
-                .setSignedTransactionBytes(signedTxn.toByteString())
-                .build();
-        return SignedTxnAccessor.uncheckedFrom(txn);
-    }
-
-    public static boolean isRecoveredEvmAddress(final byte[] address) {
-        return address != null && address.length == EVM_ADDRESS_LEN;
-    }
-
-    public static long[] convertArrayToLong(final List<Long> list) {
-        final var result = new long[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            result[i] = list.get(i);
-        }
-        return result;
     }
 }

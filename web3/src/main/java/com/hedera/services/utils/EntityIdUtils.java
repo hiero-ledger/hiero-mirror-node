@@ -4,13 +4,10 @@ package com.hedera.services.utils;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.evm.account.AccountAccessorImpl.EVM_ADDRESS_SIZE;
 
-import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.services.store.models.Id;
-import com.hedera.services.store.models.NftId;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.NftID;
@@ -228,13 +225,6 @@ public final class EntityIdUtils {
         }
     }
 
-    public static EntityId entityIdFromNftId(NftId id) {
-        if (id == null) {
-            return null;
-        }
-        return EntityId.of(id.shard(), id.realm(), id.num());
-    }
-
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {
         if (id == null || id.contractNum() == null) {
             return null;
@@ -277,9 +267,5 @@ public final class EntityIdUtils {
                     id.getSerialNumber());
         }
         return String.valueOf(o);
-    }
-
-    public static boolean isAliasSizeGreaterThanEvmAddress(final ByteString alias) {
-        return alias.size() > EVM_ADDRESS_SIZE;
     }
 }

@@ -11,11 +11,9 @@ import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -34,20 +32,16 @@ public class ContractDebugService extends ContractCallService {
     public ContractDebugService(
             ContractActionRepository contractActionRepository,
             RecordFileService recordFileService,
-            Store store,
-            MirrorEvmTxProcessor mirrorEvmTxProcessor,
             ThrottleManager throttleManager,
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
         super(
-                mirrorEvmTxProcessor,
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
-                store,
                 mirrorNodeEvmProperties,
                 transactionExecutionService);
         this.contractActionRepository = contractActionRepository;

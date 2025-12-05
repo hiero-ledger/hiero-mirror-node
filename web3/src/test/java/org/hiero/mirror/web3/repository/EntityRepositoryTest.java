@@ -24,8 +24,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 
-@ExtendWith(ContextExtension.class)
 @RequiredArgsConstructor
+@ExtendWith(ContextExtension.class)
 class EntityRepositoryTest extends Web3IntegrationTest {
     private final EntityRepository entityRepository;
 

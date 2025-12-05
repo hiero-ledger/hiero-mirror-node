@@ -129,9 +129,7 @@ class MirrorOperationActionTracerTest {
         traceProperties.setEnabled(true);
         traceProperties.setContract(Set.of(contract.toHexString()));
         given(messageFrame.getRecipientAddress()).willReturn(recipient);
-        given(commonEntityAccessor.get(
-                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(recipient.toArray()), Optional.empty()))
-                .willReturn(Optional.of(recipientEntity));
+        given(commonEntityAccessor.get(recipient, Optional.empty())).willReturn(Optional.of(recipientEntity));
         given(recipientEntity.getId()).willReturn(3L);
 
         // When
