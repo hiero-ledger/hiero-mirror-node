@@ -39,11 +39,15 @@ end;
 $$;
 
 alter table account_balance rename to account_balance_old;
-alter table token_balance  rename to token_balance_old;
+alter index if exists account_balance__pk rename to account_balance_old__pk;
 select rename_old_partitions('account_balance_old');
-select rename_old_partitions('token_balance_old');
-drop function rename_old_partitions(text);
 
+alter table token_balance  rename to token_balance_old;
+alter index if exists token_balance__pk rename to token_balance_old__pk;
+alter index if exists token_balance__token_account_timestamp rename to token_balance_old__token_account_timestamp;
+select rename_old_partitions('token_balance_old');
+
+drop function rename_old_partitions(text);
 
 create table if not exists account_balance
 (
@@ -82,6 +86,14 @@ select create_time_partitions(
   start_from         := ${partitionStartDate}::timestamptz,
   end_at             := current_timestamp + ${balancePartitionTimeInterval}
 );
+
+alter table if exists account_balance
+    add constraint account_balance__pk primary key (account_id, consensus_timestamp);
+
+alter table if exists token_balance
+    add constraint token_balance__pk primary key (account_id, token_id, consensus_timestamp);
+create index if not exists token_balance__token_account_timestamp
+    on token_balance (token_id, account_id, consensus_timestamp);
 
 create index if not exists entity__balance_timestamp_idx
   on entity using brin (balance_timestamp)

@@ -271,6 +271,12 @@ class ExpandBalancePartitionsMigrationTest extends AbstractAsyncJavaMigrationTes
                         .accountBalance()
                         .customize(ab -> ab.id(new AccountBalance.Id(
                                 nextMigrationPartition.getTimestampRange().lowerEndpoint(), domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .accountBalance()
+                        .customize(ab -> ab.id(new AccountBalance.Id(
+                                nextMigrationPartition.getTimestampRange().lowerEndpoint() - 1,
+                                domainBuilder.entityId())))
                         .get());
 
         var oldTokenBalances = List.of(
@@ -288,6 +294,13 @@ class ExpandBalancePartitionsMigrationTest extends AbstractAsyncJavaMigrationTes
                         .tokenBalance()
                         .customize(ab -> ab.id(new TokenBalance.Id(
                                 nextMigrationPartition.getTimestampRange().lowerEndpoint(),
+                                domainBuilder.entityId(),
+                                domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .tokenBalance()
+                        .customize(ab -> ab.id(new TokenBalance.Id(
+                                nextMigrationPartition.getTimestampRange().lowerEndpoint() - 1,
                                 domainBuilder.entityId(),
                                 domainBuilder.entityId())))
                         .get());
@@ -311,6 +324,64 @@ class ExpandBalancePartitionsMigrationTest extends AbstractAsyncJavaMigrationTes
                         "Synchronously processing partition " + nextMigrationPartition.getTimestampRange());
         assertThat(capturedOutput.getAll())
                 .doesNotContain("Synchronously processing partition " + firstAsyncPartition.getTimestampRange());
+    }
+
+    @Test
+    void migratesNoAsyncWork() {
+        // given
+        final var lastBalanceFilePartition = partitions.getLast();
+        final var lastBalanceFileTimestamp =
+                lastBalanceFilePartition.getTimestampRange().lowerEndpoint();
+
+        domainBuilder
+                .accountBalanceFile()
+                .customize(abf -> abf.consensusTimestamp(lastBalanceFileTimestamp))
+                .persist();
+
+        var oldAccountBalances = List.of(
+                domainBuilder
+                        .accountBalance()
+                        .customize(
+                                ab -> ab.id(new AccountBalance.Id(lastBalanceFileTimestamp, domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .accountBalance()
+                        .customize(
+                                ab -> ab.id(new AccountBalance.Id(lastBalanceFileTimestamp, domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .accountBalance()
+                        .customize(
+                                ab -> ab.id(new AccountBalance.Id(lastBalanceFileTimestamp, domainBuilder.entityId())))
+                        .get());
+        var oldTokenBalances = List.of(
+                domainBuilder
+                        .tokenBalance()
+                        .customize(ab -> ab.id(new TokenBalance.Id(
+                                lastBalanceFileTimestamp, domainBuilder.entityId(), domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .tokenBalance()
+                        .customize(ab -> ab.id(new TokenBalance.Id(
+                                lastBalanceFileTimestamp, domainBuilder.entityId(), domainBuilder.entityId())))
+                        .get(),
+                domainBuilder
+                        .tokenBalance()
+                        .customize(ab -> ab.id(new TokenBalance.Id(
+                                lastBalanceFileTimestamp, domainBuilder.entityId(), domainBuilder.entityId())))
+                        .get());
+
+        persistOldAccountBalances(oldAccountBalances);
+        persistOldTokenBalances(oldTokenBalances);
+
+        // when
+        runMigration();
+        waitForCompletion();
+
+        // then
+        assertSchema();
+        assertThat(accountBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(oldAccountBalances);
+        assertThat(tokenBalanceRepository.findAll()).containsExactlyInAnyOrderElementsOf(oldTokenBalances);
     }
 
     private void assertSchema() {

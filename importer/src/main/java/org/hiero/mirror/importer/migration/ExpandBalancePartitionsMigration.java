@@ -46,7 +46,7 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
             Boolean.TRUE, MigrationVersion.fromVersion("2.20.0"));
 
     private static final String LAST_BALANCE_FILE =
-            "select coalesce(max(consensus_timestamp), 0) from account_balance_file";
+            "select coalesce(max(consensus_timestamp), -1) from account_balance_file";
 
     private static final String EXISTS_ACCOUNT_BALANCE_V2_RANGE_SQL =
             """
@@ -153,9 +153,8 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
             final var maxBalanceFileTimestamp =
                     Objects.requireNonNull(getJdbcOperations().queryForObject(LAST_BALANCE_FILE, Long.class));
 
-            if (maxBalanceFileTimestamp == 0L) {
-                log.info("No balance files found, skipping asynchronous migration steps");
-                finalizeMigration();
+            if (maxBalanceFileTimestamp == -1L) {
+                log.info("No balance files found, skipping migration");
                 return Boolean.FALSE;
             }
 
@@ -190,7 +189,12 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
             return Boolean.TRUE;
         });
 
-        return BooleanUtils.isTrue(performAsync);
+        if (BooleanUtils.isNotTrue(performAsync) || partitionIndex.get() >= accountBalancePartitions.size()) {
+            finalizeMigration();
+            return false;
+        }
+
+        return true;
     }
 
     @Override
