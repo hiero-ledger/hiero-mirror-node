@@ -94,6 +94,7 @@ val flywayMigrate =
             arrayOf("filesystem:${migrationDir}/v1", "filesystem:${migrationDir}/common")
         val placeholders =
             mapOf(
+                "balancePartitionTimeInterval" to "'100 years'",
                 "api-password" to "mirror_api_password",
                 "api-user" to "mirror_api_user",
                 "db-name" to Database.name,
