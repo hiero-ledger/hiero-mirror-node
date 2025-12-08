@@ -24,8 +24,6 @@ public class RestProperties implements ApiProperties {
 
     public static final String URL_PREFIX = "/api/v1";
 
-    private final FeatureProperties featureProperties;
-
     @NotBlank
     private String baseUrl;
 

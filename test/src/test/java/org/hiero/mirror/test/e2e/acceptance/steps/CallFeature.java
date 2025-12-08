@@ -225,6 +225,7 @@ public class CallFeature extends AbstractFeature {
     }
 
     // ETHCALL-017
+    @RetryAsserts
     @Then("I call function with IERC721Metadata token {string} name")
     public void ierc721MetadataTokenName(String tokenName) {
         var tokenNameEnum = TokenClient.TokenNameEnum.valueOf(tokenName);
