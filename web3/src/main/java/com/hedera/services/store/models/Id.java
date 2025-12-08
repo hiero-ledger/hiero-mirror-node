@@ -5,7 +5,6 @@ package com.hedera.services.store.models;
 import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.MiscUtils.perm64;
 
-import com.hedera.services.utils.EntityNum;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -33,10 +32,6 @@ public record Id(long shard, long realm, long num) {
 
     public static Id fromGrpcToken(final TokenID id) {
         return new Id(id.getShardNum(), id.getRealmNum(), id.getTokenNum());
-    }
-
-    public EntityNum asEntityNum() {
-        return EntityNum.fromId(this);
     }
 
     public AccountID asGrpcAccount() {
