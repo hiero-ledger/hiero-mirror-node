@@ -303,13 +303,6 @@ final class HookStorageChangeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(keysOutOfRange).isEmpty();
     }
 
-    private HookStorageChange persistChange(EntityId ownerId, long hookId) {
-        return domainBuilder
-                .hookStorageChange()
-                .customize(change -> change.hookId(hookId).ownerId(ownerId.getId()))
-                .persist();
-    }
-
     private HookStorageChange persistChange(EntityId ownerId, long hookId, byte[] key) {
         return domainBuilder
                 .hookStorageChange()
