@@ -11,7 +11,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.jooq.Field;
 import org.springframework.data.domain.Sort;

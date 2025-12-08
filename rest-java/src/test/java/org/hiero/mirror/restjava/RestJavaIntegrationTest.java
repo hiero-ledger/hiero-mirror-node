@@ -10,7 +10,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.config.CommonIntegrationTest;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
-import org.hiero.mirror.restjava.common.EntityIdRangeParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 
 public abstract class RestJavaIntegrationTest extends CommonIntegrationTest {
 
@@ -32,7 +32,7 @@ public abstract class RestJavaIntegrationTest extends CommonIntegrationTest {
     /**
      *  Generates a list of consecutive byte arrays based on 64 char hex strings
      */
-    public static List<byte[]> generateKeys(int count) {
+    protected static List<byte[]> generateKeys(int count) {
         var consecutiveKeys = new ArrayList<byte[]>(count);
 
         for (int i = 1; i <= count; i++) {
