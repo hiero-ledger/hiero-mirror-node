@@ -29,6 +29,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -380,7 +381,16 @@ public class MirrorNodeClient {
 
     public NetworkSupplyResponse getNetworkSupply() {
         String supplyEndpoint = "/network/supply";
-        return callConvertedRestEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
+        return callConvertedRestEndpoint(
+                supplyEndpoint, NetworkSupplyResponse.class, (restJavaResponse, restResponse) -> {
+                    assertThat(restJavaResponse)
+                            .returns(restResponse.getReleasedSupply(), NetworkSupplyResponse::getReleasedSupply)
+                            .returns(restResponse.getTotalSupply(), NetworkSupplyResponse::getTotalSupply)
+                            // restJava endpoint is queried after rest endpoint so the timestamp should be the same or
+                            // later
+                            .satisfies(s ->
+                                    assertThat(s.getTimestamp()).isGreaterThanOrEqualTo(restResponse.getTimestamp()));
+                });
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {
@@ -535,6 +545,15 @@ public class MirrorNodeClient {
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
+        return callConvertedRestEndpoint(
+                uri,
+                classType,
+                (restJavaResponse, restResponse) -> assertThat(restJavaResponse).isEqualTo(restResponse),
+                uriVariables);
+    }
+
+    private <T> T callConvertedRestEndpoint(
+            String uri, Class<T> classType, BiConsumer<T, T> asserter, Object... uriVariables) {
         final var restResponse = callRestEndpoint(uri, classType, uriVariables);
 
         if (restClient != restJavaClient) {
@@ -542,7 +561,7 @@ public class MirrorNodeClient {
             retryTemplate.execute(x -> {
                 final var restJavaResponse = callRestJavaEndpoint(uri, classType, uriVariables);
                 try {
-                    assertThat(restJavaResponse).isEqualTo(restResponse);
+                    asserter.accept(restJavaResponse, restResponse);
                 } catch (AssertionError e) {
                     throw new RuntimeException(e);
                 }

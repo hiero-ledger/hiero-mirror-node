@@ -12,7 +12,6 @@ import org.jspecify.annotations.NullMarked;
 /*
  * A hasher that computes the root hash of a perfect binary Merkle tree. The tree is padded with EMPTY_HASH leaves to
  * form a perfect binary tree if needed.
- *
  */
 @NullMarked
 final class PerfectBinaryTreeHasher {
