@@ -19,7 +19,7 @@ extra.apply {
     set("blockNodeVersion", "0.23.2")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.77.0")
-    set("jooq.version", "3.20.9") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
     set("protobufVersion", "4.33.1")
