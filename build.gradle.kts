@@ -16,13 +16,13 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.23.2")
+    set("blockNodeVersion", "0.24.0")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("grpcVersion", "1.77.0")
-    set("jooq.version", "3.20.9") // Must match buildSrc/build.gradle.kts
+    set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
-    set("protobufVersion", "4.33.1")
+    set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
     set("consensusNodeVersion", "0.69.0-rc.2")
@@ -91,7 +91,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.39.5")
+        api("software.amazon.awssdk:bom:2.40.3")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

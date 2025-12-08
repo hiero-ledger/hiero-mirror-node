@@ -6,7 +6,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
-import org.hiero.mirror.restjava.common.RangeParameter;
 
 public record TimestampParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 

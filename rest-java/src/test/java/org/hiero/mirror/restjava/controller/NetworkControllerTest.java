@@ -25,13 +25,13 @@ import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -646,7 +646,7 @@ final class NetworkControllerTest extends ControllerTest {
             validateError(
                     () -> restClient.get().uri("?q=invalid").retrieve().toEntity(String.class),
                     HttpClientErrorException.BadRequest.class,
-                    "Invalid parameter: 'q'. Valid values: totalcoins, circulating");
+                    "Failed to convert 'q'");
         }
 
         @Test
