@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package com.hedera.node.app.service.evm.store.contracts.precompile.codec;
+package org.hiero.mirror.web3.utils;
 
 import static com.hedera.node.app.service.evm.store.contracts.utils.EvmParsingConstants.ADDRESS_TUPLE;
 import static com.hedera.node.app.service.evm.store.contracts.utils.EvmParsingConstants.BIG_INTEGER_TUPLE;
@@ -20,6 +20,15 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.SUCCESS;
 
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.abi.TupleType;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.CustomFee;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmKey;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmNftInfo;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmTokenInfo;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.FixedFee;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.FractionalFee;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.RoyaltyFee;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.TokenExpiryInfo;
+import com.hedera.node.app.service.evm.store.contracts.precompile.codec.TokenKeyType;
 import com.hedera.node.app.service.evm.store.contracts.utils.EvmParsingConstants.FunctionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import edu.umd.cs.findbugs.annotations.NonNull;

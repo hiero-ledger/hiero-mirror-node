@@ -71,7 +71,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     @Override
-    public Account readFromDataSource(@NonNull AccountID key) {
+    protected Account readFromDataSource(@NonNull AccountID key) {
         if (!ContractCallContext.get().isBalanceCallSafe() && systemAccounts.contains(key)) {
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }

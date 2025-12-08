@@ -8,12 +8,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
 import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
-import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmEncodingFacade;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.web3.evm.contracts.operations.MirrorBlockHashOperation;
-import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -202,11 +199,6 @@ public class EvmConfiguration {
     }
 
     @Bean
-    EvmEncodingFacade provideEvmEncodingFacade() {
-        return new EvmEncodingFacade();
-    }
-
-    @Bean
     CreateOperationExternalizer createOperationExternalizer() {
         return new CreateOperationExternalizer() {
             @Override
@@ -225,12 +217,6 @@ public class EvmConfiguration {
     org.hyperledger.besu.evm.internal.EvmConfiguration provideEvmConfiguration() {
         return new org.hyperledger.besu.evm.internal.EvmConfiguration(
                 org.hyperledger.besu.evm.internal.EvmConfiguration.DEFAULT.jumpDestCacheWeightKB(), JOURNALED);
-    }
-
-    @Bean
-    MirrorBlockHashOperation provideMirrorBlockHashOperation(
-            GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
-        return new MirrorBlockHashOperation(gasCalculator, recordFileRepository);
     }
 
     @Bean

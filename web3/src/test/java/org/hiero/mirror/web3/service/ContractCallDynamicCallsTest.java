@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.hedera.services.utils.EntityIdUtils;
 import jakarta.annotation.PostConstruct;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -24,8 +23,6 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.ContextExtension;
-import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
@@ -38,11 +35,9 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-@ExtendWith(ContextExtension.class)
 class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final BigInteger DEFAULT_TOKEN_AMOUNT = BigInteger.ONE;
@@ -846,11 +841,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractEntityOptional =
                 commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
         final var contractEntity = contractEntityOptional.orElseThrow();
-        final var contractAccount =
-                accountReadableKVState.readFromDataSource(EntityIdUtils.toAccountId(contractEntity));
-        final var canonicalAddress = contractAccount.alias().length() > 0
-                ? contractAccount.alias().toByteArray()
-                : EvmTokenUtils.toAddress(contractEntity.toEntityId()).toArray();
+        final var canonicalAddress =
+                commonEntityAccessor.evmAddressFromId(contractEntity.toEntityId(), Optional.empty());
 
         // When
         final var functionCall = contract.call_getAddressThis();
@@ -869,11 +861,8 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         final var contractEntityOptional =
                 commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
         final var contractEntity = contractEntityOptional.orElseThrow();
-        final var contractAccount =
-                accountReadableKVState.readFromDataSource(EntityIdUtils.toAccountId(contractEntity));
-        final var canonicalAddress = contractAccount.alias().length() > 0
-                ? contractAccount.alias().toByteArray()
-                : EvmTokenUtils.toAddress(contractEntity.toEntityId()).toArray();
+        final var canonicalAddress =
+                commonEntityAccessor.evmAddressFromId(contractEntity.toEntityId(), Optional.empty());
 
         // When
         final var functionCall = contract.call_getAddressThis();

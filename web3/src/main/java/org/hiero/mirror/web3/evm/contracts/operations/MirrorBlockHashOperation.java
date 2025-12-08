@@ -25,7 +25,7 @@ import org.hyperledger.besu.evm.operation.BlockHashOperation;
  * returned as well.
  */
 @Named
-public class MirrorBlockHashOperation extends BlockHashOperation implements ModularizedOperation {
+class MirrorBlockHashOperation extends BlockHashOperation implements ModularizedOperation {
 
     private final RecordFileRepository recordFileRepository;
 

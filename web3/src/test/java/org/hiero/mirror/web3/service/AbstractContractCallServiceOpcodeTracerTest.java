@@ -35,7 +35,6 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOp
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -61,9 +60,6 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     @Resource
     protected CommonEntityAccessor commonEntityAccessor;
-
-    @Resource
-    protected AccountReadableKVState accountReadableKVState;
 
     @Captor
     private ArgumentCaptor<ContractDebugParameters> paramsCaptor;

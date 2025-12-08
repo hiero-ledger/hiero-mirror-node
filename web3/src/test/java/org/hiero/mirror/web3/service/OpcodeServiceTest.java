@@ -14,7 +14,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ED25519_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmEncodingFacade;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import java.math.BigInteger;
 import java.time.Instant;
@@ -35,12 +34,12 @@ import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
+import org.hiero.mirror.web3.utils.EvmEncodingFacade;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompile;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
@@ -51,14 +50,12 @@ import org.hiero.mirror.web3.web3j.generated.StorageContract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.web3j.abi.TypeEncoder;
 import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
-@ExtendWith(ContextExtension.class)
 class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     private static final long ZERO_AMOUNT = 0L;
@@ -66,7 +63,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     private static final String SUCCESS_PREFIX = "0x0000000000000000000000000000000000000000000000000000000000000020";
 
     private final OpcodeService opcodeService;
-    private final EvmEncodingFacade evmEncoder;
+    private final EvmEncodingFacade evmEncoder = new EvmEncodingFacade();
 
     @BeforeEach
     void configure() {
