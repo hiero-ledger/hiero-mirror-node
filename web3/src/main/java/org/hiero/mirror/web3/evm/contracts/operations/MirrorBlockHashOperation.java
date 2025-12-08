@@ -34,7 +34,7 @@ class MirrorBlockHashOperation extends BlockHashOperation implements Modularized
      *
      * @param gasCalculator the gas calculator
      */
-    public MirrorBlockHashOperation(GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
+    MirrorBlockHashOperation(GasCalculator gasCalculator, RecordFileRepository recordFileRepository) {
         super(gasCalculator);
         this.recordFileRepository = recordFileRepository;
     }
