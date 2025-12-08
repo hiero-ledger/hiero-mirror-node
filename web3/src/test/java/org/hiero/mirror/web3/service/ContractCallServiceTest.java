@@ -64,6 +64,7 @@ import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.State;
 import org.hyperledger.besu.datatypes.Address;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -1338,10 +1339,19 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     @Nested
     class DynamicBalanceValidationTests {
 
+        @BeforeEach
+        void setUp() {
+            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
+        }
+
+        @AfterEach
+        void tearDown() {
+            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        }
+
         @Test
         void balanceValidationEnabledWhenValueIsNonZero() {
             // Given
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
             final var receiver = accountEntityWithEvmAddressPersist();
             final var sender = accountEntityPersistCustomizable(
                     e -> e.type(EntityType.ACCOUNT).balance(100L));
@@ -1349,18 +1359,14 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 0L, 1000L);
 
             // Then
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                assertThatThrownBy(() -> contractExecutionService.processCall(params))
-                        .isInstanceOf(MirrorEvmTransactionException.class)
-                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
-            }
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+            assertThatThrownBy(() -> contractExecutionService.processCall(params))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         }
 
         @Test
         void balanceValidationEnabledWhenGasPriceIsNonZero() {
             // Given
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
             final var receiver = accountEntityWithEvmAddressPersist();
             final var sender = accountEntityPersistCustomizable(
                     e -> e.type(EntityType.ACCOUNT).balance(100L));
@@ -1368,31 +1374,25 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 1_000_000L, 0L);
 
             // Then
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                assertThatThrownBy(() -> contractExecutionService.processCall(params))
-                        .isInstanceOf(MirrorEvmTransactionException.class)
-                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
-            }
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+            assertThatThrownBy(() -> contractExecutionService.processCall(params))
+                    .isInstanceOf(MirrorEvmTransactionException.class)
+                    .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
         }
 
         @Test
         void balanceValidationDisabledWhenFromNotProvided() {
             // Given
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
             final var receiver = accountEntityWithEvmAddressPersist();
             final var params = getContractExecutionParametersWithGasAndValue(
                     Address.ZERO, getAliasAddressFromEntity(receiver), 0L, 0L);
 
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
         }
 
         @Test
         void balanceValidationDisabledWhenAllFieldsAreZero() {
             // Given
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
             final var receiver = accountEntityWithEvmAddressPersist();
             final var sender = accountEntityPersistCustomizable(
                     e -> e.type(EntityType.ACCOUNT).balance(100L));
@@ -1401,7 +1401,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
         }
     }
 

@@ -792,10 +792,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createFungibleToken() throws Exception {
         // Given
         final var value = 10000L * 100_000_000_000L;
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -837,10 +834,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         var decimals = BigInteger.valueOf(10L);
         var value = 10000L * 100_000_000L;
 
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -896,10 +890,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createNonFungibleTokenWithCustomFees() throws Exception {
         // Given
         var value = 10000L * 100_000_000L;
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -953,10 +944,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createNonFungibleToken() throws Exception {
         // Given
         var value = 10000L * 100_000_000L;
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -1033,13 +1021,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createFungibleTokenWithInheritKeysCall() throws Exception {
         // Given
         final var value = 10000 * 100_000_000L;
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
         final var sender =
                 accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-
-        accountBalanceRecordsPersist(sender);
 
         // When
         testWeb3jService.setValue(value);

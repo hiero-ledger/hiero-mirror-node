@@ -573,6 +573,18 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
+     * Method used to create an Entity of type account with sufficient balance for value transfers.
+     * This ensures the account has DEFAULT_ACCOUNT_BALANCE regardless of the overridePayerBalanceValidation setting.
+     * Use this when testing scenarios where value > 0 and balance validation is enabled.
+     *
+     * @return Entity that is persisted in the database with sufficient balance
+     */
+    protected Entity accountEntityWithSufficientBalancePersist() {
+        return accountEntityPersistCustomizable(
+                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+    }
+
+    /**
      * Method used to persist an Entity with customization provided in the customizer
      *
      * @param customizer - the consumer with which to customize the entity

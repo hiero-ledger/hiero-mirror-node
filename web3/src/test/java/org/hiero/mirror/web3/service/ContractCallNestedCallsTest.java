@@ -314,11 +314,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
-        final var treasury = accountEntityPersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -328,9 +324,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 defaultFreezeStatus,
                 treasury);
         testWeb3jService.setValue(CREATE_TOKEN_VALUE);
-        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
-        // Persist account balance records for sender
-        accountBalanceRecordsPersist(sender);
+        testWeb3jService.setSender(toAddress(treasury.toEntityId()).toHexString());
 
         // When
         final var result =
@@ -347,8 +341,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 contract.send_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                         tokenInfo, BigInteger.ONE, BigInteger.ONE, BigInteger.valueOf(CREATE_TOKEN_VALUE));
 
-        verifyEthCallAndEstimateGasWithValue(
-                functionCall, contract, toAddress(sender.toEntityId()), CREATE_TOKEN_VALUE);
+        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
     }
 
     @ParameterizedTest
@@ -370,11 +363,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
-        final var treasury = accountEntityPersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -384,9 +373,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 defaultFreezeStatus,
                 treasury);
         testWeb3jService.setValue(CREATE_TOKEN_VALUE);
-        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
-        // Persist account balance records for sender
-        accountBalanceRecordsPersist(sender);
+        testWeb3jService.setSender(toAddress(treasury.toEntityId()).toHexString());
 
         // When
         final var result = contract.call_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
@@ -401,8 +388,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         final var functionCall = contract.send_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                 tokenInfo, BigInteger.valueOf(CREATE_TOKEN_VALUE));
 
-        verifyEthCallAndEstimateGasWithValue(
-                functionCall, contract, toAddress(sender.toEntityId()), CREATE_TOKEN_VALUE);
+        verifyEthCallAndEstimateGasWithValue(functionCall, contract, toAddress(treasury.getId()), CREATE_TOKEN_VALUE);
     }
 
     @Test
@@ -457,10 +443,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     void nestedDeployTwoContracts() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
-        // Create sender with sufficient balance for value transfer
-        // With dynamic balance validation, value > 0 triggers validation
-        final var sender = accountEntityPersistCustomizable(
-                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithSufficientBalancePersist();
         testWeb3jService.setValue(100_000_000_000L);
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
         // When

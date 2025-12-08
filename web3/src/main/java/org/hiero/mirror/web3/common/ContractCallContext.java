@@ -87,18 +87,15 @@ public class ContractCallContext {
             return overridePayerBalanceValidation;
         }
 
-        if (callServiceParameters == null) {
-            return true;
-        }
-
-        if (callServiceParameters.getSender() == null
+        if (callServiceParameters == null
+                || callServiceParameters.getSender() == null
                 || callServiceParameters.getSender().isZero()) {
             return true;
         }
 
         // If sender is provided, check if gasPrice or value fields are non-zero
-        boolean hasGasPrice = callServiceParameters.getGasPrice() > 0;
-        boolean hasValue = callServiceParameters.getValue() > 0;
+        final var hasGasPrice = callServiceParameters.getGasPrice() > 0;
+        final var hasValue = callServiceParameters.getValue() > 0;
 
         // If any of these are non-zero, DON'T override (enable validation)
         if (hasGasPrice || hasValue) {

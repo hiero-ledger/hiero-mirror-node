@@ -725,8 +725,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         // With dynamic balance validation, value > 0 triggers validation
         final Entity senderEntity;
         if (transactionValue > 0) {
-            senderEntity = accountEntityPersistCustomizable(
-                    e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+            senderEntity = accountEntityWithSufficientBalancePersist();
             // Persist account balance records
             domainBuilder
                     .accountBalance()
