@@ -314,6 +314,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
+        final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
@@ -324,7 +325,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 defaultFreezeStatus,
                 treasury);
         testWeb3jService.setValue(CREATE_TOKEN_VALUE);
-        testWeb3jService.setSender(toAddress(treasury.toEntityId()).toHexString());
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
         final var result =
@@ -363,6 +364,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
+        final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
@@ -373,7 +375,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
                 defaultFreezeStatus,
                 treasury);
         testWeb3jService.setValue(CREATE_TOKEN_VALUE);
-        testWeb3jService.setSender(toAddress(treasury.toEntityId()).toHexString());
+        testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
         // When
         final var result = contract.call_createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
