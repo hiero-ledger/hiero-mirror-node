@@ -379,10 +379,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     @ValueSource(booleans = {true, false})
     void transferFunds(boolean longZeroAddressAllowed) {
         // Given
-        // Create sender with sufficient balance for value transfer + gas costs
-        // With the new dynamic balance validation, value > 0 triggers validation
-        final var sender =
-                accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
         final var receiver = accountEntityWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
 
@@ -746,10 +743,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
-        // Create payer with sufficient balance for value transfer + gas costs
-        // With the new dynamic balance validation, value > 0 triggers validation
-        final var payer =
-                accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+        final var payer = accountEntityWithSufficientBalancePersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         meterRegistry.clear();
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());

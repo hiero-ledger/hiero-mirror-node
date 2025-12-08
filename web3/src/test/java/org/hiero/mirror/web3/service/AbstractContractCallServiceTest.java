@@ -585,6 +585,17 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
+     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers.
+     * This ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations.
+     * Use this when testing scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
+     *
+     * @return Entity that is persisted in the database with evmAddress and sufficient balance
+     */
+    protected Entity accountEntityWithEvmAddressAndSufficientBalancePersist() {
+        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+    }
+
+    /**
      * Method used to persist an Entity with customization provided in the customizer
      *
      * @param customizer - the consumer with which to customize the entity
