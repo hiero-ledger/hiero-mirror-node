@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 import lombok.Builder;
 import lombok.Value;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 

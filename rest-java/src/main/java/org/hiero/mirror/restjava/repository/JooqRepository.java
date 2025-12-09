@@ -10,7 +10,7 @@ import static org.jooq.impl.DSL.noCondition;
 import java.util.Arrays;
 import java.util.List;
 import org.hiero.mirror.restjava.common.RangeOperator;
-import org.hiero.mirror.restjava.common.RangeParameter;
+import org.hiero.mirror.restjava.parameter.RangeParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.jooq.Condition;
 import org.jooq.Field;

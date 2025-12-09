@@ -12,7 +12,7 @@ import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class AccountBalanceRepositoryTest extends RestJavaIntegrationTest {
+final class AccountBalanceRepositoryTest extends RestJavaIntegrationTest {
 
     private final AccountBalanceRepository accountBalanceRepository;
 

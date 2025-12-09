@@ -26,16 +26,16 @@ import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.HookStorage;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
 import org.hiero.mirror.restjava.common.LinkFactory;
-import org.hiero.mirror.restjava.common.NumberRangeParameter;
 import org.hiero.mirror.restjava.common.RangeOperator;
-import org.hiero.mirror.restjava.common.SlotRangeParameter;
 import org.hiero.mirror.restjava.dto.HookStorageRequest;
 import org.hiero.mirror.restjava.dto.HooksRequest;
 import org.hiero.mirror.restjava.jooq.domain.tables.HookStorageChange;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
+import org.hiero.mirror.restjava.parameter.SlotRangeParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.HookService;
@@ -84,8 +84,8 @@ final class HooksController {
                     NumberRangeParameter[] hookId,
             @RequestParam(defaultValue = DEFAULT_LIMIT) @Positive @Max(MAX_LIMIT) int limit,
             @RequestParam(defaultValue = "desc") Sort.Direction order) {
-        final var hooksRequest = hooksRequest(ownerId, hookId, limit, order);
 
+        final var hooksRequest = hooksRequest(ownerId, hookId, limit, order);
         final var hooksServiceResponse = hookService.getHooks(hooksRequest);
         final var hooks = hookMapper.map(hooksServiceResponse);
 
@@ -112,19 +112,18 @@ final class HooksController {
             @RequestParam(defaultValue = "asc") Direction order) {
 
         final var request = hookStorageChangeRequest(ownerId, hookId, keys, timestamps, limit, order);
-        final var response = hookService.getHookStorage(request);
-
-        final var hookStorage = hookStorageMapper.map(response.storage());
-        final var hookStorageResponse = new HooksStorageResponse();
-
-        hookStorageResponse.setHookId(hookId);
-        hookStorageResponse.setOwnerId(response.ownerId().toString());
-        hookStorageResponse.setStorage(hookStorage);
+        final var hookStorageResult = hookService.getHookStorage(request);
+        final var hookStorage = hookStorageMapper.map(hookStorageResult.storage());
 
         final var sort = Sort.by(order, KEY);
         final var pageable = PageRequest.of(0, limit, sort);
         final var links = linkFactory.create(hookStorage, pageable, HOOK_STORAGE_EXTRACTOR);
+
+        final var hookStorageResponse = new HooksStorageResponse();
+        hookStorageResponse.setHookId(hookId);
         hookStorageResponse.setLinks(links);
+        hookStorageResponse.setOwnerId(hookStorageResult.ownerId().toString());
+        hookStorageResponse.setStorage(hookStorage);
 
         return ResponseEntity.ok(hookStorageResponse);
     }

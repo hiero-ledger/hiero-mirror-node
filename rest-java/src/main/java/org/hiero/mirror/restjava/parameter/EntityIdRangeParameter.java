@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.common;
+package org.hiero.mirror.restjava.parameter;
 
 import com.google.common.base.Splitter;
 import java.util.List;
@@ -8,6 +8,7 @@ import java.util.Objects;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.restjava.common.RangeOperator;
 
 public record EntityIdRangeParameter(RangeOperator operator, Long value) implements RangeParameter<Long> {
 

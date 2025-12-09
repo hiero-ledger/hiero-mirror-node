@@ -68,14 +68,13 @@ final class NetworkController {
     @GetMapping("/supply")
     ResponseEntity<?> getSupply(
             @RequestParam(required = false) @Size(max = 2) TimestampParameter[] timestamp,
-            @RequestParam(name = "q", required = false) String supplyType) {
-        final var type = SupplyType.of(supplyType);
+            @RequestParam(name = "q", required = false) SupplyType supplyType) {
         final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var networkSupply = networkService.getSupply(bound);
 
-        if (type != null) {
+        if (supplyType != null) {
             final var valueInTinyCoins =
-                    type == SupplyType.TOTALCOINS ? NetworkSupply.TOTAL_SUPPLY : networkSupply.releasedSupply();
+                    supplyType == SupplyType.TOTALCOINS ? NetworkSupply.TOTAL_SUPPLY : networkSupply.releasedSupply();
             final var formattedValue = networkSupplyMapper.convertToCurrencyFormat(valueInTinyCoins);
 
             return ResponseEntity.ok()

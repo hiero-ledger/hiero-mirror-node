@@ -81,11 +81,9 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/network/exchangerate'
-        {{- if .Values.routes.fees }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/fees$'
-        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
@@ -145,7 +143,6 @@ ingress:
         - path: '/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage'
         - path: '/api/v1/network/exchangerate'
         - path: '/api/v1/network/fees$'
-          condition: "{{ .Values.routes.fees }}"
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/network/supply$'
           condition: "{{ .Values.routes.supply }}"
@@ -330,7 +327,6 @@ resources:
 revisionHistoryLimit: 3
 
 routes:
-  fees: true
   supply: false
 
 securityContext:

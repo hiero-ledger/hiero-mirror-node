@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.common;
+package org.hiero.mirror.restjava.parameter;
 
 import static org.hiero.mirror.restjava.util.BytesUtil.decrementByteArray;
 import static org.hiero.mirror.restjava.util.BytesUtil.incrementByteArray;
@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.restjava.common.RangeOperator;
 
 public record SlotRangeParameter(RangeOperator operator, byte[] value) implements RangeParameter<byte[]> {
 

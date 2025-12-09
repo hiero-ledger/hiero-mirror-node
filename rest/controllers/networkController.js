@@ -14,10 +14,10 @@ import {
   responseHeadersLabel,
 } from '../constants';
 import {InvalidArgumentError, NotFoundError} from '../errors';
-import {AddressBookEntry, FileData} from '../model';
-import {FileDataService, NetworkNodeService} from '../service';
+import {AddressBookEntry} from '../model';
+import {NetworkNodeService} from '../service';
 import * as utils from '../utils';
-import {FeeScheduleViewModel, NetworkNodeViewModel, NetworkSupplyViewModel} from '../viewmodel';
+import {NetworkNodeViewModel, NetworkSupplyViewModel} from '../viewmodel';
 import EntityId from '../entityId';
 
 const networkNodesDefaultSize = 10;
@@ -25,7 +25,6 @@ const networkNodesMaxSize = 25;
 
 class NetworkController extends BaseController {
   static contentTypeTextPlain = 'text/plain; charset=utf-8';
-  acceptedFeesParameters = new Set([filterKeys.ORDER, filterKeys.TIMESTAMP]);
   acceptedNodeParameters = new Set([filterKeys.FILE_ID, filterKeys.LIMIT, filterKeys.NODE_ID, filterKeys.ORDER]);
   acceptedSupplyParameters = new Set([filterKeys.TIMESTAMP, filterKeys.Q]);
 
@@ -98,39 +97,6 @@ class NetworkController extends BaseController {
       order,
       limit,
     };
-  };
-
-  extractFileDataQuery = (filters) => {
-    // get the latest rate only. Since logic pulls most recent items order and limit are omitted in filterQuery
-    const filterQuery = {
-      whereQuery: [],
-    };
-    let order = orderFilterValues.ASC;
-
-    for (const filter of filters) {
-      if (_.isNil(filter)) {
-        continue;
-      }
-
-      if (filter.key === filterKeys.TIMESTAMP) {
-        if (utils.opsMap.ne === filter.operator) {
-          throw new InvalidArgumentError(`Not equals (ne) operator is not supported for ${filterKeys.TIMESTAMP}`);
-        }
-
-        // to ensure most recent occurrence is found convert eq to lte
-        if (utils.opsMap.eq === filter.operator) {
-          filter.operator = utils.opsMap.lte;
-        }
-
-        filterQuery.whereQuery.push(FileDataService.getFilterWhereCondition(FileData.CONSENSUS_TIMESTAMP, filter));
-      }
-
-      if (filter.key === filterKeys.ORDER) {
-        order = filter.value;
-      }
-    }
-
-    return {filterQuery, order};
   };
 
   extractSupplyQuery = (filters) => {
@@ -288,28 +254,6 @@ class NetworkController extends BaseController {
     } else {
       res.locals[responseDataLabel] = viewModel;
     }
-  };
-
-  /**
-   * Handler function for /network/fees API.
-   * @param {Request} req HTTP request object
-   * @param {Response} res HTTP response object
-   * @return {Promise<void>}
-   */
-  getFees = async (req, res) => {
-    const filters = utils.buildAndValidateFilters(req.query, this.acceptedFeesParameters);
-    const {filterQuery, order} = this.extractFileDataQuery(filters);
-
-    const [exchangeRate, feeSchedule] = await Promise.all([
-      FileDataService.getExchangeRate(filterQuery),
-      FileDataService.getFeeSchedule(filterQuery),
-    ]);
-
-    if (_.isNil(exchangeRate) || _.isNil(feeSchedule)) {
-      throw new NotFoundError('Not found');
-    }
-
-    res.locals[responseDataLabel] = new FeeScheduleViewModel(feeSchedule, exchangeRate, order);
   };
 }
 

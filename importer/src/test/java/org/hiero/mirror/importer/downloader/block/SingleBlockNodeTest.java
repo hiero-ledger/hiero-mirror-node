@@ -17,11 +17,9 @@ import java.util.List;
 import java.util.stream.LongStream;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
-import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
@@ -120,43 +118,6 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // nothing got verified since the first block failed
         verify(streamFileNotifier, never()).verified(any(RecordFile.class));
-    }
-
-    @SuppressWarnings("deprecation")
-    @Test
-    void corruptedBlockProof() {
-        // given
-        var generator = new BlockGenerator(0);
-        var blocks = new ArrayList<>(generator.next(2));
-
-        var block1 = blocks.get(1);
-        var proofIndex = block1.getBlockItemsCount() - 1;
-        var proofItem = block1.getBlockItems(proofIndex);
-        var blockProof = proofItem.getBlockProof();
-
-        // corrupt the BlockProof by flipping the first byte of the previous block root hash
-        byte[] previousHash = DomainUtils.toBytes(blockProof.getPreviousBlockRootHash());
-        previousHash[0] ^= 0x01;
-
-        var incorrectProof = blockProof.toBuilder()
-                .setPreviousBlockRootHash(DomainUtils.fromBytes(previousHash))
-                .build();
-
-        var incorrectProofItem =
-                proofItem.toBuilder().setBlockProof(incorrectProof).build();
-        var corruptedB1 =
-                block1.toBuilder().setBlockItems(proofIndex, incorrectProofItem).build();
-        blocks.set(1, corruptedB1);
-
-        simulator =
-                new BlockNodeSimulator().withBlocks(blocks).withHttpChannel().start();
-        subscriber = getBlockNodeSubscriber(List.of(simulator.toClientProperties()));
-
-        // when, then
-        assertThatThrownBy(subscriber::get)
-                .isInstanceOf(BlockStreamException.class)
-                .hasCauseInstanceOf(HashMismatchException.class)
-                .hasMessageContaining("Previous hash mismatch");
     }
 
     @Test

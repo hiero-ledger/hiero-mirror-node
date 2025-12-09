@@ -5,7 +5,7 @@ package org.hiero.mirror.restjava.dto;
 import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.springframework.data.domain.Sort;
 
