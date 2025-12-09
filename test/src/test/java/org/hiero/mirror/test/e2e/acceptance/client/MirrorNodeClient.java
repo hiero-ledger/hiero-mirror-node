@@ -375,7 +375,7 @@ public class MirrorNodeClient {
 
     public NetworkFeesResponse getNetworkFees() {
         String feesEndpoint = "/network/fees";
-        return callConvertedRestEndpoint(feesEndpoint, NetworkFeesResponse.class);
+        return callRestJavaEndpoint(feesEndpoint, NetworkFeesResponse.class);
     }
 
     public NetworkSupplyResponse getNetworkSupply() {
