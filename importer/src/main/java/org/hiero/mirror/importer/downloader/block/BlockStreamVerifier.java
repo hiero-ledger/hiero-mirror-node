@@ -19,8 +19,6 @@ import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.data.util.Version;
-import org.web3j.utils.Strings;
 
 @Named
 @NullMarked
@@ -28,10 +26,7 @@ final class BlockStreamVerifier {
 
     static final BlockFile EMPTY = BlockFile.builder().build();
 
-    private static final String EMPTY_HASH = Strings.repeat('0', 96);
-
     private final BlockFileTransformer blockFileTransformer;
-    private final BlockProperties blockProperties;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
@@ -44,12 +39,10 @@ final class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             BlockFileTransformer blockFileTransformer,
-            BlockProperties blockProperties,
             RecordFileRepository recordFileRepository,
             StreamFileNotifier streamFileNotifier,
             MeterRegistry meterRegistry) {
         this.blockFileTransformer = blockFileTransformer;
-        this.blockProperties = blockProperties;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
         this.meterRegistry = meterRegistry;
@@ -141,17 +134,6 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(BlockFile blockFile) {
-        final var consensusNodeVersion = blockFile.getBlockHeader().getSoftwareVersion();
-        final var version = new Version(
-                consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
-        if (version.isGreaterThanOrEqualTo(blockProperties.getNewRootHashAlgorithmVersion())) {
-            // Set both hash and previousHash to all 0s to pass parser validation, will remove when the complete support
-            // of redesigned block and state merkle tree is added
-            blockFile.setHash(EMPTY_HASH);
-            blockFile.setPreviousHash(EMPTY_HASH);
-            return;
-        }
-
         getExpectedPreviousHash().ifPresent(expected -> {
             if (!blockFile.getPreviousHash().contentEquals(expected)) {
                 throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
