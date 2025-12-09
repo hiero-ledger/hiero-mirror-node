@@ -4,13 +4,12 @@
 
 This design document outlines the implementation plan for supporting HIP-1340 EOA code delegation in the Hiero mirror node.
 The implementation will enable extraction, storage, and querying of code delegation data from consensus node transactions,
-performing `eth_call`, `eth_estimateGas` transactions with code delegations in the mirror node and querying the persisted
-code delegations from the existing REST APIs.
+performing `eth_call`, `eth_estimateGas` transactions with code delegations and querying the persisted code delegations
+from the existing REST APIs.
 
 ## Goals
 
 - Enhance the database schema to store code delegations
-- Ingest code delegation creation, update, and deletion transactions from the record stream
 - Ingest code delegation creations via `CryptoCreateTransactionBody` transactions
 - Ingest code delegation updates and deletions via `CryptoUpdateTransactionBody` transactions
 - Expose code delegation information via the existing account REST APIs with the new code field
@@ -28,8 +27,7 @@ The HIP-1340 implementation follows the established mirror node architecture pat
 
 1. **Transaction Processing**: Code delegation-related transactions are processed by dedicated transaction handlers
 2. **Database Storage**: Code delegation data is stored in normalized tables with proper indexing for efficient queries
-3. **REST APIs**: The existing accounts endpoints expose the new code delegation field. The existing contract endpoints will
-   be enhanced to work for EOAs with code delegations as if they are contracts.
+3. **REST APIs**: The existing accounts endpoints expose the new code delegation field called `code`. The existing contract endpoints will be enhanced to work for EOAs with code delegations as if they are contracts.
 4. **WEB3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas`.
 
 ## Background
@@ -56,7 +54,8 @@ GET /api/v1/accounts/{idOrAliasOrEvmAddress}
 ```
 
 In both API endpoints the returned account model will contain an additional parameter, named `code`. Its value will be
-the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`
+the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set or
+if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `code` field will be empty.
 
 ```
 GET /api/v1/contracts/results
@@ -95,8 +94,8 @@ create table if not exists code_delegation
 (
     entity_id              bigint,       not null,
     created_timestamp      bigint,       not null,
+    timestamp_range        int8range,    not null,
     delegation_identifier  bytea,        not null,
-    timestamp_range        int8range,
 
     primary key (entity_id)
 );
@@ -133,11 +132,17 @@ Create new domain classes following the EntityHistory pattern:
 
 ```java
 // common/src/main/java/org/hiero/mirror/common/domain/transaction/AbstractCodeDelegation.java
+@Upsertable(history = true)
 public abstract class AbstractCodeDelegation implements History {
 
+    @Id
     private EntityId entityId;
-    private Long createdTimestamp;
+
     private byte[] codeDelegation;
+
+    @Column(updatable = false)
+    private Long createdTimestamp;
+
     private Range<Long> timestampRange;
 
 }
@@ -295,6 +300,7 @@ search by contract id in the `codeDelegationRepository`.
 ### 1. Unit Tests
 
 - Transaction handler tests for code delegation persisting
+- `Eip7702EthereumTransactionParser` tests for transaction parsing
 - Repository tests for data access
 
 ### 2. Integration Tests
@@ -305,7 +311,7 @@ search by contract id in the `codeDelegationRepository`.
     - with a delegation to another EOA
     - with a delegation to a contract that needs funds to execute the transaction but the EOA does not have enough funds - to verify that the EOA's context is used as expected
     - with a delegation to a non-existing address - should result in a hollow account creation. The result is a no-op
-    - with a delegation to a system contract - should result in an error
+    - with a delegation to a system contract - should result in a no-op
   - REST spec tests that the `/accounts` endpoint returns the new `code` field as expected
 - Database migration tests
 
