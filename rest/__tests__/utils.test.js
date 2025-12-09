@@ -1929,60 +1929,6 @@ describe('Utils addHexPrefix tests', () => {
   });
 });
 
-describe('convertGasPriceToTinyBars', () => {
-  const defaultGasPrice = 852000;
-  const defaultHbars = 30000;
-  const defaultCents = 851000;
-  const specs = [
-    {
-      name: 'no args',
-      args: [],
-      expected: null,
-    },
-    {
-      name: 'zero cents',
-      args: [defaultGasPrice, defaultHbars, 0],
-      expected: null,
-    },
-    {
-      name: 'has undefined gasPrice',
-      args: [, defaultHbars, defaultCents],
-      expected: null,
-    },
-    {
-      name: 'has undefined hbars',
-      args: [defaultGasPrice, , defaultCents],
-      expected: null,
-    },
-    {
-      name: 'has undefined cents',
-      args: [defaultGasPrice, defaultHbars],
-      expected: null,
-    },
-    {
-      name: 'should return estimated tinybars',
-      args: [defaultGasPrice, defaultHbars, defaultCents],
-      expected: 30n,
-    },
-    {
-      name: 'should return estimated tinybars with rounding down',
-      args: [2 * defaultCents - 1, defaultHbars, defaultCents],
-      expected: 59n,
-    },
-    {
-      name: 'should return the minimum tinybars',
-      args: [1, defaultHbars, defaultCents],
-      expected: 1n,
-    },
-  ];
-
-  specs.forEach((spec) => {
-    test(spec.name, () => {
-      expect(utils.convertGasPriceToTinyBars(...spec.args)).toEqual(spec.expected);
-    });
-  });
-});
-
 describe('Utils getStakingPeriod tests', () => {
   const specs = [
     {

@@ -23,7 +23,6 @@ import TokenRelationshipViewModel from './tokenRelationshipViewModel';
 import TopicMessageViewModel from './topicMessageViewModel';
 import TransactionIdViewModel from './transactionIdViewModel';
 import BlockViewModel from './blockViewModel';
-import FeeScheduleViewModel from './feeScheduleViewModel';
 import ContractStateViewModel from './contractStateViewModel';
 
 export {
@@ -50,6 +49,5 @@ export {
   TopicMessageViewModel,
   TransactionIdViewModel,
   BlockViewModel,
-  FeeScheduleViewModel,
   ContractStateViewModel,
 };
