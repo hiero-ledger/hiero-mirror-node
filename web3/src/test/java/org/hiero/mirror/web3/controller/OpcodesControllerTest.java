@@ -358,7 +358,7 @@ class OpcodesControllerTest {
                         CONTRACT_EXECUTION_EXCEPTION, detailedErrorMessage, hexDataErrorMessage));
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isInternalServerError())
                 .andExpect(responseBody(new GenericErrorResponse(
                         CONTRACT_EXECUTION_EXCEPTION.name(), detailedErrorMessage, hexDataErrorMessage)));
     }

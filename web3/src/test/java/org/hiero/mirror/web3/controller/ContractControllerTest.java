@@ -411,6 +411,19 @@ class ContractControllerTest {
                                 new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
     }
 
+    @ValueSource(strings = {"CONTRACT_EXECUTION_EXCEPTION", "FAIL_INVALID"})
+    @ParameterizedTest
+    void callWithErrorStatusesProducesInternalServerErrorTest(String errorStatus) throws Exception {
+        final var request = request();
+        request.setData("0xa26388bb");
+
+        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(errorStatus, null, null, true));
+
+        contractCall(request)
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string(convert(new GenericErrorResponse(errorStatus, null, null))));
+    }
+
     @Test
     void callSuccess() throws Exception {
         final var request = request();

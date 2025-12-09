@@ -38,14 +38,10 @@ public class RestProperties implements ApiProperties {
     @DurationMin(millis = 100L)
     private Duration minBackoff = Duration.ofMillis(500L);
 
-    private boolean retryOnBadRequestException = true;
-
     // Don't retry negative test cases
     public boolean shouldRetry(Throwable t) {
         return !(t instanceof HttpClientErrorException e)
-                || (retryOnBadRequestException
-                        || e.getStatusCode() != HttpStatus.BAD_REQUEST
-                                && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED);
+                || e.getStatusCode() != HttpStatus.BAD_REQUEST && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED;
     }
 
     public String getBaseUrl() {

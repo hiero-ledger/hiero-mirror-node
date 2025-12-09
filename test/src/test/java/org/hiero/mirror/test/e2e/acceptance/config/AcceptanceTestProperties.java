@@ -54,7 +54,7 @@ public final class AcceptanceTestProperties {
     private int maxNodes = 10;
 
     @Max(15)
-    private int maxRetries = 8;
+    private int maxRetries = 2;
 
     @Min(1L)
     private long maxTinyBarTransactionFee = Hbar.from(50).toTinybars();

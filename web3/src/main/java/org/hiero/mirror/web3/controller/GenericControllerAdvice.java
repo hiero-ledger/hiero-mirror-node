@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -78,9 +80,17 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         final var childTransactionErrors = e.getChildTransactionErrors().stream()
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();
-        return new ResponseEntity<>(
-                new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
-                BAD_REQUEST);
+        if (e.getMessage() != null
+                && (FAIL_INVALID.name().equals(e.getMessage())
+                        || CONTRACT_EXECUTION_EXCEPTION.name().equals(e.getMessage()))) {
+            return new ResponseEntity<>(
+                    new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
+                    INTERNAL_SERVER_ERROR);
+        } else {
+            return new ResponseEntity<>(
+                    new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
+                    BAD_REQUEST);
+        }
     }
 
     @ExceptionHandler
