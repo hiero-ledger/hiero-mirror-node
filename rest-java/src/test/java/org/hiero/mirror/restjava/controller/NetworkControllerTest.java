@@ -21,6 +21,8 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.FeeEstimateRequest;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
@@ -32,6 +34,7 @@ import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -39,6 +42,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.data.domain.Sort;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
@@ -257,6 +261,12 @@ final class NetworkControllerTest extends ControllerTest {
             feeScheduleFile(feeSchedule.toByteArray());
             exchangeRateFile(exchangeRateSet.toByteArray());
             return uriSpec.uri("");
+        }
+
+        @Override
+        @Test
+        void methodNotAllowed() {
+            // Both GET and POST are supported on /network/fees (GET for fee schedule, POST for estimation)
         }
 
         @Test
@@ -824,6 +834,40 @@ final class NetworkControllerTest extends ControllerTest {
                             .persist();
                 }
             }
+        }
+    }
+
+    @DisplayName("/api/v1/network/fees POST")
+    @Nested
+    final class FeeEstimateEndpointTest {
+
+        private RestClient restClient;
+
+        @BeforeEach
+        void setup() {
+            restClient = restClientBuilder.build();
+        }
+
+        @Test
+        void estimateFees() {
+            // given
+            final var request = new FeeEstimateRequest()
+                    .mode(FeeEstimateRequest.ModeEnum.STATE)
+                    .transaction("CgYIgICABhICGAMSAhgEGgIIeBIGCICAgAYaAxiAgCA=");
+
+            // when
+            final var response = restClient
+                    .post()
+                    .uri("network/fees")
+                    .body(request)
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then
+            assertThat(response).isNotNull();
+            assertThat(response.getMode()).isEqualTo(FeeEstimateResponse.ModeEnum.STATE);
+            assertThat(response.getTotal()).isEqualTo("440000");
+            assertThat(response.getNotes().getFirst()).contains("not yet implemented");
         }
     }
 }

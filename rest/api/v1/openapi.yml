@@ -914,6 +914,27 @@ paths:
           $ref: "#/components/responses/ServiceUnavailableError"
       tags:
         - network
+    post:
+      summary: Estimate fees for a transaction
+      description: Returns an estimate of the fees required to submit a transaction to the network. This is a stub implementation that returns test data.
+      operationId: estimateFees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeeEstimateRequest"
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeEstimateResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+      tags:
+        - network
   /api/v1/network/nodes:
     get:
       summary: Get the network address book nodes
@@ -3088,6 +3109,124 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/NetworkFee"
+    FeeEstimateRequest:
+      type: object
+      required:
+        - mode
+        - transaction
+      properties:
+        mode:
+          type: string
+          description: The mode of fee estimation
+          enum:
+            - STATE
+            - INTRINSIC
+          example: STATE
+        transaction:
+          type: string
+          description: The base64-encoded raw HAPI transaction bytes
+          example: "CgYIgICABhICGAMSAhgEGgIIeBIGCICAgAYaAxiAgCA="
+    FeeEstimateResponse:
+      type: object
+      required:
+        - mode
+        - network
+        - node
+        - notes
+        - service
+        - total
+      properties:
+        mode:
+          type: string
+          description: The mode that was used to calculate the fees
+          enum:
+            - STATE
+            - INTRINSIC
+          example: STATE
+        network:
+          $ref: "#/components/schemas/NetworkFeeComponent"
+        node:
+          $ref: "#/components/schemas/FeeComponent"
+        notes:
+          type: array
+          description: Caveats or informational messages about the estimate
+          items:
+            type: string
+          example:
+            - "This API is not yet implemented and only returns fake test data"
+        service:
+          $ref: "#/components/schemas/FeeComponent"
+        total:
+          type: string
+          description: The sum of the network, node, and service subtotals in tinycents
+          example: "440000"
+    NetworkFeeComponent:
+      type: object
+      required:
+        - multiplier
+        - subtotal
+      properties:
+        multiplier:
+          type: integer
+          format: int32
+          description: Multiplied by the node fee to determine the total network fee
+          example: 2
+        subtotal:
+          type: string
+          description: The subtotal in tinycents for the network fee component
+          example: "220000"
+    FeeComponent:
+      type: object
+      required:
+        - base
+        - extras
+      properties:
+        base:
+          type: string
+          description: The base fee price in tinycents
+          example: "100000"
+        extras:
+          type: array
+          description: Extra fees that apply for this fee component
+          items:
+            $ref: "#/components/schemas/FeeExtra"
+    FeeExtra:
+      type: object
+      required:
+        - charged
+        - count
+        - fee_per_unit
+        - included
+        - name
+        - subtotal
+      properties:
+        charged:
+          type: integer
+          format: int32
+          description: The charged count of items as calculated by max(0, count - included)
+          example: 1
+        count:
+          type: integer
+          format: int32
+          description: The actual count of items received
+          example: 2
+        fee_per_unit:
+          type: string
+          description: The fee price per unit in tinycents
+          example: "10000"
+        included:
+          type: integer
+          format: int32
+          description: The count of this extra that is included for free
+          example: 1
+        name:
+          type: string
+          description: The unique name of this extra fee as defined in the fee schedule
+          example: "Test data"
+        subtotal:
+          type: string
+          description: The subtotal in tinycents for this extra fee
+          example: "10000"
     NetworkStakeResponse:
       type: object
       required:

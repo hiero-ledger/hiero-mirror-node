@@ -7,7 +7,12 @@ import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.FeeComponent;
+import org.hiero.mirror.rest.model.FeeEstimateRequest;
+import org.hiero.mirror.rest.model.FeeEstimateResponse;
+import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
+import org.hiero.mirror.rest.model.NetworkFeeComponent;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.SupplyType;
@@ -25,6 +30,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -83,5 +90,30 @@ final class NetworkController {
         }
 
         return ResponseEntity.ok(networkSupplyMapper.map(networkSupply));
+    }
+
+    @PostMapping("/fees")
+    FeeEstimateResponse estimateFees(@RequestBody FeeEstimateRequest request) {
+        final var feeExtra = new FeeExtra()
+                .charged(1)
+                .count(2)
+                .feePerUnit("10000")
+                .included(1)
+                .name("Test data")
+                .subtotal("10000");
+        final var feeComponent = new FeeComponent().base("100000").addExtrasItem(feeExtra);
+        final var networkFeeComponent = new NetworkFeeComponent().multiplier(2).subtotal("220000");
+
+        final var responseMode = request.getMode() == FeeEstimateRequest.ModeEnum.INTRINSIC
+                ? FeeEstimateResponse.ModeEnum.INTRINSIC
+                : FeeEstimateResponse.ModeEnum.STATE;
+
+        return new FeeEstimateResponse()
+                .mode(responseMode)
+                .network(networkFeeComponent)
+                .node(feeComponent)
+                .addNotesItem("This API is not yet implemented and only returns fake test data")
+                .service(feeComponent)
+                .total("440000");
     }
 }
