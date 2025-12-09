@@ -32,9 +32,9 @@ import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.store.accessor.EntityDatabaseAccessor;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
@@ -58,6 +58,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     @Resource
     protected EntityRepository entityRepository;
 
+    @Resource
+    protected CommonEntityAccessor commonEntityAccessor;
+
     @Captor
     private ArgumentCaptor<ContractDebugParameters> paramsCaptor;
 
@@ -67,38 +70,22 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     private HederaEvmTransactionProcessingResult resultCaptor;
     private ContractCallContext contextCaptor;
 
-    @Resource
-    private EntityDatabaseAccessor entityDatabaseAccessor;
-
     protected static void setOpcodeEndpoint() {
         EndpointContext.setCurrentEndpoint(OPCODES_URI);
     }
 
     @BeforeEach
     void setUpArgumentCaptors() {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-            doAnswer(invocation -> {
-                        final var transactionProcessingResult =
-                                (HederaEvmTransactionProcessingResult) invocation.callRealMethod();
-                        resultCaptor = transactionProcessingResult;
-                        contextCaptor = ContractCallContext.get();
-                        return transactionProcessingResult;
-                    })
-                    .when(processor)
-                    .execute(paramsCaptor.capture(), gasCaptor.capture());
-        } else {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-            doAnswer(invocation -> {
-                        final var transactionProcessingResult =
-                                (HederaEvmTransactionProcessingResult) invocation.callRealMethod();
-                        resultCaptor = transactionProcessingResult;
-                        contextCaptor = ContractCallContext.get();
-                        return transactionProcessingResult;
-                    })
-                    .when(transactionExecutionService)
-                    .execute(paramsCaptor.capture(), gasCaptor.capture());
-        }
+        mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
+        doAnswer(invocation -> {
+                    final var transactionProcessingResult =
+                            (HederaEvmTransactionProcessingResult) invocation.callRealMethod();
+                    resultCaptor = transactionProcessingResult;
+                    contextCaptor = ContractCallContext.get();
+                    return transactionProcessingResult;
+                })
+                .when(transactionExecutionService)
+                .execute(paramsCaptor.capture(), gasCaptor.capture());
     }
 
     protected void verifyOpcodeTracerCall(
@@ -197,12 +184,12 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
             final HederaEvmTransactionProcessingResult result, final List<Opcode> opcodes) {
         return new OpcodesResponse()
                 .address(result.getRecipient()
-                        .flatMap(address -> entityDatabaseAccessor.get(address, Optional.empty()))
+                        .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
                         .map(this::entityAddress)
                         .map(Address::toHexString)
                         .orElse(Address.ZERO.toHexString()))
                 .contractId(result.getRecipient()
-                        .flatMap(address -> entityDatabaseAccessor.get(address, Optional.empty()))
+                        .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
                         .map(Entity::toEntityId)
                         .map(EntityId::toString)
                         .orElse(null))

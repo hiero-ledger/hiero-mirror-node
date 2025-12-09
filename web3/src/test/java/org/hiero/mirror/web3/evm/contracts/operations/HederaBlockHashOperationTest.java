@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.units.bigints.UInt256;
-import org.hiero.mirror.web3.ContextExtension;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(ContextExtension.class)
 @ExtendWith(MockitoExtension.class)
 class HederaBlockHashOperationTest {
 
