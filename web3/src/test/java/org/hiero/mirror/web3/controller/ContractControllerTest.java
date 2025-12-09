@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -412,28 +413,21 @@ class ContractControllerTest {
                                 new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
     }
 
-    @ValueSource(
-            strings = {
-                "FAIL_INVALID",
-                "FAIL_FEE",
-                "FAIL_BALANCE",
-                "PLATFORM_NOT_ACTIVE",
-                "PLATFORM_TRANSACTION_NOT_CREATED",
-                "UNKNOWN",
-                "WAITING_FOR_LEDGER_ID"
-            })
     @ParameterizedTest
-    void callWithErrorStatusesProducesInternalServerErrorTest(String errorStatus) throws Exception {
+    @MethodSource("serverResponseCodes")
+    void callWithErrorStatusesProducesInternalServerErrorTest(ResponseCodeEnum responseCode) throws Exception {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any()))
-                .willThrow(
-                        new MirrorEvmTransactionException(ResponseCodeEnum.fromString(errorStatus), null, null, true));
+        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null, true));
 
         contractCall(request)
                 .andExpect(status().isInternalServerError())
-                .andExpect(content().string(convert(new GenericErrorResponse(errorStatus, null, null))));
+                .andExpect(content().string(convert(new GenericErrorResponse(responseCode.name(), null, null))));
+    }
+
+    private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
+        return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
     }
 
     @Test

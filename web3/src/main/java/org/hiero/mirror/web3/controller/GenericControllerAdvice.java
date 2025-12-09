@@ -57,7 +57,7 @@ import org.springframework.web.util.WebUtils;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
-    private static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
+    static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
             FAIL_INVALID,
             FAIL_FEE,
             FAIL_BALANCE,
@@ -98,7 +98,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();
 
-        if (e.getResponseCode() != null && SERVER_RESPONSE_CODES.contains(e.getResponseCode())) {
+        if (SERVER_RESPONSE_CODES.contains(e.getResponseCode())) {
             return new ResponseEntity<>(
                     new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
                     INTERNAL_SERVER_ERROR);
