@@ -53,7 +53,7 @@ public final class AcceptanceTestProperties {
     @Min(1)
     private int maxNodes = 10;
 
-    @Max(15)
+    @Max(5)
     private int maxRetries = 2;
 
     @Min(1L)

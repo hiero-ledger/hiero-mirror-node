@@ -41,7 +41,7 @@ public class RestProperties implements ApiProperties {
     // Don't retry negative test cases
     public boolean shouldRetry(Throwable t) {
         return !(t instanceof HttpClientErrorException e)
-                || e.getStatusCode() != HttpStatus.BAD_REQUEST && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED;
+                || (e.getStatusCode() != HttpStatus.BAD_REQUEST && e.getStatusCode() != HttpStatus.NOT_IMPLEMENTED);
     }
 
     public String getBaseUrl() {
