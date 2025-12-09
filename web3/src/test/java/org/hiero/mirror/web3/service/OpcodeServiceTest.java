@@ -63,7 +63,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     private static final String SUCCESS_PREFIX = "0x0000000000000000000000000000000000000000000000000000000000000020";
 
     private final OpcodeService opcodeService;
-    private final EvmEncodingFacade evmEncoder = new EvmEncodingFacade();
 
     @BeforeEach
     void configure() {
@@ -256,7 +255,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
         final var expectedResultBytes = tokenInfo.symbol.getBytes();
-        final var expectedResult = evmEncoder.encodeSymbol(tokenInfo.symbol).toHexString();
+        final var expectedResult =
+                EvmEncodingFacade.encodeSymbol(tokenInfo.symbol).toHexString();
 
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
@@ -293,7 +293,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
         final var expectedResultBytes = tokenInfo.name.getBytes();
-        final var expectedResult = evmEncoder.encodeName(tokenInfo.name).toHexString();
+        final var expectedResult = EvmEncodingFacade.encodeName(tokenInfo.name).toHexString();
 
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
@@ -332,7 +332,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
         final var expectedResultBytes = tokenInfo.memo.getBytes();
-        final var expectedResult = evmEncoder.encodeName(tokenInfo.memo).toHexString();
+        final var expectedResult = EvmEncodingFacade.encodeName(tokenInfo.memo).toHexString();
 
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
