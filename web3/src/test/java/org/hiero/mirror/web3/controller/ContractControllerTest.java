@@ -419,7 +419,6 @@ class ContractControllerTest {
                 "FAIL_BALANCE",
                 "PLATFORM_NOT_ACTIVE",
                 "PLATFORM_TRANSACTION_NOT_CREATED",
-                "TRANSACTION_EXPIRED",
                 "UNKNOWN",
                 "WAITING_FOR_LEDGER_ID"
             })

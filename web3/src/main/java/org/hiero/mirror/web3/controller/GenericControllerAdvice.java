@@ -7,7 +7,6 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_FEE;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_NOT_ACTIVE;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_TRANSACTION_NOT_CREATED;
-import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_EXPIRED;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.UNKNOWN;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.WAITING_FOR_LEDGER_ID;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -64,7 +63,6 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
             FAIL_BALANCE,
             PLATFORM_NOT_ACTIVE,
             PLATFORM_TRANSACTION_NOT_CREATED,
-            TRANSACTION_EXPIRED,
             UNKNOWN,
             WAITING_FOR_LEDGER_ID);
 
