@@ -156,6 +156,6 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThatThrownBy(subscriber::get)
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(InvalidStreamFileException.class)
-                .hasMessageContaining("Missing block proof in block");
+                .hasMessageContaining("Missing block footer in block");
     }
 }

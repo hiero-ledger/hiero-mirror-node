@@ -53,11 +53,11 @@ public final class BlockStreamReaderTest {
                     .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
                     .index(25L)
                     .name(BlockFile.getFilename(25, true))
                     .previousHash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                            "9cdd7fae144d0ba07b8a00a01d7056fb5e34c9507b8db520d41346f94e643f7d5524b4fd8ba4e5d05973d700e9835eee")
                     .roundStart(810L)
                     .roundEnd(844L)
                     .version(BlockStreamReader.VERSION)
@@ -68,11 +68,11 @@ public final class BlockStreamReaderTest {
                     .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                            "a8ee79046f3184f124e05faf51c0d6f615f2551b5c9d2d42991a8a315cdd2ff7163b42b9c04d0d8f5631d075a78a7fd0")
                     .index(26L)
                     .name(BlockFile.getFilename(26, true))
                     .previousHash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
                     .roundStart(845L)
                     .roundEnd(879L)
                     .version(BlockStreamReader.VERSION)
@@ -83,7 +83,7 @@ public final class BlockStreamReaderTest {
                     .count(722L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+                            "87b30cd9634a24ab500b72fecba90bd51a6a1a6de5570b18aea4ccd22c8936c6b77dc7d9ab931de9e2558418945cb96d")
                     .index(0L)
                     .name(BlockFile.getFilename(0, true))
                     .previousHash(
@@ -223,6 +223,7 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction())
                 .addItems(transactionResult(postBatchTransactionResult))
                 .addItems(stateChanges(postBatchStateChanges))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -295,6 +296,7 @@ public final class BlockStreamReaderTest {
                 .addItems(transactionResult(innerTransactionResult))
                 .addItems(signedTransaction())
                 .addItems(transactionResult(lastTransactionResult))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -331,6 +333,7 @@ public final class BlockStreamReaderTest {
                 .addItems(roundHeader())
                 .addItems(eventHeader())
                 .addItems(stateChanges)
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -383,7 +386,8 @@ public final class BlockStreamReaderTest {
             blockBuilder.addItems(blockFooter()).addItems(blockProof());
         }
 
-        final var block = blockBuilder.addItems(blockProof()).build();
+        final var block =
+                blockBuilder.addItems(blockFooter()).addItems(blockProof()).build();
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         // when
@@ -410,6 +414,7 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction(TransactionBody.newBuilder()
                         .setStateSignatureTransaction(StateSignatureTransaction.getDefaultInstance())
                         .build()))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -424,6 +429,18 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
+    void throwWhenMissingBlockFooter() {
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(blockProof())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        assertThatThrownBy(() -> reader.read(blockStream))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing block footer");
+    }
+
+    @Test
     void throwWhenMissingBlockHeader() {
         var block = Block.newBuilder().addItems(blockProof()).build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -434,8 +451,11 @@ public final class BlockStreamReaderTest {
 
     @Test
     void throwWhenMissingBlockProof() {
-        var block = Block.newBuilder().addItems(blockHeader()).build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(blockFooter())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
