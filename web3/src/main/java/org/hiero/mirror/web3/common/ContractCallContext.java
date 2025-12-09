@@ -77,33 +77,23 @@ public class ContractCallContext {
     @Setter
     private long gasRequirement;
 
-    @Setter
-    private Boolean overridePayerBalanceValidation;
-
     private ContractCallContext() {}
 
-    public boolean shouldOverridePayerBalanceValidation() {
-        if (overridePayerBalanceValidation != null) {
-            return overridePayerBalanceValidation;
-        }
-
+    /**
+     * Determines if payer balance validation should be performed.
+     * Balance validation is enabled when either gasPrice or value is greater than zero,
+     * and a valid sender is provided.
+     *
+     * @return true if balance validation should be performed, false otherwise
+     */
+    public boolean validatePayerBalance() {
         if (callServiceParameters == null
                 || callServiceParameters.getSender() == null
                 || callServiceParameters.getSender().isZero()) {
-            return true;
-        }
-
-        // If sender is provided, check if gasPrice or value fields are non-zero
-        final var hasGasPrice = callServiceParameters.getGasPrice() > 0;
-        final var hasValue = callServiceParameters.getValue() > 0;
-
-        // If any of these are non-zero, DON'T override (enable validation)
-        if (hasGasPrice || hasValue) {
             return false;
         }
 
-        // Otherwise, override validation
-        return true;
+        return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
     }
 
     public static ContractCallContext get() {
