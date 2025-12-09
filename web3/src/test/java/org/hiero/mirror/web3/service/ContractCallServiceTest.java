@@ -679,8 +679,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // When value > 0 is set with a non-zero sender, balance validation is ENABLED
         // regardless of the global overridePayerBalanceValidation flag
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Both cases should now fail with INSUFFICIENT_PAYER_BALANCE
-            // because value > 0 triggers balance validation
+            // Should fail with INSUFFICIENT_PAYER_BALANCE because value > 0 triggers balance validation
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
@@ -715,8 +714,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // When value > 0 is set with a non-zero sender, balance validation is ENABLED
         // regardless of the global overridePayerBalanceValidation flag
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Both cases should now fail with INSUFFICIENT_PAYER_BALANCE
-            // because value > 0 triggers balance validation
+            // Should fail with INSUFFICIENT_PAYER_BALANCE because value > 0 triggers balance validation
             assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
@@ -737,7 +735,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var contract = testWeb3jService.deploy(EthCall::deploy);
-        final var payer = accountEntityWithSufficientBalancePersist();
+        final var payer = accountEntityWithEvmAddressAndSufficientBalancePersist();
         accountBalancePersist(payer, payer.getCreatedTimestamp());
         meterRegistry.clear();
         testWeb3jService.setSender(toAddress(payer.toEntityId()).toHexString());
@@ -1304,8 +1302,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         void balanceValidationEnabledWhenValueIsNonZero() {
             // Given
             final var receiver = accountEntityWithEvmAddressPersist();
-            final var sender = accountEntityPersistCustomizable(
-                    e -> e.type(EntityType.ACCOUNT).balance(100L));
+            final var sender = accountEntityPersistCustomizable(e -> e.balance(100L));
             final var params = getContractExecutionParametersWithGasAndValue(
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 0L, 1000L);
 
@@ -1319,8 +1316,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         void balanceValidationEnabledWhenGasPriceIsNonZero() {
             // Given
             final var receiver = accountEntityWithEvmAddressPersist();
-            final var sender = accountEntityPersistCustomizable(
-                    e -> e.type(EntityType.ACCOUNT).balance(100L));
+            final var sender = accountEntityPersistCustomizable(e -> e.balance(100L));
             final var params = getContractExecutionParametersWithGasAndValue(
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 1_000_000L, 0L);
 
@@ -1345,8 +1341,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         void balanceValidationDisabledWhenAllFieldsAreZero() {
             // Given
             final var receiver = accountEntityWithEvmAddressPersist();
-            final var sender = accountEntityPersistCustomizable(
-                    e -> e.type(EntityType.ACCOUNT).balance(100L));
+            final var sender = accountEntityPersistCustomizable(e -> e.balance(100L));
             final var params = getContractExecutionParametersWithGasAndValue(
                     getAliasAddressFromEntity(sender), getAliasAddressFromEntity(receiver), 0L, 0L);
 
