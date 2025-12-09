@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_BALANCE;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_FEE;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
@@ -60,7 +59,6 @@ import org.springframework.web.util.WebUtils;
 class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     private static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
-            CONTRACT_EXECUTION_EXCEPTION,
             FAIL_INVALID,
             FAIL_FEE,
             FAIL_BALANCE,
