@@ -4,16 +4,12 @@ package com.hedera.services.utils;
 
 import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.evm.account.AccountAccessorImpl.EVM_ADDRESS_SIZE;
 
-import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.services.store.models.Id;
-import com.hedera.services.store.models.NftId;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.base.utility.CommonUtils;
@@ -71,24 +67,6 @@ public final class EntityIdUtils {
         return Address.wrap(Bytes.wrap(toEvmAddress(id)));
     }
 
-    public static AccountID toGrpcAccountId(final int code) {
-        var entityId = EntityId.of(code);
-
-        return AccountID.newBuilder()
-                .setShardNum(entityId.getShard())
-                .setRealmNum(entityId.getRealm())
-                .setAccountNum(entityId.getNum())
-                .build();
-    }
-
-    public static AccountID toGrpcAccountId(final Id id) {
-        return AccountID.newBuilder()
-                .setShardNum(id.shard())
-                .setRealmNum(id.realm())
-                .setAccountNum(id.num())
-                .build();
-    }
-
     public static EntityId toEntityId(final com.hedera.hapi.node.base.AccountID accountID) {
         return EntityId.of(accountID.shardNum(), accountID.realmNum(), accountID.accountNum());
     }
@@ -133,6 +111,15 @@ public final class EntityIdUtils {
         }
 
         return accountIdWithAlias != null ? accountIdWithAlias : toAccountId(entity.toEntityId());
+    }
+
+    private static com.hedera.hapi.node.base.AccountID toAccountId(
+            final Long shard, final Long realm, final byte[] alias) {
+        return com.hedera.hapi.node.base.AccountID.newBuilder()
+                .shardNum(shard)
+                .realmNum(realm)
+                .alias(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(alias))
+                .build();
     }
 
     public static com.hedera.hapi.node.base.AccountID toAccountId(final EntityId entityId) {
@@ -188,15 +175,6 @@ public final class EntityIdUtils {
         return Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(evmAddressBytes));
     }
 
-    private static com.hedera.hapi.node.base.AccountID toAccountId(
-            final Long shard, final Long realm, final byte[] alias) {
-        return com.hedera.hapi.node.base.AccountID.newBuilder()
-                .shardNum(shard)
-                .realmNum(realm)
-                .alias(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(alias))
-                .build();
-    }
-
     public static String asHexedEvmAddress(final AccountID id) {
         return CommonUtils.hex(toEvmAddress(id));
     }
@@ -213,10 +191,6 @@ public final class EntityIdUtils {
         return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
     }
 
-    public static boolean isAlias(final AccountID idOrAlias) {
-        return idOrAlias.getAccountNum() == 0 && !idOrAlias.getAlias().isEmpty();
-    }
-
     public static EntityId entityIdFromId(Id id) {
         try {
             if (id == null) {
@@ -226,13 +200,6 @@ public final class EntityIdUtils {
         } catch (InvalidEntityException e) {
             return EntityId.EMPTY;
         }
-    }
-
-    public static EntityId entityIdFromNftId(NftId id) {
-        if (id == null) {
-            return null;
-        }
-        return EntityId.of(id.shard(), id.realm(), id.num());
     }
 
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {
@@ -255,31 +222,5 @@ public final class EntityIdUtils {
             return null;
         }
         return new Id(entityId.getShard(), entityId.getRealm(), entityId.getNum());
-    }
-
-    public static String readableId(final Object o) {
-        if (o instanceof Id id) {
-            return String.format(ENTITY_ID_FORMAT, id.shard(), id.realm(), id.num());
-        }
-        if (o instanceof AccountID id) {
-            return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getAccountNum());
-        }
-        if (o instanceof TokenID id) {
-            return String.format(ENTITY_ID_FORMAT, id.getShardNum(), id.getRealmNum(), id.getTokenNum());
-        }
-        if (o instanceof NftID id) {
-            final var tokenID = id.getTokenID();
-            return String.format(
-                    ENTITY_ID_FORMAT + ".%d",
-                    tokenID.getShardNum(),
-                    tokenID.getRealmNum(),
-                    tokenID.getTokenNum(),
-                    id.getSerialNumber());
-        }
-        return String.valueOf(o);
-    }
-
-    public static boolean isAliasSizeGreaterThanEvmAddress(final ByteString alias) {
-        return alias.size() > EVM_ADDRESS_SIZE;
     }
 }

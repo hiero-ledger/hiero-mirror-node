@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {getOptionsWithScenario} from '../../../lib/common.js';
+
 const BASE_URL = __ENV.BASE_URL;
 
 // Read a full line containing only the JSON request body uncompressed.
@@ -12,7 +14,7 @@ const params = {
   },
 };
 
-const options = utils.getOptionsWithScenario('trafficReplay', null, {});
+const options = getOptionsWithScenario('trafficReplay', null, {});
 
 function parseRequests(fileContent) {
   const requests = [];

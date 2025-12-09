@@ -30,6 +30,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({OutputCaptureExtension.class})
 final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
+
     @AutoClose
     private BlockNodeSimulator nodeASimulator;
 

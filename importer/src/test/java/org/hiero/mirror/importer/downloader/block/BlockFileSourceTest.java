@@ -153,7 +153,7 @@ final class BlockFileSourceTest {
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, properties, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
+                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
