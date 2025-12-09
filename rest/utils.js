@@ -16,7 +16,7 @@ import EntityId from './entityId';
 import config from './config';
 import ed25519 from './ed25519';
 import {DbError, InvalidArgumentError, InvalidClauseError} from './errors';
-import {Entity, FeeSchedule, TransactionResult, TransactionType} from './model';
+import {Entity, TransactionResult, TransactionType} from './model';
 import {EvmAddressType} from './constants';
 
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
@@ -1686,28 +1686,6 @@ const conflictingPathParam = (req, paramName, possibleConflicts = []) => {
   pgRange.install(pg);
 })();
 
-/**
- * Converts gas price into tiny bars
- *
- * @param {number} gasPrice - gas price
- * @param {number} hbars - equivalent hbars from exchange rate
- * @param {number} cents - equivalent cents from exchange rate
- * @returns {BigInt|null} `null` if the gasPrice cannot be converted. The minimum value returned is 1n
- */
-const convertGasPriceToTinyBars = (gasPrice, hbars, cents) => {
-  if (!_.isNumber(gasPrice) || !_.isNumber(hbars) || !_.isNumber(cents)) {
-    return null;
-  }
-
-  cents = BigInt(cents);
-  if (cents === 0n) {
-    return null;
-  }
-
-  const fee = (BigInt(gasPrice) * BigInt(hbars)) / (cents * FeeSchedule.FEE_DIVISOR_FACTOR);
-  return bigIntMax(fee, 1n);
-};
-
 const boundToOp = {
   '(': opsMap.gt,
   '[': opsMap.gte,
@@ -1798,7 +1776,6 @@ export {
   calculateExpiryTimestamp,
   parseTimestampFilters,
   conflictingPathParam,
-  convertGasPriceToTinyBars,
   convertMySqlStyleQueryToPostgres,
   createTransactionId,
   encodeBase64,
