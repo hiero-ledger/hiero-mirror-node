@@ -21,6 +21,7 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.rest.model.FeeEstimateRequest;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
@@ -852,7 +853,7 @@ final class NetworkControllerTest extends ControllerTest {
         void estimateFees() {
             // given
             final var request = new FeeEstimateRequest()
-                    .mode(FeeEstimateRequest.ModeEnum.STATE)
+                    .mode(FeeEstimateMode.STATE)
                     .transaction("CgYIgICABhICGAMSAhgEGgIIeBIGCICAgAYaAxiAgCA=");
 
             // when
@@ -865,7 +866,7 @@ final class NetworkControllerTest extends ControllerTest {
 
             // then
             assertThat(response).isNotNull();
-            assertThat(response.getMode()).isEqualTo(FeeEstimateResponse.ModeEnum.STATE);
+            assertThat(response.getMode()).isEqualTo(FeeEstimateMode.STATE);
             assertThat(response.getTotal()).isEqualTo("440000");
             assertThat(response.getNotes().getFirst()).contains("not yet implemented");
         }

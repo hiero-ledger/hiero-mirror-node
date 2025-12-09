@@ -3109,6 +3109,13 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/NetworkFee"
+    FeeEstimateMode:
+      type: string
+      description: The mode of fee estimation
+      enum:
+        - STATE
+        - INTRINSIC
+      example: STATE
     FeeEstimateRequest:
       type: object
       required:
@@ -3116,12 +3123,7 @@ components:
         - transaction
       properties:
         mode:
-          type: string
-          description: The mode of fee estimation
-          enum:
-            - STATE
-            - INTRINSIC
-          example: STATE
+          $ref: "#/components/schemas/FeeEstimateMode"
         transaction:
           type: string
           description: The base64-encoded raw HAPI transaction bytes
@@ -3137,12 +3139,7 @@ components:
         - total
       properties:
         mode:
-          type: string
-          description: The mode that was used to calculate the fees
-          enum:
-            - STATE
-            - INTRINSIC
-          example: STATE
+          $ref: "#/components/schemas/FeeEstimateMode"
         network:
           $ref: "#/components/schemas/NetworkFeeComponent"
         node:

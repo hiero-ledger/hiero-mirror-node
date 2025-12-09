@@ -104,12 +104,8 @@ final class NetworkController {
         final var feeComponent = new FeeComponent().base("100000").addExtrasItem(feeExtra);
         final var networkFeeComponent = new NetworkFeeComponent().multiplier(2).subtotal("220000");
 
-        final var responseMode = request.getMode() == FeeEstimateRequest.ModeEnum.INTRINSIC
-                ? FeeEstimateResponse.ModeEnum.INTRINSIC
-                : FeeEstimateResponse.ModeEnum.STATE;
-
         return new FeeEstimateResponse()
-                .mode(responseMode)
+                .mode(request.getMode())
                 .network(networkFeeComponent)
                 .node(feeComponent)
                 .addNotesItem("This API is not yet implemented and only returns fake test data")
