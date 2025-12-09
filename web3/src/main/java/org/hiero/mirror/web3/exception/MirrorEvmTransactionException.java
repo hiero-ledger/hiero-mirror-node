@@ -4,8 +4,8 @@ package org.hiero.mirror.web3.exception;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -23,6 +23,7 @@ public class MirrorEvmTransactionException extends EvmException {
     @Serial
     private static final long serialVersionUID = 2244739157125796266L;
 
+    private ResponseCodeEnum responseCode;
     private final String detail;
     private final String data;
     private final Boolean isCallModularized;
@@ -34,6 +35,7 @@ public class MirrorEvmTransactionException extends EvmException {
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
         this(responseCode.name(), detail, hexData, null, null);
+        this.responseCode = responseCode;
     }
 
     public MirrorEvmTransactionException(
@@ -42,11 +44,11 @@ public class MirrorEvmTransactionException extends EvmException {
             final String hexData,
             final Boolean isCallModularized) {
         this(responseCode.name(), detail, hexData, null, isCallModularized);
+        this.responseCode = responseCode;
     }
 
-    public MirrorEvmTransactionException(
-            final String message, final String detail, final String hexData, final Boolean isCallModularized) {
-        this(message, detail, hexData, null, isCallModularized);
+    public MirrorEvmTransactionException(final String detail, final String hexData, final Boolean isCallModularized) {
+        this(null, detail, hexData, null, isCallModularized);
     }
 
     public MirrorEvmTransactionException(
@@ -63,13 +65,13 @@ public class MirrorEvmTransactionException extends EvmException {
     }
 
     public MirrorEvmTransactionException(
-            final String message,
+            final ResponseCodeEnum responseCode,
             final String detail,
             final String hexData,
             final HederaEvmTransactionProcessingResult result,
             final Boolean isCallModularized,
             final SequencedCollection<String> childTransactionErrors) {
-        this(message, detail, hexData, result, isCallModularized);
+        this(responseCode.name(), detail, hexData, result, isCallModularized);
         this.childTransactionErrors = childTransactionErrors;
     }
 

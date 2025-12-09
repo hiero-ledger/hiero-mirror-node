@@ -115,7 +115,7 @@ public abstract class ContractCallService {
                 validateResult(result, params);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, EMPTY, params.isModularized());
+            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, params.isModularized());
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();

@@ -3,7 +3,14 @@
 package org.hiero.mirror.web3.controller;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCEPTION;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_BALANCE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_FEE;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_NOT_ACTIVE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_TRANSACTION_NOT_CREATED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_EXPIRED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.UNKNOWN;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.WAITING_FOR_LEDGER_ID;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -12,6 +19,9 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import java.util.EnumSet;
+import java.util.Set;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -49,6 +59,17 @@ import org.springframework.web.util.WebUtils;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
+    private static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
+            CONTRACT_EXECUTION_EXCEPTION,
+            FAIL_INVALID,
+            FAIL_FEE,
+            FAIL_BALANCE,
+            PLATFORM_NOT_ACTIVE,
+            PLATFORM_TRANSACTION_NOT_CREATED,
+            TRANSACTION_EXPIRED,
+            UNKNOWN,
+            WAITING_FOR_LEDGER_ID);
+
     @Bean
     @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
     public WebMvcConfigurer corsConfigurer() {
@@ -80,9 +101,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         final var childTransactionErrors = e.getChildTransactionErrors().stream()
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();
-        if (e.getMessage() != null
-                && (FAIL_INVALID.name().equals(e.getMessage())
-                        || CONTRACT_EXECUTION_EXCEPTION.name().equals(e.getMessage()))) {
+
+        if (e.getResponseCode() != null && SERVER_RESPONSE_CODES.contains(e.getResponseCode())) {
             return new ResponseEntity<>(
                     new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
                     INTERNAL_SERVER_ERROR);

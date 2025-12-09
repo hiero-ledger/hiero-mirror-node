@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
@@ -411,13 +412,25 @@ class ContractControllerTest {
                                 new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
     }
 
-    @ValueSource(strings = {"CONTRACT_EXECUTION_EXCEPTION", "FAIL_INVALID"})
+    @ValueSource(
+            strings = {
+                "FAIL_INVALID",
+                "FAIL_FEE",
+                "FAIL_BALANCE",
+                "PLATFORM_NOT_ACTIVE",
+                "PLATFORM_TRANSACTION_NOT_CREATED",
+                "TRANSACTION_EXPIRED",
+                "UNKNOWN",
+                "WAITING_FOR_LEDGER_ID"
+            })
     @ParameterizedTest
     void callWithErrorStatusesProducesInternalServerErrorTest(String errorStatus) throws Exception {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(errorStatus, null, null, true));
+        given(service.processCall(any()))
+                .willThrow(
+                        new MirrorEvmTransactionException(ResponseCodeEnum.fromString(errorStatus), null, null, true));
 
         contractCall(request)
                 .andExpect(status().isInternalServerError())
