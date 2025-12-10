@@ -19,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.sun.jna.ptr.IntByReference;
@@ -795,8 +794,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected String getAddressFromEntityId(final EntityId entity) {
-        return HEX_PREFIX
-                + EntityIdUtils.asHexedEvmAddress(new Id(entity.getShard(), entity.getRealm(), entity.getNum()));
+        return HEX_PREFIX + EntityIdUtils.asHexedEvmAddress(entity);
     }
 
     protected String getAddressFromEvmAddress(final byte[] evmAddress) {

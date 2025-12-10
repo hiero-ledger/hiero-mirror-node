@@ -21,7 +21,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.LEDGER_ID;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import java.math.BigInteger;
@@ -439,8 +438,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 DEFAULT_NUMERATOR_VALUE,
                 DEFAULT_DENOMINATOR_VALUE,
                 DEFAULT_FEE_AMOUNT,
-                EntityIdUtils.asHexedEvmAddress(
-                        new Id(tokenEntityId.getShard(), tokenEntityId.getRealm(), tokenEntityId.getNum())),
+                EntityIdUtils.asHexedEvmAddress(tokenEntityId),
                 false,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())

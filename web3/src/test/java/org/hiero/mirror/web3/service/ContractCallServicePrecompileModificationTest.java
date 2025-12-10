@@ -29,7 +29,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
-import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -1654,10 +1653,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                treasuryAccountId != null
-                        ? asHexedEvmAddress(new Id(
-                                treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum()))
-                        : Address.ZERO.toHexString(),
+                treasuryAccountId != null ? asHexedEvmAddress(treasuryAccountId) : Address.ZERO.toHexString(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -1677,8 +1673,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                asHexedEvmAddress(
-                        new Id(treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum())),
+                asHexedEvmAddress(treasuryAccountId),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

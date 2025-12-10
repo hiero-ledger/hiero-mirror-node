@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
-import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -15,11 +14,9 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hyperledger.besu.datatypes.Address;
 
 public final class EntityIdUtils {
-    private static final String ENTITY_ID_FORMAT = "%d.%d.%d";
 
     private EntityIdUtils() {
         throw new UnsupportedOperationException("Utility Class");
@@ -43,16 +40,6 @@ public final class EntityIdUtils {
 
     public static ContractID contractIdFromEvmAddress(final Address address) {
         return contractIdFromEvmAddress(address.toArrayUnsafe());
-    }
-
-    public static TokenID tokenIdFromEvmAddress(final byte[] bytes) {
-        var entityId = fromEvmAddress(bytes);
-
-        return entityId == null ? TokenID.getDefaultInstance() : entityId.toTokenID();
-    }
-
-    public static TokenID tokenIdFromEvmAddress(final Address address) {
-        return tokenIdFromEvmAddress(address.toArrayUnsafe());
     }
 
     public static Address asTypedEvmAddress(final ContractID id) {
@@ -137,10 +124,6 @@ public final class EntityIdUtils {
         return new com.hedera.hapi.node.base.AccountID(shard, realm, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, num));
     }
 
-    public static com.hedera.hapi.node.base.FileID toFileId(final Long shard, final Long realm, final Long num) {
-        return new com.hedera.hapi.node.base.FileID(shard, realm, num);
-    }
-
     public static com.hedera.hapi.node.base.TokenID toTokenId(final Long entityId) {
         final var decodedEntityId = EntityId.of(entityId);
 
@@ -170,36 +153,12 @@ public final class EntityIdUtils {
                         .build();
     }
 
-    public static Address toAddress(final com.hedera.pbj.runtime.io.buffer.Bytes bytes) {
-        final var evmAddressBytes = bytes.toByteArray();
-        return Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(evmAddressBytes));
-    }
-
-    public static String asHexedEvmAddress(final AccountID id) {
+    public static String asHexedEvmAddress(final EntityId id) {
         return CommonUtils.hex(toEvmAddress(id));
-    }
-
-    public static String asHexedEvmAddress(final TokenID id) {
-        return CommonUtils.hex(toEvmAddress(id));
-    }
-
-    public static String asHexedEvmAddress(final Id id) {
-        return CommonUtils.hex(toEvmAddress(id.num()));
     }
 
     public static String asHexedEvmAddress(long id) {
         return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
-    }
-
-    public static EntityId entityIdFromId(Id id) {
-        try {
-            if (id == null) {
-                return null;
-            }
-            return EntityId.of(id.shard(), id.realm(), id.num());
-        } catch (InvalidEntityException e) {
-            return EntityId.EMPTY;
-        }
     }
 
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {
@@ -207,20 +166,5 @@ public final class EntityIdUtils {
             return null;
         }
         return EntityId.of(id.shardNum(), id.realmNum(), id.contractNum());
-    }
-
-    public static Id idFromEncodedId(Long encodedId) {
-        if (encodedId == null || encodedId == 0) {
-            return null;
-        }
-
-        return idFromEntityId(EntityId.of(encodedId));
-    }
-
-    public static Id idFromEntityId(EntityId entityId) {
-        if (entityId == null) {
-            return null;
-        }
-        return new Id(entityId.getShard(), entityId.getRealm(), entityId.getNum());
     }
 }

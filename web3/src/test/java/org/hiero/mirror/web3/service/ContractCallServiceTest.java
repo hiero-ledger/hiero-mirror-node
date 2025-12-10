@@ -36,7 +36,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -417,8 +416,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var systemAccount = systemAccountEntityWithEvmAddressPersist();
-        final var systemAccountAddress = EntityIdUtils.asHexedEvmAddress(
-                new Id(systemAccount.getShard(), systemAccount.getRealm(), systemAccount.getNum()));
+        final var systemAccountAddress = EntityIdUtils.asHexedEvmAddress(systemAccount.toEntityId());
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         meterRegistry.clear();
 

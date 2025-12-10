@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.state;
 
-import static com.hedera.services.utils.EntityIdUtils.entityIdFromId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -12,7 +11,6 @@ import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.services.store.models.Id;
 import java.util.Optional;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -43,12 +41,13 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByAddress() {
-        final var id = new Id(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
         var accountId = new AccountID(
                 COMMON_PROPERTIES.getShard(),
                 COMMON_PROPERTIES.getRealm(),
                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
-        when(entityRepository.findByIdAndDeletedIsFalse(entityIdFromId(id).getId()))
+        when(entityRepository.findByIdAndDeletedIsFalse(
+                        EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM)
+                                .getId()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(accountId, Optional.empty()))
@@ -57,12 +56,14 @@ class CommonEntityAccessorTest {
 
     @Test
     void getEntityByAddressHistorical() {
-        final var id = new Id(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM);
         var accountId = new AccountID(
                 COMMON_PROPERTIES.getShard(),
                 COMMON_PROPERTIES.getRealm(),
                 new OneOf<>(AccountOneOfType.ACCOUNT_NUM, NUM));
-        when(entityRepository.findActiveByIdAndTimestamp(entityIdFromId(id).getId(), timestamp.get()))
+        when(entityRepository.findActiveByIdAndTimestamp(
+                        EntityId.of(COMMON_PROPERTIES.getShard(), COMMON_PROPERTIES.getRealm(), NUM)
+                                .getId(),
+                        timestamp.get()))
                 .thenReturn(Optional.of(mockEntity));
 
         assertThat(commonEntityAccessor.get(accountId, timestamp))
