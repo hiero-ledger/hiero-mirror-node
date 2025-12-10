@@ -77,29 +77,7 @@ begin
 end;
 $$;
 
-create or replace view mirror_node_time_partitions as
-select
-  child.relname as name,
-  parent.relname as parent,
-  substring(
-    pg_get_expr(child.relpartbound, child.oid)
-    from $$FROM \('(\d+)'\)$$
-  )::bigint as from_timestamp,
-  substring(
-    pg_get_expr(child.relpartbound, child.oid)
-    from $$TO \('(\d+)'\)$$
-  )::bigint as to_timestamp
-from pg_inherits
-join pg_class as parent
-  on pg_inherits.inhparent = parent.oid
-join pg_class as child
-  on pg_inherits.inhrelid = child.oid
-where child.relkind = 'r'
-  and pg_get_expr(child.relpartbound, child.oid)
-        similar to $$FOR VALUES FROM \('[0-9]+'\) TO \('[0-9]+'\)$$
-order by parent, from_timestamp;
-
-create or replace function revert_partitioned_table(
+create or replace function undo_previous_migration(
   base_table_name text
 ) returns void
 language plpgsql
@@ -108,7 +86,23 @@ $$
 declare
   old_table_name text := base_table_name || '_old';
 begin
+  -- Only do anything if the *_old table exists
   if to_regclass(old_table_name) is not null then
+    -- Since partition table added in v1.89.2 was possibly being written to by historical balance service and the old
+    -- async migration BackfillAndDeduplicateBalanceMigration may not have completed, copy any missing data to the old
+    -- non-partitioned table before dropping the partitioned table
+    execute format(
+      $sql$
+      insert into %1$I
+      select *
+      from %2$I
+      where consensus_timestamp >
+        coalesce((select max(consensus_timestamp) from %1$I), 0)
+      $sql$,
+      old_table_name,
+      base_table_name
+    );
+
     execute format(
       'drop table if exists %I cascade',
       base_table_name
@@ -123,16 +117,16 @@ begin
 end;
 $$;
 
--- Functions added by removed migration v1.89.0
+-- Functions added by migration v1.89.1 that would have been dropped by removed async migration BackfillAndDeduplicateBalanceMigration
 drop function if exists create_full_account_balance_snapshot(bigint, bigint);
 drop function if exists create_deduped_account_balance_snapshot(bigint, bigint);
 drop function if exists create_full_token_balance_snapshot(bigint, bigint);
 drop function if exists create_deduped_token_balance_snapshot(bigint, bigint);
 
--- Undo partitioning changes from removed migration v1.89.0
-select revert_partitioned_table('account_balance');
-select revert_partitioned_table('token_balance');
-drop function if exists revert_partitioned_table(text);
+-- Undo partitioning changes from migration v1.89.2
+select undo_previous_migration('account_balance');
+select undo_previous_migration('token_balance');
+drop function if exists undo_previous_migration(text);
 
 alter table if exists account_balance rename to account_balance_old;
 alter index if exists account_balance__pk rename to account_balance_old__pk;

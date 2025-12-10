@@ -186,6 +186,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
                 && !entityProperties.getPersist().isEntityHistory()) {
             return;
         }
+
         context.merge(id, entity, this::mergeEntity);
         entityIdService.notify(entity);
     }

@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -33,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
 @NullMarked
-public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePartition> {
+final class ExpandBalancePartitionsMigration extends AsyncJavaMigration<Integer> {
     private static final String NEW_ACCOUNT_BALANCE_TABLE = "account_balance";
     private static final String DROP_OLD_TABLES_SQL =
             """
@@ -48,26 +49,21 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
     private static final String LAST_BALANCE_FILE =
             "select coalesce(max(consensus_timestamp), -1) from account_balance_file";
 
-    private static final String EXISTS_ACCOUNT_BALANCE_V2_RANGE_SQL =
+    private static final String PARTITION_BALANCE_EXISTS_SQL =
             """
-            select exists(
-              select 1
-              from account_balance
-              where consensus_timestamp >= :from
-                and consensus_timestamp <  :to
-              limit 1
-            )
-            """;
-
-    private static final String EXISTS_TOKEN_BALANCE_V2_RANGE_SQL =
-            """
-            select exists(
-              select 1
-              from token_balance
-              where consensus_timestamp >= :from
-                and consensus_timestamp <  :to
-              limit 1
-            )
+            select
+              exists(
+                select 1
+                from account_balance
+                where consensus_timestamp >= :from
+                  and consensus_timestamp < :to
+              )
+              or exists(
+                select 1
+                from token_balance
+                where consensus_timestamp >= :from
+                  and consensus_timestamp < :to
+              )
             """;
 
     private static final String INSERT_ACCOUNT_BALANCE_WINDOW_SQL =
@@ -149,7 +145,7 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
                         .toList();
         log.info("Performing synchronous steps for balance migration");
 
-        Boolean performAsync = getTransactionOperations().execute(status -> {
+        final var performAsync = getTransactionOperations().execute(status -> {
             final var maxBalanceFileTimestamp =
                     Objects.requireNonNull(getJdbcOperations().queryForObject(LAST_BALANCE_FILE, Long.class));
 
@@ -158,15 +154,14 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
                 return Boolean.FALSE;
             }
 
-            final var sixHoursNs = 6L * 60 * 60 * 1_000_000_000L;
+            final var sixHoursNs = Duration.ofHours(6).toNanos();
             final var minTimestamp = Math.max(0L, maxBalanceFileTimestamp - sixHoursNs);
 
             log.info(
                     "Synchronously backfilling partitions overlapping [{}, {}]", minTimestamp, maxBalanceFileTimestamp);
 
             while (partitionIndex.get() < accountBalancePartitions.size()) {
-                final var idx = partitionIndex.get();
-                final var partition = accountBalancePartitions.get(idx);
+                final var partition = accountBalancePartitions.get(partitionIndex.get());
                 final var range = partition.getTimestampRange();
                 final var from = range.lowerEndpoint();
                 final var to = range.upperEndpoint();
@@ -176,7 +171,7 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
                     break;
                 }
 
-                final var intersects = (from <= maxBalanceFileTimestamp);
+                final var intersects = from <= maxBalanceFileTimestamp;
 
                 if (intersects) {
                     log.info("Synchronously processing partition {}", range);
@@ -198,12 +193,13 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
     }
 
     @Override
-    protected TimePartition getInitial() {
-        return accountBalancePartitions.get(partitionIndex.getAndIncrement());
+    protected Integer getInitial() {
+        return partitionIndex.getAndIncrement();
     }
 
     @Override
-    protected Optional<TimePartition> migratePartial(TimePartition partition) {
+    protected Optional<Integer> migratePartial(Integer index) {
+        final var partition = accountBalancePartitions.get(index);
         processPartition(partition);
 
         if (partitionIndex.get() >= accountBalancePartitions.size()) {
@@ -211,7 +207,7 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
             return Optional.empty();
         }
 
-        return Optional.of(accountBalancePartitions.get(partitionIndex.getAndIncrement()));
+        return Optional.of(partitionIndex.getAndIncrement());
     }
 
     @Override
@@ -232,14 +228,12 @@ public class ExpandBalancePartitionsMigration extends AsyncJavaMigration<TimePar
                 .addValue("from", partition.getTimestampRange().lowerEndpoint())
                 .addValue("to", partition.getTimestampRange().upperEndpoint());
 
-        final var accountV2HasData = getNamedParameterJdbcOperations()
-                .queryForObject(EXISTS_ACCOUNT_BALANCE_V2_RANGE_SQL, params, Boolean.class);
-        final var tokenV2HasData = getNamedParameterJdbcOperations()
-                .queryForObject(EXISTS_TOKEN_BALANCE_V2_RANGE_SQL, params, Boolean.class);
+        final var partitionMigrated =
+                getNamedParameterJdbcOperations().queryForObject(PARTITION_BALANCE_EXISTS_SQL, params, Boolean.class);
 
-        if (Boolean.TRUE.equals(accountV2HasData) || Boolean.TRUE.equals(tokenV2HasData)) {
+        if (Boolean.TRUE.equals(partitionMigrated)) {
             log.info(
-                    "Skipping partition {} because v2 tables already have data in this range",
+                    "Skipping partition {} because balance tables already have data in this range",
                     partition.getTimestampRange());
         } else {
             final var tokenBalanceCount =
