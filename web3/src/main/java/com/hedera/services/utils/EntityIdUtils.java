@@ -11,7 +11,6 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.TokenID;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hyperledger.besu.datatypes.Address;
@@ -151,14 +150,6 @@ public final class EntityIdUtils {
                         .realmNum(entity.getRealm())
                         .contractNum(entity.getNum())
                         .build();
-    }
-
-    public static String asHexedEvmAddress(final EntityId id) {
-        return CommonUtils.hex(toEvmAddress(id));
-    }
-
-    public static String asHexedEvmAddress(long id) {
-        return CommonUtils.hex(toEvmAddress(EntityId.of(id)));
     }
 
     public static EntityId entityIdFromContractId(final com.hedera.hapi.node.base.ContractID id) {

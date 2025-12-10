@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.AbstractContractCallServiceTest.KeyType.FEE_SCHEDULE_KEY;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -438,7 +440,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
                 DEFAULT_NUMERATOR_VALUE,
                 DEFAULT_DENOMINATOR_VALUE,
                 DEFAULT_FEE_AMOUNT,
-                EntityIdUtils.asHexedEvmAddress(tokenEntityId),
+                CommonUtils.hex(toEvmAddress(tokenEntityId)),
                 false,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())

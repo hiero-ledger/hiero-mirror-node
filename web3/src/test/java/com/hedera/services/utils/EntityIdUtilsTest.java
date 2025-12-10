@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -85,7 +86,7 @@ class EntityIdUtilsTest {
 
     @Test
     void asSolidityAddressHexWorksProperlyForEncodedId() {
-        assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(ID));
+        assertEquals(EXPECTED_HEXED_ADDRESS, CommonUtils.hex(toEvmAddress(EntityId.of(ID))));
     }
 
     @Test

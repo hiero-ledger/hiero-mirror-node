@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.services.utils.EntityIdUtils;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
@@ -42,7 +44,7 @@ public class MirrorOperationActionTracer implements OperationTracer {
 
         if (recipientNum.isPresent()
                 && traceProperties.contractFilterCheck(
-                        EntityIdUtils.asHexedEvmAddress(((Entity) recipientNum.get()).getId()))) {
+                        CommonUtils.hex(toEvmAddress(((Entity) recipientNum.get()).getId())))) {
             return;
         }
 

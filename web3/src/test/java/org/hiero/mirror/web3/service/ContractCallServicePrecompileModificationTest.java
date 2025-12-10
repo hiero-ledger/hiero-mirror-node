@@ -9,13 +9,13 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 import static com.hedera.hapi.node.base.TokenType.FUNGIBLE_COMMON;
 import static com.hedera.hapi.node.base.TokenType.NON_FUNGIBLE_UNIQUE;
-import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static com.hedera.services.utils.EntityIdUtils.toContractID;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -1006,10 +1007,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         // Then
         if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var modularizedCall = contract.call_callNotExistingPrecompile(asHexedEvmAddress(token.getTokenId()));
+            final var modularizedCall =
+                    contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
             assertThat(Bytes.wrap(modularizedCall.send())).isEqualTo(Bytes.EMPTY);
         } else {
-            final var functionCall = contract.send_callNotExistingPrecompile(asHexedEvmAddress(token.getTokenId()));
+            final var functionCall =
+                    contract.send_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
             assertThatThrownBy(functionCall::send)
                     .isInstanceOf(MirrorEvmTransactionException.class)
                     .hasMessage(INVALID_TOKEN_ID.name());
@@ -1653,7 +1656,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                treasuryAccountId != null ? asHexedEvmAddress(treasuryAccountId) : Address.ZERO.toHexString(),
+                treasuryAccountId != null
+                        ? CommonUtils.hex(toEvmAddress(treasuryAccountId))
+                        : Address.ZERO.toHexString(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -1673,7 +1678,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                asHexedEvmAddress(treasuryAccountId),
+                CommonUtils.hex(toEvmAddress(treasuryAccountId)),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
