@@ -21,7 +21,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.LEDGER_ID;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import java.math.BigInteger;
@@ -43,6 +42,7 @@ import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTransfer;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContractHistorical.FixedFee;

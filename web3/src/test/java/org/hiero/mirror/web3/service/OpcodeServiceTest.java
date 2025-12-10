@@ -14,7 +14,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ED25519_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -39,6 +38,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.EvmEncodingFacade;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompile;

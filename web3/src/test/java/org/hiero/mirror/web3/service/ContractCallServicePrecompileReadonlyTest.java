@@ -7,6 +7,10 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.DELEGATABLE_CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ECDSA_SECPK256K1;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ED25519;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ED25519_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ECDSA_TYPE;
@@ -19,7 +23,6 @@ import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.Heder
 import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.TokenKey;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hederahashgraph.api.proto.java.Key;
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -42,6 +45,7 @@ import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContract;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.FixedFee;

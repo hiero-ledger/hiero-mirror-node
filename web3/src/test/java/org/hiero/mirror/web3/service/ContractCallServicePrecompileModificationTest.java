@@ -28,7 +28,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +49,7 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
