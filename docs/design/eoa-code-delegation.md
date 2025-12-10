@@ -45,35 +45,106 @@ and the transaction will be executed in the context of the EOA. For more detaile
 
 ## API Changes
 
-```
-GET /api/v1/accounts
-```
-
-```
-GET /api/v1/accounts/{idOrAliasOrEvmAddress}
-```
+- `GET /api/v1/accounts`
+- `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
 
 In both API endpoints the returned account model will contain an additional parameter, named `code`. Its value will be
 the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set or
 if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `code` field will be empty.
 
-```
-GET /api/v1/contracts/results
+> All `GET /api/v1/contracts/*` endpoints will be modified so that they work with an EOA account the same way as the
+> existing queries with contract id.
+
+In order to do this the existing DB queries need to be enhanced.
+
+- `GET api/v1/contracts`
+
+```sql
+select <needed_entity_and_contract_fields>, coalesce(${Contract.getFullName(Contract.RUNTIME_BYTECODE)}, ${CodeDelegation.getFullName(CodeDelegation.RUNTIME_BYTECODE)}) as runtime_bytecode
+from ${Entity.tableName} ${Entity.tableAlias}
+left join ${Contract.tableName} ${Contract.tableAlias}
+on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}
+left join ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
+on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
+whereQuery
+order by ${Entity.getFullName(Entity.ID)} ${order}
+limitQuery
 ```
 
+- `GET api/v1/contracts/{contractIdOrAddress}`
+
+After the existing query completes and if it returns no rows, a new query to the `code_delegation` table will be made.
+
+```sql
+select <needed_entity_and_code_delegation_fields>
+from ${Entity.tableName} ${Entity.tableAlias}
+left join ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
+on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
+where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
 ```
-GET /api/v1/contracts/results/{transactionIdOrHash}
+
+In case there is a timestamp passed in the request this query will be executed instead:
+
+```sql
+select <needed_entity_and_code_delegation_fields>
+from
+(
+    (
+        select <needed_entity_fields>
+        from ${Entity.tableName} ${Entity.tableAlias}
+        where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
+    )
+    union all
+    (
+        select <needed_entity_fields>
+        from ${Entity.historyTableName} ${Entity.tableAlias}
+        where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
+        order by lower(${Entity.TIMESTAMP_RANGE}) desc
+        limit 1
+    )
+    order by lower(${Entity.TIMESTAMP_RANGE}) desc
+    limit 1
+) as ${Entity.tableAlias}
+left join
+(
+    (
+        select <needed_code_delegation_fields>
+        from ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
+        where ${conditions.join(' and ')}
+    )
+    union all
+    (
+        select <needed_code_delegation_fields>
+        from ${CodeDelegation.historyTableName} ${CodeDelegation.tableAlias}
+        where ${conditions.join(' and ')}
+        order by lower(${CodeDelegation.TIMESTAMP_RANGE}) desc
+        limit 1
+    )
+    order by lower(${CodeDelegation.TIMESTAMP_RANGE}) desc
+    limit 1
+) as ${CodeDelegation.tableAlias}
+on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
 ```
 
-In both API endpoints the returned response needs to contain the new `authorization_list` bytes field.
+The combined query will be executed and returned as a result without a call to the `FileService` as there will be no file
+to fetch in case of code delegations.
 
-In all `GET /api/v1/contracts/*` endpoints the DB queries need to be modified so that they work with an EOA account the
-same way as the existing queries with contract id:
+- `GET /api/v1/contracts/{contractIdOrAddress}/results`
+- `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
+- `GET /api/v1/contracts/results`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}`
 
-1. Create a subquery that gets the contract id from the `contract` table. If it is found then return it. Otherwise, try to
-   find the id in the `code_delegation` table. We don't have an effective way to determine in which table to search directly,
-   so we keep the old implementation with priority.
-2. The rest of the join statements in the existing queries will remain the same.
+The returned response will contain the new `authorization_list` bytes field that comes from the ethereum table.
+
+- `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
+- `GET /api/v1/contracts/{contractIdOrAddress}/state`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}/opcodes`
+- `GET /api/v1/contracts/results/logs`
+
+No changes in the response format of these endpoints. The results will be fetched directly by contract id with the existing
+DB queries as during import there will be no difference between the contract result of a regular contract call and a contract
+result from an EOA code delegation call.
 
 ## Database Schema Design
 
