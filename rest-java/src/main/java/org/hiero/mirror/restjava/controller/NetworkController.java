@@ -8,8 +8,6 @@ import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
-import com.hederahashgraph.api.proto.java.TransactionBody;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -104,12 +102,10 @@ final class NetworkController {
             consumes = {"application/protobuf", "application/x-protobuf"},
             value = "/fees")
     FeeEstimateResponse estimateFees(
-            @NotNull @RequestBody Transaction transaction,
+            @RequestBody Transaction transaction,
             @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
         try {
-            final var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-            final var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
-            System.out.println(transactionBody);
+            SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
         } catch (InvalidProtocolBufferException e) {
             throw new IllegalArgumentException("Unable to parse SignedTransaction");
         }

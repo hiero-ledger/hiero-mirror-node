@@ -590,7 +590,7 @@ final class NetworkControllerTest extends ControllerTest {
         void invalidSignedTransaction() {
             // given
             final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
-            final var data = Transaction.newBuilder()
+            final var transaction = Transaction.newBuilder()
                     .setSignedTransactionBytes(bytes)
                     .build()
                     .toByteArray();
@@ -600,12 +600,30 @@ final class NetworkControllerTest extends ControllerTest {
                     () -> restClient
                             .post()
                             .uri("")
-                            .body(data)
+                            .body(transaction)
                             .contentType(MediaType.APPLICATION_PROTOBUF)
                             .retrieve()
                             .body(FeeEstimateResponse.class),
                     HttpClientErrorException.BadRequest.class,
                     "Unable to parse SignedTransaction");
+        }
+
+        @Test
+        void unsupportedMediaType() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.UnsupportedMediaType.class,
+                    "Content-Type 'application/json' is not supported");
         }
 
         private byte[] transaction() {
