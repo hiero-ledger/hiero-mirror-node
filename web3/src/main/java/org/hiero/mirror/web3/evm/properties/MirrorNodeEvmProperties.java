@@ -59,7 +59,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties implements EvmProperties {
 
-    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESS";
+    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESSES";
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
