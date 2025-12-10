@@ -2,18 +2,13 @@
 
 package org.hiero.mirror.web3.evm.config;
 
-import static org.hyperledger.besu.evm.internal.EvmConfiguration.WorldUpdaterMode.JOURNALED;
-
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
-import com.hedera.node.app.service.evm.contracts.operations.CreateOperationExternalizer;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -196,27 +191,6 @@ public class EvmConfiguration {
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME));
         caffeineCacheManager.setCaffeine(caffeine);
         return caffeineCacheManager;
-    }
-
-    @Bean
-    CreateOperationExternalizer createOperationExternalizer() {
-        return new CreateOperationExternalizer() {
-            @Override
-            public void externalize(final MessageFrame frame, final MessageFrame childFrame) {
-                // do nothing
-            }
-
-            @Override
-            public boolean shouldFailBasedOnLazyCreation(final MessageFrame frame, final Address contractAddress) {
-                return false;
-            }
-        };
-    }
-
-    @Bean
-    org.hyperledger.besu.evm.internal.EvmConfiguration provideEvmConfiguration() {
-        return new org.hyperledger.besu.evm.internal.EvmConfiguration(
-                org.hyperledger.besu.evm.internal.EvmConfiguration.DEFAULT.jumpDestCacheWeightKB(), JOURNALED);
     }
 
     @Bean
