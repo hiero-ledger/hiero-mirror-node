@@ -17,7 +17,7 @@ spec:
   driftDetection:
     mode: enabled
     ignore:
-      - paths: [ "" ]
+      - paths: [""]
         target:
           kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
   install:
