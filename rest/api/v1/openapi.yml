@@ -899,18 +899,6 @@ paths:
       parameters:
         - $ref: "#/components/parameters/orderQueryParam"
         - $ref: "#/components/parameters/timestampQueryParam"
-      requestBody:
-        content:
-          application/protobuf:
-            schema:
-              format: binary
-              type: string
-          application/x-protobuf:
-            schema:
-              format: binary
-              type: string
-        description: A protobuf encoded HAPI Transaction
-        required: true
       responses:
         200:
           description: OK
@@ -932,6 +920,18 @@ paths:
       operationId: estimateFees
       parameters:
         - $ref: "#/components/parameters/estimateModeQueryParam"
+      requestBody:
+        content:
+          application/protobuf:
+            schema:
+              format: binary
+              type: string
+          application/x-protobuf:
+            schema:
+              format: binary
+              type: string
+        description: A protobuf encoded HAPI Transaction
+        required: true
       responses:
         200:
           description: OK
