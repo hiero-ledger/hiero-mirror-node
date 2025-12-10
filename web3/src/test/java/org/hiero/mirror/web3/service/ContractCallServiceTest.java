@@ -60,7 +60,6 @@ import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
 import org.hiero.mirror.web3.web3j.generated.State;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -664,9 +663,9 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void transferExceedsBalance(boolean overridePayerBalance) {
+    void transferExceedsBalance(boolean validatePayerBalance) {
         // Given
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var senderEntity = accountEntityWithEvmAddressPersist();
@@ -675,30 +674,30 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.LATEST, Bytes.EMPTY, senderAddress, receiverAddress, value);
         // Then
-        // With the new dynamic balance validation logic:
-        // When value > 0 is set with a non-zero sender, balance validation is ENABLED
-        // regardless of the global overridePayerBalanceValidation flag
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Should fail with INSUFFICIENT_PAYER_BALANCE because value > 0 triggers balance validation
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+        if (validatePayerBalance) {
+            if (mirrorNodeEvmProperties.isModularizedServices()) {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+            } else {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(
+                                "Cannot remove %s wei from account, balance is only %s",
+                                toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
+            }
         } else {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(
-                            "Cannot remove %s wei from account, balance is only %s",
-                            toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
+            assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         }
         assertGasLimit(serviceParameters);
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void transferExceedsBalanceHistorical(boolean overridePayerBalance) {
+    void transferExceedsBalanceHistorical(boolean validatePayerBalance) {
         // Given
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
 
         final var blockNumber = 150L;
         final var historicalRange = setUpHistoricalContext(blockNumber);
@@ -710,23 +709,23 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var serviceParameters = getContractExecutionParametersWithValue(
                 BlockType.of("0x96"), Bytes.EMPTY, senderAddress, receiverAddress, value);
         // Then
-        // With the new dynamic balance validation logic:
-        // When value > 0 is set with a non-zero sender, balance validation is ENABLED
-        // regardless of the global overridePayerBalanceValidation flag
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Should fail with INSUFFICIENT_PAYER_BALANCE because value > 0 triggers balance validation
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+        if (validatePayerBalance) {
+            if (mirrorNodeEvmProperties.isModularizedServices()) {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(INSUFFICIENT_PAYER_BALANCE.name());
+            } else {
+                assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
+                        .isInstanceOf(MirrorEvmTransactionException.class)
+                        .hasMessage(
+                                "Cannot remove %s wei from account, balance is only %s",
+                                toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
+            }
         } else {
-            assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(
-                            "Cannot remove %s wei from account, balance is only %s",
-                            toHexWith64LeadingZeros(value), toHexWith64LeadingZeros(senderEntity.getBalance()));
+            assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         }
         assertGasLimit(serviceParameters);
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     @Test
@@ -1287,16 +1286,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     @Nested
     class DynamicBalanceValidationTests {
-
-        @BeforeEach
-        void setUp() {
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(true);
-        }
-
-        @AfterEach
-        void tearDown() {
-            mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
-        }
 
         @Test
         void balanceValidationEnabledWhenValueIsNonZero() {

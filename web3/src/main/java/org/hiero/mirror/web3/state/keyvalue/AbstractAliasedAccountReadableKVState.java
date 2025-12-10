@@ -166,11 +166,12 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
 
     private Long getBalanceOrDefaultToMinimum(final Entity entity, final Long balance) {
         final ContractCallContext context = ContractCallContext.get();
-        final var isBalanceCall = context.isBalanceCallSafe();
 
-        if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation() || context.validatePayerBalance()) {
+        if (mirrorNodeEvmProperties.isValidatePayerBalance() && context.validatePayerBalance()) {
             return Objects.requireNonNullElse(balance, 0L);
         }
+
+        final var isBalanceCall = context.isBalanceCallSafe();
         final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
 
         try {

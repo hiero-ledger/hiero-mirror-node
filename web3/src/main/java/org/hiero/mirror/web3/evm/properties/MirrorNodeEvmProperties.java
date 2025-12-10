@@ -200,7 +200,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private long minimumAccountBalance = 100_000_000_000_000_000L;
 
     @Getter
-    private boolean overridePayerBalanceValidation = true;
+    private boolean validatePayerBalance = true;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);

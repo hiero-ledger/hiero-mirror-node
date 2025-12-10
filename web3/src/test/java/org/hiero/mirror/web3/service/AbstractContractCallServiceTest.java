@@ -573,11 +573,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to create an Entity of type account with sufficient balance for value transfers.
-     * This ensures the account has DEFAULT_ACCOUNT_BALANCE regardless of the overridePayerBalanceValidation setting.
-     * Use this when testing scenarios where value > 0 and balance validation is enabled.
+     * Creates an Entity with sufficient balance for testing value transfers.
      *
-     * @return Entity that is persisted in the database with sufficient balance
+     * @return Entity that is persisted in the database with DEFAULT_ACCOUNT_BALANCE
      */
     protected Entity accountEntityWithSufficientBalancePersist() {
         return accountEntityPersistCustomizable(
@@ -907,14 +905,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Returns the default account balance depending on override setting.
+     * Returns the default account balance depending on validation setting.
      *
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
-                ? DEFAULT_SMALL_ACCOUNT_BALANCE
-                : DEFAULT_ACCOUNT_BALANCE;
+        return mirrorNodeEvmProperties.isValidatePayerBalance()
+                ? DEFAULT_ACCOUNT_BALANCE
+                : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {
