@@ -11,7 +11,10 @@ import com.hederahashgraph.api.proto.java.FeeComponents;
 import com.hederahashgraph.api.proto.java.FeeData;
 import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.TimestampSeconds;
+import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.text.MessageFormat;
 import java.util.List;
@@ -21,8 +24,6 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.FeeEstimateMode;
-import org.hiero.mirror.rest.model.FeeEstimateRequest;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
@@ -35,15 +36,16 @@ import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
@@ -243,7 +245,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
     }
 
-    @DisplayName("/api/v1/network/fees")
+    @DisplayName("GET /api/v1/network/fees")
     @Nested
     final class FeesEndpointTest extends EndpointTest {
 
@@ -262,12 +264,6 @@ final class NetworkControllerTest extends ControllerTest {
             feeScheduleFile(feeSchedule.toByteArray());
             exchangeRateFile(exchangeRateSet.toByteArray());
             return uriSpec.uri("");
-        }
-
-        @Override
-        @Test
-        void methodNotAllowed() {
-            // Both GET and POST are supported on /network/fees (GET for fee schedule, POST for estimation)
         }
 
         @Test
@@ -436,6 +432,13 @@ final class NetworkControllerTest extends ControllerTest {
                     "File %s not found".formatted(feeFileId));
         }
 
+        @Disabled("Both GET and POST are supported on /network/fees")
+        @Override
+        @Test
+        void methodNotAllowed() {
+            // ignore
+        }
+
         private FileData feeScheduleFile(final byte[] bytes) {
             return domainBuilder
                     .fileData()
@@ -502,6 +505,120 @@ final class NetworkControllerTest extends ControllerTest {
         private SystemFile<ExchangeRateSet> systemFileExchangeRate() {
             final var exchangeRateSet = exchangeRateSet(1); // Use consistent hbarEquiv for predictable gas calculations
             return new SystemFile<>(exchangeRateFile(exchangeRateSet.toByteArray()), exchangeRateSet);
+        }
+    }
+
+    @DisplayName("POST /api/v1/network/fees")
+    @Nested
+    final class FeesEstimateEndpointTest extends RestTest {
+
+        @Override
+        protected String getUrl() {
+            return "network/fees";
+        }
+
+        @ParameterizedTest
+        @ValueSource(strings = {"protobuf", "x-protobuf"})
+        void success(String mediaType) {
+            // given
+            final var transaction = transaction();
+
+            // when
+            final var actual = restClient
+                    .post()
+                    .uri("")
+                    .body(transaction)
+                    .contentType(new MediaType("application", mediaType))
+                    .retrieve()
+                    .body(FeeEstimateResponse.class);
+
+            // then
+            assertThat(actual).isNotNull().isEqualTo(NetworkController.FEE_ESTIMATE_RESPONSE);
+        }
+
+        @Test
+        void nullBody() {
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to read request");
+        }
+
+        @Test
+        void emptyBody() {
+            // given
+            final var transaction = new byte[0];
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to read request");
+        }
+
+        @Test
+        void invalidMode() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?mode=invalid")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Failed to convert 'mode'");
+        }
+
+        @Test
+        void invalidSignedTransaction() {
+            // given
+            final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
+            final var data = Transaction.newBuilder()
+                    .setSignedTransactionBytes(bytes)
+                    .build()
+                    .toByteArray();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("")
+                            .body(data)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Unable to parse SignedTransaction");
+        }
+
+        private byte[] transaction() {
+            final var transactionBody =
+                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var signedTransaction = SignedTransaction.newBuilder()
+                    .setBodyBytes(transactionBody)
+                    .build()
+                    .toByteString();
+            return Transaction.newBuilder()
+                    .setSignedTransactionBytes(signedTransaction)
+                    .build()
+                    .toByteArray();
         }
     }
 
@@ -835,40 +952,6 @@ final class NetworkControllerTest extends ControllerTest {
                             .persist();
                 }
             }
-        }
-    }
-
-    @DisplayName("/api/v1/network/fees POST")
-    @Nested
-    final class FeeEstimateEndpointTest {
-
-        private RestClient restClient;
-
-        @BeforeEach
-        void setup() {
-            restClient = restClientBuilder.build();
-        }
-
-        @Test
-        void estimateFees() {
-            // given
-            final var request = new FeeEstimateRequest()
-                    .mode(FeeEstimateMode.STATE)
-                    .transaction("CgYIgICABhICGAMSAhgEGgIIeBIGCICAgAYaAxiAgCA=");
-
-            // when
-            final var response = restClient
-                    .post()
-                    .uri("network/fees")
-                    .body(request)
-                    .retrieve()
-                    .body(FeeEstimateResponse.class);
-
-            // then
-            assertThat(response).isNotNull();
-            assertThat(response.getMode()).isEqualTo(FeeEstimateMode.STATE);
-            assertThat(response.getTotal()).isEqualTo("440000");
-            assertThat(response.getNotes().getFirst()).contains("not yet implemented");
         }
     }
 }

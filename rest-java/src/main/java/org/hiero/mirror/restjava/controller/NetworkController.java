@@ -5,14 +5,20 @@ package org.hiero.mirror.restjava.controller;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.Transaction;
+import com.hederahashgraph.api.proto.java.TransactionBody;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.rest.model.FeeComponent;
-import org.hiero.mirror.rest.model.FeeEstimateRequest;
+import org.hiero.mirror.rest.model.FeeEstimate;
+import org.hiero.mirror.rest.model.FeeEstimateMode;
+import org.hiero.mirror.rest.model.FeeEstimateNetwork;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
-import org.hiero.mirror.rest.model.NetworkFeeComponent;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.SupplyType;
@@ -41,6 +47,34 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class NetworkController {
 
+    static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
+
+    static {
+        final var feeExtra = new FeeExtra();
+        feeExtra.setCharged(1);
+        feeExtra.setCount(2);
+        feeExtra.setFeePerUnit(10_000L);
+        feeExtra.setIncluded(1);
+        feeExtra.setName("Test data");
+        feeExtra.setSubtotal(10_000L);
+
+        final var feeEstimate = new FeeEstimate();
+        feeEstimate.setBase(100_000L);
+        feeEstimate.setExtras(List.of(feeExtra));
+
+        final var network = new FeeEstimateNetwork();
+        network.setMultiplier(2);
+        network.setSubtotal(220_000L);
+
+        final var feeEstimateResponse = new FeeEstimateResponse();
+        feeEstimateResponse.setNotes(List.of("This API is not yet implemented and only returns stubbed test data"));
+        feeEstimateResponse.setNetwork(network);
+        feeEstimateResponse.setNode(feeEstimate);
+        feeEstimateResponse.setService(feeEstimate);
+        feeEstimateResponse.setTotal(440_000L);
+        FEE_ESTIMATE_RESPONSE = feeEstimateResponse;
+    }
+
     private final ExchangeRateMapper exchangeRateMapper;
     private final FeeScheduleMapper feeScheduleMapper;
     private final FileService fileService;
@@ -64,6 +98,23 @@ final class NetworkController {
         final var feeSchedule = fileService.getFeeSchedule(bound);
         final var exchangeRate = fileService.getExchangeRate(bound);
         return feeScheduleMapper.map(feeSchedule, exchangeRate, order);
+    }
+
+    @PostMapping(
+            consumes = {"application/protobuf", "application/x-protobuf"},
+            value = "/fees")
+    FeeEstimateResponse estimateFees(
+            @NotNull @RequestBody Transaction transaction,
+            @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
+        try {
+            final var signedTransaction = SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
+            final var transactionBody = TransactionBody.parseFrom(signedTransaction.getBodyBytes());
+            System.out.println(transactionBody);
+        } catch (InvalidProtocolBufferException e) {
+            throw new IllegalArgumentException("Unable to parse SignedTransaction");
+        }
+
+        return FEE_ESTIMATE_RESPONSE;
     }
 
     @GetMapping("/stake")
@@ -90,26 +141,5 @@ final class NetworkController {
         }
 
         return ResponseEntity.ok(networkSupplyMapper.map(networkSupply));
-    }
-
-    @PostMapping("/fees")
-    FeeEstimateResponse estimateFees(@RequestBody FeeEstimateRequest request) {
-        final var feeExtra = new FeeExtra()
-                .charged(1)
-                .count(2)
-                .feePerUnit("10000")
-                .included(1)
-                .name("Test data")
-                .subtotal("10000");
-        final var feeComponent = new FeeComponent().base("100000").addExtrasItem(feeExtra);
-        final var networkFeeComponent = new NetworkFeeComponent().multiplier(2).subtotal("220000");
-
-        return new FeeEstimateResponse()
-                .mode(request.getMode())
-                .network(networkFeeComponent)
-                .node(feeComponent)
-                .addNotesItem("This API is not yet implemented and only returns fake test data")
-                .service(feeComponent)
-                .total("440000");
     }
 }
