@@ -7,4 +7,5 @@ resources:
 - ../../base/testkube
 - helmrelease.yaml
 - sealed-secret.yaml
+- sealed-secret-grafana-cloud.yaml
 
