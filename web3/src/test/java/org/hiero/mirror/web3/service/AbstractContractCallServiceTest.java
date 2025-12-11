@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -19,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
-import com.hedera.services.store.models.Id;
 import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.sun.jna.ptr.IntByReference;
@@ -45,6 +45,7 @@ import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.balance.TokenBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -319,6 +320,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(data)
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
                 .isModularized(isModularized)
                 .isStatic(false)
@@ -572,6 +574,27 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
+     * Creates an Entity with sufficient balance for testing value transfers.
+     *
+     * @return Entity that is persisted in the database with DEFAULT_ACCOUNT_BALANCE
+     */
+    protected Entity accountEntityWithSufficientBalancePersist() {
+        return accountEntityPersistCustomizable(
+                e -> e.type(EntityType.ACCOUNT).evmAddress(null).alias(null).balance(DEFAULT_ACCOUNT_BALANCE));
+    }
+
+    /**
+     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers.
+     * This ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations.
+     * Use this when testing scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
+     *
+     * @return Entity that is persisted in the database with evmAddress and sufficient balance
+     */
+    protected Entity accountEntityWithEvmAddressAndSufficientBalancePersist() {
+        return accountEntityPersistCustomizable(e -> e.type(EntityType.ACCOUNT).balance(DEFAULT_ACCOUNT_BALANCE));
+    }
+
+    /**
      * Method used to persist an Entity with customization provided in the customizer
      *
      * @param customizer - the consumer with which to customize the entity
@@ -795,8 +818,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected String getAddressFromEntityId(final EntityId entity) {
-        return HEX_PREFIX
-                + EntityIdUtils.asHexedEvmAddress(new Id(entity.getShard(), entity.getRealm(), entity.getNum()));
+        return HEX_PREFIX + CommonUtils.hex(toEvmAddress(entity));
     }
 
     protected String getAddressFromEvmAddress(final byte[] evmAddress) {
@@ -883,14 +905,14 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Returns the default account balance depending on override setting.
+     * Returns the default account balance depending on validation setting.
      *
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
-                ? DEFAULT_SMALL_ACCOUNT_BALANCE
-                : DEFAULT_ACCOUNT_BALANCE;
+        return mirrorNodeEvmProperties.isValidatePayerBalance()
+                ? DEFAULT_ACCOUNT_BALANCE
+                : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {

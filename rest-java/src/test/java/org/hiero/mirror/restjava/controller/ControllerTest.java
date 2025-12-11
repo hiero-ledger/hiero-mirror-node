@@ -85,7 +85,7 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                 .contains(detail);
     }
 
-    protected abstract class EndpointTest {
+    protected abstract class RestTest {
 
         protected RestClient restClient;
 
@@ -96,6 +96,9 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
             var suffix = getUrl().replace("/api/v1/", "");
             restClient = restClientBuilder.baseUrl(baseUrl + suffix).build();
         }
+    }
+
+    protected abstract class EndpointTest extends RestTest {
 
         /*
          * This method allows subclasses to do any setup work like entity persistence and provide a default URI and

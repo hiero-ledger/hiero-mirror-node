@@ -10,6 +10,7 @@ import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.ModularizedOperation;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
@@ -60,7 +61,10 @@ class MirrorBlockHashOperation extends BlockHashOperation implements Modularized
         if (currentBlockNumber <= 0 || soughtBlock > currentBlockNumber) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
-            final var latestBlock = ContractCallContext.get().getRecordFile();
+            var latestBlock = ContractCallContext.get().getRecordFile();
+            if (latestBlock == null) {
+                latestBlock = recordFileRepository.findLatest().orElseThrow(BlockNumberNotFoundException::new);
+            }
             final var blockHash = getBlockHash(latestBlock);
             frame.pushStackItem(blockHash);
         } else {

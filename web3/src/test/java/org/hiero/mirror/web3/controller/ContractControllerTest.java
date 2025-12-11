@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
@@ -60,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -409,6 +411,23 @@ class ContractControllerTest {
                 .andExpect(content()
                         .string(convert(
                                 new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
+    }
+
+    @ParameterizedTest
+    @MethodSource("serverResponseCodes")
+    void callWithErrorStatusesProducesInternalServerErrorTest(ResponseCodeEnum responseCode) throws Exception {
+        final var request = request();
+        request.setData("0xa26388bb");
+
+        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null, true));
+
+        contractCall(request)
+                .andExpect(status().isInternalServerError())
+                .andExpect(content().string(convert(new GenericErrorResponse(responseCode.name(), null, null))));
+    }
+
+    private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
+        return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
     }
 
     @Test

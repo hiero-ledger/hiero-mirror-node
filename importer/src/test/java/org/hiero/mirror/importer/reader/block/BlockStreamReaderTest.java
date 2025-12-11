@@ -10,8 +10,6 @@ import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
 import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
-import com.hedera.hapi.block.stream.output.protoc.CreateScheduleOutput;
-import com.hedera.hapi.block.stream.output.protoc.SignScheduleOutput;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
@@ -50,42 +48,42 @@ public final class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1756926885008266625L)
-                    .consensusEnd(1756926887048223043L)
-                    .count(4L)
+                    .consensusStart(1764733132492007719L)
+                    .consensusEnd(1764733132492007719L)
+                    .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "6865f367aa335585aef74c9714a2211408424d26b779bbb03967303b538935aced9ee2c47587b966d3384171ad5821f9")
-                    .index(142L)
-                    .name(BlockFile.getFilename(142, true))
+                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
+                    .index(25L)
+                    .name(BlockFile.getFilename(25, true))
                     .previousHash(
-                            "b0c2f86aa1b71a90d636fdfe4cdb187c8140732c7e6818d9074a679fb6e00c3c6c530543bc2ccb85e19fbdb667fac71f")
-                    .roundStart(4929L)
-                    .roundEnd(4963L)
+                            "9cdd7fae144d0ba07b8a00a01d7056fb5e34c9507b8db520d41346f94e643f7d5524b4fd8ba4e5d05973d700e9835eee")
+                    .roundStart(810L)
+                    .roundEnd(844L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1756926888008165376L)
-                    .consensusEnd(1756926889028605543L)
-                    .count(4L)
+                    .consensusStart(1764733134591915512L)
+                    .consensusEnd(1764733134591915512L)
+                    .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "9874981fcf657cf4f42ecf8fd0f9dafcc2a9e49d212624631b31289f6fff1484775389f40d44a42596f2b52d56471c17")
-                    .index(143L)
-                    .name(BlockFile.getFilename(143, true))
+                            "a8ee79046f3184f124e05faf51c0d6f615f2551b5c9d2d42991a8a315cdd2ff7163b42b9c04d0d8f5631d075a78a7fd0")
+                    .index(26L)
+                    .name(BlockFile.getFilename(26, true))
                     .previousHash(
-                            "6865f367aa335585aef74c9714a2211408424d26b779bbb03967303b538935aced9ee2c47587b966d3384171ad5821f9")
-                    .roundStart(4964L)
-                    .roundEnd(4998L)
+                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
+                    .roundStart(845L)
+                    .roundEnd(879L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1755661847138340948L)
-                    .consensusEnd(1755661847138341669L)
+                    .consensusStart(1764733073872562823L)
+                    .consensusEnd(1764733073872563544L)
                     .count(722L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "46855633dbd4fcc466353127bce879856645cc2efed9b4b9f0227ab6619288d3075728ed594992a743de32fcd20efd4b")
+                            "87b30cd9634a24ab500b72fecba90bd51a6a1a6de5570b18aea4ccd22c8936c6b77dc7d9ab931de9e2558418945cb96d")
                     .index(0L)
                     .name(BlockFile.getFilename(0, true))
                     .previousHash(
@@ -225,6 +223,7 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction())
                 .addItems(transactionResult(postBatchTransactionResult))
                 .addItems(stateChanges(postBatchStateChanges))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -297,6 +296,7 @@ public final class BlockStreamReaderTest {
                 .addItems(transactionResult(innerTransactionResult))
                 .addItems(signedTransaction())
                 .addItems(transactionResult(lastTransactionResult))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -325,129 +325,6 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
-    void readScheduleCreateAndTriggeredScheduledTransaction() {
-        // given
-        var scheduleCreateRecordItem = recordItemBuilder.scheduleCreate().build();
-        var scheduleCreateTransactionResult = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        scheduleCreateRecordItem.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        var scheduledTransactionId = scheduleCreateRecordItem.getTransactionRecord().getTransactionID().toBuilder()
-                .setScheduled(true)
-                .build();
-        var scheduleCreateTransactionOutput = TransactionOutput.newBuilder()
-                .setCreateSchedule(CreateScheduleOutput.newBuilder().setScheduledTransactionId(scheduledTransactionId))
-                .build();
-        var consensusSubmitMessageRecordItem = recordItemBuilder
-                .consensusSubmitMessage()
-                .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
-                .build();
-        var consensusSubmitMessageResult = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        consensusSubmitMessageRecordItem.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        var block = Block.newBuilder()
-                .addItems(blockHeader())
-                .addItems(roundHeader())
-                .addItems(eventHeader())
-                .addItems(signedTransaction(scheduleCreateRecordItem.getTransactionBody()))
-                .addItems(transactionResult(scheduleCreateTransactionResult))
-                .addItems(transactionOutput(scheduleCreateTransactionOutput))
-                .addItems(signedTransaction(consensusSubmitMessageRecordItem.getTransactionBody()))
-                .addItems(transactionResult(consensusSubmitMessageResult))
-                .addItems(blockProof())
-                .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-
-        // when
-        var blockFile = reader.read(blockStream);
-
-        // then
-        assertThat(blockFile.getItems())
-                .hasSize(2)
-                .satisfies(
-                        items -> assertThat(items.getFirst().getTrigger()).isNull(),
-                        items -> assertThat(items.get(1).getTrigger()).isEqualTo(items.getFirst()));
-    }
-
-    @Test
-    void readScheduleCreateAndSignAndScheduledTransaction() {
-        // given
-        // schedule create
-        var scheduleCreateRecordItem = recordItemBuilder.scheduleCreate().build();
-        var scheduleCreateTransactionResult = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        scheduleCreateRecordItem.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        var scheduledTransactionId = scheduleCreateRecordItem.getTransactionRecord().getTransactionID().toBuilder()
-                .setScheduled(true)
-                .build();
-        // schedule create didn't trigger the scheduled transaction
-        var scheduleCreateTransactionOutput = TransactionOutput.newBuilder()
-                .setCreateSchedule(CreateScheduleOutput.getDefaultInstance())
-                .build();
-        // schedule sign 1
-        var scheduleSignRecordItem1 = recordItemBuilder.scheduleCreate().build();
-        var scheduleSignTransactionResult1 = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        scheduleSignRecordItem1.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        // first schedule sign didn't trigger the scheduled transaction
-        var scheduleSignTransactionOutput1 = TransactionOutput.newBuilder()
-                .setSignSchedule(SignScheduleOutput.getDefaultInstance())
-                .build();
-        // schedule sign 2
-        var scheduleSignRecordItem2 = recordItemBuilder.scheduleCreate().build();
-        var scheduleSignTransactionResult2 = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        scheduleSignRecordItem2.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        // second schedule sign triggered the scheduled transaction
-        var scheduleSignTransactionOutput2 = TransactionOutput.newBuilder()
-                .setSignSchedule(SignScheduleOutput.newBuilder().setScheduledTransactionId(scheduledTransactionId))
-                .build();
-        // scheduled transaction
-        var consensusSubmitMessageRecordItem = recordItemBuilder
-                .consensusSubmitMessage()
-                .transactionBodyWrapper(w -> w.setTransactionID(scheduledTransactionId))
-                .build();
-        var consensusSubmitMessageResult = TransactionResult.newBuilder()
-                .setConsensusTimestamp(
-                        consensusSubmitMessageRecordItem.getTransactionRecord().getConsensusTimestamp())
-                .build();
-        var block = Block.newBuilder()
-                .addItems(blockHeader())
-                .addItems(roundHeader())
-                .addItems(eventHeader())
-                .addItems(signedTransaction(scheduleCreateRecordItem.getTransactionBody()))
-                .addItems(transactionResult(scheduleCreateTransactionResult))
-                .addItems(transactionOutput(scheduleCreateTransactionOutput))
-                .addItems(signedTransaction(scheduleSignRecordItem1.getTransactionBody()))
-                .addItems(transactionResult(scheduleSignTransactionResult1))
-                .addItems(transactionOutput(scheduleSignTransactionOutput1))
-                .addItems(signedTransaction(scheduleSignRecordItem2.getTransactionBody()))
-                .addItems(transactionResult(scheduleSignTransactionResult2))
-                .addItems(transactionOutput(scheduleSignTransactionOutput2))
-                .addItems(signedTransaction(consensusSubmitMessageRecordItem.getTransactionBody()))
-                .addItems(transactionResult(consensusSubmitMessageResult))
-                .addItems(blockProof())
-                .build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
-
-        // when
-        var blockFile = reader.read(blockStream);
-
-        // then
-        assertThat(blockFile.getItems())
-                .hasSize(4)
-                .satisfies(
-                        items -> assertThat(items.getFirst().getTrigger()).isNull(),
-                        items -> assertThat(items.get(1).getTrigger()).isNull(),
-                        items -> assertThat(items.get(2).getTrigger()).isNull(),
-                        items -> assertThat(items.get(3).getTrigger()).isEqualTo(items.get(2)));
-    }
-
-    @Test
     void noSignedTransactions() {
         // A standalone state changes block item, with consensus timestamp
         var stateChanges = stateChanges();
@@ -456,6 +333,7 @@ public final class BlockStreamReaderTest {
                 .addItems(roundHeader())
                 .addItems(eventHeader())
                 .addItems(stateChanges)
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -508,7 +386,8 @@ public final class BlockStreamReaderTest {
             blockBuilder.addItems(blockFooter()).addItems(blockProof());
         }
 
-        final var block = blockBuilder.addItems(blockProof()).build();
+        final var block =
+                blockBuilder.addItems(blockFooter()).addItems(blockProof()).build();
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
 
         // when
@@ -535,6 +414,7 @@ public final class BlockStreamReaderTest {
                 .addItems(signedTransaction(TransactionBody.newBuilder()
                         .setStateSignatureTransaction(StateSignatureTransaction.getDefaultInstance())
                         .build()))
+                .addItems(blockFooter())
                 .addItems(blockProof())
                 .build();
         final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -549,6 +429,18 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
+    void throwWhenMissingBlockFooter() {
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(blockProof())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        assertThatThrownBy(() -> reader.read(blockStream))
+                .isInstanceOf(InvalidStreamFileException.class)
+                .hasMessageContaining("Missing block footer");
+    }
+
+    @Test
     void throwWhenMissingBlockHeader() {
         var block = Block.newBuilder().addItems(blockProof()).build();
         var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
@@ -559,8 +451,11 @@ public final class BlockStreamReaderTest {
 
     @Test
     void throwWhenMissingBlockProof() {
-        var block = Block.newBuilder().addItems(blockHeader()).build();
-        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(blockFooter())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
         assertThatThrownBy(() -> reader.read(blockStream))
                 .isInstanceOf(InvalidStreamFileException.class)
                 .hasMessageContaining("Missing block proof");
@@ -642,12 +537,9 @@ public final class BlockStreamReaderTest {
                 .build();
     }
 
-    @SuppressWarnings("deprecation")
     private BlockItem blockProof() {
         return BlockItem.newBuilder()
-                .setBlockProof(BlockProof.newBuilder()
-                        .setPreviousBlockRootHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48)))
-                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(TestUtils.generateRandomByteArray(48))))
+                .setBlockProof(BlockProof.getDefaultInstance())
                 .build();
     }
 

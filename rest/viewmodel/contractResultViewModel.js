@@ -9,6 +9,9 @@ import {proto} from '@hashgraph/proto';
  * Contract results view model
  */
 class ContractResultViewModel {
+  static #BLOOM_SIZE = 256;
+  static #EMPTY_BLOOM = `0x${'00'.repeat(ContractResultViewModel.#BLOOM_SIZE)}`;
+
   /**
    * Constructs contractResult view model
    *
@@ -20,7 +23,7 @@ class ContractResultViewModel {
       ? toHexString(contractResult.evmAddress, true)
       : contractId.toEvmAddress();
     this.amount = contractResult.amount;
-    this.bloom = toHexString(contractResult.bloom, true);
+    this.bloom = this.#encodeBloom(contractResult.bloom);
     this.call_result = toHexString(contractResult.callResult, true);
     this.contract_id = contractId.toString();
     this.created_contract_ids = _.toArray(contractResult.createdContractIds).map((id) => EntityId.parse(id).toString());
@@ -35,6 +38,10 @@ class ContractResultViewModel {
     this.timestamp = nsToSecNs(contractResult.consensusTimestamp);
     this.to = contractId.toEvmAddress();
     this.hash = toHexString(contractResult.transactionHash, true);
+  }
+
+  #encodeBloom(bloom) {
+    return bloom?.length === 0 ? ContractResultViewModel.#EMPTY_BLOOM : toHexString(bloom, true);
   }
 
   #extractSenderFromFunctionResult(contractResult) {

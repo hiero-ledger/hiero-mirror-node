@@ -12,15 +12,24 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.service.RecordFileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(ContextExtension.class)
+@ExtendWith({ContextExtension.class, MockitoExtension.class})
 class BlockInfoSingletonTest {
 
-    private final BlockInfoSingleton blockInfoSingleton = new BlockInfoSingleton();
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordFile recordFile = domainBuilder.recordFile().get();
+
+    @Mock
+    private RecordFileService recordFileService;
+
+    @InjectMocks
+    private BlockInfoSingleton blockInfoSingleton;
 
     @Test
     void get() {

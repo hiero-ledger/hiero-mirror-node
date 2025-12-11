@@ -7,10 +7,17 @@ import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING
 import com.hedera.hapi.node.state.blockrecords.RunningHashes;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
+import lombok.AllArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
+import org.hiero.mirror.web3.service.RecordFileService;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
+@AllArgsConstructor
 public class RunningHashesSingleton implements SingletonState<RunningHashes> {
+
+    private RecordFileService recordFileService;
 
     @Override
     public Integer getId() {
@@ -20,6 +27,10 @@ public class RunningHashesSingleton implements SingletonState<RunningHashes> {
     @Override
     public RunningHashes get() {
         var recordFile = ContractCallContext.get().getRecordFile();
+        if (recordFile == null) {
+            recordFile =
+                    recordFileService.findByBlockType(BlockType.LATEST).orElseThrow(BlockNumberNotFoundException::new);
+        }
         return RunningHashes.newBuilder()
                 .runningHash(Bytes.EMPTY)
                 .nMinus1RunningHash(Bytes.EMPTY)

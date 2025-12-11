@@ -32,6 +32,7 @@ import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.restjava.mapper.HookMapper;
 import org.hiero.mirror.restjava.mapper.HookStorageMapper;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -69,33 +70,42 @@ final class HooksControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            persistHook(ACCOUNT_ID);
+            persistHook(EntityId.of(ACCOUNT_ID));
 
-            return uriSpec.uri("", ACCOUNT_ID);
+            return uriSpec.uri("", EntityId.of(ACCOUNT_ID));
         }
 
         @ParameterizedTest
         @CsvSource({
             // entity ID formats
-            "1234",
-            "0.1234",
-            "0.0.1234",
+            "" + ACCOUNT_ID,
+            "0." + ACCOUNT_ID,
+            "0.0" + ACCOUNT_ID,
+            "1." + ACCOUNT_ID,
+            "1.2." + ACCOUNT_ID,
             // alias formats
             ALIAS,
             "0." + ALIAS,
             "0.0." + ALIAS,
+            "1." + ALIAS,
+            "1.2." + ALIAS,
             // evm formats
             EVM_ADDRESS,
             "0." + EVM_ADDRESS,
             "0.0." + EVM_ADDRESS,
+            "1." + EVM_ADDRESS,
+            "1.2." + EVM_ADDRESS,
             "0x" + EVM_ADDRESS,
         })
-        void success(String address) {
+        void getHooksValidOwnerId(String address) {
             // given
-            persistAccount(ACCOUNT_ID, ALIAS, EVM_ADDRESS);
+            final var entityIdParameter = EntityIdParameter.valueOf(address);
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), ACCOUNT_ID);
 
-            final var hook1 = persistHook(ACCOUNT_ID);
-            final var hook2 = persistHook(ACCOUNT_ID);
+            persistAccount(ownerId, ALIAS, EVM_ADDRESS);
+
+            final var hook1 = persistHook(ownerId);
+            final var hook2 = persistHook(ownerId);
 
             final var expectedHooks = hookMapper.map(List.of(hook2, hook1));
             final var expectedResponse = new HooksResponse();
@@ -113,7 +123,7 @@ final class HooksControllerTest extends ControllerTest {
         @Test
         void noHooksFound() {
             // given
-            persistHook(ACCOUNT_ID + 1);
+            persistHook(EntityId.of(ACCOUNT_ID + 1));
             final var expectedHooks = hookMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksResponse();
             expectedResponse.setHooks(expectedHooks);
@@ -132,9 +142,12 @@ final class HooksControllerTest extends ControllerTest {
             // given
             final int limit = 2;
 
-            final var hook1 = persistHook(ACCOUNT_ID);
-            final var hook2 = persistHook(ACCOUNT_ID);
-            final var hook3 = persistHook(ACCOUNT_ID);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(ACCOUNT_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), ACCOUNT_ID);
+
+            final var hook1 = persistHook(ownerId);
+            final var hook2 = persistHook(ownerId);
+            final var hook3 = persistHook(ownerId);
 
             final var expectedHookEntities = order.equals("asc") ? List.of(hook1, hook2) : List.of(hook3, hook2);
 
@@ -211,9 +224,12 @@ final class HooksControllerTest extends ControllerTest {
                 })
         void hookIdBounds(String parameters, String expectedIndices) {
             // given
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(ACCOUNT_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), ACCOUNT_ID);
+
             final var hooks = new ArrayList<Hook>();
             for (int i = 0; i < 4; i++) {
-                hooks.add(persistHook(ACCOUNT_ID));
+                hooks.add(persistHook(ownerId));
             }
 
             final List<Hook> expectedHookList;
@@ -355,7 +371,7 @@ final class HooksControllerTest extends ControllerTest {
                     "Failed to convert 'ownerId'");
         }
 
-        private void persistAccount(long accountId, String alias, String evmAddress) {
+        private void persistAccount(EntityId accountId, String alias, String evmAddress) {
             final var aliasBytes = BaseEncoding.base32().omitPadding().decode(alias);
 
             final byte[] evmBytes;
@@ -367,15 +383,18 @@ final class HooksControllerTest extends ControllerTest {
 
             domainBuilder
                     .entity()
-                    .customize(e -> e.id(accountId)
+                    .customize(e -> e.id(accountId.getId())
                             .type(EntityType.ACCOUNT)
                             .alias(aliasBytes)
                             .evmAddress(evmBytes))
                     .persist();
         }
 
-        private Hook persistHook(long ownerId) {
-            return domainBuilder.hook().customize(hook -> hook.ownerId(ownerId)).persist();
+        private Hook persistHook(EntityId ownerId) {
+            return domainBuilder
+                    .hook()
+                    .customize(hook -> hook.ownerId(ownerId.getId()))
+                    .persist();
         }
     }
 
@@ -401,7 +420,7 @@ final class HooksControllerTest extends ControllerTest {
 
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
-            persistHookStorage(OWNER_ID, HOOK_ID);
+            persistHookStorage(EntityId.of(OWNER_ID), HOOK_ID);
 
             return uriSpec.uri("", OWNER_ID, HOOK_ID);
         }
@@ -414,27 +433,36 @@ final class HooksControllerTest extends ControllerTest {
                     OWNER_ID + " | " + HOOK_ID,
                     "0." + OWNER_ID + " | " + HOOK_ID,
                     "0.0." + OWNER_ID + " | " + HOOK_ID,
+                    "1." + OWNER_ID + " | " + HOOK_ID,
+                    "1.2." + OWNER_ID + " | " + HOOK_ID,
                     // alias
                     ALIAS + " | " + HOOK_ID,
                     "0." + ALIAS + " | " + HOOK_ID,
                     "0.0." + ALIAS + " | " + HOOK_ID,
+                    "1." + ALIAS + " | " + HOOK_ID,
+                    "1.2." + ALIAS + " | " + HOOK_ID,
                     // evm address
                     EVM_ADDRESS + " | " + HOOK_ID,
                     "0." + EVM_ADDRESS + " | " + HOOK_ID,
                     "0.0." + EVM_ADDRESS + " | " + HOOK_ID,
+                    "1." + EVM_ADDRESS + " | " + HOOK_ID,
+                    "1.2." + EVM_ADDRESS + " | " + HOOK_ID,
                     "0x" + EVM_ADDRESS + " | " + HOOK_ID,
                 })
-        void getHookStorageValidOwnerId(String ownerId, String hookId) {
+        void getHookStorageValidOwnerId(String address, String hookId) {
             // given
-            persistAccount(OWNER_ID, ALIAS, EVM_ADDRESS);
+            final var entityIdParameter = EntityIdParameter.valueOf(address);
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
 
-            final var hookStorage1 = persistHookStorage(OWNER_ID, HOOK_ID, KEY1);
-            final var hookStorage2 = persistHookStorage(OWNER_ID, HOOK_ID, incrementHex(KEY1, 1));
+            persistAccount(ownerId, ALIAS, EVM_ADDRESS);
+
+            final var hookStorage1 = persistHookStorage(ownerId, HOOK_ID, KEY1);
+            final var hookStorage2 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 1));
 
             final var expectedHookStorage = hookStorageMapper.map(List.of(hookStorage1, hookStorage2));
 
             final var expectedResponse = new HooksStorageResponse();
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setHookId(Long.parseLong(hookId));
             expectedResponse.setStorage(expectedHookStorage);
             expectedResponse.setLinks(new Links());
@@ -450,12 +478,15 @@ final class HooksControllerTest extends ControllerTest {
         @Test
         void noHookStorageFound() {
             // given
-            persistHookStorage(OWNER_ID, HOOK_ID + 1, KEY1);
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
+            persistHookStorage(ownerId, HOOK_ID + 1, KEY1);
             final var expectedHookStorage = hookStorageMapper.map(Collections.emptyList());
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setStorage(expectedHookStorage);
 
             // when
@@ -472,9 +503,12 @@ final class HooksControllerTest extends ControllerTest {
             // given
             final int limit = 2;
 
-            final var hookStorage1 = persistHookStorage(OWNER_ID, HOOK_ID, KEY1);
-            final var hookStorage2 = persistHookStorage(OWNER_ID, HOOK_ID, incrementHex(KEY1, 1));
-            final var hookStorage3 = persistHookStorage(OWNER_ID, HOOK_ID, incrementHex(KEY1, 2));
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
+            final var hookStorage1 = persistHookStorage(ownerId, HOOK_ID, KEY1);
+            final var hookStorage2 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 1));
+            final var hookStorage3 = persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, 2));
 
             final var expectedHookStorageEntities =
                     order.equals("asc") ? List.of(hookStorage1, hookStorage2) : List.of(hookStorage3, hookStorage2);
@@ -482,7 +516,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedHookStorage = hookStorageMapper.map(expectedHookStorageEntities);
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setStorage(expectedHookStorage);
 
             final var lastHookStorage = expectedHookStorageEntities.getLast();
@@ -523,23 +557,26 @@ final class HooksControllerTest extends ControllerTest {
             // given
             final int limit = 2;
 
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
             final var change1 = persistHookStorageChange(
-                    OWNER_ID,
+                    ownerId,
                     HOOK_ID,
                     incrementHex(KEY1, 0),
                     TimestampParameter.valueOf(TIMESTAMP1).value());
             final var change2 = persistHookStorageChange(
-                    OWNER_ID,
+                    ownerId,
                     HOOK_ID,
                     incrementHex(KEY1, 1),
                     TimestampParameter.valueOf(TIMESTAMP1).value() + 1);
             final var change3 = persistHookStorageChange(
-                    OWNER_ID,
+                    ownerId,
                     HOOK_ID,
                     incrementHex(KEY1, 2),
                     TimestampParameter.valueOf(TIMESTAMP1).value() + 2);
             final var change4 = persistHookStorageChange(
-                    OWNER_ID,
+                    ownerId,
                     HOOK_ID,
                     incrementHex(KEY1, 3),
                     TimestampParameter.valueOf(TIMESTAMP1).value() + 3);
@@ -571,7 +608,7 @@ final class HooksControllerTest extends ControllerTest {
 
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setStorage(hookStorageMapper.map(mapped));
 
             if (ordered.size() > limit) {
@@ -641,9 +678,12 @@ final class HooksControllerTest extends ControllerTest {
         @MethodSource("provideKeyQueries")
         void hookStorageKeyBounds(String parameters, List<Integer> expectedIndices) {
             // given
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
             final var hookStorage = new ArrayList<HookStorage>();
             for (int i = 0; i < 4; i++) {
-                hookStorage.add(persistHookStorage(OWNER_ID, HOOK_ID, incrementHex(KEY1, i)));
+                hookStorage.add(persistHookStorage(ownerId, HOOK_ID, incrementHex(KEY1, i)));
             }
 
             final List<HookStorage> expectedHookStorageList;
@@ -661,7 +701,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setStorage(expectedHookStorage);
 
             // when
@@ -777,10 +817,13 @@ final class HooksControllerTest extends ControllerTest {
         @MethodSource("provideKeyTimestampQueries")
         void timestampAndKeyBounds(String parameters, List<Integer> expectedIndices) {
             // given
+            final var entityIdParameter = EntityIdParameter.valueOf(String.valueOf(OWNER_ID));
+            final var ownerId = EntityId.of(entityIdParameter.shard(), entityIdParameter.realm(), OWNER_ID);
+
             final var hookStorageChange = new ArrayList<HookStorageChange>();
             for (int i = 0; i < 4; i++) {
                 hookStorageChange.add(persistHookStorageChange(
-                        OWNER_ID,
+                        ownerId,
                         HOOK_ID,
                         incrementHex(KEY1, i),
                         TimestampParameter.valueOf(TIMESTAMP1).value() + i));
@@ -803,7 +846,7 @@ final class HooksControllerTest extends ControllerTest {
             final var expectedResponse = new HooksStorageResponse();
             expectedResponse.setHookId(HOOK_ID);
             expectedResponse.setLinks(new Links());
-            expectedResponse.setOwnerId(EntityId.of(OWNER_ID).toString());
+            expectedResponse.setOwnerId(ownerId.toString());
             expectedResponse.setStorage(expectedHookStorage);
 
             // when
@@ -938,7 +981,7 @@ final class HooksControllerTest extends ControllerTest {
                     "hookId must be greater than or equal to 0");
         }
 
-        private void persistAccount(long accountId, String alias, String evmAddress) {
+        private void persistAccount(EntityId accountId, String alias, String evmAddress) {
             final var aliasBytes = BaseEncoding.base32().omitPadding().decode(alias);
 
             final byte[] evmBytes;
@@ -950,35 +993,36 @@ final class HooksControllerTest extends ControllerTest {
 
             domainBuilder
                     .entity()
-                    .customize(e -> e.id(accountId)
+                    .customize(e -> e.id(accountId.getId())
                             .type(EntityType.ACCOUNT)
                             .alias(aliasBytes)
                             .evmAddress(evmBytes))
                     .persist();
         }
 
-        private HookStorage persistHookStorage(long ownerId, long hookId) {
+        private HookStorage persistHookStorage(EntityId ownerId, long hookId) {
             return domainBuilder
                     .hookStorage()
-                    .customize(hook -> hook.ownerId(ownerId).hookId(hookId))
+                    .customize(hook -> hook.ownerId(ownerId.getId()).hookId(hookId))
                     .persist();
         }
 
-        private HookStorage persistHookStorage(long ownerId, long hookId, String key) {
+        private HookStorage persistHookStorage(EntityId ownerId, long hookId, String key) {
             return domainBuilder
                     .hookStorage()
-                    .customize(hook -> hook.ownerId(ownerId).hookId(hookId).key(Numeric.hexStringToByteArray(key)))
+                    .customize(
+                            hook -> hook.ownerId(ownerId.getId()).hookId(hookId).key(Numeric.hexStringToByteArray(key)))
                     .persist();
         }
 
-        private HookStorageChange persistHookStorageChange(long ownerId, long hookId, String key, long timestamp) {
+        private HookStorageChange persistHookStorageChange(EntityId ownerId, long hookId, String key, long timestamp) {
             return domainBuilder
                     .hookStorageChange()
-                    .customize(hook -> hook.ownerId(ownerId)
+                    .customize(hook -> hook.ownerId(ownerId.getId())
                             .consensusTimestamp(timestamp)
                             .hookId(hookId)
                             .key(Numeric.hexStringToByteArray(key))
-                            .ownerId(ownerId)
+                            .ownerId(ownerId.getId())
                             .valueRead(new byte[] {0x01, 0x02})
                             .valueWritten(new byte[] {0x03, 0x04}))
                     .persist();

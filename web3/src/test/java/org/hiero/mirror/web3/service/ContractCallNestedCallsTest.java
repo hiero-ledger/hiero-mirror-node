@@ -4,12 +4,14 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ED25519;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.INHERIT_ACCOUNT_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.CREATE_TOKEN_VALUE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ED25519_KEY;
 
 import com.google.protobuf.ByteString;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.HederaToken;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.KeyValue;
@@ -314,8 +317,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
-        final var sender = accountEntityPersist();
-        final var treasury = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -364,8 +367,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
         if (mirrorNodeEvmProperties.isModularizedServices()) {
             defaultKycStatus = !defaultKycStatus;
         }
-        final var sender = accountEntityPersist();
-        final var treasury = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -445,7 +448,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     void nestedDeployTwoContracts() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
         testWeb3jService.setValue(100_000_000_000L);
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
         // When

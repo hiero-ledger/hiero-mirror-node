@@ -40,33 +40,36 @@ jobs:
     timeout-minutes: 50
     env:
       BLOCK_NODE_CHART_VERSION: v0.23.2
-      CONSENSUS_VERSION: v0.68.0
+      CONSENSUS_VERSION: v0.69.0-rc.2
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
+      SOLO_CHART_VERSION: "0.58.1" # Temporary until next Solo
       SOLO_VERSION: v0.50.0
     permissions:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
-        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903 # v6.0.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: 24
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: "3.19.2"
 
       - name: Setup Kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
@@ -75,7 +78,7 @@ jobs:
           kubectl_version: v1.32.3
 
       - name: Install JDK
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: "temurin"
           java-version: 21
@@ -89,9 +92,15 @@ jobs:
           set -ex
 
           TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
-          [[ "$TAG" != *SNAPSHOT ]] && BASE="v$TAG" || BASE=""
-
-          git describe --exact-match HEAD 2>/dev/null | grep "$TAG" && TRIGGERED_BY_TAG=true || TRIGGERED_BY_TAG=false
+          BASE=""
+          TRIGGERED_BY_TAG=false
+          if [[ "$TAG" != *SNAPSHOT ]]; then
+            BASE="v$TAG"
+            # The dereferenced tag corresponds to the commit the annotated tag refers to
+            DEREFERENCED_TAG="v${TAG}^{}"
+            git ls-remote --tags origin "${DEREFERENCED_TAG}" | grep $(git rev-parse HEAD) && TRIGGERED_BY_TAG=true \
+              || true
+          fi
 
           echo "BASE=${BASE}" >> $GITHUB_ENV
           echo "TAG=${TAG}" >> $GITHUB_ENV
@@ -129,7 +138,7 @@ jobs:
             - 'web3/**'
 
       - name: Build images
-        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs != ''
+        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
         run: |
           set -ex
           echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do

@@ -38,6 +38,22 @@ describe('ContractResultViewModel', () => {
     expect(new ContractResultViewModel(defaultContractResult)).toEqual(defaultExpected);
   });
 
+  test.each`
+    source      | bloom
+    ${'array'}  | ${[]}
+    ${'buffer'} | ${Buffer.alloc(0)}
+  `('empty bloom from $source', ({source, bloom}) => {
+    const input = {
+      ...defaultContractResult,
+      bloom,
+    };
+    const expected = {
+      ...defaultExpected,
+      bloom: `0x${'00'.repeat(256)}`,
+    };
+    expect(new ContractResultViewModel(input)).toEqual(expected);
+  });
+
   test('null fields', () => {
     expect(
       new ContractResultViewModel({

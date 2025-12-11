@@ -9,12 +9,23 @@ import com.hedera.hapi.node.state.blockrecords.RunningHashes;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.service.RecordFileService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(MockitoExtension.class)
 class RunningHashesSingletonTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
-    private final RunningHashesSingleton runningHashesSingleton = new RunningHashesSingleton();
+
+    @Mock
+    private RecordFileService recordFileService;
+
+    @InjectMocks
+    private RunningHashesSingleton runningHashesSingleton;
 
     @Test
     void get() {

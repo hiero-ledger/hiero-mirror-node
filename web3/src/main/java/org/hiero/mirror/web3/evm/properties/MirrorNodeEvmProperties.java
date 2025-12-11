@@ -59,7 +59,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties implements EvmProperties {
 
-    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_MODULARIZED_ALLOWLONGZEROADDRESS";
+    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESSES";
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
@@ -69,8 +69,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private final SystemEntity systemEntity;
 
-    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":true}")
-    private boolean allowLongZeroAddresses = true;
+    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
+    private boolean allowLongZeroAddresses = false;
 
     @Getter
     private boolean allowTreasuryToOwnNfts = true;
@@ -200,7 +200,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     private long minimumAccountBalance = 100_000_000_000_000_000L;
 
     @Getter
-    private boolean overridePayerBalanceValidation = true;
+    private boolean validatePayerBalance = true;
 
     public boolean shouldAutoRenewAccounts() {
         return autoRenewTargetTypes.contains(EntityType.ACCOUNT);

@@ -2,112 +2,106 @@
 
 package org.hiero.mirror.importer.reader.block;
 
-import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
+import com.hederahashgraph.api.proto.java.Timestamp;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import lombok.Setter;
+import org.bouncycastle.util.encoders.Hex;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.jspecify.annotations.NonNull;
 
-/**
- * Calculates a block's root hash per the algorithm defined in HIP-1056. Note all merkle subtrees are padded with
- * SHA2-384 hash of an empty bytearray to be perfect binary trees. Note none of the methods are reentrant.
- */
 public final class BlockRootHashDigest {
 
-    static final byte[] EMPTY_HASH = createSha384Digest().digest(new byte[0]);
+    private static final byte[] DEPTH2_RIGHT;
 
-    private static final byte[] NULL_HASH = new byte[SHA_384.getSize()];
-
-    private final List<byte[]> consensusHeaderHashes = new ArrayList<>();
+    private final PerfectBinaryTreeHasher consensusHeaderHasher = new PerfectBinaryTreeHasher();
     private final MessageDigest digest = createSha384Digest();
+    private final PerfectBinaryTreeHasher inputHasher = new PerfectBinaryTreeHasher();
+    private final PerfectBinaryTreeHasher outputHasher = new PerfectBinaryTreeHasher();
+    private final PerfectBinaryTreeHasher stateChangesHasher = new PerfectBinaryTreeHasher();
+    private final PerfectBinaryTreeHasher traceDataHasher = new PerfectBinaryTreeHasher();
+
+    private Timestamp blockTimestamp;
     private boolean finalized;
-    private final List<byte[]> inputHashes = new ArrayList<>();
-    private final List<byte[]> outputHashes = new ArrayList<>();
-
-    @Setter
+    private byte[] previousBlocksTreeHash;
     private byte[] previousHash;
-
-    @Setter
     private byte[] startOfBlockStateHash;
 
-    private final List<byte[]> stateChangeHashes = new ArrayList<>();
-    private final List<byte[]> traceDataHashes = new ArrayList<>();
+    static {
+        // Pre-compute the root hash of the subtree containing 8 reserved leaves for future extension. The default hash
+        // for the reserved leaves is all 0s, a.k.a., nullHash.
+        final byte[] nullHash = new byte[DigestAlgorithm.SHA_384.getSize()];
+        final byte[] depth4Hash = combine(nullHash, nullHash);
+        final byte[] depth3Hash = combine(depth4Hash, depth4Hash);
+        DEPTH2_RIGHT = combine(depth3Hash, depth3Hash);
+    }
 
-    public void addBlockItem(BlockItem blockItem) {
-        var subTree =
+    public void addBlockItem(final @NonNull BlockItem blockItem) {
+        if (finalized) {
+            throw new IllegalStateException("Can't add more block items once finalized");
+        }
+
+        final var hasher =
                 switch (blockItem.getItemCase()) {
-                    case BLOCK_HEADER, TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHashes;
-                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHashes;
-                    case SIGNED_TRANSACTION -> inputHashes;
-                    case STATE_CHANGES -> stateChangeHashes;
-                    case TRACE_DATA -> traceDataHashes;
+                    case BLOCK_HEADER -> {
+                        blockTimestamp = blockItem.getBlockHeader().getBlockTimestamp();
+                        yield outputHasher;
+                    }
+                    case BLOCK_FOOTER -> {
+                        final var blockFooter = blockItem.getBlockFooter();
+                        previousBlocksTreeHash = DomainUtils.toBytes(blockFooter.getRootHashOfAllBlockHashesTree());
+                        previousHash = DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash());
+                        startOfBlockStateHash = DomainUtils.toBytes(blockFooter.getStartOfBlockStateRootHash());
+                        yield null;
+                    }
+                    case EVENT_HEADER, ROUND_HEADER -> consensusHeaderHasher;
+                    case TRANSACTION_OUTPUT, TRANSACTION_RESULT -> outputHasher;
+                    case SIGNED_TRANSACTION -> inputHasher;
+                    case STATE_CHANGES -> stateChangesHasher;
+                    case TRACE_DATA -> traceDataHasher;
                     default -> null;
                 };
 
-        if (subTree != null) {
-            subTree.add(digest.digest(blockItem.toByteArray()));
+        if (hasher != null) {
+            hasher.addLeaf(digest.digest(blockItem.toByteArray()));
         }
     }
 
     public String digest() {
-        if (finalized) {
-            throw new IllegalStateException("Block root hash is already calculated");
+        if (blockTimestamp == null
+                || previousBlocksTreeHash == null
+                || previousHash == null
+                || startOfBlockStateHash == null) {
+            throw new IllegalStateException(
+                    "blockTimestamp / previousBlocksTreeHash / previousHash / startOfBlockStateHash are not set");
         }
 
-        List<byte[]> leaves = new ArrayList<>(8);
-        leaves.add(previousHash);
-        leaves.add(startOfBlockStateHash);
-        leaves.add(getRootHash(consensusHeaderHashes));
-        leaves.add(getRootHash(inputHashes));
-        leaves.add(getRootHash(outputHashes));
-        leaves.add(getRootHash(stateChangeHashes));
-        leaves.add(getRootHash(traceDataHashes));
-        leaves.add(NULL_HASH); // root hash of extensions, there's no extension defined yet so it's just NULL_HASH
-
-        byte[] rootHash = getRootHash(leaves);
+        final byte[] depth2Left = new PerfectBinaryTreeHasher()
+                .addLeaf(previousHash)
+                .addLeaf(previousBlocksTreeHash)
+                .addLeaf(startOfBlockStateHash)
+                .addLeaf(consensusHeaderHasher.digest())
+                .addLeaf(inputHasher.digest())
+                .addLeaf(outputHasher.digest())
+                .addLeaf(stateChangesHasher.digest())
+                .addLeaf(traceDataHasher.digest())
+                .digest();
+        final byte[] depth1Right = combine(depth2Left, DEPTH2_RIGHT);
+        final byte[] depth1Left = digest.digest(blockTimestamp.toByteArray());
+        final var rootHash = Hex.toHexString(combine(depth1Left, depth1Right));
         finalized = true;
 
-        return DomainUtils.bytesToHex(rootHash);
+        return rootHash;
     }
 
-    private byte[] getRootHash(List<byte[]> leaves) {
-        if (leaves.isEmpty()) {
-            return EMPTY_HASH;
-        }
-
-        // Pad leaves with EMPTY_HASH to the next 2^n to form a perfect binary tree
-        int size = leaves.size();
-        if ((size & (size - 1)) != 0) {
-            size = Integer.highestOneBit(size) << 1;
-            while (leaves.size() < size) {
-                leaves.add(EMPTY_HASH);
-            }
-        }
-
-        // Iteratively calculate the parent node hash as h(left | right) to get the root hash in bottom-up fashion
-        while (size > 1) {
-            for (int i = 0; i < size; i += 2) {
-                byte[] left = leaves.get(i);
-                byte[] right = leaves.get(i + 1);
-                digest.update(left);
-                digest.update(right);
-                leaves.set(i >> 1, digest.digest());
-            }
-
-            size >>= 1;
-        }
-
-        return leaves.getFirst();
-    }
-
-    private static void validateHash(byte[] hash, String name) {
-        if (Objects.requireNonNull(hash, "Null " + name).length != SHA_384.getSize()) {
-            throw new IllegalArgumentException(String.format("%s is not %d bytes", name, SHA_384.getSize()));
-        }
+    private static byte[] combine(final byte[] left, final byte[] right) {
+        // Per the design doc, when combining, a one-byte prefix indicating the number of leaves is added to calculate
+        // the hash. Make the change when consensus node fixes #21977.
+        final var digest = createSha384Digest();
+        digest.update(left);
+        digest.update(right);
+        return digest.digest();
     }
 }

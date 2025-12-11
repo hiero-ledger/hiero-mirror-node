@@ -3,7 +3,7 @@
 import _ from 'lodash';
 
 import BaseService from './baseService';
-import {ExchangeRate, FeeSchedule, FileData} from '../model';
+import {ExchangeRate, FileData} from '../model';
 import * as utils from '../utils';
 import EntityId from '../entityId';
 
@@ -90,10 +90,6 @@ class FileDataService extends BaseService {
 
   getExchangeRate = async (filterQueries) => {
     return this.fallbackRetry(EntityId.systemEntity.exchangeRateFile.getEncodedId(), filterQueries, ExchangeRate);
-  };
-
-  getFeeSchedule = async (filterQueries) => {
-    return this.fallbackRetry(EntityId.systemEntity.feeScheduleFile.getEncodedId(), filterQueries, FeeSchedule);
   };
 
   fallbackRetry = async (fileEntityId, filterQueries, resultConstructor) => {

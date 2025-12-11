@@ -402,13 +402,13 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
     }
 
     /**
-     * Returns the default account balance depending on override setting.
+     * Returns the default account balance depending on validation setting.
      *
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isOverridePayerBalanceValidation()
-                ? DEFAULT_SMALL_ACCOUNT_BALANCE
-                : DEFAULT_ACCOUNT_BALANCE;
+        return mirrorNodeEvmProperties.isValidatePayerBalance()
+                ? DEFAULT_ACCOUNT_BALANCE
+                : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 }
