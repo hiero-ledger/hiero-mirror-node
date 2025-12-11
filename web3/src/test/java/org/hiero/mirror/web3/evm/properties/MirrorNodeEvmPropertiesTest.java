@@ -119,18 +119,9 @@ class MirrorNodeEvmPropertiesTest {
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
         given(contractCallContext.useHistorical()).willReturn(false);
         assertThat(properties.evmVersion()).isEqualTo(EVM_VERSION.toString());
-        assertThat(properties.dynamicEvmVersion()).isTrue();
         assertThat(properties.maxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
-        assertThat(properties.fundingAccountAddress()).isEqualTo(FUNDING_ADDRESS);
-        assertThat(properties.isRedirectTokenCallsEnabled()).isTrue();
-        assertThat(properties.isLazyCreationEnabled()).isTrue();
-        assertThat(properties.isCreate2Enabled()).isTrue();
         assertThat(properties.chainIdBytes32()).isEqualTo(CHAIN_ID);
-        assertThat(properties.isLimitTokenAssociations()).isFalse();
-        assertThat(properties.shouldAutoRenewAccounts()).isFalse();
-        assertThat(properties.shouldAutoRenewContracts()).isFalse();
-        assertThat(properties.shouldAutoRenewSomeEntityType()).isFalse();
-        assertThat(properties.maxCustomFeesAllowed()).isEqualTo(MAX_CUSTOM_FEES_ALLOWED);
+        assertThat(properties.getMaxCustomFeesAllowed()).isEqualTo(MAX_CUSTOM_FEES_ALLOWED);
     }
 
     @ParameterizedTest

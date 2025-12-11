@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.evm.properties;
 
-import static com.hedera.hapi.util.HapiUtils.SEMANTIC_VERSION_COMPARATOR;
 import static org.hiero.base.utility.CommonUtils.unhex;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_30;
@@ -11,12 +10,10 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
-import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
 import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.service.evm.contracts.execution.EvmProperties;
 import com.hedera.node.config.VersionedConfiguration;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.DecimalMax;
@@ -45,7 +42,6 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.EvmSpecVersion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,7 +53,7 @@ import org.springframework.validation.annotation.Validated;
 @Setter
 @Validated
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
-public class MirrorNodeEvmProperties implements EvmProperties {
+public class MirrorNodeEvmProperties {
 
     public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESSES";
 
@@ -84,6 +80,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
 
     private boolean directTokenCall = true;
 
+    @Getter
     private boolean dynamicEvmVersion = true;
 
     @Min(1)
@@ -126,6 +123,7 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Min(1)
     private int maxBatchSizeWipe = 10;
 
+    @Getter
     private int maxCustomFeesAllowed = 10;
 
     @Getter
@@ -135,11 +133,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     // maximum iteration count for estimate gas' search algorithm
     @Getter
     private int maxGasEstimateRetriesCount = 20;
-
-    // used by eth_estimateGas only
-    @Min(1)
-    @Max(100)
-    private int maxGasRefundPercentage = 100;
 
     @Getter
     @Min(1)
@@ -152,17 +145,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Min(1)
     private int maxTokenNameUtf8Bytes = 100;
 
-    @Getter
+    // used by eth_estimateGas only
     @Min(1)
-    private int maxTokensPerAccount = 1000;
-
-    @Getter
-    @Min(1)
-    private int maxTokenSymbolUtf8Bytes = 100;
-
-    @Getter
-    @Min(1)
-    private long minAutoRenewDuration = 2592000L;
+    @Max(100)
+    private int maxGasRefundPercentage = 100;
 
     @Getter
     @NotNull
@@ -182,10 +168,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
     @Getter
-    @Min(1)
-    private int feesTokenTransferUsageMultiplier = 380;
-
-    @Getter
     private boolean modularizedServices = true;
 
     @Getter
@@ -202,61 +184,10 @@ public class MirrorNodeEvmProperties implements EvmProperties {
     @Getter
     private boolean validatePayerBalance = true;
 
-    public boolean shouldAutoRenewAccounts() {
-        return autoRenewTargetTypes.contains(EntityType.ACCOUNT);
-    }
-
-    public boolean shouldAutoRenewContracts() {
-        return autoRenewTargetTypes.contains(EntityType.CONTRACT);
-    }
-
-    public boolean shouldAutoRenewSomeEntityType() {
-        return !autoRenewTargetTypes.isEmpty();
-    }
-
-    @Override
-    public boolean isRedirectTokenCallsEnabled() {
-        return directTokenCall;
-    }
-
-    @Override
-    public boolean isLazyCreationEnabled() {
-        return true;
-    }
-
-    @Override
-    public boolean isCreate2Enabled() {
-        return true;
-    }
-
-    @Override
-    public boolean allowCallsToNonContractAccounts() {
-        return SEMANTIC_VERSION_COMPARATOR.compare(getSemanticEvmVersion(), EVM_VERSION_0_46) >= 0;
-    }
-
-    @Override
-    public Set<Address> grandfatherContracts() {
-        return Set.of();
-    }
-
-    @Override
-    public boolean callsToNonExistingEntitiesEnabled(Address target) {
-        return !(SEMANTIC_VERSION_COMPARATOR.compare(getSemanticEvmVersion(), EVM_VERSION_0_46) < 0
-                || !allowCallsToNonContractAccounts()
-                || grandfatherContracts().contains(target));
-    }
-
-    @Override
-    public boolean dynamicEvmVersion() {
-        return dynamicEvmVersion;
-    }
-
-    @Override
     public Bytes32 chainIdBytes32() {
         return network.getChainId();
     }
 
-    @Override
     public String evmVersion() {
         var context = ContractCallContext.get();
         if (context.useHistorical()) {
@@ -273,25 +204,8 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         return evmVersion;
     }
 
-    @Override
-    public Address fundingAccountAddress() {
-        if (fundingAccount == null) {
-            fundingAccount = toAddress(systemEntity.feeCollectorAccount()).toHexString();
-        }
-        return Address.fromHexString(fundingAccount);
-    }
-
-    @Override
     public int maxGasRefundPercentage() {
         return maxGasRefundPercentage;
-    }
-
-    public int maxCustomFeesAllowed() {
-        return maxCustomFeesAllowed;
-    }
-
-    public long exchangeRateGasReq() {
-        return exchangeRateGasReq;
     }
 
     /**
@@ -333,10 +247,6 @@ public class MirrorNodeEvmProperties implements EvmProperties {
         } else {
             return EVM_VERSION; // Return default version if no entry matches the block number
         }
-    }
-
-    public int feesTokenTransferUsageMultiplier() {
-        return feesTokenTransferUsageMultiplier;
     }
 
     private Map<String, String> buildTransactionProperties() {
