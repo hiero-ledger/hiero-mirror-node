@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -64,7 +65,7 @@ public class ImporterProperties {
 
     private Instant startDate;
 
-    @PositiveOrZero
+    @Min(-1)
     private Long startBlockNumber;
 
     private Long topicRunningHashV2AddedTimestamp;
