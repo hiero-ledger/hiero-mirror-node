@@ -79,7 +79,6 @@ import org.springframework.test.web.servlet.ResultActions;
 class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
-    private static final String ONE_BYTE_HEX = "80";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
 
@@ -91,9 +90,6 @@ class ContractControllerTest {
 
     @MockitoBean
     private ContractExecutionService service;
-
-    @Resource
-    private MirrorNodeEvmProperties evmProperties;
 
     @MockitoBean
     private ThrottleManager throttleManager;

@@ -119,7 +119,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
-    protected double modularizedTrafficPercent;
     protected String treasuryAddress;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
@@ -801,8 +800,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Address.wrap(Bytes.wrap(evmAddress)).toHexString();
     }
 
-    protected void activateModularizedFlagAndInitializeState()
-            throws InvocationTargetException, IllegalAccessException {
+    protected void initializeState() throws InvocationTargetException, IllegalAccessException {
         Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
                 .filter(method -> method.isAnnotationPresent(PostConstruct.class))
                 .findFirst()

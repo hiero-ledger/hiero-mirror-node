@@ -72,7 +72,6 @@ final class RequestProperties implements Predicate<ContractCallRequest> {
     enum ActionType {
         LOG,
         MODULARIZED,
-        MONOLITHIC,
         REJECT,
         THROTTLE
     }

@@ -703,7 +703,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            activateModularizedFlagAndInitializeState();
+            initializeState();
 
             final var token = nftPersist();
             final var tokenAddress = toAddress(token.getTokenId()).toHexString();

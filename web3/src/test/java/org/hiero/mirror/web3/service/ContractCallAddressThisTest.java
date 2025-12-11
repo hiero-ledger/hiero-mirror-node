@@ -46,8 +46,6 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @Resource
     private ObjectMapper objectMapper;
 
-    private double modularizedTrafficPercent;
-
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
         return mockMvc.perform(post(CALL_URI)

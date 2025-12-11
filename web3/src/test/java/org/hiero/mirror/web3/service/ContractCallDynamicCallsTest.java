@@ -278,7 +278,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @Test
-    void associateTokenTransferEthCallFailModularized() throws InvocationTargetException, IllegalAccessException {
+    void associateTokenTransferEthCallFails() throws InvocationTargetException, IllegalAccessException {
         // Given
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 

@@ -990,9 +990,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         // Then
-        final var modularizedCall =
-                contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
-        assertThat(Bytes.wrap(modularizedCall.send())).isEqualTo(Bytes.EMPTY);
+        final var call = contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        assertThat(Bytes.wrap(call.send())).isEqualTo(Bytes.EMPTY);
     }
 
     @Test

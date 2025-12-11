@@ -309,8 +309,8 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName("given storage is enabled in tracer options, should record storage for modularized services")
-    void shouldRecordStorageWhenEnabledModularized() {
+    @DisplayName("given storage is enabled in tracer options, should record storage")
+    void shouldRecordStorage() {
         // Given
         tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);

@@ -3,7 +3,6 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
@@ -229,13 +228,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void checkIfInvalidAccountIsToken() {
         var data = encodeData(PRECOMPILE, IS_TOKEN_SELECTOR, asAddress(ZERO_ADDRESS));
 
-        if (web3Properties.isModularizedServices()) {
-            var result = callContract(data, precompileTestContractSolidityAddress);
-            assertFalse(result.getResultAsBoolean());
-        } else {
-            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
-        }
+        var result = callContract(data, precompileTestContractSolidityAddress);
+        assertFalse(result.getResultAsBoolean());
     }
 
     @And("the contract call REST API to is token with valid account id should return an error")
@@ -245,13 +239,8 @@ public class PrecompileContractFeature extends AbstractFeature {
                 IS_TOKEN_SELECTOR,
                 asAddress(
                         accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY).getAccountId()));
-        if (web3Properties.isModularizedServices()) {
-            var result = callContract(data, precompileTestContractSolidityAddress);
-            assertFalse(result.getResultAsBoolean());
-        } else {
-            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
-        }
+        var result = callContract(data, precompileTestContractSolidityAddress);
+        assertFalse(result.getResultAsBoolean());
     }
 
     @And("verify fungible token isn't frozen")
@@ -401,10 +390,8 @@ public class PrecompileContractFeature extends AbstractFeature {
         var response = callContract(data, precompileTestContractSolidityAddress);
         boolean defaultKycStatus = true;
         // In the modularized code, the status is now false when the token has a Granted status,
-        // whereas the mono logic returns true. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
+        // whereas the mono logic returns true.
+        defaultKycStatus = !defaultKycStatus;
 
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
@@ -417,9 +404,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         boolean defaultKycStatus = false;
         // In the modularized code, the status is now true when the token has a KycNotApplicable status,
         // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
+        defaultKycStatus = !defaultKycStatus;
 
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }

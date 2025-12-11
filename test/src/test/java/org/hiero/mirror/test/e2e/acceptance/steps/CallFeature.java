@@ -343,9 +343,7 @@ public class CallFeature extends AbstractFeature {
         boolean defaultKycStatus = false;
         // In the modularized code, the status is now true when the token has a KycNotApplicable status,
         // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
+        defaultKycStatus = !defaultKycStatus;
 
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }

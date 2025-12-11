@@ -38,7 +38,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     @BeforeEach
     void beforeEach() throws InvocationTargetException, IllegalAccessException {
         evmProperties = mirrorNodeEvmProperties.getProperties();
-        activateModularizedFlagAndInitializeState();
+        initializeState();
     }
 
     @AfterEach

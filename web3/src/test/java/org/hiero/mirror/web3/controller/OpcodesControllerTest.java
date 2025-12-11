@@ -149,8 +149,6 @@ class OpcodesControllerTest {
     @Captor
     private ArgumentCaptor<OpcodeTracerOptions> tracerOptionsCaptor;
 
-    private double modularizedTrafficPercent;
-
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeTracerOptions> tracerOptions = List.of(
                 new OpcodeTracerOptions(true, true, true),

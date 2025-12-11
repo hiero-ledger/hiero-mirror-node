@@ -677,9 +677,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with transferNFTs function")
     public void transferNFTsEstimateGas() throws ExecutionException, InterruptedException {
         // In the modularized scenario the number of senders needs to correspond to the number of receivers.
-        final var sendersList = web3Properties.isModularizedServices()
-                ? new String[] {adminAddressString, adminAddressString}
-                : new String[] {adminAddressString};
+        final var sendersList = new String[] {adminAddressString, adminAddressString};
 
         var parameters = new ContractFunctionParameters()
                 .addAddress(nonFungibleTokenAddressString)
@@ -2195,9 +2193,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
      * @return the correct enum value in regard to the `modularizedServices` flag
      */
     private ContractMethodInterface getFlaggedValue(final ContractMethods contractMethods) {
-        return !web3Properties.isModularizedServices()
-                ? contractMethods
-                : ContractMethodsModularizedServices.valueOf(contractMethods.name());
+        return ContractMethodsModularizedServices.valueOf(contractMethods.name());
     }
 
     @Getter

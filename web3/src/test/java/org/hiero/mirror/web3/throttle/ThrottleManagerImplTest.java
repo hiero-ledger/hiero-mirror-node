@@ -109,15 +109,6 @@ final class ThrottleManagerImplTest {
         var request = request();
         throttleManager.throttle(request);
         assertThat(output).contains("ContractCallRequest(");
-        assertThat(request.getModularized()).isNull();
-    }
-
-    @Test
-    void requestMonolithic() {
-        requestProperties.setAction(ActionType.MONOLITHIC);
-        var request = request();
-        throttleManager.throttle(request);
-        assertThat(request.getModularized()).isFalse();
     }
 
     @Test
@@ -125,7 +116,6 @@ final class ThrottleManagerImplTest {
         requestProperties.setAction(ActionType.MODULARIZED);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -135,7 +125,6 @@ final class ThrottleManagerImplTest {
         assertThatThrownBy(() -> throttleManager.throttle(request))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining("Invalid request");
-        assertThat(request.getModularized()).isNull();
     }
 
     @Test
@@ -149,7 +138,6 @@ final class ThrottleManagerImplTest {
         assertThatThrownBy(() -> throttleManager.throttle(request))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-        assertThat(request.getModularized()).isNull();
     }
 
     @Test
@@ -166,7 +154,6 @@ final class ThrottleManagerImplTest {
         throttleProperties.setRequest(List.of(requestProperties, modularizedRequest));
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
         assertThat(output).contains("ContractCallRequest(");
     }
 
@@ -176,7 +163,6 @@ final class ThrottleManagerImplTest {
         requestProperties.setFilters(List.of());
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -187,7 +173,6 @@ final class ThrottleManagerImplTest {
         requestProperties.setFilters(List.of(requestFilter, dataFilter));
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -215,30 +200,6 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
-    void requestPercentage() {
-        int countModularized = 0;
-        int requests = 1000;
-        requestProperties.setAction(ActionType.MODULARIZED);
-        requestProperties.setRate(50);
-        throttleProperties.setRequestsPerSecond(requests);
-        throttleProperties.setGasPerSecond(GAS_PER_SECOND * requests);
-        var customThrottleManager = createThrottleManager();
-
-        for (int i = 0; i < requests; ++i) {
-            var request = request();
-            request.setGas(21_000L);
-            customThrottleManager.throttle(request);
-
-            var modularized = request.getModularized();
-            if (modularized != null && modularized) {
-                ++countModularized;
-            }
-        }
-
-        assertThat(countModularized).isGreaterThan(400).isLessThan(600);
-    }
-
-    @Test
     void requestFilterData() {
         requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("dead");
@@ -246,7 +207,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.CONTAINS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -257,7 +217,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -268,7 +227,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.CONTAINS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -279,7 +237,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -290,7 +247,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -301,7 +257,6 @@ final class ThrottleManagerImplTest {
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     private Bucket createBucket(long capacity) {

@@ -166,17 +166,16 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            activateModularizedFlagAndInitializeState();
+            initializeState();
 
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear(); // Clear it as the contract deploy increases the gas limit metric
 
             // When
             contract.call_multiplySimpleNumbers().send();
-
+        } finally {
             // Then
             // Restore changed property values.
-        } finally {
             mirrorNodeEvmProperties.setProperties(backupProperties);
         }
     }
@@ -459,7 +458,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            activateModularizedFlagAndInitializeState();
+            initializeState();
             final var contract = testWeb3jService.deploy(EthCall::deploy);
             meterRegistry.clear();
 
