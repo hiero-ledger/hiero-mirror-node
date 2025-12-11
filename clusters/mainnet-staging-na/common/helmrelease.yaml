@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.144.0-rc2'
+      version: '0.145.0-rc1'
   dependsOn:
     - name: testkube
       namespace: testkube
@@ -49,6 +49,22 @@ spec:
         prometheusSpec:
           externalLabels:
             cluster: mainnet-staging-na
+          remoteWrite:
+            - basicAuth:
+                password:
+                  key: password
+                  name: grafana-cloud
+                username:
+                  key: username
+                  name: grafana-cloud
+              url: https://prometheus-blocks-prod-us-central1.grafana.net/api/prom/push
+              writeRelabelConfigs:
+                - action: keep
+                  regex: .*(graphql|grpc|importer|monitor|rest|restjava|rosetta|traefik|web3)$
+                  sourceLabels: [job]
+                - action: drop
+                  regex: (api_.+_bucket|executor.*|lettuce_.*_bucket|traefik_.+_bucket)
+                  sourceLabels: [__name__]
           replicaExternalLabelName: __replica__
           resources:
             limits:
@@ -78,6 +94,7 @@ spec:
             DEFAULT_SCHEDULE_ACCOUNT_ID: "1163482"
             DEFAULT_SCHEDULE_ID: "2184852"
             DEFAULT_SPENDER_ID_CRYPTO_ALLOWANCE: "0.0.9353457"
+            DEFAULT_TOKEN_BALANCE_TIMESTAMP: "1764792054.141"
             DEFAULT_TOKEN_ID: "2186153"
             DEFAULT_TOKEN_NAME: "sauce"
             DEFAULT_TOPIC_ID: "1693742"
