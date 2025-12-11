@@ -48,7 +48,7 @@ spec:
       prometheus:
         prometheusSpec:
           externalLabels:
-            cluster: mainnet-staging-na
+            cluster: mainnet-staging
           remoteWrite:
             - basicAuth:
                 password:
