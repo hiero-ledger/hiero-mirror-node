@@ -4,7 +4,6 @@
     "contractresults": [
       {
         "amount": 30,
-        "bloom": [],
         "call_result": [],
         "consensus_timestamp": "167654000123456",
         "contract_id": 0,

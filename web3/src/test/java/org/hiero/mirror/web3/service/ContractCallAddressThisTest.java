@@ -162,27 +162,27 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void getBalance(boolean overridePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+    void getBalance(boolean validatePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var entity1 = accountEntityPersist();
         final var functionCall = contract.call_getBalance(getAddressFromEntity(entity1));
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(entity1.getBalance()));
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void getAddressThisBalance(boolean overridePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+    void getAddressThisBalance(boolean validatePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
         final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
         final var contract =
                 testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
         final var functionCall = contract.call_getAddressThisBalance();
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {

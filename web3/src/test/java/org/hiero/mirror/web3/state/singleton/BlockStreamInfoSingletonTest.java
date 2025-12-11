@@ -8,12 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.web3.ContextExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith(ContextExtension.class)
 class BlockStreamInfoSingletonTest {
 
     private final BlockStreamInfoSingleton blockStreamInfoSingleton = new BlockStreamInfoSingleton();

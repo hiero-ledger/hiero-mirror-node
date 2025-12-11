@@ -36,7 +36,7 @@ jobs:
       matrix:
         stream-type:
           - RECORD
-    #          - BLOCK # re-enable in PR for #12192
+          - BLOCK
     timeout-minutes: 50
     env:
       BLOCK_NODE_CHART_VERSION: v0.23.2

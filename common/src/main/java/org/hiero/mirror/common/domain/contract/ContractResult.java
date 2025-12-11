@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import lombok.Builder;
@@ -13,6 +14,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Persistable;
 @NoArgsConstructor
 @SuperBuilder
 public class ContractResult implements Persistable<Long> {
+
+    private static final byte[] EMPTY_BLOOM = new byte[256];
 
     private Long amount;
 
@@ -72,6 +76,10 @@ public class ContractResult implements Persistable<Long> {
     @Override
     public Long getId() {
         return consensusTimestamp;
+    }
+
+    public void setBloom(byte[] bloom) {
+        this.bloom = !Arrays.equals(bloom, EMPTY_BLOOM) ? bloom : ArrayUtils.EMPTY_BYTE_ARRAY;
     }
 
     @JsonIgnore

@@ -97,10 +97,6 @@ describe('System Entities', () => {
     expect(EntityId.systemEntity.exchangeRateFile.toString()).toEqual('1.2.112');
   });
 
-  test('feeScheduleFile', () => {
-    expect(EntityId.systemEntity.feeScheduleFile.toString()).toEqual('1.2.111');
-  });
-
   test('stakingRewardAccount', () => {
     expect(EntityId.systemEntity.stakingRewardAccount.toString()).toEqual('1.2.800');
   });

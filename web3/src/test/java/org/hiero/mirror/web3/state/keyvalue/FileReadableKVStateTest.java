@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
-import static com.hedera.services.utils.EntityIdUtils.toFileId;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -39,7 +38,11 @@ class FileReadableKVStateTest {
     private static final long SHARD = 0L;
     private static final long REALM = 1L;
     private static final long FILE_NUM = 1000L;
-    private static final FileID FILE_ID = toFileId(SHARD, REALM, FILE_NUM);
+    private static final FileID FILE_ID = FileID.newBuilder()
+            .shardNum(SHARD)
+            .realmNum(REALM)
+            .fileNum(FILE_NUM)
+            .build();
     private static final File FILE = File.newBuilder().fileId(FILE_ID).build();
     private static final long FILE_ID_LONG = toEntityId(FILE_ID).getId();
     private static final long EXPIRATION_TIMESTAMP = 2_000_000_000L;

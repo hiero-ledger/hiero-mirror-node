@@ -33,6 +33,9 @@ public class ContractDebugParameters implements CallServiceParameters {
     @PositiveOrZero
     long gas;
 
+    @PositiveOrZero
+    long gasPrice;
+
     @AssertFalse
     boolean isEstimate = false;
 

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.StreamType;
@@ -76,6 +77,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 final class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
 
+    private static final ByteString ALL_ZERO_BLOOM = ByteString.copyFrom(new byte[256]);
+
     private final ContractRepository contractRepository;
     private final ContractActionRepository contractActionRepository;
     private final ContractLogRepository contractLogRepository;
@@ -98,9 +101,17 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
         entityProperties.getPersist().setTrackNonce(true);
     }
 
-    @Test
-    void processContractCall() {
-        RecordItem recordItem = recordItemBuilder.contractCall().build();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void processContractCall(final boolean allZeroBloom) {
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    if (allZeroBloom) {
+                        r.getContractCallResultBuilder().clearLogInfo().setBloom(ALL_ZERO_BLOOM);
+                    }
+                })
+                .build();
 
         process(recordItem);
 
@@ -776,19 +787,22 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
 
     @SuppressWarnings("deprecation")
     private void assertContractResult(RecordItem recordItem) {
-        var functionResult = getFunctionResult(recordItem);
-        var createdIds = functionResult.getCreatedContractIDsList().stream()
+        final var functionResult = getFunctionResult(recordItem);
+        final byte[] expectedBloom = functionResult.getBloom().equals(ALL_ZERO_BLOOM)
+                ? ArrayUtils.EMPTY_BYTE_ARRAY
+                : toBytes(functionResult.getBloom());
+        final var createdIds = functionResult.getCreatedContractIDsList().stream()
                 .map(x -> EntityId.of(x).getId())
                 .toList();
-        var failedInitcode = getFailedInitcode(recordItem);
-        var hash = getTransactionHash(recordItem);
+        final var failedInitcode = getFailedInitcode(recordItem);
+        final var hash = getTransactionHash(recordItem);
 
         assertThat(contractResultRepository.findAll())
                 .hasSize(1)
                 .first()
                 .returns(recordItem.getConsensusTimestamp(), ContractResult::getConsensusTimestamp)
                 .returns(recordItem.getPayerAccountId(), ContractResult::getPayerAccountId)
-                .returns(toBytes(functionResult.getBloom()), ContractResult::getBloom)
+                .returns(expectedBloom, ContractResult::getBloom)
                 .returns(toBytes(functionResult.getContractCallResult()), ContractResult::getCallResult)
                 .returns(createdIds, ContractResult::getCreatedContractIds)
                 .returns(parseContractResultStrings(functionResult.getErrorMessage()), ContractResult::getErrorMessage)

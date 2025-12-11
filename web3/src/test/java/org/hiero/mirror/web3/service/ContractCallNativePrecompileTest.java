@@ -235,6 +235,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
                 .receiver(contractAddress)
                 .callData(callData)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isStatic(false)
                 .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(false)

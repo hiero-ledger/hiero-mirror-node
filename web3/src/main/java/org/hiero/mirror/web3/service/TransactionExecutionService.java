@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL_KEY;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
@@ -24,7 +25,6 @@ import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionP
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.services.utils.EntityIdUtils;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -134,7 +134,7 @@ public class TransactionExecutionService {
         final var result = isContractCreate
                 ? parentTransactionRecord.contractCreateResult()
                 : parentTransactionRecord.contractCallResult();
-        final var status = parentTransactionRecord.receiptOrThrow().status().protoName();
+        final var status = parentTransactionRecord.receiptOrThrow().status();
         if (result == null) {
             // No result - the call did not reach the EVM and probably failed at pre-checks. No metric to update in this
             // case.
@@ -265,8 +265,7 @@ public class TransactionExecutionService {
     // In services SolvencyPreCheck#getPayerAccount() in case the payer account is not found or is a smart contract the
     // error response that is returned is PAYER_ACCOUNT_NOT_FOUND, so we use it in here for consistency.
     private void throwPayerAccountNotFoundException(final String message) {
-        throw new MirrorEvmTransactionException(
-                ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY, true);
+        throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY, true);
     }
 
     private OperationTracer[] getOperationTracers() {

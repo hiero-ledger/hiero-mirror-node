@@ -278,6 +278,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         var nodeIds = consensusNodeService.getNodes().stream()
                 .map(ConsensusNode::getNodeId)
                 .collect(Collectors.toSet());
+        StreamFilename earliestFilename = null;
 
         for (var sigFilenameIter = sigFilesMap.keySet().iterator(); sigFilenameIter.hasNext(); ) {
             if (ShutdownHelper.isStopping()) {
@@ -287,6 +288,10 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
             Instant startTime = Instant.now();
             var sigFilename = sigFilenameIter.next();
             var signatures = sigFilesMap.get(sigFilename);
+
+            if (earliestFilename == null) {
+                earliestFilename = sigFilename;
+            }
 
             try {
                 nodeSignatureVerifier.verify(signatures);
@@ -300,7 +305,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 throw new SignatureVerificationException(ex.getMessage() + ": " + statusMapMessage);
             }
 
-            boolean valid = verifySignatures(signatures);
+            boolean valid = verifySignatures(signatures, earliestFilename);
             if (!valid) {
                 log.error("None of the data files could be verified, signatures: {}", signatures);
             }
@@ -312,7 +317,7 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
         }
     }
 
-    private boolean verifySignatures(Collection<StreamFileSignature> signatures) {
+    private boolean verifySignatures(Collection<StreamFileSignature> signatures, StreamFilename earliestFilename) {
         Instant endDate = importerProperties.getEndDate();
 
         for (var signature : signatures) {
@@ -357,10 +362,14 @@ public abstract class Downloader<T extends StreamFile<I>, I extends StreamItem> 
                 onVerified(streamFileData, streamFile, node);
                 return true;
             } catch (FileOperationException | HashMismatchException | TransientProviderException e) {
+                final var previous =
+                        lastStreamFile.get().map(StreamFile::getName).orElse("None");
                 log.warn(
-                        "Failed processing signature from node {} corresponding to {}. Will retry another node: {}",
+                        "Failed processing signatures after {} from node {} corresponding to {}. Earliest failure in batch is {}. {}",
+                        previous,
                         nodeId,
                         signature.getFilename(),
+                        earliestFilename,
                         e.getMessage());
             } catch (Exception e) {
                 log.error(

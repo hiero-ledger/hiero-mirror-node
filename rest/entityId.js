@@ -357,7 +357,6 @@ class SystemEntity {
   #addressBookFile102 = of(systemShard, systemRealm, 102);
   #exchangeRateFile = of(systemShard, systemRealm, 112);
   #feeCollector = of(systemShard, systemRealm, 98);
-  #feeScheduleFile = of(systemShard, systemRealm, 111);
   #stakingRewardAccount = of(systemShard, systemRealm, 800);
   #treasuryAccount = of(systemShard, systemRealm, 2);
   unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
@@ -380,10 +379,6 @@ class SystemEntity {
 
   get feeCollector() {
     return this.#feeCollector;
-  }
-
-  get feeScheduleFile() {
-    return this.#feeScheduleFile;
   }
 
   get stakingRewardAccount() {

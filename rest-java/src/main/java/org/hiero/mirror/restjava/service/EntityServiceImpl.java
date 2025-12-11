@@ -8,10 +8,10 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.restjava.common.EntityIdAliasParameter;
-import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
-import org.hiero.mirror.restjava.common.EntityIdNumParameter;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 
 @Named

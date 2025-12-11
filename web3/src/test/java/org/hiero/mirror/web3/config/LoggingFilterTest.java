@@ -3,11 +3,11 @@
 package org.hiero.mirror.web3.config;
 
 import static com.google.common.net.HttpHeaders.X_FORWARDED_FOR;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.web.util.WebUtils.ERROR_EXCEPTION_ATTRIBUTE;
 
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
@@ -171,12 +171,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -197,12 +192,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        detail,
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, detail, "0123456", null, true, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -223,12 +213,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        childErrors));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, childErrors));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -248,12 +233,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));

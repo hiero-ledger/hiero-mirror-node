@@ -30,9 +30,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -70,12 +68,6 @@ class TransactionExecutionServiceTest {
 
     @Mock
     private AliasesReadableKVState aliasesReadableKVState;
-
-    @Mock
-    private OpcodeTracer opcodeTracer;
-
-    @Mock
-    private MirrorOperationTracer mirrorOperationTracer;
 
     @Mock
     private OpcodeActionTracer opcodeActionTracer;
@@ -422,6 +414,7 @@ class TransactionExecutionServiceTest {
                 .callData(callData)
                 .callType(CallType.ETH_CALL)
                 .gas(DEFAULT_GAS)
+                .gasPrice(0L)
                 .isEstimate(false)
                 .isStatic(true)
                 .receiver(isContractCreate ? Address.ZERO : Address.fromHexString("0x1234"))

@@ -34,7 +34,6 @@ import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
@@ -47,8 +46,6 @@ import org.jspecify.annotations.Nullable;
 @Named
 @NullMarked
 public final class BlockStreamReaderImpl implements BlockStreamReader {
-
-    private static final String ALL_ZERO_HASH = StringUtils.repeat("00", 48);
 
     @Override
     public BlockFile read(final BlockStream blockStream) {
@@ -77,9 +74,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         final var blockFile = blockFileBuilder.build();
         final var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
-        // Implement new block root hash algorithm and set the hashes properly in the PR for #12192
-        blockFile.setHash(ALL_ZERO_HASH);
-        blockFile.setPreviousHash(ALL_ZERO_HASH);
+        blockFile.setHash(context.getBlockRootHashDigest().digest());
 
         if (!items.isEmpty()) {
             blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
@@ -93,8 +88,14 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readBlockFooter(final ReaderContext context) {
-        // make it mandatory post release 0.68.x
-        context.readBlockItemFor(BLOCK_FOOTER);
+        final var blockItem = context.readBlockItemFor(BLOCK_FOOTER);
+        if (blockItem == null) {
+            throw new InvalidStreamFileException("Missing block footer in block " + context.getFilename());
+        }
+
+        final var blockFooter = blockItem.getBlockFooter();
+        context.getBlockFile()
+                .previousHash(DomainUtils.bytesToHex(DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash())));
     }
 
     private void readBlockHeader(final ReaderContext context) {
@@ -233,6 +234,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         private BlockFile.BlockFileBuilder blockFile;
         private List<BlockItem> blockItems;
+        private BlockRootHashDigest blockRootHashDigest;
         private String filename;
 
         @NonFinal
@@ -261,6 +263,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
             this.blockItems = blockItems;
+            this.blockRootHashDigest = new BlockRootHashDigest();
             this.filename = filename;
         }
 
@@ -295,6 +298,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 return null;
             }
 
+            blockRootHashDigest.addBlockItem(blockItem);
             index++;
             return blockItem;
         }
