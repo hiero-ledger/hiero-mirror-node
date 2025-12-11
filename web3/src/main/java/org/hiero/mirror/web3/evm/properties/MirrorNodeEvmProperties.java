@@ -68,9 +68,6 @@ public class MirrorNodeEvmProperties {
     @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
     private boolean allowLongZeroAddresses = false;
 
-    @Getter
-    private boolean allowTreasuryToOwnNfts = true;
-
     @NotNull
     private Set<EntityType> autoRenewTargetTypes = new HashSet<>();
 
@@ -78,13 +75,8 @@ public class MirrorNodeEvmProperties {
     @Positive
     private double estimateGasIterationThresholdPercent = 0.10d;
 
-    private boolean directTokenCall = true;
-
     @Getter
     private boolean dynamicEvmVersion = true;
-
-    @Min(1)
-    private long exchangeRateGasReq = 100;
 
     private SemanticVersion evmVersion = EVM_VERSION;
 
@@ -100,31 +92,6 @@ public class MirrorNodeEvmProperties {
     private Duration expirationCacheTime = Duration.ofMinutes(10L);
 
     private String fundingAccount;
-
-    @Getter
-    private long htsDefaultGasCost = 10000;
-
-    @Getter
-    private boolean limitTokenAssociations = false;
-
-    @Getter
-    @Min(1)
-    private long maxAutoRenewDuration = 8000001L;
-
-    @Getter
-    @Min(1)
-    private int maxBatchSizeBurn = 10;
-
-    @Getter
-    @Min(1)
-    private int maxBatchSizeMint = 10;
-
-    @Getter
-    @Min(1)
-    private int maxBatchSizeWipe = 10;
-
-    @Getter
-    private int maxCustomFeesAllowed = 10;
 
     @Getter
     @Min(21_000L)
