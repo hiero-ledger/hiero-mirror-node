@@ -6,7 +6,6 @@ import static com.hedera.node.app.service.evm.utils.EthSigsUtils.recoverAddressF
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SOLIDITY_ADDRESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
-import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
@@ -26,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.bouncycastle.util.encoders.Hex;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -389,19 +387,18 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     @Test
     void getBlockTimestamp() throws Exception {
         // Given
-        final var consensusStart = DomainUtils.now();
-        final var consensusEnd = consensusStart + 2 * NANOS_PER_SECOND; // plus 2 seconds to mimic a real block
         final var recordFile = domainBuilder
                 .recordFile()
-                .customize(f -> f.consensusStart(consensusStart).consensusEnd(consensusEnd))
+                .customize(f -> f.index(EVM_46_BLOCK_INDEX))
                 .persist();
+        testWeb3jService.setBlockType(BlockType.of(String.valueOf(recordFile.getIndex())));
+        testWeb3jService.setHistoricalRange(
+                Range.closedOpen(recordFile.getConsensusStart(), recordFile.getConsensusEnd()));
 
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-
         // When
         final var functionCall = contract.call_getBlockTimestamp();
-
         // Then
-        assertThat(functionCall.send().longValue()).isEqualTo(getUnixSeconds(consensusStart));
+        assertThat(functionCall.send().longValue()).isEqualTo(getUnixSeconds(recordFile.getConsensusStart()));
     }
 }
