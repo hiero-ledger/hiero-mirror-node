@@ -68,7 +68,7 @@ class OpcodesController {
         }
 
         response.addHeader(MODULARIZED_HEADER, String.valueOf(true));
-        final var options = new OpcodeTracerOptions(stack, memory, storage, true);
+        final var options = new OpcodeTracerOptions(stack, memory, storage);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options);
     }
 }

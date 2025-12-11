@@ -50,12 +50,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isTrue();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isTrue();
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -81,11 +77,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isFalse();
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, result::send);
-        }
+        assertThat(result.send()).isFalse();
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -124,11 +116,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isFalse();
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, result::send);
-        }
+        assertThat(result.send()).isFalse();
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -152,13 +140,9 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
-            // Then
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, result::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
+        // Then
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -187,12 +171,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isTrue();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isTrue();
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @ParameterizedTest
@@ -221,11 +201,7 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isFalse();
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isFalse();
     }
 
     @ParameterizedTest
@@ -247,12 +223,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, result::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @ParameterizedTest
@@ -275,12 +247,8 @@ class ContractCallIsAuthorizedTest extends AbstractContractCallServiceTest {
                 contract.call_isAuthorizedRawCall(getAddressFromEntity(accountEntity), MESSAGE_HASH, signedMessage);
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
-            // Then
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, result::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, result::send);
+        // Then
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 }

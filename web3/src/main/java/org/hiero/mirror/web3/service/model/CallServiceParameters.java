@@ -28,8 +28,6 @@ public interface CallServiceParameters {
 
     boolean isEstimate();
 
-    boolean isModularized();
-
     boolean isStatic();
 
     enum CallType {

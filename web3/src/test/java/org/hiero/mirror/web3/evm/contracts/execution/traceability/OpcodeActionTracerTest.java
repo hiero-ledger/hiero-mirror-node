@@ -151,7 +151,7 @@ class OpcodeActionTracerTest {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        tracerOptions = new OpcodeTracerOptions(false, false, false, true);
+        tracerOptions = new OpcodeTracerOptions(false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
 
@@ -169,20 +169,11 @@ class OpcodeActionTracerTest {
                 MutableAccount account = worldUpdater.getAccount(frame.getRecipientAddress());
                 if (account != null) {
                     assertThat(account).isEqualTo(recipientAccount);
-                    if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                        verify(recipientAccount, times(1)).getUpdatedStorage();
-                    }
                 }
             } catch (final ModificationNotAllowedException e) {
-                if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                    verify(recipientAccount, never()).getUpdatedStorage();
-                }
             }
         } else {
             verify(worldUpdater, never()).getAccount(any());
-            if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                verify(recipientAccount, never()).getUpdatedStorage();
-            }
         }
     }
 
@@ -263,7 +254,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is enabled in tracer options, should record stack")
     void shouldRecordStackWhenEnabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().stack(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().stack(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -278,7 +269,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().stack(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().stack(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -292,7 +283,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is enabled in tracer options, should record memory")
     void shouldRecordMemoryWhenEnabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().memory(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().memory(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -307,8 +298,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is disabled in tracer options, should not record memory")
     void shouldNotRecordMemoryWhenDisabled() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().memory(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().memory(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -322,8 +312,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given storage is enabled in tracer options, should record storage for modularized services")
     void shouldRecordStorageWhenEnabledModularized() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
@@ -340,8 +329,7 @@ class OpcodeActionTracerTest {
             "given storage is enabled in tracer options, should return empty storage when there are no updates for modularized services")
     void shouldReturnEmptyStorageWhenThereAreNoUpdates() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -357,8 +345,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -374,8 +361,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -389,12 +375,8 @@ class OpcodeActionTracerTest {
     @DisplayName("given exceptional halt occurs, should capture frame data and halt reason")
     void shouldCaptureFrameWhenExceptionalHaltOccurs() {
         // Given
-        tracerOptions = tracerOptions.toBuilder()
-                .stack(true)
-                .memory(true)
-                .storage(true)
-                .modularized(true)
-                .build();
+        tracerOptions =
+                tracerOptions.toBuilder().stack(true).memory(true).storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);

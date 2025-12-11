@@ -171,7 +171,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -192,7 +192,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        CONTRACT_REVERT_EXECUTED, detail, "0123456", null, true, List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, detail, "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -212,8 +212,7 @@ class LoggingFilterTest {
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
-                new MirrorEvmTransactionException(
-                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, childErrors));
+                new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, childErrors));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -233,7 +232,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, true, List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));

@@ -314,9 +314,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             throws Exception {
         // Given
         // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
+        defaultKycStatus = !defaultKycStatus;
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
@@ -364,9 +362,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             throws Exception {
         // Given
         // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
+        defaultKycStatus = !defaultKycStatus;
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);

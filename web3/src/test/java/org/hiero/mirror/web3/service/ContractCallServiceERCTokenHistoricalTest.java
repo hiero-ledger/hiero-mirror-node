@@ -605,11 +605,7 @@ class ContractCallServiceERCTokenHistoricalTest extends AbstractContractCallServ
                     ? contract.call_getOwnerOf(tokenAddress, INVALID_SERIAL_NUMBER)
                     : contract.call_getOwnerOfNonStatic(tokenAddress, INVALID_SERIAL_NUMBER);
             // Then
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-            } else {
-                assertThat(functionCall.send()).isEqualTo(Address.ZERO.toHexString());
-            }
+            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
         }
 
         @ParameterizedTest

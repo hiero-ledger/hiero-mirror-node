@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
@@ -24,7 +23,6 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
-import java.util.Collections;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
@@ -41,7 +39,6 @@ import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
-import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -65,7 +62,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -419,7 +415,7 @@ class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null, true));
+        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null));
 
         contractCall(request)
                 .andExpect(status().isInternalServerError())
@@ -518,101 +514,6 @@ class ContractControllerTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(convert(new GenericErrorResponse("Service Unavailable"))));
         assertThat(capturedOutput.getOut()).contains("503 Query timeout");
-    }
-
-    @Test
-    void testModularizedRequestEmpty() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestFalse() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestTrue() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestIsFalse() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "false"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestIsTrueButModularizedNotEnabled() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestFalseWithModularizedFlagTrue() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
     }
 
     private ContractCallRequest request() {

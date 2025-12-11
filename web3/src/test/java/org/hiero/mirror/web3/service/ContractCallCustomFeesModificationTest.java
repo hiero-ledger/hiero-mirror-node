@@ -33,19 +33,16 @@ import org.junit.jupiter.api.Test;
  *      transferred from or to the treasury account.
  */
 class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-    private boolean isModularized;
     private Map<String, String> evmProperties;
 
     @BeforeEach
     void beforeEach() throws InvocationTargetException, IllegalAccessException {
-        isModularized = mirrorNodeEvmProperties.isModularizedServices();
         evmProperties = mirrorNodeEvmProperties.getProperties();
         activateModularizedFlagAndInitializeState();
     }
 
     @AfterEach
     void afterEach() {
-        mirrorNodeEvmProperties.setModularizedServices(isModularized);
         mirrorNodeEvmProperties.setProperties(evmProperties);
     }
 

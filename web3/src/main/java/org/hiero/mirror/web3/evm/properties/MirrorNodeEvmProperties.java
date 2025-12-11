@@ -16,8 +16,6 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.config.VersionedConfiguration;
 import jakarta.annotation.PostConstruct;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -34,7 +32,6 @@ import java.util.TreeMap;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hibernate.validator.constraints.time.DurationMin;
@@ -135,14 +132,6 @@ public class MirrorNodeEvmProperties {
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
     @Getter
-    private boolean modularizedServices = true;
-
-    @Getter
-    @DecimalMin("0.0")
-    @DecimalMax("1.0")
-    private double modularizedTrafficPercent = 1.0;
-
-    @Getter
     private long entityNumBuffer = 1000L;
 
     @Getter
@@ -240,17 +229,6 @@ public class MirrorNodeEvmProperties {
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
-    }
-
-    /**
-     * Used to determine whether a transaction should go through the txn execution service based on
-     * modularizedTrafficPercent property in the config/application.yml.
-     *
-     * @return true if the random value between 0 and 1 is less than modularizedTrafficPercent
-     */
-    public boolean directTrafficThroughTransactionExecutionService() {
-        return isModularizedServices()
-                && RandomUtils.secure().randomDouble(0.0d, 1.0d) < getModularizedTrafficPercent();
     }
 
     @PostConstruct

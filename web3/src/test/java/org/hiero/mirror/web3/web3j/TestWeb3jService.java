@@ -291,7 +291,6 @@ public class TestWeb3jService implements Web3jService {
                 .gasPrice(0L)
                 .isStatic(false)
                 .callType(callType)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(block)
                 .build();
@@ -306,7 +305,6 @@ public class TestWeb3jService implements Web3jService {
                 .callData(Bytes.fromHexString(transaction.getData()))
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
@@ -324,7 +322,6 @@ public class TestWeb3jService implements Web3jService {
                 .receiver(Address.ZERO)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)

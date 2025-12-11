@@ -12,7 +12,6 @@ import java.util.List;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.MirrorNodeException;
-import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.web3j.generated.TokenReject;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,11 +37,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(tokenAddress), List.of());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -62,11 +57,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(), List.of(tokenAddress));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -96,11 +87,7 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 getAddressFromEntity(sender), fungibleTokenAddresses, nonFungibleTokenAddresses);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -125,12 +112,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(), nonFungibleTokenAddresses);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -156,12 +139,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), fungibleTokenAddresses, List.of());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -183,12 +162,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(tokenAddress), List.of());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -210,12 +185,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(tokenAddress), List.of());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -232,12 +203,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(senderAddress), List.of());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -254,12 +221,8 @@ class ContractCallTokenRejectSystemContractTest extends AbstractContractCallServ
                 contract.send_rejectTokens(getAddressFromEntity(sender), List.of(), List.of(senderAddress));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     private Long fungibleTokenSetup(final EntityId treasury, final Entity sender) {

@@ -71,19 +71,11 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
     @Test
     void verifyMirrorNodeStateHasRegisteredServices() {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
-
         verifyRegisteredServices();
     }
 
     @Test
     void verifyServicesHaveAssignedDataSources() {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
-
         final var states = mirrorNodeState.getStates();
 
         // BlockRecordService
@@ -141,11 +133,6 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
     @Test
     void verifyMirrorNodeNonGenesisStateHasRegisteredServices() throws Exception {
-        boolean initialModularized = mirrorNodeEvmProperties.isModularizedServices();
-        if (!initialModularized) {
-            mirrorNodeEvmProperties.setModularizedServices(true);
-        }
-
         try {
             // Prepare for the test
             prepareNonGenesisTestEnvironment();
@@ -156,8 +143,6 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
             // Verify the expected services are registered
             verifyRegisteredServices();
         } finally {
-            // Reset properties to their initial state
-            resetProperties(initialModularized);
         }
     }
 
@@ -212,10 +197,6 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         postConstructMethod.setAccessible(true);
         postConstructMethod.invoke(mirrorNodeState);
-    }
-
-    private void resetProperties(boolean initialModularized) {
-        mirrorNodeEvmProperties.setModularizedServices(initialModularized);
     }
 
     private void verifyServiceDataSources(

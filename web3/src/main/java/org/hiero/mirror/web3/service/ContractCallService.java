@@ -94,7 +94,8 @@ public abstract class ContractCallService {
             CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
 
-        if (params.isModularized() || params.getBlock() != BlockType.LATEST) {
+        // TODO temporary substitute deleted property check with true
+        if (true || params.getBlock() != BlockType.LATEST) {
             ctx.setRecordFile(recordFileService
                     .findByBlockType(params.getBlock())
                     .orElseThrow(BlockNumberNotFoundException::new));
@@ -115,7 +116,7 @@ public abstract class ContractCallService {
                 validateResult(result, params);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, params.isModularized());
+            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY);
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();
@@ -154,22 +155,19 @@ public abstract class ContractCallService {
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             var status = getStatusOrDefault(txnResult).name();
-            throw new MirrorEvmTransactionException(
-                    status, detail, revertReason.toHexString(), txnResult, params.isModularized());
+            throw new MirrorEvmTransactionException(status, detail, revertReason.toHexString(), txnResult);
         }
     }
 
     protected final void updateMetrics(CallServiceParameters parameters, long gasUsed, int iterations, String status) {
         var tags = Tags.of("iteration", String.valueOf(iterations))
-                .and("modularized", String.valueOf(parameters.isModularized()))
                 .and("type", parameters.getCallType().toString());
         invocationCounter.withTags(tags.and("status", status)).increment();
         gasUsedCounter.withTags(tags).increment(gasUsed);
     }
 
     protected final void updateGasLimitMetric(final CallServiceParameters parameters) {
-        var tags = Tags.of("modularized", String.valueOf(parameters.isModularized()))
-                .and("type", parameters.getCallType().toString());
+        var tags = Tags.of("type", parameters.getCallType().toString());
         gasLimitCounter.withTags(tags).increment(parameters.getGas());
     }
 }
