@@ -13,7 +13,7 @@ spec:
       valuesFiles:
         - values.yaml
         - values-v2.yaml
-      version: '0.144.0-rc2'
+      version: '0.145.0-rc1'
   dependsOn:
     - name: testkube
       namespace: testkube
