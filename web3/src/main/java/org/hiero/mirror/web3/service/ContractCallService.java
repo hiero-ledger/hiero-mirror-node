@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.service;
 
 import static org.apache.logging.log4j.util.Strings.EMPTY;
-import static org.hiero.mirror.common.util.DomainUtils.NANOS_PER_SECOND;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
 
@@ -16,12 +15,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import lombok.CustomLog;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.domain.DigestAlgorithm;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -177,27 +171,5 @@ public abstract class ContractCallService {
         var tags = Tags.of("modularized", String.valueOf(parameters.isModularized()))
                 .and("type", parameters.getCallType().toString());
         gasLimitCounter.withTags(tags).increment(parameters.getGas());
-    }
-
-    private RecordFile createSyntheticRecordFile() {
-        final long now = DomainUtils.now();
-        final var hash = RandomStringUtils.secure().next(96, "0123456789abcdef");
-        final var index = RandomUtils.secure().randomLong();
-
-        final var syntheticRecordFile = RecordFile.builder()
-                .consensusStart(now - 2 * NANOS_PER_SECOND)
-                .consensusEnd(now)
-                .count(1L)
-                .index(index)
-                .bytes(new byte[0])
-                .digestAlgorithm(DigestAlgorithm.SHA_384)
-                .fileHash(hash)
-                .hash(hash)
-                .name(now + ".rcd")
-                .previousHash(hash)
-                .size(0)
-                .version(6)
-                .build();
-        return syntheticRecordFile;
     }
 }
