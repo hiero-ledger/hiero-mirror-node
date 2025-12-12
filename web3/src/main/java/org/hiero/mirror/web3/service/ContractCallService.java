@@ -94,7 +94,7 @@ public abstract class ContractCallService {
             CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
 
-        if (params.isModularized() || params.getBlock() != BlockType.LATEST) {
+        if (params.getBlock() != BlockType.LATEST) {
             ctx.setRecordFile(recordFileService
                     .findByBlockType(params.getBlock())
                     .orElseThrow(BlockNumberNotFoundException::new));
