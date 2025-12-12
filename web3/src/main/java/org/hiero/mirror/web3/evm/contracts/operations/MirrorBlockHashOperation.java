@@ -61,9 +61,11 @@ class MirrorBlockHashOperation extends BlockHashOperation implements Modularized
         if (currentBlockNumber <= 0 || soughtBlock > currentBlockNumber) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
-            var latestBlock = ContractCallContext.get().getRecordFile();
+            final var context = ContractCallContext.get();
+            var latestBlock = context.getRecordFile();
             if (latestBlock == null) {
                 latestBlock = recordFileRepository.findLatest().orElseThrow(BlockNumberNotFoundException::new);
+                context.setRecordFile(latestBlock);
             }
             final var blockHash = getBlockHash(latestBlock);
             frame.pushStackItem(blockHash);

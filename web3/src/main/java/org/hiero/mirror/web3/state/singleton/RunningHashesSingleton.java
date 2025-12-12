@@ -26,10 +26,12 @@ public class RunningHashesSingleton implements SingletonState<RunningHashes> {
 
     @Override
     public RunningHashes get() {
-        var recordFile = ContractCallContext.get().getRecordFile();
+        final var context = ContractCallContext.get();
+        var recordFile = context.getRecordFile();
         if (recordFile == null) {
             recordFile =
                     recordFileService.findByBlockType(BlockType.LATEST).orElseThrow(BlockNumberNotFoundException::new);
+            context.setRecordFile(recordFile);
         }
         return RunningHashes.newBuilder()
                 .runningHash(Bytes.EMPTY)
