@@ -4,17 +4,17 @@
 
 This design document outlines the implementation plan for supporting HIP-1340 EOA code delegation in the Hiero mirror node.
 The implementation will enable extraction, storage, and querying of code delegation data from consensus node transactions,
-performing `eth_call`, `eth_estimateGas` transactions with code delegations and querying the persisted code delegations
-from the existing REST APIs.
+performing `eth_call`, `eth_estimateGas` and `debug_traceTransaction` transactions with code delegations and querying the
+persisted code delegations from the existing REST APIs. The code delegations will be kept as `delegation_indicator`
+in both DB and REST API.
 
 ## Goals
 
 - Enhance the database schema to store code delegations
 - Ingest code delegation creations via `CryptoCreateTransactionBody` transactions
 - Ingest code delegation updates and deletions via `CryptoUpdateTransactionBody` transactions
-- Expose code delegation information via the existing account REST APIs with the new code field
+- Expose code delegation information via the existing account REST APIs with the new `delegation_indicator` field
 - Support efficient querying and pagination of code delegations by account id and timestamp
-- Track code delegation usage in transactions for audit and analytics purposes
 
 ## Non-Goals
 
@@ -26,9 +26,9 @@ from the existing REST APIs.
 The HIP-1340 implementation follows the established mirror node architecture pattern:
 
 1. **Transaction Processing**: Code delegation-related transactions are processed by dedicated transaction handlers
-2. **Database Storage**: Code delegation data is stored in normalized tables with proper indexing for efficient queries
-3. **REST APIs**: The existing accounts endpoints expose the new code delegation field called `code`. The existing contract endpoints will be enhanced to work for EOAs with code delegations as if they are contracts.
-4. **WEB3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas`.
+2. **Database Storage**: Code delegation data is stored in existing tables with proper indexing for efficient queries
+3. **REST APIs**: The existing accounts endpoints expose the new code delegation field called `delegation_indicator`. The existing contract endpoints will be enhanced to work for EOAs with code delegations as if they are contracts.
+4. **Web3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas` and `debug_traceTransaction`.
 
 ## Background
 
@@ -48,9 +48,9 @@ and the transaction will be executed in the context of the EOA. For more detaile
 - `GET /api/v1/accounts`
 - `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
 
-In both API endpoints the returned account model will contain an additional parameter, named `code`. Its value will be
+In both API endpoints the returned account model will contain an additional parameter, named `delegation_indicator`. Its value will be
 the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set or
-if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `code` field will be empty.
+if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `delegation_indicator` field will be empty.
 
 > All `GET /api/v1/contracts/*` endpoints will be modified so that they work with an EOA account the same way as the
 > existing queries with contract id.
@@ -59,75 +59,38 @@ In order to do this the existing DB queries need to be enhanced.
 
 - `GET api/v1/contracts`
 
+The existing query needs to be changed so that the filter query matches the entity type of 'ACCOUNT' as well
+if the entity's `delegation_identifier` is non-null.
+
 ```sql
-select <needed_entity_and_contract_fields>, coalesce(${Contract.getFullName(Contract.RUNTIME_BYTECODE)}, ${CodeDelegation.getFullName(CodeDelegation.RUNTIME_BYTECODE)}) as runtime_bytecode
-from ${Entity.tableName} ${Entity.tableAlias}
-left join ${Contract.tableName} ${Contract.tableAlias}
-on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}
-left join ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
-on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
-whereQuery
-order by ${Entity.getFullName(Entity.ID)} ${order}
-limitQuery
+`select ${contractSelectFields}`,
+`from ${Entity.tableName} ${Entity.tableAlias}`,
+`left join ${Contract.tableName} ${Contract.tableAlias}`,
+`on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}`,
+`where ${Entity.getFullName(Entity.TYPE)} = 'CONTRACT'
+        or (${Entity.getFullName(Entity.TYPE)} = 'ACCOUNT'
+                and ${Entity.getFullName(Entity.DELEGATION_IDENTIFIER) is not null)`,
+<the_rest_of_filter_clauses>
+`order by ${Entity.getFullName(Entity.ID)} ${order}`,
+limitQuery,
 ```
 
 - `GET api/v1/contracts/{contractIdOrAddress}`
 
-After the existing query completes and if it returns no rows, a new query to the `code_delegation` table will be made.
+The existing query needs to be changed so that the filter query matches the entity type of 'ACCOUNT' as well if the
+entity's `delegation_identifier` is non-null.
 
 ```sql
-select <needed_entity_and_code_delegation_fields>
-from ${Entity.tableName} ${Entity.tableAlias}
-left join ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
-on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
-where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
+`select <needed_entity_and_contract_fields>,
+    coalesce(${Contract.getFullName(Contract.RUNTIME_BYTECODE)},
+        ${Entity.getFullName(Entity.CODE_DELEGATION)}) as runtime_bytecode`,
+`from ${table} ${Entity.tableAlias}`,
+`left join ${Contract.tableName} ${Contract.tableAlias}`,
+`on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}`,
+where e.type = 'CONTRACT'
+    or (e.type = 'ACCOUNT' and ${Entity.getFullName(Entity.DELEGATION_IDENTIFIER) is not null))
+    and ${conditions.join(' and ')}
 ```
-
-In case there is a timestamp passed in the request this query will be executed instead:
-
-```sql
-select <needed_entity_and_code_delegation_fields>
-from
-(
-    (
-        select <needed_entity_fields>
-        from ${Entity.tableName} ${Entity.tableAlias}
-        where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
-    )
-    union all
-    (
-        select <needed_entity_fields>
-        from ${Entity.historyTableName} ${Entity.tableAlias}
-        where e.type = 'ACCOUNT' and ${conditions.join(' and ')}
-        order by lower(${Entity.TIMESTAMP_RANGE}) desc
-        limit 1
-    )
-    order by lower(${Entity.TIMESTAMP_RANGE}) desc
-    limit 1
-) as ${Entity.tableAlias}
-left join
-(
-    (
-        select <needed_code_delegation_fields>
-        from ${CodeDelegation.tableName} ${CodeDelegation.tableAlias}
-        where ${conditions.join(' and ')}
-    )
-    union all
-    (
-        select <needed_code_delegation_fields>
-        from ${CodeDelegation.historyTableName} ${CodeDelegation.tableAlias}
-        where ${conditions.join(' and ')}
-        order by lower(${CodeDelegation.TIMESTAMP_RANGE}) desc
-        limit 1
-    )
-    order by lower(${CodeDelegation.TIMESTAMP_RANGE}) desc
-    limit 1
-) as ${CodeDelegation.tableAlias}
-on ${Entity.getFullName(Entity.ID)} = ${CodeDelegation.getFullName(CodeDelegation.ENTITY_ID)}
-```
-
-The combined query will be executed and returned as a result without a call to the `FileService` as there will be no file
-to fetch in case of code delegations.
 
 - `GET /api/v1/contracts/{contractIdOrAddress}/results`
 - `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
@@ -151,34 +114,20 @@ result from an EOA code delegation call.
 ### Query Requirements
 
 The code delegations will be fetched by contract ID for latest blocks and by (contract ID + timestamp) for historical blocks.
-The database indexes must support these query patterns efficiently for optimal performance.
 
-### 1. Code Delegation Table
+### 1. Entity Table
 
-Create new tables to store code delegation information with history support:
+The existing `entity` and `entity_history` tables need to be altered to store code delegation information in a new column
+called `delegation_identifier`.
 
 ```sql
 -- add_code_delegations_support.sql
 
--- Main code delegation table (current state)
-create table if not exists code_delegation
-(
-    entity_id              bigint,       not null,
-    created_timestamp      bigint,       not null,
-    timestamp_range        int8range,    not null,
-    delegation_identifier  bytea,        not null,
+alter table if exists entity
+add column if not exists delegation_identifier bytea null;
 
-    primary key (entity_id)
-);
-
--- Code delegation history table
-create table if not exists code_delegation_history
-(
-    like code_delegation including defaults
-);
-
-select create_distributed_table('code_delegation', 'entity_id', colocate_with => 'entity');
-select create_distributed_table('code_delegation_history', 'entity_id', colocate_with => 'entity');
+alter table if exists entity_history
+add column if not exists delegation_identifier bytea null;
 ```
 
 Each EOA can have only one `delegation_identifier` set. To delete it, the address part of the identifier is set to the empty
@@ -190,115 +139,53 @@ The existing `ethereum_transaction` table needs to be altered and a new column n
 of type bytea.
 
 ```sql
-alter table if exists ethereum_transaction add column if not exists authorization_list bytea;
+alter table if exists ethereum_transaction
+add column if not exists authorization_list bytea null;
 ```
 
 ## Importer Module Changes
 
-### 1. Create Domain Models
+### 1. Domain Models
 
-Create new domain classes following the EntityHistory pattern:
-
-#### AbstractCodeDelegation.java
+#### EthereumTransaction.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/transaction/AbstractCodeDelegation.java
-@Upsertable(history = true)
-public abstract class AbstractCodeDelegation implements History {
+// common/src/main/java/org/hiero/mirror/common/domain/transaction/EthereumTransaction.java
+public class EthereumTransaction implements Persistable<Long> {
 
-    @Id
-    private EntityId entityId;
-
-    private byte[] codeDelegation;
-
-    @Column(updatable = false)
-    private Long createdTimestamp;
-
-    private Range<Long> timestampRange;
-
+    // This field needs to be added to the existing class.
+    @ToString.Exclude
+    private byte[] authorizationList;
 }
 ```
 
-#### CodeDelegation.java
+#### AbstractEntity.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/transaction/CodeDelegation.java
-@Upsertable
-public class CodeDelegation extends AbstractCodeDelegation {
-    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
-}
-```
+// common/src/main/java/org/hiero/mirror/common/domain/entity/AbstractEntity.java
+public class AbstractEntity implements History {
 
-#### CodeDelegationHistory.java
-
-```java
-// common/src/main/java/org/hiero/mirror/common/domain/hook/CodeDelegationHistory.java
-public class CodeDelegationHistory extends AbstractHook {
-    // Only the parent class should contain fields so that they're shared with both the history and non-history tables.
+    // This field needs to be added to the existing class.
+    @ToString.Exclude
+    private byte[] delegationIdentifier;
 }
 ```
 
 ### 2. Transaction Handler Enhancements
 
-Existing transaction handlers will be enhanced to extract code delegation information from transaction bodies:
-
-The following transaction handlers will be modified to process `CodeDelegation`:
+The following transaction handlers will be modified:
 
 - `EthereumTransactionHandler.java` - the `authorization_list` field from the `EthereumTransactionBody` needs to be saved
   similarly to the other byte array fields.
 
-A child frame of the parent Ethereum transaction will be a `CryptoCreateTransaction` or a `CryptoUpdateTransaction`
+A child transaction of the parent Ethereum transaction will be a `CryptoCreateTransaction` or a `CryptoUpdateTransaction`
 (depending on whether the affected EOA already exists or not). Their protobufs will be changed to have an additional
-`code` field that will keep the code delegation.
+`delegation_address` field that will keep the code delegation.
 
-- `CryptoCreateTransactionHandler.java` - read the `code` field and save the code delegation via the `EntityListener`
-- `CryptoUpdateTransactionHandler.java` - read the `code` field and save the code delegation via the `EntityListener`
+- `CryptoCreateTransactionHandler.java` - read the `delegation_address` field and save it in the entity
+- `CryptoUpdateTransactionHandler.java` - read the `delegation_address` field and save it in the entity
 
-```
-create CodeDelegation with:
-    - entity ID from transaction
-    - delegation_identifier from code field from the transaction body
-save CodeDelegation via entityListener
-```
-
-### 3. Entity Listener Enhancement
-
-Extend `EntityListener` interface to handle code delegations:
-
-```java
-// importer/src/main/java/org/hiero/mirror/importer/parser/record/entity/EntityListener.java
-public interface EntityListener {
-    // ... existing methods ...
-
-    void onCodeDelegation(CodeDelegation codeDelegation);
-}
-```
-
-### 4. Create Repositories
-
-#### CodeDelegationRepository.java
-
-```java
-
-@Repository
-public interface CodeDelegationRepository extends JpaRepository<CodeDelegation, Long> {
-    // Methods for querying code delegations by entity id and timestamp
-}
-```
-
-#### CodeDelegationHistoryRepository.java
-
-```java
-
-public interface CodeDelegationHistoryRepository extends CrudRepository<CodeDelegation, Long>, RetentionRepository {
-
-    @Modifying
-    @Query(nativeQuery = true, value = "delete from code_delegation_history where timestamp_range << int8range(?1, null)")
-    int prune(long consensusTimestamp);
-}
-```
-
-### 5. Parser
+### 3. Parser
 
 A new `Eip7702EthereumTransactionParser` needs to be defined to handle the new Ethereum 4 transaction type.
 
@@ -322,49 +209,89 @@ will be that the new transaction type will need to decode the authorizationList 
 
 ## Web3 Module Changes
 
-### 1. Create Repository
-
-```java
-//org.hiero.mirror.web3.repository.CodeDelegationRepository
-@Repository
-public interface CodeDelegationRepository extends CrudRepository<CodeDelegation, Long> {
-
-    Optional<CodeDelegation> findByEntityId(final long entityId);
-
-    /**
-     *  Finds the historical code delegation for a specific block timestamp. The query needs to reflect what was the
-     *  latest state of the code delegation up until the given block timestamp. The code_delegation and code_delegation_history
-     *  tables to be queried with a union.
-     */
-    @Query(
-            value =
-                    """
-                    (
-                        select *
-                        from code_delegation
-                        where entity_id = ?1 and lower(timestamp_range) <= ?2
-                    )
-                    union all
-                    (
-                        select *
-                        from code_delegation_history
-                        where entity_id = ?1 and lower(timestamp_range) <= ?2
-                        order by lower(timestamp_range) desc
-                        limit 1
-                    )
-                    order by timestamp_range desc
-                    limit 1
-                    """,
-            nativeQuery = true)
-    Optional<CodeDelegation> findByEntityIdAndTimestamp(final long entityId, final long blockTimestamp);
-}
-```
-
-### 2. Update ContractBytecodeReadableKVState
+### 1. Update ContractBytecodeReadableKVState
 
 `protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
 This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
-search by contract id in the `codeDelegationRepository`.
+search by contract id in the `entityRepository` and if an account is found return the `delegation_identifier`.
+
+### 2. Enhance TransactionExecutionService
+
+The existing `TransactionExecutionService` currently supports only contract create and contract call transactions, which was
+sufficient to cover all scenarios up until now. The specifics of the code delegation creation require support of sending
+ethereum transactions to the `TransactionExecutor` from hedera-app.
+
+```
+private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(EthereumTransactionBody.newBuilder()
+                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(params.getEthereumData().toArray()))
+                        .build())
+                .transactionFee(<fixed_transaction_fee>)
+                .build();
+}
+```
+
+### 3. Enhance CallServiceParameters
+
+The interface needs to have a new method:
+
+```
+public interface CallServiceParameters {
+
+    Bytes getEthereumData();
+}
+
+```
+
+### 4. Adapt ContractExecutionParameters
+
+`ContractExecutionParameters` is one of the classes that implement `CallServiceParameters`. The `ethereumData` is not
+relevant for it, so return `null` by default.
+
+```
+@Value
+@Builder
+public class ContractExecutionParameters implements CallServiceParameters {
+
+    @Override
+    public Bytes getEthereumData() {
+        return null;
+    }
+}
+```
+
+### 5. Adapt ContractDebugParameters
+
+The `ethereumData` needs to be added in this model.
+
+```
+@Value
+@Builder(toBuilder = true)
+@RequiredArgsConstructor
+public class ContractDebugParameters implements CallServiceParameters {
+
+    Bytes ethereumData;
+}
+```
+
+If the parameters have this `ethereumData` set, then the new method in `TransactionExecutionService` to build an Ethereum
+transaction will be used with priority. In all other cases - fallback to the current implementation.
+
+### 6. Enhance OpcodeServiceImpl
+
+When `ContractDebugParameters` are built, we need to pass the new `ethereumData` field so that is can be used in the
+`TransactionExecutionService` to create the Ethereum transaction body.
+
+### 7. Enhance Account
+
+The `Account` model needs to have a new field `delegation_identifier` (or however it is named in hedera-app) that will
+keep the code delegation in the state as part of the account model.
+
+### 8. Enhance AbstractAliasedAccountReadableKVState
+
+The `AbstractAliasedAccountReadableKVState` needs to be changed to set the new field `delegation_identifier` (or however
+it is named in hedera-app) that will set the code delegation from the entity to the built account model.
 
 ## Testing Strategy
 
@@ -372,7 +299,8 @@ search by contract id in the `codeDelegationRepository`.
 
 - Transaction handler tests for code delegation persisting
 - `Eip7702EthereumTransactionParser` tests for transaction parsing
-- Repository tests for data access
+- `ContractBytecodeReadableKVState` tests to verify that the code delegations are returned as expected
+- `AccountReadableKVState` tests to verify that the code delegations are returned as expected when an account with delegation is fetched
 
 ### 2. Integration Tests
 
@@ -383,13 +311,16 @@ search by contract id in the `codeDelegationRepository`.
     - with a delegation to a contract that needs funds to execute the transaction but the EOA does not have enough funds - to verify that the EOA's context is used as expected
     - with a delegation to a non-existing address - should result in a hollow account creation. The result is a no-op
     - with a delegation to a system contract - should result in a no-op
-  - REST spec tests that the `/accounts` endpoint returns the new `code` field as expected
+    - with `debug_traceTransaction` call to verify that the Ethereum calls are made successfully and that we can provide historical support
+  - REST spec tests that the `/accounts` endpoint returns the new `delegation_indicator` field as expected
+  - REST spec tests that the contract results endpoints return the new `authorization_list` field as expected
 - Database migration tests
 
 ### 3. Acceptance Tests
 
 - Executing a contract call to EOA with code delegation to another contract
-- Call the REST `/accounts/{accountId}` endpoint to verify the code delegation is returned as expected
+- Call the REST `/accounts/{accountId}` endpoint to verify the delegation identifier is returned as expected
+- Call the REST contract results endpoint to verify the authorization list is returned as expected
 
 ### 4. k6 Tests
 
