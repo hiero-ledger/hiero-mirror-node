@@ -100,7 +100,7 @@ public class MirrorNodeEvmProperties {
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;
 
-    //    // Contains the user defined properties to pass to the consensus node library
+    // Contains the user defined properties to pass to the consensus node library
     @Getter
     @NotNull
     private Map<String, String> properties = new HashMap<>();

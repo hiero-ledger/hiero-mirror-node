@@ -9,6 +9,9 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
@@ -58,7 +61,10 @@ class MirrorNodeEvmPropertiesTest {
                 EVM_VERSION_0_38,
                 EVM_VERSION_0_46,
                 EVM_VERSION_0_50,
-                EVM_VERSION_0_51);
+                EVM_VERSION_0_51,
+                EVM_VERSION_0_65,
+                EVM_VERSION_0_66,
+                EVM_VERSION_0_67);
     }
 
     private static Stream<Arguments> hapiVersionToEvmVersionProviderCustom() {
