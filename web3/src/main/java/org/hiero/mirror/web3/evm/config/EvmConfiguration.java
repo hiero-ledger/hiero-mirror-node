@@ -58,7 +58,10 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
+    public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_66 = new SemanticVersion(0, 66, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
     private final CacheProperties cacheProperties;
 
     @Bean(CACHE_MANAGER_CONTRACT)

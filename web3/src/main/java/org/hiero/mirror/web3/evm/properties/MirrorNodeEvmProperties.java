@@ -9,6 +9,9 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_34
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
 
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
@@ -48,8 +51,15 @@ public class MirrorNodeEvmProperties {
 
     public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESSES";
 
-    private static final List<SemanticVersion> DEFAULT_EVM_VERSION_SET =
-            List.of(EVM_VERSION_0_30, EVM_VERSION_0_34, EVM_VERSION_0_38, EVM_VERSION_0_50, EVM_VERSION_0_51);
+    private static final List<SemanticVersion> DEFAULT_EVM_VERSION_SET = List.of(
+            EVM_VERSION_0_30,
+            EVM_VERSION_0_34,
+            EVM_VERSION_0_38,
+            EVM_VERSION_0_50,
+            EVM_VERSION_0_51,
+            EVM_VERSION_0_65,
+            EVM_VERSION_0_66,
+            EVM_VERSION_0_67);
 
     @Getter
     private final CommonProperties commonProperties;
