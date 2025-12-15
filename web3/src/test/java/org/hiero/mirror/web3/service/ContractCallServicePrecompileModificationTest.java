@@ -72,6 +72,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
+    private static int MAX_TOKEN_NAME_UTF8_BYTES = 100;
+    private static int MAX_MEMO_UTF8_BYTES = 100;
+
     private static Stream<Arguments> tokenData() {
         return Stream.of(Arguments.of(FUNGIBLE_COMMON.name(), true), Arguments.of(NON_FUNGIBLE_UNIQUE.name(), false));
     }
@@ -1022,7 +1025,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.metadata(new byte[mirrorNodeEvmProperties.getMaxMemoUtf8Bytes() + 1]))
+                .customize(t -> t.metadata(new byte[MAX_MEMO_UTF8_BYTES + 1]))
                 .get());
 
         // When
@@ -1041,8 +1044,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.name(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.name(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When
@@ -1061,8 +1063,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.symbol(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.symbol(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When

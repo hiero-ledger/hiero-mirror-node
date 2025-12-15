@@ -37,7 +37,7 @@ public class TransactionExecutorFactory {
         // Create transaction executor for each EVM version, on startup, before the k8s
         // readiness probe elapses, so we avoid slowing down the initial contract calls.
         ContractCallContext.run(ctx -> {
-            mirrorNodeEvmProperties.getEvmVersions().values().forEach(this::create);
+            mirrorNodeEvmProperties.getEvmVersions().forEach(this::create);
             return ctx;
         });
     }

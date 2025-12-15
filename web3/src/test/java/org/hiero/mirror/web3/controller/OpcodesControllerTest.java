@@ -108,9 +108,6 @@ class OpcodesControllerTest {
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();
 
     @Resource
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    @Resource
     private MockMvc mockMvc;
 
     @Resource

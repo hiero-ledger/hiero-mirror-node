@@ -4,7 +4,9 @@ package org.hiero.mirror.web3.service;
 
 import com.google.common.collect.Range;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -27,13 +29,26 @@ import org.hiero.mirror.web3.viewmodel.BlockType;
 
 public abstract class AbstractContractCallServiceHistoricalTest extends AbstractContractCallServiceTest {
 
+    private static final Map<Long, Integer> blockNumberToEvmVersion = new HashMap<>();
+
+    static {
+        blockNumberToEvmVersion.put(0L, 30);
+        blockNumberToEvmVersion.put(50L, 34);
+        blockNumberToEvmVersion.put(100L, 38);
+        blockNumberToEvmVersion.put(150L, 46);
+        blockNumberToEvmVersion.put(200L, 50);
+    }
+
     protected Range<Long> setUpHistoricalContext(final long blockNumber) {
         final var recordFile = recordFilePersist(blockNumber);
         return setupHistoricalStateInService(blockNumber, recordFile);
     }
 
     protected RecordFile recordFilePersist(final long blockNumber) {
-        return domainBuilder.recordFile().customize(f -> f.index(blockNumber)).persist();
+        return domainBuilder
+                .recordFile()
+                .customize(f -> f.index(blockNumber).hapiVersionMinor(blockNumberToEvmVersion.get(blockNumber)))
+                .persist();
     }
 
     protected Range<Long> setupHistoricalStateInService(final long blockNumber, final RecordFile recordFile) {
