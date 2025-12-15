@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
-import static org.hiero.mirror.web3.state.Utils.EMPTY_KEY_LIST;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
@@ -104,7 +103,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
                     ? Optional.of(Account.newBuilder()
                             .accountId(accountID)
-                            .key(EMPTY_KEY_LIST)
+                            .key(getDefaultKey())
                             .build())
                     : Optional.empty();
         }
