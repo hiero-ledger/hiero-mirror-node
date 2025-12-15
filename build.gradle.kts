@@ -25,7 +25,7 @@ extra.apply {
     set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
-    set("consensusNodeVersion", "0.69.0-rc.2")
+    set("consensusNodeVersion", "0.69.0")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
