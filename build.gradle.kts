@@ -25,7 +25,7 @@ extra.apply {
     set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
-    set("consensusNodeVersion", "0.69.0-rc.2")
+    set("consensusNodeVersion", "0.69.0")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -49,7 +49,7 @@ dependencies {
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
@@ -65,7 +65,7 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.13.3")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
@@ -91,7 +91,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.40.3")
+        api("software.amazon.awssdk:bom:2.40.8")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
