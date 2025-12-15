@@ -27,6 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
@@ -231,6 +233,58 @@ public class TestUtil {
         final var addressBytes = Bytes.fromHexString(normalized);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));
+    }
+
+    private byte[] hexToPadded256Bytes(String hexString) {
+        try {
+            String hex =
+                    (hexString.startsWith("0x") || hexString.startsWith("0X")) ? hexString.substring(2) : hexString;
+
+            byte[] bytes = Hex.decodeHex(hex);
+
+            if (bytes.length > 32) {
+                throw new IllegalArgumentException("Key exceeds 256 bits");
+            }
+
+            byte[] padded = new byte[32];
+            System.arraycopy(bytes, 0, padded, 32 - bytes.length, bytes.length);
+            return padded;
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
+        }
+    }
+
+    public static byte[] hexToBytes(String hexString) {
+        try {
+            String hex =
+                    (hexString.startsWith("0x") || hexString.startsWith("0X")) ? hexString.substring(2) : hexString;
+
+            byte[] bytes = Hex.decodeHex(hex);
+
+            // Enforce minimal representation (strip leading zeros)
+            int i = 0;
+            while (i < bytes.length - 1 && bytes[i] == 0) {
+                i++;
+            }
+
+            return Arrays.copyOfRange(bytes, i, bytes.length);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
+        }
+    }
+
+    public static byte[] leftPadBytes(byte[] bytes, int length) {
+        if (bytes.length > length) {
+            throw new IllegalArgumentException("Key exceeds 256 bits");
+        }
+
+        if (bytes.length == length) {
+            return bytes;
+        }
+
+        byte[] padded = new byte[length];
+        System.arraycopy(bytes, 0, padded, length - bytes.length, bytes.length);
+        return padded;
     }
 
     public static class TokenTransferListBuilder {

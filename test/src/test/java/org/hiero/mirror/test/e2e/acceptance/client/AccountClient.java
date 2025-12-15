@@ -11,6 +11,9 @@ import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
+import com.hedera.hashgraph.sdk.EvmHookCall;
+import com.hedera.hashgraph.sdk.FungibleHookCall;
+import com.hedera.hashgraph.sdk.FungibleHookType;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.NftId;
@@ -185,6 +188,32 @@ public class AccountClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(
                 cryptoTransferTransaction, privateKey == null ? null : KeyList.of(privateKey), sender);
         log.info("Transferred {} from {} to {} via {}", hbarAmount, sender, recipient, response.getTransactionId());
+        return response;
+    }
+
+    /**
+     * Send crypto transfer with hook execution - matches the pattern from TransferTransactionHooksIntegrationTest
+     */
+    public NetworkTransactionResponse sendCryptoTransferWithHook(
+            ExpandedAccountId sender, AccountId recipient, Hbar hbarAmount, long hookId, PrivateKey privateKey) {
+        // Create hook call with empty context data and 25K gas limit as per SDK test pattern
+        var hookCall = new FungibleHookCall(
+                hookId, new EvmHookCall(new byte[] {}, 25_000L), FungibleHookType.PRE_TX_ALLOWANCE_HOOK);
+
+        var transferTransaction = new TransferTransaction()
+                .addHbarTransferWithHook(sender.getAccountId(), hbarAmount.negated(), hookCall)
+                .addHbarTransfer(recipient, hbarAmount)
+                .setTransactionMemo(getMemo("Crypto transfer with hook"));
+
+        var response = executeTransactionAndRetrieveReceipt(
+                transferTransaction, privateKey == null ? null : KeyList.of(privateKey), sender);
+        log.info(
+                "Transferred {} from {} to {} with hook {} via {}",
+                hbarAmount,
+                sender.getAccountId(),
+                recipient,
+                hookId,
+                response.getTransactionId());
         return response;
     }
 

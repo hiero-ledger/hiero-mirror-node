@@ -9,9 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
-import com.hedera.hashgraph.sdk.HookCreationDetails;
-import com.hedera.hashgraph.sdk.HookExtensionPoint;
-import com.hedera.hashgraph.sdk.LambdaEvmHook;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import io.cucumber.java.AfterAll;
 import io.cucumber.java.Before;
@@ -31,8 +28,6 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.rest.model.AccountsResponse;
 import org.hiero.mirror.rest.model.BalancesResponse;
 import org.hiero.mirror.rest.model.CryptoAllowance;
-import org.hiero.mirror.rest.model.Hook;
-import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.StakingRewardsResponse;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
@@ -319,85 +314,5 @@ public class AccountFeature extends AbstractFeature {
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
                 .extracting(StakingRewardsResponse::getRewards)
                 .isNotNull();
-    }
-
-    @When("I attach a hook with ID {long} using existing contract to account {string}")
-    public void attachHookToAccount(long hookIdValue, String accountName) {
-        this.hookId = hookIdValue;
-
-        // Get the account to attach the hook to
-        senderAccountId = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertNotNull(senderAccountId);
-        assertNotNull(senderAccountId.getAccountId());
-
-        // Get the deployed EstimateGasContract to use for the hook
-        final var deployedContract = getContract(ContractResource.ESTIMATE_GAS);
-        final var contractId = deployedContract.contractId();
-
-        // Update the account to attach the hook using the existing contract
-        networkTransactionResponse = accountClient.updateAccount(senderAccountId, updateTx -> {
-            var lambdaEvmHook = new LambdaEvmHook(contractId, List.of());
-            var hookCreationDetails =
-                    new HookCreationDetails(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, hookId, lambdaEvmHook);
-            updateTx.addHookToCreate(hookCreationDetails);
-        });
-
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
-    }
-
-    @Then("the mirror node REST API should return the account hooks")
-    public void verifyAccountHooksAPI() {
-        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
-
-        String accountId = senderAccountId.getAccountId().toString();
-
-        HooksResponse hooksResponse = mirrorClient.getAccountHooks(accountId);
-
-        assertThat(hooksResponse)
-                .isNotNull()
-                .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(HooksResponse::getHooks)
-                .isNotNull()
-                .asInstanceOf(InstanceOfAssertFactories.LIST)
-                .isNotEmpty()
-                .hasSize(1)
-                .first()
-                .asInstanceOf(InstanceOfAssertFactories.type(Hook.class))
-                .satisfies(hook -> {
-                    assertThat(hook.getHookId()).isEqualTo(hookId);
-                    assertThat(hook.getExtensionPoint().getValue()).isEqualTo("ACCOUNT_ALLOWANCE_HOOK");
-                    assertThat(hook.getDeleted()).isFalse();
-                    assertThat(hook.getOwnerId()).isEqualTo(accountId);
-                    var deployedContract = getContract(ContractResource.ESTIMATE_GAS);
-                    assertThat(hook.getContractId())
-                            .isEqualTo(deployedContract.contractId().toString());
-                });
-    }
-
-    @When("I trigger hook execution via crypto transfer of {long} tℏ")
-    public void triggerHookExecution(long transferAmount) {
-        // Record the starting balance
-        startingBalance = accountClient.getBalance(senderAccountId);
-
-        // Perform a crypto transfer that should trigger the hook
-        // Transfer from the hooked account to treasury (GENESIS account)
-        var operatorId = accountClient.getClient().getOperatorAccountId();
-
-        networkTransactionResponse = accountClient.sendCryptoTransfer(
-                operatorId, Hbar.fromTinybars(transferAmount), senderAccountId.getPrivateKey());
-
-        assertNotNull(networkTransactionResponse.getTransactionId());
-        assertNotNull(networkTransactionResponse.getReceipt());
-    }
-
-    @Then("the mirror node REST API should return hook storage entries")
-    public void verifyHookStorageAPI() {
-        verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
-
-        String accountId = senderAccountId.getAccountId().toString();
-
-        // Call the hook storage API endpoint and verify execution data
-        // TODO: To be implemented when storage e API is implemented
     }
 }

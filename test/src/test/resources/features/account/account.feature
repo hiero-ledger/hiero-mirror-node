@@ -38,15 +38,6 @@ Feature: Account Coverage Feature
       | amount | accountName | nodeId |
       | 10     | "ALICE"     | 0      |
 
-  @hooks @acceptance
-  Scenario Outline: Validate account hook lifecycle
-    When I attach a hook with ID <hookId> using existing contract to account <accountName>
-    And I trigger hook execution via crypto transfer of <transferAmount> tℏ
-    Then the mirror node REST API should return the account hooks
-    And the mirror node REST API should return hook storage entries
-    Examples:
-      | accountName | hookId | transferAmount |
-      | "ALICE"     | 1      | 10             |
 
 
 
