@@ -183,7 +183,7 @@ A child transaction of the parent Ethereum transaction will be a `CryptoCreateTr
 `delegation_address` field that will keep the code delegation.
 
 - `CryptoCreateTransactionHandler.java` - read the `delegation_address` field and save it in the entity
-- `CryptoUpdateTransactionHandler.java` - read the `delegation_address` field and save it in the entity
+- `CryptoUpdateTransactionHandler.java` - read the `delegation_address` field and save it in the entity. If the `delegation_address` is equal to 0x0000000000000000000000000000000000000000, then `null` is going to be saved. This equals to a deletion of the code delegation.
 
 ### 3. Parser
 
@@ -280,7 +280,7 @@ transaction will be used with priority. In all other cases - fallback to the cur
 
 ### 6. Enhance OpcodeServiceImpl
 
-When `ContractDebugParameters` are built, we need to pass the new `ethereumData` field so that is can be used in the
+When `ContractDebugParameters` are built, we need to pass the new `ethereumData` field so that it can be used in the
 `TransactionExecutionService` to create the Ethereum transaction body.
 
 ### 7. Enhance Account
