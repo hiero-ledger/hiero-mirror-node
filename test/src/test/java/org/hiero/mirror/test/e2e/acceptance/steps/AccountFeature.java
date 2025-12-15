@@ -56,7 +56,6 @@ public class AccountFeature extends AbstractFeature {
     private ExpandedAccountId senderAccountId;
     private ExpandedAccountId spenderAccountId;
     private long startingBalance;
-    private long hookId;
 
     @AfterAll
     public static void cleanup() {
