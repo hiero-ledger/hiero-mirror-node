@@ -27,13 +27,9 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
     @Override
     public BlockInfo get() {
-        final var context = ContractCallContext.get();
-        var recordFile = context.getRecordFile();
-        if (recordFile == null) {
-            recordFile =
-                    recordFileService.findByBlockType(BlockType.LATEST).orElseThrow(BlockNumberNotFoundException::new);
-            context.setRecordFile(recordFile);
-        }
+        final var recordFile = ContractCallContext.get().resolveRecordFile(() -> recordFileService
+                .findByBlockType(BlockType.LATEST)
+                .orElseThrow(BlockNumberNotFoundException::new));
 
         final var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
         final var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());

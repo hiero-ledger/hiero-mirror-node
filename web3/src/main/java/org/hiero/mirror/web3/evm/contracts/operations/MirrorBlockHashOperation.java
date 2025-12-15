@@ -12,6 +12,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.config.ModularizedOperation;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
+import org.hiero.mirror.web3.service.RecordFileServiceImpl;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
 import org.hyperledger.besu.evm.frame.BlockValues;
@@ -61,12 +63,10 @@ class MirrorBlockHashOperation extends BlockHashOperation implements Modularized
         if (currentBlockNumber <= 0 || soughtBlock > currentBlockNumber) {
             frame.pushStackItem(Bytes32.ZERO);
         } else if (currentBlockNumber == soughtBlock) {
-            final var context = ContractCallContext.get();
-            var latestBlock = context.getRecordFile();
-            if (latestBlock == null) {
-                latestBlock = recordFileRepository.findLatest().orElseThrow(BlockNumberNotFoundException::new);
-                context.setRecordFile(latestBlock);
-            }
+            final var latestBlock = ContractCallContext.get()
+                    .resolveRecordFile(() -> new RecordFileServiceImpl(recordFileRepository)
+                            .findByBlockType(BlockType.LATEST)
+                            .orElseThrow(BlockNumberNotFoundException::new));
             final var blockHash = getBlockHash(latestBlock);
             frame.pushStackItem(blockHash);
         } else {

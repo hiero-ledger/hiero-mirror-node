@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -143,5 +144,17 @@ public class ContractCallContext {
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+    }
+
+    /**
+     *  Get record file from context, if not present set it through a supplier.
+     */
+    public RecordFile resolveRecordFile(Supplier<RecordFile> recordFileSupplier) {
+        var recordFile = getRecordFile();
+        if (recordFile == null) {
+            recordFile = recordFileSupplier.get();
+            setRecordFile(recordFile);
+        }
+        return recordFile;
     }
 }
