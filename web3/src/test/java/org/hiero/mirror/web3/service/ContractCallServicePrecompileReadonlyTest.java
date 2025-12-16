@@ -81,11 +81,13 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void hrcIsAssociatedFails() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_hrcIsAssociated(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        final var functionCall =
+                contract.call_hrcIsAssociated(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isFalse();
@@ -212,11 +214,13 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void isTokenAddress() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -280,11 +284,12 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void getTokenType() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_getType(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        final var functionCall = contract.call_getType(toAddress(tokenId).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ZERO);
