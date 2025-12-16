@@ -30,6 +30,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
@@ -237,8 +238,7 @@ public class TestUtil {
 
     public static byte[] hexToBytes(String hexString) {
         try {
-            String hex =
-                    (hexString.startsWith("0x") || hexString.startsWith("0X")) ? hexString.substring(2) : hexString;
+            final var hex = Strings.CI.removeStart(hexString, "0x");
 
             byte[] bytes = Hex.decodeHex(hex);
 
@@ -256,7 +256,7 @@ public class TestUtil {
 
     public static byte[] leftPadBytes(byte[] bytes, int length) {
         if (bytes.length > length) {
-            throw new IllegalArgumentException("Key exceeds 256 bits");
+            throw new IllegalArgumentException("Key exceeds bits: " + length);
         }
 
         if (bytes.length == length) {

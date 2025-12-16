@@ -14,7 +14,6 @@ import com.hedera.hashgraph.sdk.LambdaMappingEntry;
 import com.hedera.hashgraph.sdk.LambdaSStoreTransaction;
 import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.hashgraph.sdk.Transaction;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import jakarta.inject.Named;
 import java.util.List;
@@ -44,49 +43,37 @@ public final class HookClient extends AbstractNetworkClient {
      * @param value   the storage value as 256-bit byte array
      * @return NetworkTransactionResponse containing transaction ID and receipt
      */
-    public NetworkTransactionResponse putStorageSlot(ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
+    public NetworkTransactionResponse hookStoreSlot(ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
         // Create LambdaStore transaction using actual SDK implementation with proper storage updates
-        var lambdaStoreTransaction = createLambdaStoreTransaction(account, hookId, key, value);
-
-        return executeTransactionAndRetrieveReceipt(lambdaStoreTransaction);
+        return executeHookStoreTransaction(account, hookId, key, value);
     }
 
-    /**
-     * Creates a LambdaStore transaction with the specified parameters using legacy SDK classes following the same
-     * structure as HapiLambdaSStore.
-     */
-    private Transaction<?> createLambdaStoreTransaction(
+    private NetworkTransactionResponse executeHookStoreTransaction(
             ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
 
         // Create storage operation using SDK method pattern
         // Since LambdaStorageUpdate is abstract, we need to use factory methods
         LambdaStorageUpdate storageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(key, value);
 
-        // Create the LambdaSStoreTransaction with hook ID
-        var transaction = new LambdaSStoreTransaction()
-                .setTransactionMemo("LambdaStore operation")
-                .addStorageUpdate(storageUpdate)
-                .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
-                .setMaxTransactionFee(Hbar.fromTinybars(100_000_000L));
-
-        // Finalize the transaction
-        transaction = transaction.freezeWith(client).sign(account.getPrivateKey());
-
-        return transaction;
+        return executeHookStoreTransaction(account, hookId, storageUpdate);
     }
 
     /**
      * Creates a LambdaStore transaction for mapping entries. This would be used for Solidity mapping storage
      * operations.
      */
-    public NetworkTransactionResponse putMappingEntry(
+    public NetworkTransactionResponse hookStoreMapping(
             ExpandedAccountId account, long hookId, byte[] mappingSlot, byte[] entryKey, byte[] entryValue) {
-        LambdaMappingEntry mappingEntry = LambdaMappingEntry.ofKey(entryKey, entryValue);
-        LambdaStorageUpdate mappingUpdate =
-                new LambdaStorageUpdate.LambdaMappingEntries(mappingSlot, List.of(mappingEntry));
+        final var mappingEntry = LambdaMappingEntry.ofKey(entryKey, entryValue);
+        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(mappingSlot, List.of(mappingEntry));
 
+        return executeHookStoreTransaction(account, hookId, mappingUpdate);
+    }
+
+    private NetworkTransactionResponse executeHookStoreTransaction(
+            ExpandedAccountId account, long hookId, LambdaStorageUpdate mappingUpdate) {
         // Create the LambdaSStoreTransaction for mapping operations
-        var transaction = new LambdaSStoreTransaction()
+        final var transaction = new LambdaSStoreTransaction()
                 .setTransactionMemo("LambdaStore mapping operation")
                 .addStorageUpdate(mappingUpdate)
                 .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
@@ -101,28 +88,15 @@ public final class HookClient extends AbstractNetworkClient {
     public NetworkTransactionResponse sendCryptoTransferWithHook(
             ExpandedAccountId sender, AccountId recipient, Hbar hbarAmount, long hookId, PrivateKey privateKey) {
         // Create hook call with empty context data and higher gas limit for storage operations
-        var hookCall = new FungibleHookCall(
+        final var hookCall = new FungibleHookCall(
                 hookId, new EvmHookCall(new byte[] {}, 100_000L), FungibleHookType.PRE_TX_ALLOWANCE_HOOK);
 
-        var transferTransaction = new TransferTransaction()
+        final var transferTransaction = new TransferTransaction()
                 .addHbarTransferWithHook(sender.getAccountId(), hbarAmount.negated(), hookCall)
                 .addHbarTransfer(recipient, hbarAmount)
                 .setTransactionMemo(getMemo("Crypto transfer with hook"));
 
-        var response = executeTransactionAndRetrieveReceipt(
+        return executeTransactionAndRetrieveReceipt(
                 transferTransaction, privateKey == null ? null : KeyList.of(privateKey), sender);
-        log.info(
-                "Transferred {} from {} to {} with hook {} via {}",
-                hbarAmount,
-                sender.getAccountId(),
-                recipient,
-                hookId,
-                response.getTransactionId());
-        return response;
-    }
-
-    @Override
-    public int getOrder() {
-        return 10; // Run cleanup after other clients
     }
 }
