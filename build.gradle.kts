@@ -194,7 +194,7 @@ spotless {
     kotlinGradle {
         endWithNewline()
         ktfmt().kotlinlangStyle()
-        licenseHeader(licenseHeader, "(description|import|plugins)")
+        licenseHeader(licenseHeader, "(description|import|plugins|includeBuild)")
         target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "rest/*/*.kts")
         targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()

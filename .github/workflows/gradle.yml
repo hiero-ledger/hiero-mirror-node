@@ -67,6 +67,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
+      - name: Checkout web3j-gradle-plugin
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: jjohannes/web3j-gradle-plugin
+          path: buildSrc/web3j-gradle-plugin
+          ref: gradle9
+
+      - name: Checkout web3j-solidity-gradle-plugin
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: jjohannes/web3j-solidity-gradle-plugin
+          path: buildSrc/web3j-solidity-gradle-plugin
+          ref: fix-process-resources-task-dependency
+
       - name: Install JDK
         uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
