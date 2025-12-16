@@ -48,13 +48,6 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
-    /**
-     * Record file which stores the block timestamp and other historical block details used for filtering of historical
-     * data.
-     */
-    @Setter
-    private RecordFile recordFile;
-
     @Setter
     private EntityNumber entityNumber;
 
@@ -69,6 +62,9 @@ public class ContractCallContext {
 
     @Setter
     private long gasRequirement;
+
+    @Setter
+    private Supplier<RecordFile> blockSupplier = () -> null;
 
     private ContractCallContext() {}
 
@@ -117,10 +113,7 @@ public class ContractCallContext {
     }
 
     public boolean useHistorical() {
-        if (callServiceParameters != null) {
-            return callServiceParameters.getBlock() != BlockType.LATEST;
-        }
-        return recordFile != null; // Remove recordFile comparison after mono code deletion
+        return callServiceParameters != null ? callServiceParameters.getBlock() != BlockType.LATEST : false;
     }
 
     /**
@@ -135,7 +128,7 @@ public class ContractCallContext {
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {
-        return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
+        return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
@@ -146,15 +139,7 @@ public class ContractCallContext {
         return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
     }
 
-    /**
-     *  Get record file from context, if not present set it through a supplier.
-     */
-    public RecordFile resolveRecordFile(Supplier<RecordFile> recordFileSupplier) {
-        var recordFile = getRecordFile();
-        if (recordFile == null) {
-            recordFile = recordFileSupplier.get();
-            setRecordFile(recordFile);
-        }
-        return recordFile;
+    public RecordFile getRecordFile() {
+        return blockSupplier.get();
     }
 }

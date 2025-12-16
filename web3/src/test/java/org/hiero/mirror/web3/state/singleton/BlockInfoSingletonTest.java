@@ -12,28 +12,19 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.service.RecordFileService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith({ContextExtension.class, MockitoExtension.class})
+@ExtendWith(ContextExtension.class)
 class BlockInfoSingletonTest {
 
+    private final BlockInfoSingleton blockInfoSingleton = new BlockInfoSingleton();
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordFile recordFile = domainBuilder.recordFile().get();
 
-    @Mock
-    private RecordFileService recordFileService;
-
-    @InjectMocks
-    private BlockInfoSingleton blockInfoSingleton;
-
     @Test
     void get() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
@@ -52,7 +43,7 @@ class BlockInfoSingletonTest {
 
     @Test
     void set() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         blockInfoSingleton.set(BlockInfo.DEFAULT);
         assertThat(blockInfoSingleton.get()).isNotEqualTo(BlockInfo.DEFAULT);
     }

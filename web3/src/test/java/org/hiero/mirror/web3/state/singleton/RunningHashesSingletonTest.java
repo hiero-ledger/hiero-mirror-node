@@ -9,29 +9,18 @@ import com.hedera.hapi.node.state.blockrecords.RunningHashes;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.service.RecordFileService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-@ExtendWith(MockitoExtension.class)
 class RunningHashesSingletonTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
-
-    @Mock
-    private RecordFileService recordFileService;
-
-    @InjectMocks
-    private RunningHashesSingleton runningHashesSingleton;
+    private final RunningHashesSingleton runningHashesSingleton = new RunningHashesSingleton();
 
     @Test
     void get() {
         ContractCallContext.run(context -> {
             var recordFile = domainBuilder.recordFile().get();
-            context.setRecordFile(recordFile);
+            context.setBlockSupplier(() -> recordFile);
             assertThat(runningHashesSingleton.get())
                     .returns(Bytes.EMPTY, RunningHashes::runningHash)
                     .returns(Bytes.EMPTY, RunningHashes::nMinus1RunningHash)
@@ -50,7 +39,7 @@ class RunningHashesSingletonTest {
     void set() {
         ContractCallContext.run(context -> {
             var recordFile = domainBuilder.recordFile().get();
-            context.setRecordFile(recordFile);
+            context.setBlockSupplier(() -> recordFile);
             runningHashesSingleton.set(RunningHashes.DEFAULT);
             assertThat(runningHashesSingleton.get()).isNotEqualTo(RunningHashes.DEFAULT);
             return null;

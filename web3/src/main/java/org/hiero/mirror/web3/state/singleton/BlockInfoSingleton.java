@@ -9,10 +9,7 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
-import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.state.Utils;
-import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
 @RequiredArgsConstructor
@@ -23,14 +20,9 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
         return BLOCKS_STATE_ID;
     }
 
-    private final RecordFileService recordFileService;
-
     @Override
     public BlockInfo get() {
-        final var recordFile = ContractCallContext.get().resolveRecordFile(() -> recordFileService
-                .findByBlockType(BlockType.LATEST)
-                .orElseThrow(BlockNumberNotFoundException::new));
-
+        final var recordFile = ContractCallContext.get().getRecordFile();
         final var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
         final var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());
 
