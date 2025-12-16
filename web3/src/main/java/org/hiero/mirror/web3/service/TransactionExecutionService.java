@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.contract.ContractCallTransactionBody;
 import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
@@ -55,6 +56,7 @@ public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
+    private static final long ETHEREUM_TX_FEE = 200_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
     private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
@@ -76,12 +78,13 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         HederaEvmTransactionProcessingResult result;
-        if (isContractCreate) {
+        if (!params.getEthereumData().isEmpty()) {
+            transactionBody = buildEthereumTransactionBody(params);
+        } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
         }
-
         final var receipt = executor.execute(transactionBody, Instant.now(), getOperationTracers());
         final var parentTransactionStatus =
                 receipt.getFirst().transactionRecord().receiptOrThrow().status();
@@ -205,6 +208,16 @@ public class TransactionExecutionService {
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
+                .build();
+    }
+
+    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(EthereumTransactionBody.newBuilder()
+                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                                params.getEthereumData().toArray()))
+                        .build())
+                .transactionFee(ETHEREUM_TX_FEE)
                 .build();
     }
 

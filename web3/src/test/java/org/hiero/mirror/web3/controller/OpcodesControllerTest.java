@@ -314,7 +314,7 @@ class OpcodesControllerTest {
                 .callData(
                         provider.hasEthTransaction()
                                 ? Bytes.of(ethTransaction.getCallData())
-                                : Bytes.of(contractResult.getFunctionParameters()))
+                                : Bytes.of(contractResult.getFunctionParameters())) // TODO: set ethereum data
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 

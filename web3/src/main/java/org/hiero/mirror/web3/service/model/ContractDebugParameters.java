@@ -24,6 +24,8 @@ public class ContractDebugParameters implements CallServiceParameters {
     @NotNull
     Bytes callData;
 
+    Bytes ethereumData;
+
     @NotNull
     CallType callType = CallType.ETH_DEBUG_TRACE_TRANSACTION;
 

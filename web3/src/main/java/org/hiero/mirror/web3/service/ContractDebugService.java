@@ -27,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class ContractDebugService extends ContractCallService {
     private final ContractActionRepository contractActionRepository;
+    private final TransactionExecutionService transactionExecutionService;
 
     @SuppressWarnings("java:S107")
     public ContractDebugService(
@@ -45,6 +46,7 @@ public class ContractDebugService extends ContractCallService {
                 mirrorNodeEvmProperties,
                 transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
+        this.transactionExecutionService = transactionExecutionService;
     }
 
     public OpcodesProcessingResult processOpcodeCall(
