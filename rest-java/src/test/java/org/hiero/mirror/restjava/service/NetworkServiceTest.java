@@ -41,7 +41,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         final var timestamp = domainBuilder.timestamp();
         domainBuilder
                 .entity()
-                .customize(e -> e.id(2L).balance(balance).balanceTimestamp(timestamp))
+                .customize(e -> e.id(domainBuilder.entityNum(2).getId())
+                        .balance(balance)
+                        .balanceTimestamp(timestamp))
                 .persist();
 
         // when
