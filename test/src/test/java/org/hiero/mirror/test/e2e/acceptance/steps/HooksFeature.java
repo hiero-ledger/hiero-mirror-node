@@ -97,7 +97,7 @@ public class HooksFeature extends AbstractFeature {
         var hbarAmount = Hbar.fromTinybars(transferAmountInTinybar);
 
         // Execute crypto transfer with hook using the pattern from TransferTransactionHooksIntegrationTest
-        networkTransactionResponse = accountClient.sendCryptoTransferWithHook(
+        networkTransactionResponse = hookClient.sendCryptoTransferWithHook(
                 sender, recipient.getAccountId(), hbarAmount, hookId, sender.getPrivateKey());
 
         assertThat(networkTransactionResponse)

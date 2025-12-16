@@ -2,6 +2,10 @@
 
 package org.hiero.mirror.test.e2e.acceptance.client;
 
+import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.EvmHookCall;
+import com.hedera.hashgraph.sdk.FungibleHookCall;
+import com.hedera.hashgraph.sdk.FungibleHookType;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookEntityId;
 import com.hedera.hashgraph.sdk.HookId;
@@ -9,7 +13,9 @@ import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.LambdaMappingEntry;
 import com.hedera.hashgraph.sdk.LambdaSStoreTransaction;
 import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
+import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.Transaction;
+import com.hedera.hashgraph.sdk.TransferTransaction;
 import jakarta.inject.Named;
 import java.util.List;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
@@ -87,6 +93,32 @@ public final class HookClient extends AbstractNetworkClient {
                 .setMaxTransactionFee(Hbar.fromTinybars(100_000_000L));
 
         return executeTransactionAndRetrieveReceipt(transaction, KeyList.of(account.getPrivateKey()));
+    }
+
+    /**
+     * Send crypto transfer with hook execution - matches the pattern from TransferTransactionHooksIntegrationTest
+     */
+    public NetworkTransactionResponse sendCryptoTransferWithHook(
+            ExpandedAccountId sender, AccountId recipient, Hbar hbarAmount, long hookId, PrivateKey privateKey) {
+        // Create hook call with empty context data and 25K gas limit as per SDK test pattern
+        var hookCall = new FungibleHookCall(
+                hookId, new EvmHookCall(new byte[] {}, 25_000L), FungibleHookType.PRE_TX_ALLOWANCE_HOOK);
+
+        var transferTransaction = new TransferTransaction()
+                .addHbarTransferWithHook(sender.getAccountId(), hbarAmount.negated(), hookCall)
+                .addHbarTransfer(recipient, hbarAmount)
+                .setTransactionMemo(getMemo("Crypto transfer with hook"));
+
+        var response = executeTransactionAndRetrieveReceipt(
+                transferTransaction, privateKey == null ? null : KeyList.of(privateKey), sender);
+        log.info(
+                "Transferred {} from {} to {} with hook {} via {}",
+                hbarAmount,
+                sender.getAccountId(),
+                recipient,
+                hookId,
+                response.getTransactionId());
+        return response;
     }
 
     @Override
