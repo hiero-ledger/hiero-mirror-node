@@ -119,7 +119,7 @@ public class ContractCallContext {
         if (callServiceParameters != null) {
             return callServiceParameters.getBlock() != BlockType.LATEST;
         }
-        return recordFile != null; // Remove recordFile comparison after mono code deletion
+        return recordFile != null;
     }
 
     /**

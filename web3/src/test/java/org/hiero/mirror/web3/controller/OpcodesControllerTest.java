@@ -426,33 +426,29 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentSenderAddresses")
     void callWithDifferentSenderAddressShouldUseEvmAddressWhenPossible(final TransactionProviderEnum providerEnum)
             throws Exception {
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
-                mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                        .andExpect(status().isBadRequest())
-                        .andExpect(responseBody(new GenericErrorResponse(
-                                BAD_REQUEST.getReasonPhrase(),
-                                "Unsupported ID format: 'null-%d-%d'"
-                                        .formatted(
-                                                id.validStart().getEpochSecond(),
-                                                id.validStart().getNano()))));
-                return;
-            }
-
-            expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                    .sender(entityAddress(providerEnum.getSenderEntity().get()))
-                    .build());
-
+        if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
             mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                    .andExpect(status().isOk())
-                    .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
-
-            assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
-        } finally {
-
+                    .andExpect(status().isBadRequest())
+                    .andExpect(responseBody(new GenericErrorResponse(
+                            BAD_REQUEST.getReasonPhrase(),
+                            "Unsupported ID format: 'null-%d-%d'"
+                                    .formatted(
+                                            id.validStart().getEpochSecond(),
+                                            id.validStart().getNano()))));
+            return;
         }
+
+        expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
+                .sender(entityAddress(providerEnum.getSenderEntity().get()))
+                .build());
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
+
+        assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
     }
 
     @ParameterizedTest
