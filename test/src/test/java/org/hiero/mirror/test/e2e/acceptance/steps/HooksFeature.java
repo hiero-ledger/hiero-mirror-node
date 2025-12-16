@@ -34,17 +34,19 @@ public class HooksFeature extends AbstractFeature {
     private final HookClient hookClient;
     private final MirrorNodeClient mirrorClient;
 
+    private String transferKey;
+
     @When("I attach a hook with ID {long} using existing contract to account {string}")
     public void attachHookToAccount(long hookId, String accountName) {
         var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
         assertThat(account).isNotNull();
         assertThat(account.getAccountId()).isNotNull();
 
-        // Get the EstimateGasContract for the hook
-        var estimateGasContract = getContract(ContractResource.ESTIMATE_GAS);
+        // Get the dedicated SimpleHookContract
+        var hookContract = getContract(ContractResource.SIMPLE_HOOK);
 
         // Create LambdaEvmHook with the contract
-        LambdaEvmHook lambdaEvmHook = new LambdaEvmHook(estimateGasContract.contractId());
+        LambdaEvmHook lambdaEvmHook = new LambdaEvmHook(hookContract.contractId());
 
         // Create HookCreationDetails
         HookCreationDetails hookCreationDetails =
@@ -121,6 +123,8 @@ public class HooksFeature extends AbstractFeature {
             assertThat(response.getStorage()).isNotNull();
             assertThat(response.getStorage().size()).isGreaterThan(0);
         });
+        transferKey =
+                hookStorageResponse.getStorage().stream().findFirst().get().getKey();
     }
 
     @When(
@@ -225,6 +229,11 @@ public class HooksFeature extends AbstractFeature {
                                 entry -> assertThat(entry.getValue()).isNullOrEmpty()));
 
         log.info("Verified storage slot '{}' is empty for hook {} on account {}", key, hookId, accountName);
+    }
+
+    @When("I clean up the hook execution storage for account {string} and hook ID {long}")
+    public void cleanUpHookExecutionStorage(String accountName, long hookId) {
+        removeLambdaStoreEntry(transferKey, accountName, hookId);
     }
 
     @When(

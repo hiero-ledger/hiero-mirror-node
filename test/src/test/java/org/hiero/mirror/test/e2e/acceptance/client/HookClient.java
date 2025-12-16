@@ -100,9 +100,9 @@ public final class HookClient extends AbstractNetworkClient {
      */
     public NetworkTransactionResponse sendCryptoTransferWithHook(
             ExpandedAccountId sender, AccountId recipient, Hbar hbarAmount, long hookId, PrivateKey privateKey) {
-        // Create hook call with empty context data and 25K gas limit as per SDK test pattern
+        // Create hook call with empty context data and higher gas limit for storage operations
         var hookCall = new FungibleHookCall(
-                hookId, new EvmHookCall(new byte[] {}, 25_000L), FungibleHookType.PRE_TX_ALLOWANCE_HOOK);
+                hookId, new EvmHookCall(new byte[] {}, 100_000L), FungibleHookType.PRE_TX_ALLOWANCE_HOOK);
 
         var transferTransaction = new TransferTransaction()
                 .addHbarTransferWithHook(sender.getAccountId(), hbarAmount.negated(), hookCall)
