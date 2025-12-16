@@ -36,12 +36,6 @@ public final class HookClient extends AbstractNetworkClient {
 
     /**
      * Creates and executes a LambdaStore transaction for the specified account.
-     *
-     * @param account the account that owns the hook
-     * @param hookId  the ID of the hook
-     * @param key     the storage key as 256-bit byte array
-     * @param value   the storage value as 256-bit byte array
-     * @return NetworkTransactionResponse containing transaction ID and receipt
      */
     public NetworkTransactionResponse hookStoreSlot(ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
         // Create LambdaStore transaction using actual SDK implementation with proper storage updates
