@@ -235,25 +235,6 @@ public class TestUtil {
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));
     }
 
-    private byte[] hexToPadded256Bytes(String hexString) {
-        try {
-            String hex =
-                    (hexString.startsWith("0x") || hexString.startsWith("0X")) ? hexString.substring(2) : hexString;
-
-            byte[] bytes = Hex.decodeHex(hex);
-
-            if (bytes.length > 32) {
-                throw new IllegalArgumentException("Key exceeds 256 bits");
-            }
-
-            byte[] padded = new byte[32];
-            System.arraycopy(bytes, 0, padded, 32 - bytes.length, bytes.length);
-            return padded;
-        } catch (DecoderException e) {
-            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
-        }
-    }
-
     public static byte[] hexToBytes(String hexString) {
         try {
             String hex =
