@@ -652,13 +652,24 @@ class AccountReadableKVStateTest {
 
     @Test
     void returnsDummyAccountForSystemAccountWhenNotFound() {
-        final var systemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
-        when(commonEntityAccessor.get(systemKey, Optional.empty())).thenReturn(Optional.empty());
+        final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
+        when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
 
-        assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
+        assertThat(accountReadableKVState.readFromDataSource(systemAccount)).satisfies(account -> assertThat(account)
                 .isNotNull()
-                .returns(systemKey, Account::accountId)
-                .returns(0L, Account::tinybarBalance));
+                .returns(systemAccount, Account::accountId)
+                .returns(0L, Account::tinybarBalance)
+                .returns(EMPTY_KEY_LIST, Account::key));
+    }
+
+    @Test
+    void dummySystemAccountDoesNotThrowNPEOnKeyOrThrow() {
+        final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
+        when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
+
+        final var account = accountReadableKVState.readFromDataSource(systemAccount);
+        assertThat(account).isNotNull();
+        assertThat(account.keyOrThrow()).isNotNull().isEqualTo(EMPTY_KEY_LIST);
     }
 
     private AccountID getAccountId(final Long num) {
