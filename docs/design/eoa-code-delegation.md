@@ -183,7 +183,7 @@ A child transaction of the parent Ethereum transaction will be a `CryptoCreateTr
 `delegation_address` field that will keep the code delegation.
 
 - `CryptoCreateTransactionHandler.java` - read the `delegation_address` field and save it in the entity
-- `CryptoUpdateTransactionHandler.java` - read the `delegation_address` field and save it in the entity. If the `delegation_address` is equal to 0x0000000000000000000000000000000000000000, then `null` is going to be saved. This equals to a deletion of the code delegation.
+- `CryptoUpdateTransactionHandler.java` - read the `delegation_address` field and save it in the entity. If the `delegation_address` is equal to 0x0000000000000000000000000000000000000000, this means deletion of the code delegation.
 
 ### 3. Parser
 
@@ -209,13 +209,7 @@ will be that the new transaction type will need to decode the authorizationList 
 
 ## Web3 Module Changes
 
-### 1. Update ContractBytecodeReadableKVState
-
-`protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
-This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
-search by contract id in the `entityRepository` and if an account is found return the `delegation_identifier`.
-
-### 2. Enhance TransactionExecutionService
+### 1. Enhance TransactionExecutionService
 
 The existing `TransactionExecutionService` currently supports only contract create and contract call transactions, which was
 sufficient to cover all scenarios up until now. The specifics of the code delegation creation require support of sending
@@ -232,7 +226,7 @@ private TransactionBody buildEthereumTransactionBody(final CallServiceParameters
 }
 ```
 
-### 3. Enhance CallServiceParameters
+### 2. Enhance CallServiceParameters
 
 The interface needs to have a new method:
 
@@ -244,7 +238,7 @@ public interface CallServiceParameters {
 
 ```
 
-### 4. Adapt ContractExecutionParameters
+### 3. Adapt ContractExecutionParameters
 
 `ContractExecutionParameters` is one of the classes that implement `CallServiceParameters`. The `ethereumData` is not
 relevant for it, so return `null` by default.
@@ -261,7 +255,7 @@ public class ContractExecutionParameters implements CallServiceParameters {
 }
 ```
 
-### 5. Adapt ContractDebugParameters
+### 4. Adapt ContractDebugParameters
 
 The `ethereumData` needs to be added in this model.
 
@@ -278,15 +272,21 @@ public class ContractDebugParameters implements CallServiceParameters {
 If the parameters have this `ethereumData` set, then the new method in `TransactionExecutionService` to build an Ethereum
 transaction will be used with priority. In all other cases - fallback to the current implementation.
 
-### 6. Enhance OpcodeServiceImpl
+### 5. Enhance OpcodeServiceImpl
 
 When `ContractDebugParameters` are built, we need to pass the new `ethereumData` field so that it can be used in the
 `TransactionExecutionService` to create the Ethereum transaction body.
 
-### 7. Enhance Account
+### 6. Enhance Account
 
 The `Account` model needs to have a new field `delegation_identifier` (or however it is named in hedera-app) that will
 keep the code delegation in the state as part of the account model.
+
+### 7. Update ContractBytecodeReadableKVState
+
+`protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
+This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
+search by contract id in the `entityRepository` and if an account is found return the `delegation_identifier`.
 
 ### 8. Enhance AbstractAliasedAccountReadableKVState
 
