@@ -388,11 +388,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void getDefaultKycOfFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, fungibleTokenCustomFeeAddress);
         var response = callContract(data, precompileTestContractSolidityAddress);
-        boolean defaultKycStatus = true;
-        // In the modularized code, the status is now false when the token has a Granted status,
-        // whereas the mono logic returns true.
-        defaultKycStatus = !defaultKycStatus;
-
+        var defaultKycStatus = false;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
@@ -401,11 +397,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, nonFungibleTokenAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
-        boolean defaultKycStatus = false;
-        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
-        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        defaultKycStatus = !defaultKycStatus;
-
+        var defaultKycStatus = true;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 

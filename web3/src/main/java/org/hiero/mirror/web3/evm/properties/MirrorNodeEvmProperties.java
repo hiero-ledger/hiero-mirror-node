@@ -21,7 +21,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,7 +31,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
-import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -79,11 +77,6 @@ public class MirrorNodeEvmProperties {
     private List<SemanticVersion> evmVersions = new ArrayList<>();
 
     @Getter
-    @NotNull
-    @DurationMin(seconds = 1)
-    private Duration expirationCacheTime = Duration.ofMinutes(10L);
-
-    @Getter
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
@@ -92,6 +85,7 @@ public class MirrorNodeEvmProperties {
     private int maxGasEstimateRetriesCount = 20;
 
     // used by eth_estimateGas only
+    @Getter
     @Min(1)
     @Max(100)
     private int maxGasRefundPercentage = 100;
@@ -122,20 +116,12 @@ public class MirrorNodeEvmProperties {
     @Getter
     private boolean validatePayerBalance = true;
 
-    public Bytes32 chainIdBytes32() {
-        return network.getChainId();
-    }
-
     public SemanticVersion getSemanticEvmVersion() {
         var context = ContractCallContext.get();
         if (context.useHistorical()) {
             return getEvmVersionForBlock(context.getRecordFile().getHapiVersion());
         }
         return evmVersion;
-    }
-
-    public int maxGasRefundPercentage() {
-        return maxGasRefundPercentage;
     }
 
     /**
@@ -182,9 +168,9 @@ public class MirrorNodeEvmProperties {
 
     private Map<String, String> buildTransactionProperties() {
         var props = new HashMap<String, String>();
-        props.put("contracts.chainId", chainIdBytes32().toBigInteger().toString());
+        props.put("contracts.chainId", network.getChainId().toBigInteger().toString());
         props.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
-        props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage()));
+        props.put("contracts.maxRefundPercentOfGasLimit", String.valueOf(maxGasRefundPercentage));
         props.put("contracts.sidecars", "");
         props.put("contracts.throttle.throttleByOpsDuration", "false");
         props.put("contracts.throttle.throttleByGas", "false");

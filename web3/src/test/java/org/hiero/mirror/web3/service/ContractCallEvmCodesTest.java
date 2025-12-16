@@ -52,18 +52,6 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
 
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
-    /**
-     * Verifies that the chainId function of the EvmCodes contract returns
-     * the chain id of the network that the contract is running on.
-     */
-    @Test
-    void chainId() throws Exception {
-        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        var actualNetworkChainId = contract.call_chainId().send();
-        var hederaNetworkChainId = mirrorNodeEvmProperties.chainIdBytes32().toBigInteger();
-        assertThat(actualNetworkChainId).isEqualTo(hederaNetworkChainId);
-    }
-
     @Test
     void recoverAddressPrecompiledContract() throws Exception {
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);

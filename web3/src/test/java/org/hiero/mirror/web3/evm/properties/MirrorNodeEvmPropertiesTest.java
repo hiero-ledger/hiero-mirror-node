@@ -19,7 +19,6 @@ import com.hedera.hapi.node.base.SemanticVersion;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -39,7 +38,6 @@ import org.springframework.data.util.Version;
 @ExtendWith(MockitoExtension.class)
 class MirrorNodeEvmPropertiesTest {
     private static final int MAX_REFUND_PERCENT = 100;
-    private static final Bytes32 CHAIN_ID = Bytes32.fromHexString("0x0128");
 
     private final CommonProperties commonProperties = new CommonProperties();
     private final SystemEntity systemEntity = new SystemEntity(commonProperties);
@@ -89,8 +87,7 @@ class MirrorNodeEvmPropertiesTest {
     @Test
     void correctPropertiesEvaluation() {
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
-        assertThat(properties.maxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
-        assertThat(properties.chainIdBytes32()).isEqualTo(CHAIN_ID);
+        assertThat(properties.getMaxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
     }
 
     @ParameterizedTest

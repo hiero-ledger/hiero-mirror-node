@@ -302,9 +302,9 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     @CsvSource(
             textBlock =
                     """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -313,8 +313,6 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        defaultKycStatus = !defaultKycStatus;
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
@@ -350,9 +348,9 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     @CsvSource(
             textBlock =
                     """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -361,8 +359,6 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        defaultKycStatus = !defaultKycStatus;
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);

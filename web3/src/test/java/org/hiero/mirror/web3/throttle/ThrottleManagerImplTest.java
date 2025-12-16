@@ -112,13 +112,6 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
-    void requestModularized() {
-        requestProperties.setAction(ActionType.MODULARIZED);
-        var request = request();
-        throttleManager.throttle(request);
-    }
-
-    @Test
     void requestRejected() {
         requestProperties.setAction(ActionType.REJECT);
         var request = request();
@@ -150,7 +143,6 @@ final class ThrottleManagerImplTest {
     @Test
     void requestMultipleActions(CapturedOutput output) {
         var modularizedRequest = new RequestProperties();
-        modularizedRequest.setAction(ActionType.MODULARIZED);
         throttleProperties.setRequest(List.of(requestProperties, modularizedRequest));
         var request = request();
         throttleManager.throttle(request);
@@ -159,7 +151,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestNoFilters() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestProperties.setFilters(List.of());
         var request = request();
         throttleManager.throttle(request);
@@ -169,7 +160,6 @@ final class ThrottleManagerImplTest {
     void requestMultipleFilters() {
         var dataFilter = new RequestFilter();
         dataFilter.setExpression("beef");
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestProperties.setFilters(List.of(requestFilter, dataFilter));
         var request = request();
         throttleManager.throttle(request);
@@ -201,7 +191,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterData() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("dead");
         requestFilter.setField(FilterField.DATA);
         requestFilter.setType(FilterType.CONTAINS);
@@ -211,7 +200,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterEstimate() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("false");
         requestFilter.setField(FilterField.ESTIMATE);
         requestFilter.setType(FilterType.EQUALS);
@@ -221,7 +209,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterFrom() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("04e2");
         requestFilter.setField(FilterField.FROM);
         requestFilter.setType(FilterType.CONTAINS);
@@ -231,7 +218,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterGas() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression(String.valueOf(GAS_PER_SECOND));
         requestFilter.setField(FilterField.GAS);
         requestFilter.setType(FilterType.EQUALS);
@@ -241,7 +227,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterTo() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("0x00000000000000000000000000000000000004e4");
         requestFilter.setField(FilterField.TO);
         requestFilter.setType(FilterType.EQUALS);
@@ -251,7 +236,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void requestFilterValue() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("1");
         requestFilter.setField(FilterField.VALUE);
         requestFilter.setType(FilterType.EQUALS);
