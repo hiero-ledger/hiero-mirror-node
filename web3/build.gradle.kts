@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import com.github.gradle.node.npm.task.NpmInstallTask
 import org.web3j.gradle.plugin.GenerateContractWrappers
 import org.web3j.solidity.gradle.plugin.SolidityCompile
-import org.web3j.solidity.gradle.plugin.SolidityResolve
 
 description = "Mirror Node Web3"
 
@@ -60,18 +58,12 @@ val historicalSolidityVersion = "0.8.7"
 val latestSolidityVersion = "0.8.25"
 
 // Define "testHistorical" source set needed for the test historical solidity contracts and web3j
-sourceSets {
-    val testHistorical by registering {
-        java { setSrcDirs(listOf("src/testHistorical/java", "src/testHistorical/solidity")) }
-        resources { setSrcDirs(listOf("src/testHistorical/resources")) }
-        compileClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
-        runtimeClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
-        solidity {
-            resolvePackages = false
-            version = historicalSolidityVersion
-        }
-    }
-    test { solidity { version = latestSolidityVersion } }
+sourceSets.register("testHistorical") {
+    java { setSrcDirs(listOf("src/testHistorical/java", "src/testHistorical/solidity")) }
+    resources { setSrcDirs(listOf("src/testHistorical/resources")) }
+    compileClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
+    runtimeClasspath += sourceSets["test"].output + configurations["testRuntimeClasspath"]
+    solidity { version = historicalSolidityVersion }
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -88,40 +80,20 @@ tasks.processTestResources { dependsOn(tasks.withType<GenerateContractWrappers>(
 
 tasks.withType<GenerateContractWrappers> { dependsOn(tasks.withType<SolidityCompile>()) }
 
-afterEvaluate {
-    val nodeDir = project.layout.buildDirectory
+tasks.extractSolidityImports {
+    val preDefinedPackageJson = layout.projectDirectory.file("src/test/resources/package.json")
+    actions
+        .clear() // instead of generating the package.json here, we provide our own predefined one
+    doLast { preDefinedPackageJson.asFile.copyTo(packageJson.get().asFile, overwrite = true) }
+}
 
-    val copyPackageJson =
-        tasks.register<Copy>("copyPackageJson") {
-            from("src/test/resources/package.json")
-            into(nodeDir)
-        }
-
-    val npmInstall = tasks.named(NpmInstallTask.NAME) { dependsOn(copyPackageJson) }
-
-    val solidityResolve =
-        tasks.register<SolidityResolve>("solidityResolve") {
-            description = "Resolve external Solidity contract modules."
-            packageJson = nodeDir.file("package.json")
-            nodeModules = nodeDir.dir("node_modules")
-            allImports = nodeDir.file("sol-imports-all.txt")
-            dependsOn(npmInstall)
-        }
-
-    tasks.withType<SolidityCompile>().configureEach {
-        resolvedImports = solidityResolve.flatMap { it.allImports }
-        notCompatibleWithConfigurationCache(
-            "See https://github.com/LFDT-web3j/web3j-solidity-gradle-plugin/issues/85"
-        )
-    }
-
-    tasks.named("compileTestHistoricalSolidity", SolidityCompile::class.java).configure {
-        group = "historical"
-        allowPaths = setOf("src/testHistorical/solidity/openzeppelin")
-        ignoreMissing = true
-        version = historicalSolidityVersion
-        source = fileTree("src/testHistorical/solidity") { include("*.sol") }
-    }
+tasks.named<SolidityCompile>("compileTestHistoricalSolidity") {
+    group = "historical"
+    resolvedImports = tasks.resolveSolidity.flatMap { it.allImports }
+    allowPaths = setOf("src/testHistorical/solidity/openzeppelin")
+    ignoreMissing = true
+    version = historicalSolidityVersion
+    source = fileTree("src/testHistorical/solidity") { include("*.sol") }
 }
 
 val moveTestHistoricalFiles =
@@ -140,5 +112,3 @@ val moveTestHistoricalFiles =
     }
 
 tasks.compileTestJava { dependsOn(moveTestHistoricalFiles) }
-
-tasks.processResources { dependsOn(tasks.named("copyPackageJson")) }
