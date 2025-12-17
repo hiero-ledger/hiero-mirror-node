@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -82,7 +81,6 @@ public class MirrorNodeEvmProperties {
     private Map<String, String> properties = new HashMap<>();
 
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
-    @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     private final Map<String, String> transactionProperties = buildTransactionProperties();
 
