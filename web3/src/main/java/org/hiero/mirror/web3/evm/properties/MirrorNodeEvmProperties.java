@@ -25,27 +25,23 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import lombok.Data;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
-@RequiredArgsConstructor(onConstructor_ = {@Autowired})
-@Setter
+@Data
 @Validated
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties {
@@ -55,53 +51,31 @@ public class MirrorNodeEvmProperties {
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
-    private static final List<SemanticVersion> DEFAULT_EVM_VERSION_SET = List.of(
-            EVM_VERSION_0_30,
-            EVM_VERSION_0_34,
-            EVM_VERSION_0_38,
-            EVM_VERSION_0_50,
-            EVM_VERSION_0_51,
-            EVM_VERSION_0_65,
-            EVM_VERSION_0_66,
-            EVM_VERSION_0_67);
-
-    @Getter
-    private final CommonProperties commonProperties;
-
-    private final SystemEntity systemEntity;
-
     @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
     private boolean allowLongZeroAddresses = false;
 
-    @Getter
     @Positive
     private double estimateGasIterationThresholdPercent = 0.10d;
 
-    @Getter
     private SemanticVersion evmVersion = EVM_VERSION;
 
     private NavigableMap<Long, SemanticVersion> evmVersions = new TreeMap<>();
 
-    @Getter
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
     // maximum iteration count for estimate gas' search algorithm
-    @Getter
     private int maxGasEstimateRetriesCount = 20;
 
     // used by eth_estimateGas only
-    @Getter
     @Min(1)
     @Max(100)
     private int maxGasRefundPercentage = 100;
 
-    @Getter
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;
 
     // Contains the user defined properties to pass to the consensus node library
-    @Getter
     @NotNull
     private Map<String, String> properties = new HashMap<>();
 
@@ -113,13 +87,10 @@ public class MirrorNodeEvmProperties {
     private final VersionedConfiguration versionedConfiguration =
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
-    @Getter
     private long entityNumBuffer = 1000L;
 
-    @Getter
     private long minimumAccountBalance = 100_000_000_000_000_000L;
 
-    @Getter
     private boolean validatePayerBalance = true;
 
     public SemanticVersion getSemanticEvmVersion() {
@@ -181,8 +152,8 @@ public class MirrorNodeEvmProperties {
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
-        props.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
-        props.put("hedera.shard", String.valueOf(commonProperties.getShard()));
+        props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
+        props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
         // The following 3 properties are needed to deliberately fail conditions in upstream to avoid paying rewards to
@@ -202,8 +173,8 @@ public class MirrorNodeEvmProperties {
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 
-    @Getter
     @RequiredArgsConstructor
+    @Getter
     public enum HederaNetwork {
         MAINNET(unhex("00"), Bytes32.fromHexString("0x0127"), mainnetEvmVersionsMap()),
         TESTNET(unhex("01"), Bytes32.fromHexString("0x0128"), Collections.emptyNavigableMap()),
@@ -222,9 +193,9 @@ public class MirrorNodeEvmProperties {
             evmVersionsMap.put(60258042L, EVM_VERSION_0_46);
             evmVersionsMap.put(65435845L, EVM_VERSION_0_50);
             evmVersionsMap.put(66602102L, EVM_VERSION_0_51);
-            evmVersionsMap.put(85614072L, EVM_VERSION_0_65);
-            evmVersionsMap.put(87127777L, EVM_VERSION_0_66);
-            evmVersionsMap.put(88121284L, EVM_VERSION_0_67);
+            evmVersionsMap.put(85011472L, EVM_VERSION_0_65);
+            evmVersionsMap.put(85659065L, EVM_VERSION_0_66);
+            evmVersionsMap.put(87129575L, EVM_VERSION_0_67);
             return Collections.unmodifiableNavigableMap(evmVersionsMap);
         }
     }

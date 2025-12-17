@@ -33,6 +33,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -182,8 +183,8 @@ public class SystemFileLoader {
                 .setNodeId(nodeId)
                 .setNodeAccountId(AccountID.newBuilder()
                         // setting the shard and realm just to be safe
-                        .setShardNum(properties.getCommonProperties().getShard())
-                        .setRealmNum(properties.getCommonProperties().getRealm())
+                        .setShardNum(CommonProperties.getInstance().getShard())
+                        .setRealmNum(CommonProperties.getInstance().getRealm())
                         .setAccountNum(nodeId));
         builder.addNodeAddress(nodeAddressBuilder.build());
         return builder.build().toByteArray();

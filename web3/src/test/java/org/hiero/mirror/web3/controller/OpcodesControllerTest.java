@@ -711,7 +711,7 @@ class OpcodesControllerTest {
         MirrorNodeEvmProperties evmProperties() {
             var commonProperties = new CommonProperties();
             var systemEntity = new SystemEntity(commonProperties);
-            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
+            return new MirrorNodeEvmProperties();
         }
 
         @Bean

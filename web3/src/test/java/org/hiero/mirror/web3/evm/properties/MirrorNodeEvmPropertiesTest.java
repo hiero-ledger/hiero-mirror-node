@@ -44,7 +44,7 @@ class MirrorNodeEvmPropertiesTest {
 
     private final CommonProperties commonProperties = new CommonProperties();
     private final SystemEntity systemEntity = new SystemEntity(commonProperties);
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
 
     @AutoClose
     private final MockedStatic<ContractCallContext> staticMock = mockStatic(ContractCallContext.class);
@@ -74,9 +74,9 @@ class MirrorNodeEvmPropertiesTest {
         evmVersions.put(60258042L, EVM_VERSION_0_46);
         evmVersions.put(65435845L, EVM_VERSION_0_50);
         evmVersions.put(66602102L, EVM_VERSION_0_51);
-        evmVersions.put(85614072L, EVM_VERSION_0_65);
-        evmVersions.put(87127777L, EVM_VERSION_0_66);
-        evmVersions.put(88121284L, EVM_VERSION_0_67);
+        evmVersions.put(85011472L, EVM_VERSION_0_65);
+        evmVersions.put(85659065L, EVM_VERSION_0_66);
+        evmVersions.put(87129575L, EVM_VERSION_0_67);
         return Collections.unmodifiableNavigableMap(evmVersions);
     }
 
