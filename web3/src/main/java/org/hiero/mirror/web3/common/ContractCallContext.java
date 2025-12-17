@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -47,13 +48,6 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
-    /**
-     * Record file which stores the block timestamp and other historical block details used for filtering of historical
-     * data.
-     */
-    @Setter
-    private RecordFile recordFile;
-
     @Setter
     private EntityNumber entityNumber;
 
@@ -68,6 +62,9 @@ public class ContractCallContext {
 
     @Setter
     private long gasRequirement;
+
+    @Setter
+    private Supplier<RecordFile> blockSupplier = () -> null;
 
     private ContractCallContext() {}
 
@@ -116,10 +113,7 @@ public class ContractCallContext {
     }
 
     public boolean useHistorical() {
-        if (callServiceParameters != null) {
-            return callServiceParameters.getBlock() != BlockType.LATEST;
-        }
-        return recordFile != null;
+        return callServiceParameters != null ? callServiceParameters.getBlock() != BlockType.LATEST : false;
     }
 
     /**
@@ -134,7 +128,7 @@ public class ContractCallContext {
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {
-        return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
+        return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
@@ -143,5 +137,9 @@ public class ContractCallContext {
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+    }
+
+    public RecordFile getRecordFile() {
+        return blockSupplier.get();
     }
 }

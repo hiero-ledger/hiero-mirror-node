@@ -23,6 +23,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
+import org.hiero.mirror.web3.utils.Suppliers;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
@@ -94,11 +95,10 @@ public abstract class ContractCallService {
             CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
 
-        // TODO temporary substitute deleted property check with true
-        if (true || params.getBlock() != BlockType.LATEST) {
-            ctx.setRecordFile(recordFileService
+        if (params.getBlock() != BlockType.LATEST) {
+            ctx.setBlockSupplier(Suppliers.memoize(() -> recordFileService
                     .findByBlockType(params.getBlock())
-                    .orElseThrow(BlockNumberNotFoundException::new));
+                    .orElseThrow(BlockNumberNotFoundException::new)));
         }
 
         return doProcessCall(params, params.getGas(), false);

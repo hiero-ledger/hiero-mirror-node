@@ -99,7 +99,7 @@ class MirrorBlockHashOperationTest {
     void current() {
         // Given
         var recordFile = domainBuilder.recordFile().get();
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         var blockValues = new SimpleBlockValues();
         blockValues.setNumber(recordFile.getIndex());
         given(messageFrame.popStackItem()).willReturn(Bytes.ofUnsignedLong(recordFile.getIndex()));
