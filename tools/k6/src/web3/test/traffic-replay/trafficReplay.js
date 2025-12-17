@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import http from 'k6/http';
+import check from 'k6';
+
 import {getOptionsWithScenario} from '../../../lib/common.js';
 
 const BASE_URL = __ENV.BASE_URL;
