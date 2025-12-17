@@ -80,7 +80,7 @@
     },
     "swagger-stats": {
       "path-to-regexp": "^6.3.0",
-      "send": "^0.19.1"
+      "send": "^0.19.2"
     },
     "test-exclude": "^7.0.1",
     "xml2js": "^0.6.2"
