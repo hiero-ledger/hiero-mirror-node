@@ -3618,8 +3618,8 @@
       },
       {
         "current": {
-          "text": "grafanacloud-mirrornode-logs",
-          "value": "grafanacloud-logs"
+          "text": "",
+          "value": ""
         },
         "description": "Name of the Loki datasource to use",
         "hide": 2,
