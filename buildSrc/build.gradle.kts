@@ -5,6 +5,7 @@ plugins { `kotlin-dsl` }
 repositories {
     gradlePluginPortal()
     mavenCentral()
+    maven { url = uri("https://www.jitpack.io") } // Temporary until next web3j
 }
 
 dependencies {
@@ -38,7 +39,9 @@ dependencies {
     implementation("org.owasp:dependency-check-gradle:12.1.9")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.7")
     implementation("org.testcontainers:postgresql:1.21.3")
-    implementation("org.web3j:web3j-gradle-plugin:4.14.0")
+    implementation(
+        "com.github.steven-sheehy.web3j-gradle-plugin:org.web3j.gradle.plugin:3644142546"
+    ) // Temporary until next web3j
 }
 
 val gitHook =

@@ -12,12 +12,8 @@ plugins {
     id("spring-conventions")
 }
 
-repositories {
-    // Temporary repository added for com.hedera.cryptography snapshot dependencies
-    maven { url = uri("https://central.sonatype.com/repository/maven-snapshots") }
-}
-
 dependencies {
+    val web3jVersion: String by rootProject.extra
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
     implementation("com.esaulpaugh:headlong")
@@ -36,6 +32,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.retry:spring-retry")
+    implementation("org.web3j:core:$web3jVersion") // Temporary until next web3j
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("io.vertx:vertx-core")
@@ -55,7 +52,6 @@ web3j {
 }
 
 val historicalSolidityVersion = "0.8.7"
-val latestSolidityVersion = "0.8.25"
 
 // Define "testHistorical" source set needed for the test historical solidity contracts and web3j
 sourceSets.register("testHistorical") {
