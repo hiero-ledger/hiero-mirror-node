@@ -26,14 +26,9 @@ public class RecordFileServiceImpl implements RecordFileService {
             return recordFileRepository.findLatest();
         }
 
-        long latestBlock = recordFileRepository
-                .findLatestIndex()
-                .orElseThrow(() -> new BlockNumberOutOfRangeException(UNKNOWN_BLOCK_NUMBER));
-
-        if (block.number() > latestBlock) {
+        return recordFileRepository.findByIndex(block.number()).or(() -> {
             throw new BlockNumberOutOfRangeException(UNKNOWN_BLOCK_NUMBER);
-        }
-        return recordFileRepository.findByIndex(block.number());
+        });
     }
 
     @Override
