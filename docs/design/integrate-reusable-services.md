@@ -2,23 +2,12 @@
 
 ## Overview
 
-Currently in order for archive nodes to execute json-rpc calls such
-as `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction`
-via
-REST API calls they simulate the transaction via business logic nested in web3 module. It copies code base from
-the mono `hedera-services` code
-that is now obsolete. Doing so, it has the necessary Hedera specific logic wrapping the besu evm dependency.
+Currently, in order for archive nodes to execute json-rpc calls such
+as `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction` via
+REST API calls they simulate the transaction via business logic nested in web3 module.
 
-The `hedera-services` started utilizing new modularized code base and is going to integrate new Hedera precompile
-calls over it. This makes the consensus node and
-archive node business logic diverging and have different support of precompiles.
-
-In addition, the copied mono code in web3 module required maintaining the same code base on 2 different places.
-
-With the modularized code now in place, we are going to have a published dependency for the `hedera.app` code
-base including all services and smart contract logic, which can be
-directly integrated into web3 module with the old copied mono code base removed. This document will
-describe the needed steps to achieve this goal.
+It will utilize a published dependency for the `hedera.app` code base including all services and smart contract logic.
+This document will describe the needed steps to achieve this goal.
 
 ## Entry point
 
@@ -97,9 +86,11 @@ We will need to support the following State keys:
 - STORAGE
 - BYTECODE
 - ACCOUNTS
+- AIRDROPS
 - TOKENS
 - NFTS
 - ALIASES
+- SCHEDULE
 - TOKEN_RELS
 - PENDING_AIDROPS
 - FILES
@@ -169,23 +160,6 @@ stack, instead of the shared single `State` that the mirror node will keep.
 
 ![Components for initializing and migrating the State](images/StateMigration.svg)
 
-### Development phases
-
-The efforts of integrating the reusable services logic into web3 module will be split into different releases.
-Thus, we should
-temporarily keep the old copied mono code base for execution, so that calls
-for `eth_call`, `eth_estimateGas`, `eth_debugTraceTransaction` are
-still supported.
-
-We can define a feature flag that will control which flow to be used (old mono code base or new reusable services code
-base). The deviation point will be inside `ContractCallService.doProcessCall`, where:
-
-- if the feature flag is enabled, we will call the new `TransactionExecutor.execute` method. In the case of
-  ContractDebugService invocation - the new `Tracer` type should be passed as an optional argument
-- if the feature flag is disabled, we will call the `MirrorEvmTxProcessor.execute` method
-
-After the new code base is fully integrated and tested, we will remove the old mono code base and the feature flag.
-
 ### Testing
 
 The testing of the new code base from services will include only checks for potential regression. This covers the
@@ -195,22 +169,3 @@ following tests:
 - Acceptance tests covering web3 logic
 
 In all cases - the existing behaviour and expected results should remain the same.
-
-### Legacy code deletion
-
-After all changes are fully integrated and tested, the final step will be removing of obsolete code that won't be used
-anymore. This will include the following packages and files:
-
-- com.hedera.node.app.service
-- com.hedera.services
-- org.hiero.mirror.web3.evm, without the following files (they can be moved in different packages):
-  - EvmConfiguration
-  - Opcode
-  - OpcodeTracerOptions
-  - TracerType
-  - OpcodesProcessingResult
-  - MirrorNodeEvmProperties
-
-Delete design docs and images related to stacked state frames design, which will be obsolete at this point.
-
-Apart from these classes, all unit tests related to them should also be removed.
