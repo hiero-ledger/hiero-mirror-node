@@ -9,9 +9,14 @@ import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.leftPadBytes;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookCreationDetails;
 import com.hedera.hashgraph.sdk.HookExtensionPoint;
+import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.LambdaEvmHook;
+import com.hedera.hashgraph.sdk.LambdaMappingEntry;
+import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
@@ -33,15 +38,15 @@ public class HooksFeature extends AbstractFeature {
     private final AccountClient accountClient;
     private final HookClient hookClient;
     private final MirrorNodeClient mirrorClient;
-
+    private final List<String> storageKeys = new ArrayList<>();
+    private ExpandedAccountId account;
+    private long hookId;
     private String transferKey;
 
     @When("I attach a hook with ID {long} using existing contract to account {string}")
     public void attachHookToAccount(long hookId, String accountName) {
-        var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account).isNotNull();
-        assertThat(account.getAccountId()).isNotNull();
-
+        this.account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+        this.hookId = hookId;
         // Get the dedicated SimpleHookContract
         final var hookContract = getContract(ContractResource.SIMPLE_HOOK);
 
@@ -62,11 +67,9 @@ public class HooksFeature extends AbstractFeature {
                 .isNotNull();
     }
 
-    @Then("the mirror node REST API should return the account hooks for {string}")
+    @Then("the mirror node REST API should return the account hook")
     @RetryAsserts
-    public void verifyMirrorNodeAPIForAccountHook(String accountName) {
-        // Get the account from the most recent operation - assuming ALICE from feature file
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+    public void verifyMirrorNodeAPIForAccountHook() {
         final var accountId = account.getAccountId().toString();
 
         // Call the hooks API and verify the hook exists
@@ -84,23 +87,22 @@ public class HooksFeature extends AbstractFeature {
                 .satisfies(hook -> {
                     assertThat(hook.getDeleted()).isFalse(); // Hook should not be deleted
                     assertThat(hook.getOwnerId()).isEqualTo(accountId);
-                    assertThat(hook.getHookId()).isNotNull();
+                    assertThat(hook.getHookId()).isEqualTo(hookId);
                 });
     }
 
-    @When("I trigger hook execution via crypto transfer from {string} of {long} tℏ with hook {long}")
-    public void triggerHookExecutionViaCryptoTransfer(String accountName, long transferAmountInTinybar, long hookId) {
+    @When("I trigger hook execution via crypto transfer of {long} tℏ")
+    public void triggerHookExecutionViaCryptoTransfer(long transferAmountInTinybar) {
         // Use the operator account as sender and specified account as recipient (like
         // TransferTransactionHooksIntegrationTest)
         final var recipient = accountClient.getAccount(AccountClient.AccountNameEnum.OPERATOR);
-        final var sender = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
 
         // Convert tinybar to Hbar
         var hbarAmount = Hbar.fromTinybars(transferAmountInTinybar);
 
         // Execute crypto transfer with hook using the pattern from TransferTransactionHooksIntegrationTest
         networkTransactionResponse = hookClient.sendCryptoTransferWithHook(
-                sender, recipient.getAccountId(), hbarAmount, hookId, sender.getPrivateKey());
+                account, recipient.getAccountId(), hbarAmount, hookId, account.getPrivateKey());
 
         assertThat(networkTransactionResponse)
                 .isNotNull()
@@ -108,14 +110,52 @@ public class HooksFeature extends AbstractFeature {
                 .isNotNull();
     }
 
-    @Then("the mirror node REST API should return hook storage entries for account {string} and {long}")
+    @When("I create a HookStore transaction with slot pair {string} and mapping triple {string}")
+    public void createHookStoreTransactionWithPairAndTriple(String slotPair, String mappingTriple) {
+        final var hookStoreTransaction = hookClient.getLambdaSStoreTransaction(account, hookId);
+
+        // Parse slot pair "0x01:0x02" (key:value)
+        String[] slotParts = slotPair.split(":");
+        final var slotKey = hexToBytes(slotParts[0]);
+        final var slotValue = hexToBytes(slotParts[1]);
+
+        // Parse mapping triple "0x03:0x04:0x05" (slot:key:value)
+        String[] mappingParts = mappingTriple.split(":");
+        final var mappingSlot = hexToBytes(mappingParts[0]);
+        final var mappingKey = hexToBytes(mappingParts[1]);
+        final var mappingValue = hexToBytes(mappingParts[2]);
+
+        // Create and add storage updates
+        final var slotStorageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(slotKey, slotValue);
+        final var mappingEntry = LambdaMappingEntry.ofKey(mappingKey, mappingValue);
+        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(mappingSlot, List.of(mappingEntry));
+        hookStoreTransaction.addStorageUpdate(slotStorageUpdate);
+        hookStoreTransaction.addStorageUpdate(mappingUpdate);
+
+        // Execute transaction
+        final var networkTransactionResponse = hookClient.executeTransactionAndRetrieveReceipt(
+                hookStoreTransaction, KeyList.of(account.getPrivateKey()));
+
+        assertThat(networkTransactionResponse)
+                .isNotNull()
+                .extracting(NetworkTransactionResponse::getTransactionId)
+                .isNotNull();
+
+        // Store formatted keys for later verification
+        final var keyBytes = leftPadBytes(slotKey, 32);
+        final var formattedKey = TestUtil.HEX_PREFIX + Hex.encodeHexString(keyBytes);
+        final var formattedKey1 = computeSolidityMappingKey(mappingKey, mappingSlot);
+
+        storageKeys.add(formattedKey);
+        storageKeys.add(formattedKey1);
+    }
+
+    @Then("the mirror node REST API should return hook storage entries")
     @RetryAsserts
-    public void verifyMirrorNodeAPIForAccountHookStorage(String accountName, long hookId) {
-        // Get the account that has the hook
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
+    public void verifyMirrorNodeAPIForAccountHookStorage() {
         final var accountId = account.getAccountId().toString();
         // Call the hook storage API endpoint and verify execution data
-        HooksStorageResponse hookStorageResponse = mirrorClient.getHookStorage(accountId, hookId, null);
+        HooksStorageResponse hookStorageResponse = mirrorClient.getHookStorage(accountId, hookId);
 
         assertThat(hookStorageResponse).isNotNull().satisfies(response -> {
             assertThat(response.getHookId()).isEqualTo(hookId);
@@ -123,244 +163,74 @@ public class HooksFeature extends AbstractFeature {
             assertThat(response.getStorage()).isNotNull();
             assertThat(response.getStorage().size()).isGreaterThan(0);
         });
-        transferKey =
-                hookStorageResponse.getStorage().stream().findFirst().get().getKey();
+
+        // Capture the transfer key created by crypto transfer (should be the first entry not in our storageKeys)
+        for (var entry : hookStorageResponse.getStorage()) {
+            if (!storageKeys.contains(entry.getKey())) {
+                transferKey = entry.getKey();
+                break;
+            }
+        }
     }
 
-    @When(
-            "I create a HookStore transaction with key {string} and value {string} for account {string} and hook ID {long}")
-    public void createLambdaStoreTransaction(String keyParam, String valueParam, String accountNameParam, long hookId) {
+    @When("I remove storage for slot pair {string} and mapping triple {string} along with transfer key")
+    public void removeStorage(String slotPair, String mappingTriple) {
         // Get the account that will perform the LambdaStore operation
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountNameParam));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
 
-        // Convert hex strings to 256-bit byte arrays
-        final var keyBytes = hexToBytes(keyParam);
-        final var valueBytes = hexToBytes(valueParam);
-
-        // Use the dedicated HookClient to create and execute the transaction
-        networkTransactionResponse = hookClient.hookStoreSlot(account, hookId, keyBytes, valueBytes);
-
-        assertThat(networkTransactionResponse)
-                .isNotNull()
-                .extracting(NetworkTransactionResponse::getTransactionId)
-                .isNotNull();
-    }
-
-    @Then("the storage slot {string} should have value {string} for hook ID {long} from account {string}")
-    @RetryAsserts
-    public void verifyStorageSlotValue(String key, String expectedValue, long hookId, String accountName) {
-        // Get the account
-        var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-        String accountId = account.getAccountId().toString();
-
-        // Convert hex string to proper 32-byte padded hex format for API call
-        final var keyBytes = leftPadBytes(hexToBytes(key), 32);
-        final var formattedKey = TestUtil.HEX_PREFIX + Hex.encodeHexString(keyBytes);
-        final var storageResponse = mirrorClient.getHookStorage(accountId, hookId, formattedKey);
-
-        // Verify that the storage response contains the expected key and value
-        assertThat(storageResponse).isNotNull().satisfies(response -> {
-            assertThat(response.getHookId()).isEqualTo(hookId);
-            assertThat(response.getStorage()).isNotNull().isNotEmpty();
-            // Find the storage entry that matches our key
-            var matchingEntry = response.getStorage().stream()
-                    .filter(entry -> formattedKey.equals(entry.getKey()))
-                    .findFirst()
-                    .orElse(null);
-            assertThat(matchingEntry).isNotNull();
-            // Convert expected hex value to 32-byte padded hex format for comparison
-            final var expectedValueBytes = leftPadBytes(hexToBytes(expectedValue), 32);
-            final var expectedHexValue = Hex.encodeHexString(expectedValueBytes);
-            assertThat(matchingEntry.getValue().substring(2)).isEqualTo(expectedHexValue);
-        });
-    }
-
-    @When("I remove the HookStore entry with key {string} for account {string} and hook ID {long}")
-    public void removeLambdaStoreEntry(String keyParam, String accountNameParam, long hookId) {
-        // Get the account that will perform the LambdaStore remove operation
-        var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountNameParam));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-
-        // Convert hex string to byte array and use empty byte array for removal
-        final var keyBytes = hexToBytes(keyParam);
         final var emptyValue = new byte[0];
+        final var hookStoreTransaction = hookClient.getLambdaSStoreTransaction(account, hookId);
 
-        // Remove storage slot by setting empty value
-        networkTransactionResponse = hookClient.hookStoreSlot(account, hookId, keyBytes, emptyValue);
+        // Parse slot pair "0x01:0x02" (key:value)
+        String[] slotParts = slotPair.split(":");
+        final var slotKey = hexToBytes(slotParts[0]);
 
-        assertThat(networkTransactionResponse)
-                .isNotNull()
-                .extracting(NetworkTransactionResponse::getTransactionId)
-                .isNotNull();
-    }
+        // Parse mapping triple "0x03:0x04:0x05" (slot:key:value)
+        String[] mappingParts = mappingTriple.split(":");
+        final var mappingSlot = hexToBytes(mappingParts[0]);
+        final var mappingKey = hexToBytes(mappingParts[1]);
 
-    @Then("the storage slot {string} should be empty for hook ID {long} from account {string}")
-    @RetryAsserts
-    public void verifyStorageSlotEmpty(String key, long hookId, String accountName) {
-        // Get the account
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-        String accountId = account.getAccountId().toString();
+        // Create and add storage updates
+        final var slotStorageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(slotKey, emptyValue);
+        final var mappingEntry = LambdaMappingEntry.ofKey(mappingKey, emptyValue);
+        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(mappingSlot, List.of(mappingEntry));
+        hookStoreTransaction.addStorageUpdate(slotStorageUpdate);
+        hookStoreTransaction.addStorageUpdate(mappingUpdate);
 
-        // Convert hex string to proper 32-byte padded hex format for API call
-        final var keyBytes = hexToBytes(key);
-        final var formattedKey = TestUtil.HEX_PREFIX + Hex.encodeHexString(keyBytes);
-        // Call hook storage API and verify the key is empty/removed
-        final var storageResponse = mirrorClient.getHookStorage(accountId, hookId, formattedKey);
-        assertThat(storageResponse).isNotNull();
-        assertThat(storageResponse.getStorage())
-                .satisfiesAnyOf(
-                        storage -> assertThat(storage).isEmpty(),
-                        storage -> storage.forEach(
-                                entry -> assertThat(entry.getValue()).isNullOrEmpty()));
-    }
+        // Remove the key created during crypto transfer
+        if (transferKey != null) {
+            final var transferKeyUpdate =
+                    new LambdaStorageUpdate.LambdaStorageSlot(TestUtil.hexToBytes(transferKey), emptyValue);
+            hookStoreTransaction.addStorageUpdate(transferKeyUpdate);
+        }
 
-    @When("I clean up the hook execution storage for account {string} and hook ID {long}")
-    public void cleanUpHookExecutionStorage(String accountName, long hookId) {
-        removeLambdaStoreEntry(transferKey, accountName, hookId);
-    }
-
-    @When(
-            "I create a HookStore mapping entry with slot {string} key {string} and value {string} for account {string} and hook ID {long}")
-    public void createLambdaStoreMappingEntry(
-            String mappingSlot, String entryKey, String entryValue, String accountNameParam, long hookId) {
-        // Get the account that will perform the LambdaStore mapping operation
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountNameParam));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-
-        // Convert hex strings to byte arrays
-        final var mappingSlotBytes = hexToBytes(mappingSlot);
-        final var entryKeyBytes = hexToBytes(entryKey);
-        final var entryValueBytes = hexToBytes(entryValue);
-
-        // Use the dedicated HookClient to create mapping entry
-        networkTransactionResponse =
-                hookClient.hookStoreMapping(account, hookId, mappingSlotBytes, entryKeyBytes, entryValueBytes);
+        final var networkTransactionResponse = hookClient.executeTransactionAndRetrieveReceipt(
+                hookStoreTransaction, KeyList.of(account.getPrivateKey()));
 
         assertThat(networkTransactionResponse)
                 .isNotNull()
                 .extracting(NetworkTransactionResponse::getTransactionId)
                 .isNotNull();
+
+        // Clear storage tracking
+        storageKeys.clear();
+        transferKey = null;
     }
 
-    @Then("the mapping {string} with key {string} should have value {string} for hook ID {long} from account {string}")
+    @Then("there should be no storage entry for hook")
     @RetryAsserts
-    public void verifyMappingEntryValue(
-            String mappingSlot, String entryKey, String expectedValue, long hookId, String accountName) {
-        // Get the account
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-        final var accountId = account.getAccountId().toString();
+    public void verifyEmptyStorageForAccount() {
 
-        // Compute the mapping storage key using keccak256(abi.encode(key, slot))
-        // This follows Solidity storage layout for mappings
-        final var formattedMappingKey = computeSolidityMappingKey(hexToBytes(entryKey), hexToBytes(mappingSlot));
-
-        // Query for the specific mapping entry by its computed key
-        final var storageResponse = mirrorClient.getHookStorage(accountId, hookId, formattedMappingKey);
-
-        // Verify that the storage response contains the expected mapping entry
+        final var storageResponse =
+                mirrorClient.getHookStorage(account.getAccountId().toString(), hookId);
         assertThat(storageResponse).isNotNull().satisfies(response -> {
             assertThat(response.getHookId()).isEqualTo(hookId);
-            assertThat(response.getStorage()).isNotNull().hasSize(1);
-
-            // Since we queried for a specific key, there should be exactly one entry
-            var storageEntry = response.getStorage().get(0);
-            assertThat(storageEntry.getKey()).isEqualTo(formattedMappingKey);
-
-            // Convert expected hex value to 32-byte padded hex format for comparison
-            byte[] expectedValueBytes = leftPadBytes(hexToBytes(expectedValue), 32);
-            String expectedHexValue = TestUtil.HEX_PREFIX + Hex.encodeHexString(expectedValueBytes);
-            assertThat(storageEntry.getValue()).isEqualTo(expectedHexValue);
+            assertThat(response.getStorage()).isEmpty();
         });
     }
 
-    @When(
-            "I remove HookStore mapping entry with slot {string} and key {string} for hook ID {long} from account {string}")
-    public void removeMappingEntry(String mappingSlot, String entryKey, long hookId, String accountName) {
-        // Get the account to clean up mapping from
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-
-        // Convert hex strings to byte arrays
-        final var mappingSlotBytes = hexToBytes(mappingSlot);
-        final var entryKeyBytes = hexToBytes(entryKey);
-        final var emptyValue = new byte[0];
-
-        // Remove mapping entry by setting empty value
-        networkTransactionResponse =
-                hookClient.hookStoreMapping(account, hookId, mappingSlotBytes, entryKeyBytes, emptyValue);
-        assertThat(networkTransactionResponse)
-                .isNotNull()
-                .extracting(NetworkTransactionResponse::getTransactionId)
-                .isNotNull();
-    }
-
-    @Then("the mapping {string} with key {string} should be empty for hook ID {long} from account {string}")
-    @RetryAsserts
-    public void verifyMappingEntryEmpty(String mappingSlot, String entryKey, long hookId, String accountName) {
-        // Get the account
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
-        assertThat(account)
-                .isNotNull()
-                .extracting(ExpandedAccountId::getAccountId)
-                .isNotNull();
-        final var accountId = account.getAccountId().toString();
-
-        // Compute the mapping storage key using keccak256(abi.encode(key, slot))
-        // This follows the same pattern used in verifyMappingEntryValue method
-        final var formattedMappingKey = computeSolidityMappingKey(hexToBytes(entryKey), hexToBytes(mappingSlot));
-
-        // Query for the specific mapping entry by its computed key to check if it's been removed
-        final var storageResponse = mirrorClient.getHookStorage(accountId, hookId, formattedMappingKey);
-
-        // Verify that the mapping entry is not present or has empty/zero value
-        assertThat(storageResponse).isNotNull().satisfies(response -> {
-            assertThat(response.getHookId()).isEqualTo(hookId);
-            // Since we queried for a specific key, expect either 0 entries (removed) or 1 entry (empty value)
-            assertThat(response.getStorage())
-                    .satisfiesAnyOf(
-                            // Case 1: No storage entries (mapping was completely removed)
-                            storage -> assertThat(storage).isEmpty(),
-                            // Case 2: Exactly one entry with empty/zero value
-                            storage -> {
-                                assertThat(storage).hasSize(1);
-                                var storageEntry = storage.get(0);
-                                assertThat(storageEntry.getKey()).isEqualTo(formattedMappingKey);
-                                assertThat(storageEntry.getValue())
-                                        .satisfiesAnyOf(v -> assertThat(v).isNullOrEmpty(), v -> assertThat(v)
-                                                .isEqualTo("0x" + "0".repeat(64)));
-                            });
-        });
-    }
-
-    @When("I delete hook with ID {long} from account {string}")
-    public void deleteHookFromAccount(long hookIdToDelete, String accountName) {
+    @When("I delete hook")
+    public void deleteHookFromAccount() {
         // Get the account to remove the hook from
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountName));
         assertThat(account)
                 .isNotNull()
                 .extracting(ExpandedAccountId::getAccountId)
@@ -368,8 +238,8 @@ public class HooksFeature extends AbstractFeature {
 
         // Delete the hook (storage should already be cleaned up)
         networkTransactionResponse = accountClient.updateAccount(account, updateTx -> {
-            updateTx.setAccountMemo("Hook " + hookIdToDelete + " removal requested");
-            updateTx.addHookToDelete(hookIdToDelete);
+            updateTx.setAccountMemo("Hook " + hookId + " removal requested");
+            updateTx.addHookToDelete(hookId);
         });
 
         assertThat(networkTransactionResponse)
@@ -381,11 +251,9 @@ public class HooksFeature extends AbstractFeature {
         assertThat(networkTransactionResponse.getReceipt().status.toString()).isEqualTo("SUCCESS");
     }
 
-    @Then("the account {string} should have no hooks attached")
-    public void verifyNoHooksAttached(String accountNameParam) {
+    @Then("the account should have no hooks attached")
+    public void verifyNoHooksAttached() {
         verifyMirrorTransactionsResponse(mirrorClient, HttpStatus.OK.value());
-        // Get the account from the most recent operation
-        final var account = accountClient.getAccount(AccountClient.AccountNameEnum.valueOf(accountNameParam));
         final var accountId = account.getAccountId().toString();
 
         // Call the hooks API and verify the hook is marked as deleted

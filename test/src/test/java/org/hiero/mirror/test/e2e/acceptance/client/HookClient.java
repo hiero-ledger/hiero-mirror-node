@@ -10,13 +10,10 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookEntityId;
 import com.hedera.hashgraph.sdk.HookId;
 import com.hedera.hashgraph.sdk.KeyList;
-import com.hedera.hashgraph.sdk.LambdaMappingEntry;
 import com.hedera.hashgraph.sdk.LambdaSStoreTransaction;
-import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import jakarta.inject.Named;
-import java.util.List;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -34,46 +31,11 @@ public final class HookClient extends AbstractNetworkClient {
         super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
-    /**
-     * Creates and executes a LambdaStore transaction for the specified account.
-     */
-    public NetworkTransactionResponse hookStoreSlot(ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
-        // Create LambdaStore transaction using actual SDK implementation with proper storage updates
-        return executeHookStoreTransaction(account, hookId, key, value);
-    }
-
-    private NetworkTransactionResponse executeHookStoreTransaction(
-            ExpandedAccountId account, long hookId, byte[] key, byte[] value) {
-
-        // Create storage operation using SDK method pattern
-        // Since LambdaStorageUpdate is abstract, we need to use factory methods
-        LambdaStorageUpdate storageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(key, value);
-
-        return executeHookStoreTransaction(account, hookId, storageUpdate);
-    }
-
-    /**
-     * Creates a LambdaStore transaction for mapping entries. This would be used for Solidity mapping storage
-     * operations.
-     */
-    public NetworkTransactionResponse hookStoreMapping(
-            ExpandedAccountId account, long hookId, byte[] mappingSlot, byte[] entryKey, byte[] entryValue) {
-        final var mappingEntry = LambdaMappingEntry.ofKey(entryKey, entryValue);
-        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(mappingSlot, List.of(mappingEntry));
-
-        return executeHookStoreTransaction(account, hookId, mappingUpdate);
-    }
-
-    private NetworkTransactionResponse executeHookStoreTransaction(
-            ExpandedAccountId account, long hookId, LambdaStorageUpdate mappingUpdate) {
-        // Create the LambdaSStoreTransaction for mapping operations
-        final var transaction = new LambdaSStoreTransaction()
+    public LambdaSStoreTransaction getLambdaSStoreTransaction(ExpandedAccountId account, long hookId) {
+        return new LambdaSStoreTransaction()
                 .setTransactionMemo("LambdaStore mapping operation")
-                .addStorageUpdate(mappingUpdate)
                 .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
                 .setMaxTransactionFee(Hbar.fromTinybars(100_000_000L));
-
-        return executeTransactionAndRetrieveReceipt(transaction, KeyList.of(account.getPrivateKey()));
     }
 
     /**

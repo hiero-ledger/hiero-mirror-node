@@ -550,10 +550,9 @@ public class MirrorNodeClient {
         return callRestJavaEndpoint("/accounts/{accountId}/hooks", HooksResponse.class, accountId);
     }
 
-    public HooksStorageResponse getHookStorage(String accountId, long hookId, String key) {
+    public HooksStorageResponse getHookStorage(String accountId, long hookId) {
         var path = "/accounts/{accountId}/hooks/{hookId}/storage";
-        final var params = key == null ? "" : "?key={key}";
-        return callRestJavaEndpoint(path + params, HooksStorageResponse.class, accountId, hookId, key);
+        return callRestJavaEndpoint(path, HooksStorageResponse.class, accountId, hookId);
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
