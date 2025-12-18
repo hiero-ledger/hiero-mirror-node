@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RE
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_RECORD_FILE_TIMESTAMP;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_RECORD_FILE_LATEST_INDEX;
 
 import java.util.List;
 import java.util.Optional;
@@ -20,13 +19,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface RecordFileRepository extends PagingAndSortingRepository<RecordFile, Long> {
-
-    @Cacheable(
-            cacheNames = CACHE_NAME_RECORD_FILE_LATEST_INDEX,
-            cacheManager = CACHE_MANAGER_RECORD_FILE_LATEST,
-            unless = "#result == null")
-    @Query("select max(r.index) from RecordFile r")
-    Optional<Long> findLatestIndex();
 
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_RECORD_FILE_EARLIEST, unless = "#result == null")
     @Query(value = "select * from record_file order by index asc limit 1", nativeQuery = true)

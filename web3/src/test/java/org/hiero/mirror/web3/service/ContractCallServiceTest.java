@@ -47,7 +47,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
+import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -275,7 +275,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
         // Then
         assertThatThrownBy(functionCall::send)
-                .isInstanceOf(BlockNumberOutOfRangeException.class)
+                .isInstanceOf(BlockNumberNotFoundException.class)
                 .hasMessage(UNKNOWN_BLOCK_NUMBER);
         assertGasLimit(ETH_CALL, TRANSACTION_GAS_LIMIT);
     }
