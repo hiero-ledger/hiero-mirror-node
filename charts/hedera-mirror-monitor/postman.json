@@ -1,0 +1,107 @@
+{
+  "info": {
+    "_postman_id": "e015390f-8007-4371-8703-0b9ad853f718",
+    "name": "Monitor API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "25186531"
+  },
+  "item": [
+    {
+      "name": "Check Prometheus Publish/Subscribe Metrics Increasing",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const baseUrl = pm.environment.get(\"baseUrl\");",
+              "const url = baseUrl + \"/actuator/prometheus\";",
+              "const numCalls = 4;",
+              "const intervalMs = 3000;",
+              "",
+              "function getMetricValue(body, metricName) {",
+              "    const regex = new RegExp(`^${metricName}(?:\\\\{[^\\\\}]*\\\\})?\\\\s+([\\\\d.E+-]+)`, \"m\");",
+              "    const matches = body.match(regex);",
+              "    return matches ? parseFloat(matches[1]) : null;",
+              "}",
+              "",
+              "function collectMetrics(body) {",
+              "    return {",
+              "        subscribe: getMetricValue(body, \"hiero_mirror_monitor_subscribe_duration_seconds\"),",
+              "        publish: getMetricValue(body, \"hiero_mirror_monitor_publish_duration_seconds\")",
+              "    };",
+              "}",
+              "",
+              "let samples = [];",
+              "samples.push(collectMetrics(pm.response.text()));",
+              "",
+              "let callCount = 1;",
+              "",
+              "function nextCall() {",
+              "    if (callCount < numCalls) {",
+              "        setTimeout(() => {",
+              "            pm.sendRequest(url, (err, res) => {",
+              "                if (err) {",
+              "                    console.error(err);",
+              "                } else {",
+              "                    samples.push(collectMetrics(res.text()));",
+              "                }",
+              "                callCount++;",
+              "                nextCall();",
+              "            });",
+              "        }, intervalMs);",
+              "    } else {",
+              "        validateMetrics();",
+              "    }",
+              "}",
+              "",
+              "function validateMetrics() {",
+              "    pm.test(\"Should have collected \" + numCalls + \" samples\", () => {",
+              "        pm.expect(samples.length).to.equal(numCalls);",
+              "    });",
+              "",
+              "    const metrics = [\"subscribe\", \"publish\"];",
+              "    ",
+              "    metrics.forEach(metric => {",
+              "        pm.test(`${metric} duration should be increasing`, () => {",
+              "            for (let i = 1; i < samples.length; i++) {",
+              "                const prev = samples[i-1][metric];",
+              "                const curr = samples[i][metric];",
+              "                pm.expect(curr, `Sample ${i+1} (${curr}) should be greater than sample ${i} (${prev}) for ${metric}`).to.be.above(prev);",
+              "            }",
+              "        });",
+              "    });",
+              "}",
+              "",
+              "if (pm.response.code === 200) {",
+              "    nextCall();",
+              "} else {",
+              "    pm.test(\"Initial request failed\", () => {",
+              "        pm.expect.fail(`Status code ${pm.response.code}`);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/actuator/prometheus",
+          "host": ["{{baseUrl}}"],
+          "path": ["actuator", "prometheus"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8082"
+    }
+  ]
+}
