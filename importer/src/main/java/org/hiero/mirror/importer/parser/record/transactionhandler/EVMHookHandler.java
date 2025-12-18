@@ -264,7 +264,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             final var entries = mappingEntries.getEntriesList();
 
             for (int index = entries.size() - 1; index >= 0; index--) {
-                // // process the entries in reversed order to honor the last value in case of duplicate slot keys
+                // process the entries in reversed order to honor the last value in case of duplicate slot keys
                 final var entry = entries.get(index);
                 final var mappingKey = entry.hasKey()
                         ? leftPadBytes(toBytes(entry.getKey()), 32)
