@@ -3,9 +3,9 @@
 plugins { `kotlin-dsl` }
 
 repositories {
+    // Temporary until next web3j
+    maven("https://www.jitpack.io") { content { includeGroupByRegex(".*web3j.*") } }
     gradlePluginPortal()
-    mavenCentral()
-    maven { url = uri("https://www.jitpack.io") } // Temporary until next web3j
 }
 
 dependencies {
