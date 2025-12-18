@@ -13,7 +13,10 @@ import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.StorageChange;
 import jakarta.inject.Named;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak.Digest256;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -68,22 +71,9 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     @Override
     public void processStorageUpdates(
-            long consensusTimestamp, long hookId, EntityId ownerEntityId, List<LambdaStorageUpdate> storageUpdates) {
-        for (final var update : storageUpdates) {
-            switch (update.getUpdateCase()) {
-                case STORAGE_SLOT ->
-                    processStorageSlotUpdate(
-                            update.getStorageSlot(), consensusTimestamp, ownerEntityId.getId(), hookId);
-                case MAPPING_ENTRIES ->
-                    processMappingEntries(
-                            update.getMappingEntries(), consensusTimestamp, ownerEntityId.getId(), hookId);
-                default ->
-                    Utility.handleRecoverableError(
-                            "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
-                            update.getUpdateCase(),
-                            consensusTimestamp);
-            }
-        }
+            long consensusTimestamp, long hookId, long ownerId, List<LambdaStorageUpdate> storageUpdates) {
+        final var context = new StorageUpdateContext(consensusTimestamp, hookId, ownerId);
+        context.process(storageUpdates);
     }
 
     @Override
@@ -167,7 +157,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             processStorageUpdates(
                     recordItem.getConsensusTimestamp(),
                     hookCreationDetails.getHookId(),
-                    EntityId.of(entityId),
+                    entityId,
                     lambdaEvmHook.getStorageUpdatesList());
         }
     }
@@ -228,39 +218,67 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         };
     }
 
-    private void processMappingEntries(
-            LambdaMappingEntries entries, long consensusTimestamp, long ownerEntityId, long hookId) {
-        final var mappingSlot = leftPadBytes(toBytes(entries.getMappingSlot()), 32);
+    @RequiredArgsConstructor
+    private class StorageUpdateContext {
 
-        for (final var entry : entries.getEntriesList()) {
-            final var mappingKey = entry.hasKey()
-                    ? leftPadBytes(toBytes(entry.getKey()), 32)
-                    : keccak256(toBytes(entry.getPreimage()));
+        private final long consensusTimestamp;
+        private final long hookId;
+        private final long ownerEntityId;
 
-            final var valueWritten = toBytes(entry.getValue());
-            final var derivedSlot = keccak256(mappingKey, mappingSlot);
-            persistChange(ownerEntityId, hookId, derivedSlot, valueWritten, consensusTimestamp);
+        private final Set<Integer> processed = new HashSet<>();
+
+        void process(final List<LambdaStorageUpdate> storageUpdates) {
+            for (int index = storageUpdates.size() - 1; index >= 0; index--) {
+                // process the storage updates in reversed order to honor the last value in case of duplicate slot keys
+                final var update = storageUpdates.get(index);
+                switch (update.getUpdateCase()) {
+                    case MAPPING_ENTRIES -> process(update.getMappingEntries());
+                    case STORAGE_SLOT -> process(update.getStorageSlot());
+                    default ->
+                        Utility.handleRecoverableError(
+                                "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
+                                update.getUpdateCase(),
+                                consensusTimestamp);
+                }
+            }
         }
-    }
 
-    private void processStorageSlotUpdate(
-            LambdaStorageSlot storageSlot, long consensusTimestamp, long ownerEntityId, long hookId) {
-        final var slotKey = toBytes(storageSlot.getKey());
+        private void persistChange(final byte[] key, final byte[] valueWritten) {
+            if (!processed.add(Arrays.hashCode(key))) {
+                return;
+            }
 
-        // Protobuf API ensures that value will never be null
-        final var valueWritten = toBytes(storageSlot.getValue());
-        persistChange(ownerEntityId, hookId, slotKey, valueWritten, consensusTimestamp);
-    }
+            final var change = HookStorageChange.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .hookId(hookId)
+                    .key(key)
+                    .ownerId(ownerEntityId)
+                    .valueRead(valueWritten)
+                    .valueWritten(valueWritten)
+                    .build();
+            entityListener.onHookStorageChange(change);
+        }
 
-    private void persistChange(
-            long ownerEntityId, long hookId, byte[] key, byte[] valueWritten, long consensusTimestamp) {
-        final var change = new HookStorageChange();
-        change.setConsensusTimestamp(consensusTimestamp);
-        change.setOwnerId(ownerEntityId);
-        change.setHookId(hookId);
-        change.setKey(key);
-        change.setValueRead(valueWritten);
-        change.setValueWritten(valueWritten);
-        entityListener.onHookStorageChange(change);
+        private void process(final LambdaMappingEntries mappingEntries) {
+            final var mappingSlot = leftPadBytes(toBytes(mappingEntries.getMappingSlot()), 32);
+            final var entries = mappingEntries.getEntriesList();
+
+            for (int index = entries.size() - 1; index >= 0; index--) {
+                // // process the entries in reversed order to honor the last value in case of duplicate slot keys
+                final var entry = entries.get(index);
+                final var mappingKey = entry.hasKey()
+                        ? leftPadBytes(toBytes(entry.getKey()), 32)
+                        : keccak256(toBytes(entry.getPreimage()));
+                final var derivedSlot = keccak256(mappingKey, mappingSlot);
+                final var valueWritten = toBytes(entry.getValue());
+                persistChange(derivedSlot, valueWritten);
+            }
+        }
+
+        private void process(final LambdaStorageSlot storageSlot) {
+            final var slotKey = toBytes(storageSlot.getKey());
+            final var valueWritten = toBytes(storageSlot.getValue());
+            persistChange(slotKey, valueWritten);
+        }
     }
 }

@@ -35,6 +35,7 @@ import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.junit.jupiter.api.Test;
@@ -51,6 +52,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 final class EVMHookHandlerTest {
+
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
@@ -305,13 +307,17 @@ final class EVMHookHandlerTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 10})
     void processesStorageSlots(int numSlots, CapturedOutput output) {
-        final var consensusTimestamp = 123L;
-        final var hookId = 7L;
-        final var ownerEntityId = domainBuilder.entityId();
+        // given
+        final var consensusTimestamp = domainBuilder.timestamp();
+        final var hookId = domainBuilder.id();
+        final var ownerId = domainBuilder.id();
 
         final var updates = new ArrayList<LambdaStorageUpdate>(numSlots);
-        final var expectedKeys = new ArrayList<byte[]>(numSlots);
-        final var expectedValues = new ArrayList<byte[]>(numSlots);
+        final var expectedStorageChanges = new ArrayList<HookStorageChange>(numSlots);
+        final var hookStorageChangeBuilder = HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId);
 
         updates.add(LambdaStorageUpdate.getDefaultInstance());
 
@@ -325,33 +331,25 @@ final class EVMHookHandlerTest {
             final var value =
                     ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
 
-            expectedKeys.add(key);
-            expectedValues.add(trimmedValue);
-
             updates.add(LambdaStorageUpdate.newBuilder()
                     .setStorageSlot(LambdaStorageSlot.newBuilder()
                             .setKey(ByteString.copyFrom(key))
                             .setValue(ByteString.copyFrom(value)))
                     .build());
+            expectedStorageChanges.add(hookStorageChangeBuilder
+                    .key(key)
+                    .valueRead(trimmedValue)
+                    .valueWritten(trimmedValue)
+                    .build());
         }
 
-        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerEntityId, updates);
+        // when
+        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, updates);
 
+        // then
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numSlots)).onHookStorageChange(captor.capture());
-        final var changes = captor.getAllValues();
-
-        assertThat(changes).hasSize(numSlots);
-        for (int i = 0; i < numSlots; i++) {
-            final var change = changes.get(i);
-            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
-            assertThat(change.getHookId()).isEqualTo(hookId);
-            assertThat(change.getOwnerId()).isEqualTo(ownerEntityId.getId());
-            assertThat(change.getKey()).isEqualTo(expectedKeys.get(i));
-            assertThat(change.getValueWritten()).isEqualTo(expectedValues.get(i));
-            assertThat(change.getValueRead()).isEqualTo(expectedValues.get(i));
-        }
-
+        assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
                 .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
@@ -360,12 +358,16 @@ final class EVMHookHandlerTest {
     @ParameterizedTest
     @CsvSource({"4, 1", "4, 5", "32, 1", "32, 5", "33, 1"})
     void processesMappingEntries(int keySize, int numEntries, CapturedOutput output) {
-        final var consensusTimestamp = 100L;
-        final var hookId = 8L;
-        final var ownerEntityId = domainBuilder.entityId();
+        // given
+        final var consensusTimestamp = domainBuilder.timestamp();
+        final var hookId = domainBuilder.id();
+        final var ownerId = domainBuilder.id();
         final var mappingSlot = domainBuilder.bytes(2);
-        final var expectedValues = new ArrayList<byte[]>(numEntries);
-        final var expectedKeys = new ArrayList<byte[]>(numEntries);
+        final var expectedStorageChanges = new ArrayList<HookStorageChange>();
+        final var hookStorageChangeBuilder = HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId);
 
         final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
 
@@ -381,35 +383,25 @@ final class EVMHookHandlerTest {
             entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
                     .setKey(ByteString.copyFrom(key))
                     .setValue(ByteString.copyFrom(value)));
-
-            expectedKeys.add(key);
-            expectedValues.add(trimmedValue);
+            expectedStorageChanges.add(hookStorageChangeBuilder
+                    .key(keccak256(leftPadBytes(key, 32), leftPadBytes(mappingSlot, 32)))
+                    .valueRead(trimmedValue)
+                    .valueWritten(trimmedValue)
+                    .build());
         }
 
         final var update = LambdaStorageUpdate.newBuilder()
                 .setMappingEntries(entriesBuilder.build())
                 .build();
 
+        // when
         eVMHookHandler.processStorageUpdates(
-                consensusTimestamp, hookId, ownerEntityId, List.of(update, LambdaStorageUpdate.getDefaultInstance()));
+                consensusTimestamp, hookId, ownerId, List.of(update, LambdaStorageUpdate.getDefaultInstance()));
 
+        // then
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
-        final var changes = captor.getAllValues();
-
-        for (int i = 0; i < numEntries; i++) {
-            final var change = changes.get(i);
-
-            final var expectedKey = keccak256(leftPadBytes(expectedKeys.get(i), 32), leftPadBytes(mappingSlot, 32));
-            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
-            assertThat(change.getHookId()).isEqualTo(hookId);
-            assertThat(change.getOwnerId()).isEqualTo(ownerEntityId.getId());
-            assertThat(change.isDeleted()).isFalse();
-            assertThat(change.getKey()).isEqualTo(expectedKey);
-            assertThat(change.getValueWritten()).isEqualTo(expectedValues.get(i));
-            assertThat(change.getValueRead()).isEqualTo(expectedValues.get(i));
-        }
-
+        assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
                 .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
@@ -418,63 +410,135 @@ final class EVMHookHandlerTest {
     @ParameterizedTest
     @ValueSource(ints = {1, 10})
     void processesMappingEntriesWithPreimage(int numEntries, CapturedOutput output) {
-        final var consensusTimestamp = 321L;
-        final var hookId = 5L;
-        final var ownerEntityId = domainBuilder.entityId();
+        // given
+        final var consensusTimestamp = domainBuilder.timestamp();
+        final var hookId = domainBuilder.id();
+        final var ownerId = domainBuilder.id();
         final var mappingSlot = domainBuilder.bytes(4);
         final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
-
-        final var preimages = new ArrayList<byte[]>(numEntries);
-        final var expectedValues = new ArrayList<byte[]>(numEntries);
+        final var hookStorageChangeBuilder = HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId);
+        final var expectedStorageChanges = new ArrayList<HookStorageChange>();
 
         for (int i = 0; i < numEntries; i++) {
             final var preimage = domainBuilder.bytes(8);
             final var trimmedValue = Bytes.concat(new byte[] {0x1}, domainBuilder.bytes(16));
             final var value = leftPadBytes(trimmedValue, 32);
 
-            preimages.add(preimage);
-            expectedValues.add(trimmedValue);
-
             entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
                     .setPreimage(ByteString.copyFrom(preimage))
                     .setValue(ByteString.copyFrom(value)));
+            expectedStorageChanges.add(hookStorageChangeBuilder
+                    .key(keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32)))
+                    .valueRead(trimmedValue)
+                    .valueWritten(trimmedValue)
+                    .build());
         }
 
         final var update = LambdaStorageUpdate.newBuilder()
                 .setMappingEntries(entriesBuilder.build())
                 .build();
 
+        // when
         eVMHookHandler.processStorageUpdates(
-                consensusTimestamp, hookId, ownerEntityId, List.of(LambdaStorageUpdate.getDefaultInstance(), update));
+                consensusTimestamp, hookId, ownerId, List.of(LambdaStorageUpdate.getDefaultInstance(), update));
 
+        // then
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
-        final var changes = captor.getAllValues();
-        assertThat(changes).hasSize(numEntries);
-
-        for (int i = 0; i < numEntries; i++) {
-            final var expectedSlot = keccak256(keccak256(preimages.get(i)), leftPadBytes(mappingSlot, 32));
-            final var change = changes.get(i);
-
-            assertThat(change.getConsensusTimestamp()).isEqualTo(consensusTimestamp);
-            assertThat(change.getHookId()).isEqualTo(hookId);
-            assertThat(change.getOwnerId()).isEqualTo(ownerEntityId.getId());
-            assertThat(change.isDeleted()).isFalse();
-            assertThat(change.getKey()).isEqualTo(expectedSlot);
-            assertThat(change.getValueWritten()).isEqualTo(expectedValues.get(i));
-            assertThat(change.getValueRead()).isEqualTo(expectedValues.get(i));
-        }
-
+        assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
                 .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
     }
 
     @Test
+    void processStorageUpdatesWithDuplicates() {
+        // given
+        final long consensusTimestamp = domainBuilder.timestamp();
+        final long hookId = domainBuilder.id();
+        final long ownerId = domainBuilder.id();
+        final var expectedStorageChanges = new ArrayList<HookStorageChange>();
+        final var hookStorageChangeBuilder = HookStorageChange.builder()
+                .consensusTimestamp(consensusTimestamp)
+                .hookId(hookId)
+                .ownerId(ownerId);
+        final var storageUpdates = new ArrayList<LambdaStorageUpdate>();
+
+        final byte[] key = domainBuilder.nonZeroBytes(16);
+        storageUpdates.add(LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(DomainUtils.fromBytes(key))
+                        .setValue(ByteString.copyFrom(domainBuilder.nonZeroBytes(32))))
+                .build());
+        final byte[] value = domainBuilder.nonZeroBytes(32);
+        storageUpdates.add((LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(DomainUtils.fromBytes(key))
+                        .setValue(DomainUtils.fromBytes(value)))
+                .build()));
+        expectedStorageChanges.add(hookStorageChangeBuilder
+                .key(key)
+                .valueRead(value)
+                .valueWritten(value)
+                .build());
+
+        // Three mapping entries with the same mapping slot
+        // - the second entry overrides the first
+        // - the last entry is overridden by an explicit key slot
+        final byte[] mappingSlot = domainBuilder.bytes(4);
+        byte[] preimage = domainBuilder.bytes(8);
+        final var mappingEntriesBuilder =
+                LambdaMappingEntries.newBuilder().setMappingSlot(DomainUtils.fromBytes(mappingSlot));
+        mappingEntriesBuilder
+                .addEntries(LambdaMappingEntry.newBuilder()
+                        .setPreimage(DomainUtils.fromBytes(preimage))
+                        .setValue(DomainUtils.fromBytes(domainBuilder.nonZeroBytes(24))))
+                .addEntries(LambdaMappingEntry.newBuilder()
+                        .setPreimage(DomainUtils.fromBytes(preimage))
+                        .setValue(DomainUtils.fromBytes(value)));
+        expectedStorageChanges.add(hookStorageChangeBuilder
+                .key(keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32)))
+                .valueRead(value)
+                .valueWritten(value)
+                .build());
+        preimage = domainBuilder.bytes(16);
+        mappingEntriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+                .setPreimage(DomainUtils.fromBytes(preimage))
+                .setValue(DomainUtils.fromBytes(domainBuilder.nonZeroBytes(24))));
+        storageUpdates.add(LambdaStorageUpdate.newBuilder()
+                .setMappingEntries(mappingEntriesBuilder)
+                .build());
+
+        // An explicit key slot overrides the last mapping entry
+        final byte[] mappedKey = keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32));
+        storageUpdates.add(LambdaStorageUpdate.newBuilder()
+                .setStorageSlot(LambdaStorageSlot.newBuilder()
+                        .setKey(DomainUtils.fromBytes(mappedKey))
+                        .setValue(DomainUtils.fromBytes(value)))
+                .build());
+        expectedStorageChanges.add(hookStorageChangeBuilder
+                .key(mappedKey)
+                .valueRead(value)
+                .valueWritten(value)
+                .build());
+
+        // when
+        eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, storageUpdates);
+
+        // then
+        final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
+        verify(entityListener, times(3)).onHookStorageChange(captor.capture());
+        assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
+    }
+
+    @Test
     void handlesInvalidStorageUpdateLogsRecoverableError(CapturedOutput output) {
         final var consensusTimestamp = 123L;
         final var hookId = 7L;
-        final var ownerId = domainBuilder.entityId();
+        final var ownerId = domainBuilder.id();
 
         final var updates = List.of(LambdaStorageUpdate.getDefaultInstance());
 
