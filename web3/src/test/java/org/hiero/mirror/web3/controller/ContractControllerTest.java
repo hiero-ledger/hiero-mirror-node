@@ -35,7 +35,6 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
-import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -387,18 +386,6 @@ class ContractControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"block\": \"-1\"}"))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void callWithBlockNumberOutOfRangeExceptionTest() throws Exception {
-        final var request = request();
-        given(service.processCall(any())).willThrow(new BlockNumberOutOfRangeException("Unknown block number"));
-
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(convert(
-                                new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
     }
 
     @Test
