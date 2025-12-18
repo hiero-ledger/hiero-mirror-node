@@ -45,9 +45,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.OpcodesResponse;
@@ -709,8 +707,6 @@ class OpcodesControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            var commonProperties = new CommonProperties();
-            var systemEntity = new SystemEntity(commonProperties);
             return new MirrorNodeEvmProperties();
         }
 

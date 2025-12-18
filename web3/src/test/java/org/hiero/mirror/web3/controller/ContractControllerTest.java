@@ -27,8 +27,6 @@ import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
@@ -533,8 +531,6 @@ class ContractControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            var commonProperties = new CommonProperties();
-            var systemEntity = new SystemEntity(commonProperties);
             return new MirrorNodeEvmProperties();
         }
 

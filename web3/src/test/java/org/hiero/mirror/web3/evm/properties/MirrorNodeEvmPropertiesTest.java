@@ -22,8 +22,6 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.stream.Stream;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
@@ -42,8 +40,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class MirrorNodeEvmPropertiesTest {
     private static final int MAX_REFUND_PERCENT = 100;
 
-    private final CommonProperties commonProperties = new CommonProperties();
-    private final SystemEntity systemEntity = new SystemEntity(commonProperties);
     private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
 
     @AutoClose
