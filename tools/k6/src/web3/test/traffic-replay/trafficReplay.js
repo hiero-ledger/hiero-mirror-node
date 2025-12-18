@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import http from 'k6/http';
-import check from 'k6';
+import {check as k6Check} from 'k6';
 
 import {getOptionsWithScenario} from '../../../lib/common.js';
 
@@ -56,7 +56,7 @@ function run(testParameters) {
 
   const url = `${BASE_URL}/api/v1/contracts/call`;
   const res = http.post(url, requestData, params);
-  check(res, {
+  k6Check(res, {
     'Traffic replay OK': (r) => r.status === 200 || r.status === 400, // Some of the requests are expected to revert.
   });
 }
