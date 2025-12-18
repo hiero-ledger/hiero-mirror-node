@@ -55,7 +55,7 @@ jobs:
           cache-read-only: false
 
       - name: Vulnerability check
-        run: ./gradlew dependencyCheckAggregate --no-configuration-cache
+        run: ./gradlew dependencyCheckAggregate
         timeout-minutes: 20
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -214,7 +214,7 @@ jobs:
         uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
 
       - name: Execute Gradle
-        run: ./gradlew spotlessCheck --no-configuration-cache
+        run: ./gradlew spotlessCheck
 
       - name: Fail on Unformatted Files
         if: failure()
