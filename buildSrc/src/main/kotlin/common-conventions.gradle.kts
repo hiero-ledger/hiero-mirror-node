@@ -23,6 +23,7 @@ dependencyCheck {
         datafeedUrl = "https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/"
     }
     suppressionFile = resources.resolve("suppressions.xml").toString()
+    skipConfigurations = listOf("jacocoAgent", "jacocoAnt")
 }
 
 tasks.register<Exec>("uploadCoverage") {
