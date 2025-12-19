@@ -6,8 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY_ID;
 import static org.mockito.Mockito.when;
 
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
@@ -25,18 +23,11 @@ class EntityIdSingletonTest {
     private EntityIdSingleton entityIdSingleton;
 
     @Mock
-    private CommonProperties commonProperties;
-
-    @Mock
     private EntityRepository entityRepository;
-
-    @Mock
-    private SystemEntity systemEntity;
 
     @BeforeEach
     void setup() {
-        entityIdSingleton =
-                new EntityIdSingleton(entityRepository, new MirrorNodeEvmProperties(commonProperties, systemEntity));
+        entityIdSingleton = new EntityIdSingleton(entityRepository, new MirrorNodeEvmProperties());
     }
 
     @Test

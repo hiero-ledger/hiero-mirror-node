@@ -11,7 +11,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOp
 @UtilityClass
 public class OpcodeTracerUtil {
 
-    public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false, true);
+    public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false);
 
     public static String toHumanReadableMessage(final String solidityError) {
         return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(Bytes.fromHexString(solidityError));

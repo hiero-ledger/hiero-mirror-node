@@ -278,13 +278,11 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @Test
-    void associateTokenTransferEthCallFailModularized() throws InvocationTargetException, IllegalAccessException {
+    void associateTokenTransferEthCallFails() throws InvocationTargetException, IllegalAccessException {
         // Given
-        final var modularizedServicesFlag = mirrorNodeEvmProperties.isModularizedServices();
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
             // Re-init the captors, because the flag was changed.
             super.setUpArgumentCaptors();
             Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
@@ -329,7 +327,6 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
         } finally {
             // Restore changed property values.
-            mirrorNodeEvmProperties.setModularizedServices(modularizedServicesFlag);
             mirrorNodeEvmProperties.setProperties(backupProperties);
         }
     }

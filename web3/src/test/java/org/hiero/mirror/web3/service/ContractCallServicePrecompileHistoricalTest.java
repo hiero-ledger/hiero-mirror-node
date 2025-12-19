@@ -474,11 +474,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
 
         final var expectedExpiry = new PrecompileTestContractHistorical.Expiry(
                 BigInteger.valueOf(expiryPeriod).divide(BigInteger.valueOf(1_000_000_000L)),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntity(autoRenewAccount)
-                        : Address.fromHexString(Bytes.wrap(autoRenewAccount.getEvmAddress())
-                                        .toHexString())
-                                .toHexString(),
+                getAddressFromEntity(autoRenewAccount),
                 BigInteger.valueOf(autoRenewExpiry));
 
         // Then
@@ -1083,9 +1079,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
         return new PrecompileTestContractHistorical.HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

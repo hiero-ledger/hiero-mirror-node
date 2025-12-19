@@ -138,7 +138,7 @@ public class TransactionExecutionService {
         if (result == null) {
             // No result - the call did not reach the EVM and probably failed at pre-checks. No metric to update in this
             // case.
-            throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY, true);
+            throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY);
         } else {
             final var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
             final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
@@ -150,7 +150,7 @@ public class TransactionExecutionService {
                         result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty());
 
                 throw new MirrorEvmTransactionException(
-                        status, detail, errorMessage.toHexString(), processingResult, true, childTransactionErrors);
+                        status, detail, errorMessage.toHexString(), processingResult, childTransactionErrors);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
@@ -265,7 +265,7 @@ public class TransactionExecutionService {
     // In services SolvencyPreCheck#getPayerAccount() in case the payer account is not found or is a smart contract the
     // error response that is returned is PAYER_ACCOUNT_NOT_FOUND, so we use it in here for consistency.
     private void throwPayerAccountNotFoundException(final String message) {
-        throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY, true);
+        throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY);
     }
 
     private OperationTracer[] getOperationTracers() {

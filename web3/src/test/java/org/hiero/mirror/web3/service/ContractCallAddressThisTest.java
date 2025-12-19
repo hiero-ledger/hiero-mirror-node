@@ -23,8 +23,6 @@ import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
 import org.hiero.mirror.web3.web3j.generated.TestNestedAddressThis;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -48,29 +46,12 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @Resource
     private ObjectMapper objectMapper;
 
-    private double modularizedTrafficPercent;
-
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
         return mockMvc.perform(post(CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
-    }
-
-    @BeforeEach
-    void before() {
-        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-        }
-    }
-
-    @AfterEach
-    void after() {
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
     }
 
     @Test

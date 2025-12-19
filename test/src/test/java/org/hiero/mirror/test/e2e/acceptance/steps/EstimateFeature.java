@@ -327,21 +327,6 @@ public class EstimateFeature extends AbstractEstimateFeature {
         assertContractCallReturnsBadRequest("3ec4de35" + wrongEncodedAddress, contractSolidityAddress);
     }
 
-    // Cannot send request without from with modularized EVM
-    @Then("I call estimateGas with non-existing from address in the request body")
-    public void wrongFromParameterEstimateCall() throws ExecutionException, InterruptedException {
-        if (!web3Properties.isModularizedServices()) {
-            var estimateGasResult = mirrorClient.estimateGasQueryWithoutParams(
-                    estimateGasContractId,
-                    MESSAGE_SIGNER.getSelector(),
-                    senderAccountId,
-                    MESSAGE_SIGNER.getActualGas());
-
-            assertWithinDeviation(
-                    MESSAGE_SIGNER.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
-        }
-    }
-
     @Then("I call estimateGas with function that makes a call to invalid smart contract")
     public void callToInvalidSmartContractEstimateCall() throws ExecutionException, InterruptedException {
         final var parameters = new ContractFunctionParameters()
@@ -528,20 +513,6 @@ public class EstimateFeature extends AbstractEstimateFeature {
         verifyMirrorTransactionsResponse(mirrorClient, 200);
     }
 
-    // Disabled because currently the ERC contracts cannot interact with long zero addresses. Will be fixed in future
-    // from services team
-    @Then("I call estimateGas with IERC20 token transfer using long zero address as receiver")
-    public void ierc20TransferWithLongZeroAddressForReceiver() throws ExecutionException, InterruptedException {
-        if (!web3Properties.isModularizedServices()) {
-            final var parameters = new ContractFunctionParameters()
-                    .addAddress(fungibleTokenAddress.toString())
-                    .addAddress(asAddress(receiverAccountId).toString())
-                    .addUint256(new BigInteger("5"));
-
-            validateGasEstimation(ercContractId, IERC20_TOKEN_TRANSFER, parameters, senderAccountId);
-        }
-    }
-
     @Then("I call estimateGas with IERC20 token transfer using evm address as receiver")
     public void ierc20TransferWithEvmAddressForReceiver() throws InterruptedException, ExecutionException {
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(receiverAccountId.getAccountId());
@@ -635,27 +606,12 @@ public class EstimateFeature extends AbstractEstimateFeature {
     @Then("I call estimateGas with contract deploy with bytecode as data with invalid sender")
     public void contractDeployEstimateGasWithInvalidSender() {
         var bytecodeData = deployedContract.compiledSolidityArtifact().getBytecode();
-        if (web3Properties.isModularizedServices()) {
-            var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
-                    .data(bytecodeData)
-                    .estimate(true)
-                    .from("0x0000000000000000000000000000000000000167");
-            assertThatThrownBy(() -> mirrorClient.contractsCall(contractCallRequest))
-                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
-        } else {
-            var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
-                    .data(bytecodeData)
-                    .estimate(true)
-                    .from("0x0000000000000000000000000000000000000167");
-
-            var msgSenderResponse = mirrorClient.contractsCall(contractCallRequest);
-            var estimatedGas = Bytes.fromHexString(msgSenderResponse.getResult())
-                    .toBigInteger()
-                    .intValue();
-
-            assertWithinDeviation(
-                    DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas(), estimatedGas, lowerDeviation, upperDeviation);
-        }
+        var contractCallRequest = ModelBuilder.contractCallRequest(DEPLOY_CONTRACT_VIA_BYTECODE_DATA.getActualGas())
+                .data(bytecodeData)
+                .estimate(true)
+                .from("0x0000000000000000000000000000000000000167");
+        assertThatThrownBy(() -> mirrorClient.contractsCall(contractCallRequest))
+                .isInstanceOf(HttpClientErrorException.BadRequest.class);
     }
 
     @Then("I execute contractCall for function that changes the contract slot and verify gasConsumed")

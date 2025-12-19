@@ -30,12 +30,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_isValidAliasCall(getAddressFromEntity(account));
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isTrue();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isTrue();
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -51,12 +47,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_isValidAliasCall(getAddressFromEntity(accountWithEvmAddress));
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isTrue();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isTrue();
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -71,12 +63,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_isValidAliasCall(Address.ZERO.toHexString());
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isFalse();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isFalse();
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -91,12 +79,8 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_isValidAliasCall(nonExistingEvmAddress.toString());
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result.send()).isFalse();
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        assertThat(result.send()).isFalse();
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -112,15 +96,11 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_getEvmAddressAliasCall(getAddressFromEntity(accountEntity));
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var result = contract.call_getEvmAddressAliasCall(getAddressFromEntity(accountEntity))
-                    .send();
-            assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(result.component2()).isEqualTo(addressAlias.toHexString());
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var result = contract.call_getEvmAddressAliasCall(getAddressFromEntity(accountEntity))
+                .send();
+        assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(result.component2()).isEqualTo(addressAlias.toHexString());
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
@@ -167,15 +147,11 @@ class ContractCallAliasTests extends AbstractContractCallServiceTest {
         final var functionCall = contract.send_getHederaAccountNumAliasCall(addressAlias.toString());
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var result = contract.call_getHederaAccountNumAliasCall(addressAlias.toString())
-                    .send();
-            assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(result.component2()).isEqualTo(accountLongZeroAddress);
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var result = contract.call_getHederaAccountNumAliasCall(addressAlias.toString())
+                .send();
+        assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(result.component2()).isEqualTo(accountLongZeroAddress);
+        verifyEthCallAndEstimateGas(functionCall, contract);
 
         System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }

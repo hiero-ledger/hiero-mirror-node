@@ -24,7 +24,6 @@ import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
-import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
 @CustomLog
@@ -94,12 +93,8 @@ public abstract class ContractCallService {
     protected final HederaEvmTransactionProcessingResult callContract(
             CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
-
-        if (params.isModularized() || params.getBlock() != BlockType.LATEST) {
-            ctx.setBlockSupplier(Suppliers.memoize(() -> recordFileService
-                    .findByBlockType(params.getBlock())
-                    .orElseThrow(BlockNumberNotFoundException::new)));
-        }
+        ctx.setBlockSupplier(Suppliers.memoize(() ->
+                recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
 
         return doProcessCall(params, params.getGas(), false);
     }
@@ -116,7 +111,7 @@ public abstract class ContractCallService {
                 validateResult(result, params);
             }
         } catch (IllegalStateException | IllegalArgumentException e) {
-            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY, params.isModularized());
+            throw new MirrorEvmTransactionException(e.getMessage(), EMPTY);
         } catch (MirrorEvmTransactionException e) {
             // This result is needed in case of exception to be still able to call restoreGasToBucket method
             result = e.getResult();
@@ -155,22 +150,19 @@ public abstract class ContractCallService {
             var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             var status = getStatusOrDefault(txnResult).name();
-            throw new MirrorEvmTransactionException(
-                    status, detail, revertReason.toHexString(), txnResult, params.isModularized());
+            throw new MirrorEvmTransactionException(status, detail, revertReason.toHexString(), txnResult);
         }
     }
 
     protected final void updateMetrics(CallServiceParameters parameters, long gasUsed, int iterations, String status) {
         var tags = Tags.of("iteration", String.valueOf(iterations))
-                .and("modularized", String.valueOf(parameters.isModularized()))
                 .and("type", parameters.getCallType().toString());
         invocationCounter.withTags(tags.and("status", status)).increment();
         gasUsedCounter.withTags(tags).increment(gasUsed);
     }
 
     protected final void updateGasLimitMetric(final CallServiceParameters parameters) {
-        var tags = Tags.of("modularized", String.valueOf(parameters.isModularized()))
-                .and("type", parameters.getCallType().toString());
+        var tags = Tags.of("type", parameters.getCallType().toString());
         gasLimitCounter.withTags(tags).increment(parameters.getGas());
     }
 }

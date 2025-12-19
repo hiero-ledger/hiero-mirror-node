@@ -10,6 +10,9 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_38
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_46;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_50;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_51;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_65;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_66;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.EVM_VERSION_0_67;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 
@@ -19,13 +22,9 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.stream.Stream;
-import org.apache.tuweni.bytes.Bytes32;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
-import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,13 +39,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class MirrorNodeEvmPropertiesTest {
     private static final int MAX_REFUND_PERCENT = 100;
-    private static final int MAX_CUSTOM_FEES_ALLOWED = 10;
-    private static final Address FUNDING_ADDRESS = Address.fromHexString("0x0000000000000000000000000000000000000062");
-    private static final Bytes32 CHAIN_ID = Bytes32.fromHexString("0x0128");
 
-    private final CommonProperties commonProperties = new CommonProperties();
-    private final SystemEntity systemEntity = new SystemEntity(commonProperties);
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
 
     @AutoClose
     private final MockedStatic<ContractCallContext> staticMock = mockStatic(ContractCallContext.class);
@@ -62,6 +56,9 @@ class MirrorNodeEvmPropertiesTest {
         evmVersions.put(150L, EVM_VERSION_0_46);
         evmVersions.put(200L, EVM_VERSION_0_50);
         evmVersions.put(250L, EVM_VERSION_0_51);
+        evmVersions.put(300L, EVM_VERSION_0_65);
+        evmVersions.put(350L, EVM_VERSION_0_66);
+        evmVersions.put(400L, EVM_VERSION_0_67);
         return Collections.unmodifiableNavigableMap(evmVersions);
     }
 
@@ -73,6 +70,9 @@ class MirrorNodeEvmPropertiesTest {
         evmVersions.put(60258042L, EVM_VERSION_0_46);
         evmVersions.put(65435845L, EVM_VERSION_0_50);
         evmVersions.put(66602102L, EVM_VERSION_0_51);
+        evmVersions.put(85011472L, EVM_VERSION_0_65);
+        evmVersions.put(85659065L, EVM_VERSION_0_66);
+        evmVersions.put(87129575L, EVM_VERSION_0_67);
         return Collections.unmodifiableNavigableMap(evmVersions);
     }
 
@@ -117,20 +117,7 @@ class MirrorNodeEvmPropertiesTest {
     @Test
     void correctPropertiesEvaluation() {
         staticMock.when(ContractCallContext::get).thenReturn(contractCallContext);
-        given(contractCallContext.useHistorical()).willReturn(false);
-        assertThat(properties.evmVersion()).isEqualTo(EVM_VERSION.toString());
-        assertThat(properties.dynamicEvmVersion()).isTrue();
-        assertThat(properties.maxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
-        assertThat(properties.fundingAccountAddress()).isEqualTo(FUNDING_ADDRESS);
-        assertThat(properties.isRedirectTokenCallsEnabled()).isTrue();
-        assertThat(properties.isLazyCreationEnabled()).isTrue();
-        assertThat(properties.isCreate2Enabled()).isTrue();
-        assertThat(properties.chainIdBytes32()).isEqualTo(CHAIN_ID);
-        assertThat(properties.isLimitTokenAssociations()).isFalse();
-        assertThat(properties.shouldAutoRenewAccounts()).isFalse();
-        assertThat(properties.shouldAutoRenewContracts()).isFalse();
-        assertThat(properties.shouldAutoRenewSomeEntityType()).isFalse();
-        assertThat(properties.maxCustomFeesAllowed()).isEqualTo(MAX_CUSTOM_FEES_ALLOWED);
+        assertThat(properties.getMaxGasRefundPercentage()).isEqualTo(MAX_REFUND_PERCENT);
     }
 
     @ParameterizedTest
@@ -142,7 +129,7 @@ class MirrorNodeEvmPropertiesTest {
         recordFile.setIndex(blockNumber);
         given(contractCallContext.getRecordFile()).willReturn(recordFile);
         properties.setEvmVersions(createEvmVersionsMapCustom());
-        assertThat(properties.evmVersion()).isEqualTo(expectedEvmVersion.toString());
+        assertThat(properties.getSemanticEvmVersion()).isEqualTo(expectedEvmVersion);
     }
 
     @ParameterizedTest
@@ -151,7 +138,10 @@ class MirrorNodeEvmPropertiesTest {
         // given
         properties.setNetwork(HederaNetwork.MAINNET);
 
+        // when
         var result = properties.getEvmVersionForBlock(blockNumber);
+
+        // then
         assertThat(result).isEqualTo(expectedEvmVersion);
     }
 
@@ -161,7 +151,10 @@ class MirrorNodeEvmPropertiesTest {
         // given
         properties.setEvmVersions(createEvmVersionsMapCustom());
 
+        // when
         var result = properties.getEvmVersionForBlock(blockNumber);
+
+        // then
         assertThat(result).isEqualTo(expectedEvmVersion);
     }
 }

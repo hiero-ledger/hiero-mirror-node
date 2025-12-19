@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.ACCOUNT_STILL_OWNS_NFTS;
-import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
@@ -11,7 +10,6 @@ import static com.hedera.hapi.node.base.TokenType.FUNGIBLE_COMMON;
 import static com.hedera.hapi.node.base.TokenType.NON_FUNGIBLE_UNIQUE;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static com.hedera.services.utils.EntityIdUtils.toContractID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
@@ -24,7 +22,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -46,7 +43,6 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
@@ -75,6 +71,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
+
+    private static int MAX_TOKEN_NAME_UTF8_BYTES = 100;
+    private static int MAX_MEMO_UTF8_BYTES = 100;
 
     private static Stream<Arguments> tokenData() {
         return Stream.of(Arguments.of(FUNGIBLE_COMMON.name(), true), Arguments.of(NON_FUNGIBLE_UNIQUE.name(), false));
@@ -395,11 +394,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var functionCall = contract.call_dissociate(tokenAddress);
 
         ResponseCodeEnum statusCode;
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            statusCode = isFungible ? TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES : ACCOUNT_STILL_OWNS_NFTS;
-        } else {
-            statusCode = isFungible ? SUCCESS : ACCOUNT_STILL_OWNS_NFTS;
-        }
+        statusCode = isFungible ? TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES : ACCOUNT_STILL_OWNS_NFTS;
         final var expected = BigInteger.valueOf(statusCode.protoOrdinal());
         assertThat(functionCall.send()).isNotNull().isEqualTo(expected);
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -416,13 +411,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
         final var functionCall = contract.call_isAssociated(tokenAddress);
 
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertTrue(functionCall.send());
-            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
-            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        assertTrue(functionCall.send());
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
     @ParameterizedTest(name = "isAssociated returns false for {0} token when no association exists")
@@ -433,13 +424,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var functionCall = contract.call_isAssociated(tokenAddress);
 
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertFalse(functionCall.send());
-            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
-            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        assertFalse(functionCall.send());
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
     @Test
@@ -1006,17 +993,8 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var modularizedCall =
-                    contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
-            assertThat(Bytes.wrap(modularizedCall.send())).isEqualTo(Bytes.EMPTY);
-        } else {
-            final var functionCall =
-                    contract.send_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INVALID_TOKEN_ID.name());
-        }
+        final var call = contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        assertThat(Bytes.wrap(call.send())).isEqualTo(Bytes.EMPTY);
     }
 
     @Test
@@ -1047,7 +1025,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.metadata(new byte[mirrorNodeEvmProperties.getMaxMemoUtf8Bytes() + 1]))
+                .customize(t -> t.metadata(new byte[MAX_MEMO_UTF8_BYTES + 1]))
                 .get());
 
         // When
@@ -1066,8 +1044,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.name(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.name(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When
@@ -1086,8 +1063,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.symbol(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.symbol(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When

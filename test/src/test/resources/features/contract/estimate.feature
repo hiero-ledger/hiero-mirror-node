@@ -25,9 +25,6 @@ Feature: EstimateGas Contract Base Coverage Feature
     Then I call estimateGas with function that performs self destruct
     Then I call estimateGas with request body that contains wrong method signature
     Then I call estimateGas with wrong encoded parameter
-    # With modularized EVM, the following test is disabled because you would not be able to
-    # send request with non-existing "from"
-    Then I call estimateGas with non-existing from address in the request body
     Then I call estimateGas with function that makes a call to invalid smart contract
     Then I call estimateGas with function that makes a delegate call to invalid smart contract
     Then I call estimateGas with function that makes a static call to invalid smart contract
@@ -45,9 +42,6 @@ Feature: EstimateGas Contract Base Coverage Feature
     Then I associate ERC contract with the FT
     Then I approve the contract to use FT
     Then I approve the receiver account to use FT and transfer FT to the erc contract
-    # With modularized EVM, the following test is commented because you IERC contracts cannot use long zero
-    # addresses at the moment. Will be fixed in future from the services team
-    Then I call estimateGas with IERC20 token transfer using long zero address as receiver
     Then I call estimateGas with IERC20 token transfer using evm address as receiver
     Then I call estimateGas with IERC20 token approve using evm address as receiver
     Then I call estimateGas with IERC20 token associate using evm address as receiver
