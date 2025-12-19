@@ -305,9 +305,6 @@ test:
   annotations:
     helm.sh/hook: test-success
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-  checks:
-    accounts: true
-    transactions: true
   enabled: true
   image:
     pullPolicy: IfNotPresent

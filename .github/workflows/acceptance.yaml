@@ -222,8 +222,6 @@ jobs:
       - name: Run acceptance tests
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" \
-            --filter name="${HELM_RELEASE_NAME}-monitor-test" \
             --timeout 20m | tee output_log.txt
 
       - name: Run k6 tests
