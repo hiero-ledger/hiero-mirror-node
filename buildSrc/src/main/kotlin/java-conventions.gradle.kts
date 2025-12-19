@@ -46,7 +46,12 @@ dependencies {
 tasks.withType<JavaCompile>().configureEach {
     // Disable serial and this-escape warnings due to errors in generated code
     options.compilerArgs.addAll(
-        listOf("-parameters", "-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview")
+        listOf(
+            "-parameters",
+            "-Werror",
+            "-Xlint:all",
+            "-Xlint:-this-escape,-preview,-dangling-doc-comments",
+        )
     )
     options.encoding = "UTF-8"
     options.errorprone {
