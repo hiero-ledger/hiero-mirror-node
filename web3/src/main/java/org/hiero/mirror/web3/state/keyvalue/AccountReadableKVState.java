@@ -66,6 +66,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
         this.systemAccounts = Set.of(
                 EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
+                EntityIdUtils.toAccountId(systemEntity.feeCollectionAccount()),
                 EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
                 EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
     }

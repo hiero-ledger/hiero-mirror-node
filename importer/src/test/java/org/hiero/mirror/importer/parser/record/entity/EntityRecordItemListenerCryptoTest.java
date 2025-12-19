@@ -451,7 +451,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         assertAll(
                 () -> assertEquals(3, transactionRepository.count()),
                 () -> assertEntities(hollowAccount),
-                () -> assertCryptoTransfers(8),
+                () -> assertCryptoTransfers(7),
                 () -> assertThat(entityRepository.findByAlias(EVM_ADDRESS)).hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
                         .map(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
@@ -652,7 +652,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         assertAll(
                 () -> assertEquals(0, contractRepository.count()),
-                // 3 for hbar transfers, and 1 for reward payout from 0.0.800
+                // 3 for default transfers and 1 for reward payout from 0.0.800
                 () -> assertEquals(4, cryptoTransferRepository.count()),
                 () -> assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(sender, receiver1, receiver2),
                 () -> assertThat(stakingRewardTransferRepository.findAll())
@@ -1949,7 +1949,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {
         assertAll(
                 () -> assertEquals(1, cryptoAllowanceRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(3, nftAllowanceRepository.count()),
                 () -> assertEquals(1, tokenAllowanceRepository.count()),

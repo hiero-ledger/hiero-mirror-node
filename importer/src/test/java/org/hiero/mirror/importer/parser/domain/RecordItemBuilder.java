@@ -1709,8 +1709,7 @@ public class RecordItemBuilder {
                     .setTransferList(TransferList.newBuilder()
                             .addAccountAmounts(accountAmount(payerAccountId, -6000L))
                             .addAccountAmounts(accountAmount(nodeAccountId, 1000L))
-                            .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
-                            .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), 3000L))
+                            .addAccountAmounts(accountAmount(systemEntity.feeCollectionAccount(), 5000L))
                             .build());
             transactionRecordBuilder.getReceiptBuilder().setStatus(ResponseCodeEnum.SUCCESS);
             return transactionRecordBuilder;
