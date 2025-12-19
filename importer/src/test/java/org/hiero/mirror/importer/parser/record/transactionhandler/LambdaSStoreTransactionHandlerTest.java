@@ -108,7 +108,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
         final var tsCaptor = ArgumentCaptor.forClass(Long.class);
         final var hookIdCaptor = ArgumentCaptor.forClass(Long.class);
-        final var ownerIdCaptor = ArgumentCaptor.forClass(Long.class);
+        final var ownerIdCaptor = ArgumentCaptor.forClass(EntityId.class);
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<LambdaStorageUpdate>> updatesCaptor = ArgumentCaptor.forClass(List.class);
 
@@ -118,7 +118,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
         assertThat(tsCaptor.getValue()).isEqualTo(recordItem.getConsensusTimestamp());
         assertThat(hookIdCaptor.getValue()).isEqualTo(expectedHookId);
-        assertThat(ownerIdCaptor.getValue()).isEqualTo(ownerEntityId.getId());
+        assertThat(ownerIdCaptor.getValue()).isEqualTo(ownerEntityId);
 
         final var updates = updatesCaptor.getValue();
 

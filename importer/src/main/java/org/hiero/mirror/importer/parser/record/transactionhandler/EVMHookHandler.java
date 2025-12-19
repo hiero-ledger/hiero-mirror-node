@@ -13,7 +13,7 @@ import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
 import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.StorageChange;
 import jakarta.inject.Named;
-import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -71,7 +71,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     @Override
     public void processStorageUpdates(
-            long consensusTimestamp, long hookId, long ownerId, List<LambdaStorageUpdate> storageUpdates) {
+            long consensusTimestamp, long hookId, EntityId ownerId, List<LambdaStorageUpdate> storageUpdates) {
         final var context = new StorageUpdateContext(consensusTimestamp, hookId, ownerId);
         context.process(storageUpdates);
     }
@@ -157,7 +157,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             processStorageUpdates(
                     recordItem.getConsensusTimestamp(),
                     hookCreationDetails.getHookId(),
-                    entityId,
+                    EntityId.of(entityId),
                     lambdaEvmHook.getStorageUpdatesList());
         }
     }
@@ -223,9 +223,9 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
         private final long consensusTimestamp;
         private final long hookId;
-        private final long ownerEntityId;
+        private final EntityId ownerId;
 
-        private final Set<Integer> processed = new HashSet<>();
+        private final Set<ByteBuffer> processed = new HashSet<>();
 
         void process(final List<LambdaStorageUpdate> storageUpdates) {
             for (int index = storageUpdates.size() - 1; index >= 0; index--) {
@@ -244,7 +244,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         }
 
         private void persistChange(final byte[] key, final byte[] valueWritten) {
-            if (!processed.add(Arrays.hashCode(key))) {
+            if (!processed.add(ByteBuffer.wrap(key))) {
                 return;
             }
 
@@ -252,7 +252,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
                     .consensusTimestamp(consensusTimestamp)
                     .hookId(hookId)
                     .key(key)
-                    .ownerId(ownerEntityId)
+                    .ownerId(ownerId.getId())
                     .valueRead(valueWritten)
                     .valueWritten(valueWritten)
                     .build();

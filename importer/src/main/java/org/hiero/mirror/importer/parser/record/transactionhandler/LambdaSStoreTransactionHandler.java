@@ -50,6 +50,6 @@ final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
         final var consensusTimestamp = recordItem.getConsensusTimestamp();
 
         hookHandler.processStorageUpdates(
-                consensusTimestamp, hookId, ownerEntityId.getId(), transactionBody.getStorageUpdatesList());
+                consensusTimestamp, hookId, ownerEntityId, transactionBody.getStorageUpdatesList());
     }
 }

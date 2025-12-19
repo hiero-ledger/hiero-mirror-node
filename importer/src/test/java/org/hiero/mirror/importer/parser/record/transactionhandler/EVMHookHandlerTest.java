@@ -310,14 +310,14 @@ final class EVMHookHandlerTest {
         // given
         final var consensusTimestamp = domainBuilder.timestamp();
         final var hookId = domainBuilder.id();
-        final var ownerId = domainBuilder.id();
+        final var ownerId = domainBuilder.entityId();
 
         final var updates = new ArrayList<LambdaStorageUpdate>(numSlots);
         final var expectedStorageChanges = new ArrayList<HookStorageChange>(numSlots);
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
-                .ownerId(ownerId);
+                .ownerId(ownerId.getId());
 
         updates.add(LambdaStorageUpdate.getDefaultInstance());
 
@@ -361,13 +361,13 @@ final class EVMHookHandlerTest {
         // given
         final var consensusTimestamp = domainBuilder.timestamp();
         final var hookId = domainBuilder.id();
-        final var ownerId = domainBuilder.id();
+        final var ownerId = domainBuilder.entityId();
         final var mappingSlot = domainBuilder.bytes(2);
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
-                .ownerId(ownerId);
+                .ownerId(ownerId.getId());
 
         final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
 
@@ -413,13 +413,13 @@ final class EVMHookHandlerTest {
         // given
         final var consensusTimestamp = domainBuilder.timestamp();
         final var hookId = domainBuilder.id();
-        final var ownerId = domainBuilder.id();
+        final var ownerId = domainBuilder.entityId();
         final var mappingSlot = domainBuilder.bytes(4);
         final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
-                .ownerId(ownerId);
+                .ownerId(ownerId.getId());
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
 
         for (int i = 0; i < numEntries; i++) {
@@ -459,12 +459,12 @@ final class EVMHookHandlerTest {
         // given
         final long consensusTimestamp = domainBuilder.timestamp();
         final long hookId = domainBuilder.id();
-        final long ownerId = domainBuilder.id();
+        final var ownerId = domainBuilder.entityId();
         final var expectedStorageChanges = new ArrayList<HookStorageChange>();
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
-                .ownerId(ownerId);
+                .ownerId(ownerId.getId());
         final var storageUpdates = new ArrayList<LambdaStorageUpdate>();
 
         final byte[] key = domainBuilder.nonZeroBytes(16);
@@ -538,7 +538,7 @@ final class EVMHookHandlerTest {
     void handlesInvalidStorageUpdateLogsRecoverableError(CapturedOutput output) {
         final var consensusTimestamp = 123L;
         final var hookId = 7L;
-        final var ownerId = domainBuilder.id();
+        final var ownerId = domainBuilder.entityId();
 
         final var updates = List.of(LambdaStorageUpdate.getDefaultInstance());
 
