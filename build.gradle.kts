@@ -16,7 +16,7 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.24.0")
+    set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.69.0")
     set("grpcVersion", "1.77.0")
