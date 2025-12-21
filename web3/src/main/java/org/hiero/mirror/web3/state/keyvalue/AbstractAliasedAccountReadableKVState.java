@@ -180,7 +180,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             return Objects.requireNonNullElse(balance, 0L);
         }
 
-        final var isBalanceCall = context.isBalanceCallSafe();
+        final var isBalanceCall = ContractCallContext.isBalanceCallSafe();
         final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
 
         try {

@@ -50,4 +50,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: ./gradlew snyk-monitor
+        run: ./gradlew snyk-monitor --no-configuration-cache

@@ -17,12 +17,11 @@ plugins {
 extra.apply {
     set("besuVersion", "24.3.3")
     set("blockNodeVersion", "0.24.0")
-    set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
+    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.69.0")
     set("grpcVersion", "1.77.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("netty.version", "4.1.129.Final") // Temporary until next Spring Boot
     set("nodeJsVersion", "22.21.1")
     set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")

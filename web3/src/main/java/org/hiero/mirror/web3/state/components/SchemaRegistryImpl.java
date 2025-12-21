@@ -32,10 +32,10 @@ public class SchemaRegistryImpl implements SchemaRegistry<SemanticVersion> {
      * The ordered set of all schemas registered by the service
      */
     @Getter
-    private final SortedSet<Schema> schemas = new TreeSet<>();
+    private final SortedSet<Schema<SemanticVersion>> schemas = new TreeSet<>();
 
     @Override
-    public SchemaRegistry register(@NonNull Schema schema) {
+    public SchemaRegistry<SemanticVersion> register(@NonNull Schema<SemanticVersion> schema) {
         schemas.remove(schema);
         schemas.add(schema);
         return this;
