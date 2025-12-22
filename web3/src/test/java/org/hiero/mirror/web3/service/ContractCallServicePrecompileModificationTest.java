@@ -198,6 +198,33 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
+    @Test
+    void txnFailsWhenAccountWithAliasIsReferencedByLongZeroAddress() {
+        // Given account with alias is created
+        final var spender = accountEntityWithEvmAddressPersist();
+        final var token = nonFungibleTokenPersist();
+        final var tokenId = token.getTokenId();
+
+        tokenAccountPersist(tokenId, spender.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
+
+        nonFungibleTokenInstancePersist(token, 1L, contractEntityId, spender.toEntityId());
+
+        // When the account with alias is referenced by long zero address
+        final var longZeroAddress = getAddressFromEntity(spender);
+        final var functionCall = contract.call_setApprovalForAllExternal(
+                toAddress(tokenId).toHexString(), longZeroAddress, Boolean.TRUE);
+
+        // Then the transaction fails
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void associateToken(final Boolean single) throws Exception {
