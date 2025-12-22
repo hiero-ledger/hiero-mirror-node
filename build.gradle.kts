@@ -67,7 +67,7 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.13.3")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
@@ -93,7 +93,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:$web3jVersion")
-        api("software.amazon.awssdk:bom:2.40.8")
+        api("software.amazon.awssdk:bom:2.40.13")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
