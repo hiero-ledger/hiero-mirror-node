@@ -681,7 +681,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                         .setTransferList(TransferList.newBuilder()
                                 .addAccountAmounts(accountAmount(payer.getId(), -2800L))
                                 .addAccountAmounts(accountAmount(NODE, 1000L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 2000L))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L)))
                         .addPaidStakingRewards(accountAmount(payer.getId(), 200L))
                         .getReceiptBuilder()
@@ -877,7 +877,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -920,7 +920,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -958,7 +958,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .receipt(r -> r.setStatus(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE))
                 .build();
         parseRecordItemAndCommit(recordItem);
@@ -1745,7 +1745,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
                 .build();
         var afterNextMidnight = TestUtils.asStartOfEpochDay(currentDay + 1).plusNanos(5);
@@ -1758,7 +1758,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))
                 .build();
         parseRecordItemsAndCommit(List.of(consensusSubmitMessage1, consensusSubmitMessage2));

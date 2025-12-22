@@ -47,6 +47,36 @@ func TestGetAddressBookPanics(t *testing.T) {
 	})
 }
 
+func TestGetFeeCollectionAccount(t *testing.T) {
+	testSpecs := []struct {
+		commonConfig config.CommonConfig
+		expected     EntityId
+	}{
+		{
+			commonConfig: config.CommonConfig{},
+			expected:     MustDecodeEntityId(802),
+		},
+		{
+			commonConfig: config.CommonConfig{Shard: 1, Realm: 2},
+			expected:     MustDecodeEntityId(18014948265296674),
+		},
+	}
+
+	for _, tt := range testSpecs {
+		t.Run(tt.expected.String(), func(t *testing.T) {
+			subject := NewSystemEntity(tt.commonConfig)
+			assert.Equal(t, tt.expected, subject.GetFeeCollectionAccount())
+		})
+	}
+}
+
+func TestGetFeeCollectionAccountPanics(t *testing.T) {
+	subject := NewSystemEntity(config.CommonConfig{Realm: 65536, Shard: 1024})
+	assert.Panics(t, func() {
+		subject.GetFeeCollectionAccount()
+	})
+}
+
 func TestGetStakingRewardAccount(t *testing.T) {
 	testSpecs := []struct {
 		commonConfig config.CommonConfig

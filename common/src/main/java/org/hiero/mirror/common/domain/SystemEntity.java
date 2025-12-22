@@ -24,7 +24,7 @@ public class SystemEntity {
     private final EntityId exchangeRateFile = toEntityId(112L);
 
     @Getter(lazy = true)
-    private final EntityId feeCollectorAccount = toEntityId(98L);
+    private final EntityId networkAdminFeeAccount = toEntityId(98L);
 
     @Getter(lazy = true)
     private final EntityId feeCollectionAccount = toEntityId(802L);
