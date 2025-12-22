@@ -26,7 +26,9 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
 
     private static final Mono<Health> UNKNOWN = health(Status.UNKNOWN, "Publishing is inactive");
     private static final Mono<Health> UP = health(Status.UP, "");
+    private static final Mono<Health> DOWN = health(Status.DOWN, "");
 
+    private final ReleaseHealthProperties releaseHealthProperties;
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
@@ -54,7 +56,7 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                 .map(Scenario::getRate)
                 .reduce(0.0, (c, n) -> c + n)
                 .filter(sum -> sum <= 0)
-                .flatMap(n -> UNKNOWN);
+                .flatMap(n -> releaseHealthProperties.isEnableDownStatus() ? DOWN : UNKNOWN);
     }
 
     // Returns up if any subscription is running and its rate is above zero, otherwise returns unknown
@@ -65,7 +67,7 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                 .reduce(0.0, (cur, next) -> cur + next)
                 .filter(sum -> sum > 0)
                 .flatMap(n -> UP)
-                .switchIfEmpty(UNKNOWN);
+                .switchIfEmpty(releaseHealthProperties.isEnableDownStatus() ? DOWN : UNKNOWN);
     }
 
     private Mono<Health> restNetworkStakeHealth() {
