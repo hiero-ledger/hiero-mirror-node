@@ -24,7 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.Key;
 import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -49,6 +50,7 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
@@ -74,7 +76,6 @@ import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -348,7 +349,9 @@ class OpcodesControllerTest {
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(context -> {
                     final OpcodeTracerOptions options = context.getArgument(1);
-                    opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(options));
+                    opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(
+                            options,
+                            entityAddress(providerEnum.getContractEntity().get())));
                     return opcodesResultCaptor.get();
                 });
 
@@ -556,20 +559,26 @@ class OpcodesControllerTest {
         private static OpcodesResponse opcodesResponse(
                 final OpcodesProcessingResult result, final CommonEntityAccessor commonEntityAccessor) {
             return new OpcodesResponse()
-                    .address(result.transactionProcessingResult()
-                            .getRecipient()
-                            .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
-                            .map(TransactionProviderEnum::entityAddress)
-                            .map(Address::toHexString)
-                            .orElse(Address.ZERO.toHexString()))
-                    .contractId(result.transactionProcessingResult()
-                            .getRecipient()
-                            .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
-                            .map(Entity::toEntityId)
-                            .map(EntityId::toString)
-                            .orElse(null))
-                    .failed(!result.transactionProcessingResult().isSuccessful())
-                    .gas(result.transactionProcessingResult().getGasUsed())
+                    .address(
+                            result.recipient().equals(Address.ZERO)
+                                    ? Address.ZERO.toHexString()
+                                    : commonEntityAccessor
+                                            .get(result.recipient(), Optional.empty())
+                                            .map(TransactionProviderEnum::entityAddress)
+                                            .map(Address::toHexString)
+                                            .orElse(null))
+                    .contractId(
+                            result.recipient().equals(Address.ZERO)
+                                    ? null
+                                    : commonEntityAccessor
+                                            .get(result.recipient(), Optional.empty())
+                                            .map(Entity::toEntityId)
+                                            .map(EntityId::toString)
+                                            .orElse(null))
+                    .failed(!result.transactionProcessingResult()
+                            .responseCodeEnum()
+                            .equals(ResponseCodeEnum.SUCCESS))
+                    .gas(result.transactionProcessingResult().functionResult().gasUsed())
                     .opcodes(result.opcodes().stream()
                             .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
                                     .depth(opcode.depth())
@@ -589,8 +598,10 @@ class OpcodesControllerTest {
                                                     entry -> entry.getKey().toHexString(),
                                                     entry -> entry.getValue().toHexString()))))
                             .toList())
-                    .returnValue(Optional.ofNullable(
-                                    result.transactionProcessingResult().getOutput())
+                    .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
+                                    .functionResult()
+                                    .contractCallResult()
+                                    .toByteArray()))
                             .map(Bytes::toHexString)
                             .orElse(Bytes.EMPTY.toHexString()));
         }
@@ -601,27 +612,24 @@ class OpcodesControllerTest {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
-            final long gasCost =
-                    opcodes.stream().map(Opcode::gasCost).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
-                    HederaEvmTransactionProcessingResult.successful(
-                            List.of(), gasUsed, 0, gasCost, Bytes.EMPTY, recipient),
+                    new EvmTransactionResult(
+                            ResponseCodeEnum.SUCCESS,
+                            ContractFunctionResult.newBuilder().gasUsed(gasUsed).build()),
+                    recipient,
                     opcodes);
         }
 
-        private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(final OpcodeTracerOptions options) {
+        private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(
+                final OpcodeTracerOptions options, final Address recipient) {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
-            final long gasCost =
-                    opcodes.stream().map(Opcode::gasCost).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
-                    HederaEvmTransactionProcessingResult.failed(
-                            gasUsed,
-                            0,
-                            gasCost,
-                            Optional.of(Bytes.EMPTY),
-                            Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR)),
+                    new EvmTransactionResult(
+                            ResponseCodeEnum.CONTRACT_REVERT_EXECUTED,
+                            ContractFunctionResult.newBuilder().gasUsed(gasUsed).build()),
+                    recipient,
                     opcodes);
         }
 

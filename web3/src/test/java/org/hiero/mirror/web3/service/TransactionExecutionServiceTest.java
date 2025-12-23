@@ -123,7 +123,6 @@ class TransactionExecutionServiceTest {
 
         var contractFunctionResult = mock(ContractFunctionResult.class);
         when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
-        when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
 
         // Mock the transactionRecord to return the contract call result
         when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
@@ -132,6 +131,9 @@ class TransactionExecutionServiceTest {
         // Mock the executor to return a List with the mocked SingleTransactionRecord
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.SUCCESS);
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
 
@@ -140,8 +142,8 @@ class TransactionExecutionServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getGasUsed()).isEqualTo(DEFAULT_GAS);
-        assertThat(result.getRevertReason()).isNotPresent();
+        assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+        assertThat(result.functionResult().errorMessage()).isNull();
     }
 
     @Nested
@@ -259,6 +261,13 @@ class TransactionExecutionServiceTest {
         // Mock the executor to return a List with the mocked SingleTransactionRecord
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionReceipt.status()).thenReturn(responseCode);
+
+        when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
+        when(childTransactionReceipt.status()).thenReturn(childResponseCode);
+        when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
 
@@ -310,6 +319,9 @@ class TransactionExecutionServiceTest {
         // Mock the executor to return a List with the mocked SingleTransactionRecord
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionReceipt.status()).thenReturn(responseCode);
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
 
@@ -328,7 +340,6 @@ class TransactionExecutionServiceTest {
                     .isEmpty();
         } else {
             when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
-            when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
             // Mock the transactionRecord to return the contract call result
             when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
 
@@ -337,8 +348,8 @@ class TransactionExecutionServiceTest {
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.getGasUsed()).isEqualTo(DEFAULT_GAS);
-            assertThat(result.getRevertReason()).isNotPresent();
+            assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+            assertThat(result.functionResult().errorMessage()).isNull();
         }
         // Validate no logs were produced
         assertThat(capturedOutput.getOut()).doesNotContain("childTransactionErrors");
@@ -387,7 +398,6 @@ class TransactionExecutionServiceTest {
 
         var contractFunctionResult = mock(ContractFunctionResult.class);
         when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
-        when(contractFunctionResult.contractCallResult()).thenReturn(Bytes.EMPTY);
 
         // Mock the transactionRecord to return the contract call result
         when(transactionRecord.contractCreateResultOrThrow()).thenReturn(contractFunctionResult);
@@ -395,6 +405,9 @@ class TransactionExecutionServiceTest {
         // Mock the executor to return a List with the mocked SingleTransactionRecord
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
+        when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
+        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
+        when(transactionReceipt.status()).thenReturn(ResponseCodeEnum.SUCCESS);
 
         var callServiceParameters = buildServiceParams(true, callData, Address.ZERO);
 
@@ -403,8 +416,8 @@ class TransactionExecutionServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.getGasUsed()).isEqualTo(DEFAULT_GAS);
-        assertThat(result.getRevertReason()).isNotPresent();
+        assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+        assertThat(result.functionResult().errorMessage()).isNull();
     }
 
     private CallServiceParameters buildServiceParams(

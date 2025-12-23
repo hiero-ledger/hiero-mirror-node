@@ -16,17 +16,14 @@ dependencies {
     val web3jVersion: String by rootProject.extra
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
-    implementation("com.esaulpaugh:headlong")
     implementation("com.hedera.hashgraph:app") { exclude(group = "io.netty") }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
     }
-    implementation("com.hedera.evm:hedera-evm")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("jakarta.inject:jakarta.inject-api")
     implementation("net.java.dev.jna:jna")
-    implementation("org.bouncycastle:bcprov-jdk18on")
     implementation("org.springframework:spring-context-support")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
@@ -35,7 +32,6 @@ dependencies {
     implementation("org.web3j:core:$web3jVersion") // Temporary until next web3j
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
-    testImplementation("io.vertx:vertx-core")
     testImplementation("org.flywaydb:flyway-database-postgresql")
     testImplementation("org.mockito:mockito-inline")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")

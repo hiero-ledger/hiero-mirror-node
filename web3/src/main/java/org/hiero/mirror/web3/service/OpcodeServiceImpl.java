@@ -2,12 +2,13 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -107,7 +108,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
         final Optional<Address> recipientAddress =
-                result.transactionProcessingResult().getRecipient();
+                result.recipient() != Address.ZERO ? Optional.of(result.recipient()) : Optional.empty();
 
         final Optional<Entity> recipientEntity =
                 recipientAddress.flatMap(address -> commonEntityAccessor.get(address, Optional.empty()));
@@ -121,8 +122,8 @@ public class OpcodeServiceImpl implements OpcodeService {
                         .map(Entity::toEntityId)
                         .map(EntityId::toString)
                         .orElse(null))
-                .failed(!result.transactionProcessingResult().isSuccessful())
-                .gas(result.transactionProcessingResult().getGasUsed())
+                .failed(!result.transactionProcessingResult().responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
+                .gas(result.transactionProcessingResult().functionResult().gasUsed())
                 .opcodes(result.opcodes().stream()
                         .map(opcode -> new Opcode()
                                 .depth(opcode.depth())
@@ -142,10 +143,12 @@ public class OpcodeServiceImpl implements OpcodeService {
                                                 entry -> entry.getKey().toHexString(),
                                                 entry -> entry.getValue().toHexString()))))
                         .toList())
-                .returnValue(
-                        Optional.ofNullable(result.transactionProcessingResult().getOutput())
-                                .map(Bytes::toHexString)
-                                .orElse(Bytes.EMPTY.toHexString()));
+                .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
+                                .functionResult()
+                                .contractCallResult()
+                                .toByteArray()))
+                        .map(Bytes::toHexString)
+                        .orElse(Bytes.EMPTY.toHexString()));
     }
 
     private ContractDebugParameters buildCallServiceParameters(
@@ -185,7 +188,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         return Optional.of(Address.ZERO);
                     }
                     Address address = Address.wrap(Bytes.wrap(transaction.getToAddress()));
-                    if (isMirror(address.toArrayUnsafe())) {
+                    if (ConversionUtils.isLongZeroAddress(address.toArrayUnsafe())) {
                         return commonEntityAccessor
                                 .get(address, Optional.empty())
                                 .map(this::getEntityAddress);

@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
@@ -85,11 +86,15 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         var callFunction = contract.call_getAddressThis();
         final var result = callFunction.send();
         var parameters = getContractExecutionParameters(callFunction, contract);
-        var output = contractExecutionService.callContract(parameters).getOutput();
+        var output = contractExecutionService
+                .callContract(parameters)
+                .functionResult()
+                .contractCallResult();
 
         // Then
         final var successfulResponse = "0x" + StringUtils.leftPad(result.substring(2), 64, '0');
-        assertThat(successfulResponse).isEqualTo(output.toHexString());
+        assertThat(successfulResponse)
+                .isEqualTo(Bytes.wrap(output.toByteArray()).toHexString());
     }
 
     @Test

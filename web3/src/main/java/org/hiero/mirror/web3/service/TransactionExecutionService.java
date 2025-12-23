@@ -3,6 +3,8 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL_KEY;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
@@ -21,7 +23,6 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.services.utils.EntityIdUtils;
@@ -37,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
@@ -67,7 +69,7 @@ public class TransactionExecutionService {
     private final SystemEntity systemEntity;
     private final TransactionExecutorFactory transactionExecutorFactory;
 
-    public HederaEvmTransactionProcessingResult execute(final CallServiceParameters params, final long estimatedGas) {
+    public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().isZero();
         final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
         final var maxLifetime =
@@ -75,20 +77,23 @@ public class TransactionExecutionService {
         final var executor = transactionExecutorFactory.get();
 
         TransactionBody transactionBody;
-        HederaEvmTransactionProcessingResult result;
+        EvmTransactionResult result;
         if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
         }
 
-        final var receipt = executor.execute(transactionBody, Instant.now(), getOperationTracers());
-        final var parentTransactionStatus =
-                receipt.getFirst().transactionRecord().receiptOrThrow().status();
-        if (parentTransactionStatus == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS) {
-            result = buildSuccessResult(isContractCreate, receipt, params);
+        final var singleTransactionRecords = executor.execute(transactionBody, Instant.now(), getOperationTracers());
+        final var parentTransactionStatus = singleTransactionRecords
+                .getFirst()
+                .transactionRecord()
+                .receiptOrThrow()
+                .status();
+        if (parentTransactionStatus == SUCCESS) {
+            result = buildSuccessResult(isContractCreate, singleTransactionRecords, params);
         } else {
-            result = handleFailedResult(receipt, isContractCreate);
+            result = handleFailedResult(singleTransactionRecords, isContractCreate);
         }
         return result;
     }
@@ -100,7 +105,7 @@ public class TransactionExecutionService {
                 : transactionRecord.contractCallResultOrThrow();
     }
 
-    private HederaEvmTransactionProcessingResult buildSuccessResult(
+    private EvmTransactionResult buildSuccessResult(
             final boolean isContractCreate,
             final List<SingleTransactionRecord> transactionRecords,
             final CallServiceParameters params) {
@@ -118,16 +123,10 @@ public class TransactionExecutionService {
                     childTransactionErrors);
         }
 
-        return HederaEvmTransactionProcessingResult.successful(
-                List.of(),
-                result.gasUsed(),
-                0L,
-                0L,
-                Bytes.wrap(result.contractCallResult().toByteArray()),
-                params.getReceiver());
+        return new EvmTransactionResult(parentTransaction.receipt().status(), result);
     }
 
-    private HederaEvmTransactionProcessingResult handleFailedResult(
+    private EvmTransactionResult handleFailedResult(
             final List<SingleTransactionRecord> transactionRecords, final boolean isContractCreate)
             throws MirrorEvmTransactionException {
         final var parentTransactionRecord = transactionRecords.getFirst().transactionRecord();
@@ -146,8 +145,8 @@ public class TransactionExecutionService {
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
-                var processingResult = HederaEvmTransactionProcessingResult.failed(
-                        result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty());
+                var processingResult = new EvmTransactionResult(
+                        parentTransactionRecord.receipt().status(), result);
 
                 throw new MirrorEvmTransactionException(
                         status, detail, errorMessage.toHexString(), processingResult, childTransactionErrors);
@@ -155,13 +154,13 @@ public class TransactionExecutionService {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
                 // as in the regular case, we won't be able to get the opcode list.
-                return HederaEvmTransactionProcessingResult.failed(
-                        result.gasUsed(), 0L, 0L, Optional.of(errorMessage), Optional.empty());
+                return new EvmTransactionResult(
+                        parentTransactionRecord.receipt().status(), result);
             }
         }
     }
 
-    private Optional<Bytes> getErrorMessage(final ContractFunctionResult result) {
+    public Optional<Bytes> getErrorMessage(final ContractFunctionResult result) {
         return result.errorMessage().startsWith(HEX_PREFIX)
                 ? Optional.of(Bytes.fromHexString(result.errorMessage()))
                 : Optional.empty(); // If it doesn't start with 0x, the message is already decoded and readable.
@@ -284,8 +283,7 @@ public class TransactionExecutionService {
             final var record = iterator.next().transactionRecord();
 
             final var status = record.receiptOrThrow().status();
-            if (status == com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS
-                    || status == com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS) {
+            if (status == SUCCESS || status == REVERTED_SUCCESS) {
                 continue;
             }
 

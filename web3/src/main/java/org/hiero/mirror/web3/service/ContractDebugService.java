@@ -2,14 +2,12 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.hiero.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
-
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import java.util.Optional;
 import lombok.CustomLog;
+import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
@@ -55,18 +53,17 @@ public class ContractDebugService extends ContractCallService {
         ctx.setContractActions(
                 contractActionRepository.findFailedSystemActionsByConsensusTimestamp(params.getConsensusTimestamp()));
         final var ethCallTxnResult = callContract(params, ctx);
-        return new OpcodesProcessingResult(ethCallTxnResult, ctx.getOpcodes());
+        return new OpcodesProcessingResult(ethCallTxnResult, params.getReceiver(), ctx.getOpcodes());
     }
 
     @Override
-    protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallServiceParameters params) {
+    protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
         try {
             super.validateResult(txnResult, params);
         } catch (MirrorEvmTransactionException e) {
             log.warn(
                     "Transaction failed with status: {}, detail: {}, revertReason: {}",
-                    getStatusOrDefault(txnResult),
+                    txnResult.responseCodeEnum(),
                     e.getDetail(),
                     e.getData());
         }
