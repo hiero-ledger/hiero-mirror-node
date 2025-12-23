@@ -232,7 +232,7 @@ public class TransactionExecutionService {
 
     private AccountID getSenderAccountIDAsNum(final Address senderAddress) {
         AccountID accountIDNum;
-        if (!ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
+        if (senderAddress != null && !ConversionUtils.isLongZero(senderAddress)) {
             // If the address is an alias we need to first check if it exists and get the AccountID as a num.
             accountIDNum = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
             if (accountIDNum == null) {

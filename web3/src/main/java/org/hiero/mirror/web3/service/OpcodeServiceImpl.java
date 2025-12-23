@@ -185,7 +185,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         return Optional.of(Address.ZERO);
                     }
                     Address address = Address.wrap(Bytes.wrap(transaction.getToAddress()));
-                    if (ConversionUtils.isLongZeroAddress(address.toArrayUnsafe())) {
+                    if (ConversionUtils.isLongZero(address)) {
                         return commonEntityAccessor
                                 .get(address, Optional.empty())
                                 .map(this::getEntityAddress);

@@ -185,7 +185,7 @@ class TransactionExecutionServiceTest {
         @MethodSource("invalidSenderAddress")
         void testExecuteContractCallInvalidSender(final Address senderAddress) {
             // Given
-            if (ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
+            if (ConversionUtils.isLongZero(senderAddress)) {
                 when(accountReadableKVState.get(any())).thenReturn(null);
             } else {
                 when(aliasesReadableKVState.get(any())).thenReturn(null);
@@ -207,7 +207,7 @@ class TransactionExecutionServiceTest {
             // Given
             final var smartContractAccount = mock(Account.class);
             when(smartContractAccount.smartContract()).thenReturn(true);
-            if (ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
+            if (ConversionUtils.isLongZero(senderAddress)) {
                 when(accountReadableKVState.get(any())).thenReturn(smartContractAccount);
             } else {
                 final var accountID = mock(AccountID.class);
