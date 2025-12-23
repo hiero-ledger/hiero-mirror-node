@@ -24,7 +24,7 @@ class ContractCallContextTest {
     @Test
     void testReset() {
         var context = ContractCallContext.get();
-        context.setRecordFile(RecordFile.builder().consensusEnd(123L).build());
+        context.setBlockSupplier(() -> RecordFile.builder().consensusEnd(123L).build());
         context.reset();
     }
 

@@ -108,6 +108,18 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                 .build();
     }
 
+    /**
+     * Returns the default key for accounts that don't have a key set.
+     * In hedera.app there isn't a case in which an account does not have a key set in the state - it is
+     * either valid, or it is an empty KeyList. This key is added in the account state in the mirror node
+     * for consistency as well as to prevent potential NullPointerException.
+     *
+     * @return EMPTY_KEY_LIST as the default key for accounts without keys
+     */
+    protected Key getDefaultKey() {
+        return EMPTY_KEY_LIST;
+    }
+
     private Key getKey(final Entity entity, final boolean isSmartContract) {
         final var key = parseKey(entity.getKey());
         if (key == null) {
@@ -120,10 +132,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                                 .build())
                         .build();
             } else {
-                // In hedera.app there isn't a case in which an account does not have a key set in the state - it is
-                // either valid, or it is an empty KeyList as the one below. This key is added in the account state in
-                // the mirror node for consistency as well as to prevent from potential NullPointerException.
-                return EMPTY_KEY_LIST;
+                return getDefaultKey();
             }
         }
         return key;
@@ -171,7 +180,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             return Objects.requireNonNullElse(balance, 0L);
         }
 
-        final var isBalanceCall = context.isBalanceCallSafe();
+        final var isBalanceCall = ContractCallContext.isBalanceCallSafe();
         final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
 
         try {

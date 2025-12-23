@@ -368,6 +368,26 @@ final class BlockFileSourceTest {
     }
 
     @Test
+    void throwWhenStartFromEarliestAvailableBlockNumber() {
+        // given
+        importerProperties.setStartBlockNumber(-1L);
+        final var streamFileProvider = mock(StreamFileProvider.class);
+        final var source = new BlockFileSource(
+                new BlockStreamReaderImpl(),
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                consensusNodeService,
+                meterRegistry,
+                properties,
+                streamFileProvider);
+
+        // when, then
+        assertThatThrownBy(source::get)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("BlockFileSource doesn't support earliest available block number");
+    }
+
+    @Test
     void verifyFailure(CapturedOutput output) {
         // given
         var filename = blockFile(0).getName();

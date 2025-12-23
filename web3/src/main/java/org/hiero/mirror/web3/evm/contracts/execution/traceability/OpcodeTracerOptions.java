@@ -29,16 +29,9 @@ public class OpcodeTracerOptions {
      */
     boolean storage;
 
-    /**
-     * Modularized or mono workflow
-     */
-    boolean modularized;
-
     public OpcodeTracerOptions() {
-        this(true, false, false, true);
-    }
-
-    public OpcodeTracerOptions(boolean stack, boolean memory, boolean storage) {
-        this(stack, memory, storage, true);
+        this.stack = true;
+        this.memory = false;
+        this.storage = false;
     }
 }

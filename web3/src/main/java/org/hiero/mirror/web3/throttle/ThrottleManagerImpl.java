@@ -55,8 +55,6 @@ final class ThrottleManagerImpl implements ThrottleManager {
     private void action(RequestProperties filter, ContractCallRequest request) {
         switch (filter.getAction()) {
             case LOG -> log.info("{}", request);
-            case MODULARIZED -> request.setModularized(true);
-            case MONOLITHIC -> request.setModularized(false);
             case REJECT -> throw new ThrottleException("Invalid request");
             case THROTTLE -> {
                 if (!filter.getBucket().tryConsume(1)) {

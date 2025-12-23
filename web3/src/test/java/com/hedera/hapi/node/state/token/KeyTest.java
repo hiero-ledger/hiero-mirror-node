@@ -19,6 +19,7 @@ public class KeyTest {
     public static final List<Key> ARGUMENTS;
 
     static {
+        @SuppressWarnings("deprecation")
         final var keyList = Stream.of(
                         List.of(new OneOf<>(Key.KeyOneOfType.UNSET, null)),
                         ContractIDTest.ARGUMENTS.stream()

@@ -91,8 +91,7 @@ public class ContractExecutionService extends ContractCallService {
                 (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
                 gas -> doProcessCall(params, gas, true),
                 gasUsedByInitialCall,
-                params.getGas(),
-                params.isModularized());
+                params.getGas());
 
         return Bytes.ofUnsignedLong(estimatedGas);
     }

@@ -21,8 +21,7 @@ public class BinaryGasEstimator {
             final ObjIntConsumer<Long> metricUpdater,
             final LongFunction<HederaEvmTransactionProcessingResult> call,
             long lo,
-            long hi,
-            final boolean isModularized) {
+            long hi) {
         long prevGasLimit = lo;
         int iterationsMade = 0;
         long totalGasUsed = 0;
@@ -42,8 +41,7 @@ public class BinaryGasEstimator {
             long mid = (hi + lo) / 2;
 
             // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
-            HederaEvmTransactionProcessingResult transactionResult =
-                    isModularized ? safeCall(mid, call) : call.apply(mid);
+            HederaEvmTransactionProcessingResult transactionResult = safeCall(mid, call);
 
             iterationsMade++;
 

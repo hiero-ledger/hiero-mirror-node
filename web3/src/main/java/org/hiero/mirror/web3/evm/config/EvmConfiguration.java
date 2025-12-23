@@ -46,7 +46,6 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_NFT = "nft";
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
-    public static final String CACHE_NAME_RECORD_FILE_LATEST_INDEX = "latestIndex";
     public static final String CACHE_NAME_TOKEN = "token";
     public static final String CACHE_NAME_TOKEN_ACCOUNT = "tokenAccount";
     public static final String CACHE_NAME_TOKEN_ACCOUNT_COUNT = "tokenAccountCount";
@@ -58,7 +57,10 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
+    public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_66 = new SemanticVersion(0, 66, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
     private final CacheProperties cacheProperties;
 
     @Bean(CACHE_MANAGER_CONTRACT)
@@ -179,7 +181,7 @@ public class EvmConfiguration {
                 .maximumSize(1)
                 .recordStats();
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_RECORD_FILE_LATEST, CACHE_NAME_RECORD_FILE_LATEST_INDEX));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_RECORD_FILE_LATEST));
         caffeineCacheManager.setCaffeine(caffeine);
         return caffeineCacheManager;
     }

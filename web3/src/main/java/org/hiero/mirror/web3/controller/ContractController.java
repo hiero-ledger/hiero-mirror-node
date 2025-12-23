@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
-import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -21,7 +20,6 @@ import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,16 +34,12 @@ class ContractController {
     private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
-    ContractCallResponse call(
-            @RequestBody @Valid ContractCallRequest request,
-            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
-            HttpServletResponse response) {
+    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
         try {
             throttleManager.throttle(request);
             validateContractMaxGasLimit(request);
 
             final var params = constructServiceParameters(request);
-            response.addHeader(MODULARIZED_HEADER, String.valueOf(params.isModularized()));
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
         } catch (InvalidParametersException e) {
@@ -85,7 +79,6 @@ class ContractController {
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())
                 .isEstimate(request.isEstimate())
-                .isModularized(true)
                 .isStatic(isStaticCall)
                 .receiver(receiver)
                 .sender(fromAddress)

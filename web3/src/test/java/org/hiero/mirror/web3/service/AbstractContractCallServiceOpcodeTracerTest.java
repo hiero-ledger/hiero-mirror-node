@@ -76,7 +76,6 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
 
     @BeforeEach
     void setUpArgumentCaptors() {
-        mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
         doAnswer(invocation -> {
                     final var transactionProcessingResult =
                             (HederaEvmTransactionProcessingResult) invocation.callRealMethod();

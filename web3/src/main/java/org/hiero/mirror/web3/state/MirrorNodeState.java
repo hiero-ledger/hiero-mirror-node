@@ -92,11 +92,6 @@ public class MirrorNodeState implements State {
 
     @PostConstruct
     private void init() {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            // If the flag is not enabled, we don't need to make any further initialization.
-            return;
-        }
-
         registerServices(servicesRegistry);
 
         servicesRegistry.registrations().forEach(registration -> {

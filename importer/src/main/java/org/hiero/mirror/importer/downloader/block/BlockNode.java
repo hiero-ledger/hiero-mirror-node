@@ -6,6 +6,7 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADE
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
@@ -42,6 +43,7 @@ import org.jspecify.annotations.NullMarked;
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
+    private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
 
@@ -79,15 +81,18 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         channel.shutdown();
     }
 
-    public boolean hasBlock(final long blockNumber) {
+    public Range<Long> getBlockRange() {
         try {
             final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
-            return blockNumber >= response.getFirstAvailableBlock() && blockNumber <= response.getLastAvailableBlock();
+            final long firstBlockNumber = response.getFirstAvailableBlock();
+            return firstBlockNumber != -1
+                    ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
+                    : EMPTY_BLOCK_RANGE;
         } catch (Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
-            return false;
+            return EMPTY_BLOCK_RANGE;
         }
     }
 
@@ -144,7 +149,6 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             throw new BlockStreamException(ex);
         } finally {
             final var call = callHolder.get();
-
             if (call != null) {
                 call.cancel("unsubscribe", null);
                 grpcBufferDisposer.accept(call);

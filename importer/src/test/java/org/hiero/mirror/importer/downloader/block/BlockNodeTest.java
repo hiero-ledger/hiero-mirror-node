@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
@@ -113,7 +114,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
-    void hasBlock(Resources resources) {
+    void getBlockRange(Resources resources) {
         // given
         runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
                 .setFirstAvailableBlock(20)
@@ -121,13 +122,23 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .build());
 
         // when, then
-        assertThat(node.hasBlock(1)).isFalse();
-        assertThat(node.hasBlock(20)).isTrue();
-        assertThat(node.hasBlock(101)).isFalse();
+        assertThat(node.getBlockRange()).isEqualTo(Range.closed(20L, 100L));
     }
 
     @Test
-    void hasBlockTimeout(Resources resources) {
+    void getBlockRangeFromEmptyBlockNode(Resources resources) {
+        // given
+        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
+                .setFirstAvailableBlock(-1)
+                .setLastAvailableBlock(-1)
+                .build());
+
+        // when, then
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
+    }
+
+    @Test
+    void getBlockRangeTimeout(Resources resources) {
         // given
         streamProperties.setResponseTimeout(Duration.ofMillis(1));
         runBlockNodeService(resources, () -> {
@@ -143,7 +154,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThat(node.hasBlock(20)).isFalse();
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
     }
 
     @Test

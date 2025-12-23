@@ -16,8 +16,9 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.24.0")
-    set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
+    set("blockNodeVersion", "0.24.2")
+    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
+    set("consensusNodeVersion", "0.69.0")
     set("grpcVersion", "1.77.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -25,7 +26,7 @@ extra.apply {
     set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
-    set("consensusNodeVersion", "0.69.0-rc.2")
+    set("web3jVersion", "5.0.1")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -34,12 +35,13 @@ dependencies {
     constraints {
         val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
+        val consensusNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val consensusNodeVersion: String by rootProject.extra
+        val web3jVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
@@ -49,7 +51,7 @@ dependencies {
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
@@ -65,7 +67,7 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
@@ -90,8 +92,8 @@ dependencies {
         api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.40.3")
+        api("org.web3j:core:$web3jVersion")
+        api("software.amazon.awssdk:bom:2.40.13")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

@@ -40,6 +40,7 @@ generate synthetic logs for the following scenarios:
 - `CryptoTransferTransaction`: Fungible and non-fungible only. For fungible, only if a single transfer pair.
 - `TokenAirdropTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
 - `TokenBurnTransaction`: Fungible and non-fungible
+- `TokenClaimAirdropTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
 - `TokenCreateTransaction`: Fungible
 - `TokenMintTransaction`: Fungible and non-fungible
 - `TokenRejectTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.

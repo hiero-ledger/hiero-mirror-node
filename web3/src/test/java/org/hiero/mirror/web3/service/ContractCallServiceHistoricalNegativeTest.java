@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_CONTRACT_ID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TRANSACTION;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
@@ -45,9 +44,8 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
         final var functionCall =
                 contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
         // Then
-        final var expectedErrorMessage = mirrorNodeEvmProperties.isModularizedServices()
-                ? INVALID_CONTRACT_ID.name()
-                : INVALID_TRANSACTION.name();
+        final var expectedErrorMessage = INVALID_CONTRACT_ID.name();
+
         assertThatThrownBy(functionCall::send)
                 .isInstanceOf(MirrorEvmTransactionException.class)
                 .hasMessage(expectedErrorMessage);
@@ -74,13 +72,9 @@ class ContractCallServiceHistoricalNegativeTest extends AbstractContractCallServ
                 contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            // Modularized services just tries to fetch the token by id from the state
-            // and simply returns false if it does not exist without throwing an exception
-            assertThat(functionCall.send()).isFalse();
-        } else {
-            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-        }
+        // Modularized services just tries to fetch the token by id from the state
+        // and simply returns false if it does not exist without throwing an exception
+        assertThat(functionCall.send()).isFalse();
     }
 
     // Tests TokenAccountRepository

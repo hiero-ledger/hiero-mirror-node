@@ -119,7 +119,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
-    protected double modularizedTrafficPercent;
     protected String treasuryAddress;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
@@ -189,12 +188,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
-        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-        } else {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-        }
         treasuryAddress = toAddress(systemEntity.treasuryAccount().getId()).toHexString();
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
@@ -225,10 +218,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @AfterEach
     void cleanup() {
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
-
         testWeb3jService.reset();
         EndpointContext.clearCurrentEndpoint();
     }
@@ -238,15 +227,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             return contractExecutionService.callContract(serviceParameters).getGasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                return e.getResult().getGasUsed();
-            } else {
-                var result = e.getResult();
-                if (result != null) {
-                    return result.getGasUsed();
-                }
-            }
-            throw e;
+            return e.getResult().getGasUsed();
         }
     }
 
@@ -281,8 +262,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(
-                functionCall, contract, payerAddress, value, mirrorNodeEvmProperties.isModularizedServices()));
+        final var actualGasUsed =
+                gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, payerAddress, value));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -298,14 +279,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract) {
-        return getContractExecutionParameters(
-                functionCall, contract, Address.ZERO, 0L, mirrorNodeEvmProperties.isModularizedServices());
+        return getContractExecutionParameters(functionCall, contract, Address.ZERO, 0L);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(
-                data, receiver, payerAddress, value, ETH_CALL, mirrorNodeEvmProperties.isModularizedServices());
+        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
@@ -313,8 +292,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
-            final CallType callType,
-            final boolean isModularized) {
+            final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(data)
@@ -322,7 +300,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
-                .isModularized(isModularized)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
@@ -334,8 +311,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final RemoteFunctionCall<?> functionCall,
             final Contract contract,
             final Address payerAddress,
-            final long value,
-            final boolean isModularized) {
+            final long value) {
         return getContractExecutionParameters(
                 Bytes.fromHexString(functionCall.encodeFunctionCall()),
                 Address.fromHexString(contract.getContractAddress()),
@@ -791,7 +767,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(callDataBytes)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
                 .sender(functionProvider.sender())
                 .value(functionProvider.value())
@@ -825,10 +800,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Address.wrap(Bytes.wrap(evmAddress)).toHexString();
     }
 
-    protected void activateModularizedFlagAndInitializeState()
-            throws InvocationTargetException, IllegalAccessException {
-        mirrorNodeEvmProperties.setModularizedServices(true);
-
+    protected void initializeState() throws InvocationTargetException, IllegalAccessException {
         Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
                 .filter(method -> method.isAnnotationPresent(PostConstruct.class))
                 .findFirst()

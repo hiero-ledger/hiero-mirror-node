@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
@@ -24,24 +23,19 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
-import java.util.Collections;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
-import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
-import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -65,7 +59,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -83,7 +76,6 @@ import org.springframework.test.web.servlet.ResultActions;
 class ContractControllerTest {
 
     private static final String CALL_URI = "/api/v1/contracts/call";
-    private static final String ONE_BYTE_HEX = "80";
     private static final long THROTTLE_GAS_LIMIT = 10_000_000L;
     private static final String INIT_CODE = "0x6080604052348015600f57600080fd5b5060a38061001c6000396000f3";
 
@@ -95,9 +87,6 @@ class ContractControllerTest {
 
     @MockitoBean
     private ContractExecutionService service;
-
-    @Resource
-    private MirrorNodeEvmProperties evmProperties;
 
     @MockitoBean
     private ThrottleManager throttleManager;
@@ -390,18 +379,6 @@ class ContractControllerTest {
     }
 
     @Test
-    void callWithBlockNumberOutOfRangeExceptionTest() throws Exception {
-        final var request = request();
-        given(service.processCall(any())).willThrow(new BlockNumberOutOfRangeException("Unknown block number"));
-
-        contractCall(request)
-                .andExpect(status().isBadRequest())
-                .andExpect(content()
-                        .string(convert(
-                                new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), "Unknown block number"))));
-    }
-
-    @Test
     void callWithBlockNumberNotFoundExceptionTest() throws Exception {
         final var request = request();
         given(service.processCall(any())).willThrow(new BlockNumberNotFoundException());
@@ -419,7 +396,7 @@ class ContractControllerTest {
         final var request = request();
         request.setData("0xa26388bb");
 
-        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null, true));
+        given(service.processCall(any())).willThrow(new MirrorEvmTransactionException(responseCode, null, null));
 
         contractCall(request)
                 .andExpect(status().isInternalServerError())
@@ -520,101 +497,6 @@ class ContractControllerTest {
         assertThat(capturedOutput.getOut()).contains("503 Query timeout");
     }
 
-    @Test
-    void testModularizedRequestEmpty() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestFalse() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestTrue() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestIsFalse() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "false"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestIsTrueButModularizedNotEnabled() throws Exception {
-        if (evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request, Collections.singletonMap("Is-Modularized", "true"))
-                .andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @Test
-    void testModularizedRequestFalseWithModularizedFlagTrue() throws Exception {
-        if (!evmProperties.isModularizedServices()) {
-            return;
-        }
-        final var request = request();
-
-        contractCall(request).andExpect(status().isOk());
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractExecutionParameters.class);
-        verify(service).processCall(paramsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        assertThat(capturedParams.isModularized()).isTrue();
-    }
-
     private ContractCallRequest request() {
         final var request = new ContractCallRequest();
         request.setBlock(BlockType.LATEST);
@@ -636,9 +518,7 @@ class ContractControllerTest {
 
         @Bean
         MirrorNodeEvmProperties evmProperties() {
-            var commonProperties = new CommonProperties();
-            var systemEntity = new SystemEntity(commonProperties);
-            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
+            return new MirrorNodeEvmProperties();
         }
 
         @Bean

@@ -72,7 +72,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
 
     @Override
     protected Account readFromDataSource(@NonNull AccountID key) {
-        if (!ContractCallContext.get().isBalanceCallSafe() && systemAccounts.contains(key)) {
+        if (!ContractCallContext.isBalanceCallSafe() && systemAccounts.contains(key)) {
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
@@ -101,7 +101,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
         if (accountID != null && accountID.hasAccountNum()) {
             final var accountNum = accountID.accountNum();
             return AccountDetector.isStrictSystem(accountNum) && accountNum != 0
-                    ? Optional.of(Account.newBuilder().accountId(accountID).build())
+                    ? Optional.of(Account.newBuilder()
+                            .accountId(accountID)
+                            .key(getDefaultKey())
+                            .build())
                     : Optional.empty();
         }
         return Optional.empty();

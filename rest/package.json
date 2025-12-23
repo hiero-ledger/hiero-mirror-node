@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.145.0-SNAPSHOT",
+  "version": "0.146.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
@@ -17,11 +17,11 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.946.0",
+    "@aws-sdk/client-s3": "^3.956.0",
     "@godaddy/terminus": "^4.12.1",
     "@hashgraph/proto": "^2.25.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
-    "asn1js": "^3.0.6",
+    "asn1js": "^3.0.7",
     "assert": "^2.1.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -29,7 +29,7 @@
     "express-http-context": "^2.0.1",
     "express-openapi-validator": "^5.6.0",
     "extend": "^3.0.2",
-    "extensionless": "^2.0.2",
+    "extensionless": "^2.0.5",
     "ioredis": "^5.8.2",
     "ip-anonymize": "^0.1.0",
     "js-yaml": "^4.1.1",
@@ -46,14 +46,14 @@
     "qs": "^6.14.0",
     "quick-lru": "^7.3.0",
     "rfc4648": "^1.5.4",
-    "sql-formatter": "^15.6.10",
+    "sql-formatter": "^15.6.12",
     "swagger-stats": "^0.99.7",
     "swagger-ui-express": "^5.0.1",
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.9.0",
-    "@testcontainers/redis": "^11.9.0",
+    "@testcontainers/postgresql": "^11.10.0",
+    "@testcontainers/redis": "^11.10.0",
     "app-root-path": "^3.1.0",
     "cross-env": "^10.1.0",
     "crypto-random-string": "^5.0.0",
@@ -63,9 +63,9 @@
     "node-flywaydb": "^3.0.7",
     "nodemon": "^3.1.11",
     "pg-format": "^1.0.4",
-    "pgsql-parser": "^17.9.1",
+    "pgsql-parser": "^17.9.2",
     "rewire": "^9.0.1",
-    "sinon": "^21.0.0",
+    "sinon": "^21.0.1",
     "supertest": "^7.1.4"
   },
   "jest-junit": {
@@ -80,7 +80,7 @@
     },
     "swagger-stats": {
       "path-to-regexp": "^6.3.0",
-      "send": "^0.19.1"
+      "send": "^0.19.2"
     },
     "test-exclude": "^7.0.1",
     "xml2js": "^0.6.2"

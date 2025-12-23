@@ -2,15 +2,12 @@
 
 package org.hiero.mirror.web3.service.ScheduleTests;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.node.config.data.ContractsConfig;
 import java.math.BigInteger;
 import java.time.Instant;
-import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.HIP1215Contract;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -38,14 +35,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_scheduleCallExample(EXPIRY_SHIFT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -60,14 +52,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_scheduleCallWithPayerExample(getAddressFromEntity(payer), EXPIRY_SHIFT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -84,14 +71,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
                 contract.call_executeCallOnPayerSignatureExample(getAddressFromEntity(payer), EXPIRY_SHIFT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -110,14 +92,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_deleteScheduleExample(getAddressFromEntity(scheduleEntity));
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            assertThat(callFunctionResult).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        assertThat(callFunctionResult).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -152,14 +129,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_hasScheduleCapacityExample(EXPIRY_SHIFT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            assertThat(callFunctionResult).isTrue();
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        assertThat(callFunctionResult).isTrue();
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -174,14 +146,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_hasScheduleCapacityProxy(expirySecond, GAS_LIMIT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            assertThat(callFunctionResult).isTrue();
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        assertThat(callFunctionResult).isTrue();
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -195,14 +162,9 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_scheduleCallWithCapacityCheckAndDeleteExample(EXPIRY_SHIFT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @EnabledIf("isSystemCallEnabled")
@@ -218,13 +180,8 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
         final var callFunction = contract.call_scheduleCallWithDefaultCallData(expirySecond, GAS_LIMIT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 }
