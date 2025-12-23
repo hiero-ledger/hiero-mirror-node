@@ -451,7 +451,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         assertAll(
                 () -> assertEquals(3, transactionRepository.count()),
                 () -> assertEntities(hollowAccount),
-                () -> assertCryptoTransfers(8),
+                () -> assertCryptoTransfers(7),
                 () -> assertThat(entityRepository.findByAlias(EVM_ADDRESS)).hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
                         .map(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
@@ -652,7 +652,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         assertAll(
                 () -> assertEquals(0, contractRepository.count()),
-                // 3 for hbar transfers, and 1 for reward payout from 0.0.800
+                // 3 for default transfers and 1 for reward payout from 0.0.800
                 () -> assertEquals(4, cryptoTransferRepository.count()),
                 () -> assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(sender, receiver1, receiver2),
                 () -> assertThat(stakingRewardTransferRepository.findAll())
@@ -681,7 +681,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                         .setTransferList(TransferList.newBuilder()
                                 .addAccountAmounts(accountAmount(payer.getId(), -2800L))
                                 .addAccountAmounts(accountAmount(NODE, 1000L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 2000L))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L)))
                         .addPaidStakingRewards(accountAmount(payer.getId(), 200L))
                         .getReceiptBuilder()
@@ -877,7 +877,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -920,7 +920,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -958,7 +958,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .receipt(r -> r.setStatus(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE))
                 .build();
         parseRecordItemAndCommit(recordItem);
@@ -1745,7 +1745,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
                 .build();
         var afterNextMidnight = TestUtils.asStartOfEpochDay(currentDay + 1).plusNanos(5);
@@ -1758,7 +1758,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))
                 .build();
         parseRecordItemsAndCommit(List.of(consensusSubmitMessage1, consensusSubmitMessage2));
@@ -1949,7 +1949,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {
         assertAll(
                 () -> assertEquals(1, cryptoAllowanceRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(3, nftAllowanceRepository.count()),
                 () -> assertEquals(1, tokenAllowanceRepository.count()),

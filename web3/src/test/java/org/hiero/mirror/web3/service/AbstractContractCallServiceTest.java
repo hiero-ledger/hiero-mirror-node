@@ -201,7 +201,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
-                .entity(systemEntity.feeCollectorAccount())
+                .entity(systemEntity.networkAdminFeeAccount())
                 .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
