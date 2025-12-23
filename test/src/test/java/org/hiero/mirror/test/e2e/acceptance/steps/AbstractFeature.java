@@ -238,10 +238,6 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
                 "ESTIMATE_GAS",
                 "classpath:solidity/artifacts/contracts/EstimateGasContract.sol/EstimateGasContract.json",
                 1000000),
-        SIMPLE_HOOK(
-                "SIMPLE_HOOK",
-                "classpath:solidity/artifacts/contracts/SimpleHookContract.sol/SimpleHookContract.json",
-                1000000),
         PARENT_CONTRACT("PARENT", "classpath:solidity/artifacts/contracts/Parent.sol/Parent.json", 10000000);
 
         private final String name;

@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.apache.commons.lang3.ArrayUtils.EMPTY_BYTE_ARRAY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.hedera.hashgraph.sdk.Hbar;
@@ -21,6 +22,7 @@ import java.util.List;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.rest.model.Hook;
 import org.hiero.mirror.rest.model.HooksResponse;
 import org.hiero.mirror.rest.model.HooksStorageResponse;
@@ -31,7 +33,6 @@ import org.hiero.mirror.test.e2e.acceptance.config.FeatureProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.identityconnectors.common.Version;
 
 @CustomLog
@@ -52,7 +53,7 @@ public class HooksFeature extends AbstractFeature {
 
     private ExpandedAccountId account;
     private String hookStorageCreatedTimestamp;
-    private String transferKey;
+    private byte[] transferKey;
 
     @Before
     public void before() {
@@ -145,7 +146,7 @@ public class HooksFeature extends AbstractFeature {
         if (transferKey == null) {
             for (var storage : hookStorageResponse.getStorage()) {
                 if (!storage.getTimestamp().equals(hookStorageCreatedTimestamp)) {
-                    transferKey = storage.getKey();
+                    transferKey = trim(Hex.decode(storage.getKey().replaceFirst("0x", "")));
                     break;
                 }
             }
@@ -164,8 +165,7 @@ public class HooksFeature extends AbstractFeature {
 
         // Remove the key created during crypto transfer
         if (transferKey != null) {
-            final var transferKeyUpdate =
-                    new LambdaStorageUpdate.LambdaStorageSlot(TestUtil.hexToBytes(transferKey), EMPTY_BYTE_ARRAY);
+            final var transferKeyUpdate = new LambdaStorageUpdate.LambdaStorageSlot(transferKey, EMPTY_BYTE_ARRAY);
             hookStoreTransaction.addStorageUpdate(transferKeyUpdate);
         }
 

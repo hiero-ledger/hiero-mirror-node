@@ -27,10 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.Strings;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
@@ -233,38 +230,6 @@ public class TestUtil {
         final var addressBytes = Bytes.fromHexString(normalized);
         final var addressAsInteger = addressBytes.toUnsignedBigInteger();
         return Address.wrap(Address.toChecksumAddress(addressAsInteger));
-    }
-
-    public static byte[] hexToBytes(String hexString) {
-        try {
-            final var hex = Strings.CI.removeStart(hexString, "0x");
-
-            byte[] bytes = Hex.decodeHex(hex);
-
-            // Enforce minimal representation (strip leading zeros)
-            int i = 0;
-            while (i < bytes.length - 1 && bytes[i] == 0) {
-                i++;
-            }
-
-            return Arrays.copyOfRange(bytes, i, bytes.length);
-        } catch (DecoderException e) {
-            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
-        }
-    }
-
-    public static byte[] leftPadBytes(byte[] bytes, int length) {
-        if (bytes.length > length) {
-            throw new IllegalArgumentException("Key exceeds bits: " + length);
-        }
-
-        if (bytes.length == length) {
-            return bytes;
-        }
-
-        byte[] padded = new byte[length];
-        System.arraycopy(bytes, 0, padded, length - bytes.length, bytes.length);
-        return padded;
     }
 
     public static class TokenTransferListBuilder {
