@@ -55,11 +55,7 @@ public class ContractExecutionService extends ContractCallService {
                 } else {
                     final var ethCallTxnResult = callContract(params, ctx);
                     result = Objects.requireNonNullElse(
-                            Bytes.wrap(ethCallTxnResult
-                                    .functionResult()
-                                    .contractCallResult()
-                                    .toByteArray()),
-                            Bytes.EMPTY);
+                            Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
                 }
 
                 stringResult = result.toHexString();
@@ -84,7 +80,7 @@ public class ContractExecutionService extends ContractCallService {
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
-        final var gasUsedByInitialCall = processingResult.functionResult().gasUsed();
+        final var gasUsedByInitialCall = processingResult.gasUsed();
 
         // sanity check ensuring gasUsed is always lower than the inputted one
         if (gasUsedByInitialCall >= params.getGas()) {

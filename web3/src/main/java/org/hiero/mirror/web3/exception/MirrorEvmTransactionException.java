@@ -13,8 +13,8 @@ import lombok.Getter;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.evm.exception.EvmException;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 
 @Getter
 @SuppressWarnings("java:S110")

@@ -9,8 +9,6 @@ import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
-import static org.hiero.mirror.web3.state.Utils.isMirror;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
@@ -23,6 +21,7 @@ import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
 import com.hedera.services.utils.EntityIdUtils;
@@ -30,7 +29,6 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -38,13 +36,13 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
@@ -139,31 +137,22 @@ public class TransactionExecutionService {
             // case.
             throw new MirrorEvmTransactionException(status, StringUtils.EMPTY, StringUtils.EMPTY);
         } else {
-            final var errorMessage = getErrorMessage(result).orElse(Bytes.EMPTY);
-            final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
-
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
-                var processingResult = new EvmTransactionResult(
-                        parentTransactionRecord.receipt().status(), result);
+                var processingResult = new EvmTransactionResult(status, result);
 
+                final var errorMessage = processingResult.getErrorMessage().orElse(Bytes.EMPTY);
+                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
                 throw new MirrorEvmTransactionException(
                         status, detail, errorMessage.toHexString(), processingResult, childTransactionErrors);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
                 // as in the regular case, we won't be able to get the opcode list.
-                return new EvmTransactionResult(
-                        parentTransactionRecord.receipt().status(), result);
+                return new EvmTransactionResult(status, result);
             }
         }
-    }
-
-    public Optional<Bytes> getErrorMessage(final ContractFunctionResult result) {
-        return result.errorMessage().startsWith(HEX_PREFIX)
-                ? Optional.of(Bytes.fromHexString(result.errorMessage()))
-                : Optional.empty(); // If it doesn't start with 0x, the message is already decoded and readable.
     }
 
     private TransactionBody.Builder defaultTransactionBodyBuilder(final CallServiceParameters params) {
@@ -243,7 +232,7 @@ public class TransactionExecutionService {
 
     private AccountID getSenderAccountIDAsNum(final Address senderAddress) {
         AccountID accountIDNum;
-        if (!isMirror(senderAddress)) {
+        if (!ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
             // If the address is an alias we need to first check if it exists and get the AccountID as a num.
             accountIDNum = aliasesReadableKVState.get(convertAddressToProtoBytes(senderAddress));
             if (accountIDNum == null) {

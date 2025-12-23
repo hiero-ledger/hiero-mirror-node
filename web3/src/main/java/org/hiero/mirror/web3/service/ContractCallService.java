@@ -14,12 +14,12 @@ import io.micrometer.core.instrument.Tags;
 import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
@@ -121,7 +121,7 @@ public abstract class ContractCallService {
 
                 // Only record metric if EVM is invoked and not inside estimate loop
                 if (result != null) {
-                    updateMetrics(params, result.functionResult().gasUsed(), 1, status);
+                    updateMetrics(params, result.gasUsed(), 1, status);
                 }
             }
         }
@@ -132,23 +132,19 @@ public abstract class ContractCallService {
         // If the transaction fails, gasUsed is equal to gasLimit, so restore the configured refund percent
         // of the gasLimit value back in the bucket.
         final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
-        if (result == null
-                || (!result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS)
-                        && gasLimit == result.functionResult().gasUsed())) {
+        if (result == null || (!result.isSuccessful() && gasLimit == result.gasUsed())) {
             throttleManager.restore(gasLimitToRestoreBaseline);
         } else {
             // The transaction was successful or reverted, so restore the remaining gas back in the bucket or
             // the configured refund percent of the gasLimit value back in the bucket - whichever is lower.
-            final var gasRemaining = gasLimit - result.functionResult().gasUsed();
+            final var gasRemaining = gasLimit - result.gasUsed();
             throttleManager.restore(Math.min(gasRemaining, gasLimitToRestoreBaseline));
         }
     }
 
     protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
-        if (!txnResult.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS)) {
-            var revertReason = transactionExecutionService
-                    .getErrorMessage(txnResult.functionResult())
-                    .orElse(Bytes.EMPTY);
+        if (!txnResult.isSuccessful()) {
+            var revertReason = txnResult.getErrorMessage().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
             throw new MirrorEvmTransactionException(
                     txnResult.responseCodeEnum().protoName(), detail, revertReason.toHexString(), txnResult);

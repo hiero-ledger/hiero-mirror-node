@@ -7,7 +7,6 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
-import static org.hiero.mirror.web3.state.Utils.isMirror;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,6 +18,7 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
@@ -142,7 +142,7 @@ class TransactionExecutionServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
     }
 
@@ -185,7 +185,7 @@ class TransactionExecutionServiceTest {
         @MethodSource("invalidSenderAddress")
         void testExecuteContractCallInvalidSender(final Address senderAddress) {
             // Given
-            if (isMirror(senderAddress)) {
+            if (ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
                 when(accountReadableKVState.get(any())).thenReturn(null);
             } else {
                 when(aliasesReadableKVState.get(any())).thenReturn(null);
@@ -207,7 +207,7 @@ class TransactionExecutionServiceTest {
             // Given
             final var smartContractAccount = mock(Account.class);
             when(smartContractAccount.smartContract()).thenReturn(true);
-            if (isMirror(senderAddress)) {
+            if (ConversionUtils.isLongZeroAddress(senderAddress.toArray())) {
                 when(accountReadableKVState.get(any())).thenReturn(smartContractAccount);
             } else {
                 final var accountID = mock(AccountID.class);
@@ -262,7 +262,6 @@ class TransactionExecutionServiceTest {
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
-        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(responseCode);
 
         when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
@@ -320,7 +319,6 @@ class TransactionExecutionServiceTest {
         when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
-        when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(responseCode);
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
@@ -342,13 +340,14 @@ class TransactionExecutionServiceTest {
             when(contractFunctionResult.gasUsed()).thenReturn(DEFAULT_GAS);
             // Mock the transactionRecord to return the contract call result
             when(transactionRecord.contractCallResultOrThrow()).thenReturn(contractFunctionResult);
+            when(transactionRecord.receipt()).thenReturn(transactionReceipt);
 
             // When
             var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
 
             // Then
             assertThat(result).isNotNull();
-            assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+            assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
             assertThat(result.functionResult().errorMessage()).isNull();
         }
         // Validate no logs were produced
@@ -416,7 +415,7 @@ class TransactionExecutionServiceTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.functionResult().gasUsed()).isEqualTo(DEFAULT_GAS);
+        assertThat(result.gasUsed()).isEqualTo(DEFAULT_GAS);
         assertThat(result.functionResult().errorMessage()).isNull();
     }
 

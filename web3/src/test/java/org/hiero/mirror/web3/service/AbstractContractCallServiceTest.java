@@ -230,7 +230,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                     .gasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
-            return e.getResult().functionResult().gasUsed();
+            return e.getResult().gasUsed();
         }
     }
 

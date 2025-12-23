@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
 import java.util.Optional;
@@ -122,8 +121,8 @@ public class OpcodeServiceImpl implements OpcodeService {
                         .map(Entity::toEntityId)
                         .map(EntityId::toString)
                         .orElse(null))
-                .failed(!result.transactionProcessingResult().responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
-                .gas(result.transactionProcessingResult().functionResult().gasUsed())
+                .failed(!result.transactionProcessingResult().isSuccessful())
+                .gas(result.transactionProcessingResult().gasUsed())
                 .opcodes(result.opcodes().stream()
                         .map(opcode -> new Opcode()
                                 .depth(opcode.depth())
@@ -143,10 +142,8 @@ public class OpcodeServiceImpl implements OpcodeService {
                                                 entry -> entry.getKey().toHexString(),
                                                 entry -> entry.getValue().toHexString()))))
                         .toList())
-                .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
-                                .functionResult()
-                                .contractCallResult()
-                                .toByteArray()))
+                .returnValue(Optional.ofNullable(Bytes.fromHexString(
+                                result.transactionProcessingResult().contractCallResult()))
                         .map(Bytes::toHexString)
                         .orElse(Bytes.EMPTY.toHexString()));
     }

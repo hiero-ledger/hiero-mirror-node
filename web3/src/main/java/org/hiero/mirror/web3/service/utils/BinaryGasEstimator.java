@@ -2,15 +2,14 @@
 
 package org.hiero.mirror.web3.service.utils;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.inject.Named;
 import java.util.function.LongFunction;
 import java.util.function.ObjIntConsumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -39,15 +38,13 @@ public class BinaryGasEstimator {
             long mid = (hi + lo) / 2;
 
             // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
-            EvmTransactionResult transactionResult = safeCall(mid, call);
+            final var transactionResult = safeCall(mid, call);
 
             iterationsMade++;
 
-            boolean err = transactionResult == null
-                    || !transactionResult.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS)
-                    || transactionResult.functionResult().gasUsed() < 0;
-            long gasUsed =
-                    err ? prevGasLimit : transactionResult.functionResult().gasUsed();
+            boolean err =
+                    transactionResult == null || !transactionResult.isSuccessful() || transactionResult.gasUsed() < 0;
+            long gasUsed = err ? prevGasLimit : transactionResult.gasUsed();
             totalGasUsed += gasUsed;
             if (err || gasUsed == 0) {
                 lo = mid;

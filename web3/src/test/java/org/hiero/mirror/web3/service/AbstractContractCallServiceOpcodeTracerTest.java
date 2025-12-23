@@ -27,7 +27,6 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.rest.model.OpcodesResponse;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
@@ -35,6 +34,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hyperledger.besu.datatypes.Address;
@@ -123,8 +123,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     protected void verifyThrowingOpcodeTracerCall(
             final ContractDebugParameters params, final ContractFunctionProviderRecord function) {
         final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
-        assertThat(actual.transactionProcessingResult().responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
-                .isFalse();
+        assertThat(actual.transactionProcessingResult().isSuccessful()).isFalse();
         assertThat(actual.transactionProcessingResult()
                         .functionResult()
                         .contractCallResult()
@@ -201,7 +200,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                                         .map(EntityId::toString)
                                         .orElse(null))
                 .failed(!result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
-                .gas(result.functionResult().gasUsed())
+                .gas(result.gasUsed())
                 .opcodes(opcodes.stream()
                         .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
                                 .depth(opcode.depth())
@@ -221,9 +220,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                                                 entry -> entry.getKey().toHexString(),
                                                 entry -> entry.getValue().toHexString()))))
                         .toList())
-                .returnValue(Optional.ofNullable(result.functionResult().contractCallResult())
-                        .map(bytes -> Bytes.wrap(bytes.toByteArray()).toHexString())
-                        .orElse(Bytes.EMPTY.toHexString()));
+                .returnValue(Bytes.fromHexString(result.contractCallResult()).toHexString());
     }
 
     private Address entityAddress(Entity entity) {

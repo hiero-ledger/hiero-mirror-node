@@ -50,7 +50,6 @@ import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.OpcodesResponse;
-import org.hiero.mirror.web3.EvmTransactionResult;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
@@ -71,6 +70,7 @@ import org.hiero.mirror.web3.service.OpcodeServiceImpl;
 import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.RecordFileServiceImpl;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -575,10 +575,8 @@ class OpcodesControllerTest {
                                             .map(Entity::toEntityId)
                                             .map(EntityId::toString)
                                             .orElse(null))
-                    .failed(!result.transactionProcessingResult()
-                            .responseCodeEnum()
-                            .equals(ResponseCodeEnum.SUCCESS))
-                    .gas(result.transactionProcessingResult().functionResult().gasUsed())
+                    .failed(!result.transactionProcessingResult().isSuccessful())
+                    .gas(result.transactionProcessingResult().gasUsed())
                     .opcodes(result.opcodes().stream()
                             .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
                                     .depth(opcode.depth())
@@ -616,7 +614,7 @@ class OpcodesControllerTest {
                     new EvmTransactionResult(
                             ResponseCodeEnum.SUCCESS,
                             ContractFunctionResult.newBuilder().gasUsed(gasUsed).build()),
-                    recipient,
+                    Address.ZERO,
                     opcodes);
         }
 
