@@ -114,8 +114,8 @@ public class EntityProperties {
 
         public PersistProperties(SystemEntity systemEntity) {
             this.entityTransactionExclusion = Set.of(
-                    systemEntity.networkAdminFeeAccount(),
                     systemEntity.feeCollectionAccount(),
+                    systemEntity.networkAdminFeeAccount(),
                     systemEntity.nodeRewardAccount(),
                     systemEntity.stakingRewardAccount());
         }

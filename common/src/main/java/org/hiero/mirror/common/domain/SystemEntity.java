@@ -24,13 +24,13 @@ public class SystemEntity {
     private final EntityId exchangeRateFile = toEntityId(112L);
 
     @Getter(lazy = true)
-    private final EntityId networkAdminFeeAccount = toEntityId(98L);
-
-    @Getter(lazy = true)
     private final EntityId feeCollectionAccount = toEntityId(802L);
 
     @Getter(lazy = true)
     private final EntityId feeScheduleFile = toEntityId(111L);
+
+    @Getter(lazy = true)
+    private final EntityId networkAdminFeeAccount = toEntityId(98L);
 
     @Getter(lazy = true)
     private final EntityId hapiPermissionFile = toEntityId(122L);
