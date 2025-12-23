@@ -5,29 +5,25 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels: {{ include "hedera-mirror-common.selectorLabels" . | nindent 4 }}
-    app: zfs-init
-  name: {{ .Release.Name }}-zfs-init
+    app: zfs-manager
+  name: {{ .Release.Name }}-zfs-manager
   namespace: {{ include "hedera-mirror-common.namespace" . }}
 spec:
   selector:
     matchLabels: {{ include "hedera-mirror-common.selectorLabels" . | nindent 6 }}
-      app: zfs-init
+      app: zfs-manager
   template:
     metadata:
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/zfs/configmap-init.yaml") . | sha256sum }}
       labels: {{ include "hedera-mirror-common.selectorLabels" . | nindent 8 }}
-        app: zfs-init
+        app: zfs-manager
     spec:
       containers:
-        - image: registry.k8s.io/pause:latest
-          imagePullPolicy: {{ .Values.zfs.init.image.pullPolicy }}
-          name: pause
-      initContainers:
         - image: "{{ .Values.zfs.init.image.registry }}/{{ .Values.zfs.init.image.repository }}:{{ .Values.zfs.init.image.tag }}"
           imagePullPolicy: {{ .Values.zfs.init.image.pullPolicy }}
-          name: init
-          command: [ "/scripts/entrypoint.sh" ]
+          name: disk-resizer
+          command: ["/scripts/entrypoint.sh"]
           env:
             - name: ARC_SIZE_GB
               value: "{{ .Values.zfs.init.arcSizeGb }}"
@@ -45,6 +41,14 @@ spec:
                   fieldPath: metadata.namespace
             - name: L2_ARC_NVME_DEVICE_ID
               value: "{{ .Values.zfs.init.l2ArcNvmeDeviceId }}"
+            - name: DISK_AUTOGROW_INTERVAL_SECONDS
+              value: {{ .Values.zfs.autoResize.intervalSeconds }}
+            - name: DISK_AUTOGROW_MAX_STEP_GB
+              value: {{ .Values.zfs.autoResize.maxStepGb }}
+            - name: DISK_AUTOGROW_PERCENT
+              value: {{ .Values.zfs.autoResize.growPct }}
+            - name: DISK_AUTOGROW_THRESHOLD_PERCENT
+              value: {{ .Values.zfs.autoResize.thresholdPercent }}
           securityContext:
             privileged: true
           volumeMounts:
@@ -63,7 +67,7 @@ spec:
             path: /
         - name: scripts
           configMap:
-            name: {{ .Release.Name }}-zfs-init
+            name: {{ .Release.Name }}-zfs-manager
             defaultMode: 0744
   updateStrategy:
     type: RollingUpdate
