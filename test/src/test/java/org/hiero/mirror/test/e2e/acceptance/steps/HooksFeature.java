@@ -19,7 +19,6 @@ import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.util.List;
-import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.bouncycastle.util.encoders.Hex;
@@ -35,16 +34,15 @@ import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.identityconnectors.common.Version;
 
-@CustomLog
 @RequiredArgsConstructor
 public class HooksFeature extends AbstractFeature {
 
-    private static final byte[] EXPLICIT_SLOT_KEY = new byte[] {1};
-    private static final byte[] EXPLICIT_SLOT_VALUE = new byte[] {2};
+    private static final byte[] EXPLICIT_SLOT_KEY = {1};
+    private static final byte[] EXPLICIT_SLOT_VALUE = {2};
     private static final long HOOK_ID = 16389;
-    private static final byte[] MAPPING_SLOT = new byte[] {3};
-    private static final byte[] MAPPING_KEY = new byte[] {4};
-    private static final byte[] MAPPING_VALUE = new byte[] {5};
+    private static final byte[] MAPPING_SLOT = {3};
+    private static final byte[] MAPPING_KEY = {4};
+    private static final byte[] MAPPING_VALUE = {5};
 
     private final AccountClient accountClient;
     private final FeatureProperties featureProperties;
@@ -210,9 +208,9 @@ public class HooksFeature extends AbstractFeature {
         final var hooksResponse = mirrorClient.getAccountHooks(accountId);
         assertThat(hooksResponse)
                 .satisfies(r -> assertThat(r.getLinks()).isNotNull())
-                .extracting(org.hiero.mirror.rest.model.HooksResponse::getHooks, InstanceOfAssertFactories.LIST)
+                .extracting(HooksResponse::getHooks, InstanceOfAssertFactories.LIST)
                 .hasSize(1)
-                .first(InstanceOfAssertFactories.type(org.hiero.mirror.rest.model.Hook.class))
+                .first(InstanceOfAssertFactories.type(Hook.class))
                 .returns(true, Hook::getDeleted)
                 .returns(HOOK_ID, Hook::getHookId)
                 .returns(accountId, Hook::getOwnerId);
