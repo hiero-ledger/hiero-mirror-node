@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.state;
 
-// import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
@@ -32,7 +31,7 @@ public class CommonEntityAccessor {
         if (ConversionUtils.isLongZeroAddress(addressBytes)) {
             return getEntityByMirrorAddressAndTimestamp(address, timestamp);
         } else {
-            return getEntityByEvmAddressTimestamp(addressBytes, timestamp);
+            return getEntityByEvmAddressTimestamp(address.toArrayUnsafe(), timestamp);
         }
     }
 

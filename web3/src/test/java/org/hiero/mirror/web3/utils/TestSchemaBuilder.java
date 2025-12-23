@@ -31,6 +31,7 @@ public class TestSchemaBuilder {
         return this;
     }
 
+    @SuppressWarnings("rawtypes")
     public Schema<SemanticVersion> build() {
         return new Schema<>(version, SEMANTIC_VERSION_COMPARATOR) {
             @Override

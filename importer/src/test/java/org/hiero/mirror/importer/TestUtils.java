@@ -96,6 +96,7 @@ public class TestUtils {
     /**
      * Dynamically lookup method references for every getter in object with the given return type
      */
+    @SuppressWarnings("unchecked")
     public static <O, R> Collection<Supplier<R>> gettersByType(O object, Class<?> returnType) {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> objectClass = object.getClass();
@@ -113,10 +114,9 @@ public class TestUtils {
                 }
 
                 MethodType functionType = handle.type();
-                var function = (Function<O, R>) LambdaMetafactory.metafactory(
-                                lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType)
-                        .getTarget()
-                        .invokeExact();
+                final var callSite = LambdaMetafactory.metafactory(
+                        lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
+                var function = (Function<O, R>) callSite.getTarget().invokeExact();
                 getters.add(() -> function.apply(object));
             } catch (Throwable t) {
                 throw new RuntimeException(t);
