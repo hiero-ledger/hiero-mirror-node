@@ -200,8 +200,10 @@ final class BlockStreamVerifierTest {
                 .hash(sha384Hash())
                 .index(blockNumber)
                 .name(BlockFile.getFilename(blockNumber, true))
+                .node("host:port")
                 .previousHash(previousHash)
                 .consensusStart(consensusStart)
+                .consensusEnd(consensusStart + 1)
                 .build();
     }
 
