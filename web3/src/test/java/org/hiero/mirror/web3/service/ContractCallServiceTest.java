@@ -33,7 +33,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
@@ -49,6 +50,7 @@ import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
@@ -1172,8 +1174,9 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
-                    .thenReturn(HederaEvmTransactionProcessingResult.successful(
-                            List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO));
+                    .thenReturn(new EvmTransactionResult(
+                            ResponseCodeEnum.SUCCESS,
+                            ContractFunctionResult.newBuilder().gasUsed(100).build()));
 
             contractCallService.doProcessCall(params, estimatedGas, true);
 

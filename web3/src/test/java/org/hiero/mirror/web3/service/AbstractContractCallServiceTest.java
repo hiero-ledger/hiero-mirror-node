@@ -201,7 +201,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
-                .entity(systemEntity.feeCollectorAccount())
+                .entity(systemEntity.networkAdminFeeAccount())
                 .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
@@ -224,10 +224,13 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {
         try {
-            return contractExecutionService.callContract(serviceParameters).getGasUsed();
+            return contractExecutionService
+                    .callContract(serviceParameters)
+                    .functionResult()
+                    .gasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
-            return e.getResult().getGasUsed();
+            return e.getResult().gasUsed();
         }
     }
 

@@ -6,7 +6,7 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.node.app.service.evm.utils.EthSigsUtils;
+import com.hedera.node.app.hapi.utils.EthSigsUtils;
 import java.math.BigInteger;
 import java.security.KeyPairGenerator;
 import org.bouncycastle.jcajce.provider.digest.Keccak;

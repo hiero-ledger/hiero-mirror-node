@@ -128,7 +128,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, SUCCESS_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                SUCCESS_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -189,7 +193,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, SUCCESS_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                SUCCESS_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -225,7 +233,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                HEX_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -262,7 +274,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         // When
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse, options, expectedResult, Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -300,7 +313,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse, options, expectedResult, Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -338,7 +352,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse, options, expectedResult, Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -369,7 +384,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                HEX_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -413,7 +432,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                HEX_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -456,7 +479,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponseWithExpectedReturnValue(opcodesResponse, options, HEX_PREFIX + expectedResult);
+        verifyOpcodesResponseWithExpectedReturnValue(
+                opcodesResponse,
+                options,
+                HEX_PREFIX + expectedResult,
+                Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -483,7 +510,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponse(opcodesResponse, options);
+        verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -510,7 +537,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponse(opcodesResponse, options);
+        verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
     }
 
     @ParameterizedTest
@@ -557,7 +584,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
 
         // Then
-        verifyOpcodesResponse(opcodesResponse, options);
+        verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
     }
 
     @Test

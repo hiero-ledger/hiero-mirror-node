@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.web3.state;
 
-import static org.hiero.mirror.common.util.DomainUtils.isLongZeroAddress;
-
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
@@ -11,7 +9,6 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
-import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass
 public class Utils {
@@ -52,9 +49,5 @@ public class Utils {
     public static Timestamp convertToTimestamp(final long timestamp) {
         var instant = Instant.ofEpochSecond(0, timestamp);
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
-    }
-
-    public static boolean isMirror(final Address address) {
-        return address != null && isLongZeroAddress(address.toArrayUnsafe());
     }
 }
