@@ -1,7 +1,7 @@
 {
   "_format": "hh-sol-artifact-1",
   "contractName": "IHieroHook",
-  "sourceName": "contracts/SimpleHookContract.sol",
+  "sourceName": "contracts/ERCTestContract.sol",
   "abi": [],
   "bytecode": "0x",
   "deployedBytecode": "0x",

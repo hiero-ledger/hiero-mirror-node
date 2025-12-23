@@ -35,7 +35,7 @@ public final class HookClient extends AbstractNetworkClient {
         return new LambdaSStoreTransaction()
                 .setTransactionMemo("LambdaStore mapping operation")
                 .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
-                .setMaxTransactionFee(Hbar.fromTinybars(100_000_000L));
+                .setMaxTransactionFee(Hbar.from(1));
     }
 
     /**
