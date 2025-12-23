@@ -35,11 +35,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
-    runtimeOnly(
-        group = "io.netty",
-        name = "netty-resolver-dns-native-macos",
-        classifier = "osx-aarch_64",
-    )
     testImplementation("com.github.meanbeanlib:meanbean")
     testImplementation("io.fabric8:kubernetes-server-mock")
     testImplementation("io.projectreactor:reactor-test")
