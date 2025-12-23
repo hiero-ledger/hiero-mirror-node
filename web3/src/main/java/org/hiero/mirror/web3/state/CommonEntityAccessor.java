@@ -2,11 +2,11 @@
 
 package org.hiero.mirror.web3.state;
 
-import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdNumFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.state.Utils.isMirror;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
@@ -27,11 +27,10 @@ public class CommonEntityAccessor {
     private final EntityRepository entityRepository;
 
     public @NonNull Optional<Entity> get(@NonNull final Address address, final Optional<Long> timestamp) {
-        final var addressBytes = address.toArrayUnsafe();
-        if (isMirror(addressBytes)) {
+        if (isMirror(address)) {
             return getEntityByMirrorAddressAndTimestamp(address, timestamp);
         } else {
-            return getEntityByEvmAddressTimestamp(addressBytes, timestamp);
+            return getEntityByEvmAddressTimestamp(address.toArrayUnsafe(), timestamp);
         }
     }
 

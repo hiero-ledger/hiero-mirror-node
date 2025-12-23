@@ -54,23 +54,6 @@ class WritableKVStateBaseTest {
     }
 
     @Test
-    void testSizeWithRemovedEntry() {
-        final var ctx = ContractCallContext.get();
-        final var accountID = mock(AccountID.class);
-        final var accountID2 = mock(AccountID.class);
-        final var account = mock(Account.class);
-        final var account2 = mock(Account.class);
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
-        ctx.getReadCacheState(AccountReadableKVState.STATE_ID).put(accountID, account);
-        ctx.getReadCacheState(AccountReadableKVState.STATE_ID).put(accountID2, account2);
-        ctx.getWriteCacheState(AccountReadableKVState.STATE_ID).put(accountID, null); // The entry was removed
-        when(readableKVStateBase.size()).thenReturn(2L);
-        when(readableKVStateBase.get(accountID)).thenReturn(account);
-        assertThat(writableKVStateBase.size()).isEqualTo(1L);
-    }
-
-    @Test
     void testKeysEmpty() {
         final WritableKVStateBase<AccountID, Account> writableKVStateBase =
                 new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);

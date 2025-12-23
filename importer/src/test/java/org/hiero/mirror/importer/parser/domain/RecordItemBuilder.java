@@ -990,8 +990,14 @@ public class RecordItemBuilder {
     }
 
     public Builder<TokenClaimAirdropTransactionBody.Builder> tokenClaimAirdrop() {
-        var transactionBody = TokenClaimAirdropTransactionBody.newBuilder().addPendingAirdrops(pendingAirdropId());
-        return new Builder<>(TransactionType.TOKENCLAIMAIRDROP, transactionBody);
+        final var pendingAirdrop = pendingAirdropId();
+        final var transactionBody =
+                TokenClaimAirdropTransactionBody.newBuilder().addPendingAirdrops(pendingAirdrop);
+        return new Builder<>(TransactionType.TOKENCLAIMAIRDROP, transactionBody)
+                .record(r -> r.addTokenTransferLists(TokenTransferList.newBuilder()
+                        .setToken(pendingAirdrop.getFungibleTokenType())
+                        .addTransfers(accountAmount(accountId(), 100))
+                        .addTransfers(accountAmount(accountId(), -100))));
     }
 
     public Builder<TokenAssociateTransactionBody.Builder> tokenAssociate() {

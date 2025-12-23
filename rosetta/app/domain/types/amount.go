@@ -11,12 +11,6 @@ import (
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 )
 
-const (
-	MetadataKeyMetadatas     = "metadatas"
-	MetadataKeySerialNumbers = "serial_numbers"
-	MetadataKeyType          = "type"
-)
-
 type Amount interface {
 	GetDecimals() int64
 	GetSymbol() string

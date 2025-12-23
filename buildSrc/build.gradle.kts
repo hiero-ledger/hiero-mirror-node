@@ -3,8 +3,9 @@
 plugins { `kotlin-dsl` }
 
 repositories {
+    // Temporary until next web3j
+    maven("https://www.jitpack.io") { content { includeGroupByRegex(".*web3j.*") } }
     gradlePluginPortal()
-    mavenCentral()
 }
 
 dependencies {
@@ -27,7 +28,7 @@ dependencies {
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:4.3.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
-    implementation("org.flywaydb:flyway-database-postgresql:11.19.0")
+    implementation("org.flywaydb:flyway-database-postgresql:11.19.1")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:2.4.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.11.3")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.4")
@@ -36,9 +37,11 @@ dependencies {
     implementation("org.jooq:jooq-postgres-extensions:${jooqVersion}")
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.17.0")
     implementation("org.owasp:dependency-check-gradle:12.1.9")
-    implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.7")
-    implementation("org.testcontainers:postgresql:1.21.3")
-    implementation("org.web3j:web3j-gradle-plugin:4.14.0")
+    implementation("org.springframework.boot:spring-boot-gradle-plugin:3.5.9")
+    implementation("org.testcontainers:postgresql:1.21.4")
+    implementation(
+        "com.github.steven-sheehy.web3j-gradle-plugin:org.web3j.gradle.plugin:3644142546"
+    ) // Temporary until next web3j
 }
 
 val gitHook =
