@@ -9,11 +9,7 @@ plugins {
 
 dependencies {
     implementation(platform("io.fabric8:kubernetes-client-bom"))
-    implementation(project(":common")) {
-        exclude("com.google.protobuf", "protobuf-java")
-        exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
-        exclude("org.web3j", "core")
-    }
+    implementation(project(":common")) { isTransitive = false }
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("com.google.guava:guava")
     implementation("com.hedera.hashgraph:sdk")
