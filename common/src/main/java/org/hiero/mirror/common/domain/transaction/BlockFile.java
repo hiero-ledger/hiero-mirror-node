@@ -70,6 +70,8 @@ public class BlockFile implements StreamFile<BlockTransaction> {
 
     private Long nodeId;
 
+    private String node;
+
     @ToString.Exclude
     private String previousHash;
 
