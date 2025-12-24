@@ -630,16 +630,17 @@ data:
       fi
 
       local targetStr="${targetGi}Gi"
-      local attempts=0
-      local maxAttempts=10
+      local sleepSeconds=1
+      local maxSleepSeconds=60
 
-      while (( attempts < maxAttempts )); do
+      while true; do
         local shardedClusterJson currentCtx currentIntGi currentStr patchJson
-
         shardedClusterJson="$(kubectl get sgshardedcluster "${shardedClusterName}" -n "${clusterNamespace}" -o json 2>/dev/null || true)"
         if [[ -z "${shardedClusterJson}" ]]; then
-          log "Unable to fetch sgshardedcluster ${clusterNamespace}/${shardedClusterName}, aborting"
-          return 1
+          log "Unable to fetch sgshardedcluster ${clusterNamespace}/${shardedClusterName}; retrying in ${sleepSeconds}s"
+          sleep "${sleepSeconds}"
+          sleepSeconds=$(( sleepSeconds < maxSleepSeconds ? sleepSeconds + 1 : maxSleepSeconds ))
+          continue
         fi
 
         currentCtx="$(getCurrentClusterSizeForGroup "${shardedClusterJson}" "${citusGroupInt}")"
@@ -651,26 +652,21 @@ data:
         fi
 
         if (( targetGi <= currentIntGi )); then
-          log "Skipping patch: target=${targetGi}Gi <= current=${currentIntGi}Gi"
+          log "Patch not needed: target=${targetGi}Gi <= current=${currentIntGi}Gi"
           return 0
         fi
-
-        log "Patching sgshardedcluster ${clusterNamespace}/${shardedClusterName} group ${citusGroupInt} to ${targetStr}"
 
         patchJson="$(buildShardedClusterSizePatchJson "${shardedClusterJson}" "${citusGroupInt}" "${targetStr}")"
 
-        if kubectl patch sgshardedcluster "${shardedClusterName}" -n "${clusterNamespace}" --type json -p "${patchJson}" >/dev/null; then
-          log "Successfully patched sgshardedcluster group ${citusGroupInt} to ${targetStr}"
+        if kubectl patch sgshardedcluster "${shardedClusterName}" -n "${clusterNamespace}" --type json -p "${patchJson}" >/dev/null 2>&1; then
+          log "Successfully patched sgshardedcluster ${clusterNamespace}/${shardedClusterName} group ${citusGroupInt} to ${targetStr}"
           return 0
         fi
 
-        attempts=$((attempts + 1))
-        log "Patch failed (likely conflict/resourceVersion changed). Retrying (${attempts}/${maxAttempts})..."
-        sleep 1
+        log "Patch failed (likely conflict/resourceVersion changed). Retrying in ${sleepSeconds}s..."
+        sleep "${sleepSeconds}"
+        sleepSeconds=$(( sleepSeconds < maxSleepSeconds ? sleepSeconds + 1 : maxSleepSeconds ))
       done
-
-      log "Failed to patch sgshardedcluster ${clusterNamespace}/${shardedClusterName} after ${maxAttempts} attempts"
-      return 1
     }
 
     # Converts a GB value to GiB.
