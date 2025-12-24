@@ -46,8 +46,7 @@ jobs:
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_CHART_VERSION: "0.58.1" # Temporary until next Solo
-      SOLO_VERSION: v0.50.0
+      SOLO_VERSION: v0.52.0
     permissions:
       pull-requests: read
     steps:
@@ -75,7 +74,7 @@ jobs:
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
-          kubectl_version: v1.32.3
+          kubectl_version: v1.33.7
 
       - name: Install JDK
         uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0

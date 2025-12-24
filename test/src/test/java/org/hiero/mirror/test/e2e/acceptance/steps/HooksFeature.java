@@ -10,7 +10,6 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookCreationDetails;
 import com.hedera.hashgraph.sdk.HookExtensionPoint;
-import com.hedera.hashgraph.sdk.KeyList;
 import com.hedera.hashgraph.sdk.LambdaEvmHook;
 import com.hedera.hashgraph.sdk.LambdaMappingEntry;
 import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
@@ -18,6 +17,7 @@ import com.hedera.hashgraph.sdk.Status;
 import io.cucumber.java.Before;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -96,8 +96,8 @@ public class HooksFeature extends AbstractFeature {
     public void triggerHookExecutionViaCryptoTransfer(long tinybar) {
         final var recipient = accountClient.getAccount(AccountClient.AccountNameEnum.OPERATOR);
         final var amount = Hbar.fromTinybars(tinybar);
-        networkTransactionResponse = hookClient.sendCryptoTransferWithHook(
-                account, recipient.getAccountId(), amount, HOOK_ID, account.getPrivateKey());
+        networkTransactionResponse =
+                hookClient.sendCryptoTransferWithHook(account, recipient.getAccountId(), amount, HOOK_ID);
         assertThat(networkTransactionResponse)
                 .extracting(NetworkTransactionResponse::getTransactionId)
                 .isNotNull();
@@ -105,16 +105,14 @@ public class HooksFeature extends AbstractFeature {
 
     @When("I create a HookStore transaction with both explicit and implicit storage slots")
     public void createHookStorageSlots() {
-        final var hookStoreTransaction = hookClient.getLambdaSStoreTransaction(account, HOOK_ID);
-
         // Create and add storage updates
+        final List<LambdaStorageUpdate> storageUpdates = new ArrayList<>();
         final var mappingEntry = LambdaMappingEntry.ofKey(MAPPING_KEY, MAPPING_VALUE);
         final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
-        final var slotStorageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EXPLICIT_SLOT_VALUE);
-        hookStoreTransaction.addStorageUpdate(mappingUpdate).addStorageUpdate(slotStorageUpdate);
+        storageUpdates.add(mappingUpdate);
+        storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EXPLICIT_SLOT_VALUE));
 
-        networkTransactionResponse = hookClient.executeTransactionAndRetrieveReceipt(
-                hookStoreTransaction, KeyList.of(account.getPrivateKey()));
+        networkTransactionResponse = hookClient.hookStore(account, HOOK_ID, storageUpdates);
         assertThat(networkTransactionResponse)
                 .extracting(NetworkTransactionResponse::getTransactionId)
                 .isNotNull();
@@ -153,22 +151,19 @@ public class HooksFeature extends AbstractFeature {
 
     @When("I create a HookStore transaction to remove all storage slots")
     public void removeHookStorageSlots() {
-        final var hookStoreTransaction = hookClient.getLambdaSStoreTransaction(account, HOOK_ID);
-
         // Create and add storage updates
-        final var slotStorageUpdate = new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EMPTY_BYTE_ARRAY);
+        final List<LambdaStorageUpdate> storageUpdates = new ArrayList<>();
         final var mappingEntry = LambdaMappingEntry.ofKey(MAPPING_KEY, EMPTY_BYTE_ARRAY);
         final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
-        hookStoreTransaction.addStorageUpdate(mappingUpdate).addStorageUpdate(slotStorageUpdate);
+        storageUpdates.add(mappingUpdate);
+        storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EMPTY_BYTE_ARRAY));
 
         // Remove the key created during crypto transfer
         if (transferKey != null) {
-            final var transferKeyUpdate = new LambdaStorageUpdate.LambdaStorageSlot(transferKey, EMPTY_BYTE_ARRAY);
-            hookStoreTransaction.addStorageUpdate(transferKeyUpdate);
+            storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(transferKey, EMPTY_BYTE_ARRAY));
         }
 
-        networkTransactionResponse = hookClient.executeTransactionAndRetrieveReceipt(
-                hookStoreTransaction, KeyList.of(account.getPrivateKey()));
+        networkTransactionResponse = hookClient.hookStore(account, HOOK_ID, storageUpdates);
         assertThat(networkTransactionResponse)
                 .extracting(NetworkTransactionResponse::getTransactionId)
                 .isNotNull();
