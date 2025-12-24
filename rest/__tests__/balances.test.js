@@ -42,22 +42,22 @@ describe('getOptimizedTimestampRange', () => {
 
   const {lt, lte, gt, gte, ne} = opsMap;
   const spec = [
-    {operators: [], params: [], expected: {lowerBound: '2022-09-01Z', upperBound: MAX_LONG, neParams: []}},
+    {operators: [], params: [], expected: {lowerBound: '2022-04-01Z', upperBound: MAX_LONG, neParams: []}},
     {operators: [gt, lt], params: ['2022-10-11Z', '2022-10-10Z'], expected: {}},
     {
       operators: [gte, lte],
       params: ['2022-01-05Z', '2022-07-12Z'],
-      expected: {lowerBound: '2022-06-01Z', upperBound: '2022-07-12Z', neParams: []},
+      expected: {lowerBound: '2022-01-05Z', upperBound: '2022-07-12Z', neParams: []},
     },
     {
       operators: [gte, lte],
       params: ['2022-01-05Z', '2022-10-02Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: '2022-10-02Z', neParams: []},
+      expected: {lowerBound: '2022-04-01Z', upperBound: '2022-10-02Z', neParams: []},
     },
     {
       operators: [gte, lte],
       params: ['2022-01-05Z', '2022-10-16Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: '2022-10-16Z', neParams: []},
+      expected: {lowerBound: '2022-04-01Z', upperBound: '2022-10-16Z', neParams: []},
     },
     {
       operators: [gte, lte],
@@ -82,7 +82,7 @@ describe('getOptimizedTimestampRange', () => {
     {
       operators: [gt],
       params: ['2022-01-01Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: MAX_LONG, neParams: []},
+      expected: {lowerBound: '2022-04-01Z', upperBound: MAX_LONG, neParams: []},
     },
     {
       operators: [gte],
@@ -92,27 +92,27 @@ describe('getOptimizedTimestampRange', () => {
     {
       operators: [lt],
       params: ['2022-12-15Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: {value: '2022-12-15Z', delta: -1n}, neParams: []},
+      expected: {lowerBound: '2022-04-01Z', upperBound: {value: '2022-12-15Z', delta: -1n}, neParams: []},
     },
     {
       operators: [lt, ne],
       params: ['2022-10-10Z', '2022-10-02Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: {value: '2022-10-10Z', delta: -1n}, neParams: ['2022-10-02Z']},
+      expected: {lowerBound: '2022-04-01Z', upperBound: {value: '2022-10-10Z', delta: -1n}, neParams: ['2022-10-02Z']},
     },
     {
       operators: [lte],
       params: ['2022-10-10Z'],
-      expected: {lowerBound: '2022-09-01Z', upperBound: '2022-10-10Z', neParams: []},
+      expected: {lowerBound: '2022-04-01Z', upperBound: '2022-10-10Z', neParams: []},
     },
     {
       operators: [lte],
       params: ['2022-09-20Z'],
-      expected: {lowerBound: '2022-08-01Z', upperBound: '2022-09-20Z', neParams: []},
+      expected: {lowerBound: '2022-03-01Z', upperBound: '2022-09-20Z', neParams: []},
     },
     {
       operators: [gt, gte, lt, lte],
       params: ['2022-01-05Z', '2022-02-10Z', '2022-10-02Z', '2022-09-20Z'],
-      expected: {lowerBound: '2022-08-1Z', upperBound: '2022-09-20Z', neParams: []},
+      expected: {lowerBound: '2022-03-1Z', upperBound: '2022-09-20Z', neParams: []},
     },
   ].map((s) => ({
     name: s.operators.map((op, index) => `consensus_timestamp${op}${s.params[index]}`).join(' and '),
