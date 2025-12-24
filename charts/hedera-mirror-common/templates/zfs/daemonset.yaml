@@ -42,13 +42,13 @@ spec:
             - name: L2_ARC_NVME_DEVICE_ID
               value: "{{ .Values.zfs.init.l2ArcNvmeDeviceId }}"
             - name: DISK_AUTOGROW_INTERVAL_SECONDS
-              value: {{ .Values.zfs.autoResize.intervalSeconds }}
+              value: "{{ .Values.zfs.autoResize.intervalSeconds }}"
             - name: DISK_AUTOGROW_MAX_STEP_GB
-              value: {{ .Values.zfs.autoResize.maxStepGb }}
+              value: "{{ .Values.zfs.autoResize.maxStepGb }}"
             - name: DISK_AUTOGROW_PERCENT
-              value: {{ .Values.zfs.autoResize.growPct }}
+              value: "{{ .Values.zfs.autoResize.growPct }}"
             - name: DISK_AUTOGROW_THRESHOLD_PERCENT
-              value: {{ .Values.zfs.autoResize.thresholdPercent }}
+              value: "{{ .Values.zfs.autoResize.thresholdPercent }}"
           securityContext:
             privileged: true
           volumeMounts:
