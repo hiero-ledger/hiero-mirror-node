@@ -1,0 +1,11 @@
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: github
+  namespace: flux-system
+spec:
+  type: github
+  address: https://github.com/hiero-ledger/hiero-mirror-node
+  secretRef:
+    name: github-token
+

@@ -1,0 +1,15 @@
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: github
+  namespace: flux-system
+spec:
+  providerRef:
+    name: github
+  eventSeverity: info
+  eventSources:
+    - kind: Kustomization
+      name: '*'
+      namespace: flux-system
+  summary: "Staging-council cluster"
+

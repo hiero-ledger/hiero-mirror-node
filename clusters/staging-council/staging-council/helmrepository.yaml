@@ -1,0 +1,9 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: mirror
+  namespace: staging-council
+spec:
+  interval: 5m
+  url: https://hiero-ledger.github.io/hiero-mirror-node/charts
+

@@ -1,0 +1,24 @@
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: slack
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack
+  eventSeverity: info
+  eventSources:
+    - kind: HelmRelease
+      name: '*'
+      namespace: common
+    - kind: HelmRelease
+      name: '*'
+      namespace: integration
+    - kind: HelmRelease
+      name: '*'
+      namespace: integration-docker
+    - kind: Kustomization
+      name: '*'
+      namespace: flux-system
+  summary: "Staging-council cluster"
+

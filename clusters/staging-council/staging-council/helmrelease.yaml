@@ -1,0 +1,93 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: mirror
+  namespace: staging-council
+spec:
+  chart:
+    spec:
+      chart: hedera-mirror
+      sourceRef:
+        kind: HelmRepository
+        name: mirror
+      valuesFiles:
+        - values.yaml
+        - values-prod.yaml
+        - values-v2.yml
+      version: '>0.0.0' # Update to the latest release
+  dependsOn:
+    - name: mirror
+      namespace: common
+  driftDetection:
+    mode: warn
+  install:
+    crds: CreateReplace
+  interval: 90s
+  test:
+    enable: true
+    timeout: 20m
+  timeout: 20m
+  upgrade:
+    cleanupOnFail: true
+    crds: CreateReplace
+  valuesFrom:
+    - kind: Secret
+      name: mirror
+  values:
+    importer:
+      env:
+        HIERO_MIRROR_IMPORTER_NETWORK: "OTHER"
+        HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
+    monitor:
+      env:
+        HIERO_MIRROR_MONITOR_NETWORK: "OTHER"
+        HIERO_MIRROR_MONITOR_PUBLISH_SCENARIOS_PINGER_TPS: "0.5"
+      prometheusRules:
+        MonitorPublishErrors:
+          enabled: false
+        MonitorPublishLatency:
+          enabled: false
+        MonitorSubscribeLatency:
+          enabled: false
+    rest:
+      monitor:
+        test:
+          enabled: false
+      test:
+        enabled: false
+    stackgres:
+      backup:
+        enabled: false
+      coordinator:
+        persistentVolume:
+          size: 65Gi
+        resources:
+          cpu: 2500m
+          memory: 12Gi
+          requests:
+            containers:
+              patroni:
+                cpu: 2500m
+      worker:
+        persistentVolume:
+          size: 90Gi
+        resources:
+          cpu: 4500m
+          memory: 12Gi
+          requests:
+            containers:
+              patroni:
+                cpu: 4500m
+    test:
+      config:
+        hiero:
+          mirror:
+            test:
+              acceptance:
+                network: MAINNET
+      cucumberTags: "@critical"
+      enabled: true
+    web3:
+      env:
+        HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
+

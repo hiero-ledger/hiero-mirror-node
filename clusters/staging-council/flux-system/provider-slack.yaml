@@ -1,0 +1,10 @@
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: slack
+  namespace: flux-system
+spec:
+  type: slack
+  channel: mirror-node-preprod
+  secretRef:
+    name: slack
