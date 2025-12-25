@@ -19,4 +19,6 @@ public class ReleaseHealthProperties {
     private Duration cacheExpiry = Duration.ofSeconds(30);
 
     private boolean enabled = false;
+
+    private boolean enableDownStatus = false;
 }

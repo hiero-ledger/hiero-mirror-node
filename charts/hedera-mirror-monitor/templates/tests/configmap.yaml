@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.test.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations: {{- toYaml .Values.test.annotations | nindent 4 }}
+  labels: {{- include "hedera-mirror-monitor.labels" . | nindent 4 }}
+    app.kubernetes.io/name: {{ include "hedera-mirror-monitor.name" . }}-test
+  name: {{ include "hedera-mirror-monitor.fullname" . }}-test
+  namespace: {{ include "hedera-mirror-monitor.namespace" . }}
+data:
+  postman.json: |-
+    {{- .Values.test.postman | b64dec | default (.Files.Get "postman.json") | nindent 4 }}
+{{- end -}}
