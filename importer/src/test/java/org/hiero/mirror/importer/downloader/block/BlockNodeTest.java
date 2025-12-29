@@ -16,8 +16,6 @@ import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.StreamObserver;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -62,7 +60,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private BlockNodeProperties blockNodeProperties;
     private BlockNode node;
     private StreamProperties streamProperties;
-    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
     private final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
 
     private static Stream<Arguments> provideUnexpectedNewBlockItem() {

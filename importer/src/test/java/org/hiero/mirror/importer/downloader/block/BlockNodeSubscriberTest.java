@@ -19,8 +19,6 @@ import com.asarkar.grpc.test.Resources;
 import io.grpc.Server;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -55,7 +53,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     private final String[] SERVER_NAMES = {"test1", "test2", "test3"};
-    private final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @Mock
     private BlockStreamReader blockStreamReader;

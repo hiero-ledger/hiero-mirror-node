@@ -38,7 +38,6 @@ import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -47,8 +46,6 @@ import org.jspecify.annotations.Nullable;
 @Named
 @NullMarked
 public final class BlockStreamReaderImpl implements BlockStreamReader {
-
-    private final BlockNodeProperties blockNodeProperties = new BlockNodeProperties();
 
     @Override
     public BlockFile read(final BlockStream blockStream) {
@@ -60,7 +57,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
                 .nodeId(blockStream.nodeId())
-                .node(blockNodeProperties.getEndpoint())
                 .size(size)
                 .version(VERSION);
 

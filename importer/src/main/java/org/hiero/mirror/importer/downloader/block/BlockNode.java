@@ -53,7 +53,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
+
+    @Getter
     private final BlockNodeProperties properties;
+
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
 

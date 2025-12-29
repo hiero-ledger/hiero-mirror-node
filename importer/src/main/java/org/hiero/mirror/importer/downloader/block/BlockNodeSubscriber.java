@@ -57,7 +57,10 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         }
 
         log.info("Start streaming block {} from {}", nextBlockNumber.get(), node);
-        node.streamBlocks(nextBlockNumber.get(), commonDownloaderProperties, this::onBlockStream);
+        node.streamBlocks(
+                nextBlockNumber.get(),
+                commonDownloaderProperties,
+                (stream) -> onBlockStream(stream, node.getProperties()));
     }
 
     private void drainGrpcBuffer(final BlockingClientCall<?, ?> grpcCall) {

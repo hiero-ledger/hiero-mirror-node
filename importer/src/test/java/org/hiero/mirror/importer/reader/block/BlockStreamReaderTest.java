@@ -36,7 +36,6 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
-import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
@@ -96,7 +95,6 @@ public final class BlockStreamReaderTest {
 
     private final BlockStreamReader reader = new BlockStreamReaderImpl();
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
-    private final BlockNodeProperties blockNodeProperties = new BlockNodeProperties();
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("readTestArgumentsProvider")
@@ -104,7 +102,7 @@ public final class BlockStreamReaderTest {
         var actual = reader.read(blockStream);
         assertThat(actual)
                 .usingRecursiveComparison()
-                .ignoringFields("blockHeader", "blockProof", "items", "node")
+                .ignoringFields("blockHeader", "blockProof", "items")
                 .isEqualTo(expected);
         var expectedPreviousItems = new ArrayList<>(actual.getItems());
         if (!expectedPreviousItems.isEmpty()) {
@@ -134,7 +132,6 @@ public final class BlockStreamReaderTest {
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
                 .nodeId(blockStream.nodeId())
-                .node(blockNodeProperties.getEndpoint())
                 .recordFileItem(RecordFileItem.getDefaultInstance())
                 .size(blockStream.bytes().length)
                 .version(BlockStreamReader.VERSION)

@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import io.micrometer.core.instrument.Timer.Builder;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,10 +31,8 @@ final class BlockStreamVerifier {
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
-    // Metrics
-    private final MeterRegistry meterRegistry;
-    private final Builder streamVerificationMetric;
-    private final Builder streamLatencyMetric;
+    private final MeterProvider<Timer> streamVerificationMeterProvider;
+    private final MeterProvider<Timer> streamLatencyMeterProvider;
     private final Timer streamCloseMetric;
 
     private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
@@ -47,16 +45,18 @@ final class BlockStreamVerifier {
         this.blockFileTransformer = blockFileTransformer;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
-        this.meterRegistry = meterRegistry;
 
-        this.streamVerificationMetric = Timer.builder("hiero.mirror.importer.stream.verification")
+        // Metrics
+        this.streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
                 .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
-                .tag("type", StreamType.BLOCK.toString());
+                .tag("type", StreamType.BLOCK.toString())
+                .withRegistry(meterRegistry);
 
-        this.streamLatencyMetric = Timer.builder("hiero.mirror.importer.stream.latency")
+        this.streamLatencyMeterProvider = Timer.builder("hiero.mirror.importer.stream.latency")
                 .description("The difference in time between the consensus time of the last transaction in the block "
                         + "and the time at which the block was verified")
-                .tag("type", StreamType.BLOCK.toString());
+                .tag("type", StreamType.BLOCK.toString())
+                .withRegistry(meterRegistry);
 
         streamCloseMetric = Timer.builder("hiero.mirror.importer.stream.close.latency")
                 .description("The difference between the consensus start of the current and the last stream file")
@@ -87,9 +87,8 @@ final class BlockStreamVerifier {
             verifyBlockNumber(blockFile);
             verifyHashChain(blockFile);
             final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
-            streamLatencyMetric
-                    .tag("node", blockFile.getNode())
-                    .register(meterRegistry)
+            streamLatencyMeterProvider
+                    .withTag("node", blockFile.getNode())
                     .record(Duration.between(consensusEnd, Instant.now()));
             var recordFile = blockFileTransformer.transform(blockFile);
             streamFileNotifier.verified(recordFile);
@@ -106,10 +105,8 @@ final class BlockStreamVerifier {
             success = false;
             throw e;
         } finally {
-            streamVerificationMetric
-                    .tag("success", String.valueOf(success))
-                    .tag("node", blockFile.getNode())
-                    .register(meterRegistry)
+            streamVerificationMeterProvider
+                    .withTags("success", String.valueOf(success), "node", blockFile.getNode())
                     .record(Duration.between(startTime, Instant.now()));
         }
     }

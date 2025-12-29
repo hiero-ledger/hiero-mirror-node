@@ -36,12 +36,17 @@ abstract class AbstractBlockSource implements BlockSource {
 
     protected abstract void doGet(final long blockNumber);
 
-    protected final BlockFile onBlockStream(final BlockStream blockStream) {
-        var blockFile = blockStreamReader.read(blockStream);
-        if (!properties.isPersistBytes()) {
-            blockFile.setBytes(null);
-        }
+    protected final BlockFile onBlockStream(
+            final BlockStream blockStream, final BlockNodeProperties blockNodeProperties) {
+        var blockFile = readBlockFile(blockStream);
+        blockFile.setNode(blockNodeProperties.getEndpoint());
+        blockStreamVerifier.verify(blockFile);
+        return blockFile;
+    }
 
+    protected final BlockFile onBlockStream(final BlockStream blockStream) {
+        var blockFile = readBlockFile(blockStream);
+        blockFile.setNode("cloud");
         blockStreamVerifier.verify(blockFile);
         return blockFile;
     }
@@ -60,5 +65,13 @@ abstract class AbstractBlockSource implements BlockSource {
                 .or(() -> Optional.ofNullable(
                         commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))
                 .orElse(GENESIS_BLOCK_NUMBER);
+    }
+
+    private BlockFile readBlockFile(final BlockStream blockStream) {
+        var blockFile = blockStreamReader.read(blockStream);
+        if (!properties.isPersistBytes()) {
+            blockFile.setBytes(null);
+        }
+        return blockFile;
     }
 }
