@@ -102,13 +102,11 @@ add column if not exists authorization_list jsonb null default null;
 #### EthereumTransaction.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/transaction/EthereumTransaction.java
 public class EthereumTransaction implements Persistable<Long> {
 
     // This field needs to be added to the existing class.
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
-    @UpsertColumn(shouldCoalesce = false)
     private List<Authorization> authorizationList;
 }
 ```
@@ -116,25 +114,23 @@ public class EthereumTransaction implements Persistable<Long> {
 where `Authorization` needs to be created as follows:
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/transaction/Authorization.java
 @Data
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 public class Authorization {
 
-    private String chainId;  // Example: "0x01"
     private String address;  // Example: "0x1111111111111111111111111111111111111111"
+    private String chainId;  // Example: "0x01"
     private Long nonce;      // Example: 5
-    private Integer yParity; // Example: 1
     private String r;        // Example: "0x2222222222222222222222222222222222222222222222222222222222222222"
     private String s;        // Example: "0x3333333333333333333333333333333333333333333333333333333333333333"
+    private Integer yParity; // Example: 1
 }
 ```
 
 #### AbstractEntity.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/entity/AbstractEntity.java
 public class AbstractEntity implements History {
 
     // This field needs to be added to the existing class.
@@ -186,8 +182,9 @@ will be that the new transaction type will need to decode the authorizationList 
 - `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
 
 In both API endpoints the returned account model will contain an additional parameter, named `delegation_indicator`. Its value will be
-the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set or
-if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `delegation_indicator` field will be empty.
+the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set (equal to `null`
+in the DB) or if it was deleted (persisted as address 0x0000000000000000000000000000000000000000 in the DB), the
+`delegation_indicator` field will be returned as `0x` from the REST endpoints above.
 
 - `GET /api/v1/contracts`
 - `GET /api/v1/contracts/{contractIdOrAddress}`
