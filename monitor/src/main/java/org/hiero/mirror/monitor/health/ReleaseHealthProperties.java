@@ -20,5 +20,5 @@ public class ReleaseHealthProperties {
 
     private boolean enabled = false;
 
-    private boolean enableDownStatus = false;
+    private boolean failWhenInactive = false;
 }

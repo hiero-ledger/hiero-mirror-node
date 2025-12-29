@@ -49,17 +49,18 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                         : Mono.just(health));
     }
 
-    // Returns unknown if all publish scenarios aggregated rate has dropped to zero, otherwise returns an empty flux
+    // Returns down or unknown if all publish scenarios aggregated rate has dropped to zero, otherwise returns an empty
+    // flux
     private Mono<Health> publishing() {
         return transactionGenerator
                 .scenarios()
                 .map(Scenario::getRate)
                 .reduce(0.0, (c, n) -> c + n)
                 .filter(sum -> sum <= 0)
-                .flatMap(n -> releaseHealthProperties.isEnableDownStatus() ? DOWN : UNKNOWN);
+                .flatMap(n -> getHealthForZeroRate());
     }
 
-    // Returns up if any subscription is running and its rate is above zero, otherwise returns unknown
+    // Returns up if any subscription is running and its rate is above zero, otherwise returns down or unknown
     private Mono<Health> subscribing() {
         return mirrorSubscriber
                 .getSubscriptions()
@@ -67,7 +68,7 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                 .reduce(0.0, (cur, next) -> cur + next)
                 .filter(sum -> sum > 0)
                 .flatMap(n -> UP)
-                .switchIfEmpty(releaseHealthProperties.isEnableDownStatus() ? DOWN : UNKNOWN);
+                .switchIfEmpty(getHealthForZeroRate());
     }
 
     private Mono<Health> restNetworkStakeHealth() {
@@ -99,5 +100,9 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 });
+    }
+
+    private Mono<Health> getHealthForZeroRate() {
+        return releaseHealthProperties.isFailWhenInactive() ? DOWN : UNKNOWN;
     }
 }

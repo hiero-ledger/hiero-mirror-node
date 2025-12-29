@@ -174,7 +174,7 @@ jobs:
               SPRING_PROFILES_ACTIVE: 'blocknode'
           monitor:
             env:
-              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLE_DOWN_STATUS: "true"
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLEDOWNSTATUS: "true"
             test:
               enabled: true
           test:
@@ -195,7 +195,7 @@ jobs:
             cat <<EOF > mirror.yaml
           monitor:
             env:
-              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLE_DOWN_STATUS: "true"
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLEDOWNSTATUS: "true"
             test:
               enabled: true
           test:
