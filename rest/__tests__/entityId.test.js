@@ -593,3 +593,21 @@ describe('parseString', () => {
     });
   }
 });
+
+describe('SystemEntity', () => {
+  test('feeCollectionAccount should return entity 0.0.802', () => {
+    expect(EntityId.systemEntity.feeCollectionAccount).toEqual(EntityId.of(shard, realm, 802));
+  });
+
+  test('networkAdminFeeAccount should return entity 0.0.98', () => {
+    expect(EntityId.systemEntity.networkAdminFeeAccount).toEqual(EntityId.of(shard, realm, 98));
+  });
+
+  test('stakingRewardAccount should return entity 0.0.800', () => {
+    expect(EntityId.systemEntity.stakingRewardAccount).toEqual(EntityId.of(shard, realm, 800));
+  });
+
+  test('treasuryAccount should return entity 0.0.2', () => {
+    expect(EntityId.systemEntity.treasuryAccount).toEqual(EntityId.of(shard, realm, 2));
+  });
+});

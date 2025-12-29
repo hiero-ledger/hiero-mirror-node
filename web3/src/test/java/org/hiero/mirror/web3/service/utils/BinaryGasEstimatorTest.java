@@ -4,14 +4,14 @@ package org.hiero.mirror.web3.service.utils;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import java.util.Optional;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.data.Percentage;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hyperledger.besu.datatypes.Address;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -98,11 +98,15 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
     }
 
-    private HederaEvmTransactionProcessingResult createTxnResult(final long gasUsed, final boolean isSuccessful) {
+    private EvmTransactionResult createTxnResult(final long gasUsed, final boolean isSuccessful) {
         if (!isSuccessful) {
-            return HederaEvmTransactionProcessingResult.failed(gasUsed, 0, 0, Optional.empty(), Optional.empty());
+            return new EvmTransactionResult(
+                    ResponseCodeEnum.FAIL_INVALID,
+                    ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
         }
-        return HederaEvmTransactionProcessingResult.successful(null, gasUsed, 0, 0, null, Address.ZERO);
+        return new EvmTransactionResult(
+                ResponseCodeEnum.SUCCESS,
+                ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
     }
 
     private boolean failEverySecondCall() {

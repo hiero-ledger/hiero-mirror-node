@@ -4,11 +4,9 @@ package org.hiero.mirror.web3.service;
 
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
-import static org.hiero.mirror.web3.evm.exception.ResponseCodeUtil.getStatusOrDefault;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -21,6 +19,7 @@ import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.utils.Suppliers;
@@ -68,8 +67,7 @@ public abstract class ContractCallService {
     }
 
     @VisibleForTesting
-    public HederaEvmTransactionProcessingResult callContract(CallServiceParameters params)
-            throws MirrorEvmTransactionException {
+    public EvmTransactionResult callContract(CallServiceParameters params) throws MirrorEvmTransactionException {
         return ContractCallContext.run(context -> callContract(params, context));
     }
 
@@ -86,12 +84,12 @@ public abstract class ContractCallService {
      *
      * @param params the call service parameters
      * @param ctx    the contract call context
-     * @return {@link HederaEvmTransactionProcessingResult} of the contract call
+     * @return {@link EvmTransactionResult} of the contract call
      * @throws MirrorEvmTransactionException if any pre-checks fail with {@link IllegalStateException} or
      *                                       {@link IllegalArgumentException}
      */
-    protected final HederaEvmTransactionProcessingResult callContract(
-            CallServiceParameters params, ContractCallContext ctx) throws MirrorEvmTransactionException {
+    protected final EvmTransactionResult callContract(CallServiceParameters params, ContractCallContext ctx)
+            throws MirrorEvmTransactionException {
         ctx.setCallServiceParameters(params);
         ctx.setBlockSupplier(Suppliers.memoize(() ->
                 recordFileService.findByBlockType(params.getBlock()).orElseThrow(BlockNumberNotFoundException::new)));
@@ -99,9 +97,9 @@ public abstract class ContractCallService {
         return doProcessCall(params, params.getGas(), false);
     }
 
-    protected final HederaEvmTransactionProcessingResult doProcessCall(
+    protected final EvmTransactionResult doProcessCall(
             CallServiceParameters params, long estimatedGas, boolean estimate) throws MirrorEvmTransactionException {
-        HederaEvmTransactionProcessingResult result = null;
+        EvmTransactionResult result = null;
         var status = ResponseCodeEnum.SUCCESS.toString();
 
         try {
@@ -123,34 +121,33 @@ public abstract class ContractCallService {
 
                 // Only record metric if EVM is invoked and not inside estimate loop
                 if (result != null) {
-                    updateMetrics(params, result.getGasUsed(), 1, status);
+                    updateMetrics(params, result.gasUsed(), 1, status);
                 }
             }
         }
         return result;
     }
 
-    private void restoreGasToBucket(HederaEvmTransactionProcessingResult result, long gasLimit) {
+    private void restoreGasToBucket(EvmTransactionResult result, long gasLimit) {
         // If the transaction fails, gasUsed is equal to gasLimit, so restore the configured refund percent
         // of the gasLimit value back in the bucket.
         final var gasLimitToRestoreBaseline = (long) (gasLimit * throttleProperties.getGasLimitRefundPercent() / 100f);
-        if (result == null || (!result.isSuccessful() && gasLimit == result.getGasUsed())) {
+        if (result == null || (!result.isSuccessful() && gasLimit == result.gasUsed())) {
             throttleManager.restore(gasLimitToRestoreBaseline);
         } else {
             // The transaction was successful or reverted, so restore the remaining gas back in the bucket or
             // the configured refund percent of the gasLimit value back in the bucket - whichever is lower.
-            final var gasRemaining = gasLimit - result.getGasUsed();
+            final var gasRemaining = gasLimit - result.gasUsed();
             throttleManager.restore(Math.min(gasRemaining, gasLimitToRestoreBaseline));
         }
     }
 
-    protected void validateResult(
-            final HederaEvmTransactionProcessingResult txnResult, final CallServiceParameters params) {
+    protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
         if (!txnResult.isSuccessful()) {
-            var revertReason = txnResult.getRevertReason().orElse(Bytes.EMPTY);
+            var revertReason = txnResult.getErrorMessage().orElse(Bytes.EMPTY);
             var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
-            var status = getStatusOrDefault(txnResult).name();
-            throw new MirrorEvmTransactionException(status, detail, revertReason.toHexString(), txnResult);
+            throw new MirrorEvmTransactionException(
+                    txnResult.responseCodeEnum().protoName(), detail, revertReason.toHexString(), txnResult);
         }
     }
 

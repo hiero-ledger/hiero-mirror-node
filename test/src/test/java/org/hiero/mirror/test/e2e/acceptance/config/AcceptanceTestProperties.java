@@ -76,7 +76,7 @@ public final class AcceptanceTestProperties {
     @NotNull
     @DecimalMax("1000000")
     @DecimalMin("1.0")
-    private BigDecimal operatorBalance = BigDecimal.valueOf(70); // Amount in USD
+    private BigDecimal operatorBalance = BigDecimal.valueOf(72); // Amount in USD
 
     @NotBlank
     private String operatorId;

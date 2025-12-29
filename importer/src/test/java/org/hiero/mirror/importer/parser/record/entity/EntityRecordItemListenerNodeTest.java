@@ -44,7 +44,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
         assertAll(
                 () -> assertEquals(1, transactionRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertThat(nodeStakeRepository.findAll())
                         .hasSize(body.getNodeStakeCount())
                         .first()

@@ -11,7 +11,6 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
@@ -34,7 +33,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
@@ -50,6 +50,7 @@ import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.throttle.ThrottleProperties;
@@ -341,21 +342,13 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void transferFunds(boolean longZeroAddressAllowed) {
+    @Test
+    void transferFunds() {
         // Given
         final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
         final var receiver = accountEntityWithEvmAddressPersist();
         final var senderAddress = getAliasAddressFromEntity(sender);
-
-        Address receiverAddress;
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
-        if (longZeroAddressAllowed) {
-            receiverAddress = Address.fromHexString(getAddressFromEntity(receiver));
-        } else {
-            receiverAddress = getAliasAddressFromEntity(receiver);
-        }
+        final var receiverAddress = getAliasAddressFromEntity(receiver);
 
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
         final var serviceParameters = getContractExecutionParameters(Bytes.EMPTY, receiverAddress, senderAddress, 7L);
@@ -1181,8 +1174,9 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
             var params = ContractExecutionParameters.builder().build();
             when(txnExecutionService.execute(params, estimatedGas))
-                    .thenReturn(HederaEvmTransactionProcessingResult.successful(
-                            List.of(), 100, 0, 0, Bytes.EMPTY, Address.ZERO));
+                    .thenReturn(new EvmTransactionResult(
+                            ResponseCodeEnum.SUCCESS,
+                            ContractFunctionResult.newBuilder().gasUsed(100).build()));
 
             contractCallService.doProcessCall(params, estimatedGas, true);
 

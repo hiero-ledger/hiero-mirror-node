@@ -18,7 +18,6 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.config.VersionedConfiguration;
-import jakarta.annotation.PostConstruct;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -36,7 +35,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
@@ -47,13 +45,8 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
 public class MirrorNodeEvmProperties {
 
-    public static final String ALLOW_LONG_ZERO_ADDRESSES = "HIERO_MIRROR_WEB3_EVM_ALLOWLONGZEROADDRESSES";
-
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
-
-    @Value("${" + ALLOW_LONG_ZERO_ADDRESSES + ":false}")
-    private boolean allowLongZeroAddresses = false;
 
     @Positive
     private double estimateGasIterationThresholdPercent = 0.10d;
@@ -167,11 +160,6 @@ public class MirrorNodeEvmProperties {
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
         return Collections.unmodifiableMap(props);
-    }
-
-    @PostConstruct
-    public void init() {
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(allowLongZeroAddresses));
     }
 
     @RequiredArgsConstructor

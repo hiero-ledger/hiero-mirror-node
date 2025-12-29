@@ -49,6 +49,8 @@ import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.ContractStateResponse;
 import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
+import org.hiero.mirror.rest.model.HooksResponse;
+import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
@@ -535,6 +537,15 @@ public class MirrorNodeClient {
 
     public BalancesResponse getBalancesForAccountId(String accountId) {
         return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
+    }
+
+    public HooksResponse getAccountHooks(String accountId) {
+        return callRestJavaEndpoint("/accounts/{accountId}/hooks", HooksResponse.class, accountId);
+    }
+
+    public HooksStorageResponse getHookStorage(String accountId, long hookId) {
+        var path = "/accounts/{accountId}/hooks/{hookId}/storage";
+        return callRestJavaEndpoint(path, HooksStorageResponse.class, accountId, hookId);
     }
 
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {

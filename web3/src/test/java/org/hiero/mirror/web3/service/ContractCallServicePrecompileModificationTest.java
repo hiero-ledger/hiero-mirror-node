@@ -14,7 +14,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EMPTY_UNTRIMMED_ADDRESS;
@@ -174,22 +173,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void setApprovalForAll(boolean longZeroAddressAllowed) throws Exception {
+    @Test
+    void setApprovalForAll() throws Exception {
         // Given
-        final var spender = accountEntityWithEvmAddressPersist();
-
+        final var spender = accountEntityPersist();
         final var token = nonFungibleTokenPersist();
         final var tokenId = token.getTokenId();
-
-        String spenderAddress;
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
-        if (longZeroAddressAllowed) {
-            spenderAddress = getAddressFromEntity(spender);
-        } else {
-            spenderAddress = getAliasFromEntity(spender);
-        }
 
         tokenAccountPersist(tokenId, spender.getId());
 
@@ -202,14 +191,38 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         nonFungibleTokenInstancePersist(token, 1L, contractEntityId, spender.toEntityId());
 
         // When
-        final var functionCall =
-                contract.call_setApprovalForAllExternal(toAddress(tokenId).toHexString(), spenderAddress, Boolean.TRUE);
-
+        final var functionCall = contract.call_setApprovalForAllExternal(
+                toAddress(tokenId).toHexString(), getAddressFromEntity(spender), Boolean.TRUE);
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
 
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
+    @Test
+    void txnFailsWhenAccountWithAliasIsReferencedByLongZeroAddress() {
+        // Given account with alias is created
+        final var spender = accountEntityWithEvmAddressPersist();
+        final var token = nonFungibleTokenPersist();
+        final var tokenId = token.getTokenId();
+
+        tokenAccountPersist(tokenId, spender.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
+
+        nonFungibleTokenInstancePersist(token, 1L, contractEntityId, spender.toEntityId());
+
+        // When the account with alias is referenced by long zero address
+        final var longZeroAddress = getAddressFromEntity(spender);
+        final var functionCall = contract.call_setApprovalForAllExternal(
+                toAddress(tokenId).toHexString(), longZeroAddress, Boolean.TRUE);
+
+        // Then the transaction fails
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
     }
 
     @ParameterizedTest
@@ -453,19 +466,16 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @ParameterizedTest
-    @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-    void mintNFT(final boolean useAlias, boolean longZeroAddressAllowed) throws Exception {
+    @CsvSource({"true", "false"})
+    void mintNFT(final boolean useAlias) throws Exception {
         // Given
         final var treasury = useAlias ? accountEntityWithEvmAddressPersist() : accountEntityPersist();
-        final var tokenEntity = tokenEntityPersistWithAutoRenewAccount(
-                useAlias ? accountEntityWithEvmAddressPersist() : accountEntityPersist());
+        final var tokenEntity = tokenEntityPersist();
 
         nonFungibleTokenPersist(tokenEntity, treasury);
-
         tokenAccountPersist(tokenEntity.getId(), treasury.getId());
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // When
         final var functionCall = contract.call_mintTokenExternal(
@@ -477,8 +487,6 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         assertThat(result.component3().getFirst()).isEqualTo(BigInteger.ONE);
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @Test

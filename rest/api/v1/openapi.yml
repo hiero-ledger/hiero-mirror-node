@@ -3973,6 +3973,7 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
+        - LAMBDASSTORE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE

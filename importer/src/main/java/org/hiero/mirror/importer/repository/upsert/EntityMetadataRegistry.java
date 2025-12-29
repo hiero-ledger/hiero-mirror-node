@@ -166,6 +166,7 @@ public final class EntityMetadataRegistry {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Function<Object, Object> getter(Field field) {
         try {
             String prefix = field.getType().equals(boolean.class) ? "is" : "get";
@@ -174,15 +175,15 @@ public final class EntityMetadataRegistry {
             MethodType type = MethodType.methodType(field.getType());
             MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
             MethodType functionType = handle.type();
-            return (Function<Object, Object>) LambdaMetafactory.metafactory(
-                            lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType)
-                    .getTarget()
-                    .invokeExact();
+            final var callSite = LambdaMetafactory.metafactory(
+                    lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
+            return (Function<Object, Object>) callSite.getTarget().invokeExact();
         } catch (Throwable t) {
             throw new FieldInaccessibleException(t);
         }
     }
 
+    @SuppressWarnings("unchecked")
     private BiConsumer<Object, Object> setter(Field field) {
         try {
             String methodName = "set" + StringUtils.capitalize(field.getName());
@@ -190,10 +191,9 @@ public final class EntityMetadataRegistry {
             MethodType type = MethodType.methodType(void.class, field.getType());
             MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
             MethodType functionType = handle.type();
-            return (BiConsumer<Object, Object>) LambdaMetafactory.metafactory(
-                            lookup, "accept", methodType(BiConsumer.class), functionType.erase(), handle, functionType)
-                    .getTarget()
-                    .invokeExact();
+            final var callSite = LambdaMetafactory.metafactory(
+                    lookup, "accept", methodType(BiConsumer.class), functionType.erase(), handle, functionType);
+            return (BiConsumer<Object, Object>) callSite.getTarget().invokeExact();
         } catch (Throwable t) {
             throw new FieldInaccessibleException(t);
         }

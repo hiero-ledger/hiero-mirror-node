@@ -11,6 +11,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
 import com.hedera.pbj.runtime.Codec;
@@ -38,7 +39,7 @@ class SchemaRegistryImplTest {
     private MirrorNodeState mirrorNodeState;
 
     @Mock
-    private Schema schema;
+    private Schema<SemanticVersion> schema;
 
     @Mock
     private ReadableStates readableStates;
