@@ -31,6 +31,8 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockFileSource extends AbstractBlockSource {
 
+    private static final String DEFAULT_NODE_ENDPOINT = "cloud";
+
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
 
@@ -83,7 +85,7 @@ final class BlockFileSource extends AbstractBlockSource {
                 log.debug("Downloaded block file {} from node {}", filename, nodeId);
 
                 var blockStream = getBlockStream(blockFileData, nodeId);
-                var blockFile = onBlockStream(blockStream);
+                var blockFile = onBlockStream(blockStream, DEFAULT_NODE_ENDPOINT);
 
                 var cloudStorageTime = blockFileData.getLastModified();
                 var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());

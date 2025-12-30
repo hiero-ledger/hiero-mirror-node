@@ -45,6 +45,7 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
+    static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
@@ -79,10 +80,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
         this.streamProperties = streamProperties;
-        this.errorsMetric = Counter.builder("hiero.mirror.importer.stream.error")
+        this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("node", properties.getEndpoint())
+                .tag("block_node", properties.getEndpoint())
                 .register(meterRegistry);
     }
 

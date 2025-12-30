@@ -88,7 +88,7 @@ final class BlockStreamVerifier {
             verifyHashChain(blockFile);
             final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
             streamLatencyMeterProvider
-                    .withTag("node", blockFile.getNode())
+                    .withTag("block_node", blockFile.getNode())
                     .record(Duration.between(consensusEnd, Instant.now()));
             var recordFile = blockFileTransformer.transform(blockFile);
             streamFileNotifier.verified(recordFile);
@@ -106,7 +106,7 @@ final class BlockStreamVerifier {
             throw e;
         } finally {
             streamVerificationMeterProvider
-                    .withTags("success", String.valueOf(success), "node", blockFile.getNode())
+                    .withTags("success", String.valueOf(success), "block_node", blockFile.getNode())
                     .record(Duration.between(startTime, Instant.now()));
         }
     }

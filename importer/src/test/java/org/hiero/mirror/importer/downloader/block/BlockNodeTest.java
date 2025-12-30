@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -60,7 +61,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private BlockNodeProperties blockNodeProperties;
     private BlockNode node;
     private StreamProperties streamProperties;
-    private final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
 
     private static Stream<Arguments> provideUnexpectedNewBlockItem() {
         return Stream.of(
