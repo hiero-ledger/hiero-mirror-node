@@ -14,11 +14,12 @@ spec:
     - name: test
       image: "{{ .Values.test.image.repository }}:{{ .Values.test.image.tag }}"
       imagePullPolicy: {{ .Values.test.image.pullPolicy }}
-      args:
-        - run
-        - /test/postman.json
-        - --env-var
-        - baseUrl=http://{{ include "hedera-mirror-monitor.fullname" . }}:{{ .Values.service.port }}
+      command:
+        - /bin/sh
+        - -c
+        - |
+          trap 'sleep 10' EXIT
+          newman run /test/postman.json --env-var baseUrl=http://{{ include "hedera-mirror-monitor.fullname" . }}:{{ .Values.service.port }}
       securityContext:
         allowPrivilegeEscalation: false
         capabilities:
