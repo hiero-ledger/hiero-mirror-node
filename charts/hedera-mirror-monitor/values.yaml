@@ -305,7 +305,7 @@ test:
   annotations:
     helm.sh/hook: test-success
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
-    helm.sh/hook-weight: "20"
+    helm.sh/hook-weight: "30"
   enabled: false
   image:
     pullPolicy: IfNotPresent

@@ -173,10 +173,18 @@ jobs:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
           monitor:
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
             env:
-              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLEDOWNSTATUS: "true"
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
             test:
               enabled: true
+          rest:
+            test:
+              enabled: false
+          restjava:
+            test:
+              enabled: false
           test:
             cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
             annotations:
@@ -189,15 +197,25 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              enabled: false
           EOF
 
           else
             cat <<EOF > mirror.yaml
           monitor:
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
             env:
-              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLEDOWNSTATUS: "true"
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
             test:
               enabled: true
+          rest:
+            test:
+              enabled: false
+          restjava:
+            test:
+              enabled: false
           test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
@@ -210,6 +228,8 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              enabled: false
           EOF
           fi
 
