@@ -17,7 +17,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.956.0",
+    "@aws-sdk/client-s3": "^3.958.0",
     "@godaddy/terminus": "^4.12.1",
     "@hashgraph/proto": "^2.25.0",
     "@trufflesuite/bigint-buffer": "^1.1.10",
@@ -39,7 +39,7 @@
     "long": "^5.3.2",
     "mathjs": "^15.1.0",
     "negotiator": "^1.0.0",
-    "parse-duration": "^2.1.4",
+    "parse-duration": "^2.1.5",
     "pg": "~8.16.3",
     "pg-range": "^1.1.2",
     "prom-client": "14.2.0",
@@ -52,8 +52,8 @@
     "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6"
   },
   "devDependencies": {
-    "@testcontainers/postgresql": "^11.10.0",
-    "@testcontainers/redis": "^11.10.0",
+    "@testcontainers/postgresql": "^11.11.0",
+    "@testcontainers/redis": "^11.11.0",
     "app-root-path": "^3.1.0",
     "cross-env": "^10.1.0",
     "crypto-random-string": "^5.0.0",
@@ -63,7 +63,7 @@
     "node-flywaydb": "^3.0.7",
     "nodemon": "^3.1.11",
     "pg-format": "^1.0.4",
-    "pgsql-parser": "^17.9.2",
+    "pgsql-parser": "^17.9.7",
     "rewire": "^9.0.1",
     "sinon": "^21.0.1",
     "supertest": "^7.1.4"

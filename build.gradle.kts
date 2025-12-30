@@ -19,7 +19,7 @@ extra.apply {
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.69.0")
-    set("grpcVersion", "1.77.0")
+    set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
@@ -91,7 +91,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:$web3jVersion")
-        api("software.amazon.awssdk:bom:2.40.13")
+        api("software.amazon.awssdk:bom:2.40.16")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
