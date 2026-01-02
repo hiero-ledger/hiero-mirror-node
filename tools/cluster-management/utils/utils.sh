@@ -648,7 +648,7 @@ function unpauseCitus() {
 
 function getDiskPrefix() {
   local diskPrefix
-  diskPrefix=$(kubectl_common get daemonsets -l 'app=zfs-init' -o json |
+  diskPrefix=$(kubectl_common get daemonsets -l 'app=zfs-manager' -o json |
     jq -r '.items[0].spec.template.spec.initContainers[0].env[] | select (.name == "DISK_PREFIX") | .value')
 
   if [[ -z "${diskPrefix}" ]]; then

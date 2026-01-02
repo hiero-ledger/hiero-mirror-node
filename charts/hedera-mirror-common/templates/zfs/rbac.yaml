@@ -8,9 +8,13 @@ metadata:
   name: zfs-label-reader
   namespace: {{ include "hedera-mirror-common.namespace" . }}
 rules:
-  - apiGroups: [""]
-    resources: ["nodes"]
+  - apiGroups: ["", "stackgres.io"]
+    resources: ["nodes", "sgshardedclusters"]
     verbs: ["get", "list", "update", "patch"]
+  - apiGroups: ["", "zfs.openebs.io", "stackgres.io"]
+    resources: ["persistentvolumes", "persistentvolumeclaims", "zfsnodes", "sgclusters"]
+    verbs: ["get", "list"]
+
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

@@ -52,7 +52,7 @@ function configureAndValidate() {
 
   DISK_PREFIX="$(kubectl get daemonsets \
   -n "${COMMON_NAMESPACE}" \
-  -l 'app=zfs-init' \
+  -l 'app=zfs-manager' \
   -o json |
   jq -r '.items[0].spec.template.spec.initContainers[0].env[] | select (.name == "DISK_PREFIX") | .value')"
 
@@ -406,9 +406,9 @@ sleep 5
 kubectl wait --for=condition=Ready pod -n "${COMMON_NAMESPACE}" -l 'app=StackGresConfig' --timeout=-1s
 
 log "Restarting ZFS init daemonset"
-kubectl delete pods -n "${COMMON_NAMESPACE}" -l 'app=zfs-init'
+kubectl delete pods -n "${COMMON_NAMESPACE}" -l 'app=zfs-manager'
 sleep 5
-kubectl wait --for=condition=Ready pod -n "${COMMON_NAMESPACE}" -l 'app=zfs-init' --timeout=-1s
+kubectl wait --for=condition=Ready pod -n "${COMMON_NAMESPACE}" -l 'app=zfs-manager' --timeout=-1s
 
 log "Restarting ZFS node pods"
 kubectl delete pods -n "${COMMON_NAMESPACE}" -l 'component=openebs-zfs-node'
