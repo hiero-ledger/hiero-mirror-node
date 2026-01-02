@@ -30,28 +30,36 @@
     "check-state-proof": "./index.js"
   },
   "dependencies": {
-    "@hashgraph/proto": "^2.25.0",
-    "abort-controller": "^3.0.0",
-    "boxen": "^8.0.1",
-    "chalk": "^5.6.2",
-    "extensionless": "^2.0.5",
-    "glob": "^13.0.0",
-    "lodash": "^4.17.21",
-    "log4js": "^6.9.1",
-    "node-fetch": "^3.3.2",
-    "word-wrap": "npm:@aashutoshrathi/word-wrap@^1.2.6",
-    "yargs": "^18.0.0"
+    "@hashgraph/proto": "2.25.0",
+    "abort-controller": "3.0.0",
+    "boxen": "8.0.1",
+    "chalk": "5.6.2",
+    "extensionless": "2.0.5",
+    "glob": "13.0.0",
+    "lodash": "4.17.21",
+    "log4js": "6.9.1",
+    "node-fetch": "3.3.2",
+    "word-wrap": "npm:@aashutoshrathi/word-wrap@1.2.6",
+    "yargs": "18.0.0"
   },
   "devDependencies": {
-    "jest": "^30.2.0",
-    "jest-junit": "^16.0.0",
-    "jest-standard-reporter": "^2.0.0"
+    "jest": "30.2.0",
+    "jest-junit": "16.0.0",
+    "jest-standard-reporter": "2.0.0"
+  },
+  "peerDependencies": {
+    "ansi-regex": "6.2.2",
+    "ansi-styles": "6.2.3",
+    "debug": "4.4.1",
+    "is-arrayish": "0.3.4",
+    "strip-ansi": "7.1.2",
+    "wrap-ansi": "9.0.2"
   },
   "jest-junit": {
     "outputDirectory": "build/test-results/test",
     "outputName": "TEST-jest.xml"
   },
   "overrides": {
-    "js-yaml": "^3.14.2"
+    "js-yaml": "3.14.2"
   }
 }

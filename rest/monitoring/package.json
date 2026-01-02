@@ -16,19 +16,22 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "abort-controller": "^3.0.0",
-    "compression": "^1.8.1",
-    "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "extend": "^3.0.2",
-    "extensionless": "^2.0.5",
-    "lodash": "^4.17.21",
-    "log4js": "^6.9.1",
-    "mathjs": "^15.1.0",
-    "parse-duration": "^2.1.5",
-    "pretty-ms": "^9.3.0"
+    "abort-controller": "3.0.0",
+    "compression": "1.8.1",
+    "cors": "2.8.5",
+    "express": "5.2.1",
+    "extend": "3.0.2",
+    "extensionless": "2.0.6",
+    "lodash": "4.17.21",
+    "log4js": "6.9.1",
+    "mathjs": "15.1.0",
+    "parse-duration": "2.1.5",
+    "pretty-ms": "9.3.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "3.1.11"
+  },
+  "peerDependencies": {
+    "debug": "4.4.3"
   }
 }

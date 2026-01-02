@@ -281,7 +281,7 @@ tasks.register("release") {
         )
         replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
-            "tools/traffic-replay/log-downloader/package*.json",
+            "tools/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
         )
     }
