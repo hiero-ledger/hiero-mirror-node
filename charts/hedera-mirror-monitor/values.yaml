@@ -301,6 +301,20 @@ serviceMonitor:
 
 terminationGracePeriodSeconds: 60
 
+test:
+  annotations:
+    helm.sh/hook: test-success
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "30"
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    repository: postman/newman
+    tag: 6.1.3-alpine
+  postman: ""  # Custom postman.json in base64 encoding
+  priorityClassName: ""
+
 tolerations: []
 
 updateStrategy:

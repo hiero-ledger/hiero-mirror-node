@@ -26,7 +26,9 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
 
     private static final Mono<Health> UNKNOWN = health(Status.UNKNOWN, "Publishing is inactive");
     private static final Mono<Health> UP = health(Status.UP, "");
+    private static final Mono<Health> DOWN = health(Status.DOWN, "");
 
+    private final ReleaseHealthProperties releaseHealthProperties;
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
@@ -47,17 +49,18 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                         : Mono.just(health));
     }
 
-    // Returns unknown if all publish scenarios aggregated rate has dropped to zero, otherwise returns an empty flux
+    // Returns down or unknown if all publish scenarios aggregated rate has dropped to zero, otherwise returns an empty
+    // flux
     private Mono<Health> publishing() {
         return transactionGenerator
                 .scenarios()
                 .map(Scenario::getRate)
                 .reduce(0.0, (c, n) -> c + n)
                 .filter(sum -> sum <= 0)
-                .flatMap(n -> UNKNOWN);
+                .flatMap(n -> getHealthForZeroRate());
     }
 
-    // Returns up if any subscription is running and its rate is above zero, otherwise returns unknown
+    // Returns up if any subscription is running and its rate is above zero, otherwise returns down or unknown
     private Mono<Health> subscribing() {
         return mirrorSubscriber
                 .getSubscriptions()
@@ -65,7 +68,7 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                 .reduce(0.0, (cur, next) -> cur + next)
                 .filter(sum -> sum > 0)
                 .flatMap(n -> UP)
-                .switchIfEmpty(UNKNOWN);
+                .switchIfEmpty(getHealthForZeroRate());
     }
 
     private Mono<Health> restNetworkStakeHealth() {
@@ -97,5 +100,9 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
                     log.error(statusMessage);
                     return health(status, statusMessage);
                 });
+    }
+
+    private Mono<Health> getHealthForZeroRate() {
+        return releaseHealthProperties.isFailWhenInactive() ? DOWN : UNKNOWN;
     }
 }
