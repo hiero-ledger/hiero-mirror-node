@@ -45,8 +45,7 @@ import org.springframework.test.context.ContextConfiguration;
 @Tag("migration")
 class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
             alter table if exists transaction drop column if exists max_custom_fees;
             alter table if exists custom_fee rename column entity_id to token_id;
             alter table if exists custom_fee_history rename column entity_id to token_id;
@@ -234,24 +233,16 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             ps.setString(9, entity.getType().toString());
         };
 
-        jdbcOperations.batchUpdate(
-                """
+        jdbcOperations.batchUpdate("""
             insert into entity (created_timestamp, id, key, num, realm, shard, submit_key, timestamp_range, type)
             values (?, ?, ?, ?, ?, ?, ?, ?::int8range, ?::entity_type)
-            """,
-                currentEntities,
-                currentEntities.size(),
-                pss);
+            """, currentEntities, currentEntities.size(), pss);
 
         if (!historicalEntities.isEmpty()) {
-            jdbcOperations.batchUpdate(
-                    """
+            jdbcOperations.batchUpdate("""
             insert into entity_history (created_timestamp, id, key, num, realm, shard, submit_key, timestamp_range, type)
             values (?, ?, ?, ?, ?, ?, ?, ?::int8range, ?::entity_type)
-            """,
-                    historicalEntities,
-                    historicalEntities.size(),
-                    pss);
+            """, historicalEntities, historicalEntities.size(), pss);
         }
     }
 

@@ -134,16 +134,14 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
     private void balanceFileAdjustment() {
         final var jdbcOperations = jdbcOperationsProvider.getObject();
         // Adjusts the balance file's consensus timestamp by -1 for use when querying transfers.
-        String sql =
-                """
+        String sql = """
                         update account_balance_file set time_offset = -1
                         where consensus_timestamp in (:timestamps) and time_offset <> -1
                         """;
         int count = jdbcOperations.update(sql, new MapSqlParameterSource("timestamps", getTimestamps()));
 
         // Set the fixed time offset for account balance files in the applicable range
-        sql =
-                """
+        sql = """
                         update account_balance_file set time_offset = :fixedTimeOffset
                         where consensus_timestamp >= :firstTimestamp and consensus_timestamp <= :lastTimestamp
                         """;
@@ -164,8 +162,7 @@ public class ErrataMigration extends RepeatableMigration implements BalanceStrea
      * 1570120372315307000) have a corner case where the credit has the payer to be same as the receiver.
      */
     private void spuriousTransfers() {
-        String sql =
-                """
+        String sql = """
                         with spurious_transfer as (
                           update crypto_transfer ct
                           set errata = 'DELETE'

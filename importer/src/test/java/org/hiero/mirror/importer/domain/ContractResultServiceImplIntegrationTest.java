@@ -231,9 +231,7 @@ final class ContractResultServiceImplIntegrationTest extends ImporterIntegration
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             false, true, false
             true, true, false
             true, false, false

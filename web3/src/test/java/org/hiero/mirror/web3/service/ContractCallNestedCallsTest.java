@@ -39,9 +39,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     private static final String EXPECTED_RESULT_NEGATIVE_TESTS = "hardcodedResult";
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -98,9 +96,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -299,9 +295,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             true, false, false, true
                             false, false, true, false
                             true, true, false, true
@@ -345,9 +339,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             true, false, false, true
                             false, false, true, false
                             true, true, false, true

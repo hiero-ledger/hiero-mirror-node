@@ -110,9 +110,7 @@ final class ContractInitcodeServiceTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             0a0b0c0d, true
             '', false
             0a0b0c0d, true

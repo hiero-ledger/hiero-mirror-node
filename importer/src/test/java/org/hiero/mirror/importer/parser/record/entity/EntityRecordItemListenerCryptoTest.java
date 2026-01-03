@@ -329,9 +329,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             false, true
                             false, false
                             # clear cache after the first record file to test the scenario the evm address is looked up from db

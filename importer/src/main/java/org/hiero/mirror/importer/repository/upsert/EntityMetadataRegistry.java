@@ -121,8 +121,7 @@ public final class EntityMetadataRegistry {
      * Looks up column defaults in the information_schema.columns table.
      */
     private Map<String, InformationSchemaColumns> getColumnSchema(String tableName) {
-        String sql =
-                """
+        String sql = """
                 select distinct column_name, regexp_replace(column_default, '::.*', '') as column_default,
                 is_nullable = 'YES' as nullable from information_schema.columns
                 where table_name = ? and table_schema = ?

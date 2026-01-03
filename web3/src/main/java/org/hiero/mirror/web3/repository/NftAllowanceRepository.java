@@ -26,9 +26,7 @@ public interface NftAllowanceRepository extends CrudRepository<NftAllowance, Id>
      * @param blockTimestamp  the block timestamp used to filter the results.
      * @return List containing the nft allowances at the specified timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with nft_allowances as (
                         select *
                         from (
@@ -56,7 +54,6 @@ public interface NftAllowanceRepository extends CrudRepository<NftAllowance, Id>
                     select *
                     from nft_allowances
                     order by timestamp_range desc
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     List<NftAllowance> findByOwnerAndTimestampAndApprovedForAllIsTrue(long owner, long blockTimestamp);
 }

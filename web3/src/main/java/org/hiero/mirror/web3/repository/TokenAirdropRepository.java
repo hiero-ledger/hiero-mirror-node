@@ -15,9 +15,7 @@ import org.springframework.data.repository.CrudRepository;
 public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, AbstractTokenAirdrop.Id> {
 
     @Cacheable(cacheNames = CACHE_NAME_TOKEN_AIRDROP, cacheManager = CACHE_MANAGER_TOKEN, unless = "#result == null")
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     select *
                     from token_airdrop
                     where sender_account_id = :senderId
@@ -25,8 +23,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
                         and token_id = :tokenId
                         and serial_number = :serialNumber
                         and state = 'PENDING'
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<TokenAirdrop> findById(long senderId, long receiverId, long tokenId, long serialNumber);
 
     /**
@@ -41,9 +38,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
      * @return an Optional containing the token airdrop's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     select *
                     from (
                             (
@@ -72,8 +67,7 @@ public interface TokenAirdropRepository extends CrudRepository<TokenAirdrop, Abs
                     order by timestamp_range desc
                     limit 1
                     )
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<TokenAirdrop> findByIdAndTimestamp(
             long senderId, long receiverId, long tokenId, long serialNumber, long blockTimestamp);
 }

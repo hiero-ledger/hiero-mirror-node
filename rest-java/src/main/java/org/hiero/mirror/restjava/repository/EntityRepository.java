@@ -17,14 +17,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     @Query(value = "select id from entity where evm_address = ?1 and deleted <> true", nativeQuery = true)
     Optional<Long> findByEvmAddress(byte[] evmAddress);
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
         select cast(coalesce(sum(balance), 0) as bigint) as unreleasedSupply,
                coalesce(max(balance_timestamp), 0) as consensusTimestamp
         from entity
         where id in (:unreleasedSupplyAccounts)
-        """,
-            nativeQuery = true)
+        """, nativeQuery = true)
     NetworkSupply getSupply(Collection<Long> unreleasedSupplyAccounts);
 }

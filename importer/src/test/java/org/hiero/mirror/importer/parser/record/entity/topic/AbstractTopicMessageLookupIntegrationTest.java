@@ -24,16 +24,14 @@ public abstract class AbstractTopicMessageLookupIntegrationTest extends Importer
     protected static final Duration RECORD_FILE_INTERVAL = StreamType.RECORD.getFileCloseInterval();
 
     private static final String CHECK_TABLE_EXISTENCE = "select 'topic_message_plain'::regclass";
-    private static final String CREATE_DDL =
-            """
+    private static final String CREATE_DDL = """
                     alter table topic_message rename to topic_message_plain;
                     create table topic_message (like topic_message_plain including constraints, primary key (consensus_timestamp, topic_id)) partition by range (consensus_timestamp);
                     create table topic_message_default partition of topic_message default;
                     create table topic_message_00 partition of topic_message for values from ('1680000000000000000') to ('1682000000000000000');
                     create table topic_message_01 partition of topic_message for values from ('1682000000000000000') to ('1684000000000000000');
                     """;
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
                     drop table topic_message cascade;
                     alter table topic_message_plain rename to topic_message;
                     """;
