@@ -11,10 +11,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 class LongRangeConverterTest {
 
-    @CsvSource(
-            delimiterString = "#",
-            textBlock =
-                    """
+    @CsvSource(delimiterString = "#", textBlock = """
             1# true# 100# false# [1,100)
             1# true# 100# true# [1,100]
             1# true# # false# [1,)

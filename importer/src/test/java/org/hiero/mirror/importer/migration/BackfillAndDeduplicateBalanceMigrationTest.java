@@ -37,8 +37,7 @@ import org.springframework.util.StreamUtils;
 class BackfillAndDeduplicateBalanceMigrationTest
         extends AbstractAsyncJavaMigrationTest<BackfillAndDeduplicateBalanceMigration> {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
             create table account_balance_old (
               consensus_timestamp nanos_timestamp  not null,
               balance             hbar_tinybars    not null,
@@ -569,34 +568,26 @@ class BackfillAndDeduplicateBalanceMigrationTest
     }
 
     private void persistOldAccountBalances(Collection<AccountBalance> accountBalances) {
-        jdbcOperations.batchUpdate(
-                """
+        jdbcOperations.batchUpdate("""
                         insert into account_balance_old (account_id, balance, consensus_timestamp)
                         values (?, ?, ?)
-                        """,
-                accountBalances,
-                accountBalances.size(),
-                (ps, accountBalance) -> {
-                    ps.setLong(1, accountBalance.getId().getAccountId().getId());
-                    ps.setLong(2, accountBalance.getBalance());
-                    ps.setLong(3, accountBalance.getId().getConsensusTimestamp());
-                });
+                        """, accountBalances, accountBalances.size(), (ps, accountBalance) -> {
+            ps.setLong(1, accountBalance.getId().getAccountId().getId());
+            ps.setLong(2, accountBalance.getBalance());
+            ps.setLong(3, accountBalance.getId().getConsensusTimestamp());
+        });
     }
 
     private void persistOldTokenBalances(Collection<TokenBalance> tokenBalances) {
-        jdbcOperations.batchUpdate(
-                """
+        jdbcOperations.batchUpdate("""
                         insert into token_balance_old (account_id, balance, consensus_timestamp, token_id)
                         values (?, ?, ?, ?)
-                        """,
-                tokenBalances,
-                tokenBalances.size(),
-                (ps, tokenBalance) -> {
-                    ps.setLong(1, tokenBalance.getId().getAccountId().getId());
-                    ps.setLong(2, tokenBalance.getBalance());
-                    ps.setLong(3, tokenBalance.getId().getConsensusTimestamp());
-                    ps.setLong(4, tokenBalance.getId().getTokenId().getId());
-                });
+                        """, tokenBalances, tokenBalances.size(), (ps, tokenBalance) -> {
+            ps.setLong(1, tokenBalance.getId().getAccountId().getId());
+            ps.setLong(2, tokenBalance.getBalance());
+            ps.setLong(3, tokenBalance.getId().getConsensusTimestamp());
+            ps.setLong(4, tokenBalance.getId().getTokenId().getId());
+        });
     }
 
     private void setSentinelTimestamp(long timestamp) {

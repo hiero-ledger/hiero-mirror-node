@@ -16,10 +16,7 @@ public interface AccountBalanceRepository
 
     @Modifying
     @Override
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
         insert into account_balance (account_id, balance, consensus_timestamp)
         select id, balance, :consensusTimestamp
         from entity
@@ -36,10 +33,7 @@ public interface AccountBalanceRepository
 
     @Override
     @Modifying
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
         insert into account_balance (account_id, balance, consensus_timestamp)
         select id, balance, :consensusTimestamp
         from entity
@@ -52,10 +46,7 @@ public interface AccountBalanceRepository
     @Transactional
     int balanceSnapshotDeduplicate(long minConsensusTimestamp, long consensusTimestamp, long treasuryAccountId);
 
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
           select max(consensus_timestamp) as consensus_timestamp
           from account_balance
           where account_id = :treasuryAccountId and consensus_timestamp >= :lowerRangeTimestamp

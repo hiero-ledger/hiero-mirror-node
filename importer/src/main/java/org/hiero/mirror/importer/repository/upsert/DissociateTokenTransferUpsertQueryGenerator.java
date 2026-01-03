@@ -11,8 +11,7 @@ public class DissociateTokenTransferUpsertQueryGenerator implements UpsertQueryG
     private static final String FINAL_TABLE_NAME = "token_transfer";
     private static final String TEMP_TABLE_NAME = "dissociate_token_transfer";
 
-    private static final String INSERT_SQL = MessageFormat.format(
-            """
+    private static final String INSERT_SQL = MessageFormat.format("""
                     with nft_history as (
                       insert into nft_history (account_id, created_timestamp, delegating_spender, deleted, metadata,
                         serial_number, spender, token_id, timestamp_range)
@@ -62,8 +61,7 @@ public class DissociateTokenTransferUpsertQueryGenerator implements UpsertQueryG
                     from {0} tdt
                     left join nft_token nt on nt.token_id = tdt.token_id
                     where nt.token_id is null
-                    """,
-            TEMP_TABLE_NAME, FINAL_TABLE_NAME);
+                    """, TEMP_TABLE_NAME, FINAL_TABLE_NAME);
 
     @Override
     public String getFinalTableName() {

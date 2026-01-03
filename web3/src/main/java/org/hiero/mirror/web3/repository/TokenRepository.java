@@ -21,14 +21,11 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
     Optional<Token> findById(Long tokenId);
 
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_TOKEN_TYPE, unless = "#result == null")
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select t.type
             from token t
             where token_id = ?1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<TokenTypeEnum> findTypeByTokenId(Long tokenId);
 
     /**
@@ -44,9 +41,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
      * @return an Optional containing the token's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     (
                         select *
                         from token
@@ -62,8 +57,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                     )
                     order by timestamp_range desc
                     limit 1
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<Token> findByTokenIdAndTimestamp(long tokenId, long blockTimestamp);
 
     /**
@@ -75,9 +69,7 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
      * @param blockTimestamp  the block timestamp used to filter the results.
      * @return the token's total supply at the specified timestamp.
      * */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with snapshot_timestamp as (
                       select consensus_timestamp
                       from account_balance
@@ -103,7 +95,6 @@ public interface TokenRepository extends CrudRepository<Token, Long> {
                         consensus_timestamp > ?2 - 2678400000000000
                     )
                     select coalesce((select sum(balance) from snapshot), 0) + coalesce((select sum(amount) from change), 0)
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     long findFungibleTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp, long treasuryAccountId);
 }

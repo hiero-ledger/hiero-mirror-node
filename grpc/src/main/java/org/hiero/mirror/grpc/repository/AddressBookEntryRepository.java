@@ -17,9 +17,7 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
             cacheManager = ADDRESS_BOOK_ENTRY_CACHE,
             cacheNames = CACHE_NAME,
             unless = "#result == null or #result.size() == 0")
-    @Query(
-            value =
-                    """
+    @Query(value = """
         select abe.consensus_timestamp,
                abe.description,
                abe.memo,
@@ -34,7 +32,6 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
           and abe.node_id >= ?
         order by abe.node_id asc
         limit ?
-        """,
-            nativeQuery = true)
+        """, nativeQuery = true)
     List<AddressBookEntry> findByConsensusTimestampAndNodeId(long consensusTimestamp, long nodeId, int limit);
 }

@@ -13,9 +13,7 @@ import org.springframework.data.repository.CrudRepository;
 public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
 
     @Modifying
-    @Query(
-            value =
-                    """
+    @Query(value = """
             with nft_history as (
               insert into nft_history (account_id, created_timestamp, delegating_spender, deleted, metadata,
                 serial_number, spender, token_id, timestamp_range)
@@ -49,7 +47,6 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                   balance_timestamp = :consensusTimestamp
             from updated_count
             where account_id in (:newTreasury, :previousTreasury) and token_id = :tokenId
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     void updateTreasury(long consensusTimestamp, long newTreasury, long previousTreasury, long tokenId);
 }

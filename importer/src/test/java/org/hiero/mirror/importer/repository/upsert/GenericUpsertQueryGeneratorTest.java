@@ -42,8 +42,7 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
 
     @Test
     void getCustomFeeUpsertQueryHistory() {
-        var sql =
-                """
+        var sql = """
                 with non_history as (
                   select
                     e.entity_id as e_entity_id,
@@ -171,8 +170,7 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
 
     @Test
     void getUpsertQueryHistory() {
-        var sql =
-                """
+        var sql = """
                         with non_history as (
                           select
                             e.alias as e_alias,
@@ -627,8 +625,7 @@ class GenericUpsertQueryGeneratorTest extends ImporterIntegrationTest {
 
     @Test
     void getUpsertQueryNoHistory() {
-        var sql =
-                """
+        var sql = """
                 with existing as (
                   select
                     e.consensus_timestamp as e_consensus_timestamp,

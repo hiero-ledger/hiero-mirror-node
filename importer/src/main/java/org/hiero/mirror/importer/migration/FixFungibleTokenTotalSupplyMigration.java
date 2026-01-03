@@ -16,8 +16,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 @Named
 public class FixFungibleTokenTotalSupplyMigration extends RepeatableMigration {
 
-    private static final String SQL =
-            """
+    private static final String SQL = """
             with last as (
               select max(consensus_end) as consensus_end from record_file
             ), snapshot_timestamp as (

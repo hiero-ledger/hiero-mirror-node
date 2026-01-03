@@ -53,8 +53,7 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
                 .addValue("description", TEST_MIGRATION_DESCRIPTION)
                 .addValue("script", migrationHistory.script())
                 .addValue("checksum", migrationHistory.checksum());
-        var sql =
-                """
+        var sql = """
                 insert into flyway_schema_history (installed_rank, description, type, script, checksum,
                 installed_by, execution_time, success) values (:installedRank, :description, 'JDBC', :script,
                 :checksum, 20, 100, true)
@@ -63,14 +62,11 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
     }
 
     protected List<AsyncJavaMigrationBaseTest.MigrationHistory> getAllMigrationHistory() {
-        return namedParameterJdbcOperations.query(
-                """
+        return namedParameterJdbcOperations.query("""
                         select installed_rank, checksum, execution_time, script
                         from flyway_schema_history
                         where description = :description
-                        order by installed_rank asc""",
-                Map.of("description", TEST_MIGRATION_DESCRIPTION),
-                MAPPER);
+                        order by installed_rank asc""", Map.of("description", TEST_MIGRATION_DESCRIPTION), MAPPER);
     }
 
     protected record MigrationHistory(Integer checksum, int executionTime, int installedRank, String script) {}

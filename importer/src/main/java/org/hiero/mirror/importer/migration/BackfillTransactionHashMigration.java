@@ -32,8 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 public class BackfillTransactionHashMigration extends RepeatableMigration {
 
-    private static final String BACKFILL_ETHEREUM_TRANSACTION_HASH_SQL =
-            """
+    private static final String BACKFILL_ETHEREUM_TRANSACTION_HASH_SQL = """
             insert into %s (consensus_timestamp, hash, hash_suffix, payer_account_id)
             select
               consensus_timestamp,
@@ -47,8 +46,7 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
             from %%s
             where length(hash) > 0 and consensus_timestamp >= :startTimestamp and consensus_timestamp < :endTimestamp;
             """;
-    private static final String BACKFILL_TRANSACTION_HASH_SQL =
-            """
+    private static final String BACKFILL_TRANSACTION_HASH_SQL = """
             insert into %s (consensus_timestamp, hash, hash_suffix, payer_account_id)
             select
               consensus_timestamp,
@@ -63,18 +61,15 @@ public class BackfillTransactionHashMigration extends RepeatableMigration {
             where consensus_timestamp >= :startTimestamp and consensus_timestamp < :endTimestamp %s;
             """;
     // Copying data between distributed tables without co-location can be very slow with citus, thus use a temp table
-    private static final String CREATE_TEMP_TABLE_SQL =
-            """
+    private static final String CREATE_TEMP_TABLE_SQL = """
             create temp table transaction_hash_backfill_temp on commit drop as table transaction_hash limit 0;
             """;
     private static final String END_TIMESTAMP_KEY = "endTimestamp";
     private static final String ETHEREUM_TRANSACTION_TABLE_NAME = "ethereum_transaction";
-    private static final String GET_END_CONSENSUS_TIMESTAMP_SQL =
-            """
+    private static final String GET_END_CONSENSUS_TIMESTAMP_SQL = """
             select coalesce(max(consensus_timestamp) + 1, 0) from transaction;
             """;
-    private static final String INSERT_INTO_FINAL_TABLE_SQL =
-            """
+    private static final String INSERT_INTO_FINAL_TABLE_SQL = """
             insert into transaction_hash
             select * from transaction_hash_backfill_temp;
             """;

@@ -18,8 +18,7 @@ public class FixStakedBeforeEnabledMigration extends AbstractJavaMigration {
 
     static final Long LAST_HAPI_26_RECORD_FILE_CONSENSUS_END_MAINNET = 1658419200981687000L;
 
-    private static final String MIGRATION_SQL =
-            """
+    private static final String MIGRATION_SQL = """
                     --- The migration fixes the staking settings for accounts started to stake to a node before 0.27.x release.
                     with last_26_file as (
                       select index from record_file where consensus_end = :consensusEnd

@@ -10,8 +10,7 @@ import org.hiero.mirror.rest.model.NftAllowancesResponse;
 import org.junit.jupiter.api.Test;
 
 class NftAllowanceModelTest {
-    String allowanceResponse =
-            """
+    String allowanceResponse = """
             {
               "allowances": [
                 {

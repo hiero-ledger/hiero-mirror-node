@@ -18,9 +18,7 @@ import org.springframework.test.context.ContextConfiguration;
 class AsyncJavaMigrationPreFixTest extends AsyncJavaMigrationBaseTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             , , -1
             , -1, -2
             , 1, 1

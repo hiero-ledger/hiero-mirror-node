@@ -754,9 +754,7 @@ class ContractCallServicePrecompileHistoricalTest extends AbstractContractCallSe
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, ADMIN_KEY, 50
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, ADMIN_KEY, 49
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, KYC_KEY, 50

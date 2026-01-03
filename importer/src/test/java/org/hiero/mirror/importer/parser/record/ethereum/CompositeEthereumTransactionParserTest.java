@@ -107,9 +107,7 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             true, true
             false, true
             true, false

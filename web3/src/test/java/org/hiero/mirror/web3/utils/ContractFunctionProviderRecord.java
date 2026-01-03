@@ -9,7 +9,11 @@ import org.hyperledger.besu.datatypes.Address;
 
 @Builder
 public record ContractFunctionProviderRecord(
-        Address contractAddress, Address sender, long value, String expectedErrorMessage, @With BlockType block) {
+        Address contractAddress,
+        Address sender,
+        long value,
+        String expectedErrorMessage,
+        @With BlockType block) {
 
     public static ContractFunctionProviderRecordBuilder builder() {
         return new ContractFunctionProviderRecordBuilder()

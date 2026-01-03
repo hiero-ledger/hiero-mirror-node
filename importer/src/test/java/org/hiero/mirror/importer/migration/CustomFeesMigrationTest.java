@@ -50,8 +50,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = {"spring.flyway.target=1.85.1"})
 class CustomFeesMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
             drop table if exists custom_fee;
             drop table if exists custom_fee_history;
             create table custom_fee (

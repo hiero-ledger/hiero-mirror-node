@@ -23,8 +23,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 @NoArgsConstructor
 @Upsertable
 public class HookStorage {
-    private static final String CREATED_TS_COALESCE =
-            """
+    private static final String CREATED_TS_COALESCE = """
                     case when coalesce(e_deleted, true) then abs(created_timestamp)
                          when created_timestamp < 0 then abs(created_timestamp)
                          else e_created_timestamp

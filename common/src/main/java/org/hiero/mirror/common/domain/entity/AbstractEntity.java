@@ -46,9 +46,7 @@ public abstract class AbstractEntity implements History {
 
     private Long autoRenewPeriod;
 
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
                             case when coalesce(e_type, type) in (''ACCOUNT'', ''CONTRACT'') then coalesce(e_{0}, 0) + coalesce({0}, 0)
                                  when e_{0} is not null then e_{0} + coalesce({0}, 0)
                             end""")
@@ -63,9 +61,7 @@ public abstract class AbstractEntity implements History {
 
     private Boolean deleted;
 
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
                             case when coalesce(e_type, type) = ''ACCOUNT'' then coalesce({0}, e_{0}, {1})
                                  else coalesce({0}, e_{0})
                             end""")
@@ -97,9 +93,7 @@ public abstract class AbstractEntity implements History {
     private EntityId proxyAccountId;
 
     @ToString.Exclude
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
                             case when {0} is not null and length({0}) = 0 then null
                                  else coalesce({0}, e_{0}, null)
                             end""")

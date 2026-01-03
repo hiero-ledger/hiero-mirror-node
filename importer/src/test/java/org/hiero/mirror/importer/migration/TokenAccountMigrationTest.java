@@ -34,8 +34,7 @@ import org.springframework.test.context.TestPropertySource;
 @DisableRepeatableSqlMigration
 class TokenAccountMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_SQL =
-            """
+    private static final String REVERT_SQL = """
             drop table if exists token_account;
             drop table if exists token_account_history;
             create table token_account (

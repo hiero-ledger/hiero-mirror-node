@@ -30,13 +30,11 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true)
 public abstract class AbstractHook implements History {
 
-    private static final String UPSERTABLE_COLUMN_COALESCE =
-            """
+    private static final String UPSERTABLE_COLUMN_COALESCE = """
                     case when created_timestamp = lower(timestamp_range) then {0}
                          else coalesce({0}, e_{0})
                     end""";
-    private static final String UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE =
-            """
+    private static final String UPSERTABLE_COLUMN_WITH_DEFAULT_COALESCE = """
                     case when created_timestamp = lower(timestamp_range) then coalesce({0}, {1})
                          else coalesce({0}, e_{0}, {1})
                     end""";

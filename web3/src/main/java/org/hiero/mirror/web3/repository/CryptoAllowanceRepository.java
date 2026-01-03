@@ -21,9 +21,7 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
      * @return a list containing the crypto allowances' states for the specified owner at the specified timestamp.
      *         If there is no record found for the given criteria, an empty list is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with crypto_allowances as (
                         select *
                         from
@@ -67,7 +65,6 @@ public interface CryptoAllowanceRepository extends CrudRepository<CryptoAllowanc
                         from crypto_allowances ca
                     ) result
                     where amount > 0
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     List<CryptoAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

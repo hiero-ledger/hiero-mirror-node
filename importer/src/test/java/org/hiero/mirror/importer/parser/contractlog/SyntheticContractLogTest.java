@@ -13,9 +13,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class SyntheticContractLogTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             0.0.0, ''
             0.0.3, 03
             0.10.3, 03
@@ -28,9 +26,7 @@ class SyntheticContractLogTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             0, ''
             128, 80
             9223372036854775807, 7fffffffffffffff

@@ -44,8 +44,7 @@ import org.springframework.transaction.support.TransactionOperations;
 public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
 
     private static final int BATCH_SIZE = 10_000;
-    private static final String GET_SHARD_COUNT_SQL =
-            """
+    private static final String GET_SHARD_COUNT_SQL = """
             select shardid as shard_id, result as count
             from run_command_on_shards(
               '%s',
@@ -55,14 +54,12 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
               where relname::text = '%%s'
               $cmd$)
             """;
-    private static final String GET_TOPIC_SHARD_SQL =
-            """
+    private static final String GET_TOPIC_SHARD_SQL = """
             select id as topic_id, get_shard_id_for_distribution_column('topic_message', id) as shard_id
             from entity
             where type = 'TOPIC'
             """;
-    private static final String GET_TOPIC_STAT_SQL =
-            """
+    private static final String GET_TOPIC_STAT_SQL = """
             select jsonb_object_agg(shardid, result::jsonb)
             from run_command_on_shards(
               '%s',
@@ -78,8 +75,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
               from most_common_topic
               $cmd$)
             """;
-    private static final String INSERT_BATCH_TOPIC_MESSAGE_LOOKUP_SQL =
-            """
+    private static final String INSERT_BATCH_TOPIC_MESSAGE_LOOKUP_SQL = """
             with sequence_number as (
               select
                 int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
@@ -104,8 +100,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
             from sequence_number as sn
             join timestamp as ts using (topic_id)
             """;
-    private static final String INSERT_SINGLE_TOPIC_MESSAGE_LOOKUP_SQL =
-            """
+    private static final String INSERT_SINGLE_TOPIC_MESSAGE_LOOKUP_SQL = """
             with lookup as (
               select
                 int8range(min(sequence_number), max(sequence_number), '[]') as sequence_number_range,
@@ -122,8 +117,7 @@ public class TopicMessageLookupMigration extends AsyncJavaMigration<String> {
             from lookup
             where sequence_number_range <> '(,)'::int8range
             """;
-    private static final String PARTITION_NEEDS_MIGRATION_SQL =
-            """
+    private static final String PARTITION_NEEDS_MIGRATION_SQL = """
             select
               not exists(select 1 from topic_message_lookup where partition = ? limit 1) and
               exists(select 1 from %s limit 1)

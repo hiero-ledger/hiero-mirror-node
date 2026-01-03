@@ -32,21 +32,18 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
     // Earliest consensus timestamp to consider
     private static final long LOWER_TIMESTAMP = 1733961600000000000L;
 
-    private static final String DROP_DATA_SQL =
-            """
+    private static final String DROP_DATA_SQL = """
             truncate node;
             truncate node_history;
             """;
-    private static final String NODE_TRANSACTIONS_SQL =
-            """
+    private static final String NODE_TRANSACTIONS_SQL = """
             select consensus_timestamp, transaction_bytes, transaction_record_bytes
             from transaction
             where consensus_timestamp >= ? and type in (54, 55, 56)
             order by consensus_timestamp asc;
             """;
 
-    private static final String INSERT_SQL =
-            """
+    private static final String INSERT_SQL = """
             insert into %s (node_id, created_timestamp, deleted, admin_key, timestamp_range)
             values (?, ?, ?, ?, ?::int8range);
             """;

@@ -43,8 +43,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = "spring.flyway.target=1.93.2")
 class UpdateTokenFreezeKycStatusMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
                     alter table if exists token
                       drop column freeze_status,
                       drop column kyc_status;
@@ -155,13 +154,11 @@ class UpdateTokenFreezeKycStatusMigrationTest extends ImporterIntegrationTest {
     }
 
     private void persistMigrationTokens(Collection<MigrationToken> migrationTokens, boolean current) {
-        var sql = String.format(
-                """
+        var sql = String.format("""
                         insert into %s (created_timestamp, decimals, freeze_default, freeze_key, initial_supply, kyc_key,
                           max_supply, name, symbol, timestamp_range, token_id, treasury_account_id)
                         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?::int8range, ?, ?)
-                        """,
-                current ? "token" : "token_history");
+                        """, current ? "token" : "token_history");
         jdbcOperations.batchUpdate(sql, migrationTokens, migrationTokens.size(), (ps, token) -> {
             ps.setLong(1, token.getCreatedTimestamp());
             ps.setInt(2, token.getDecimals());

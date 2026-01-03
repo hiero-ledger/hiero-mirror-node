@@ -19,8 +19,7 @@ abstract class AbstractAsyncJavaMigrationTest<T extends AsyncJavaMigration<?>> e
     private static final String RESET_CHECKSUM_SQL =
             "update flyway_schema_history set checksum = -1 where description = ?";
 
-    private static final String SELECT_LAST_CHECKSUM_SQL =
-            """
+    private static final String SELECT_LAST_CHECKSUM_SQL = """
             select (
               select checksum from flyway_schema_history
               where description = ?

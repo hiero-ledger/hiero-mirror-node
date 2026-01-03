@@ -21,10 +21,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 class GraphQlUtilsTest {
 
-    @CsvSource(
-            nullValues = "null",
-            textBlock =
-                    """
+    @CsvSource(nullValues = "null", textBlock = """
               null,     1,                         1
               HBAR,     null,                      null
               TINYBAR,  1,                         1
@@ -89,9 +86,7 @@ class GraphQlUtilsTest {
         assertThat(decodedAlias).isEqualTo(alias == null ? null : alias.getBytes());
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
              '', 0, 0
              0000000000000000000000000000000000000001, 20, 1
              0000000000000000000000000000000000FAfAfA, 20, 16448250

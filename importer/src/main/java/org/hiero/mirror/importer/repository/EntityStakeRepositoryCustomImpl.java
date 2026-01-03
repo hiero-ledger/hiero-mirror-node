@@ -18,14 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
 
-    private static final String CLEANUP_TABLE_SQL =
-            """
+    private static final String CLEANUP_TABLE_SQL = """
             drop index if exists entity_state_start__id;
             drop index if exists entity_state_start__staked_account_id;
             truncate entity_state_start;
             """;
-    private static final String CREATE_ENTITY_STATE_START_SQL =
-            """
+    private static final String CREATE_ENTITY_STATE_START_SQL = """
             with entity_state as (
               select
                 id,
@@ -79,14 +77,12 @@ class EntityStakeRepositoryCustomImpl implements EntityStakeRepositoryCustom {
               group by entity_id
             ) as balance_change on entity_id = id;
             """;
-    private static final String CREATE_TABLE_INDEX_DDL =
-            """
+    private static final String CREATE_TABLE_INDEX_DDL = """
             create index if not exists entity_state_start__id on entity_state_start (id);
             create index if not exists entity_state_start__staked_account_id
               on entity_state_start (staked_account_id) where staked_account_id <> 0;
             """;
-    private static final String GET_END_PERIOD_TIMESTAMP_SQL =
-            """
+    private static final String GET_END_PERIOD_TIMESTAMP_SQL = """
             select consensus_timestamp
             from node_stake
             where epoch_day >= coalesce(

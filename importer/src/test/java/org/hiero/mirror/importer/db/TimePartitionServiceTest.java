@@ -40,8 +40,7 @@ class TimePartitionServiceTest extends ImporterIntegrationTest {
                     .timestampRange(Range.closedOpen(3000000000L, 4000000000L))
                     .build());
 
-    private static final String CREATE_TABLE_DDL =
-            """
+    private static final String CREATE_TABLE_DDL = """
             create table event (name text not null, timestamp bigint not null) partition by range (timestamp);
             create table event_default partition of event default;
             create table event_00 partition of event for values from ('1000000000') to ('2000000000');
@@ -53,8 +52,7 @@ class TimePartitionServiceTest extends ImporterIntegrationTest {
             create table location_01 partition of location for values from ('H') to ('O');
             create table not_partitioned (id integer not null);
             """;
-    private static final String DROP_TABLE_DDL =
-            """
+    private static final String DROP_TABLE_DDL = """
             drop table event cascade;
             drop table location cascade;
             drop table not_partitioned;

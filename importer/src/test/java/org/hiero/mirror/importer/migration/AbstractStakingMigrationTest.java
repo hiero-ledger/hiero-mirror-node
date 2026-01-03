@@ -64,23 +64,19 @@ abstract class AbstractStakingMigrationTest extends RecordFileMigrationTest {
     }
 
     protected void persistEntityStakes(MigrationEntityStake... entityStakes) {
-        jdbcOperations.batchUpdate(
-                """
+        jdbcOperations.batchUpdate("""
                         insert into entity_stake (decline_reward_start, end_stake_period, id, pending_reward,
                           staked_node_id_start, staked_to_me, stake_total_start)
                           values (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                Arrays.asList(entityStakes),
-                entityStakes.length,
-                (ps, entityStake) -> {
-                    ps.setBoolean(1, entityStake.isDeclineRewardStart());
-                    ps.setLong(2, entityStake.getEndStakePeriod());
-                    ps.setLong(3, entityStake.getId());
-                    ps.setLong(4, entityStake.getPendingReward());
-                    ps.setLong(5, entityStake.getStakedNodeIdStart());
-                    ps.setLong(6, entityStake.getStakedToMe());
-                    ps.setLong(7, entityStake.getStakeTotalStart());
-                });
+                        """, Arrays.asList(entityStakes), entityStakes.length, (ps, entityStake) -> {
+            ps.setBoolean(1, entityStake.isDeclineRewardStart());
+            ps.setLong(2, entityStake.getEndStakePeriod());
+            ps.setLong(3, entityStake.getId());
+            ps.setLong(4, entityStake.getPendingReward());
+            ps.setLong(5, entityStake.getStakedNodeIdStart());
+            ps.setLong(6, entityStake.getStakedToMe());
+            ps.setLong(7, entityStake.getStakeTotalStart());
+        });
     }
 
     @AllArgsConstructor

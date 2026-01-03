@@ -32,9 +32,7 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
      * @return an Optional containing the token allowance state at the specified timestamp.
      * If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with token_allowances as (
                         select *
                         from (
@@ -125,8 +123,7 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
                     ) result
                     where amount > 0
                     limit 1
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<TokenAllowance> findByOwnerSpenderTokenAndTimestamp(
             long owner, long spender, long tokenId, long blockTimestamp);
 
@@ -142,9 +139,7 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
      * @return a list containing the token allowances' states for the specified owner at the specified timestamp.
      *         If there is no record found for the given criteria, an empty list is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with token_allowances as (
                       select *
                       from token_allowance_history
@@ -197,7 +192,6 @@ public interface TokenAllowanceRepository extends CrudRepository<TokenAllowance,
                     ) result
                     where amount > 0
                     order by spender,token_id
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     List<TokenAllowance> findByOwnerAndTimestamp(long owner, long blockTimestamp);
 }

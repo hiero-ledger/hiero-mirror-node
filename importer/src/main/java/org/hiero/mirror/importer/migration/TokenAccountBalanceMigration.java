@@ -15,8 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 public class TokenAccountBalanceMigration extends AbstractTimestampInfoMigration {
 
-    private static final String UPDATE_TOKEN_ACCOUNT_SQL =
-            """
+    private static final String UPDATE_TOKEN_ACCOUNT_SQL = """
             with token_balance_snapshot as (
               select distinct on (account_id, token_id) *
               from token_balance

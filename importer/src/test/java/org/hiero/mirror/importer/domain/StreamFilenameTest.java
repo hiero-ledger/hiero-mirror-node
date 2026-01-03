@@ -217,9 +217,7 @@ final class StreamFilenameTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             accountBalances/balance0.0.3/2020-06-03T16_45_00.100200345Z_Balances.csv_sig, false
             recordstreams/record0.0.5/2020-06-03T16_45_00.100200345Z.rcd_sig, false
             mainnet/0/0/balance/2020-06-03T16_45_00.100200345Z_Balances.csv_sig, true

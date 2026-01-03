@@ -36,8 +36,7 @@ class FixAllowanceAmountsMigrationTest extends ImporterIntegrationTest {
 
     private static final EntityId PAYER = EntityId.of("0.0.1001");
 
-    private static final String PRE_MIGRATION_ALLOWANCES =
-            """
+    private static final String PRE_MIGRATION_ALLOWANCES = """
                     insert into crypto_allowance (amount, owner, payer_account_id, spender, timestamp_range)
                       values (50, 2, 1001, 5, '[10,)'), (0, 2, 1001, 6, '[11,)');
                     insert into crypto_allowance_history (amount, owner, payer_account_id, spender, timestamp_range)
@@ -48,8 +47,7 @@ class FixAllowanceAmountsMigrationTest extends ImporterIntegrationTest {
                       values (10, 2, 1001, 5, '[1,2)', 101), (20, 2, 1001, 5, '[2,4)', 101);
                     """;
 
-    private static final String PRE_MIGRATION_TOKEN_TRANSFERS =
-            """
+    private static final String PRE_MIGRATION_TOKEN_TRANSFERS = """
                     insert into token_transfer (account_id, amount, consensus_timestamp, is_approval, payer_account_id, token_id)
                     values
                       (2, -10, 2, true, 5, 101), -- older than current grant
@@ -60,8 +58,7 @@ class FixAllowanceAmountsMigrationTest extends ImporterIntegrationTest {
                       (2, -200, 17, true, 22, 102); -- some other spender
                     """;
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
                     alter table crypto_allowance drop column amount;
                     alter table crypto_allowance rename column amount_granted to amount;
                     alter table crypto_allowance_history drop column amount;

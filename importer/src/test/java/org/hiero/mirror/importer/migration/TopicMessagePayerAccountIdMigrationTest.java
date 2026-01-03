@@ -115,8 +115,7 @@ class TopicMessagePayerAccountIdMigrationTest extends ImporterIntegrationTest {
     }
 
     private void revertMigration() {
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
                                     truncate topic_message;
                                     truncate transaction;
                                     alter table topic_message alter column payer_account_id drop not null;

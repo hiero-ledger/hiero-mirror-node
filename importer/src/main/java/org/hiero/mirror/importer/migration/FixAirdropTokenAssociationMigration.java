@@ -49,15 +49,13 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
     private static final String TOKEN_ID = "tokenId";
     private static final String TIMESTAMP = "timestamp";
 
-    private static final String GET_BALANCE_SNAPSHOT_TIMESTAMPS_SQL =
-            """
+    private static final String GET_BALANCE_SNAPSHOT_TIMESTAMPS_SQL = """
             select consensus_timestamp
             from account_balance
             where account_id = 2 and consensus_timestamp >= :timestamp
             order by consensus_timestamp
             """;
-    private static final String GET_CLAIMED_AIRDROPS_SQL =
-            """
+    private static final String GET_CLAIMED_AIRDROPS_SQL = """
             select
               receiver_account_id as account_id,
               lower(timestamp_range) as consensus_timestamp,
@@ -79,8 +77,7 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
             group by account_id, amount, consensus_timestamp, token_id
             order by consensus_timestamp
             """;
-    private static final String GET_FUNGIBLE_TOKEN_BALANCE_CHANGE_SQL =
-            """
+    private static final String GET_FUNGIBLE_TOKEN_BALANCE_CHANGE_SQL = """
             select sum(amount) as change, max(consensus_timestamp) as consensus_timestamp
             from token_transfer
             where account_id = :accountId
@@ -89,8 +86,7 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
               and consensus_timestamp <= :to
             group by account_id, token_id
             """;
-    private static final String GET_TOKEN_ACCOUNT_VALID_TO_TIMESTAMP_SQL =
-            """
+    private static final String GET_TOKEN_ACCOUNT_VALID_TO_TIMESTAMP_SQL = """
             select consensus_timestamp - 1
             from (
               (
@@ -118,8 +114,7 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
             order by consensus_timestamp
             limit 1
             """;
-    private static final String GET_NFT_TRANSFERS_SQL =
-            """
+    private static final String GET_NFT_TRANSFERS_SQL = """
             with nft_transfer as (
               select consensus_timestamp, jsonb_array_elements(nft_transfer) as transfer
               from transaction
@@ -137,14 +132,12 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
             from nft_transfer
             order by consensus_timestamp
             """;
-    private static final String INSERT_TOKEN_BALANCE_SQL =
-            """
+    private static final String INSERT_TOKEN_BALANCE_SQL = """
             insert into token_balance (account_id, balance, consensus_timestamp, token_id)
             values (?, ?, ?, ?)
             on conflict do nothing
             """;
-    private static final String IS_TOKEN_ACCOUNT_MISSING_SQL =
-            """
+    private static final String IS_TOKEN_ACCOUNT_MISSING_SQL = """
             select not exists((
               select * from token_account
               where account_id = :accountId
@@ -164,8 +157,7 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
     // Patches token_account and token_account_history tables with the missing token account association, handles cases
     // that if a previous token_account(_history) row needs to be adjusted / moved, and / or the new row needs to be
     // adjusted then upserted to token_account or appended to token_account_history
-    private static final String PATCH_TOKEN_ACCOUNT_SQL =
-            """
+    private static final String PATCH_TOKEN_ACCOUNT_SQL = """
             with token_account as (
               select *
               from (

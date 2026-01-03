@@ -24,10 +24,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
     private final AccountMapper accountMapper;
     private final HttpGraphQlTester tester;
 
-    @CsvSource(
-            delimiter = '|',
-            textBlock =
-                    """
+    @CsvSource(delimiter = '|', textBlock = """
               query { account { id }}                                                                    | Missing field argument 'input'
               query { account(input: {}) { id }}                                                         | Must provide exactly one input value
               query { account(input: {alias: ""}) { id }}                                                | alias must match
@@ -54,9 +51,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
                 .contains(error));
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             query { account(input: {entityId: {num: 999}}) { id }}
             query { account(input: {evmAddress: \"9999999999999999999999999999999999999999\"}) { id }}
             query { account(input: {alias: \"ABCDEFGHIJKLMNOPQABCDEFGHIJKLMNOPQ\"}) { id }}
@@ -69,8 +64,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
     @Test
     void success() {
         var entity = domainBuilder.entity().persist();
-        tester.document(
-                        """
+        tester.document("""
                         query Account($realm: Long!,$shard: Long!,$num: Long!) {
                           account(input: { entityId: {realm: $realm, shard: $shard, num: $num} }) {
                             alias
@@ -106,10 +100,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
                 .satisfies(a -> assertThat(a).usingRecursiveComparison().isEqualTo(accountMapper.map(entity)));
     }
 
-    @CsvSource(
-            delimiter = '|',
-            textBlock =
-                    """
+    @CsvSource(delimiter = '|', textBlock = """
             false | false
             false | true
             true  | false
@@ -125,8 +116,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
         if (prefix) {
             evmAddress = "0x" + evmAddress;
         }
-        tester.document(
-                        """
+        tester.document("""
                         query Account($evmAddress: String!) {
                           account(input: { evmAddress: $evmAddress }) {
                             alias
@@ -164,8 +154,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
     void successByAlias() {
         var entity = domainBuilder.entity().persist();
         var alias = new Base32().encodeAsString(entity.getAlias());
-        tester.document(
-                        """
+        tester.document("""
                         query Account($alias: String!) {
                           account(input: { alias: $alias }) {
                             alias
@@ -202,8 +191,7 @@ class AccountControllerTest extends GraphqlIntegrationTest {
     @Test
     void balanceFormat() {
         var entity = domainBuilder.entity().persist();
-        var query =
-                """
+        var query = """
                         query Account($realm: Long!,$shard: Long!,$num: Long!) {
                           account(input: { entityId: {realm: $realm, shard: $shard, num: $num} })
                             {balance(unit: HBAR) }}

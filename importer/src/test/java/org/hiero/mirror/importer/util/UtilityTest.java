@@ -141,9 +141,7 @@ public class UtilityTest {
     }
 
     @ParameterizedTest(name = "Log format {0} with params {1} expecting {2}")
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                                 plain message, , plain message,
                                 {} arg message, 'one, exception', one arg message, java.lang.RuntimeException: provided cause
                                 {} {} message, 'a, b', a b message,

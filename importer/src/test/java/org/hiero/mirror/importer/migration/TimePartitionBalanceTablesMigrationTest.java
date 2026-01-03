@@ -49,8 +49,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = "spring.flyway.target=1.89.1")
 class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
 
-    private static final String CLEANUP_SQL =
-            """
+    private static final String CLEANUP_SQL = """
             drop table account_balance;
             drop table token_balance;
             alter table account_balance_old rename to account_balance;
@@ -80,9 +79,7 @@ class TimePartitionBalanceTablesMigrationTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            quoteCharacter = '"',
-            textBlock = """
+    @CsvSource(quoteCharacter = '"', textBlock = """
             "'1 month'", P1M
             "'3 months'", P3M
             """)

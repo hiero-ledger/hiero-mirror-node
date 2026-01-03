@@ -22,8 +22,7 @@ public class SyntheticNftAllowanceOwnerMigration extends RepeatableMigration imp
     static final Version HAPI_VERSION_0_37_0 = new Version(0, 37, 0);
     private final AtomicBoolean executed = new AtomicBoolean(false);
 
-    private static final String UPDATE_NFT_ALLOWANCE_OWNER_SQL =
-            """
+    private static final String UPDATE_NFT_ALLOWANCE_OWNER_SQL = """
             begin;
 
             create temp table nft_allowance_temp (

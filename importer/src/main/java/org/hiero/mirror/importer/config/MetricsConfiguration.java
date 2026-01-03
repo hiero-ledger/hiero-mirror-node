@@ -48,8 +48,7 @@ class MetricsConfiguration {
      * <p>
      * All inputs come from our config or current db values.
      */
-    private static final String METRIC_SQL =
-            """
+    private static final String METRIC_SQL = """
                     select
                         coalesce(sum(pg_table_size(psu.relid)), 0) as table_size,
                         coalesce(sum(pg_indexes_size(psu.relid)), 0) as index_size,
@@ -62,8 +61,7 @@ class MetricsConfiguration {
                     group by pi.inhparent
                     """;
 
-    private static final String DISTRIBUTED_METRIC_SQL =
-            """
+    private static final String DISTRIBUTED_METRIC_SQL = """
                     with shard_data as (
                             select (string_to_array(substring(result, 2, length(result) - 2), ',')) as stats
                             from run_command_on_shards(?, $cmd$

@@ -42,8 +42,7 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
     private static final long GRANDFATHERED_ID = 2119900L;
     // 1 day in nanoseconds which will yield 69 async iterations
     private static final long TIMESTAMP_INCREMENT = Duration.ofDays(1).toNanos();
-    private static final String TRANSFER_SQL =
-            """
+    private static final String TRANSFER_SQL = """
             with contractresults as (
               select
                 consensus_timestamp,
@@ -124,22 +123,19 @@ public class SyntheticCryptoTransferApprovalMigration extends AsyncJavaMigration
             order by t.consensus_timestamp
             """;
     private static final RowMapper<ApprovalTransfer> ROW_MAPPER = new DataClassRowMapper<>(ApprovalTransfer.class);
-    private static final String UPDATE_CRYPTO_TRANSFER_SQL =
-            """
+    private static final String UPDATE_CRYPTO_TRANSFER_SQL = """
             update crypto_transfer
             set is_approval = true
             where consensus_timestamp = :consensus_timestamp and
               payer_account_id = :payer_account_id and
               entity_id = :sender
             """;
-    private static final String UPDATE_NFT_TRANSFER_SQL =
-            """
+    private static final String UPDATE_NFT_TRANSFER_SQL = """
             update transaction
             set nft_transfer = jsonb_set(nft_transfer, array[:index::text, 'is_approval'], 'true', false)
             where consensus_timestamp = :consensus_timestamp and payer_account_id = :payer_account_id
             """;
-    private static final String UPDATE_TOKEN_TRANSFER_SQL =
-            """
+    private static final String UPDATE_TOKEN_TRANSFER_SQL = """
             update token_transfer
             set is_approval = true
             where account_id = :sender and

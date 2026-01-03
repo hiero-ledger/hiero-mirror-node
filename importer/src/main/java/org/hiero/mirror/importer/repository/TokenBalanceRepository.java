@@ -13,10 +13,7 @@ public interface TokenBalanceRepository
 
     @Modifying
     @Override
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
         insert into token_balance (account_id, balance, consensus_timestamp, token_id)
         select account_id, balance, :consensusTimestamp, token_id
         from token_account
@@ -34,10 +31,7 @@ public interface TokenBalanceRepository
 
     @Override
     @Modifying
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
         insert into token_balance (account_id, balance, consensus_timestamp, token_id)
         select account_id, balance, :consensusTimestamp, token_id
         from token_account

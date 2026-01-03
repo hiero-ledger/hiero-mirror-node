@@ -44,9 +44,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     private static final List<BigInteger> EMPTY_SERIAL_NUMBERS_LIST = List.of();
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        100,
                             NON_FUNGIBLE_UNIQUE,    0,      NftMetadata
                             """)
@@ -332,9 +330,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -368,9 +364,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0,  IERC20: failed to transfer
                             NON_FUNGIBLE_UNIQUE,    0,      1,  IERC721: failed to transfer
                             """)
@@ -418,9 +412,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -463,9 +455,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -508,9 +498,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -548,9 +536,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -667,9 +653,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0,      false
                             NON_FUNGIBLE_UNIQUE,    0,      1,      true
                             """)
@@ -751,9 +735,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)

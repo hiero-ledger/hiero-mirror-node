@@ -9,9 +9,7 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface TopicMessageRepository extends CrudRepository<TopicMessage, Long>, TopicMessageRepositoryCustom {
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
        with related_transaction as (
          select entity_id as topic_id, consensus_timestamp
          from transaction
@@ -23,7 +21,6 @@ public interface TopicMessageRepository extends CrudRepository<TopicMessage, Lon
        from topic_message as t
        join related_transaction using (topic_id, consensus_timestamp)
        order by t.consensus_timestamp
-       """,
-            nativeQuery = true)
+       """, nativeQuery = true)
     List<TopicMessage> findLatest(long consensusTimestamp, int limit);
 }

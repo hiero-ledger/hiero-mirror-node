@@ -595,8 +595,7 @@ class TransferTransactionPayerMigrationTest extends ImporterIntegrationTest {
      */
     private void revertToPreV_1_47() {
         // drop payer_account_id columns
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
             alter table if exists assessed_custom_fee drop column if exists payer_account_id;
             alter table if exists crypto_transfer drop column if exists payer_account_id;
             alter table if exists nft_transfer drop column if exists payer_account_id;

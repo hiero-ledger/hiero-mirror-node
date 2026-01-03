@@ -33,9 +33,7 @@ public class AbstractTokenAccount implements History {
 
     private Boolean automaticAssociation;
 
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce(e_{0}, 0) + coalesce({0}, 0)
             end
@@ -52,9 +50,7 @@ public class AbstractTokenAccount implements History {
     private Long createdTimestamp;
 
     @Enumerated(EnumType.ORDINAL)
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce({0}, e_{0})
             end
@@ -62,9 +58,7 @@ public class AbstractTokenAccount implements History {
     private TokenFreezeStatusEnum freezeStatus;
 
     @Enumerated(EnumType.ORDINAL)
-    @UpsertColumn(
-            coalesce =
-                    """
+    @UpsertColumn(coalesce = """
             case when created_timestamp is not null then {0}
                  else coalesce({0}, e_{0})
             end

@@ -19,8 +19,7 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 @RequiredArgsConstructor
 @EnabledIfV2
 class PartitionMaintenanceV2Test extends ImporterIntegrationTest {
-    private static final String GET_LATEST_PARTITIONS =
-            """
+    private static final String GET_LATEST_PARTITIONS = """
                     select distinct on (tp.parent_table) tp.parent_table,
                                    tp.partition_column,
                                    tp.partition,

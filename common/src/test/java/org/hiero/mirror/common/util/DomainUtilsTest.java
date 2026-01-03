@@ -256,9 +256,7 @@ final class DomainUtilsTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             1234, 1234
             00, ''
             00001234, 1234

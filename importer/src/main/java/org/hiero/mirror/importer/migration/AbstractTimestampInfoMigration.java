@@ -16,8 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 abstract class AbstractTimestampInfoMigration extends TimeSensitiveBalanceMigration {
 
-    private static final String GET_TIMESTAMP_INFO_SQL =
-            """
+    private static final String GET_TIMESTAMP_INFO_SQL = """
             with last_record_file as (
               select consensus_end
               from record_file

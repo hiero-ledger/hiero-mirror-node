@@ -464,8 +464,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
         ownerJdbcTemplate.execute("drop table if exists address_book_service_endpoint cascade;");
 
         // drop describe and stake columns. Also drop primary key
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
                         alter table if exists address_book_entry
                             drop column if exists description,
                             drop column if exists stake,
@@ -473,8 +472,7 @@ class AddAddressBookServiceEndpointsMigrationTest extends ImporterIntegrationTes
                         """);
 
         // restore id, ip and port columns. Also restore primary key
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
                         alter table if exists address_book_entry
                             add column if not exists id integer,
                             add column if not exists ip varchar(128) null,

@@ -35,8 +35,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = "spring.flyway.target=2.4.0")
 class ChangeTransactionHashDistributionMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
             select alter_distributed_table('transaction_hash', distribution_column := 'hash');
             alter table transaction_hash drop column distribution_id;
             """;
@@ -72,17 +71,13 @@ class ChangeTransactionHashDistributionMigrationTest extends ImporterIntegration
     }
 
     private void persistTransactionHashes(Collection<TransactionHashOld> transactionHashes) {
-        ownerJdbcTemplate.batchUpdate(
-                """
+        ownerJdbcTemplate.batchUpdate("""
                     insert into transaction_hash (consensus_timestamp, hash, payer_account_id) values (?, ?, ?)
-                    """,
-                transactionHashes,
-                transactionHashes.size(),
-                (ps, transactionHash) -> {
-                    ps.setLong(1, transactionHash.getConsensusTimestamp());
-                    ps.setBytes(2, transactionHash.getHash());
-                    ps.setLong(3, transactionHash.getPayerAccountId());
-                });
+                    """, transactionHashes, transactionHashes.size(), (ps, transactionHash) -> {
+            ps.setLong(1, transactionHash.getConsensusTimestamp());
+            ps.setBytes(2, transactionHash.getHash());
+            ps.setLong(3, transactionHash.getPayerAccountId());
+        });
     }
 
     @SneakyThrows

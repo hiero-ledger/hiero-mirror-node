@@ -27,9 +27,7 @@ public abstract class AbstractLinkedStreamDownloaderTest<T extends StreamFile<?>
     }
 
     @ParameterizedTest(name = "verifyHashChain {4}")
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                 '', '', 1970-01-01T00:00:00Z, true,  passes if both hashes are empty",
                 xx, '', 1970-01-01T00:00:00Z, true,  passes if hash mismatch and expected hash is empty
                 '', xx, 1970-01-01T00:00:00Z, false, fails if hash mismatch and actual hash is empty

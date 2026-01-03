@@ -37,8 +37,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = "spring.flyway.target=1.81.0")
 class AddNftHistoryMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
                     create table if not exists nft_transfer (
                       consensus_timestamp bigint not null,
                       is_approval         boolean,

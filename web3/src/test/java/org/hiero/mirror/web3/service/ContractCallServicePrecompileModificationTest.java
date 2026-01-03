@@ -1536,9 +1536,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON, ED25519
                             FUNGIBLE_COMMON, ECDSA_SECPK256K1
                             FUNGIBLE_COMMON, CONTRACT_ID

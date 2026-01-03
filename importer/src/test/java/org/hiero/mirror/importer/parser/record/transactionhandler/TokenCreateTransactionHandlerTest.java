@@ -65,9 +65,7 @@ class TokenCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
         return EntityType.TOKEN;
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                 true, true, true, true, true, 0.49.0, true, FROZEN, REVOKED, UNFROZEN, GRANTED
                 false, true, false, false, true, 0.50.0, true, UNFROZEN, NOT_APPLICABLE, UNFROZEN, NOT_APPLICABLE
                 false, false, false, false, false, 0.49.0, true, NOT_APPLICABLE, NOT_APPLICABLE, NOT_APPLICABLE, NOT_APPLICABLE
