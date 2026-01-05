@@ -7,6 +7,7 @@ spec:
   eventMetadata:
     cluster: testnet-eu
     namespaces: common,testnet-citus
+    summary: "Trigger testnet-eu deployment"
   eventSeverity: info
   eventSources:
     - kind: HelmRelease
@@ -16,5 +17,4 @@ spec:
     - ".*.test.*succeeded.*"
   providerRef:
     name: github-dispatch
-  summary: "Trigger testnet-eu deployment"
 
