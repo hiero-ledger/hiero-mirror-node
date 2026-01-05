@@ -304,7 +304,7 @@ terminationGracePeriodSeconds: 60
 test:
   annotations:
     helm.sh/hook: test-success
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed
     helm.sh/hook-weight: "30"
   enabled: false
   image:
