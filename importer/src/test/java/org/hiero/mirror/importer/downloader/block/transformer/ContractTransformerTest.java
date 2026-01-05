@@ -12,6 +12,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.co
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
+import com.hedera.hapi.block.stream.output.protoc.CallContractOutput;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
@@ -36,6 +37,9 @@ import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
 import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.EvmTransactionResult;
+import com.hederahashgraph.api.proto.java.HookEntityId;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
@@ -56,6 +60,7 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 import org.apache.commons.collections4.ListUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -85,6 +90,34 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     .clearCreatedContractIDs()
                     .clearFunctionParameters()
                     .clearGas());
+
+    private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
+            TransactionRecord.Builder recordBuilder) {
+        if (recordBuilder.hasContractCallResult()) {
+            return Optional.of(recordBuilder.getContractCallResultBuilder());
+        }
+
+        if (recordBuilder.hasContractCreateResult()) {
+            return Optional.of(recordBuilder.getContractCreateResultBuilder());
+        }
+
+        return Optional.empty();
+    }
+
+    private static Stream<Arguments> provideContractIds() {
+        var contractId = recordItemBuilder.contractId();
+        var encoded = contractId.toBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
+                .build();
+        var create2EvmAddress = contractId.toBuilder()
+                .setEvmAddress(recordItemBuilder.evmAddress().getValue())
+                .build();
+
+        return Stream.of(
+                Arguments.of("plain", contractId, contractId),
+                Arguments.of("encoded evm address", encoded, contractId),
+                Arguments.of("create2 evm address", create2EvmAddress, contractId));
+    }
 
     @Test
     void contractCall() {
@@ -152,6 +185,113 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         assertRecordFile(recordFile, blockFile, items -> {
             assertRecordItems(items, expected);
             assertThat(items).map(RecordItem::getParent).containsExactly(null, items.getFirst());
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void contractCallWithHookIdAddition(boolean useContractId) {
+        // given
+        final var hookId = 123L;
+        final var ownerId = 456L;
+        final var expectedHook = new AbstractHook.Id(hookId, ownerId);
+
+        // Create EntityID with either contractId or accountId
+        final var entityId = useContractId
+                ? HookEntityId.newBuilder()
+                        .setContractId(
+                                ContractID.newBuilder().setContractNum(ownerId).build())
+                        .build()
+                : HookEntityId.newBuilder()
+                        .setAccountId(
+                                AccountID.newBuilder().setAccountNum(ownerId).build())
+                        .build();
+
+        final var protoHookId =
+                HookId.newBuilder().setHookId(hookId).setEntityId(entityId).build();
+
+        final var evmTransactionResult = EvmTransactionResult.newBuilder()
+                .setExecutedHookId(protoHookId)
+                .setGasUsed(1000)
+                .build();
+
+        final var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+
+        final var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .transactionOutputs(outputs -> {
+                    var callContractOutput = CallContractOutput.newBuilder()
+                            .setEvmTransactionResult(evmTransactionResult)
+                            .build();
+                    var transactionOutput = TransactionOutput.newBuilder()
+                            .setContractCall(callContractOutput)
+                            .build();
+                    outputs.put(TransactionCase.CONTRACT_CALL, transactionOutput);
+                })
+                .build();
+
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertThat(items).hasSize(1);
+            var recordItem = items.getFirst();
+
+            // Verify hook ID was added to the execution queue
+            var nextHook = recordItem.nextHookContext();
+            assertThat(nextHook).isEqualTo(expectedHook);
+
+            // Verify no more hooks in queue
+            assertThat(recordItem.nextHookContext()).isNull();
+        });
+    }
+
+    @Test
+    void contractCallWithoutHookId() {
+        // given
+        var evmTransactionResult =
+                EvmTransactionResult.newBuilder().setGasUsed(1000).build();
+
+        var expectedRecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .sidecarRecords(records -> customizeSidecarRecords(records, true, this::simpleContractStateChanges))
+                .customize(this::finalize)
+                .build();
+
+        var blockTransaction = blockTransactionBuilder
+                .contractCall(expectedRecordItem, false)
+                .transactionOutputs(outputs -> {
+                    var callContractOutput = CallContractOutput.newBuilder()
+                            .setEvmTransactionResult(evmTransactionResult)
+                            .build();
+                    var transactionOutput = TransactionOutput.newBuilder()
+                            .setContractCall(callContractOutput)
+                            .build();
+                    outputs.put(TransactionCase.CONTRACT_CALL, transactionOutput);
+                })
+                .build();
+
+        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertThat(items).hasSize(1);
+            var recordItem = items.getFirst();
+
+            // Verify no hook ID was added to the execution queue
+            assertThat(recordItem.nextHookContext()).isNull();
         });
     }
 
@@ -917,34 +1057,6 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
             assertThat(items).map(RecordItem::getParent).containsExactlyElementsOf(expectedParentItems);
         });
-    }
-
-    private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
-            TransactionRecord.Builder recordBuilder) {
-        if (recordBuilder.hasContractCallResult()) {
-            return Optional.of(recordBuilder.getContractCallResultBuilder());
-        }
-
-        if (recordBuilder.hasContractCreateResult()) {
-            return Optional.of(recordBuilder.getContractCreateResultBuilder());
-        }
-
-        return Optional.empty();
-    }
-
-    private static Stream<Arguments> provideContractIds() {
-        var contractId = recordItemBuilder.contractId();
-        var encoded = contractId.toBuilder()
-                .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
-                .build();
-        var create2EvmAddress = contractId.toBuilder()
-                .setEvmAddress(recordItemBuilder.evmAddress().getValue())
-                .build();
-
-        return Stream.of(
-                Arguments.of("plain", contractId, contractId),
-                Arguments.of("encoded evm address", encoded, contractId),
-                Arguments.of("create2 evm address", create2EvmAddress, contractId));
     }
 
     @SafeVarargs

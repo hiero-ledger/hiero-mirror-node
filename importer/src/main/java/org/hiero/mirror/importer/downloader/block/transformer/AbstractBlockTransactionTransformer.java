@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
@@ -138,6 +139,25 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         var evmTransactionResult = evmTransactionInfo.evmTransactionResult();
+
+        if (evmTransactionResult.hasExecutedHookId()) {
+            final var hookId = evmTransactionResult.getExecutedHookId();
+            // Extract owner ID from contractId or account ID involved in the hook execution
+            if (hookId.hasEntityId()) {
+                final var ownerId = hookId.getEntityId().hasContractId()
+                        ? hookId.getEntityId().getContractId().getContractNum()
+                        : hookId.getEntityId().hasAccountId()
+                                ? hookId.getEntityId().getAccountId().getAccountNum()
+                                : 0L;
+                // Bridge blockstream hook execution to recordstream processing by adding hook ID to execution queue.
+                // ContractResultServiceImpl.processHookStorageChanges() calls recordItem.nextHookContext() to retrieve
+                // hook contexts. For recordstream, this traverses up the parent chain if child has no hooks.
+                // By adding the hook ID here, blockstream transactions will have hook context available from child,
+                // ensuring proper hook storage routing without requiring parent traversal.
+                transformation.recordItemBuilder().hookId(new AbstractHook.Id(hookId.getHookId(), ownerId));
+            }
+        }
+
         var transactionRecordBuilder = transformation.recordItemBuilder().transactionRecordBuilder();
         var contractResultbuilder = evmTransactionInfo.isContractCreate()
                 ? transactionRecordBuilder.getContractCreateResultBuilder()
