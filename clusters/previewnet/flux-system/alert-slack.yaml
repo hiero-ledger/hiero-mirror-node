@@ -4,6 +4,8 @@ metadata:
   name: mirror
   namespace: flux-system
 spec:
+  eventMetadata:
+    summary: "previewnet cluster"
   eventSeverity: info
   eventSources:
     - kind: HelmRelease
@@ -17,5 +19,4 @@ spec:
       namespace: flux-system
   providerRef:
     name: slack
-  summary: "previewnet cluster"
 

@@ -4,8 +4,8 @@ metadata:
   name: slack
   namespace: flux-system
 spec:
-  providerRef:
-    name: slack
+  eventMetadata:
+    summary: "Pre-prod cluster"
   eventSeverity: info
   eventSources:
     - kind: HelmRelease
@@ -20,5 +20,6 @@ spec:
     - kind: Kustomization
       name: '*'
       namespace: flux-system
-  summary: "Pre-prod cluster"
+  providerRef:
+    name: slack
 

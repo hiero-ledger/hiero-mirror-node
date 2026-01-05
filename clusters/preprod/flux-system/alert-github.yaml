@@ -4,12 +4,13 @@ metadata:
   name: github
   namespace: flux-system
 spec:
-  providerRef:
-    name: github
+  eventMetadata:
+    summary: "Pre-prod cluster"
   eventSeverity: info
   eventSources:
     - kind: Kustomization
       name: '*'
       namespace: flux-system
-  summary: "Pre-prod cluster"
+  providerRef:
+    name: github
 
