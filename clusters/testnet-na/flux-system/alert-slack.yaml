@@ -4,8 +4,8 @@ metadata:
   name: mirror
   namespace: flux-system
 spec:
-  providerRef:
-    name: slack
+  eventMetadata:
+    summary: "testnet-na cluster"
   eventSeverity: info
   eventSources:
     - kind: HelmRelease
@@ -17,5 +17,6 @@ spec:
     - kind: Kustomization
       name: '*'
       namespace: flux-system
-  summary: "testnet-na cluster"
+  providerRef:
+    name: slack
 
