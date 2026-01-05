@@ -127,7 +127,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         context.getBlockFile().blockProof(blockItem.getBlockProof());
 
-        // Read remaining blockProof block items. In a later release, implement new block & state merkle tree support
+        // Read remaining blockProof block items. In a later release, implement support of multiple blockProof items,
+        // primarily for wrapped record files which come with both SignedRecordFileProof and StateProof
         while (context.readBlockItemFor(BLOCK_PROOF) != null) {
             log.debug("Skip remaining block proof block items");
         }
@@ -136,6 +137,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     private void readEvents(final ReaderContext context) {
         while (context.readBlockItemFor(EVENT_HEADER) != null) {
             readSignedTransactions(context);
+            readNonTransactionStateChanges(context);
         }
     }
 
@@ -213,9 +215,11 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     /**
-     * Read non-transaction state changes. There are three possible places for such state changes
+     * Read non-transaction state changes. There are four possible places for such state changes
      * - in a network's genesis block, between the first round header and the first event header
      * - at the end of a round, right before the next round header
+     * - at the end of an event. Either there are no signed transactions, or the trailing statechanges don't belong
+     *   to the preceding transaction unit
      * - before block proof
      *
      * @param context - The reader context
