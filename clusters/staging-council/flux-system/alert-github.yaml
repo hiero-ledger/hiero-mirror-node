@@ -4,12 +4,13 @@ metadata:
   name: github
   namespace: flux-system
 spec:
-  providerRef:
-    name: github
+  eventMetadata:
+    summary: "Staging-council cluster"
   eventSeverity: info
   eventSources:
     - kind: Kustomization
       name: '*'
       namespace: flux-system
-  summary: "Staging-council cluster"
+  providerRef:
+    name: github
 
