@@ -7,6 +7,7 @@ spec:
   eventMetadata:
     cluster: mainnet-eu
     namespaces: common,mainnet-citus
+    summary: "Trigger mainnet-eu deployment"
   eventSeverity: info
   eventSources:
     - kind: HelmRelease
@@ -16,5 +17,4 @@ spec:
     - ".*.test.*succeeded.*"
   providerRef:
     name: github-dispatch
-  summary: "Trigger mainnet-eu deployment"
 
