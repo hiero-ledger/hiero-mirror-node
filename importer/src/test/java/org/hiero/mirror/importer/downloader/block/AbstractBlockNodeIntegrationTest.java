@@ -53,6 +53,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 channelBuilderProvider,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 }

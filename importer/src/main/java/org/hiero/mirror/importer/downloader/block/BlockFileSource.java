@@ -31,12 +31,13 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockFileSource extends AbstractBlockSource {
 
+    private static final String DEFAULT_NODE_ENDPOINT = "cloud";
+
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
 
     // metrics
     private final Timer cloudStorageLatencyMetric;
-    private final Timer downloadLatencyMetric;
 
     BlockFileSource(
             final BlockStreamReader blockStreamReader,
@@ -53,12 +54,6 @@ final class BlockFileSource extends AbstractBlockSource {
         cloudStorageLatencyMetric = Timer.builder("hiero.mirror.importer.cloud.latency")
                 .description("The difference in time between the consensus time of the last transaction in the file "
                         + "and the time at which the file was created in the cloud storage provider")
-                .tag("type", StreamType.BLOCK.toString())
-                .register(meterRegistry);
-
-        downloadLatencyMetric = Timer.builder("hiero.mirror.importer.stream.latency")
-                .description("The difference in time between the consensus time of the last transaction in the file "
-                        + "and the time at which the file was downloaded and verified")
                 .tag("type", StreamType.BLOCK.toString())
                 .register(meterRegistry);
     }
@@ -90,12 +85,11 @@ final class BlockFileSource extends AbstractBlockSource {
                 log.debug("Downloaded block file {} from node {}", filename, nodeId);
 
                 var blockStream = getBlockStream(blockFileData, nodeId);
-                var blockFile = onBlockStream(blockStream);
+                var blockFile = onBlockStream(blockStream, DEFAULT_NODE_ENDPOINT);
 
                 var cloudStorageTime = blockFileData.getLastModified();
                 var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
                 cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
-                downloadLatencyMetric.record(Duration.between(consensusEnd, Instant.now()));
 
                 if (properties.isWriteFiles()) {
                     Utility.archiveFile(blockFileData.getFilePath(), blockStream.bytes(), streamPath);

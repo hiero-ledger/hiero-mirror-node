@@ -82,7 +82,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 
     @ParameterizedTest(name = "last block number {0}")

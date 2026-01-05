@@ -18,7 +18,7 @@ extra.apply {
     set("besuVersion", "24.3.3")
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.69.0")
+    set("consensusNodeVersion", "0.69.1")
     set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -87,11 +87,11 @@ dependencies {
         api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
-        api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
+        api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:$web3jVersion")
-        api("software.amazon.awssdk:bom:2.40.16")
+        api("software.amazon.awssdk:bom:2.41.1")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -281,7 +281,7 @@ tasks.register("release") {
         )
         replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
-            "tools/traffic-replay/log-downloader/package*.json",
+            "tools/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
         )
     }

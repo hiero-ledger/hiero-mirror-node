@@ -121,7 +121,7 @@ jobs:
           milestone: ${{ steps.version_parser.outputs.release }}
 
       - name: Commit and Tag
-        uses: step-security/git-auto-commit-action@e2d505468267a3cb406af729d48d664de1f16393 # v6.0.2
+        uses: step-security/git-auto-commit-action@905c3cd6e9ed2b67b4d46ff401fdb6d745d0ff9d # v7.1.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Bump versions for ${{ env.RELEASE_TAG }}

@@ -7,6 +7,8 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +18,8 @@ import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 
 class BlockNodeTestBase {
+
+    protected final MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     protected static BlockItem blockHead(final long blockNumber) {
         return BlockItem.newBuilder()

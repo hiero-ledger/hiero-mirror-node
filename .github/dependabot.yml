@@ -71,7 +71,7 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/tools/traffic-replay/log-downloader"
+  - directory: "/tools/log-downloader"
     groups:
       dependencies:
         patterns:

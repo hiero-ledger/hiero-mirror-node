@@ -36,12 +36,12 @@ abstract class AbstractBlockSource implements BlockSource {
 
     protected abstract void doGet(final long blockNumber);
 
-    protected final BlockFile onBlockStream(final BlockStream blockStream) {
+    protected final BlockFile onBlockStream(final BlockStream blockStream, final String blockNodeEndpoint) {
         var blockFile = blockStreamReader.read(blockStream);
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
         }
-
+        blockFile.setNode(blockNodeEndpoint);
         blockStreamVerifier.verify(blockFile);
         return blockFile;
     }
