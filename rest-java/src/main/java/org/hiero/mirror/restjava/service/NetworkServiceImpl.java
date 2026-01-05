@@ -33,11 +33,11 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public NetworkSupply getSupply(Bound timestamp) {
-        final var unreleasedSupplyAccountIds = networkProperties.getUnreleasedSupplyAccountIds();
         final NetworkSupply networkSupply;
 
         if (timestamp.isEmpty()) {
-            networkSupply = entityRepository.getSupply(unreleasedSupplyAccountIds);
+            final var whereClause = networkProperties.buildUnreleasedSupplyAccountsWhereClause("id");
+            networkSupply = entityRepository.getSupply(whereClause);
         } else {
             var minTimestamp = timestamp.getAdjustedLowerRangeValue();
             final var maxTimestamp = timestamp.adjustUpperBound();
@@ -50,8 +50,8 @@ final class NetworkServiceImpl implements NetworkService {
             final var optimalLowerBound = getFirstDayOfMonth(maxTimestamp, -1);
             minTimestamp = Math.max(minTimestamp, optimalLowerBound);
 
-            networkSupply =
-                    accountBalanceRepository.getSupplyHistory(unreleasedSupplyAccountIds, minTimestamp, maxTimestamp);
+            final var accountWhereClause = networkProperties.buildUnreleasedSupplyAccountsWhereClause("account_id");
+            networkSupply = accountBalanceRepository.getSupplyHistory(accountWhereClause, minTimestamp, maxTimestamp);
         }
 
         if (networkSupply.consensusTimestamp() == 0L) {

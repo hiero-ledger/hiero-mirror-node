@@ -54,4 +54,26 @@ public class NetworkProperties {
             }
         }
     }
+
+    /**
+     * Builds a WHERE clause condition for unreleased supply accounts using range-based predicates.
+     * More efficient than using IN clause as it allows PostgreSQL to use range scans on indexes.
+     *
+     * @param column the column name to use in the WHERE clause (e.g., "id", "account_id")
+     * @return a WHERE clause condition string like "(id >= X and id <= Y) or (id = Z) or ..."
+     */
+    public String buildUnreleasedSupplyAccountsWhereClause(String column) {
+        return unreleasedSupplyAccounts.stream()
+                .map(range -> {
+                    final var from = range.from;
+                    final var to = range.to;
+
+                    if (from == to) {
+                        return String.format("%s = %d", column, from);
+                    } else {
+                        return String.format("(%s >= %d and %s <= %d)", column, from, column, to);
+                    }
+                })
+                .collect(java.util.stream.Collectors.joining(" or "));
+    }
 }
