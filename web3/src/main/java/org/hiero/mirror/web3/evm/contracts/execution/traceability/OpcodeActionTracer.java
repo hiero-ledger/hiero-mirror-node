@@ -31,6 +31,14 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
 
     @Override
+    public void tracePreExecution(@NonNull final MessageFrame frame) {
+        if (frame.getCurrentOperation() != null
+                && "BALANCE".equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(true);
+        }
+    }
+
+    @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
 
