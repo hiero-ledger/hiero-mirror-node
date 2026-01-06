@@ -98,6 +98,20 @@ jobs:
             "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
           )
 
+          # Compare the schemas - in case there is a new version we might need to register a new state.
+          DIRS_TO_COMPARE=(
+            "com/hedera/node/app/records/schemas"
+            "com/hedera/node/app/blocks/schemas"
+            "com/hedera/node/app/throttle/schemas"
+            "com/hedera/node/app/service/contract/impl/schemas"
+            "com/hedera/node/app/service/entityid/impl/schemas"
+            "com/hedera/node/app/fees/schemas"
+            "com/hedera/node/app/service/file/impl/schemas"
+            "com/hedera/node/app/state/recordcache/schemas"
+            "com/hedera/node/app/service/schedule/impl/schemas"
+            "com/hedera/node/app/service/token/impl/schemas"
+          )
+
           # Temp directories to store cloned repos
           TMP_DIR_ONE=$(mktemp -d)
           TMP_DIR_TWO=$(mktemp -d)
@@ -140,9 +154,6 @@ jobs:
             if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
               echo ""
               echo "File changed: $input_file_path"
-              echo "----------------------------------------"
-              echo "$diff_output"
-              echo "----------------------------------------"
               CHANGES_COUNT=$((CHANGES_COUNT + 1))
             fi
           }
@@ -155,6 +166,65 @@ jobs:
             echo "✅ No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of files."
           else
             echo "::warning::Found ${CHANGES_COUNT} changed file(s) between versions $TAG_TWO and $TAG_ONE. Please review the diffs in the logs above."
+          fi
+
+          compare_schemas_dir() {
+            local input_dir_path="$1"
+            local branch_one_dir_path branch_two_dir_path
+
+            case "$input_dir_path" in
+                com/hedera/node/app/service/contract/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/entityid/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/file/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-file-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-file-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/schedule/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-schedule-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-schedule-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/token/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-token-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-token-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/records/* | com/hedera/node/app/blocks/* | com/hedera/node/app/throttle/* | com/hedera/node/app/fees/* | com/hedera/node/app/state/recordcache/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-app/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-app/src/main/java/$input_dir_path"
+                ;;
+                *)
+            esac
+
+            # Search for newly added files
+            find "$branch_two_dir_path" -maxdepth 1 -type f -printf "%f\n" | while read -r filename; do
+              if [ ! -f "$branch_one_dir_path/$filename" ]; then
+              echo ""
+              echo "New file found: $filename"
+              echo "$filename" >> "$CHANGES_FILE"
+              fi
+            done
+          }
+
+          # Create a temporary file to track changes across subshells (pipes)
+          CHANGES_FILE=$(mktemp)
+
+          for dir in "${DIRS_TO_COMPARE[@]}"; do
+            compare_schemas_dir "$dir"
+          done
+
+          NEW_FILES_ADDED_COUNT=$(wc -l < "$CHANGES_FILE")
+          if [ "$NEW_FILES_ADDED_COUNT" -eq 0 ]; then
+            echo "✅ No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of dirs."
+          else
+            echo "::warning::Found ${NEW_FILES_ADDED_COUNT} new file(s) in the specified set of dirs between versions $TAG_TWO and $TAG_ONE."
+          fi
+
+          if [ $((NEW_FILES_ADDED_COUNT + CHANGES_COUNT)) -gt 0 ]; then
             exit 1
           fi
 

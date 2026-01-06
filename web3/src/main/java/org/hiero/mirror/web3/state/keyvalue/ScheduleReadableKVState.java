@@ -34,7 +34,7 @@ import org.hiero.mirror.web3.utils.Suppliers;
 import org.jspecify.annotations.NonNull;
 
 @Named
-class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
+public class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
 
     private final ScheduleRepository scheduleRepository;
 
