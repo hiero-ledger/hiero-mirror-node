@@ -351,9 +351,10 @@ public final class BlockStreamReaderTest {
     @ValueSource(booleans = {true, false})
     void mixedStateChanges(final boolean postConsensusNodeRelease68) {
         // given non-transaction state changes
-        // - appear after first round header and before the first even header in the round
-        // - appear right before the next round header
-        // - at the end of an event
+        // - in a network's genesis block, between the first round header and the first event header
+        // - at the end of a round, right before the next round header
+        // - at the end of an event. Either there are no signed transactions, or the trailing statechanges don't belong
+        //   to the preceding transaction unit
         // - right before block proof
         final var nonTransactionStateChangesType1 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
