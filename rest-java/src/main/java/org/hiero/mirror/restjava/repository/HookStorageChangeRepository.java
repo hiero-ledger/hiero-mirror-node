@@ -12,10 +12,7 @@ import org.springframework.data.repository.PagingAndSortingRepository;
 
 public interface HookStorageChangeRepository extends PagingAndSortingRepository<HookStorageChange, Long> {
 
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
                     select distinct on (key)
                          owner_id,
                          hook_id,
@@ -41,10 +38,7 @@ public interface HookStorageChangeRepository extends PagingAndSortingRepository<
             long timestampUpperBound,
             Pageable pageable);
 
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
                     select distinct on (key)
                          owner_id,
                          hook_id,

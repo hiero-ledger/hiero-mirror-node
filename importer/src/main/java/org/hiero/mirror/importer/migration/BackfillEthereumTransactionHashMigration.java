@@ -32,8 +32,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 public final class BackfillEthereumTransactionHashMigration extends RepeatableMigration {
 
-    private static final String INSERT_TRANSACTION_HASH_SQL =
-            """
+    private static final String INSERT_TRANSACTION_HASH_SQL = """
             insert into transaction_hash (consensus_timestamp, hash, payer_account_id)
             values (?, ?, ?)
             """;
@@ -43,23 +42,20 @@ public final class BackfillEthereumTransactionHashMigration extends RepeatableMi
     };
     private static final RowMapper<MigrationEthereumTransaction> ROW_MAPPER =
             new DataClassRowMapper<>(MigrationEthereumTransaction.class);
-    private static final String SELECT_ETHEREUM_TRANSACTION_SQL =
-            """
+    private static final String SELECT_ETHEREUM_TRANSACTION_SQL = """
             select call_data, call_data_id, consensus_timestamp, data, hash, payer_account_id
             from ethereum_transaction
             where hash = ''::bytea and consensus_timestamp > ?
             order by consensus_timestamp
             limit 200
             """;
-    private static final String UPDATE_CONTRACT_RESULT_SQL =
-            """
+    private static final String UPDATE_CONTRACT_RESULT_SQL = """
             update contract_result
             set transaction_hash = ?
             where consensus_timestamp = ?
             """;
     // Workaround for citus as changing the value of distribution column contract_transaction_hash.hash is not allowed
-    private static final String UPDATE_CONTRACT_TRANSACTION_HASH_SQL =
-            """
+    private static final String UPDATE_CONTRACT_TRANSACTION_HASH_SQL = """
             with deleted as (
               delete from contract_transaction_hash
               where consensus_timestamp = ? and hash = ''::bytea
@@ -69,8 +65,7 @@ public final class BackfillEthereumTransactionHashMigration extends RepeatableMi
             select consensus_timestamp, entity_id, ?, payer_account_id, transaction_result
             from deleted
             """;
-    private static final String UPDATE_ETHEREUM_HASH_SQL =
-            """
+    private static final String UPDATE_ETHEREUM_HASH_SQL = """
             update ethereum_transaction
             set hash = ?
             where consensus_timestamp = ?

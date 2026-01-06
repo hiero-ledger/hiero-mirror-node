@@ -10,9 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface AccountBalanceRepository extends CrudRepository<AccountBalance, AccountBalance.Id> {
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
         with account_balances as (
           select distinct on (account_id) balance, consensus_timestamp
           from account_balance
@@ -23,7 +21,6 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
         select cast(coalesce(sum(balance), 0) as bigint) as unreleasedSupply,
                coalesce(max(consensus_timestamp), 0) as consensusTimestamp
         from account_balances
-        """,
-            nativeQuery = true)
+        """, nativeQuery = true)
     NetworkSupply getSupplyHistory(Collection<Long> unreleasedSupplyAccounts, long lowerTimestamp, long upperTimestamp);
 }

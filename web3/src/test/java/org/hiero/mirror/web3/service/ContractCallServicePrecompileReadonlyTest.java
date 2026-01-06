@@ -351,9 +351,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, ADMIN_KEY
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, KYC_KEY
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, FREEZE_KEY

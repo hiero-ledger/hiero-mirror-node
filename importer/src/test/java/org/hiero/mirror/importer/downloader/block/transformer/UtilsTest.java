@@ -26,9 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 final class UtilsTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             0, 0, 158, 0x000000000000000000000000000000000000009e
             259, 1027, 3493, 0x0000000000000000000000000000000000000da5
             """)
@@ -42,9 +40,7 @@ final class UtilsTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             ab, ef, deadbeef, abdeadbeefef
             '', ef, deadbeef, deadbeefef
             ab, '', deadbeef, abdeadbeef
@@ -84,9 +80,7 @@ final class UtilsTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             '',0000000000000000000000000000000000000000000000000000000000000000
             3728e591097635310e6341af53db8b7ee42da9b3a8d918f9463ce9cca886dfbd,3728e591097635310e6341af53db8b7ee42da9b3a8d918f9463ce9cca886dfbd
             628669,0000000000000000000000000000000000000000000000000000000000628669

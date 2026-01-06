@@ -70,9 +70,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -136,9 +134,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -392,9 +388,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             true, false, true, true
                             false, false, false, false
                             true, true, true, true
@@ -440,9 +434,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             true, false, true, true
                             false, false, false, false
                             true, true, true, true

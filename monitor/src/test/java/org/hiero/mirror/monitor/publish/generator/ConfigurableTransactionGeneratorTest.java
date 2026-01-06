@@ -213,9 +213,7 @@ class ConfigurableTransactionGeneratorTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             , 0.0.100, 0.0.100
             0.0.2, 0.0.100, 0.0.100
             0.0.100, 0.0.2, 0.0.100

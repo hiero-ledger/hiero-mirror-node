@@ -117,9 +117,7 @@ final class EthereumTransactionHandlerTest extends AbstractTransactionHandlerTes
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             'abab', , 'abab'
             , 'abab', 'abab'
             'abab', 'efef', 'abab'

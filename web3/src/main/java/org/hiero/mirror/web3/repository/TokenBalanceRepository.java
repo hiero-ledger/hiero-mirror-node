@@ -20,9 +20,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
      * @return an Optional containing the balance if found, or an empty Optional if no matching balance
      *         entry is found before the given block timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                 select * from token_balance
                 where
                     token_id = ?1 and
@@ -30,8 +28,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                     consensus_timestamp <= ?3
                 order by consensus_timestamp desc
                 limit 1
-                """,
-            nativeQuery = true)
+                """, nativeQuery = true)
     Optional<TokenBalance> findByIdAndTimestampLessThan(long tokenId, long accountId, long blockTimestamp);
 
     /**
@@ -49,9 +46,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
      *         If there are no token transfers between the consensus_timestamp of token_balance and the block timestamp,
      *         the method will return the balance present at consensus_timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with balance_timestamp as (
                     select consensus_timestamp
                     from account_balance
@@ -79,8 +74,7 @@ public interface TokenBalanceRepository extends CrudRepository<TokenBalance, Tok
                             tt.consensus_timestamp <= ?3
                     )
                     select coalesce((select balance from base), 0) + coalesce((select amount from change), 0)
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<Long> findHistoricalTokenBalanceUpToTimestamp(
             long tokenId, long accountId, long blockTimestamp, long treasuryAccountId);
 }

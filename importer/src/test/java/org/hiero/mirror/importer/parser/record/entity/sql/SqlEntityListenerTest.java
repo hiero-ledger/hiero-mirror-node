@@ -2558,10 +2558,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(findHistory(TokenAccount.class)).isEmpty();
     }
 
-    @CsvSource(
-            nullValues = "null",
-            textBlock =
-                    """
+    @CsvSource(nullValues = "null", textBlock = """
                             false, false
                             true, false
                             true, null
@@ -2596,10 +2593,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         assertThat(findHistory(TokenAccount.class)).containsExactly(tokenAccountDissociate);
     }
 
-    @CsvSource(
-            nullValues = "null",
-            textBlock =
-                    """
+    @CsvSource(nullValues = "null", textBlock = """
                             false, true
                             false, null
                             true, true
@@ -2975,9 +2969,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CANCELLED, 1
                             CANCELLED, 2
                             CLAIMED,   1
