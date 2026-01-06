@@ -43,8 +43,8 @@ data:
 
     # Auto-grow configuration
     #  - DISK_AUTOGROW_INTERVAL_SECONDS: how often to check (0 = disable loop)
-    #  - DISK_AUTOGROW_MAX_STEP_GB: maximum GB to grow in a single operation
-    #  - DISK_AUTOGROW_PERCENT: percentage of dataset size to grow (we use the smaller of percent vs max step)
+    #  - DISK_AUTOGROW_MAX_STEP_GB: maximum GB to grow in a single operation (also caps PVC increase)
+    #  - DISK_AUTOGROW_PERCENT: percentage of current PVC size to grow (we use the smaller of percent vs max step)
     #  - DISK_AUTOGROW_THRESHOLD_PERCENT: dataset usage % to trigger grow
     DISK_AUTOGROW_INTERVAL_SECONDS="${DISK_AUTOGROW_INTERVAL_SECONDS:-120}"
     DISK_AUTOGROW_MAX_STEP_GB="${DISK_AUTOGROW_MAX_STEP_GB:-50}"
@@ -54,7 +54,7 @@ data:
     CLUSTER_LABEL_KEY="${CLUSTER_LABEL_KEY:-stackgres.io/cluster-name}"
 
     function log() {
-      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >& 2
+      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >&2
     }
 
     function forceSizeScan() {
@@ -64,9 +64,8 @@ data:
       if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "
         zfs list || true
         partprobe || true
-        zpool online -e \"${POOL}\" /dev/sdb
-        zfs list
-        "; then
+        zpool online -e \"${POOL}\" /dev/sdb && zfs list || true
+      "; then
         log "Failed to expand zpool ${POOL} on ${NODE_NAME}"
         return 1
       fi
@@ -125,7 +124,7 @@ data:
       fi
 
       if (( currentGb >= targetGb )); then
-        log "Local disk ${DISK_NAME} already >= target (${currentGb}GB >= ${targetGb}GB); skipping"
+        log "Disk ${DISK_NAME} already >= target (${currentGb}GB >= ${targetGb}GB); skipping disk resize"
         return 0
       fi
 
@@ -141,20 +140,6 @@ data:
       fi
 
       return 0
-    }
-
-    function setGlobals() {
-      log "Getting node metadata"
-      NODE_NAME="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/hostname -H 'Metadata-Flavor: Google' | awk -F'.' '{print $1}')"
-      ZONE="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google' | awk -F  "/" '{print $NF}')"
-      NODE_LABELS="$(kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels}')"
-      CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
-
-      if [[ "${CITUS_ROLE}" == *"worker"* ]]; then
-        DISK_SIZE="${DEFAULT_DISK_SIZE_WORKER}"
-      else
-        DISK_SIZE="${DEFAULT_DISK_SIZE_COORDINATOR}"
-      fi
     }
 
     function waitForRoleLabel() {
@@ -173,6 +158,22 @@ data:
         NODE_LABELS="$(kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels}')"
         CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
       done
+    }
+
+    function setGlobals() {
+      log "Getting node metadata"
+      NODE_NAME="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/hostname -H 'Metadata-Flavor: Google' | awk -F'.' '{print $1}')"
+      ZONE="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google' | awk -F  "/" '{print $NF}')"
+      NODE_LABELS="$(kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels}')"
+      CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
+
+      waitForRoleLabel
+
+      if [[ "${CITUS_ROLE}" == *"worker"* ]]; then
+        DISK_SIZE="${DEFAULT_DISK_SIZE_WORKER}"
+      else
+        DISK_SIZE="${DEFAULT_DISK_SIZE_COORDINATOR}"
+      fi
     }
 
     function ensureNodeStatusConfigMap() {
@@ -446,7 +447,6 @@ data:
     }
 
     function bootstrap() {
-      waitForRoleLabel
       ensureNodeStatusConfigMap
       patchNodeStatusConfigMapWithThisNode
 
@@ -669,7 +669,7 @@ data:
       done
     }
 
-    # Converts a GB value to GiB.
+    # Converts a GB value to GiB (floor).
     # Echoes GiB value
     function gbToGiFloor() {
       local gb="$1"
@@ -703,6 +703,11 @@ data:
         fi
 
         if [[ "${dataset}" != "${POOL}/pvc-"* ]]; then
+          continue
+        fi
+
+        if ! [[ "${usedBytes}" =~ ^[0-9]+$ ]] || ! [[ "${availBytes}" =~ ^[0-9]+$ ]]; then
+          log "Dataset ${dataset} has invalid used/avail values (used='${usedBytes}', avail='${availBytes}'); skipping"
           continue
         fi
 
@@ -776,12 +781,12 @@ data:
         log "Autogrow: ${currentDiskSizeGb}GB -> ${newSizeGb}GB (+${incrementGi}Gi)"
 
         if growDiskToSizeGb "${newSizeGb}"; then
-          local sgClusterName
+        local sgClusterName
           sgClusterName="$(echo "${pvcJson}" | jq -r '.metadata.labels["stackgres.io/cluster-name"] // ""' 2>/dev/null || true)"
-          if [[ -z "${sgClusterName}" ]]; then
+        if [[ -z "${sgClusterName}" ]]; then
             log "PVC ${pvcNamespace}/${pvcName} has no stackgres.io/cluster-name label; skipping sgshardedcluster patch"
-            continue
-          fi
+          continue
+        fi
 
           local targetGi
           targetGi="$(gbToGiFloor "${newSizeGb}")"
@@ -789,7 +794,7 @@ data:
             log "Unable to convert newSizeGb=${newSizeGb} to Gi; skipping sgshardedcluster patch"
           else
             patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${targetGi}" || \
-            log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
+          log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
           fi
         else
           log "Local disk resize failed; skipping sgshardedcluster patch"
@@ -811,11 +816,11 @@ data:
       sleep infinity
     fi
 
-    log "Starting disk autogrow loop: interval=${DISK_AUTOGROW_INTERVAL_SECONDS}s, threshold=${DISK_AUTOGROW_THRESHOLD_PERCENT}%, maxStep=${DISK_AUTOGROW_MAX_STEP_GB}Gi, percentStep=${DISK_AUTOGROW_PERCENT}%"
+    log "Starting disk autogrow loop: interval=${DISK_AUTOGROW_INTERVAL_SECONDS}s, threshold=${DISK_AUTOGROW_THRESHOLD_PERCENT}%, maxStepGb=${DISK_AUTOGROW_MAX_STEP_GB}GB, percentStep=${DISK_AUTOGROW_PERCENT}%"
 
     while true; do
       checkAndGrowDatasets || log "checkAndGrowDatasets failed. Will retry after ${DISK_AUTOGROW_INTERVAL_SECONDS}s"
       sleep "${DISK_AUTOGROW_INTERVAL_SECONDS}"
     done
 
-    {{- end -}}
+{{- end -}}

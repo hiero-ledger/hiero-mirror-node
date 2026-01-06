@@ -42,7 +42,7 @@ The pvc for a shard is running out of space and needs to be increased beyond cur
    ```bash
    gcloud compute disks resize "{diskName}" --size="{diskSize}" --zone="{zone}"
    ```
-3. Restart the zfs init pods
+3. Restart the zfs manager pods
    ```bash
    kubectl rollout restart daemonset -n common mirror-zfs-manager
    ```

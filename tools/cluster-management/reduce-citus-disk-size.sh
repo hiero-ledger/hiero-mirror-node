@@ -54,7 +54,7 @@ function configureAndValidate() {
   -n "${COMMON_NAMESPACE}" \
   -l 'app=zfs-manager' \
   -o json |
-  jq -r '.items[0].spec.template.spec.initContainers[0].env[] | select (.name == "DISK_PREFIX") | .value')"
+  jq -r '.items[0].spec.template.spec.containers[0].env[] | select (.name == "DISK_PREFIX") | .value')"
 
   if [[ -z "${DISK_PREFIX}" ]]; then
     log "DISK_PREFIX can not be empty. Exiting"

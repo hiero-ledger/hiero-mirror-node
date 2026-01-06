@@ -668,8 +668,8 @@ traefik:
 zfs:
   alloy:
     enabled: false
-  autoResize:
-    growPct: 10
+  autoGrow:
+    growPercent: 10
     intervalSeconds: 120
     maxStepGb: 50
     thresholdPercent: 80
