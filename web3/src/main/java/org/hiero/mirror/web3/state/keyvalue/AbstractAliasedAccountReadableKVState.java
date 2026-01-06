@@ -20,7 +20,6 @@ import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -63,7 +62,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             @NonNull TokenAccountRepository tokenAccountRepository,
             @NonNull TokenAllowanceRepository tokenAllowanceRepository,
             @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
-        super(TokenService.NAME, stateId, (Map<Object, Object>) new ContextForwardingCacheMap(stateId));
+        super(TokenService.NAME, stateId, new ForwardingReadableKVStateBase<>(stateId));
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
         this.nftAllowanceRepository = nftAllowanceRepository;

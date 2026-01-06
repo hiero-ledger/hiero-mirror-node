@@ -8,15 +8,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.hiero.mirror.web3.common.ContractCallContext;
 
 /**
- * A delegating Map that lazily accesses the per-request write cache from ContractCallContext.
+ * A ForwardingMap that lazily delegates operations to the write cache from ContractCallContext.
  * This allows singleton state beans to use per-request write caches, ensuring proper isolation
  * between concurrent requests.
  */
-class ContextFowardingWriteCacheMap extends ForwardingMap<Object, Object> {
+class ForwardingWritableKVStateBase<K, V> extends ForwardingMap<K, V> {
 
     private final int stateId;
 
-    ContextFowardingWriteCacheMap(final int stateId) {
+    ForwardingWritableKVStateBase(final int stateId) {
         this.stateId = stateId;
     }
 
@@ -25,12 +25,11 @@ class ContextFowardingWriteCacheMap extends ForwardingMap<Object, Object> {
      * If the context is not initialized, returns a temporary empty map.
      */
     @Override
-    protected Map<Object, Object> delegate() {
+    protected Map<K, V> delegate() {
         if (ContractCallContext.isInitialized()) {
-            return ContractCallContext.get().getWriteCacheState(stateId);
+            return (Map<K, V>) ContractCallContext.get().getWriteCacheState(stateId);
         }
-        // Return a temporary map if context is not initialized (e.g., during bean initialization)
-        // This should not happen during actual request processing
+
         return new ConcurrentHashMap<>();
     }
 }
