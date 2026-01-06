@@ -331,6 +331,7 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         frame.setState(result.getState());
         frame.setExceptionalHaltReason(result.getHaltReason());
         tracer.tracePrecompileCall(frame, ContractCallContext.get().getGasRequirement(), result.getOutput());
+        ContractCallContext.get().setGasRequirement(0L);
     }
 
     private void doTransferValueOrHalt(
