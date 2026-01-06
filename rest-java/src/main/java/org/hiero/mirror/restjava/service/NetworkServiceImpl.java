@@ -9,7 +9,6 @@ import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
@@ -22,7 +21,6 @@ final class NetworkServiceImpl implements NetworkService {
     private final AccountBalanceRepository accountBalanceRepository;
     private final EntityRepository entityRepository;
     private final NetworkStakeRepository networkStakeRepository;
-    private final NetworkProperties networkProperties;
 
     @Override
     public NetworkStake getLatestNetworkStake() {
@@ -33,11 +31,10 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public NetworkSupply getSupply(Bound timestamp) {
-        final var unreleasedSupplyAccountIds = networkProperties.getUnreleasedSupplyAccountIds();
         final NetworkSupply networkSupply;
 
         if (timestamp.isEmpty()) {
-            networkSupply = entityRepository.getSupply(unreleasedSupplyAccountIds);
+            networkSupply = entityRepository.getSupply();
         } else {
             var minTimestamp = timestamp.getAdjustedLowerRangeValue();
             final var maxTimestamp = timestamp.adjustUpperBound();
@@ -50,8 +47,7 @@ final class NetworkServiceImpl implements NetworkService {
             final var optimalLowerBound = getFirstDayOfMonth(maxTimestamp, -1);
             minTimestamp = Math.max(minTimestamp, optimalLowerBound);
 
-            networkSupply =
-                    accountBalanceRepository.getSupplyHistory(unreleasedSupplyAccountIds, minTimestamp, maxTimestamp);
+            networkSupply = accountBalanceRepository.getSupplyHistory(minTimestamp, maxTimestamp);
         }
 
         if (networkSupply.consensusTimestamp() == 0L) {

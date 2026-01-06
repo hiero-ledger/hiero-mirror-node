@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.restjava.repository;
 
-import java.util.Collection;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
@@ -18,10 +17,18 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Long> findByEvmAddress(byte[] evmAddress);
 
     @Query(value = """
-        select cast(coalesce(sum(balance), 0) as bigint) as unreleasedSupply,
-               coalesce(max(balance_timestamp), 0) as consensusTimestamp
+        select
+            cast(coalesce(sum(balance), 0) as bigint) as unreleasedSupply,
+            cast(coalesce(max(balance_timestamp), 0) as bigint) as consensusTimestamp
         from entity
-        where id in (:unreleasedSupplyAccounts)
+        where
+            id = 2
+            or id = 42
+            or id between 44 and 71
+            or id between 73 and 87
+            or id between 99 and 100
+            or id between 200 and 349
+            or id between 400 and 750
         """, nativeQuery = true)
-    NetworkSupply getSupply(Collection<Long> unreleasedSupplyAccounts);
+    NetworkSupply getSupply();
 }

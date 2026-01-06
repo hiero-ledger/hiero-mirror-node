@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
@@ -57,13 +56,13 @@ class EntityRepositoryTest extends RestJavaIntegrationTest {
     void getSupply() {
         // given
         final var timestamp = domainBuilder.timestamp();
-        final var account1 = createEntityWithBalance(2L, 1_000_000L, timestamp);
-        final var account2 = createEntityWithBalance(42L, 2_000_000L, timestamp);
-        final var account3 = createEntityWithBalance(100L, 500_000L, timestamp);
-        final var accountIds = List.of(account1.getId(), account2.getId(), account3.getId());
+        createEntityWithBalance(2L, 1_000_000L, timestamp);
+        createEntityWithBalance(42L, 2_000_000L, timestamp);
+        createEntityWithBalance(100L, 500_000L, timestamp);
+        createEntityWithBalance(1000L, 500_000L, timestamp); // should not be counted
 
         // when
-        final var result = entityRepository.getSupply(accountIds);
+        final var result = entityRepository.getSupply();
 
         // then
         assertThat(result).isNotNull();

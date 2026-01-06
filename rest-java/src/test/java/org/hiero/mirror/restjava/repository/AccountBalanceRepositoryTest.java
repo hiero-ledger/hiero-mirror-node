@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -31,26 +30,24 @@ final class AccountBalanceRepositoryTest extends RestJavaIntegrationTest {
         createAccountBalance(account2, 2_500_000L, timestamp2);
         createAccountBalance(account1, 3_000_000L, timestamp3);
 
-        final var accountIds = List.of(account1.getId(), account2.getId());
-
         // when / then
-        assertThat(accountBalanceRepository.getSupplyHistory(accountIds, timestamp1, timestamp2))
+        assertThat(accountBalanceRepository.getSupplyHistory(timestamp1, timestamp2))
                 .isNotNull()
                 .satisfies(r -> {
                     assertThat(r.unreleasedSupply()).isEqualTo(4_000_000L);
                     assertThat(r.consensusTimestamp()).isEqualTo(timestamp2);
                 });
-        assertThat(accountBalanceRepository.getSupplyHistory(accountIds, timestamp1, timestamp3))
+        assertThat(accountBalanceRepository.getSupplyHistory(timestamp1, timestamp3))
                 .isNotNull()
                 .satisfies(r -> {
                     assertThat(r.unreleasedSupply()).isEqualTo(5_500_000L);
                     assertThat(r.consensusTimestamp()).isEqualTo(timestamp3);
                 });
-        assertThat(accountBalanceRepository.getSupplyHistory(List.of(), 0L, Long.MAX_VALUE))
+        assertThat(accountBalanceRepository.getSupplyHistory(0L, Long.MAX_VALUE))
                 .isNotNull()
                 .satisfies(r -> {
-                    assertThat(r.unreleasedSupply()).isZero();
-                    assertThat(r.consensusTimestamp()).isZero();
+                    assertThat(r.unreleasedSupply()).isEqualTo(5_500_000L);
+                    assertThat(r.consensusTimestamp()).isEqualTo(timestamp3);
                 });
     }
 
