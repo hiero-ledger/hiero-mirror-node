@@ -46,7 +46,6 @@ import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.accessor.AccountDatabaseAccessor;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -86,6 +85,7 @@ class AccountReadableKVStateTest {
     private static final int NEGATIVE_BALANCES = 8;
     private static final ProtoBytes EVM_ADDRESS_BYTES =
             new ProtoBytes(Bytes.wrap("67d8d32e9bf1a9968a5ff53b87d777aa8ebbee69".getBytes()));
+    private static final long DEFAULT_AUTO_RENEW_PERIOD = 7776000L;
     private static final List<TokenAccountAssociationsCount> associationsCount = Arrays.asList(
             new TokenAccountAssociationsCount() {
                 @Override
@@ -338,7 +338,7 @@ class AccountReadableKVStateTest {
                         Account::expirationSecond)
                 .returns(0L, Account::numberOwnedNfts)
                 .returns(false, Account::deleted)
-                .returns(AccountDatabaseAccessor.DEFAULT_AUTO_RENEW_PERIOD, Account::autoRenewSeconds)
+                .returns(DEFAULT_AUTO_RENEW_PERIOD, Account::autoRenewSeconds)
                 .returns(0, Account::maxAutoAssociations)
                 .returns(0, Account::usedAutoAssociations));
     }
@@ -652,13 +652,24 @@ class AccountReadableKVStateTest {
 
     @Test
     void returnsDummyAccountForSystemAccountWhenNotFound() {
-        final var systemKey = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
-        when(commonEntityAccessor.get(systemKey, Optional.empty())).thenReturn(Optional.empty());
+        final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
+        when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
 
-        assertThat(accountReadableKVState.readFromDataSource(systemKey)).satisfies(account -> assertThat(account)
+        assertThat(accountReadableKVState.readFromDataSource(systemAccount)).satisfies(account -> assertThat(account)
                 .isNotNull()
-                .returns(systemKey, Account::accountId)
-                .returns(0L, Account::tinybarBalance));
+                .returns(systemAccount, Account::accountId)
+                .returns(0L, Account::tinybarBalance)
+                .returns(EMPTY_KEY_LIST, Account::key));
+    }
+
+    @Test
+    void dummySystemAccountDoesNotThrowNPEOnKeyOrThrow() {
+        final var systemAccount = new AccountID(0, 0, new OneOf<>(AccountOneOfType.ACCOUNT_NUM, 50L));
+        when(commonEntityAccessor.get(systemAccount, Optional.empty())).thenReturn(Optional.empty());
+
+        final var account = accountReadableKVState.readFromDataSource(systemAccount);
+        assertThat(account).isNotNull();
+        assertThat(account.keyOrThrow()).isNotNull().isEqualTo(EMPTY_KEY_LIST);
     }
 
     private AccountID getAccountId(final Long num) {

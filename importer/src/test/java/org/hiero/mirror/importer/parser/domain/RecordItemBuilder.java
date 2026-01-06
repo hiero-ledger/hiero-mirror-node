@@ -990,8 +990,14 @@ public class RecordItemBuilder {
     }
 
     public Builder<TokenClaimAirdropTransactionBody.Builder> tokenClaimAirdrop() {
-        var transactionBody = TokenClaimAirdropTransactionBody.newBuilder().addPendingAirdrops(pendingAirdropId());
-        return new Builder<>(TransactionType.TOKENCLAIMAIRDROP, transactionBody);
+        final var pendingAirdrop = pendingAirdropId();
+        final var transactionBody =
+                TokenClaimAirdropTransactionBody.newBuilder().addPendingAirdrops(pendingAirdrop);
+        return new Builder<>(TransactionType.TOKENCLAIMAIRDROP, transactionBody)
+                .record(r -> r.addTokenTransferLists(TokenTransferList.newBuilder()
+                        .setToken(pendingAirdrop.getFungibleTokenType())
+                        .addTransfers(accountAmount(accountId(), 100))
+                        .addTransfers(accountAmount(accountId(), -100))));
     }
 
     public Builder<TokenAssociateTransactionBody.Builder> tokenAssociate() {
@@ -1709,8 +1715,7 @@ public class RecordItemBuilder {
                     .setTransferList(TransferList.newBuilder()
                             .addAccountAmounts(accountAmount(payerAccountId, -6000L))
                             .addAccountAmounts(accountAmount(nodeAccountId, 1000L))
-                            .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
-                            .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), 3000L))
+                            .addAccountAmounts(accountAmount(systemEntity.feeCollectionAccount(), 5000L))
                             .build());
             transactionRecordBuilder.getReceiptBuilder().setStatus(ResponseCodeEnum.SUCCESS);
             return transactionRecordBuilder;

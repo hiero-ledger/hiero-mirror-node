@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
-import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
 import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,7 +18,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -61,14 +59,12 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "true") boolean stack,
             @RequestParam(required = false, defaultValue = "false") boolean memory,
             @RequestParam(required = false, defaultValue = "false") boolean storage,
-            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
             HttpServletResponse response) {
         if (!rateLimitBucket.tryConsume(1)) {
             throw new ThrottleException("Requests per second rate limit exceeded.");
         }
 
-        response.addHeader(MODULARIZED_HEADER, String.valueOf(true));
-        final var options = new OpcodeTracerOptions(stack, memory, storage, true);
+        final var options = new OpcodeTracerOptions(stack, memory, storage);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options);
     }
 }

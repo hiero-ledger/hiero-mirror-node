@@ -15,8 +15,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Named
 public class InitializeEntityBalanceMigration extends AbstractTimestampInfoMigration {
 
-    private static final String INITIALIZE_ENTITY_BALANCE_SQL =
-            """
+    private static final String INITIALIZE_ENTITY_BALANCE_SQL = """
             with snapshot as (
               select distinct on (account_id) account_id, balance
               from account_balance

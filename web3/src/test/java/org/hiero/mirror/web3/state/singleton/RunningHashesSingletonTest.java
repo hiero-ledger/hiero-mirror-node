@@ -20,7 +20,7 @@ class RunningHashesSingletonTest {
     void get() {
         ContractCallContext.run(context -> {
             var recordFile = domainBuilder.recordFile().get();
-            context.setRecordFile(recordFile);
+            context.setBlockSupplier(() -> recordFile);
             assertThat(runningHashesSingleton.get())
                     .returns(Bytes.EMPTY, RunningHashes::runningHash)
                     .returns(Bytes.EMPTY, RunningHashes::nMinus1RunningHash)
@@ -39,7 +39,7 @@ class RunningHashesSingletonTest {
     void set() {
         ContractCallContext.run(context -> {
             var recordFile = domainBuilder.recordFile().get();
-            context.setRecordFile(recordFile);
+            context.setBlockSupplier(() -> recordFile);
             runningHashesSingleton.set(RunningHashes.DEFAULT);
             assertThat(runningHashesSingleton.get()).isNotEqualTo(RunningHashes.DEFAULT);
             return null;

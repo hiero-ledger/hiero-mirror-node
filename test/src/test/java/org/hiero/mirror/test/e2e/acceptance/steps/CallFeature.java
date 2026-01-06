@@ -340,13 +340,7 @@ public class CallFeature extends AbstractFeature {
     public void htsGetTokenDefaultKycStatus() {
         var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, fungibleTokenAddress);
         var response = callContract(data, precompileContractAddress);
-        boolean defaultKycStatus = false;
-        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
-        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-
+        var defaultKycStatus = true;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 

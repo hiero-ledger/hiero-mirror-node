@@ -21,9 +21,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
     private final int accountId = 123;
     private final TokenAccountRepository repository;
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             UNFROZEN, REVOKED, FROZEN, GRANTED, FROZEN, GRANTED
             UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
             FROZEN, NOT_APPLICABLE, , , FROZEN, NOT_APPLICABLE
@@ -185,9 +183,7 @@ class TokenAccountRepositoryTest extends Web3IntegrationTest {
                 .isEmpty();
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             UNFROZEN, REVOKED, FROZEN, GRANTED, FROZEN, GRANTED
             UNFROZEN, REVOKED, , , UNFROZEN, REVOKED
             FROZEN, NOT_APPLICABLE, , , FROZEN, NOT_APPLICABLE

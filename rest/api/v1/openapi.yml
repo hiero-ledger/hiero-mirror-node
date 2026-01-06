@@ -914,6 +914,37 @@ paths:
           $ref: "#/components/responses/ServiceUnavailableError"
       tags:
         - network
+    post:
+      summary: Estimate network fees
+      description: Given a HAPI transaction, estimate the network fees in tinycents.
+      operationId: estimateFees
+      parameters:
+        - $ref: "#/components/parameters/estimateModeQueryParam"
+      requestBody:
+        content:
+          application/protobuf:
+            schema:
+              format: binary
+              type: string
+          application/x-protobuf:
+            schema:
+              format: binary
+              type: string
+        description: A protobuf encoded HAPI Transaction
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeEstimateResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+        500:
+          $ref: "#/components/responses/ServiceUnavailableError"
+      tags:
+        - network
   /api/v1/network/nodes:
     get:
       summary: Get the network address book nodes
@@ -1448,7 +1479,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.145.0-SNAPSHOT
+  version: 0.146.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -3362,6 +3393,125 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FixedCustomFee"
+    FeeEstimate:
+      description: The fee estimate for the network component. Includes the base fee and any extras associated with it.
+      properties:
+        base:
+          description: The base fee price, in tinycents.
+          example: 1000
+          format: int64
+          minimum: 0
+          type: integer
+        extras:
+          description: The extra fees that apply for this fee component.
+          items:
+            $ref: "#/components/schemas/FeeExtra"
+          type: array
+      required:
+        - base
+        - extras
+      type: object
+    FeeEstimateMode:
+      description: Estimate solely based on the transaction's inherent properties or use network state.
+      default: INTRINSIC
+      enum: [INTRINSIC, STATE]
+      type: string
+    FeeEstimateNetwork:
+      description: The network fee component which covers the cost of gossip, consensus, signature verifications, fee payment, and storage.
+      properties:
+        multiplier:
+          description: Multiplied by the node fee to determine the total network fee.
+          example: 2
+          format: int32
+          minimum: 0
+          type: integer
+        subtotal:
+          description: The subtotal in tinycents for the network fee component which is calculated by multiplying the node subtotal by the network multiplier.
+          example: 1200
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - multiplier
+        - subtotal
+      type: object
+    FeeEstimateResponse:
+      description: The response containing the estimated transaction fees.
+      properties:
+        network:
+          $ref: "#/components/schemas/FeeEstimateNetwork"
+        node:
+          allOf:
+            - $ref: "#/components/schemas/FeeEstimate"
+            - description: The node fee component which is to be paid to the node that submitted the transaction to the network. This fee exists to compensate the node for the work it performed to pre-check the transaction before submitting it, and incentivizes the node to accept new transactions from users.
+        notes:
+          description: An array of strings for any caveats.
+          example: ["Fallback to worst-case due to missing state"]
+          items:
+            type: string
+          type: array
+        service:
+          allOf:
+            - $ref: "#/components/schemas/FeeEstimate"
+            - description: The service fee component which covers execution costs, state saved in the Merkle tree, and additional costs to the blockchain storage.
+        total:
+          description: The sum of the network, node, and service subtotals in tinycents.
+          example: 1000
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - network
+        - node
+        - notes
+        - service
+        - total
+      type: object
+    FeeExtra:
+      description: The extra fee charged for the transaction.
+      properties:
+        charged:
+          description: The charged count of items as calculated by `max(0, count - included)`.
+          example: 1
+          format: int32
+          minimum: 0
+          type: integer
+        count:
+          description: The actual count of items received.
+          example: 2
+          format: int32
+          minimum: 0
+          type: integer
+        fee_per_unit:
+          description: The fee price per unit in tinycents.
+          example: 100
+          format: int64
+          minimum: 0
+          type: integer
+        included:
+          description: The count of this "extra" that is included for free.
+          example: 1
+          format: int32
+          minimum: 0
+          type: integer
+        name:
+          description: The unique name of this extra fee as defined in the fee schedule.
+          example: Signatures
+          type: string
+        subtotal:
+          description: The subtotal in tinycents for this extra fee. Calculated by multiplying the charged count by the fee_per_unit.
+          example: 100
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - charged
+        - count
+        - fee_per_unit
+        - included
+        - name
+        - subtotal
+      type: object
     FixedCustomFee:
       type: object
       properties:
@@ -3823,6 +3973,7 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
+        - LAMBDASSTORE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
@@ -5193,6 +5344,13 @@ components:
       schema:
         type: boolean
         default: false
+    estimateModeQueryParam:
+      description: Estimate solely based on the transaction's inherent properties or use network state.
+      in: query
+      name: mode
+      example: INTRINSIC
+      schema:
+        $ref: "#/components/schemas/FeeEstimateMode"
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response
@@ -5294,7 +5452,6 @@ components:
         type: string
         maxLength: 100
         minLength: 3
-
     tokenTypeQueryParam:
       name: type
       in: query

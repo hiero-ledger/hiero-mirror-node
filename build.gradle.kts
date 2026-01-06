@@ -16,16 +16,17 @@ plugins {
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
     set("besuVersion", "24.3.3")
-    set("blockNodeVersion", "0.24.0")
-    set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
-    set("grpcVersion", "1.77.0")
+    set("blockNodeVersion", "0.24.2")
+    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
+    set("consensusNodeVersion", "0.69.1")
+    set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
     set("protobufVersion", "4.33.2")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
-    set("consensusNodeVersion", "0.69.0-rc.2")
+    set("web3jVersion", "5.0.1")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
@@ -34,27 +35,26 @@ dependencies {
     constraints {
         val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
+        val consensusNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val consensusNodeVersion: String by rootProject.extra
+        val web3jVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.83")
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:3.0.1")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.evm:hedera-evm:0.54.2")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
@@ -65,7 +65,7 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.4.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.13.2")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
@@ -87,11 +87,11 @@ dependencies {
         api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
-        api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
+        api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("org.web3j:core:5.0.1")
-        api("software.amazon.awssdk:bom:2.40.3")
+        api("org.web3j:core:$web3jVersion")
+        api("software.amazon.awssdk:bom:2.41.1")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -281,7 +281,7 @@ tasks.register("release") {
         )
         replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
         replaceVersion(
-            "tools/traffic-replay/log-downloader/package*.json",
+            "tools/log-downloader/package*.json",
             "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
         )
     }

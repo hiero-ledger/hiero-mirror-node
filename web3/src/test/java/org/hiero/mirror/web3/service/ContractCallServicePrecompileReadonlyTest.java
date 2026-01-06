@@ -2,11 +2,15 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.asTypedEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.DELEGATABLE_CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ECDSA_SECPK256K1;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ED25519;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ED25519_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.KEY_WITH_ECDSA_TYPE;
@@ -19,14 +23,12 @@ import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.Heder
 import static org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.TokenKey;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
-import com.hedera.services.store.models.Id;
-import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -39,10 +41,10 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenKycStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContract;
 import org.hiero.mirror.web3.web3j.generated.PrecompileTestContract.FixedFee;
@@ -69,13 +71,9 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var functionCall = contract.call_callMissingPrecompile();
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var result = functionCall.send();
-            assertThat(result.component1()).isTrue();
-            assertThat(result.component2()).isEmpty();
-        } else {
-            assertThatThrownBy(functionCall::send).isInstanceOf(PrecompileNotSupportedException.class);
-        }
+        final var result = functionCall.send();
+        assertThat(result.component1()).isTrue();
+        assertThat(result.component2()).isEmpty();
     }
 
     // Temporary test until we start supporting this precompile
@@ -83,20 +81,16 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void hrcIsAssociatedFails() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_hrcIsAssociated(asHexedEvmAddress(token.getTokenId()));
+        final var functionCall =
+                contract.call_hrcIsAssociated(toAddress(token.getTokenId()).toHexString());
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(functionCall.send()).isFalse();
-        } else {
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(PrecompileNotSupportedException.class)
-                    .hasMessage("HRC isAssociated() precompile is not supported.");
-        }
+        assertThat(functionCall.send()).isFalse();
     }
 
     @Test
@@ -220,11 +214,13 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void isTokenAddress() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_isTokenAddress(asHexedEvmAddress(token.getTokenId()));
+        final var functionCall =
+                contract.call_isTokenAddress(toAddress(token.getTokenId()).toHexString());
 
         // Then
         assertThat(functionCall.send()).isTrue();
@@ -288,11 +284,12 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     void getTokenType() throws Exception {
         // Given
         final var token = fungibleTokenPersist();
+        final var tokenId = token.getTokenId();
 
         final var contract = testWeb3jService.deploy(PrecompileTestContract::deploy);
 
         // When
-        final var functionCall = contract.call_getType(asHexedEvmAddress(token.getTokenId()));
+        final var functionCall = contract.call_getType(toAddress(tokenId).toHexString());
 
         // Then
         assertThat(functionCall.send()).isEqualTo(BigInteger.ZERO);
@@ -354,9 +351,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, ADMIN_KEY
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, KYC_KEY
                                 FUNGIBLE_COMMON, ECDSA_SECPK256K1, FREEZE_KEY
@@ -547,7 +542,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 DEFAULT_NUMERATOR_VALUE,
                 DEFAULT_DENOMINATOR_VALUE,
                 DEFAULT_FEE_AMOUNT,
-                EntityIdUtils.asHexedEvmAddress(new Id(entityId.getShard(), entityId.getRealm(), entityId.getNum())),
+                CommonUtils.hex(toEvmAddress(entityId)),
                 false,
                 Address.fromHexString(
                                 Bytes.wrap(collectorAccount.getEvmAddress()).toHexString())
@@ -584,11 +579,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
 
         final var expectedExpiry = new Expiry(
                 BigInteger.valueOf(expiryPeriod).divide(BigInteger.valueOf(1_000_000_000L)),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntity(autoRenewAccount)
-                        : Address.fromHexString(Bytes.wrap(autoRenewAccount.getEvmAddress())
-                                        .toHexString())
-                                .toHexString(),
+                getAddressFromEntity(autoRenewAccount),
                 BigInteger.valueOf(autoRenewExpiry));
 
         // Then
@@ -673,9 +664,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -743,9 +732,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -822,9 +809,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -905,9 +890,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -979,9 +962,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
         final var expectedHederaToken = new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                mirrorNodeEvmProperties.isModularizedServices()
-                        ? getAddressFromEntityId(treasury.toEntityId())
-                        : getAddressFromEvmAddress(treasury.getEvmAddress()),
+                getAddressFromEntityId(treasury.toEntityId()),
                 tokenEntity.getMemo(),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),
@@ -1054,8 +1035,8 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
                 .callData(Bytes.fromHexString(functionCall.encodeFunctionCall()))
                 .callType(CallServiceParameters.CallType.ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isEstimate(false)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isStatic(false)
                 .receiver(Address.fromHexString(contract.getContractAddress()))
                 .sender(testWeb3jService.getSender())

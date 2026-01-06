@@ -17,14 +17,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
 import org.hiero.mirror.web3.web3j.generated.TestAddressThis;
 import org.hiero.mirror.web3.web3j.generated.TestNestedAddressThis;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -48,29 +47,12 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @Resource
     private ObjectMapper objectMapper;
 
-    private double modularizedTrafficPercent;
-
     @SneakyThrows
     private ResultActions contractCall(ContractCallRequest request) {
         return mockMvc.perform(post(CALL_URI)
                 .accept(MediaType.APPLICATION_JSON)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(convert(request)));
-    }
-
-    @BeforeEach
-    void before() {
-        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-        }
-    }
-
-    @AfterEach
-    void after() {
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
     }
 
     @Test
@@ -104,11 +86,15 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         var callFunction = contract.call_getAddressThis();
         final var result = callFunction.send();
         var parameters = getContractExecutionParameters(callFunction, contract);
-        var output = contractExecutionService.callContract(parameters).getOutput();
+        var output = contractExecutionService
+                .callContract(parameters)
+                .functionResult()
+                .contractCallResult();
 
         // Then
         final var successfulResponse = "0x" + StringUtils.leftPad(result.substring(2), 64, '0');
-        assertThat(successfulResponse).isEqualTo(output.toHexString());
+        assertThat(successfulResponse)
+                .isEqualTo(Bytes.wrap(output.toByteArray()).toHexString());
     }
 
     @Test
@@ -162,27 +148,27 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void getBalance(boolean overridePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+    void getBalance(boolean validatePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var entity1 = accountEntityPersist();
         final var functionCall = contract.call_getBalance(getAddressFromEntity(entity1));
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(entity1.getBalance()));
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    void getAddressThisBalance(boolean overridePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(overridePayerBalance);
+    void getAddressThisBalance(boolean validatePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
         final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
         final var contract =
                 testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
         final var functionCall = contract.call_getAddressThisBalance();
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
-        mirrorNodeEvmProperties.setOverridePayerBalanceValidation(false);
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {

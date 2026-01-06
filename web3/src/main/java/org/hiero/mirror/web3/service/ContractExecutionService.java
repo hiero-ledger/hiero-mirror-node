@@ -10,9 +10,7 @@ import java.util.Objects;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.contracts.execution.MirrorEvmTxProcessor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.evm.store.Store;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.service.utils.BinaryGasEstimator;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -28,20 +26,16 @@ public class ContractExecutionService extends ContractCallService {
     public ContractExecutionService(
             MeterRegistry meterRegistry,
             BinaryGasEstimator binaryGasEstimator,
-            Store store,
-            MirrorEvmTxProcessor mirrorEvmTxProcessor,
             RecordFileService recordFileService,
             ThrottleProperties throttleProperties,
             ThrottleManager throttleManager,
             MirrorNodeEvmProperties mirrorNodeEvmProperties,
             TransactionExecutionService transactionExecutionService) {
         super(
-                mirrorEvmTxProcessor,
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
-                store,
                 mirrorNodeEvmProperties,
                 transactionExecutionService);
         this.binaryGasEstimator = binaryGasEstimator;
@@ -60,7 +54,8 @@ public class ContractExecutionService extends ContractCallService {
                     result = estimateGas(params, ctx);
                 } else {
                     final var ethCallTxnResult = callContract(params, ctx);
-                    result = Objects.requireNonNullElse(ethCallTxnResult.getOutput(), Bytes.EMPTY);
+                    result = Objects.requireNonNullElse(
+                            Bytes.fromHexString(ethCallTxnResult.contractCallResult()), Bytes.EMPTY);
                 }
 
                 stringResult = result.toHexString();
@@ -85,7 +80,7 @@ public class ContractExecutionService extends ContractCallService {
      */
     private Bytes estimateGas(final ContractExecutionParameters params, final ContractCallContext context) {
         final var processingResult = callContract(params, context);
-        final var gasUsedByInitialCall = processingResult.getGasUsed();
+        final var gasUsedByInitialCall = processingResult.gasUsed();
 
         // sanity check ensuring gasUsed is always lower than the inputted one
         if (gasUsedByInitialCall >= params.getGas()) {
@@ -97,8 +92,7 @@ public class ContractExecutionService extends ContractCallService {
                 (totalGas, iterations) -> updateMetrics(params, totalGas, iterations, status),
                 gas -> doProcessCall(params, gas, true),
                 gasUsedByInitialCall,
-                params.getGas(),
-                params.isModularized());
+                params.getGas());
 
         return Bytes.ofUnsignedLong(estimatedGas);
     }

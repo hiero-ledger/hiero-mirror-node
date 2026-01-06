@@ -411,8 +411,7 @@ class CleanupEntityMigrationTest extends ImporterIntegrationTest {
         ownerJdbcTemplate.execute("drop table if exists entity cascade;");
 
         // add t_entities if not present
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
     create table if not exists t_entities (
         entity_num             bigint  not null,
         entity_realm           bigint  not null,
@@ -437,8 +436,7 @@ class CleanupEntityMigrationTest extends ImporterIntegrationTest {
     }
 
     private void cleanup() {
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
                                     truncate table entity restart identity cascade;
                                     drop table if exists t_entities cascade;
                                     """);

@@ -68,52 +68,56 @@ describe('Generate report', () => {
     fetchMock.mockGlobal().get(testnetUrl, {
       transactions: [
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734393500.000000001', // This transaction will not show up in output since it's before ts
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: -10},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: -15},
           ],
           transaction_id: '0.0.1000-1734415200-000000000',
         },
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000001',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: -1015},
             {account: '0.0.1001', amount: 1000},
           ],
           transaction_id: '0.0.1000-1734415200-000000000',
         },
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000003',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: 990},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: 985},
             {account: '0.0.1001', amount: -1000},
           ],
           transaction_id: '0.0.1000-1734415200-000000002',
         },
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000005',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: -10},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: -15},
           ],
           transaction_id: '0.0.1000-1734415200-000000004',
         },
@@ -125,9 +129,9 @@ describe('Generate report', () => {
     const data = fs.readFileSync(outputFile, 'utf8');
     expect(data).toBe(
       ReportFile.HEADER +
-        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008980,https://hashscan.io/testnet/transaction/1734415200.000000001\n' +
-        '2024-12-17T06:00:00.000000003Z,0.0.1001,0.0.1000,0.00000010,0.00000990,0.00009970,https://hashscan.io/testnet/transaction/1734415200.000000003\n' +
-        '2024-12-17T06:00:00.000000005Z,0.0.1000,fee accounts,0.00000010,-0.00000010,0.00009960,https://hashscan.io/testnet/transaction/1734415200.000000005\n'
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000015,-0.00001015,0.00008970,https://hashscan.io/testnet/transaction/1734415200.000000001\n' +
+        '2024-12-17T06:00:00.000000003Z,0.0.1001,0.0.1000,0.00000015,0.00000985,0.00009955,https://hashscan.io/testnet/transaction/1734415200.000000003\n' +
+        '2024-12-17T06:00:00.000000005Z,0.0.1000,fee accounts,0.00000015,-0.00000015,0.00009940,https://hashscan.io/testnet/transaction/1734415200.000000005\n'
     );
   });
 
@@ -144,14 +148,15 @@ describe('Generate report', () => {
     fetchMock.mockGlobal().get(testnetUrl1, {
       transactions: [
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000001',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: -1015},
             {account: '0.0.1001', amount: 1000},
           ],
           transaction_id: '0.0.1000-1734415200-000000000',
@@ -162,14 +167,15 @@ describe('Generate report', () => {
     fetchMock.mockGlobal().get(testnetUrl2, {
       transactions: [
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000003',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1001', amount: -10},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1001', amount: -15},
           ],
           transaction_id: '0.0.1001-1734415200-000000002',
         },
@@ -181,13 +187,13 @@ describe('Generate report', () => {
     const report1 = fs.readFileSync(`report-${fromDate}-0.0.1000.csv`, 'utf8');
     expect(report1).toBe(
       ReportFile.HEADER +
-        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000015,-0.00001015,0.00008985,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
     );
 
     const report2 = fs.readFileSync(`report-${fromDate}-0.0.1001.csv`, 'utf8');
     expect(report2).toBe(
       ReportFile.HEADER +
-        '2024-12-17T06:00:00.000000003Z,0.0.1001,fee accounts,0.00000010,-0.00000010,0.00019990,https://hashscan.io/testnet/transaction/1734415200.000000003\n'
+        '2024-12-17T06:00:00.000000003Z,0.0.1001,fee accounts,0.00000015,-0.00000015,0.00019985,https://hashscan.io/testnet/transaction/1734415200.000000003\n'
     );
   });
 
@@ -202,14 +208,15 @@ describe('Generate report', () => {
     const transactionsResponse = {
       transactions: [
         {
-          charged_tx_fee: 10,
+          charged_tx_fee: 15,
           consensus_timestamp: '1734415200.000000001',
           transfers: [
             {account: '0.0.3', amount: 1},
             {account: '0.0.98', amount: 2},
             {account: '0.0.800', amount: 3},
             {account: '0.0.801', amount: 4},
-            {account: '0.0.1000', amount: -1010},
+            {account: '0.0.802', amount: 5},
+            {account: '0.0.1000', amount: -1015},
             {account: '0.0.1001', amount: 1000},
           ],
           transaction_id: '0.0.1000-1734415200-000000000',
@@ -234,7 +241,7 @@ describe('Generate report', () => {
     expect(report1).toBe(
       ReportFile.HEADER +
         '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.0,0.00001000,0.00021000,https://hashscan.io/testnet/transaction/1734415200.000000001\n' +
-        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000010,-0.00001010,0.00008990,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
+        '2024-12-17T06:00:00.000000001Z,0.0.1000,0.0.1001,0.00000015,-0.00001015,0.00008985,https://hashscan.io/testnet/transaction/1734415200.000000001\n'
     );
   });
 });

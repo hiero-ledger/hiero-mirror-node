@@ -6,12 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.api.proto.AddressBookQuery;
-import com.hedera.mirror.api.proto.Fee.FeeEstimateQuery;
 import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
-import com.hederahashgraph.api.proto.java.Transaction;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.net.InetAddress;
@@ -26,7 +24,6 @@ import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
@@ -44,29 +41,6 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
 
     @GrpcClient("local")
     private ReactorNetworkServiceGrpc.ReactorNetworkServiceStub reactiveService;
-
-    @Test
-    void getFeeEstimate() {
-        final var query = FeeEstimateQuery.newBuilder().build();
-        StepVerifier.withVirtualTime(() -> reactiveService.getFeeEstimate(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertThat(n).isEqualTo(NetworkController.STUB_RESPONSE))
-                .expectComplete()
-                .verify(WAIT);
-    }
-
-    @Test
-    void getFeeEstimateInvalidTransaction() {
-        final var query = FeeEstimateQuery.newBuilder()
-                .setTransaction(Transaction.newBuilder()
-                        .setSignedTransactionBytes(DomainUtils.fromBytes(domainBuilder.bytes(50))))
-                .build();
-        StepVerifier.withVirtualTime(() -> reactiveService.getFeeEstimate(Mono.just(query)))
-                .thenAwait(WAIT)
-                .expectErrorSatisfies(
-                        t -> assertException(t, Status.Code.INVALID_ARGUMENT, NetworkController.INVALID_TRANSACTION))
-                .verify(WAIT);
-    }
 
     @Test
     void getNodesMissingFileId() {

@@ -27,8 +27,7 @@ class DummyMigrationTest extends ImporterIntegrationTest {
 
     @Test
     void verifyPermissions() {
-        final var sql =
-                """
+        final var sql = """
                 create table if not exists test (id bigint primary key);
                 insert into test (id) values (1);
                 drop table test

@@ -42,7 +42,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -87,7 +87,7 @@ jobs:
         uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
         with:
           driver-opts: network=host
           buildkitd-config-inline: |
@@ -113,7 +113,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-medium
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@df199fb7be9f65074067a9eb93f12bb4c5547cf2 # v2.13.3
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -139,7 +139,7 @@ jobs:
         run: 'sed -i "s/git.commit: .*/git.commit: ${GITHUB_SHA}/" clusters/preprod/integration/helmrelease.yaml'
 
       - name: Auto-Commit
-        uses: step-security/git-auto-commit-action@e2d505468267a3cb406af729d48d664de1f16393 # v6.0.2
+        uses: step-security/git-auto-commit-action@905c3cd6e9ed2b67b4d46ff401fdb6d745d0ff9d # v7.1.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Upgrade integration to main ${{ github.sha }}

@@ -44,8 +44,8 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockProperties = new BlockProperties();
         blockProperties.setNodes(nodes);
         boolean isInProcess = nodes.getFirst().getPort() == -1;
-        var blockStreamVerifier = new BlockStreamVerifier(
-                blockFileTransformer, blockProperties, recordFileRepository, streamFileNotifier, meterRegistry);
+        var blockStreamVerifier =
+                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
         var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         return new BlockNodeSubscriber(
@@ -53,6 +53,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 channelBuilderProvider,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 }

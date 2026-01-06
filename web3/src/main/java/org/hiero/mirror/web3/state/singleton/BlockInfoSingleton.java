@@ -22,9 +22,9 @@ public class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
     @Override
     public BlockInfo get() {
-        var recordFile = ContractCallContext.get().getRecordFile();
-        var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
-        var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());
+        final var recordFile = ContractCallContext.get().getRecordFile();
+        final var startTimestamp = Utils.convertToTimestamp(recordFile.getConsensusStart());
+        final var endTimestamp = Utils.convertToTimestamp(recordFile.getConsensusEnd());
 
         return BlockInfo.newBuilder()
                 .blockHashes(Bytes.EMPTY)

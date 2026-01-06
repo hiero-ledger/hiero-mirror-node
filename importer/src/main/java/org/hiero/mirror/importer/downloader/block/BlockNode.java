@@ -6,11 +6,14 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADE
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,6 +33,7 @@ import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
@@ -41,16 +45,23 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
+    static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
+    private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
 
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
+
+    @Getter
     private final BlockNodeProperties properties;
+
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
+
+    private final Counter errorsMetric;
 
     @Getter
     private boolean active = true;
@@ -59,7 +70,8 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final ManagedChannelBuilderProvider channelBuilderProvider,
             final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer,
             final BlockNodeProperties properties,
-            final StreamProperties streamProperties) {
+            final StreamProperties streamProperties,
+            final MeterRegistry meterRegistry) {
         this.channel = channelBuilderProvider
                 .get(properties)
                 .maxInboundMessageSize(
@@ -68,6 +80,11 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
         this.streamProperties = streamProperties;
+        this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
+                .description("The number of errors that occurred while streaming from a particular block node.")
+                .tag("type", StreamType.BLOCK.toString())
+                .tag("block_node", properties.getEndpoint())
+                .register(meterRegistry);
     }
 
     @Override
@@ -79,15 +96,18 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         channel.shutdown();
     }
 
-    public boolean hasBlock(final long blockNumber) {
+    public Range<Long> getBlockRange() {
         try {
             final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
-            return blockNumber >= response.getFirstAvailableBlock() && blockNumber <= response.getLastAvailableBlock();
+            final long firstBlockNumber = response.getFirstAvailableBlock();
+            return firstBlockNumber != -1
+                    ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
+                    : EMPTY_BLOCK_RANGE;
         } catch (Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
-            return false;
+            return EMPTY_BLOCK_RANGE;
         }
     }
 
@@ -144,7 +164,6 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             throw new BlockStreamException(ex);
         } finally {
             final var call = callHolder.get();
-
             if (call != null) {
                 call.cancel("unsubscribe", null);
                 grpcBufferDisposer.accept(call);
@@ -171,6 +190,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     private void onError() {
+        errorsMetric.increment();
         if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
             active = false;
             errors.set(0);

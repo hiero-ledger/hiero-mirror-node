@@ -30,7 +30,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
     @BeforeEach
     void setup() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
-        domainBuilder.entity(systemEntity.feeCollectorAccount()).persist();
+        domainBuilder.entity(systemEntity.networkAdminFeeAccount()).persist();
         persistRewardAccounts();
     }
 
@@ -235,8 +235,8 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
                 .receiver(contractAddress)
                 .callData(callData)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isStatic(false)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(false)
                 .callType(ETH_CALL)
                 .value(0L)

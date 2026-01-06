@@ -21,8 +21,6 @@ public class Web3Properties implements ApiProperties {
 
     private boolean enabled = false;
 
-    private boolean modularizedServices = true;
-
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 
     public String getBaseUrl() {

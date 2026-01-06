@@ -16,8 +16,7 @@ import org.skyscreamer.jsonassert.JSONCompareMode;
 
 class TransactionTest {
 
-    private static final String EXPECTED_JSON_TEMPLATE =
-            """
+    private static final String EXPECTED_JSON_TEMPLATE = """
                     {
                       "batch_key": null,
                       "consensus_timestamp": 1684791152000000000,
@@ -47,12 +46,10 @@ class TransactionTest {
                     }
                     """;
     private static final String EXPECTED_MAX_CUSTOM_FEES = "[\"AQI=\", \"Cgs=\"]";
-    private static final String EXPECTED_ITEMIZED_TRANSFER_VALUE =
-            """
+    private static final String EXPECTED_ITEMIZED_TRANSFER_VALUE = """
                     "[{\\"amount\\":-200,\\"entity_id\\":50,\\"is_approval\\":true},{\\"amount\\":200,\\"entity_id\\":51,\\"is_approval\\":false}]"
                     """;
-    private static final String EXPECTED_NFT_TRANSFER_VALUE =
-            """
+    private static final String EXPECTED_NFT_TRANSFER_VALUE = """
                     "[{\\"is_approval\\":false,\\"receiver_account_id\\":10,\\"sender_account_id\\":11,\\"serial_number\\":12,\\"token_id\\":13},{\\"is_approval\\":true,\\"receiver_account_id\\":14,\\"sender_account_id\\":15,\\"serial_number\\":16,\\"token_id\\":17}]"
                     """;
 

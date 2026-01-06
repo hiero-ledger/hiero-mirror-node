@@ -44,11 +44,6 @@ dependencies {
     implementation("software.amazon.awssdk:sts")
     protobuf("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
     runtimeOnly("io.grpc:grpc-netty")
-    runtimeOnly(
-        group = "io.netty",
-        name = "netty-resolver-dns-native-macos",
-        classifier = "osx-aarch_64",
-    )
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")

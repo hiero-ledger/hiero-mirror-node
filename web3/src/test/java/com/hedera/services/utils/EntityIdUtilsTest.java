@@ -5,13 +5,8 @@ package com.hedera.services.utils;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.contractIdFromEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.toTokenId;
-import static com.hedera.services.utils.EntityIdUtils.tokenIdFromEvmAddress;
-import static com.hedera.services.utils.IdUtils.asAccount;
-import static com.hedera.services.utils.IdUtils.asContract;
-import static com.hedera.services.utils.IdUtils.asToken;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,11 +17,8 @@ import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.TokenID;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -67,60 +59,6 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void asContractWorks() {
-        final var expected = ContractID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setContractNum(NUM)
-                .build();
-        final var id = AccountID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setAccountNum(NUM)
-                .build();
-
-        final var cid = asContract(id);
-
-        assertEquals(expected, cid);
-    }
-
-    @Test
-    void serializesExpectedSolidityAddress() {
-        final byte[] shardBytes = Ints.toByteArray(0);
-        final byte[] realmBytes = Longs.toByteArray(0);
-        final byte[] numBytes = Longs.toByteArray(NUM);
-        final byte[] expected = ArrayUtils.addAll(ArrayUtils.addAll(shardBytes, realmBytes), numBytes);
-
-        final var create2AddressBytes = Hex.decode("0102030405060708090a0b0c0d0e0f1011121314");
-        final var equivAccount = asAccount(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var equivContract = asContract(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var equivToken = asToken(String.format("%d.%d.%d", SHARD, REALM, NUM));
-        final var create2Contract = ContractID.newBuilder()
-                .setEvmAddress(ByteString.copyFrom(create2AddressBytes))
-                .build();
-
-        final var actual = toEvmAddress(NUM);
-        final var typedActual = EntityIdUtils.asTypedEvmAddress(equivAccount);
-        final var typedToken = EntityIdUtils.asTypedEvmAddress(equivToken);
-        final var typedContract = EntityIdUtils.asTypedEvmAddress(equivContract);
-
-        final var anotherActual = toEvmAddress(equivContract);
-        final var create2Actual = toEvmAddress(create2Contract);
-        final var actualHex = EntityIdUtils.asHexedEvmAddress(equivAccount);
-
-        assertArrayEquals(expected, actual);
-        assertArrayEquals(expected, anotherActual);
-        assertArrayEquals(expected, typedActual.toArray());
-        assertArrayEquals(expected, typedToken.toArray());
-        assertArrayEquals(expected, typedContract.toArray());
-        assertArrayEquals(create2AddressBytes, create2Actual);
-        assertEquals(CommonUtils.hex(expected), actualHex);
-        assertEquals(equivAccount, accountIdFromEvmAddress(actual));
-        assertEquals(equivContract, contractIdFromEvmAddress(actual));
-        assertEquals(equivToken, tokenIdFromEvmAddress(actual));
-    }
-
-    @Test
     void fromAddressToIdNonLongZeroAlias() {
         var evmAddress = ArrayUtils.addAll(
                 ArrayUtils.addAll(Ints.toByteArray(Integer.MAX_VALUE), Longs.toByteArray(Long.MAX_VALUE)),
@@ -128,18 +66,10 @@ class EntityIdUtilsTest {
 
         var address = Address.fromHexString(CommonUtils.hex(evmAddress));
 
-        assertEquals(TokenID.getDefaultInstance(), tokenIdFromEvmAddress(evmAddress));
-        assertEquals(TokenID.getDefaultInstance(), tokenIdFromEvmAddress(address));
         assertEquals(ContractID.getDefaultInstance(), contractIdFromEvmAddress(evmAddress));
         assertEquals(ContractID.getDefaultInstance(), contractIdFromEvmAddress(address));
         assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(evmAddress));
         assertEquals(AccountID.getDefaultInstance(), accountIdFromEvmAddress(address));
-    }
-
-    @ParameterizedTest
-    @CsvSource({"1.0.0", "0.1.0", "0.0.1", "1.2.3"})
-    void parsesValidLiteral(final String goodLiteral) {
-        assertEquals(asAccount(goodLiteral), EntityId.of(goodLiteral).toAccountID());
     }
 
     @ParameterizedTest
@@ -150,67 +80,13 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void entityIdFromId() {
-        assertThat(EntityIdUtils.entityIdFromId(new Id(1L, 2L, 3L)))
-                .returns(1L, EntityId::getShard)
-                .returns(2L, EntityId::getRealm)
-                .returns(3L, EntityId::getNum);
-    }
-
-    @Test
-    void entityIdFromIdNullHandling() {
-        assertThat(EntityIdUtils.entityIdFromId(null)).isNull();
-    }
-
-    @Test
     void entityIdFromContractIdNullContractId() {
         assertThat(EntityIdUtils.entityIdFromContractId(null)).isNull();
     }
 
     @Test
-    void idFromEncodedId() {
-        assertThat(EntityIdUtils.idFromEncodedId(null)).isNull();
-        assertThat(EntityIdUtils.idFromEncodedId(0L)).isNull();
-        assertThat(EntityIdUtils.idFromEncodedId(EntityId.of(SHARD, REALM, NUM).getId()))
-                .returns(SHARD, Id::shard)
-                .returns(REALM, Id::realm)
-                .returns(NUM, Id::num);
-    }
-
-    @Test
-    void idFromEntityId() {
-        assertThat(EntityIdUtils.idFromEntityId(EntityId.of(SHARD, REALM, NUM)))
-                .returns(SHARD, Id::shard)
-                .returns(REALM, Id::realm)
-                .returns(NUM, Id::num);
-    }
-
-    @Test
-    void idFromEntityIdNullHandling() {
-        assertThat(EntityIdUtils.idFromEntityId(null)).isNull();
-    }
-
-    @Test
-    void asSolidityAddressHexWorksProperly() {
-        final var id = new Id(SHARD, REALM, NUM);
-
-        assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(id));
-    }
-
-    @Test
-    void asSolidityAddressHexWorksProperlyForAccount() {
-        final var accountId = AccountID.newBuilder()
-                .setShardNum(SHARD)
-                .setRealmNum(REALM)
-                .setAccountNum(NUM)
-                .build();
-
-        assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(accountId));
-    }
-
-    @Test
     void asSolidityAddressHexWorksProperlyForEncodedId() {
-        assertEquals(EXPECTED_HEXED_ADDRESS, EntityIdUtils.asHexedEvmAddress(ID));
+        assertEquals(EXPECTED_HEXED_ADDRESS, CommonUtils.hex(toEvmAddress(EntityId.of(ID))));
     }
 
     @Test
@@ -347,16 +223,6 @@ class EntityIdUtilsTest {
     }
 
     @Test
-    void toFileIdFromShardRealmNum() {
-        final var expectedFileId = com.hedera.hapi.node.base.FileID.newBuilder()
-                .shardNum(1)
-                .realmNum(2)
-                .fileNum(3)
-                .build();
-        assertEquals(expectedFileId, EntityIdUtils.toFileId(1L, 2L, 3L));
-    }
-
-    @Test
     void toTokenIdFromId() {
         final var id = EntityId.of(SHARD, REALM, NUM).getId();
 
@@ -384,13 +250,5 @@ class EntityIdUtilsTest {
                 .tokenNum(NUM)
                 .build();
         assertEquals(expectedTokenId, toTokenId(entityId));
-    }
-
-    @Test
-    void toAddressFromPbjBytes() {
-        final var address = Address.fromHexString("0x0000000000000000000000000000000000000001");
-        final var pbjBytes = Bytes.fromHex("0000000000000000000000000000000000000001");
-
-        assertEquals(address, EntityIdUtils.toAddress(pbjBytes));
     }
 }

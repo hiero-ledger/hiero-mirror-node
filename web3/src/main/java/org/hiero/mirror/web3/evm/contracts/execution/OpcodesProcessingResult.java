@@ -2,10 +2,13 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hyperledger.besu.datatypes.Address;
 
 public record OpcodesProcessingResult(
-        @NotNull HederaEvmTransactionProcessingResult transactionProcessingResult, @NotNull List<Opcode> opcodes) {}
+        @NotNull EvmTransactionResult transactionProcessingResult,
+        @NotNull Address recipient,
+        @NotNull List<Opcode> opcodes) {}

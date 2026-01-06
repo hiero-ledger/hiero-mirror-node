@@ -300,22 +300,18 @@ class NestNftTransferMigrationTest extends ImporterIntegrationTest {
 
     private void persistNftTransfers(List<MigrationNftTransfer> nftTransfers) {
         // hardcode payer account id, the column is "not null" and it's not needed for the migration
-        ownerJdbcTemplate.batchUpdate(
-                """
+        ownerJdbcTemplate.batchUpdate("""
                         insert into nft_transfer (consensus_timestamp, is_approval, payer_account_id, receiver_account_id,
                           sender_account_id, serial_number, token_id)
                           values (?, ?, 5000, ?, ?, ?, ?)
-                        """,
-                nftTransfers,
-                nftTransfers.size(),
-                (ps, nftTransfer) -> {
-                    ps.setLong(1, nftTransfer.getConsensusTimestamp());
-                    ps.setBoolean(2, nftTransfer.isApproval());
-                    setNullableId(ps, 3, nftTransfer.getReceiverAccountId());
-                    setNullableId(ps, 4, nftTransfer.getSenderAccountId());
-                    ps.setLong(5, nftTransfer.getSerialNumber());
-                    ps.setLong(6, nftTransfer.getTokenId());
-                });
+                        """, nftTransfers, nftTransfers.size(), (ps, nftTransfer) -> {
+            ps.setLong(1, nftTransfer.getConsensusTimestamp());
+            ps.setBoolean(2, nftTransfer.isApproval());
+            setNullableId(ps, 3, nftTransfer.getReceiverAccountId());
+            setNullableId(ps, 4, nftTransfer.getSenderAccountId());
+            ps.setLong(5, nftTransfer.getSerialNumber());
+            ps.setLong(6, nftTransfer.getTokenId());
+        });
     }
 
     private Transaction persistTransaction(Transaction transaction) {

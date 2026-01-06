@@ -7,7 +7,6 @@ package com.hedera.mirror.api.proto;
 option java_multiple_files = true; // Required for the reactor-grpc generator to work correctly
 option java_package = "com.hedera.mirror.api.proto";
 
-import "com/hedera/mirror/api/proto/fee.proto";
 import "services/basic_types.proto";
 
 /**
@@ -22,11 +21,6 @@ message AddressBookQuery {
  * Provides cross network APIs like address book queries
  */
 service NetworkService {
-  /**
-   * Query to estimate the fees when submitting a transaction to the network.
-   */
-  rpc getFeeEstimate(FeeEstimateQuery) returns (FeeEstimateResponse);
-
   /**
    * Query for an address book and return its nodes. The nodes are returned in ascending order by node ID. The
    * response is not guaranteed to be a byte-for-byte equivalent to the NodeAddress in the Hedera file on

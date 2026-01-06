@@ -16,6 +16,8 @@ public interface CallServiceParameters {
 
     long getGas();
 
+    long getGasPrice();
+
     Address getReceiver();
 
     Address getSender();
@@ -25,8 +27,6 @@ public interface CallServiceParameters {
     long getValue();
 
     boolean isEstimate();
-
-    boolean isModularized();
 
     boolean isStatic();
 

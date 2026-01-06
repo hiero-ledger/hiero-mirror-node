@@ -9,15 +9,12 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface NetworkStakeRepository extends CrudRepository<NetworkStake, Long> {
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
         select *
         from network_stake
         where consensus_timestamp = (
             select max(consensus_timestamp) from network_stake
         )
-        """,
-            nativeQuery = true)
+        """, nativeQuery = true)
     Optional<NetworkStake> findLatest();
 }

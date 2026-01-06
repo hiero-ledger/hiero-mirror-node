@@ -62,9 +62,7 @@ class EntityStakeCalculatorImplTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             100, 101, 0, 0
             100, 102, 0, 0
             , 101, 0, 0

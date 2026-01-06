@@ -13,7 +13,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
-import com.hederahashgraph.api.proto.java.SemanticVersion;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
@@ -29,8 +28,6 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -52,8 +49,8 @@ final class BlockStreamVerifierTest {
     @BeforeEach
     void setup() {
         var meterRegistry = new SimpleMeterRegistry();
-        verifier = new BlockStreamVerifier(
-                blockFileTransformer, new BlockProperties(), recordFileRepository, streamFileNotifier, meterRegistry);
+        verifier =
+                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
         expectedRecordFile = RecordFile.builder().build();
         when(blockFileTransformer.transform(any())).thenReturn(expectedRecordFile);
     }
@@ -162,41 +159,6 @@ final class BlockStreamVerifierTest {
         assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
     }
 
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            0, 68, 1,
-            0, 68, 1, rc.1
-            0, 69, 0,
-            """)
-    void hashMismatchIgnoredWithNewRootHashAlgorithm(
-            final int major, final int minor, final int patch, final String pre) {
-        // given
-        final var previous = getRecordFile();
-        when(recordFileRepository.findLatest()).thenReturn(Optional.of(previous));
-        final var blockFile = getBlockFile(previous);
-        final var versionBuilder =
-                SemanticVersion.newBuilder().setMajor(major).setMinor(minor).setPatch(patch);
-        if (pre != null) {
-            versionBuilder.setPre(pre);
-        }
-
-        final var version = versionBuilder.build();
-        blockFile.setBlockHeader(BlockHeader.newBuilder()
-                .setSoftwareVersion(version)
-                .setHapiProtoVersion(version)
-                .build());
-        blockFile.setPreviousHash(sha384Hash());
-
-        // when
-        verifier.verify(blockFile);
-
-        // then
-        verify(blockFileTransformer).transform(blockFile);
-        verify(recordFileRepository).findLatest();
-        verify(streamFileNotifier).verified(expectedRecordFile);
-        assertThat(verifier.getLastBlockFile()).get().returns(blockFile.getIndex(), BlockFile::getIndex);
-    }
-
     @Test
     void malformedFilename() {
         // given
@@ -238,8 +200,10 @@ final class BlockStreamVerifierTest {
                 .hash(sha384Hash())
                 .index(blockNumber)
                 .name(BlockFile.getFilename(blockNumber, true))
+                .node("host:port")
                 .previousHash(previousHash)
                 .consensusStart(consensusStart)
+                .consensusEnd(consensusStart + 1)
                 .build();
     }
 

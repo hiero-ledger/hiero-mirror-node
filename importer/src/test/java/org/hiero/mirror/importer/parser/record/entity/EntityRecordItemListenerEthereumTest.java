@@ -80,7 +80,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(0, contractRepository.count()),
                 () -> assertEquals(1, entityRepository.count()),
                 () -> assertEquals(1, contractResultRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(1, ethereumTransactionRepository.count()),
                 () -> assertThat(contractResultRepository.findAll()).hasSize(1),
                 () -> assertEthereumTransaction(recordItem, sender, SIGNER_NONCE));
@@ -158,7 +158,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(0, contractRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(1, contractResultRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(1, ethereumTransactionRepository.count()),
                 () -> assertThat(contractResultRepository.findAll()).hasSize(1),
                 () -> assertEthereumTransaction(recordItem, null, SIGNER_NONCE));
@@ -177,7 +177,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(0, contractRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(1, contractResultRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(1, ethereumTransactionRepository.count()),
                 () -> assertThat(contractResultRepository.findAll()).hasSize(1),
                 () -> assertEthereumTransaction(recordItem, null, SIGNER_NONCE));
@@ -216,7 +216,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 .first()
                 .returns(consensusTimestamp, ContractTransactionHash::getConsensusTimestamp)
                 .returns(expectedHash, ContractTransactionHash::getHash);
-        softly.assertThat(cryptoTransferRepository.count()).isEqualTo(4);
+        softly.assertThat(cryptoTransferRepository.count()).isEqualTo(3);
         softly.assertThat(entityRepository.count()).isZero();
         softly.assertThat(ethereumTransactionRepository.findAll())
                 .hasSize(1)
@@ -262,7 +262,7 @@ class EntityRecordItemListenerEthereumTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(0, contractRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(1, contractResultRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(1, ethereumTransactionRepository.count()),
                 () -> assertThat(contractResultRepository.findAll()).hasSize(1),
                 () -> assertEthereumTransaction(recordItem, null, SIGNER_NONCE));

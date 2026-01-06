@@ -82,13 +82,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 
     @ParameterizedTest(name = "last block number {0}")
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             5, '1,0,0', '1,0,0'
                             6, '1,1,0', '0,1,0'
                             7, '1,1,1', '0,0,1'
@@ -128,6 +127,57 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         }));
         verify(blockStreamVerifier).getLastBlockFile();
         verify(blockStreamVerifier).verify(any());
+    }
+
+    @Test
+    void getFromEarliestAvailableBlockNumber(Resources resources) {
+        // given
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(-1L);
+        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(Optional.empty()).when(blockStreamVerifier).getLastBlockFile();
+        doNothing().when(blockStreamVerifier).verify(any());
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+
+        // when
+        blockNodeSubscriber.get();
+
+        // then
+        assertCalls(statusCalls, "1,0,0");
+        assertCalls(streamCalls, "1,0,0");
+        verify(blockStreamReader).read(argThat(blockStream -> {
+            assertBlockStream(blockStream, 6);
+            return true;
+        }));
+        verify(blockStreamVerifier).getLastBlockFile();
+        verify(blockStreamVerifier).verify(any());
+    }
+
+    @Test
+    void getFromEarliestAvailableBlockNumberPastEndBlockNumber(Resources resources) {
+        // given
+        final var importerProperties = commonDownloaderProperties.getImporterProperties();
+        importerProperties.setStartBlockNumber(-1L);
+        importerProperties.setEndBlockNumber(5L);
+        doReturn(Optional.empty()).when(blockStreamVerifier).getLastBlockFile();
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+
+        // when
+        blockNodeSubscriber.get();
+
+        // then
+        assertCalls(statusCalls, "1,0,0");
+        assertCalls(streamCalls, "0,0,0");
+        verify(blockStreamReader, never()).read(any());
+        verify(blockStreamVerifier).getLastBlockFile();
+        verify(blockStreamVerifier, never()).verify(any());
     }
 
     @Test

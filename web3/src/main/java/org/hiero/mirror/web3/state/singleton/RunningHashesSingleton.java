@@ -19,10 +19,10 @@ public class RunningHashesSingleton implements SingletonState<RunningHashes> {
 
     @Override
     public RunningHashes get() {
-        var recordFile = ContractCallContext.get().getRecordFile();
+        final var recordFile = ContractCallContext.get().getRecordFile();
         return RunningHashes.newBuilder()
-                .runningHash(Bytes.EMPTY)
                 .nMinus1RunningHash(Bytes.EMPTY)
+                .runningHash(Bytes.EMPTY)
                 .nMinus2RunningHash(Bytes.EMPTY)
                 .nMinus3RunningHash(Bytes.fromHex(recordFile.getHash())) // Used by prevrandao
                 .build();

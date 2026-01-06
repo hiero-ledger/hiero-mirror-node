@@ -153,7 +153,7 @@ final class BlockFileSourceTest {
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, properties, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
+                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
@@ -365,6 +365,26 @@ final class BlockFileSourceTest {
                 .isZero();
         assertThat(countMatches(logs, "Failed to process block file " + filename))
                 .isOne();
+    }
+
+    @Test
+    void throwWhenStartFromEarliestAvailableBlockNumber() {
+        // given
+        importerProperties.setStartBlockNumber(-1L);
+        final var streamFileProvider = mock(StreamFileProvider.class);
+        final var source = new BlockFileSource(
+                new BlockStreamReaderImpl(),
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                consensusNodeService,
+                meterRegistry,
+                properties,
+                streamFileProvider);
+
+        // when, then
+        assertThatThrownBy(source::get)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("BlockFileSource doesn't support earliest available block number");
     }
 
     @Test

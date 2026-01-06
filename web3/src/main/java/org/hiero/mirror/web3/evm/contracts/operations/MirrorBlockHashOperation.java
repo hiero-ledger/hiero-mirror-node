@@ -9,7 +9,6 @@ import org.apache.tuweni.bytes.Bytes32;
 import org.apache.tuweni.units.bigints.UInt256;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.config.ModularizedOperation;
 import org.hiero.mirror.web3.repository.RecordFileRepository;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.evm.EVM;
@@ -25,7 +24,7 @@ import org.hyperledger.besu.evm.operation.BlockHashOperation;
  * returned as well.
  */
 @Named
-class MirrorBlockHashOperation extends BlockHashOperation implements ModularizedOperation {
+class MirrorBlockHashOperation extends BlockHashOperation {
 
     private final RecordFileRepository recordFileRepository;
 

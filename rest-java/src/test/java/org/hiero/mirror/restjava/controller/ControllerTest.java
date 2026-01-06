@@ -85,11 +85,19 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                 .contains(detail);
     }
 
-    protected abstract class EndpointTest {
+    protected abstract class RestTest {
 
         protected RestClient restClient;
 
         protected abstract String getUrl();
+
+        /*
+         * This method allows subclasses to do any setup work like entity persistence and provide a default URI and
+         * parameters for the parent class to run its common set of tests.
+         */
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            return uriSpec.uri("");
+        }
 
         @BeforeEach
         void setup() {
@@ -97,11 +105,23 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
             restClient = restClientBuilder.baseUrl(baseUrl + suffix).build();
         }
 
-        /*
-         * This method allows subclasses to do any setup work like entity persistence and provide a default URI and
-         * parameters for the parent class to run its common set of tests.
-         */
-        protected abstract RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec);
+        @Test
+        void callSuccessfulCors() {
+            // When
+            var headers = defaultRequest(restClient.options())
+                    .header("Origin", "http://example.com")
+                    .header("Access-Control-Request-Method", "POST")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getHeaders();
+
+            // Then
+            assertThat(headers.getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(headers.getFirst("Access-Control-Allow-Methods")).contains("GET", "HEAD", "POST");
+        }
+    }
+
+    protected abstract class EndpointTest extends RestTest {
 
         @Test
         void etagHeader() {

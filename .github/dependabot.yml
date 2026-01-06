@@ -33,6 +33,9 @@ updates:
       dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "prom-client"
+        versions: [">=15.0.0"]
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
@@ -68,7 +71,7 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/tools/traffic-replay/log-downloader"
+  - directory: "/tools/log-downloader"
     groups:
       dependencies:
         patterns:

@@ -38,8 +38,7 @@ public class PartitionTransactionHashMigrationTest extends ImporterIntegrationTe
     private final TransactionHashRepository transactionHashRepository;
     private final Flyway flyway;
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
         drop table transaction_hash;
         create table transaction_hash
         (
@@ -91,17 +90,13 @@ public class PartitionTransactionHashMigrationTest extends ImporterIntegrationTe
     }
 
     private void persistTransactionHashes(Collection<TransactionHash> transactionHashes) {
-        ownerJdbcTemplate.batchUpdate(
-                """
+        ownerJdbcTemplate.batchUpdate("""
                     insert into transaction_hash (consensus_timestamp, hash, distribution_id, payer_account_id) values (?, ?, ?, ?)
-                    """,
-                transactionHashes,
-                transactionHashes.size(),
-                (ps, transactionHash) -> {
-                    ps.setLong(1, transactionHash.getConsensusTimestamp());
-                    ps.setBytes(2, transactionHash.getHash());
-                    ps.setShort(3, Shorts.fromByteArray(transactionHash.getHash()));
-                    ps.setLong(4, transactionHash.getPayerAccountId());
-                });
+                    """, transactionHashes, transactionHashes.size(), (ps, transactionHash) -> {
+            ps.setLong(1, transactionHash.getConsensusTimestamp());
+            ps.setBytes(2, transactionHash.getHash());
+            ps.setShort(3, Shorts.fromByteArray(transactionHash.getHash()));
+            ps.setLong(4, transactionHash.getPayerAccountId());
+        });
     }
 }
