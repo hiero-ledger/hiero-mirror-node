@@ -64,13 +64,16 @@ data:
       if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "
         zfs list || true
         partprobe || true
-        zpool online -e \"${POOL}\" /dev/sdb && zfs list || true
+
+        zpool online -e \"${POOL}\" /dev/sdb
+        rc=\$?
+
+        zfs list || true
+        exit \$rc
       "; then
         log "Failed to expand zpool ${POOL} on ${NODE_NAME}"
         return 1
       fi
-
-      return 0
     }
 
     function forceSizeScanWithRetry() {
