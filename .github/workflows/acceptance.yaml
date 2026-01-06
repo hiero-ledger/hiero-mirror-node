@@ -176,6 +176,8 @@ jobs:
             env:
               HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
             test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
               enabled: true
           rest:
             test:
@@ -205,6 +207,8 @@ jobs:
             env:
               HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
             test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
               enabled: true
           rest:
             test:
