@@ -7,6 +7,7 @@ import com.swirlds.state.spi.ReadableKVStateBase;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import org.hiero.mirror.web3.state.keyvalue.ContextForwardingCacheMap;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -32,9 +33,10 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param stateId The state key for this state
      * @param backingStore The backing store to use
      */
+    @SuppressWarnings("unchecked")
     public MapReadableKVState(
             @NonNull final String serviceName, final int stateId, @NonNull final Map<K, V> backingStore) {
-        super(stateId, serviceName);
+        super(stateId, serviceName, (java.util.concurrent.ConcurrentMap<K, V>) new ContextForwardingCacheMap(stateId));
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 

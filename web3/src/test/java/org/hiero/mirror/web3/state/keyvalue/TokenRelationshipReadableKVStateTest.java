@@ -92,6 +92,7 @@ class TokenRelationshipReadableKVStateTest {
     void setup() {
         domainBuilder = new DomainBuilder();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
         when(this.systemEntity.treasuryAccount())
                 .thenReturn(new SystemEntity(CommonProperties.getInstance()).treasuryAccount());
     }

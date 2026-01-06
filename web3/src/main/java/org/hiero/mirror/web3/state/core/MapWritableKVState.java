@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.state.core;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
 import org.jspecify.annotations.NonNull;
 
@@ -17,7 +18,7 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
             @NonNull final String serviceName,
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore) {
-        super(serviceName, stateId);
+        super(stateId, serviceName, (Map<K, V>) new ContextFowardingWriteCacheMap(stateId));
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
@@ -30,11 +31,6 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return readableBackingStore.keys();
-    }
-
-    @Override
-    protected V getForModifyFromDataSource(@NonNull K key) {
-        return readableBackingStore.get(key);
     }
 
     @Override

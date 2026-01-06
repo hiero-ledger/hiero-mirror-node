@@ -69,6 +69,7 @@ class ContractStorageReadableKVStateTest {
     @BeforeEach
     void setup() {
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
     }
 
     @Test
