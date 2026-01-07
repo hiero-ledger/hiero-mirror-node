@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -109,5 +110,15 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     : Optional.empty();
         }
         return Optional.empty();
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

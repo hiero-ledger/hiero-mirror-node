@@ -17,7 +17,7 @@ import org.hiero.mirror.web3.service.ContractStateService;
 import org.jspecify.annotations.NonNull;
 
 @Named
-public class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
+final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotKey, SlotValue> {
 
     public static final int STATE_ID = STORAGE_STATE_ID;
 
@@ -45,5 +45,15 @@ public class ContractStorageReadableKVState extends AbstractReadableKVState<Slot
                 .map(byteArr ->
                         new SlotValue(Bytes.wrap(leftPadBytes(byteArr, Bytes32.SIZE)), Bytes.EMPTY, Bytes.EMPTY))
                 .orElse(null);
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return ContractService.NAME;
     }
 }

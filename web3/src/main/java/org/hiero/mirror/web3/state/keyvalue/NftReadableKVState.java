@@ -27,7 +27,7 @@ import org.jspecify.annotations.NonNull;
  * utilized by the hedera app components
  */
 @Named
-public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
+final class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
 
     public static final int STATE_ID = NFTS_STATE_ID;
     private final NftRepository nftRepository;
@@ -82,5 +82,15 @@ public class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
             return null;
         }
         return EntityIdUtils.toAccountId(accountId);
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

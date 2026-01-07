@@ -5,16 +5,23 @@ package org.hiero.mirror.web3.state.singleton;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING_HASHES_STATE_ID;
 
 import com.hedera.hapi.node.state.blockrecords.RunningHashes;
+import com.hedera.node.app.records.BlockRecordService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-public class RunningHashesSingleton implements SingletonState<RunningHashes> {
+final class RunningHashesSingleton implements SingletonState<RunningHashes>, RegisterableState {
 
     @Override
     public Integer getId() {
         return RUNNING_HASHES_STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return BlockRecordService.NAME;
     }
 
     @Override

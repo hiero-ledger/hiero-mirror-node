@@ -6,12 +6,25 @@ import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_ST
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING_HASHES_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.LAMBDA_STORAGE_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
+import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema.ENTITY_COUNTS_STATE_ID;
+import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ALIASES_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.NFTS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKEN_RELS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema.AIRDROPS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
 import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.CONGESTION_LEVEL_STARTS_STATE_ID;
 import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema.THROTTLE_USAGE_SNAPSHOTS_STATE_ID;
@@ -30,34 +43,34 @@ import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.swirlds.state.spi.ReadableKVState;
 import java.util.Deque;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.AirdropsReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractBytecodeReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.ContractStorageReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.FileReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.NftReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.TokenReadableKVState;
-import org.hiero.mirror.web3.state.keyvalue.TokenRelationshipReadableKVState;
-import org.hiero.mirror.web3.state.singleton.BlockInfoSingleton;
-import org.hiero.mirror.web3.state.singleton.BlockStreamInfoSingleton;
-import org.hiero.mirror.web3.state.singleton.CongestionLevelStartsSingleton;
-import org.hiero.mirror.web3.state.singleton.EntityIdSingleton;
-import org.hiero.mirror.web3.state.singleton.MidnightRatesSingleton;
-import org.hiero.mirror.web3.state.singleton.RunningHashesSingleton;
-import org.hiero.mirror.web3.state.singleton.ThrottleUsageSingleton;
+import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
+import org.hiero.mirror.web3.state.singleton.SingletonState;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
+final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
     private final MirrorNodeState mirrorNodeState;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+
+    @Test
+    void initPopulatesAllServices() {
+        var states = mirrorNodeState.getStates();
+        assertThat(states)
+                .containsKeys(
+                        BlockRecordService.NAME,
+                        BlockStreamService.NAME,
+                        CongestionThrottleService.NAME,
+                        ContractService.NAME,
+                        EntityIdService.NAME,
+                        FeeService.NAME,
+                        FileService.NAME,
+                        RecordCacheService.NAME,
+                        ScheduleService.NAME,
+                        TokenService.NAME);
+    }
 
     @Test
     void verifyServicesHaveAssignedDataSources() {
@@ -65,37 +78,40 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         // BlockRecordService
         Map<Integer, Class<?>> blockRecordServiceDataSources = Map.of(
-                BLOCKS_STATE_ID, BlockInfoSingleton.class,
-                RUNNING_HASHES_STATE_ID, RunningHashesSingleton.class);
+                BLOCKS_STATE_ID, SingletonState.class,
+                RUNNING_HASHES_STATE_ID, SingletonState.class);
         verifyServiceDataSources(states, BlockRecordService.NAME, blockRecordServiceDataSources);
 
         // BlockStreamService
-        Map<Integer, Class<?>> blockStreamServiceDataSources =
-                Map.of(BLOCK_STREAM_INFO_STATE_ID, BlockStreamInfoSingleton.class);
+        Map<Integer, Class<?>> blockStreamServiceDataSources = Map.of(BLOCK_STREAM_INFO_STATE_ID, SingletonState.class);
         verifyServiceDataSources(states, BlockStreamService.NAME, blockStreamServiceDataSources);
 
         // CongestionThrottleService
         Map<Integer, Class<?>> congestionThrottleServiceDataSources = Map.of(
-                THROTTLE_USAGE_SNAPSHOTS_STATE_ID, ThrottleUsageSingleton.class,
-                CONGESTION_LEVEL_STARTS_STATE_ID, CongestionLevelStartsSingleton.class);
+                THROTTLE_USAGE_SNAPSHOTS_STATE_ID, SingletonState.class,
+                CONGESTION_LEVEL_STARTS_STATE_ID, SingletonState.class);
         verifyServiceDataSources(states, CongestionThrottleService.NAME, congestionThrottleServiceDataSources);
 
         // ContractService
         Map<Integer, Class<?>> contractServiceDataSources = Map.of(
-                ContractBytecodeReadableKVState.STATE_ID, ReadableKVState.class,
-                ContractStorageReadableKVState.STATE_ID, ReadableKVState.class);
+                BYTECODE_STATE_ID, ReadableKVState.class,
+                STORAGE_STATE_ID, ReadableKVState.class,
+                EVM_HOOK_STATES_STATE_ID, ReadableKVState.class,
+                LAMBDA_STORAGE_STATE_ID, ReadableKVState.class);
         verifyServiceDataSources(states, ContractService.NAME, contractServiceDataSources);
 
         // EntityIdService
-        Map<Integer, Class<?>> entityIdServiceDataSources = Map.of(ENTITY_ID_STATE_ID, EntityIdSingleton.class);
+        Map<Integer, Class<?>> entityIdServiceDataSources = Map.of(
+                ENTITY_ID_STATE_ID, SingletonState.class,
+                ENTITY_COUNTS_STATE_ID, SingletonState.class);
         verifyServiceDataSources(states, EntityIdService.NAME, entityIdServiceDataSources);
 
         // FeeService
-        Map<Integer, Class<?>> feeServiceDataSources = Map.of(MIDNIGHT_RATES_STATE_ID, MidnightRatesSingleton.class);
+        Map<Integer, Class<?>> feeServiceDataSources = Map.of(MIDNIGHT_RATES_STATE_ID, SingletonState.class);
         verifyServiceDataSources(states, FeeService.NAME, feeServiceDataSources);
 
         // FileService
-        Map<Integer, Class<?>> fileServiceDataSources = Map.of(FileReadableKVState.STATE_ID, ReadableKVState.class);
+        Map<Integer, Class<?>> fileServiceDataSources = Map.of(FILES_STATE_ID, ReadableKVState.class);
         verifyServiceDataSources(states, FileService.NAME, fileServiceDataSources);
 
         // RecordCacheService
@@ -116,20 +132,22 @@ public class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
         // TokenService
         Map<Integer, Class<?>> tokenServiceDataSources = Map.of(
-                AccountReadableKVState.STATE_ID,
+                ACCOUNTS_STATE_ID,
                 ReadableKVState.class,
-                AirdropsReadableKVState.STATE_ID,
+                AIRDROPS_STATE_ID,
                 ReadableKVState.class,
-                AliasesReadableKVState.STATE_ID,
+                ALIASES_STATE_ID,
                 ReadableKVState.class,
-                NftReadableKVState.STATE_ID,
+                NFTS_STATE_ID,
                 ReadableKVState.class,
-                TokenReadableKVState.STATE_ID,
+                TOKENS_STATE_ID,
                 ReadableKVState.class,
-                TokenRelationshipReadableKVState.STATE_ID,
+                TOKEN_RELS_STATE_ID,
                 ReadableKVState.class,
                 STAKING_NETWORK_REWARDS_STATE_ID,
-                AtomicReference.class);
+                DefaultSingleton.class,
+                NODE_REWARDS_STATE_ID,
+                DefaultSingleton.class);
         verifyServiceDataSources(states, TokenService.NAME, tokenServiceDataSources);
     }
 

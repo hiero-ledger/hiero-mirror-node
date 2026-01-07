@@ -6,6 +6,7 @@ import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.AL
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
+import com.hedera.node.app.service.token.TokenService;
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -64,5 +65,15 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
                     return accountID;
                 })
                 .orElse(null);
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

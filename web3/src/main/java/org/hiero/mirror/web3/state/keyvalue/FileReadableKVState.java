@@ -30,7 +30,7 @@ import org.jspecify.annotations.NonNull;
  * properly be utilized by the hedera app components
  */
 @Named
-public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
+final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
 
     public static final int STATE_ID = FILES_STATE_ID;
     private final FileDataRepository fileDataRepository;
@@ -84,5 +84,15 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private long getCurrentTimestamp() {
         final var now = Instant.now();
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return FileService.NAME;
     }
 }

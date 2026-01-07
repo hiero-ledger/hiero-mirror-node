@@ -13,4 +13,9 @@ public class DefaultSingleton extends AtomicReference<Object> implements Singlet
     public Integer getId() {
         return id;
     }
+
+    @Override
+    public String getServiceName() {
+        return "";
+    }
 }

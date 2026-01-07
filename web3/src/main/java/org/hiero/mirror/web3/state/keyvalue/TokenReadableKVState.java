@@ -45,7 +45,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.util.CollectionUtils;
 
 @Named
-public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
+final class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token> {
 
     public static final int STATE_ID = TOKENS_STATE_ID;
 
@@ -235,5 +235,15 @@ public class TokenReadableKVState extends AbstractReadableKVState<TokenID, Token
         });
 
         return royaltyFees;
+    }
+
+    @Override
+    public Integer getId() {
+        return STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

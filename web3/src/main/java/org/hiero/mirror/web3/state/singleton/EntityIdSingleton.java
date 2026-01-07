@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.state.singleton;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.node.app.service.entityid.EntityIdService;
 import com.hedera.node.config.data.HederaConfig;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
@@ -12,17 +13,23 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
+import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
 @RequiredArgsConstructor
 @SuppressWarnings("deprecation")
-public class EntityIdSingleton implements SingletonState<EntityNumber> {
+final class EntityIdSingleton implements SingletonState<EntityNumber>, RegisterableState {
     private final EntityRepository entityRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
     public Integer getId() {
         return ENTITY_ID_STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return EntityIdService.NAME;
     }
 
     @Override

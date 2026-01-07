@@ -100,16 +100,16 @@ jobs:
 
           # Compare the schemas - in case there is a new version we might need to register a new state.
           DIRS_TO_COMPARE=(
-            "com/hedera/node/app/records/schemas"
             "com/hedera/node/app/blocks/schemas"
-            "com/hedera/node/app/throttle/schemas"
+            "com/hedera/node/app/fees/schemas"
+            "com/hedera/node/app/records/schemas"
             "com/hedera/node/app/service/contract/impl/schemas"
             "com/hedera/node/app/service/entityid/impl/schemas"
-            "com/hedera/node/app/fees/schemas"
             "com/hedera/node/app/service/file/impl/schemas"
-            "com/hedera/node/app/state/recordcache/schemas"
             "com/hedera/node/app/service/schedule/impl/schemas"
             "com/hedera/node/app/service/token/impl/schemas"
+            "com/hedera/node/app/state/recordcache/schemas"
+            "com/hedera/node/app/throttle/schemas"
           )
 
           # Temp directories to store cloned repos
