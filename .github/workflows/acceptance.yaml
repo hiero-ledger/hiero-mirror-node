@@ -183,6 +183,10 @@ jobs:
             test:
               annotations:
                 helm.sh/hook-delete-policy: before-hook-creation
+          restjava:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
           test:
             cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
             annotations:
@@ -207,6 +211,10 @@ jobs:
                 helm.sh/hook-delete-policy: before-hook-creation
               enabled: true
           rest:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+          restjava:
             test:
               annotations:
                 helm.sh/hook-delete-policy: before-hook-creation
