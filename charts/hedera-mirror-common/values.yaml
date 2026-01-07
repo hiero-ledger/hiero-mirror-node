@@ -668,6 +668,11 @@ traefik:
 zfs:
   alloy:
     enabled: false
+  autoGrow:
+    growPercent: 10
+    intervalSeconds: 120
+    maxStepGb: 50
+    thresholdPercent: 80
   coordinator:
     initialDiskSize: 300GB
   enabled: false
@@ -725,7 +730,7 @@ zfs:
             path: /
         scripts:
           configMap:
-            name: "{{ .Release.Name }}-zfs-init"
+            name: "{{ .Release.Name }}-zfs-manager"
             defaultMode: 0744
       initContainers:
         label-wait:
