@@ -17,18 +17,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     Optional<Long> findByEvmAddress(byte[] evmAddress);
 
     @Query(value = """
-        select
-            cast(coalesce(sum(balance), 0) as bigint) as unreleasedSupply,
-            cast(coalesce(max(balance_timestamp), 0) as bigint) as consensusTimestamp
-        from entity
-        where
-            id = 2
-            or id = 42
-            or id between 44 and 71
-            or id between 73 and 87
-            or id between 99 and 100
-            or id between 200 and 349
-            or id between 400 and 750
-        """, nativeQuery = true)
-    NetworkSupply getSupply();
+                    select cast(coalesce(sum(e.balance), 0) as bigint) as unreleased_supply,
+                        cast(coalesce(max(e.balance_timestamp), 0) as bigint) as consensus_timestamp
+                    from entity e
+                    join unnest(
+                            cast(string_to_array(:lowerBounds, ',') as bigint[]),
+                            cast(string_to_array(:upperBounds, ',') as bigint[])
+                         ) as ranges(min_val, max_val)
+                      on e.id between ranges.min_val and ranges.max_val
+                    """, nativeQuery = true)
+    NetworkSupply getSupply(String lowerBounds, String upperBounds);
 }

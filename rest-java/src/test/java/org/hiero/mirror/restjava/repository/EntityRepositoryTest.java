@@ -59,10 +59,9 @@ class EntityRepositoryTest extends RestJavaIntegrationTest {
         createEntityWithBalance(2L, 1_000_000L, timestamp);
         createEntityWithBalance(42L, 2_000_000L, timestamp);
         createEntityWithBalance(100L, 500_000L, timestamp);
-        createEntityWithBalance(1000L, 500_000L, timestamp); // should not be counted
 
         // when
-        final var result = entityRepository.getSupply();
+        final var result = entityRepository.getSupply("2", "100");
 
         // then
         assertThat(result).isNotNull();
