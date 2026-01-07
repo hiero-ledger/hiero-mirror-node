@@ -49,11 +49,13 @@ import org.springframework.util.CollectionUtils;
 @AllArgsConstructor(access = AccessLevel.NONE)
 @CustomLog
 @SuppressWarnings("deprecation")
+@ToString(onlyExplicitlyIncluded = true)
 @Value
 public class BlockTransaction implements StreamItem {
 
     private static final MessageDigest DIGEST = createSha384Digest();
 
+    @ToString.Include
     private final long consensusTimestamp;
 
     @NonFinal
@@ -64,7 +66,6 @@ public class BlockTransaction implements StreamItem {
 
     @NonFinal
     @Setter
-    @ToString.Exclude
     private BlockTransaction nextInBatch;
 
     private final BlockTransaction parent;
