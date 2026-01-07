@@ -20,6 +20,8 @@ spec:
     - kind: Kustomization
       name: '*'
       namespace: flux-system
+  exclusionList:
+    - .*Internal error.*
   providerRef:
     name: slack
 
