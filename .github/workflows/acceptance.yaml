@@ -199,6 +199,9 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
           EOF
 
           else
@@ -230,6 +233,9 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
           EOF
           fi
 
