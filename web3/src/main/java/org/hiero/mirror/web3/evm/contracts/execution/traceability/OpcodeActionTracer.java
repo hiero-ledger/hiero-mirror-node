@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
+
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import jakarta.inject.Named;
@@ -29,6 +31,14 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
 
     @Getter
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
+
+    @Override
+    public void tracePreExecution(@NonNull final MessageFrame frame) {
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(true);
+        }
+    }
 
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
