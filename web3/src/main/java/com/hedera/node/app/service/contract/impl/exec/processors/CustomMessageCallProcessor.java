@@ -164,7 +164,6 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
 
             if (evmPrecompile == null) {
                 handleNonExtantSystemAccount(frame, tracer);
-
                 return;
             }
         }
@@ -236,6 +235,7 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             @NonNull final MessageFrame frame, @NonNull final OperationTracer tracer) {
         final PrecompileContractResult result = PrecompileContractResult.success(Bytes.EMPTY);
         frame.clearGasRemaining();
+        ContractCallContext.get().setGasRequirement(0L);
         finishPrecompileExecution(frame, result, PRECOMPILE, (ActionSidecarContentTracer) tracer);
     }
 
@@ -244,6 +244,8 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
             @NonNull final MessageFrame frame,
             @NonNull final OperationTracer tracer) {
         final var gasRequirement = precompile.gasRequirement(frame.getInputData());
+        ContractCallContext.get().setGasRequirement(gasRequirement);
+
         final PrecompileContractResult result;
         if (frame.getRemainingGas() < gasRequirement) {
             result = PrecompileContractResult.halt(Bytes.EMPTY, Optional.of(INSUFFICIENT_GAS));
@@ -331,7 +333,6 @@ public class CustomMessageCallProcessor extends MessageCallProcessor {
         frame.setState(result.getState());
         frame.setExceptionalHaltReason(result.getHaltReason());
         tracer.tracePrecompileCall(frame, ContractCallContext.get().getGasRequirement(), result.getOutput());
-        ContractCallContext.get().setGasRequirement(0L);
     }
 
     private void doTransferValueOrHalt(
