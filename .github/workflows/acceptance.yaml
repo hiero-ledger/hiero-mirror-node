@@ -179,12 +179,6 @@ jobs:
               annotations:
                 helm.sh/hook-delete-policy: before-hook-creation
               enabled: true
-          rest:
-            test:
-              enabled: false
-          restjava:
-            test:
-              enabled: false
           test:
             cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
             annotations:
@@ -197,8 +191,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-            test:
-              enabled: false
           EOF
 
           else
@@ -210,12 +202,6 @@ jobs:
               annotations:
                 helm.sh/hook-delete-policy: before-hook-creation
               enabled: true
-          rest:
-            test:
-              enabled: false
-          restjava:
-            test:
-              enabled: false
           test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
@@ -228,8 +214,6 @@ jobs:
           web3:
             env:
               HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-            test:
-              enabled: false
           EOF
           fi
 
