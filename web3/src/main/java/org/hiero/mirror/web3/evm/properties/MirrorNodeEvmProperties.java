@@ -85,7 +85,7 @@ public class MirrorNodeEvmProperties {
 
     private long minimumAccountBalance = 100_000_000_000_000_000L;
 
-    private boolean validatePayerBalance = true;
+    private boolean validatePayerBalance = false;
 
     public SemanticVersion getSemanticEvmVersion() {
         var context = ContractCallContext.get();
