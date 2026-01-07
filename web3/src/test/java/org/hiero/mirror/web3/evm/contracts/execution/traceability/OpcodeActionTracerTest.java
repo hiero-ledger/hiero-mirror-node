@@ -8,6 +8,7 @@ import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REV
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INSUFFICIENT_GAS;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INVALID_OPERATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
@@ -570,7 +571,7 @@ class OpcodeActionTracerTest {
     @DisplayName("should set balance call flag when BALANCE opcode is executed")
     void shouldSetBalanceCallFlagForBalanceOperation() {
         // Given
-        final var balanceOperation = new AbstractOperation(0x31, "BALANCE", 1, 1, null) {
+        final var balanceOperation = new AbstractOperation(0x31, BALANCE_OPERATION_NAME, 1, 1, null) {
             @Override
             public OperationResult execute(final MessageFrame frame, final EVM evm) {
                 return new OperationResult(GAS_COST, null);

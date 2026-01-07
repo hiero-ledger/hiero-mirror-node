@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -260,7 +261,7 @@ class MirrorOperationActionTracerTest {
     @Test
     void shouldSetBalanceCallFlagForBalanceOperation() {
         // Given
-        final var balanceOperation = new AbstractOperation(0x31, "BALANCE", 1, 1, null) {
+        final var balanceOperation = new AbstractOperation(0x31, BALANCE_OPERATION_NAME, 1, 1, null) {
             @Override
             public OperationResult execute(final MessageFrame frame, final org.hyperledger.besu.evm.EVM evm) {
                 return new OperationResult(0L, null);
