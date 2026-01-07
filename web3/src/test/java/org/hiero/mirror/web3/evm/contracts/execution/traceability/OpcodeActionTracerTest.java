@@ -591,7 +591,7 @@ class OpcodeActionTracerTest {
     void shouldNotSetBalanceCallFlagForNonBalanceOperation() {
         // Given
         frame = setupInitialFrame(tracerOptions);
-        frame.setCurrentOperation(OPERATION); // MUL operation
+        frame.setCurrentOperation(OPERATION);
 
         // When
         tracer.tracePreExecution(frame);

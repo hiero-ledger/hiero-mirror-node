@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -30,7 +31,7 @@ public class MirrorOperationActionTracer implements OperationTracer {
     @Override
     public void tracePreExecution(final @NonNull MessageFrame frame) {
         if (frame.getCurrentOperation() != null
-                && "BALANCE".equals(frame.getCurrentOperation().getName())) {
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
             ContractCallContext.get().setBalanceCall(true);
         }
     }
