@@ -6,11 +6,8 @@ import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.StringJoiner;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
@@ -38,24 +35,9 @@ final class NetworkServiceImpl implements NetworkService {
     public NetworkSupply getSupply(Bound timestamp) {
         final NetworkSupply networkSupply;
 
-        final var commonProperties = CommonProperties.getInstance();
-        final long shard = commonProperties.getShard();
-        final long realm = commonProperties.getRealm();
-
-        final var ranges = networkProperties.getUnreleasedSupplyAccounts();
-        final var lowerBoundJoiner = new StringJoiner(",");
-        final var upperBoundJoiner = new StringJoiner(",");
-
-        for (final var range : ranges) {
-            final long from = EntityId.of(shard, realm, range.from()).getId();
-            final long to = EntityId.of(shard, realm, range.to()).getId();
-
-            lowerBoundJoiner.add(String.valueOf(from));
-            upperBoundJoiner.add(String.valueOf(to));
-        }
-
-        final var lowerBounds = lowerBoundJoiner.toString();
-        final var upperBounds = upperBoundJoiner.toString();
+        final var bounds = networkProperties.getUnreleasedSupplyRangeBounds();
+        final var lowerBounds = bounds.lowerBounds();
+        final var upperBounds = bounds.upperBounds();
 
         if (timestamp.isEmpty()) {
             networkSupply = entityRepository.getSupply(lowerBounds, upperBounds);

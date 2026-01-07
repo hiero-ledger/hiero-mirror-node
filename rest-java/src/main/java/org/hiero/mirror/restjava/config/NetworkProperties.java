@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.TreeSet;
 import lombok.Data;
 import lombok.Getter;
@@ -32,6 +33,9 @@ public class NetworkProperties {
     @Getter(lazy = true)
     private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
 
+    @Getter(lazy = true)
+    private final RangeBounds unreleasedSupplyRangeBounds = createUnreleasedSupplyRangeBounds();
+
     private Set<Long> createUnreleasedSupplyAccountIds() {
         final var commonProperties = CommonProperties.getInstance();
         final var shard = commonProperties.getShard();
@@ -47,6 +51,25 @@ public class NetworkProperties {
         return accountIds;
     }
 
+    private RangeBounds createUnreleasedSupplyRangeBounds() {
+        final var commonProperties = CommonProperties.getInstance();
+        final var shard = commonProperties.getShard();
+        final var realm = commonProperties.getRealm();
+
+        final var lowerBoundJoiner = new StringJoiner(",");
+        final var upperBoundJoiner = new StringJoiner(",");
+
+        for (final var range : unreleasedSupplyAccounts) {
+            final long from = EntityId.of(shard, realm, range.from()).getId();
+            final long to = EntityId.of(shard, realm, range.to()).getId();
+
+            lowerBoundJoiner.add(Long.toString(from));
+            upperBoundJoiner.add(Long.toString(to));
+        }
+
+        return new RangeBounds(lowerBoundJoiner.toString(), upperBoundJoiner.toString());
+    }
+
     public record AccountRange(@Min(1) long from, @Min(1) long to) {
         public AccountRange {
             if (from > to) {
@@ -54,4 +77,6 @@ public class NetworkProperties {
             }
         }
     }
+
+    public record RangeBounds(String lowerBounds, String upperBounds) {}
 }
