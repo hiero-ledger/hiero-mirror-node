@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +35,8 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
     private Map<String, String> evmProperties;
 
     @BeforeEach
-    void beforeEach() throws InvocationTargetException, IllegalAccessException {
+    void beforeEach() {
         evmProperties = mirrorNodeEvmProperties.getProperties();
-        initializeState();
     }
 
     @AfterEach
