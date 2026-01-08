@@ -81,7 +81,7 @@ jobs:
       - name: Install Stackgres
         run: |
           helm repo add stackgres https://stackgres.io/downloads/stackgres-k8s/stackgres/helm
-          helm install stackgres stackgres/stackgres-operator --version 1.17.0 --create-namespace -n stackgres
+          helm install stackgres stackgres/stackgres-operator --version 1.17.4 --create-namespace -n stackgres
 
       - name: Install ct
         uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
