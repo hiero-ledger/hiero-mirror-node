@@ -102,7 +102,7 @@ jobs:
           fi
 
       - name: Gradle Release
-        run: ./gradlew release -Pversion=${{ env.VERSION }}
+        run: ./gradlew release --newVersion=${{ env.VERSION }}
 
       - name: Close the Milestone
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
@@ -189,7 +189,7 @@ jobs:
           git reset --hard $RELEASE_BRANCH
 
       - name: Gradle Release for Next Minor Snapshot
-        run: ./gradlew release -Pversion=${{ env.NEXT_VERSION_SNAPSHOT }}
+        run: ./gradlew release --newVersion=${{ env.NEXT_VERSION_SNAPSHOT }}
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
