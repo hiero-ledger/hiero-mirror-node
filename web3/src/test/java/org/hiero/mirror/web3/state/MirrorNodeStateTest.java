@@ -34,12 +34,8 @@ final class MirrorNodeStateTest {
     @Spy
     private Collection<ReadableKVState<?, ?>> readableKVStates = new LinkedList<>();
 
-    ;
-
     @Spy
     private Collection<SingletonState<?>> singletonStates = new LinkedList<>();
-
-    ;
 
     @Test
     void getReadableStatesWithSingleton() {

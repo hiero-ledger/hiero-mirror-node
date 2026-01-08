@@ -25,11 +25,11 @@ import jakarta.inject.Named;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import org.hiero.base.crypto.Hash;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
@@ -47,8 +47,8 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class MirrorNodeState implements State {
 
-    private final Map<String, ReadableStates> readableStates = new HashMap<>();
-    private final Map<String, WritableStates> writableStates = new HashMap<>();
+    private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
+    private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
     // Key is Service, value is Map of state name to state datasource
     private final Map<String, Map<Integer, Object>> states = new HashMap<>();
@@ -180,12 +180,10 @@ public class MirrorNodeState implements State {
     }
 
     private void initQueueStates() {
-        states.put(
-                RecordCacheService.NAME,
-                new HashMap<>(Map.of(TRANSACTION_RECEIPTS_STATE_ID, new ConcurrentLinkedDeque<>())));
+        states.put(RecordCacheService.NAME, new HashMap<>(Map.of(TRANSACTION_RECEIPTS_STATE_ID, new LinkedList<>())));
     }
 
     private MapReadableKVState<?, ?> createMapReadableStateForId(final String serviceName, int id) {
-        return new MapReadableKVState<>(serviceName, id, new ConcurrentHashMap<>());
+        return new MapReadableKVState<>(serviceName, id, new HashMap<>());
     }
 }

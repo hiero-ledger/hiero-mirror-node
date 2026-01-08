@@ -15,11 +15,13 @@ import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSch
 import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema.SCHEDULES_BY_ID_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_ORDERS_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
 import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ACCOUNTS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.ALIASES_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.NFTS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_INFOS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKENS_STATE_ID;
 import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.TOKEN_RELS_STATE_ID;
@@ -31,18 +33,40 @@ import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.node.app.blocks.BlockStreamService;
+import com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema;
 import com.hedera.node.app.fees.FeeService;
+import com.hedera.node.app.fees.schemas.V0490FeeSchema;
 import com.hedera.node.app.records.BlockRecordService;
+import com.hedera.node.app.records.schemas.V0490BlockRecordSchema;
+import com.hedera.node.app.records.schemas.V0560BlockRecordSchema;
 import com.hedera.node.app.service.contract.ContractService;
+import com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema;
+import com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema;
 import com.hedera.node.app.service.entityid.EntityIdService;
+import com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema;
+import com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema;
 import com.hedera.node.app.service.file.FileService;
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.service.schedule.ScheduleService;
+import com.hedera.node.app.service.schedule.impl.schemas.V0490ScheduleSchema;
+import com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema;
 import com.hedera.node.app.service.token.TokenService;
+import com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema;
+import com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema;
+import com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
+import com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema;
 import com.hedera.node.app.throttle.CongestionThrottleService;
+import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
+import com.swirlds.state.lifecycle.Schema;
+import com.swirlds.state.lifecycle.StateDefinition;
 import com.swirlds.state.spi.ReadableKVState;
 import java.util.Deque;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.state.core.MapReadableKVState;
@@ -54,6 +78,21 @@ import org.junit.jupiter.api.Test;
 final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
 
     private final MirrorNodeState mirrorNodeState;
+
+    // In the releases-comparator.yml there is compare for newly added schemas.
+    private final Map<String, List<Schema<?>>> serviceSchemas = Map.of(
+            BlockRecordService.NAME, List.of(new V0490BlockRecordSchema(), new V0560BlockRecordSchema()),
+            BlockStreamService.NAME, List.of(new V0560BlockStreamSchema(t -> {})),
+            CongestionThrottleService.NAME, List.of(new V0490CongestionThrottleSchema()),
+            ContractService.NAME, List.of(new V0490ContractSchema(), new V065ContractSchema()),
+            EntityIdService.NAME, List.of(new V0490EntityIdSchema(), new V0590EntityIdSchema()),
+            FeeService.NAME, List.of(new V0490FeeSchema()),
+            FileService.NAME, List.of(new V0490FileSchema()),
+            RecordCacheService.NAME, List.of(new V0490RecordCacheSchema()),
+            ScheduleService.NAME, List.of(new V0490ScheduleSchema(), new V0570ScheduleSchema()),
+            TokenService.NAME, List.of(new V0490TokenSchema(), new V0530TokenSchema(), new V0610TokenSchema()));
+
+    private final Set<Integer> statesNotNeeded = Set.of(SCHEDULED_ORDERS_STATE_ID, STAKING_INFOS_STATE_ID);
 
     @Test
     void initPopulatesAllServices() {
@@ -149,6 +188,32 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 NODE_REWARDS_STATE_ID,
                 DefaultSingleton.class);
         verifyServiceDataSources(states, TokenService.NAME, tokenServiceDataSources);
+    }
+
+    // This test aims to verify if there are missing states in the state definition that need to be added.
+    @Test
+    void searchForMissingStates() {
+        final var implementedStates = new LinkedList<>();
+        final var serviceStates = new LinkedList<>();
+        final var missingStates = new LinkedList<>();
+        for (final var service : serviceSchemas.keySet()) {
+            implementedStates.addAll(mirrorNodeState.getReadableStates(service).stateIds());
+            for (final var schema : serviceSchemas.get(service)) {
+                serviceStates.addAll(schema.statesToCreate().stream()
+                        .map(StateDefinition::stateId)
+                        .collect(Collectors.toSet()));
+                serviceStates.removeAll(schema.statesToRemove());
+            }
+            serviceStates.removeAll(implementedStates);
+            serviceStates.removeAll(statesNotNeeded);
+            if (!serviceStates.isEmpty()) {
+                missingStates.addAll(serviceStates);
+                System.out.printf("Missing states %s for service %s.%n", serviceStates, service);
+                serviceStates.clear();
+            }
+            implementedStates.clear();
+        }
+        assertThat(missingStates).isEmpty();
     }
 
     private void verifyServiceDataSources(

@@ -204,7 +204,7 @@ jobs:
             find "$branch_two_dir_path" -maxdepth 1 -type f -printf "%f\n" | while read -r filename; do
               if [ ! -f "$branch_one_dir_path/$filename" ]; then
               echo ""
-              echo "New file found: $filename"
+              echo "New file found: $filename. Please add it in MirrorNodeStateIntegrationTest."
               echo "$filename" >> "$CHANGES_FILE"
               fi
             done
