@@ -2,6 +2,7 @@
 
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
+import task.Release
 
 description = "Hedera Mirror Node imports data from consensus nodes and serves it via an API"
 
@@ -254,37 +255,12 @@ spotless {
     }
 }
 
-fun replaceVersion(files: String, match: String) {
-    ant.withGroovyBuilder {
-        "replaceregexp"("match" to match, "replace" to project.version, "flags" to "gm") {
-            "fileset"(
-                "dir" to rootProject.projectDir,
-                "includes" to files,
-                "excludes" to "**/node_modules/",
-            )
-        }
-    }
-}
-
 tasks.nodeSetup { onlyIf { !this.nodeDir.get().asFile.exists() } }
 
-tasks.register("release") {
+tasks.register<Release>("release") {
     description = "Replaces release version in files."
     group = "release"
-    doLast {
-        replaceVersion("charts/**/Chart.yaml", "(?<=^(appVersion|version): ).+")
-        replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
-        replaceVersion("gradle.properties", "(?<=^version=).+")
-        replaceVersion(
-            "rest/**/package*.json",
-            "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
-        )
-        replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
-        replaceVersion(
-            "tools/log-downloader/package*.json",
-            "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
-        )
-    }
+    directory = layout.settingsDirectory
 }
 
 tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
