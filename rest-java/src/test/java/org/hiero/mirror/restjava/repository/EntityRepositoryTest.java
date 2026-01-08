@@ -56,12 +56,12 @@ class EntityRepositoryTest extends RestJavaIntegrationTest {
     void getSupply() {
         // given
         final var timestamp = domainBuilder.timestamp();
-        createEntityWithBalance(2L, 1_000_000L, timestamp);
+        final var entity1 = createEntityWithBalance(2L, 1_000_000L, timestamp);
         createEntityWithBalance(42L, 2_000_000L, timestamp);
-        createEntityWithBalance(100L, 500_000L, timestamp);
+        final var entity3 = createEntityWithBalance(100L, 500_000L, timestamp);
 
         // when
-        final var result = entityRepository.getSupply("2", "100");
+        final var result = entityRepository.getSupply(String.valueOf(entity1.getId()), String.valueOf(entity3.getId()));
 
         // then
         assertThat(result).isNotNull();

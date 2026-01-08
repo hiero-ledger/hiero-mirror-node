@@ -31,19 +31,22 @@ final class AccountBalanceRepositoryTest extends RestJavaIntegrationTest {
         createAccountBalance(account1, 3_000_000L, timestamp3);
 
         // when / then
-        assertThat(accountBalanceRepository.getSupplyHistory("2", "42", timestamp1, timestamp2))
+        assertThat(accountBalanceRepository.getSupplyHistory(
+                        String.valueOf(account1.getId()), String.valueOf(account2.getId()), timestamp1, timestamp2))
                 .isNotNull()
                 .satisfies(r -> {
                     assertThat(r.unreleasedSupply()).isEqualTo(4_000_000L);
                     assertThat(r.consensusTimestamp()).isEqualTo(timestamp2);
                 });
-        assertThat(accountBalanceRepository.getSupplyHistory("2", "42", timestamp1, timestamp3))
+        assertThat(accountBalanceRepository.getSupplyHistory(
+                        String.valueOf(account1.getId()), String.valueOf(account2.getId()), timestamp1, timestamp3))
                 .isNotNull()
                 .satisfies(r -> {
                     assertThat(r.unreleasedSupply()).isEqualTo(5_500_000L);
                     assertThat(r.consensusTimestamp()).isEqualTo(timestamp3);
                 });
-        assertThat(accountBalanceRepository.getSupplyHistory("2", "42", 0L, Long.MAX_VALUE))
+        assertThat(accountBalanceRepository.getSupplyHistory(
+                        String.valueOf(account1.getId()), String.valueOf(account2.getId()), 0L, Long.MAX_VALUE))
                 .isNotNull()
                 .satisfies(r -> {
                     assertThat(r.unreleasedSupply()).isEqualTo(5_500_000L);

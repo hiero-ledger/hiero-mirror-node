@@ -18,7 +18,11 @@ import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.text.MessageFormat;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -703,8 +707,7 @@ final class NetworkControllerTest extends ControllerTest {
             final var response = restClient.get().uri("").retrieve().body(NetworkSupplyResponse.class);
 
             // then
-            final var expectedUnreleasedSupply =
-                    networkProperties.getUnreleasedSupplyAccountIds().size() * BALANCE_PER_ACCOUNT;
+            final var expectedUnreleasedSupply = getUnreleasedSupplyAccountIds().size() * BALANCE_PER_ACCOUNT;
             final var actualUnreleasedSupply =
                     Long.parseLong(response.getTotalSupply()) - Long.parseLong(response.getReleasedSupply());
 
@@ -954,7 +957,7 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private void createUnreleasedSupplyAccounts(Long timestamp) {
-            for (final var accountId : networkProperties.getUnreleasedSupplyAccountIds()) {
+            for (final var accountId : getUnreleasedSupplyAccountIds()) {
                 if (timestamp != null) {
                     domainBuilder
                             .accountBalance()
@@ -970,6 +973,24 @@ final class NetworkControllerTest extends ControllerTest {
                             .persist();
                 }
             }
+        }
+
+        @Getter(lazy = true)
+        private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
+
+        private Set<Long> createUnreleasedSupplyAccountIds() {
+            final var commonProperties = CommonProperties.getInstance();
+            final var shard = commonProperties.getShard();
+            final var realm = commonProperties.getRealm();
+            final var accountIds = new TreeSet<Long>();
+
+            for (final var range : networkProperties.getUnreleasedSupplyAccounts()) {
+                for (long num = range.from(); num <= range.to(); num++) {
+                    accountIds.add(EntityId.of(shard, realm, num).getId());
+                }
+            }
+
+            return accountIds;
         }
     }
 }
