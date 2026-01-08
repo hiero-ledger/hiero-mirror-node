@@ -8,6 +8,7 @@ import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REV
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INSUFFICIENT_GAS;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INVALID_OPERATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
@@ -564,6 +565,54 @@ class OpcodeActionTracerTest {
 
         // Then
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
+    }
+
+    @Test
+    @DisplayName("should set balance call flag when BALANCE opcode is executed")
+    void shouldSetBalanceCallFlagForBalanceOperation() {
+        // Given
+        final var balanceOperation = new AbstractOperation(0x31, BALANCE_OPERATION_NAME, 1, 1, null) {
+            @Override
+            public OperationResult execute(final MessageFrame frame, final EVM evm) {
+                return new OperationResult(GAS_COST, null);
+            }
+        };
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(balanceOperation);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, times(1)).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not set balance call flag when non-BALANCE opcode is executed")
+    void shouldNotSetBalanceCallFlagForNonBalanceOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(OPERATION);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not throw exception when current operation is null")
+    void shouldHandleNullCurrentOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(null);
+
+        // When & Then
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
     }
 
     private Opcode executeOperation(final MessageFrame frame) {

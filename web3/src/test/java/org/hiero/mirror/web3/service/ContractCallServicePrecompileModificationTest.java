@@ -591,6 +591,36 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
+    @Test
+    void mintTokenNativePrecompileAndBurn() throws Exception {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, treasury.getId());
+
+        final var totalSupply = token.getTotalSupply();
+        final var mintAmount = 30L;
+        final var burnAmount = 10L;
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_mintTokenNativePrecompileAndBurnExternal(
+                toAddress(tokenId).toHexString(),
+                BigInteger.valueOf(mintAmount),
+                BigInteger.valueOf(burnAmount),
+                new ArrayList<>());
+        final var result = functionCall.send();
+
+        // Then
+        assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
+        assertThat(result.component2()).isEqualTo(BigInteger.valueOf(totalSupply + mintAmount));
+        assertThat(result.component3()).isEqualTo(BigInteger.valueOf(totalSupply + mintAmount - burnAmount));
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
     /**
      * Wiping tokens is the process of removing tokens from an account's balance. The total supply is not affected.
      */

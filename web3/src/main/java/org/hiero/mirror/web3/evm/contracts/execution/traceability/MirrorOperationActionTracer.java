@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -25,6 +27,14 @@ public class MirrorOperationActionTracer implements OperationTracer {
 
     private final TraceProperties traceProperties;
     private final CommonEntityAccessor commonEntityAccessor;
+
+    @Override
+    public void tracePreExecution(final @NonNull MessageFrame frame) {
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(true);
+        }
+    }
 
     @Override
     public void tracePostExecution(

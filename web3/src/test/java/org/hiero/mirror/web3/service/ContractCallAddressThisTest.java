@@ -171,6 +171,29 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         mirrorNodeEvmProperties.setValidatePayerBalance(true);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getAddressThisBalanceWithLowBalancePayer(boolean validatePayerBalance) throws Exception {
+        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+
+        final var lowBalancePayer = accountEntityPersistCustomizable(e -> e.balance(500_000L));
+
+        final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
+        final var contract =
+                testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
+
+        testWeb3jService.setSender(Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(lowBalancePayer.getEvmAddress()))
+                .toHexString());
+
+        final var functionCall = contract.call_getAddressThisBalance();
+        final var result = functionCall.send();
+
+        assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
+
+        testWeb3jService.reset();
+        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+    }
+
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {
         final var addressThisContractEntityId = entityIdFromEvmAddress(contractAddress);
         final var addressThisEvmAddress = toEvmAddress(addressThisContractEntityId);

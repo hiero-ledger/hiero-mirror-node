@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.OUTPUT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOKEN;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.ETHEREUMTRANSACTION;
@@ -41,6 +42,7 @@ import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.EvmEncodingFacade;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
+import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.ExchangeRatePrecompile;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.HederaToken;
@@ -530,6 +532,34 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
+    }
+
+    @Test
+    void testNativePrecompileCall() {
+        final var senderEntity = accountPersistWithAccountBalances();
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+        final var options = new OpcodeTracerOptions(true, true, true);
+        final var functionCall = contract.send_calculateSHA256();
+
+        final var callData =
+                Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
+        final var transactionIdOrHash = setUp(
+                ETHEREUMTRANSACTION,
+                contract,
+                callData,
+                true,
+                true,
+                senderEntity.toEntityId(),
+                ZERO_AMOUNT,
+                domainBuilder.timestamp());
+
+        // When
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+
+        // Then
+        verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
+        opcodesResponse.getOpcodes().forEach(opcode -> assertThat(opcode.getGasCost())
+                .isNotNull());
     }
 
     @ParameterizedTest
