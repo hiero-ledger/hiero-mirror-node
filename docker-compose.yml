@@ -17,7 +17,7 @@ services:
       POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
       POSTGRES_PASSWORD: postgres_password
-    image: postgres:16-alpine
+    image: gcr.io/mirrornode/postgres:16-alpine
     ports:
       - 5432:5432
     restart: unless-stopped
