@@ -15,7 +15,7 @@ const FLYWAY_VERSION = '11.8.2';
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
 const DATABASE_IMAGES = {
-  v1: 'postgres:16-alpine',
+  v1: 'gcr.io/mirrornode/postgres:16-alpine',
   v2: 'gcr.io/mirrornode/citus:12.1.1',
 };
 
