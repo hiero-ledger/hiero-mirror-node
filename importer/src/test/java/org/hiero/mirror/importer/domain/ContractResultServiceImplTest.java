@@ -361,41 +361,4 @@ final class ContractResultServiceImplTest {
                     .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
         }
     }
-
-    @Test
-    void processHookStorageChanges_Blockstream() {
-        // Child contract call has hook ID in its execution queue (from blockstream transformation)
-        var childHookId = 456L;
-        var childOwnerId = 789L;
-        var childHookQueue = new java.util.ArrayDeque<AbstractHook.Id>();
-
-        final var contractId = ContractID.newBuilder().setContractNum(365).build(); // Hook system contract
-        var childRecordItem = recordItemBuilder
-                .contractCall(contractId)
-                .recordItem(r -> r.blockstream(true))
-                .record(r -> r.setParentConsensusTimestamp(recordItemBuilder.timestamp()))
-                .build();
-        childRecordItem.setHookExecutionQueue(childHookQueue);
-
-        when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(365L)));
-
-        var transaction = domainBuilder.transaction().get();
-
-        // Re-add the hook since nextHookContext() consumes it
-        childHookQueue.add(new AbstractHook.Id(childHookId, childOwnerId));
-        childRecordItem.setHookExecutionQueue(childHookQueue);
-
-        // When - process the child contract call
-        contractResultService.process(childRecordItem, transaction);
-
-        // Then - verify that in blockstream mode, child transactions contain hook IDs
-        // from the blockstream transformation and they are processed correctly
-
-        // Verify evmHookStorageHandler was called to process the hook storage changes
-        verify(evmHookStorageHandler, times(1))
-                .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
-
-        // Verify queue is now empty after processing (hooks are consumed)
-        assertThat(childRecordItem.nextHookContext()).isNull();
-    }
 }

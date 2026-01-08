@@ -258,14 +258,6 @@ public class RecordItem implements StreamItem {
             return buildInternal();
         }
 
-        public RecordItemBuilder hookId(AbstractHook.Id hookId) {
-            if (this.hookExecutionQueue == null) {
-                this.hookExecutionQueue = new ArrayDeque<>();
-            }
-            this.hookExecutionQueue.add(hookId);
-            return this;
-        }
-
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
             this.transactionRecord = transactionRecord;
             transactionRecordBuilder = null;
