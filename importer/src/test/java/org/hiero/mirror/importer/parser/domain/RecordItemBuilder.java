@@ -645,6 +645,72 @@ public class RecordItemBuilder {
         return builder;
     }
 
+    /**
+     * Creates a crypto transfer with token transfers having a variable number of AccountAmount entries.
+     * The transfers are designed to zero-sum (total positive amounts = total negative amounts).
+     *
+     * @param transferCount the number of AccountAmount entries (3, 4, 5, or 6)
+     * @return Builder for CryptoTransferTransactionBody
+     */
+    public Builder<CryptoTransferTransactionBody.Builder> cryptoTransferWithVariableTokenTransfers(int transferCount) {
+        var body = CryptoTransferTransactionBody.newBuilder();
+        var builder = new Builder<>(TransactionType.CRYPTOTRANSFER, body);
+
+        var tokenId = tokenId();
+        var tokenTransfers = TokenTransferList.newBuilder().setToken(tokenId);
+
+        // Create accounts for the transfers
+        List<AccountID> accounts = new ArrayList<>();
+        for (int i = 0; i < transferCount; i++) {
+            var account = accountId();
+            accounts.add(account);
+            updateState(TokenAssociation.newBuilder()
+                    .setAccountId(account)
+                    .setTokenId(tokenId)
+                    .build());
+        }
+
+        // Generate transfers that zero-sum
+        if (transferCount == 3) {
+            // Example: [A=1000, B=-400, C=-600] => [[A=400, B=-400], [A=600, C=-600]]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 1000))
+                    .addTransfers(accountAmount(accounts.get(1), -400))
+                    .addTransfers(accountAmount(accounts.get(2), -600));
+        } else if (transferCount == 4) {
+            // Example: [A=400, B=-400, C=300, D=-300] => [[A=400, B=-400], [C=300, D=-300]]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 400))
+                    .addTransfers(accountAmount(accounts.get(1), -400))
+                    .addTransfers(accountAmount(accounts.get(2), 300))
+                    .addTransfers(accountAmount(accounts.get(3), -300));
+        } else if (transferCount == 5) {
+            // Example: [A=1500, B=-500, C=-400, D=-300, E=-300]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 1500))
+                    .addTransfers(accountAmount(accounts.get(1), -500))
+                    .addTransfers(accountAmount(accounts.get(2), -400))
+                    .addTransfers(accountAmount(accounts.get(3), -300))
+                    .addTransfers(accountAmount(accounts.get(4), -300));
+        } else if (transferCount == 6) {
+            // Example: [A=400, B=-400, C=300, D=-300, E=200, F=-200]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 400))
+                    .addTransfers(accountAmount(accounts.get(1), -400))
+                    .addTransfers(accountAmount(accounts.get(2), 300))
+                    .addTransfers(accountAmount(accounts.get(3), -300))
+                    .addTransfers(accountAmount(accounts.get(4), 200))
+                    .addTransfers(accountAmount(accounts.get(5), -200));
+        } else {
+            throw new IllegalArgumentException("Transfer count must be 3, 4, 5, or 6, got: " + transferCount);
+        }
+
+        body.addTokenTransfers(tokenTransfers);
+        builder.record(r -> r.addTokenTransferLists(tokenTransfers));
+
+        return builder;
+    }
+
     @SuppressWarnings("deprecation")
     public Builder<CryptoUpdateTransactionBody.Builder> cryptoUpdate() {
         var accountId = accountId();

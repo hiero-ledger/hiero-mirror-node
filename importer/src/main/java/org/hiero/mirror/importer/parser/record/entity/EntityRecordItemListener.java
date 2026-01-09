@@ -18,6 +18,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -393,6 +394,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
         boolean isSingleTransfer = tokenTransferCount == 2;
+        boolean isMultipleTransfer = tokenTransferCount > 2;
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);
@@ -421,7 +423,9 @@ public class EntityRecordItemListener implements RecordItemListener {
 
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
 
-            logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
+            if (isSingleTransfer || (isMultipleTransfer && i == 0)) {
+                logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
+            }
         }
     }
 
@@ -477,6 +481,86 @@ public class EntityRecordItemListener implements RecordItemListener {
                     : EntityId.of(tokenTransfers.get(0).getAccountID());
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
+        } else if (entityProperties.getPersist().isSyntheticContractLogsMulti() && recordItem.isSuccessful()) {
+            final var sortedTransfers = new ArrayList<>(tokenTransfers);
+            sortedTransfers.sort(Comparator.comparing(aa -> EntityId.of(aa.getAccountID()), EntityId::compareTo));
+
+            final var transferCount = sortedTransfers.size();
+            final var transferPairs = new ArrayList<List<AccountAmount>>();
+
+            if (transferCount % 2 == 0) {
+                for (int j = 0; j < transferCount; j += 2) {
+                    final var pair = new ArrayList<AccountAmount>();
+                    pair.add(sortedTransfers.get(j));
+                    pair.add(sortedTransfers.get(j + 1));
+                    transferPairs.add(pair);
+                }
+            } else {
+                int largestIndex = 0;
+                long largestAbsAmount = Math.abs(sortedTransfers.getFirst().getAmount());
+                for (int j = 1; j < transferCount; j++) {
+                    long absAmount = Math.abs(sortedTransfers.get(j).getAmount());
+                    if (absAmount > largestAbsAmount) {
+                        largestAbsAmount = absAmount;
+                        largestIndex = j;
+                    }
+                }
+
+                final var largestEntry = sortedTransfers.get(largestIndex);
+                final var largestAmount = largestEntry.getAmount();
+                final var otherEntries = new ArrayList<AccountAmount>();
+                for (int j = 0; j < transferCount; j++) {
+                    if (j != largestIndex) {
+                        otherEntries.add(sortedTransfers.get(j));
+                    }
+                }
+
+                // Split the largest amount entry and pair with other entries
+                for (final var otherEntry : otherEntries) {
+                    long otherAmount = otherEntry.getAmount();
+                    long splitAmount = Math.abs(otherAmount);
+                    long splitAmountWithSign = largestAmount > 0 ? splitAmount : -splitAmount;
+
+                    AccountAmount splitEntry = AccountAmount.newBuilder()
+                            .setAccountID(largestEntry.getAccountID())
+                            .setAmount(splitAmountWithSign)
+                            .build();
+
+                    List<AccountAmount> pair = new ArrayList<>();
+                    // Pair in sorted order by AccountID
+                    if (EntityId.of(splitEntry.getAccountID()).compareTo(EntityId.of(otherEntry.getAccountID())) < 0) {
+                        pair.add(splitEntry);
+                        pair.add(otherEntry);
+                    } else {
+                        pair.add(otherEntry);
+                        pair.add(splitEntry);
+                    }
+                    transferPairs.add(pair);
+                }
+            }
+
+            for (final var pair : transferPairs) {
+                final var first = pair.get(0);
+                final var second = pair.get(1);
+                final var firstId = EntityId.of(first.getAccountID());
+                final var secondId = EntityId.of(second.getAccountID());
+                final var firstAmount = first.getAmount();
+
+                EntityId senderId;
+                EntityId receiverId;
+
+                if (firstAmount < 0) {
+                    senderId = firstId;
+                    receiverId = secondId;
+                } else {
+                    senderId = secondId;
+                    receiverId = firstId;
+                }
+                final var amountForSyntheticContractLog = Math.abs(firstAmount);
+
+                syntheticContractLogService.create(new TransferContractLog(
+                        recordItem, tokenId, senderId, receiverId, amountForSyntheticContractLog));
+            }
         }
     }
 
