@@ -101,6 +101,19 @@ spec:
         config:
           shared_buffers: "20GB"
         enableMetricsExporter: true
+        overrides:
+          - index: 0
+            pods:
+              persistentVolume:
+                size: 14000Gi
+          - index: 1
+            pods:
+              persistentVolume:
+                size: 15000Gi
+          - index: 2
+            pods:
+              persistentVolume:
+                size: 550Gi
         pgbouncer:
           users:
             mirror_web3:
