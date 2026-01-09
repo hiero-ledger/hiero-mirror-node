@@ -46,9 +46,14 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     // Disable serial and this-escape warnings due to errors in generated code
-    // Disable rawtypes due to Spring AOT generated configuration
+    // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
-        listOf("-parameters", "-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview,-rawtypes")
+        listOf(
+            "-parameters",
+            "-Werror",
+            "-Xlint:all",
+            "-Xlint:-this-escape,-preview,-rawtypes,-unchecked",
+        )
     )
     options.encoding = "UTF-8"
     options.errorprone {

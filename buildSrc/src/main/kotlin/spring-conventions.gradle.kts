@@ -5,7 +5,6 @@ plugins {
     id("docker-conventions")
     id("java-conventions")
     id("org.cyclonedx.bom")
-    id("org.graalvm.buildtools.native")
     id("org.springframework.boot")
 }
 
