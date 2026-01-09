@@ -21,6 +21,12 @@ spec:
   driftDetection:
     ignore:
       - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
+      - paths:
           - /spec/replicas
       - paths:
           - /spec/scripts

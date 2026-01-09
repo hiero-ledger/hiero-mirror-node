@@ -17,12 +17,6 @@ spec:
   driftDetection:
     mode: enabled
     ignore:
-      - paths:
-          - /spec/coordinator/pods/persistentVolume/size
-          - /spec/shards/pods/persistentVolume/size
-          - /spec/shards/overrides
-        target:
-          kind: SGShardedCluster
       - paths: [""]
         target:
           kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
