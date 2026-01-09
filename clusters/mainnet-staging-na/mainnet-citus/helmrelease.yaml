@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.145.0-rc1'
+      version: '0.146.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -24,6 +24,12 @@ spec:
       - paths: [""]
         target:
           kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
+      - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
   install:
     crds: CreateReplace
   interval: 90s
@@ -95,19 +101,6 @@ spec:
         config:
           shared_buffers: "20GB"
         enableMetricsExporter: true
-        overrides:
-          - index: 0
-            pods:
-              persistentVolume:
-                size: 14000Gi
-          - index: 1
-            pods:
-              persistentVolume:
-                size: 15000Gi
-          - index: 2
-            pods:
-              persistentVolume:
-                size: 550Gi
         pgbouncer:
           users:
             mirror_web3:

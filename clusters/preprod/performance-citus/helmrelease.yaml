@@ -14,11 +14,18 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.145.0-rc1'
+      version: '0.146.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
   driftDetection:
+    ignore:
+      - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
     mode: warn
   install:
     crds: CreateReplace
