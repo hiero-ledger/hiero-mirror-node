@@ -5,8 +5,7 @@ package org.hiero.mirror.restjava.config;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.StringJoiner;
 import lombok.Data;
 import lombok.Getter;
 import org.hiero.mirror.common.CommonProperties;
@@ -30,21 +29,25 @@ public class NetworkProperties {
             new AccountRange(400, 750));
 
     @Getter(lazy = true)
-    private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
+    private final RangeBounds unreleasedSupplyRangeBounds = createUnreleasedSupplyRangeBounds();
 
-    private Set<Long> createUnreleasedSupplyAccountIds() {
+    private RangeBounds createUnreleasedSupplyRangeBounds() {
         final var commonProperties = CommonProperties.getInstance();
         final var shard = commonProperties.getShard();
         final var realm = commonProperties.getRealm();
-        final var accountIds = new TreeSet<Long>();
+
+        final var lowerBoundJoiner = new StringJoiner(",");
+        final var upperBoundJoiner = new StringJoiner(",");
 
         for (final var range : unreleasedSupplyAccounts) {
-            for (long num = range.from(); num <= range.to(); num++) {
-                accountIds.add(EntityId.of(shard, realm, num).getId());
-            }
+            final long from = EntityId.of(shard, realm, range.from()).getId();
+            final long to = EntityId.of(shard, realm, range.to()).getId();
+
+            lowerBoundJoiner.add(Long.toString(from));
+            upperBoundJoiner.add(Long.toString(to));
         }
 
-        return accountIds;
+        return new RangeBounds(lowerBoundJoiner.toString(), upperBoundJoiner.toString());
     }
 
     public record AccountRange(@Min(1) long from, @Min(1) long to) {
@@ -54,4 +57,6 @@ public class NetworkProperties {
             }
         }
     }
+
+    public record RangeBounds(String lowerBounds, String upperBounds) {}
 }
