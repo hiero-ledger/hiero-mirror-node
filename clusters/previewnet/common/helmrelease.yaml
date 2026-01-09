@@ -17,6 +17,12 @@ spec:
   driftDetection:
     mode: enabled
     ignore:
+      - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
       - paths: [""]
         target:
           kind: (MutatingWebhookConfiguration|SGConfig|ValidatingWebhookConfiguration)
@@ -65,9 +71,9 @@ spec:
           cloud.google.com/neg: '{ "exposed_ports":{ "443":{"name": "mirrornode-previewnet"} } }'
     zfs:
       coordinator:
-        initialDiskSize: 75Gi
+        initialDiskSize: 75GB
       init:
         diskPrefix: previewnet
       worker:
-        initialDiskSize: 100Gi
+        initialDiskSize: 100GB
 
