@@ -17,7 +17,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.962.0",
+    "@aws-sdk/client-s3": "3.966.0",
     "@godaddy/terminus": "4.12.1",
     "@hashgraph/proto": "2.25.0",
     "@trufflesuite/bigint-buffer": "1.1.10",
@@ -30,7 +30,7 @@
     "express-openapi-validator": "5.6.0",
     "extend": "3.0.2",
     "extensionless": "2.0.6",
-    "ioredis": "5.8.2",
+    "ioredis": "5.9.1",
     "ip-anonymize": "0.1.0",
     "js-yaml": "4.1.1",
     "json-bigint": "1.0.0",
@@ -63,10 +63,10 @@
     "node-flywaydb": "3.0.7",
     "nodemon": "3.1.11",
     "pg-format": "1.0.4",
-    "pgsql-parser": "17.9.9",
+    "pgsql-parser": "17.9.11",
     "rewire": "9.0.1",
     "sinon": "21.0.1",
-    "supertest": "7.1.4"
+    "supertest": "7.2.2"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",

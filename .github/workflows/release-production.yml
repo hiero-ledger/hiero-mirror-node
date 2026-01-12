@@ -67,7 +67,7 @@ jobs:
         uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
 
       - name: Authenticate to Google Cloud
-        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
+        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
         with:
           service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
@@ -153,7 +153,7 @@ jobs:
 
       - name: Authenticate to Google Cloud
         id: google-auth
-        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
+        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
         with:
           workload_identity_provider: "projects/798248771094/locations/global/workloadIdentityPools/default-pool/providers/gh-provider"
           service_account: "container-publisher@mirror-node-public.iam.gserviceaccount.com"
