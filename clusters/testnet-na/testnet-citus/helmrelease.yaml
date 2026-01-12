@@ -24,6 +24,12 @@ spec:
           - /spec/scripts
         target:
           kind: SGScript
+      - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
     mode: enabled
   install:
     crds: CreateReplace
@@ -65,6 +71,9 @@ spec:
         config:
           contract:
             contractId: "0.0.2664875"
+    restjava:
+      routes:
+        supply: true
     stackgres:
       coordinator:
         persistentVolume:
