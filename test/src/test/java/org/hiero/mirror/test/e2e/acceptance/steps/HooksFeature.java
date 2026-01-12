@@ -15,6 +15,7 @@ import com.hedera.hashgraph.sdk.LambdaMappingEntry;
 import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import com.hedera.hashgraph.sdk.Status;
 import io.cucumber.java.Before;
+import io.cucumber.java.Scenario;
 import io.cucumber.java.en.Then;
 import io.cucumber.java.en.When;
 import java.util.ArrayList;
@@ -40,6 +41,7 @@ public class HooksFeature extends AbstractFeature {
     private static final byte[] EXPLICIT_SLOT_KEY = {1};
     private static final byte[] EXPLICIT_SLOT_VALUE = {2};
     private static final long HOOK_ID = 16389;
+    private static final String HOOKS_TAG = "hooks";
     private static final byte[] MAPPING_SLOT = {3};
     private static final byte[] MAPPING_KEY = {4};
     private static final byte[] MAPPING_VALUE = {5};
@@ -54,7 +56,11 @@ public class HooksFeature extends AbstractFeature {
     private byte[] transferKey;
 
     @Before
-    public void before() {
+    public void before(final Scenario scenario) {
+        if (!scenario.getSourceTagNames().contains(HOOKS_TAG)) {
+            return;
+        }
+
         final var blocksResponse = mirrorClient.getBlocks(Order.DESC, 1);
         final var blocks = blocksResponse.getBlocks();
         assumeTrue(!blocks.isEmpty());
