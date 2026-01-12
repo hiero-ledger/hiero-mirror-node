@@ -15,6 +15,7 @@ import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import java.util.ArrayList;
+import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -191,6 +192,52 @@ class SyntheticContractLogServiceImplTest {
         assertThat(syntheticLogSum)
                 .as("Sum of synthetic log amounts should equal sum of positive original amounts")
                 .isEqualTo(positiveOriginalSum);
+
+        validateAccountsAreSorted(logEntries);
+    }
+
+    /**
+     * Validates that accounts in synthetic logs are sorted. The logs should be sorted by sender first then by receiver.
+     *
+     * @param logEntries the list of log entries to validate
+     */
+    private void validateAccountsAreSorted(final List<LogEntry> logEntries) {
+        if (logEntries.size() <= 1) {
+            return;
+        }
+
+        for (int i = 1; i < logEntries.size(); i++) {
+            var currentEntry = logEntries.get(i);
+            var previousEntry = logEntries.get(i - 1);
+            validateLogEntryIsSorted(currentEntry, previousEntry, i);
+        }
+    }
+
+    /**
+     * Validates that a log entry is sorted relative to the previous entry.
+     * Entries should be sorted by sender first, then by receiver.
+     *
+     * @param currentEntry the current log entry
+     * @param previousEntry the previous log entry
+     * @param index the index of the current entry
+     */
+    private void validateLogEntryIsSorted(final LogEntry currentEntry, final LogEntry previousEntry, final int index) {
+        var senderComparison = currentEntry.senderId().compareTo(previousEntry.senderId());
+        if (senderComparison < 0) {
+            assertThat(senderComparison)
+                    .as(
+                            "Logs should be sorted by sender ID. Entry at index %d has sender %s which is less than previous entry's sender %s",
+                            index, currentEntry.senderId(), previousEntry.senderId())
+                    .isGreaterThanOrEqualTo(0);
+        } else if (senderComparison == 0) {
+            // If sender IDs are equal, compare receiver IDs
+            var receiverComparison = currentEntry.receiverId().compareTo(previousEntry.receiverId());
+            assertThat(receiverComparison)
+                    .as(
+                            "Logs should be sorted by receiver ID when sender IDs are equal (%s). Entry at index %d has receiver %s which is less than previous entry's receiver %s",
+                            currentEntry.senderId(), index, currentEntry.receiverId(), previousEntry.receiverId())
+                    .isGreaterThanOrEqualTo(0);
+        }
     }
 
     /**
@@ -202,7 +249,8 @@ class SyntheticContractLogServiceImplTest {
     private int getExpectedLogCount(MultiPartyTransferType transferType) {
         return switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS -> 2;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS -> 2;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT -> 2;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 2;
             case ONE_RECEIVER_FOUR_SENDERS -> 4;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 3;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 5;

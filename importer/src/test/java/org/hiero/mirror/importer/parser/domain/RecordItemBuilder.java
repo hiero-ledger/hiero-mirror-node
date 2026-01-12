@@ -679,13 +679,21 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(1), -400))
                         .addTransfers(accountAmount(accounts.get(2), -600));
                 break;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS:
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT:
                 // [A=400, B=-400, C=300, D=-300] => [[A=400, B=-400], [C=300, D=-300]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 400))
                         .addTransfers(accountAmount(accounts.get(1), -400))
                         .addTransfers(accountAmount(accounts.get(2), 300))
                         .addTransfers(accountAmount(accounts.get(3), -300));
+                break;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT:
+                // [A=400, B=-400, C=400, D=-400] => [[A=400, B=-400], [C=400, D=-400]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 400))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), 400))
+                        .addTransfers(accountAmount(accounts.get(3), -400));
                 break;
             case ONE_RECEIVER_FOUR_SENDERS:
                 // [A=1500, B=-500, C=-400, D=-300, E=-300] => [[A=1500, B=-500], [А=400, C=-400], [A=300, D=-300],
@@ -764,7 +772,8 @@ public class RecordItemBuilder {
     private int getTransferCount(final MultiPartyTransferType transferType) {
         return switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS -> 3;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS -> 4;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT -> 4;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 4;
             case ONE_RECEIVER_FOUR_SENDERS -> 5;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 6;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
@@ -776,7 +785,8 @@ public class RecordItemBuilder {
     public enum MultiPartyTransferType {
         ONE_RECEIVER_TWO_SENDERS,
         ONE_RECEIVER_FOUR_SENDERS,
-        PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS,
+        PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT,
+        PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT,
         PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS,
         TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT,
         THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT,

@@ -48,9 +48,15 @@ generate synthetic logs for the following scenarios:
 - Any other current or future transaction that transfers fungible or non-fungible tokens.
 
 For now, the decision was made to omit Hbar transfers because they can be executed at 10,000 transactions per second
-and this could quickly generate a lot of logs and slow down the system. Also, we only support token transfers that
-have a single transfer pair due to the difficulty in splitting aggregated transfers in the `TransactionRecord` into
-separate transfer pairs for event emission. This could change in the future.
+and this could quickly generate a lot of logs and slow down the system. Multi-party fungible token transfers are supported
+if `hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogsMulti` property is enabled. By default, it
+is set to `true`. The logic for creating transfer pairs is deterministic and uses the following approach:
+
+- senders and receiver accounts are sorted incrementally by `AccountID`'s natural order
+- if sender and receiver amounts are not directly paired, transfers are split by consuming the first available sender
+  balance by priority until it's exhausted. This means a given account can be present in multiple events because of the
+  splitting
+- all remaining senders and receivers are iterated and the same logic applies
 
 ## Initialize Entity Balance
 

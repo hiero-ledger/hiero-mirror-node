@@ -476,7 +476,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId accountId,
             long amount) {
         if (isSingleTransfer && amount > 0) {
-            EntityId senderId = i == 0
+            final var senderId = i == 0
                     ? EntityId.of(tokenTransfers.get(1).getAccountID())
                     : EntityId.of(tokenTransfers.get(0).getAccountID());
             syntheticContractLogService.create(
@@ -496,60 +496,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                 }
             }
 
-            // Create pairs: for each receiver, use senders in alphabetical order until receiver amount is satisfied
-            final var transferPairs = new ArrayList<List<AccountAmount>>();
-            int senderIndex = 0;
-
-            for (final var receiver : receivers) {
-                long remainingReceiverAmount = receiver.getAmount();
-
-                // Use senders in sorted order until receiver amount is satisfied
-                while (remainingReceiverAmount > 0 && senderIndex < senders.size()) {
-                    final var sender = senders.get(senderIndex);
-                    long senderRemainingAmount = Math.abs(sender.getAmount());
-
-                    // Determine how much to transfer in this pair
-                    long transferAmount = Math.min(remainingReceiverAmount, senderRemainingAmount);
-
-                    // Create split entries for this pair
-                    AccountAmount receiverSplit = AccountAmount.newBuilder()
-                            .setAccountID(receiver.getAccountID())
-                            .setAmount(transferAmount)
-                            .build();
-
-                    AccountAmount senderSplit = AccountAmount.newBuilder()
-                            .setAccountID(sender.getAccountID())
-                            .setAmount(-transferAmount)
-                            .build();
-
-                    // Create pair in sorted order by AccountID
-                    final var pair = new ArrayList<AccountAmount>();
-                    if (EntityId.of(receiverSplit.getAccountID()).compareTo(EntityId.of(senderSplit.getAccountID()))
-                            < 0) {
-                        pair.add(receiverSplit);
-                        pair.add(senderSplit);
-                    } else {
-                        pair.add(senderSplit);
-                        pair.add(receiverSplit);
-                    }
-                    transferPairs.add(pair);
-
-                    remainingReceiverAmount -= transferAmount;
-                    senderRemainingAmount -= transferAmount;
-
-                    // Update sender's remaining amount (create a new entry with remaining amount)
-                    if (senderRemainingAmount > 0) {
-                        senders.set(
-                                senderIndex,
-                                AccountAmount.newBuilder()
-                                        .setAccountID(sender.getAccountID())
-                                        .setAmount(-senderRemainingAmount)
-                                        .build());
-                    } else {
-                        senderIndex++;
-                    }
-                }
-            }
+            final var transferPairs = createTransferPairs(senders, receivers);
 
             for (final var pair : transferPairs) {
                 final var first = pair.get(0);
@@ -557,34 +504,83 @@ public class EntityRecordItemListener implements RecordItemListener {
                 final var firstId = EntityId.of(first.getAccountID());
                 final var secondId = EntityId.of(second.getAccountID());
                 final var firstAmount = first.getAmount();
+                final var secondAmount = second.getAmount();
+                // If the 2 amounts are not equal we have an issue, that's why use 0 as a safe value
+                final var amountForSyntheticContractLog =
+                        Math.abs(firstAmount) == Math.abs(secondAmount) ? Math.abs(firstAmount) : 0L;
 
                 EntityId senderId;
                 EntityId receiverId;
-                long amountForSyntheticContractLog;
 
                 if (firstAmount < 0 && second.getAmount() > 0) {
                     senderId = firstId;
                     receiverId = secondId;
-                    amountForSyntheticContractLog = second.getAmount();
-                } else if (firstAmount > 0 && second.getAmount() < 0) {
+                } else {
                     senderId = secondId;
                     receiverId = firstId;
-                    amountForSyntheticContractLog = firstAmount;
-                } else {
-                    amountForSyntheticContractLog = Math.abs(firstAmount);
-                    if (firstAmount < 0) {
-                        senderId = firstId;
-                        receiverId = secondId;
-                    } else {
-                        senderId = secondId;
-                        receiverId = firstId;
-                    }
                 }
 
                 syntheticContractLogService.create(new TransferContractLog(
                         recordItem, tokenId, senderId, receiverId, amountForSyntheticContractLog));
             }
         }
+    }
+
+    /**
+     * Creates transfer pairs from senders and receivers. For each receiver, uses senders in alphabetical order
+     * until the receiver amount is satisfied. Modifies the senders list in place to track remaining amounts.
+     *
+     * @param senders List of senders (negative amounts)
+     * @param receivers List of receivers (positive amounts)
+     * @return List of transfer pairs, where each pair contains two AccountAmount entries sorted by AccountID
+     */
+    private List<List<AccountAmount>> createTransferPairs(
+            final List<AccountAmount> senders, final List<AccountAmount> receivers) {
+        final var transferPairs = new ArrayList<List<AccountAmount>>();
+        int senderIndex = 0;
+
+        for (final var receiver : receivers) {
+            long remainingReceiverAmount = receiver.getAmount();
+
+            while (remainingReceiverAmount > 0 && senderIndex < senders.size()) {
+                final var sender = senders.get(senderIndex);
+                var senderRemainingAmount = Math.abs(sender.getAmount());
+
+                // Determine how much to transfer in this pair
+                final var transferAmount = Math.min(remainingReceiverAmount, senderRemainingAmount);
+
+                final var receiverSplit = AccountAmount.newBuilder()
+                        .setAccountID(receiver.getAccountID())
+                        .setAmount(transferAmount)
+                        .build();
+
+                final var senderSplit = AccountAmount.newBuilder()
+                        .setAccountID(sender.getAccountID())
+                        .setAmount(-transferAmount)
+                        .build();
+
+                final var pair = new ArrayList<AccountAmount>();
+                pair.add(senderSplit);
+                pair.add(receiverSplit);
+                transferPairs.add(pair);
+
+                remainingReceiverAmount -= transferAmount;
+                senderRemainingAmount -= transferAmount;
+
+                if (senderRemainingAmount > 0) {
+                    senders.set(
+                            senderIndex,
+                            AccountAmount.newBuilder()
+                                    .setAccountID(sender.getAccountID())
+                                    .setAmount(-senderRemainingAmount)
+                                    .build());
+                } else {
+                    senderIndex++;
+                }
+            }
+        }
+
+        return transferPairs;
     }
 
     private void handleNegativeAccountAmounts(
