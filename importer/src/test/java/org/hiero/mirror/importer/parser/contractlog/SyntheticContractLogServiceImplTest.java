@@ -26,6 +26,7 @@ import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.CommonParserProperties;
 import org.hiero.mirror.importer.parser.contractresult.SyntheticContractResultService;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
+import org.hiero.mirror.importer.parser.domain.RecordItemBuilder.MultiPartyTransferType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityRecordItemListener;
@@ -36,7 +37,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -123,14 +124,15 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {3, 4, 5, 6, 7, 8})
-    @DisplayName("Should create synthetic contract logs for variable token transfers with correct sorting and zero-sum")
-    void createSyntheticLogsForVariableTokenTransfers(int transferCount) {
+    @EnumSource(MultiPartyTransferType.class)
+    @DisplayName(
+            "Should create synthetic contract logs for multi-party fungible token transfers with correct sorting and zero-sum")
+    void createSyntheticLogsForVariableTokenTransfers(MultiPartyTransferType transferType) {
         entityProperties.getPersist().setSyntheticContractLogsMulti(true);
         entityProperties.getPersist().setSyntheticContractLogs(true);
 
         recordItem = recordItemBuilder
-                .cryptoTransferWithVariableTokenTransfers(transferCount)
+                .cryptoTransferWithMultiPartyTokenTransfers(transferType)
                 .build();
 
         when(transactionHandler.getEntity(any(RecordItem.class))).thenReturn(EntityId.EMPTY);
@@ -155,56 +157,25 @@ class SyntheticContractLogServiceImplTest {
                 .filter(ContractLog::isSyntheticTransfer)
                 .toList();
 
-        // Calculate expected log count based on the new pairing algorithm
-        // The algorithm pairs receivers with senders in alphabetical order
-        // Count receivers and calculate how many pairs each receiver needs
         var tokenTransferList = recordItem.getTransactionRecord().getTokenTransferListsList().stream()
                 .findFirst()
                 .orElseThrow();
 
-        // The number of pairs equals the number of receivers (each receiver gets paired with one or more senders)
-        // But we need to count actual pairs created, which depends on how senders are distributed
-        // For simplicity, we'll calculate based on the minimum number of pairs needed
-        // which is the number of receivers (since each receiver needs at least one pair)
-        var receiverCount = (int) tokenTransferList.getTransfersList().stream()
-                .filter(aa -> aa.getAmount() > 0)
-                .count();
-
-        int expectedLogCount;
-        if (transferCount == 3) {
-            expectedLogCount = 2; // A=1000 pairs with B=-400 and C=-600
-        } else if (transferCount == 4) {
-            expectedLogCount = 2; // A=400 pairs with B=-400, C=300 pairs with D=-300
-        } else if (transferCount == 5) {
-            expectedLogCount = 4; // A=1500 pairs with B=-500, C=-400, D=-300, E=-300
-        } else if (transferCount == 6) {
-            expectedLogCount = 3; // A=400 pairs with B=-400, C=300 pairs with D=-300, E=200 pairs with F=-200
-        } else if (transferCount == 7) {
-            expectedLogCount =
-                    5; // D=500 pairs with F=-500, E=300 pairs with F=-300, E=100 pairs with G=-100, A=400 pairs with
-            // B=-400, A=600 pairs with C=-600
-        } else if (transferCount == 8) {
-            expectedLogCount =
-                    6; // A=300 pairs with B=-300, A=400 pairs with C=-400, A=200 pairs with F=-200, D=600 pairs with
-            // F=-600, E=400 pairs with G=-400
-        } else {
-            expectedLogCount = receiverCount;
-        }
+        var expectedLogCount = getExpectedLogCount(transferType);
 
         assertThat(syntheticLogs)
-                .as("Should create %d synthetic logs for %d transfers", expectedLogCount, transferCount)
+                .as("Should create %d synthetic logs for %s", expectedLogCount, transferType)
                 .hasSize(expectedLogCount);
 
         var logEntries = new ArrayList<LogEntry>();
         for (var log : syntheticLogs) {
-            var senderId = fromTrimmedEvmAddress(log.getTopic1());
-            var receiverId = fromTrimmedEvmAddress(log.getTopic2());
-            // Data contains the amount as trimmed bytes (from longToBytes)
+            var senderIdFromLog = fromTrimmedEvmAddress(log.getTopic1());
+            var receiverIdFromLog = fromTrimmedEvmAddress(log.getTopic2());
             var dataBytes = log.getData();
-            var amount = dataBytes != null && dataBytes.length > 0
+            var amountFromLog = dataBytes != null && dataBytes.length > 0
                     ? Bytes.wrap(trim(dataBytes)).toLong()
                     : 0L;
-            logEntries.add(new LogEntry(senderId, receiverId, amount));
+            logEntries.add(new LogEntry(senderIdFromLog, receiverIdFromLog, amountFromLog));
         }
 
         var originalTransferSum = tokenTransferList.getTransfersList().stream()
@@ -212,14 +183,32 @@ class SyntheticContractLogServiceImplTest {
                 .sum();
         assertThat(originalTransferSum).as("Original transfers should zero-sum").isZero();
 
-        long syntheticLogSum = logEntries.stream().mapToLong(e -> e.amount).sum();
-        long positiveOriginalSum = tokenTransferList.getTransfersList().stream()
+        var syntheticLogSum = logEntries.stream().mapToLong(e -> e.amount).sum();
+        var positiveOriginalSum = tokenTransferList.getTransfersList().stream()
                 .mapToLong(AccountAmount::getAmount)
                 .filter(a -> a > 0)
                 .sum();
         assertThat(syntheticLogSum)
                 .as("Sum of synthetic log amounts should equal sum of positive original amounts")
                 .isEqualTo(positiveOriginalSum);
+    }
+
+    /**
+     * Returns the expected number of synthetic logs for the given transfer type.
+     *
+     * @param transferType the multi-party transfer type
+     * @return the expected number of synthetic logs
+     */
+    private int getExpectedLogCount(MultiPartyTransferType transferType) {
+        return switch (transferType) {
+            case ONE_RECEIVER_TWO_SENDERS -> 2;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS -> 2;
+            case ONE_RECEIVER_FOUR_SENDERS -> 4;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 3;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 5;
+            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
+            case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 6;
+        };
     }
 
     private record LogEntry(EntityId senderId, EntityId receiverId, long amount) {}

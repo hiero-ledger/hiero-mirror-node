@@ -646,21 +646,22 @@ public class RecordItemBuilder {
     }
 
     /**
-     * Creates a crypto transfer with token transfers having a variable number of AccountAmount entries.
-     * The transfers are designed to zero-sum (total positive amounts = total negative amounts).
+     * Creates a crypto transfer with multi-party token transfers based on transfer type.
      *
-     * @param transferCount the number of AccountAmount entries (3, 4, 5, or 6, 7)
-     * @return Builder for CryptoTransferTransactionBody
+     * @param transferType the multi-party transfer type
+     * @return the builder
      */
-    public Builder<CryptoTransferTransactionBody.Builder> cryptoTransferWithVariableTokenTransfers(int transferCount) {
+    public Builder<CryptoTransferTransactionBody.Builder> cryptoTransferWithMultiPartyTokenTransfers(
+            final MultiPartyTransferType transferType) {
         var body = CryptoTransferTransactionBody.newBuilder();
         var builder = new Builder<>(TransactionType.CRYPTOTRANSFER, body);
 
         var tokenId = tokenId();
         var tokenTransfers = TokenTransferList.newBuilder().setToken(tokenId);
 
-        // Create accounts for the transfers
-        List<AccountID> accounts = new ArrayList<>();
+        int transferCount = getTransferCount(transferType);
+
+        var accounts = new ArrayList<AccountID>();
         for (int i = 0; i < transferCount; i++) {
             var account = accountId();
             accounts.add(account);
@@ -670,70 +671,116 @@ public class RecordItemBuilder {
                     .build());
         }
 
-        // Generate transfers that zero-sum
-        if (transferCount == 3) {
-            // Example: [A=1000, B=-400, C=-600] => [[A=400, B=-400], [A=600, C=-600]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 1000))
-                    .addTransfers(accountAmount(accounts.get(1), -400))
-                    .addTransfers(accountAmount(accounts.get(2), -600));
-        } else if (transferCount == 4) {
-            // Example: [A=400, B=-400, C=300, D=-300] => [[A=400, B=-400], [C=300, D=-300]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 400))
-                    .addTransfers(accountAmount(accounts.get(1), -400))
-                    .addTransfers(accountAmount(accounts.get(2), 300))
-                    .addTransfers(accountAmount(accounts.get(3), -300));
-        } else if (transferCount == 5) {
-            // Example: [A=1500, B=-500, C=-400, D=-300, E=-300] => [[A=1500, B=-500], [А=400, C=-400], [A=300, D=-300],
-            // [A=300, E=-300]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 1500))
-                    .addTransfers(accountAmount(accounts.get(1), -500))
-                    .addTransfers(accountAmount(accounts.get(2), -400))
-                    .addTransfers(accountAmount(accounts.get(3), -300))
-                    .addTransfers(accountAmount(accounts.get(4), -300));
-        } else if (transferCount == 6) {
-            // Example: [A=400, B=-400, C=300, D=-300, E=200, F=-200] => [[A=400, B=-400], [C=300, D=-300], [A=200,
-            // E=-200], [A=200, F=-200]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 400))
-                    .addTransfers(accountAmount(accounts.get(1), -400))
-                    .addTransfers(accountAmount(accounts.get(2), 300))
-                    .addTransfers(accountAmount(accounts.get(3), -300))
-                    .addTransfers(accountAmount(accounts.get(4), 200))
-                    .addTransfers(accountAmount(accounts.get(5), -200));
-        } else if (transferCount == 7) {
-            // Example: [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-100] => [[A=400, B=-400], [A=600, C=-600],
-            // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 1000))
-                    .addTransfers(accountAmount(accounts.get(1), -400))
-                    .addTransfers(accountAmount(accounts.get(2), -600))
-                    .addTransfers(accountAmount(accounts.get(3), 500))
-                    .addTransfers(accountAmount(accounts.get(4), 400))
-                    .addTransfers(accountAmount(accounts.get(5), -800))
-                    .addTransfers(accountAmount(accounts.get(6), -100));
-        } else if (transferCount == 8) {
-            // Example: [A=900, B=-300, C=-400, D=600, E=400, F=-800, G=-450, H=50] => [[A=300, B=-300], [A=400,
-            // C=-400], [A=200, F=-200], [D=600, F=-600], [E=400, G=-400], [H=50, G=-50]]
-            tokenTransfers
-                    .addTransfers(accountAmount(accounts.get(0), 900))
-                    .addTransfers(accountAmount(accounts.get(1), -300))
-                    .addTransfers(accountAmount(accounts.get(2), -400))
-                    .addTransfers(accountAmount(accounts.get(3), 600))
-                    .addTransfers(accountAmount(accounts.get(4), 400))
-                    .addTransfers(accountAmount(accounts.get(5), -800))
-                    .addTransfers(accountAmount(accounts.get(6), -450))
-                    .addTransfers(accountAmount(accounts.get(7), 50));
-        } else {
-            throw new IllegalArgumentException("Transfer count must be 3, 4, 5, 6, 7 or 8, got: " + transferCount);
+        switch (transferType) {
+            case ONE_RECEIVER_TWO_SENDERS:
+                // [A=1000, B=-400, C=-600] => [[A=400, B=-400], [A=600, C=-600]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1000))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), -600));
+                break;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS:
+                // [A=400, B=-400, C=300, D=-300] => [[A=400, B=-400], [C=300, D=-300]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 400))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), 300))
+                        .addTransfers(accountAmount(accounts.get(3), -300));
+                break;
+            case ONE_RECEIVER_FOUR_SENDERS:
+                // [A=1500, B=-500, C=-400, D=-300, E=-300] => [[A=1500, B=-500], [А=400, C=-400], [A=300, D=-300],
+                // [A=300, E=-300]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1500))
+                        .addTransfers(accountAmount(accounts.get(1), -500))
+                        .addTransfers(accountAmount(accounts.get(2), -400))
+                        .addTransfers(accountAmount(accounts.get(3), -300))
+                        .addTransfers(accountAmount(accounts.get(4), -300));
+                break;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS:
+                // [A=400, B=-400, C=300, D=-300, E=200, F=-200] => [[A=400, B=-400], [C=300, D=-300], [A=200,
+                // E=-200], [A=200, F=-200]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 400))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), 300))
+                        .addTransfers(accountAmount(accounts.get(3), -300))
+                        .addTransfers(accountAmount(accounts.get(4), 200))
+                        .addTransfers(accountAmount(accounts.get(5), -200));
+                break;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT:
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-100] => [[A=400, B=-400], [A=600, C=-600],
+                // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1000))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), -600))
+                        .addTransfers(accountAmount(accounts.get(3), 500))
+                        .addTransfers(accountAmount(accounts.get(4), 400))
+                        .addTransfers(accountAmount(accounts.get(5), -800))
+                        .addTransfers(accountAmount(accounts.get(6), -100));
+                break;
+            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT:
+                // [A=900, B=-300, C=-400, D=600, E=400, F=-800, G=-450, H=50] => [[A=300, B=-300], [A=400,
+                // C=-400], [A=200, F=-200], [D=600, F=-600], [E=400, G=-400], [H=50, G=-50]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 900))
+                        .addTransfers(accountAmount(accounts.get(1), -300))
+                        .addTransfers(accountAmount(accounts.get(2), -400))
+                        .addTransfers(accountAmount(accounts.get(3), 600))
+                        .addTransfers(accountAmount(accounts.get(4), 400))
+                        .addTransfers(accountAmount(accounts.get(5), -800))
+                        .addTransfers(accountAmount(accounts.get(6), -450))
+                        .addTransfers(accountAmount(accounts.get(7), 50));
+                break;
+            case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT:
+                // [A=1000, B=-1400, C=1000, D=-100, E=-900, F=-600, G=1000] => [[A=1000, B=-1000], [C=400,
+                // B=-400], [C=100, D=-100], [C=500, E=-500], [G=400, E=-400], [G=600, F=-600]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1000))
+                        .addTransfers(accountAmount(accounts.get(1), -1400))
+                        .addTransfers(accountAmount(accounts.get(2), 1000))
+                        .addTransfers(accountAmount(accounts.get(3), -100))
+                        .addTransfers(accountAmount(accounts.get(4), -900))
+                        .addTransfers(accountAmount(accounts.get(5), -600))
+                        .addTransfers(accountAmount(accounts.get(6), 1000));
+                break;
+            default:
+                throw new IllegalArgumentException("Unsupported transfer type: " + transferType);
         }
 
         body.addTokenTransfers(tokenTransfers);
         builder.record(r -> r.addTokenTransferLists(tokenTransfers));
 
         return builder;
+    }
+
+    /**
+     * Returns the number of transfers (accounts) needed for the given transfer type.
+     *
+     * @param transferType the multi-party transfer type
+     * @return the number of transfers
+     */
+    private int getTransferCount(final MultiPartyTransferType transferType) {
+        return switch (transferType) {
+            case ONE_RECEIVER_TWO_SENDERS -> 3;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS -> 4;
+            case ONE_RECEIVER_FOUR_SENDERS -> 5;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 6;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
+            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 8;
+            case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 7;
+        };
+    }
+
+    public enum MultiPartyTransferType {
+        ONE_RECEIVER_TWO_SENDERS,
+        ONE_RECEIVER_FOUR_SENDERS,
+        PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS,
+        PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS,
+        TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT,
+        THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT,
+        THREE_RECEIVERS_WITH_THE_SAME_AMOUNT
     }
 
     @SuppressWarnings("deprecation")
