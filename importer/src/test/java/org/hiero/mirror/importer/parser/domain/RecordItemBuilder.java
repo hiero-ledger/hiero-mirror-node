@@ -649,7 +649,7 @@ public class RecordItemBuilder {
      * Creates a crypto transfer with token transfers having a variable number of AccountAmount entries.
      * The transfers are designed to zero-sum (total positive amounts = total negative amounts).
      *
-     * @param transferCount the number of AccountAmount entries (3, 4, 5, or 6)
+     * @param transferCount the number of AccountAmount entries (3, 4, 5, or 6, 7)
      * @return Builder for CryptoTransferTransactionBody
      */
     public Builder<CryptoTransferTransactionBody.Builder> cryptoTransferWithVariableTokenTransfers(int transferCount) {
@@ -685,7 +685,8 @@ public class RecordItemBuilder {
                     .addTransfers(accountAmount(accounts.get(2), 300))
                     .addTransfers(accountAmount(accounts.get(3), -300));
         } else if (transferCount == 5) {
-            // Example: [A=1500, B=-500, C=-400, D=-300, E=-300]
+            // Example: [A=1500, B=-500, C=-400, D=-300, E=-300] => [[A=1500, B=-500], [А=400, C=-400], [A=300, D=-300],
+            // [A=300, E=-300]]
             tokenTransfers
                     .addTransfers(accountAmount(accounts.get(0), 1500))
                     .addTransfers(accountAmount(accounts.get(1), -500))
@@ -693,7 +694,8 @@ public class RecordItemBuilder {
                     .addTransfers(accountAmount(accounts.get(3), -300))
                     .addTransfers(accountAmount(accounts.get(4), -300));
         } else if (transferCount == 6) {
-            // Example: [A=400, B=-400, C=300, D=-300, E=200, F=-200]
+            // Example: [A=400, B=-400, C=300, D=-300, E=200, F=-200] => [[A=400, B=-400], [C=300, D=-300], [A=200,
+            // E=-200], [A=200, F=-200]]
             tokenTransfers
                     .addTransfers(accountAmount(accounts.get(0), 400))
                     .addTransfers(accountAmount(accounts.get(1), -400))
@@ -701,8 +703,31 @@ public class RecordItemBuilder {
                     .addTransfers(accountAmount(accounts.get(3), -300))
                     .addTransfers(accountAmount(accounts.get(4), 200))
                     .addTransfers(accountAmount(accounts.get(5), -200));
+        } else if (transferCount == 7) {
+            // Example: [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-100] => [[A=400, B=-400], [A=600, C=-600],
+            // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 1000))
+                    .addTransfers(accountAmount(accounts.get(1), -400))
+                    .addTransfers(accountAmount(accounts.get(2), -600))
+                    .addTransfers(accountAmount(accounts.get(3), 500))
+                    .addTransfers(accountAmount(accounts.get(4), 400))
+                    .addTransfers(accountAmount(accounts.get(5), -800))
+                    .addTransfers(accountAmount(accounts.get(6), -100));
+        } else if (transferCount == 8) {
+            // Example: [A=900, B=-300, C=-400, D=600, E=400, F=-800, G=-450, H=50] => [[A=300, B=-300], [A=400,
+            // C=-400], [A=200, F=-200], [D=600, F=-600], [E=400, G=-400], [H=50, G=-50]]
+            tokenTransfers
+                    .addTransfers(accountAmount(accounts.get(0), 900))
+                    .addTransfers(accountAmount(accounts.get(1), -300))
+                    .addTransfers(accountAmount(accounts.get(2), -400))
+                    .addTransfers(accountAmount(accounts.get(3), 600))
+                    .addTransfers(accountAmount(accounts.get(4), 400))
+                    .addTransfers(accountAmount(accounts.get(5), -800))
+                    .addTransfers(accountAmount(accounts.get(6), -450))
+                    .addTransfers(accountAmount(accounts.get(7), 50));
         } else {
-            throw new IllegalArgumentException("Transfer count must be 3, 4, 5, or 6, got: " + transferCount);
+            throw new IllegalArgumentException("Transfer count must be 3, 4, 5, 6, 7 or 8, got: " + transferCount);
         }
 
         body.addTokenTransfers(tokenTransfers);
