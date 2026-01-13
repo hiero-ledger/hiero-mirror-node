@@ -204,7 +204,7 @@ const runTests = async (server, testResult) => {
     runTest(getNetworkFees, 'REST_JAVA'),
     runTest(getNetworkNodes),
     runTest(getNetworkStake, 'REST_JAVA'),
-    runTest(getNetworkSupply),
+    runTest(getNetworkSupply, 'REST_JAVA'),
   ]);
 };
 
