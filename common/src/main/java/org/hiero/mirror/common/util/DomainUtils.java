@@ -10,6 +10,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
+import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -308,6 +309,18 @@ public class DomainUtils {
     }
 
     public static SlotKey normalize(SlotKey slotKey) {
+        var key = slotKey.getKey();
+        var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
+        if (normalizedBytes.length == key.size()) {
+            return slotKey;
+        }
+
+        return slotKey.toBuilder()
+                .setKey(DomainUtils.fromBytes(normalizedBytes))
+                .build();
+    }
+
+    public static LambdaSlotKey normalize(LambdaSlotKey slotKey) {
         var key = slotKey.getKey();
         var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
         if (normalizedBytes.length == key.size()) {

@@ -13,9 +13,12 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
+import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.HookEntityId;
+import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -273,6 +276,30 @@ final class DomainUtilsTest {
                 .setKey(ByteString.fromHex(trimmed))
                 .build();
         assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            1234, 1234
+            00, ''
+            00001234, 1234
+            1234567890000000000000000000000000, 1234567890000000000000000000000000
+            """)
+    void normalizeLambdaSlotKey(String input, String trimmed) {
+        var hookId = HookId.newBuilder()
+                .setHookId(1L)
+                .setEntityId(HookEntityId.newBuilder()
+                        .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
+                .build();
+        var lambdaSlotKey = LambdaSlotKey.newBuilder()
+                .setHookId(hookId)
+                .setKey(ByteString.fromHex(input))
+                .build();
+        var expected = LambdaSlotKey.newBuilder()
+                .setHookId(hookId)
+                .setKey(ByteString.fromHex(trimmed))
+                .build();
+        assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);
     }
 
     @Test

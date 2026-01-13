@@ -9,6 +9,7 @@ import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -51,13 +52,13 @@ public final class StateChangeContext {
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
     private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
+    private final Map<LambdaSlotKey, BytesValue> lambdaStorageChanges = new HashMap<>();
 
     private StateChangeContext() {}
 
     /**
-     * Create a context from the state changes. Note the contract is for an entity id, there should be at most
-     * one state change of a certain key type and value type combination. This guarantees the entity ids in a list
-     * are unique.
+     * Create a context from the state changes. Note the contract is for an entity id, there should be at most one state
+     * change of a certain key type and value type combination. This guarantees the entity ids in a list are unique.
      *
      * @param stateChangesList - A list of state changes
      */
@@ -77,6 +78,7 @@ public final class StateChangeContext {
                             processPendingAirdropStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_LAMBDA_STORAGE_VALUE -> processLambdaStorageChange(mapUpdate);
                         default -> {
                             // do nothing
                         }
@@ -129,6 +131,10 @@ public final class StateChangeContext {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
+    public @Nullable BytesValue getLambdaStorageValueWritten(LambdaSlotKey slotKey) {
+        return lambdaStorageChanges.get(normalize(slotKey));
+    }
+
     public Optional<FileID> getNewFileId() {
         if (fileIds.isEmpty()) {
             return Optional.empty();
@@ -169,7 +175,7 @@ public final class StateChangeContext {
      * Get the current amount of a pending fungible airdrop and track its renaming amount.
      *
      * @param pendingAirdropId - The pending fungible airdrop id
-     * @param change - The amount of change to track
+     * @param change           - The amount of change to track
      * @return An optional of the pending airdrop's amount
      */
     public Optional<Long> trackPendingFungibleAirdrop(PendingAirdropId pendingAirdropId, long change) {
@@ -187,8 +193,8 @@ public final class StateChangeContext {
      * Get the current token total supply and track its change.
      *
      * @param tokenId - The token id
-     * @param change - The amount of change to track. Note for transactions which increased the total supply, the value
-     *               should be negative; for transactions which reduced the total supply, the value should be positive
+     * @param change  - The amount of change to track. Note for transactions which increased the total supply, the value
+     *                should be negative; for transactions which reduced the total supply, the value should be positive
      * @return An optional of the token total supply
      */
     public Optional<Long> trackTokenTotalSupply(TokenID tokenId, long change) {
@@ -242,6 +248,16 @@ public final class StateChangeContext {
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
         processContractStorageChange(slotKey, BytesValue.of(valueWritten));
+    }
+
+    private void processLambdaStorageChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasLambdaSlotKey()) {
+            return;
+        }
+
+        var slotKey = mapUpdate.getKey().getLambdaSlotKey();
+        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
+        lambdaStorageChanges.put(normalize(slotKey), BytesValue.of(valueWritten));
     }
 
     private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {

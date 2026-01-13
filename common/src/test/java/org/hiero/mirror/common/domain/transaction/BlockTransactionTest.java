@@ -8,6 +8,8 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.by
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
@@ -539,6 +541,35 @@ final class BlockTransactionTest {
 
     private Timestamp nextTick(Timestamp previous) {
         return Timestamp.newBuilder().setSeconds(previous.getSeconds() + 1).build();
+    }
+
+    @Test
+    void getValueWrittenForLambdaStorage() {
+        // given
+        var lambdaSlot1 = bytes(32);
+        var lambdaSlot1Value = bytes(8);
+        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
+        var lambdaSlot2 = bytes(32);
+        var lambdaSlot2Value = bytes(12);
+        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .build();
+        var parent = defaultBuilder()
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .stateChanges(List.of(stateChanges))
+                .build();
+
+        // when, then
+        assertThat(parent.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
+        assertThat(parent.getValueWritten(lambdaSlotKey2)).returns(lambdaSlot2Value, BytesValue::getValue);
+        // Test non-existent key
+        var nonExistentKey = getLambdaSlotKey(3L, bytes(32));
+        assertThat(parent.getValueWritten(nonExistentKey)).isNull();
     }
 
     @SneakyThrows

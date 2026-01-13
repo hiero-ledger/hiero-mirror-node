@@ -16,6 +16,7 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
+import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -58,16 +59,7 @@ public class BlockTransaction implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
-    @NonFinal
-    @Setter
-    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
-
     private final EvmTraceData evmTraceData;
-
-    @NonFinal
-    @Setter
-    private BlockTransaction nextInBatch;
-
     private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
     private final BlockTransaction previous;
@@ -79,13 +71,13 @@ public class BlockTransaction implements StreamItem {
     @Getter(AccessLevel.NONE)
     private final AtomicReference<TopicMessage> topicMessage = new AtomicReference<>();
 
-    @EqualsAndHashCode.Exclude
-    @Getter(lazy = true)
-    private final StateChangeContext stateChangeContext = createStateChangeContext();
-
     private final boolean successful;
     private final List<TraceData> traceData;
     private final TransactionBody transactionBody;
+
+    @EqualsAndHashCode.Exclude
+    @Getter(lazy = true)
+    private final StateChangeContext stateChangeContext = createStateChangeContext();
 
     @Getter(lazy = true)
     private final ByteString transactionHash = calculateTransactionHash();
@@ -94,6 +86,14 @@ public class BlockTransaction implements StreamItem {
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
 
     private final TransactionResult transactionResult;
+
+    @NonFinal
+    @Setter
+    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
+
+    @NonFinal
+    @Setter
+    private BlockTransaction nextInBatch;
 
     @Builder(toBuilder = true)
     public BlockTransaction(
@@ -138,6 +138,18 @@ public class BlockTransaction implements StreamItem {
                 : null;
     }
 
+    private static ByteString digest(final byte[] data) {
+        return DomainUtils.fromBytes(DIGEST.digest(data));
+    }
+
+    private static <T extends MessageLite> T getTraceDataItem(
+            final Map<TraceData.DataCase, TraceData> data,
+            final TraceData.DataCase dataCase,
+            final Function<TraceData, T> getter) {
+        final var traceData = data.get(dataCase);
+        return traceData != null ? getter.apply(traceData) : null;
+    }
+
     public TopicMessage getTopicMessage() {
         if (topicId == null) {
             return null;
@@ -180,6 +192,18 @@ public class BlockTransaction implements StreamItem {
 
         // fall back to statechanges
         return getStateChangeContext().getContractStorageValueWritten(normalizedSlotKey);
+    }
+
+    /**
+     * Get value written to the storage slot at {@link LambdaSlotKey} by the transaction. Returns the first read value
+     * in subsequent transactions, or the value in statechanges.
+     *
+     * @param lambdaSlotKey - The hook storage's slot key
+     * @return The value written
+     */
+    public BytesValue getValueWritten(final LambdaSlotKey lambdaSlotKey) {
+        // fall back to statechanges
+        return getStateChangeContext().getLambdaStorageValueWritten(lambdaSlotKey);
     }
 
     public Optional<TransactionOutput> getTransactionOutput(final TransactionCase transactionCase) {
@@ -264,17 +288,5 @@ public class BlockTransaction implements StreamItem {
         }
 
         return result;
-    }
-
-    private static ByteString digest(final byte[] data) {
-        return DomainUtils.fromBytes(DIGEST.digest(data));
-    }
-
-    private static <T extends MessageLite> T getTraceDataItem(
-            final Map<TraceData.DataCase, TraceData> data,
-            final TraceData.DataCase dataCase,
-            final Function<TraceData, T> getter) {
-        final var traceData = data.get(dataCase);
-        return traceData != null ? getter.apply(traceData) : null;
     }
 }
