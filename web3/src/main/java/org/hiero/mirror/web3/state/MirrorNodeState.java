@@ -79,15 +79,7 @@ public class MirrorNodeState implements State {
                 if (state instanceof Queue<?> queue) {
                     data.put(stateId, new ListReadableQueueState<>(serviceName, stateId, queue));
                 } else if (state instanceof ReadableKVState<?, ?> kvState) {
-                    final var readableKVState = readableKVStates.stream()
-                            .filter(r -> r.getStateId() == stateId)
-                            .findFirst();
-
-                    if (readableKVState.isPresent()) {
-                        data.put(stateId, readableKVState.get());
-                    } else {
-                        data.put(stateId, kvState);
-                    }
+                    data.put(stateId, kvState);
                 } else if (state instanceof SingletonState<?> singleton) {
                     data.put(stateId, new FunctionReadableSingletonState<>(serviceName, stateId, singleton));
                 }
@@ -157,7 +149,7 @@ public class MirrorNodeState implements State {
     private void initSingletonStates(final Collection<SingletonState<?>> singletonStates) {
         singletonStates.forEach(
                 singletonState -> states.computeIfAbsent(singletonState.getServiceName(), k -> new HashMap<>())
-                        .put(singletonState.getId(), singletonState));
+                        .put(singletonState.getStateId(), singletonState));
         Map<Integer, String> defaultSingletonImplementations = new HashMap<>(Map.of(
                 STAKING_NETWORK_REWARDS_STATE_ID, TokenService.NAME,
                 NODE_REWARDS_STATE_ID, TokenService.NAME));

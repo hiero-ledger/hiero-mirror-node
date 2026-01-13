@@ -87,11 +87,6 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return FileService.NAME;
     }

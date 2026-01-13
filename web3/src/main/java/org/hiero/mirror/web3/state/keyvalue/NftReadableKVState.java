@@ -85,11 +85,6 @@ final class NftReadableKVState extends AbstractReadableKVState<NftID, Nft> {
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return TokenService.NAME;
     }

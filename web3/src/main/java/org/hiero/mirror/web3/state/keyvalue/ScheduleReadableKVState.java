@@ -127,11 +127,6 @@ final class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, 
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return ScheduleService.NAME;
     }

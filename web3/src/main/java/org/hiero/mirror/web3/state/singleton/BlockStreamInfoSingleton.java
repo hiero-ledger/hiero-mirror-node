@@ -7,13 +7,12 @@ import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_ST
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.node.app.blocks.BlockStreamService;
 import jakarta.inject.Named;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo>, RegisterableState {
+final class BlockStreamInfoSingleton implements SingletonState<BlockStreamInfo> {
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return BLOCK_STREAM_INFO_STATE_ID;
     }
 

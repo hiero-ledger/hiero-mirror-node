@@ -10,10 +10,9 @@ import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
 import lombok.SneakyThrows;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet>, RegisterableState {
+final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
     private final ExchangeRateSet cachedExchangeRateSet;
 
@@ -25,7 +24,7 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet>, R
     }
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return MIDNIGHT_RATES_STATE_ID;
     }
 

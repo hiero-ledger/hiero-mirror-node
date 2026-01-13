@@ -131,11 +131,6 @@ final class TokenRelationshipReadableKVState extends AbstractReadableKVState<Ent
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return TokenService.NAME;
     }

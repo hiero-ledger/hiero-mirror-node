@@ -68,11 +68,6 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return TokenService.NAME;
     }

@@ -7,13 +7,12 @@ import static com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema
 import com.hedera.hapi.node.state.congestion.CongestionLevelStarts;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import jakarta.inject.Named;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-final class CongestionLevelStartsSingleton implements SingletonState<CongestionLevelStarts>, RegisterableState {
+final class CongestionLevelStartsSingleton implements SingletonState<CongestionLevelStarts> {
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return CONGESTION_LEVEL_STARTS_STATE_ID;
     }
 

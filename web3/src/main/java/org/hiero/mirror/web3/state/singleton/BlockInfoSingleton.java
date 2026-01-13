@@ -10,15 +10,14 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.state.RegisterableState;
 import org.hiero.mirror.web3.state.Utils;
 
 @Named
 @RequiredArgsConstructor
-final class BlockInfoSingleton implements SingletonState<BlockInfo>, RegisterableState {
+final class BlockInfoSingleton implements SingletonState<BlockInfo> {
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return BLOCKS_STATE_ID;
     }
 

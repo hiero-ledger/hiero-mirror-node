@@ -9,13 +9,12 @@ import com.hedera.node.app.records.BlockRecordService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-final class RunningHashesSingleton implements SingletonState<RunningHashes>, RegisterableState {
+final class RunningHashesSingleton implements SingletonState<RunningHashes> {
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return RUNNING_HASHES_STATE_ID;
     }
 

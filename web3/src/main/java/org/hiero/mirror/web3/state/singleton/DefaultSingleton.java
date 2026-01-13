@@ -10,7 +10,7 @@ public class DefaultSingleton extends AtomicReference<Object> implements Singlet
     private final int id;
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return id;
     }
 

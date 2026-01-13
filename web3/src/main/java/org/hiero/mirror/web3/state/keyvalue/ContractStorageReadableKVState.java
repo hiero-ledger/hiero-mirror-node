@@ -48,11 +48,6 @@ final class ContractStorageReadableKVState extends AbstractReadableKVState<SlotK
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return ContractService.NAME;
     }

@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.state;
 
 public interface RegisterableState {
 
-    Integer getId();
+    int getStateId();
 
     String getServiceName();
 }

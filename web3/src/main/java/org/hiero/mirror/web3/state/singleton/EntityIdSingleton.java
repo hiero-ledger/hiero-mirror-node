@@ -13,17 +13,16 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
 @RequiredArgsConstructor
 @SuppressWarnings("deprecation")
-final class EntityIdSingleton implements SingletonState<EntityNumber>, RegisterableState {
+final class EntityIdSingleton implements SingletonState<EntityNumber> {
     private final EntityRepository entityRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return ENTITY_ID_STATE_ID;
     }
 

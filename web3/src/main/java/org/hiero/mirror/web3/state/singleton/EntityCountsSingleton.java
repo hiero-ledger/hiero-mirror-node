@@ -7,13 +7,12 @@ import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSch
 import com.hedera.hapi.node.state.entity.EntityCounts;
 import com.hedera.node.app.service.entityid.EntityIdService;
 import jakarta.inject.Named;
-import org.hiero.mirror.web3.state.RegisterableState;
 
 @Named
-final class EntityCountsSingleton implements SingletonState<EntityCounts>, RegisterableState {
+final class EntityCountsSingleton implements SingletonState<EntityCounts> {
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return ENTITY_COUNTS_STATE_ID;
     }
 

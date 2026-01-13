@@ -64,11 +64,6 @@ final class ContractBytecodeReadableKVState extends AbstractReadableKVState<Cont
     }
 
     @Override
-    public Integer getId() {
-        return STATE_ID;
-    }
-
-    @Override
     public String getServiceName() {
         return ContractService.NAME;
     }
