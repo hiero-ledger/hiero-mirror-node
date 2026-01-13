@@ -288,12 +288,14 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             ContractSlotUsage contractSlotUsage,
             List<ContractStateChange> contractStateChanges,
             Map<SlotKey, ByteString> contractStorageReads,
+            Map<LambdaSlotKey, ByteString> lambdaStorageReads,
             HookId hookId) {
         var contractId = contractSlotUsage.getContractId();
         var missingIndices = new ArrayList<Integer>();
         boolean missingValueWritten = false;
         var storageChanges = new ArrayList<StorageChange>();
         var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
+        var isLambdaStorage = contractId.getContractNum() == 365L && hookId != null;
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;
@@ -321,11 +323,21 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             }
 
             if (slot != null) {
-                var slotKey = normalize(SlotKey.newBuilder()
-                        .setContractID(contractId)
-                        .setKey(slot)
-                        .build());
-                contractStorageReads.put(slotKey, valueRead);
+                if (isLambdaStorage) {
+                    // For lambda/hook storage, use LambdaSlotKey
+                    var lambdaSlotKey = normalize(LambdaSlotKey.newBuilder()
+                            .setHookId(hookId)
+                            .setKey(slot)
+                            .build());
+                    lambdaStorageReads.put(lambdaSlotKey, valueRead);
+                } else {
+                    // For regular contract storage, use SlotKey
+                    var slotKey = normalize(SlotKey.newBuilder()
+                            .setContractID(contractId)
+                            .setKey(slot)
+                            .build());
+                    contractStorageReads.put(slotKey, valueRead);
+                }
             }
         }
 
@@ -367,10 +379,19 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         // the fact the transactions are processed in descending order by consensus timestamp, a preceding transaction
         // can resolve the value it writes to a storage slot by looking for the value read in subsequent transactions
         var contractStorageReads = new HashMap<SlotKey, ByteString>();
+        // The lambda/hook storages read by this transaction. Similar to contract storage reads, but uses LambdaSlotKey
+        // for hook storage (contract 365). This allows preceding transactions to resolve hook storage values written
+        // by looking at what subsequent transactions read
+        var lambdaStorageReads = new HashMap<LambdaSlotKey, ByteString>();
 
         for (var contractSlotUsage : evmTraceData.getContractSlotUsagesList()) {
             transformContractSlotUsage(
-                    blockTransaction, contractSlotUsage, contractStateChanges, contractStorageReads, hookId);
+                    blockTransaction,
+                    contractSlotUsage,
+                    contractStateChanges,
+                    contractStorageReads,
+                    lambdaStorageReads,
+                    hookId);
         }
 
         if (!contractStateChanges.isEmpty()) {
@@ -384,6 +405,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         blockTransaction.setContractStorageReads(contractStorageReads);
+        blockTransaction.setLambdaStorageReads(lambdaStorageReads);
     }
 
     private void transformSidecarRecords(

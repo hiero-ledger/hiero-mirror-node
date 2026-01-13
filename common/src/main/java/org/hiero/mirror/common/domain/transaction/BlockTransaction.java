@@ -96,6 +96,10 @@ public class BlockTransaction implements StreamItem {
 
     private final TransactionResult transactionResult;
 
+    @NonFinal
+    @Setter
+    private Map<LambdaSlotKey, ByteString> lambdaStorageReads = Collections.emptyMap();
+
     @Builder(toBuilder = true)
     public BlockTransaction(
             final BlockTransaction previous,
@@ -191,6 +195,13 @@ public class BlockTransaction implements StreamItem {
      * @return The value written
      */
     public BytesValue getValueWritten(final LambdaSlotKey lambdaSlotKey) {
+        final var normalizedSlotKey = normalize(lambdaSlotKey);
+        for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
+            final var valueRead = nextInner.getValueRead(normalizedSlotKey);
+            if (valueRead != null) {
+                return BytesValue.of(valueRead);
+            }
+        }
         // fall back to statechanges
         return getStateChangeContext().getLambdaStorageValueWritten(lambdaSlotKey);
     }
@@ -225,6 +236,10 @@ public class BlockTransaction implements StreamItem {
 
     private ByteString getValueRead(final SlotKey slotKey) {
         return contractStorageReads.get(slotKey);
+    }
+
+    private ByteString getValueRead(final LambdaSlotKey slotKey) {
+        return lambdaStorageReads.get(slotKey);
     }
 
     private BlockTransaction parseParent() {

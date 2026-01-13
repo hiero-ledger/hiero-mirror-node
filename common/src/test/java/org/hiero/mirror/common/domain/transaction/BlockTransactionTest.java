@@ -546,16 +546,27 @@ final class BlockTransactionTest {
     @Test
     void getValueWrittenForLambdaStorage() {
         // given
-        var lambdaSlot1 = bytes(32);
+        var lambdaSlot1 = bytes(24);
+        var lambdaSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(lambdaSlot1)));
         var lambdaSlot1Value = bytes(8);
-        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
+        var lambdaSlot1IntermediateValue = bytes(10);
         var lambdaSlot2 = bytes(32);
-        var lambdaSlot2Value = bytes(12);
+        var lambdaSlot3 = bytes(32);
+        var lambdaSlot3Value = bytes(6);
+        var lambdaSlot3IntermediateValue = bytes(12);
+
+        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
+        var lambdaSlotKey1Padded =
+                lambdaSlotKey1.toBuilder().setKey(lambdaSlot1Padded).build();
         var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var lambdaSlotKey3 = getLambdaSlotKey(3L, lambdaSlot3);
+
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1Padded, lambdaSlot1Value))
+                .addStateChanges(StateChangeTestUtils.lambdaStorageMapDeleteChange(lambdaSlotKey2))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey3, lambdaSlot3Value))
                 .build();
+
         var parent = defaultBuilder()
                 .transactionResult(TransactionResult.newBuilder()
                         .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
@@ -564,12 +575,64 @@ final class BlockTransactionTest {
                 .stateChanges(List.of(stateChanges))
                 .build();
 
-        // when, then
+        // Test parent transaction retrieves values from state changes
         assertThat(parent.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
-        assertThat(parent.getValueWritten(lambdaSlotKey2)).returns(lambdaSlot2Value, BytesValue::getValue);
-        // Test non-existent key
-        var nonExistentKey = getLambdaSlotKey(3L, bytes(32));
-        assertThat(parent.getValueWritten(nonExistentKey)).isNull();
+        assertThat(parent.getValueWritten(lambdaSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+        assertThat(parent.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+
+        // Create batch transactions with lambda storage reads
+        var inner1 = defaultBuilder()
+                .previous(parent)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(parent.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+
+        var inner2 = defaultBuilder()
+                .previous(inner1)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(inner1.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        inner2.setLambdaStorageReads(Map.of(lambdaSlotKey1, lambdaSlot1IntermediateValue));
+        inner1.setNextInBatch(inner2);
+
+        var inner3 = defaultBuilder()
+                .previous(inner2)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(inner2.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        inner3.setLambdaStorageReads(Map.of(lambdaSlotKey3, lambdaSlot3IntermediateValue));
+        inner2.setNextInBatch(inner3);
+
+        // Test intermediate value resolution and key normalization
+        assertThat(inner1.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(lambdaSlotKey1Padded))
+                .returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
+
+        // Test deleted slot returns default BytesValue
+        assertThat(inner1.getValueWritten(lambdaSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+
+        // Test slot3 intermediate value resolution
+        assertThat(inner2.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3IntermediateValue, BytesValue::getValue);
+        assertThat(inner3.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+
+        // Test non-existent slot
+        assertThat(parent.getValueWritten(getLambdaSlotKey(4L, bytes(32)))).isNull();
     }
 
     @SneakyThrows
