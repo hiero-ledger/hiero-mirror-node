@@ -22,7 +22,7 @@ complex code underneath.
 
 ### Requirements
 
-- Java 21
+- Java
 
 ### Test Execution
 
