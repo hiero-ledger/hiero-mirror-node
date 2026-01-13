@@ -98,6 +98,7 @@ const requestStartTime = 'requestStartTime';
 const responseBodyLabel = 'responseBody';
 const responseCacheKeyLabel = 'responseCacheKey';
 const responseDataLabel = 'responseData';
+const userLimitLabel = 'userLimit';
 
 const responseHeadersLabel = 'responseHeaders';
 
@@ -193,6 +194,7 @@ const httpStatusCodes = {
   OK: new StatusCode(200, 'OK'),
   PARTIAL_CONTENT: new StatusCode(206, 'Partial mirror node'),
   SERVICE_UNAVAILABLE: new StatusCode(503, 'Service unavailable'),
+  UNAUTHORIZED: new StatusCode(401, 'Unauthorized'),
   UNMODIFIED: new StatusCode(304, 'Not Modified'),
   isSuccess: (code) => code >= 200 && code < 300,
 };
@@ -245,6 +247,7 @@ export {
   responseCacheKeyLabel,
   responseDataLabel,
   responseHeadersLabel,
+  userLimitLabel,
   tokenTypeFilter,
   transactionResultFilter,
   zeroRandomPageCostQueryHint,

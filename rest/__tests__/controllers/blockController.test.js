@@ -4,7 +4,7 @@ import {getResponseLimit} from '../../config';
 import * as constants from '../../constants';
 import {BlockController} from '../../controllers';
 
-const {default: defaultLimit, max: maxLimit} = getResponseLimit();
+const {default: defaultLimit} = getResponseLimit();
 
 describe('Block Controller', () => {
   test('Verify extractOrderFromFilters', async () => {
@@ -25,11 +25,6 @@ describe('Block Controller', () => {
   test('Verify extractLimitFromFilters with param', async () => {
     const limit = BlockController.extractLimitFromFilters([{key: 'limit', operator: '=', value: 50}]);
     expect(limit).toEqual(50);
-  });
-
-  test('Verify extractLimitFromFilters with out of range limit', async () => {
-    const limit = await BlockController.extractLimitFromFilters([{key: 'limit', operator: '=', value: maxLimit + 1}]);
-    expect(limit).toEqual(defaultLimit);
   });
 
   test('Verify extractSqlFromBlockFilters', async () => {
