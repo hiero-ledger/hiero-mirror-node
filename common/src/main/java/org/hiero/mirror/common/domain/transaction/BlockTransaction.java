@@ -59,7 +59,16 @@ public class BlockTransaction implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    @NonFinal
+    @Setter
+    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
+
     private final EvmTraceData evmTraceData;
+
+    @NonFinal
+    @Setter
+    private BlockTransaction nextInBatch;
+
     private final BlockTransaction parent;
     private final Long parentConsensusTimestamp;
     private final BlockTransaction previous;
@@ -71,13 +80,13 @@ public class BlockTransaction implements StreamItem {
     @Getter(AccessLevel.NONE)
     private final AtomicReference<TopicMessage> topicMessage = new AtomicReference<>();
 
-    private final boolean successful;
-    private final List<TraceData> traceData;
-    private final TransactionBody transactionBody;
-
     @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     private final StateChangeContext stateChangeContext = createStateChangeContext();
+
+    private final boolean successful;
+    private final List<TraceData> traceData;
+    private final TransactionBody transactionBody;
 
     @Getter(lazy = true)
     private final ByteString transactionHash = calculateTransactionHash();
@@ -86,14 +95,6 @@ public class BlockTransaction implements StreamItem {
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
 
     private final TransactionResult transactionResult;
-
-    @NonFinal
-    @Setter
-    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
-
-    @NonFinal
-    @Setter
-    private BlockTransaction nextInBatch;
 
     @Builder(toBuilder = true)
     public BlockTransaction(
@@ -136,18 +137,6 @@ public class BlockTransaction implements StreamItem {
         topicId = transactionBody.hasConsensusSubmitMessage()
                 ? transactionBody.getConsensusSubmitMessage().getTopicID()
                 : null;
-    }
-
-    private static ByteString digest(final byte[] data) {
-        return DomainUtils.fromBytes(DIGEST.digest(data));
-    }
-
-    private static <T extends MessageLite> T getTraceDataItem(
-            final Map<TraceData.DataCase, TraceData> data,
-            final TraceData.DataCase dataCase,
-            final Function<TraceData, T> getter) {
-        final var traceData = data.get(dataCase);
-        return traceData != null ? getter.apply(traceData) : null;
     }
 
     public TopicMessage getTopicMessage() {
@@ -288,5 +277,17 @@ public class BlockTransaction implements StreamItem {
         }
 
         return result;
+    }
+
+    private static ByteString digest(final byte[] data) {
+        return DomainUtils.fromBytes(DIGEST.digest(data));
+    }
+
+    private static <T extends MessageLite> T getTraceDataItem(
+            final Map<TraceData.DataCase, TraceData> data,
+            final TraceData.DataCase dataCase,
+            final Function<TraceData, T> getter) {
+        final var traceData = data.get(dataCase);
+        return traceData != null ? getter.apply(traceData) : null;
     }
 }
