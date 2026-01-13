@@ -95,6 +95,14 @@ public final class StateChangeTestUtils {
                 .build();
     }
 
+    public static StateChange lambdaStorageMapDeleteChange(LambdaSlotKey lambdaSlotKey) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_LAMBDA_STORAGE_VALUE)
+                .setMapDelete(MapDeleteChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setLambdaSlotKey(lambdaSlotKey)))
+                .build();
+    }
+
     public static LambdaSlotKey getLambdaSlotKey(long hookId, ByteString key) {
         return LambdaSlotKey.newBuilder()
                 .setHookId(com.hederahashgraph.api.proto.java.HookId.newBuilder()

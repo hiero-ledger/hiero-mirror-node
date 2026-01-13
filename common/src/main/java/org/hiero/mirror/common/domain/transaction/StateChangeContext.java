@@ -83,11 +83,17 @@ public final class StateChangeContext {
                             // do nothing
                         }
                     }
-                } else if (stateChange.hasMapDelete()
-                        && stateChange.getMapDelete().getKey().hasSlotKeyKey()) {
-                    var slotKey = stateChange.getMapDelete().getKey().getSlotKeyKey();
-                    // use the default BytesValue instance when the storage slot is deleted
-                    processContractStorageChange(slotKey, BytesValue.getDefaultInstance());
+                } else if (stateChange.hasMapDelete()) {
+                    if (stateChange.getMapDelete().getKey().hasSlotKeyKey()) {
+                        var slotKey = stateChange.getMapDelete().getKey().getSlotKeyKey();
+                        // use the default BytesValue instance when the storage slot is deleted
+                        processContractStorageChange(slotKey, BytesValue.getDefaultInstance());
+                    }
+                    if (stateChange.getMapDelete().getKey().hasLambdaSlotKey()) {
+                        var slotKey = stateChange.getMapDelete().getKey().getLambdaSlotKey();
+                        // use the default BytesValue instance when the storage slot is deleted
+                        processLambdaStorageChange(slotKey, BytesValue.getDefaultInstance());
+                    }
                 }
             }
         }
@@ -254,10 +260,14 @@ public final class StateChangeContext {
         if (!mapUpdate.getKey().hasLambdaSlotKey()) {
             return;
         }
-
-        var slotKey = mapUpdate.getKey().getLambdaSlotKey();
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        lambdaStorageChanges.put(normalize(slotKey), BytesValue.of(valueWritten));
+        processLambdaStorageChange(mapUpdate.getKey().getLambdaSlotKey(), BytesValue.of(valueWritten));
+    }
+
+    private void processLambdaStorageChange(LambdaSlotKey slotKey, BytesValue valueWritten) {
+        slotKey = normalize(slotKey);
+        final var trimmed = DomainUtils.trim(valueWritten);
+        lambdaStorageChanges.put(slotKey, trimmed);
     }
 
     private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {

@@ -22,6 +22,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.ge
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTokenId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTopicId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
@@ -556,5 +557,35 @@ final class StateChangeContextTest {
 
         // when, then
         assertThat(EMPTY_CONTEXT.getLambdaStorageValueWritten(lambdaSlotKey)).isNull();
+    }
+
+    @Test
+    void getLambdaStorageValueWrittenWithMapDelete() {
+        // given
+        var lambdaSlot1 = bytes(32);
+        var lambdaSlot1Value = bytes(8);
+        var lambdaSlot2 = bytes(32);
+        var lambdaSlot2Value = bytes(12);
+        var lambdaSlot3 = bytes(32);
+        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
+        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var lambdaSlotKey3 = getLambdaSlotKey(3L, lambdaSlot3);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .addStateChanges(lambdaStorageMapDeleteChange(lambdaSlotKey2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        // Test that updated value is present
+        assertThat(context.getLambdaStorageValueWritten(lambdaSlotKey1)).isEqualTo(BytesValue.of(lambdaSlot1Value));
+        // Test that deleted slot has default BytesValue (empty)
+        assertThat(context.getLambdaStorageValueWritten(lambdaSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+        // Test non-existent key
+        assertThat(context.getLambdaStorageValueWritten(lambdaSlotKey3)).isNull();
     }
 }
