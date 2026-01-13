@@ -208,7 +208,7 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
             serviceStates.removeAll(statesNotNeeded);
             if (!serviceStates.isEmpty()) {
                 missingStates.addAll(serviceStates);
-                System.out.printf("Missing states %s for service %s.%n", serviceStates, service);
+                System.out.println("Missing states " + serviceStates + " for service " + service);
                 serviceStates.clear();
             }
             implementedStates.clear();
