@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
-import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
@@ -46,10 +45,10 @@ class ConsensusControllerTest extends GrpcIntegrationTest {
     private static final Duration WAIT = Duration.ofSeconds(10L);
     private final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(10L));
 
-    @GrpcClient("local")
+    @Autowired
     private ReactorConsensusServiceGrpc.ReactorConsensusServiceStub grpcConsensusService;
 
-    @GrpcClient("local")
+    @Autowired
     private ConsensusServiceGrpc.ConsensusServiceBlockingStub blockingService;
 
     @Autowired

@@ -9,11 +9,11 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import net.devh.boot.grpc.server.serverfactory.GrpcServerConfigurer;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.grpc.server.ServerBuilderCustomizer;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -30,7 +30,7 @@ class GrpcConfiguration {
     }
 
     @Bean
-    GrpcServerConfigurer grpcServerConfigurer(GrpcProperties grpcProperties) {
+    ServerBuilderCustomizer<NettyServerBuilder> grpcServerConfigurer(GrpcProperties grpcProperties) {
         NettyProperties nettyProperties = grpcProperties.getNetty();
         return serverBuilder -> customizeServerBuilder(serverBuilder, nettyProperties);
     }

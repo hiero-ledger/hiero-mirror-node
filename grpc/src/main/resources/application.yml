@@ -36,7 +36,7 @@ management:
         liveness:
           include: ping
         readiness:
-          include: db, grpc, grpcChannel, ping, redis
+          include: db, grpc, ping, redis
   endpoints:
     web:
       exposure:
@@ -74,6 +74,9 @@ spring:
       maximum-pool-size: 50
       minimum-idle: 4
       validation-timeout: 3000
+  grpc:
+    server:
+      port: ${hiero.mirror.grpc.port}
   jpa:
     database: PostgreSQL
   lifecycle:

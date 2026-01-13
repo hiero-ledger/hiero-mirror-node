@@ -2,17 +2,17 @@
 
 package org.hiero.mirror.grpc.config;
 
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import net.devh.boot.grpc.server.event.GrpcServerShutdownEvent;
-import net.devh.boot.grpc.server.event.GrpcServerStartedEvent;
-import net.devh.boot.grpc.server.event.GrpcServerTerminatedEvent;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.grpc.autoconfigure.server.GrpcServerProperties;
 
 @CustomLog
 @Named
@@ -20,27 +20,22 @@ import org.springframework.context.event.EventListener;
 public class GrpcHealthIndicator implements HealthIndicator {
 
     private final AtomicReference<Status> status = new AtomicReference<>(Status.UNKNOWN);
+    private final GrpcServerProperties grpcServerProperties;
 
     @Override
     public Health health() {
         return Health.status(status.get()).build();
     }
 
-    @EventListener
-    public void onStart(GrpcServerStartedEvent event) {
-        log.info("Started gRPC server on {}:{}", event.getAddress(), event.getPort());
+    @EventListener(ApplicationReadyEvent.class)
+    public void onStart() {
+        log.info("Started gRPC server on {}", grpcServerProperties.getAddress());
         status.set(Status.UP);
     }
 
-    @EventListener
-    public void onStop(GrpcServerShutdownEvent event) {
+    @PreDestroy
+    public void onStop() {
         log.info("Stopping gRPC server");
         status.set(Status.OUT_OF_SERVICE);
-    }
-
-    @EventListener
-    public void onTermination(GrpcServerTerminatedEvent event) {
-        log.info("Stopped gRPC server");
-        status.set(Status.DOWN);
     }
 }

@@ -15,8 +15,6 @@ import io.grpc.StatusRuntimeException;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.HashSet;
-import lombok.RequiredArgsConstructor;
-import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -27,19 +25,22 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-@RequiredArgsConstructor
 final class NetworkControllerTest extends GrpcIntegrationTest {
 
     private static final Duration WAIT = Duration.ofSeconds(10L);
     private static final long CONSENSUS_TIMESTAMP = 1L;
 
-    private final DomainBuilder domainBuilder;
-    private final SystemEntity systemEntity;
+    @Autowired
+    private DomainBuilder domainBuilder;
 
-    @GrpcClient("local")
+    @Autowired
+    private SystemEntity systemEntity;
+
+    @Autowired
     private ReactorNetworkServiceGrpc.ReactorNetworkServiceStub reactiveService;
 
     @Test

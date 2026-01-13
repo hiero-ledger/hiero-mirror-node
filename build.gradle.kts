@@ -72,7 +72,8 @@ dependencies {
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
-        api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
+        api("org.springframework.grpc:spring-grpc-spring-boot-starter:0.12.0")
+        api("org.springframework.grpc:spring-grpc-test:0.12.0")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
