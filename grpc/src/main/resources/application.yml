@@ -87,3 +87,6 @@ spring:
         refresh:
           period: 60s
     timeout: 5s
+  threads:
+    virtual:
+      enabled: true

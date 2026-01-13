@@ -2,12 +2,9 @@
 
 package org.hiero.mirror.grpc.config;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.ServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -29,31 +26,26 @@ class GrpcConfiguration {
         return transactionTemplate;
     }
 
-    @Bean
-    ServerBuilderCustomizer<NettyServerBuilder> grpcServerConfigurer(GrpcProperties grpcProperties) {
-        NettyProperties nettyProperties = grpcProperties.getNetty();
-        return serverBuilder -> customizeServerBuilder(serverBuilder, nettyProperties);
+    @Bean(destroyMethod = "close")
+    Executor grpcVirtualThreadExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
     }
 
-    private void customizeServerBuilder(ServerBuilder<?> serverBuilder, NettyProperties nettyProperties) {
-        if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
-            Executor executor = new ThreadPoolExecutor(
-                    nettyProperties.getExecutorCoreThreadCount(),
-                    nettyProperties.getExecutorMaxThreadCount(),
-                    nettyProperties.getThreadKeepAliveTime().toSeconds(),
-                    TimeUnit.SECONDS,
-                    new SynchronousQueue<>(),
-                    new ThreadFactoryBuilder()
-                            .setDaemon(true)
-                            .setNameFormat("grpc-executor-%d")
-                            .build());
+    @Bean
+    ServerBuilderCustomizer<NettyServerBuilder> grpcServerConfigurer(
+            Executor grpcVirtualThreadExecutor, GrpcProperties grpcProperties) {
+        final var nettyProperties = grpcProperties.getNetty();
 
-            nettyServerBuilder
-                    .executor(executor)
-                    .maxConnectionIdle(nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
-                    .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection())
-                    .maxInboundMessageSize(nettyProperties.getMaxInboundMessageSize())
-                    .maxInboundMetadataSize(nettyProperties.getMaxInboundMetadataSize());
-        }
+        return serverBuilder -> {
+            if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
+                nettyServerBuilder
+                        .executor(grpcVirtualThreadExecutor)
+                        .maxConnectionIdle(
+                                nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
+                        .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection())
+                        .maxInboundMessageSize(nettyProperties.getMaxInboundMessageSize())
+                        .maxInboundMetadataSize(nettyProperties.getMaxInboundMetadataSize());
+            }
+        };
     }
 }
