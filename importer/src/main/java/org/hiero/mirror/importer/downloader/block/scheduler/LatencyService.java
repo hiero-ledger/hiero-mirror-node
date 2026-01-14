@@ -70,7 +70,7 @@ public final class LatencyService implements AutoCloseable {
         nodes.forEach(blockNode -> tasks.add(new Task(bornGeneration, blockNode)));
     }
 
-    @Scheduled(fixedDelayString = "#{@blockProperties.scheduler().getLatencyService().getFrequency().toMillis()}")
+    @Scheduled(fixedDelayString = "#{@blockProperties.getScheduler().getLatencyService().getFrequency().toMillis()}")
     public void schedule() {
         // drain completed futures
         results.removeIf(Future::isDone);
