@@ -41,9 +41,7 @@ class GrpcConfiguration {
 
             nettyServerBuilder
                     .maxConnectionIdle(nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
-                    .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection())
-                    .maxInboundMessageSize(nettyProperties.getMaxInboundMessageSize())
-                    .maxInboundMetadataSize(nettyProperties.getMaxInboundMetadataSize());
+                    .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
         }
     }
 }
