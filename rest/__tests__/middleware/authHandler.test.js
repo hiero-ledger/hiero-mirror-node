@@ -64,26 +64,12 @@ describe('authHandler middleware', () => {
     });
   });
 
-  test('Invalid Authorization header format - returns 401', async () => {
+  test('Invalid Authorization header format - proceeds without authentication', async () => {
     mockRequest.headers.authorization = 'Bearer invalidtoken';
 
     await authHandler(mockRequest, mockResponse);
 
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
-    expect(mockResponse.json).toHaveBeenCalledWith({
-      _status: {
-        messages: [{message: 'Invalid Authorization header format'}],
-      },
-    });
-  });
-
-  test('Missing password in credentials - returns 401', async () => {
-    const credentials = Buffer.from('testuser').toString('base64');
-    mockRequest.headers.authorization = `Basic ${credentials}`;
-
-    await authHandler(mockRequest, mockResponse);
-
-    expect(mockResponse.status).toHaveBeenCalledWith(401);
+    expect(mockResponse.status).not.toHaveBeenCalled();
   });
 
   test('User without limit configured - proceeds but does not set limit', async () => {

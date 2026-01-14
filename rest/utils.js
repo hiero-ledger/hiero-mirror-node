@@ -502,20 +502,27 @@ const parseOperatorAndValueFromQueryParam = (paramValue) => {
 };
 
 /**
+ * Gets the effective max limit for the current request, checking httpContext
+ * for authenticated user's custom limit first, falling back to default max.
+ * @return {number}
+ */
+const getEffectiveMaxLimit = () => {
+  const userLimit = httpContext.get(userLimitLabel);
+  return userLimit !== undefined ? userLimit : responseLimit.max;
+};
+
+/**
  * Gets the limit param value, if not exists, return the default; otherwise cap it at max.
- * Checks httpContext for authenticated user's custom limit first.
  * Note if values is an array, the last one is honored.
  * @param {string[]|string} values Values of the limit param
  * @return {number}
  */
 const getLimitParamValue = (values) => {
-  const userLimit = httpContext.get(userLimitLabel);
-  const maxLimit = userLimit !== undefined ? userLimit : responseLimit.max;
-
   let ret = responseLimit.default;
   if (values !== undefined) {
     const value = Array.isArray(values) ? values[values.length - 1] : values;
     const parsed = long.fromValue(value);
+    const maxLimit = getEffectiveMaxLimit();
     ret = parsed.greaterThan(maxLimit) ? maxLimit : parsed.toNumber();
   }
   return ret;
@@ -1364,9 +1371,7 @@ const formatComparator = (comparator) => {
         comparator.value = parseBooleanValue(comparator.value);
         break;
       case constants.filterKeys.LIMIT:
-        const userLimit = httpContext.get(userLimitLabel);
-        const maxLimit = userLimit !== undefined ? userLimit : responseLimit.max;
-        comparator.value = math.min(Number(comparator.value), maxLimit);
+        comparator.value = math.min(Number(comparator.value), getEffectiveMaxLimit());
         break;
       case constants.filterKeys.NODE_ID:
       case constants.filterKeys.NONCE:
