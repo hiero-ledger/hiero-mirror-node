@@ -60,9 +60,8 @@ gcloud beta container --project "${PROJECT}" node-pools create "worker" --cluste
 Before performing these steps, ensure that your kubectl is pointing to the correct cluster by examining the output of
 `kubectl config get-contexts`.
 
-1. `helm repo add zfs https://openebs.github.io/openebs`
-2. `helm dependency build charts/hedera-mirror-common`
-3. `helm upgrade --install mirror charts/hedera-mirror-common --create-namespace -n common --set zfs.enabled=true,stackgres.enabled=true`
+1. `helm dependency build charts/hedera-mirror-common`
+2. `helm upgrade --install mirror charts/hedera-mirror-common --create-namespace -n common --set zfs.enabled=true,stackgres.enabled=true`
 
 ### Install Citus
 

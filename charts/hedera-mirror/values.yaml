@@ -345,6 +345,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1
@@ -376,7 +380,7 @@ stackgres:
   enabled: false
   extensions:
     - name: citus
-      version: "12.1-1"
+      version: "13.2.0"
     - name: btree_gist
       version: stable
     - name: pg_trgm
@@ -409,6 +413,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1

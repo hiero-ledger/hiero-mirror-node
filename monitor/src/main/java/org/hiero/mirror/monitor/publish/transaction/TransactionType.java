@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.monitor.publish.transaction;
 
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.monitor.publish.transaction.account.AccountCreateTransactionSupplier;
@@ -34,32 +35,32 @@ import org.hiero.mirror.monitor.publish.transaction.token.TokenWipeTransactionSu
 @Getter
 @RequiredArgsConstructor
 public enum TransactionType {
-    ACCOUNT_CREATE(AccountCreateTransactionSupplier.class),
-    ACCOUNT_DELETE(AccountDeleteTransactionSupplier.class),
-    ACCOUNT_UPDATE(AccountUpdateTransactionSupplier.class),
-    CONSENSUS_CREATE_TOPIC(ConsensusCreateTopicTransactionSupplier.class),
-    CONSENSUS_DELETE_TOPIC(ConsensusDeleteTopicTransactionSupplier.class),
-    CONSENSUS_SUBMIT_MESSAGE(ConsensusSubmitMessageTransactionSupplier.class),
-    CONSENSUS_UPDATE_TOPIC(ConsensusUpdateTopicTransactionSupplier.class),
-    CRYPTO_TRANSFER(CryptoTransferTransactionSupplier.class),
-    FREEZE(FreezeTransactionSupplier.class),
-    SCHEDULE_CREATE(ScheduleCreateTransactionSupplier.class),
-    SCHEDULE_DELETE(ScheduleDeleteTransactionSupplier.class),
-    SCHEDULE_SIGN(ScheduleSignTransactionSupplier.class),
-    TOKEN_ASSOCIATE(TokenAssociateTransactionSupplier.class),
-    TOKEN_BURN(TokenBurnTransactionSupplier.class),
-    TOKEN_CREATE(TokenCreateTransactionSupplier.class),
-    TOKEN_DELETE(TokenDeleteTransactionSupplier.class),
-    TOKEN_DISSOCIATE(TokenDissociateTransactionSupplier.class),
-    TOKEN_FREEZE(TokenFreezeTransactionSupplier.class),
-    TOKEN_GRANT_KYC(TokenGrantKycTransactionSupplier.class),
-    TOKEN_MINT(TokenMintTransactionSupplier.class),
-    TOKEN_PAUSE(TokenPauseTransactionSupplier.class),
-    TOKEN_REVOKE_KYC(TokenRevokeKycTransactionSupplier.class),
-    TOKEN_UNFREEZE(TokenUnfreezeTransactionSupplier.class),
-    TOKEN_UNPAUSE(TokenUnpauseTransactionSupplier.class),
-    TOKEN_UPDATE(TokenUpdateTransactionSupplier.class),
-    TOKEN_WIPE(TokenWipeTransactionSupplier.class);
+    ACCOUNT_CREATE(AccountCreateTransactionSupplier::new),
+    ACCOUNT_DELETE(AccountDeleteTransactionSupplier::new),
+    ACCOUNT_UPDATE(AccountUpdateTransactionSupplier::new),
+    CONSENSUS_CREATE_TOPIC(ConsensusCreateTopicTransactionSupplier::new),
+    CONSENSUS_DELETE_TOPIC(ConsensusDeleteTopicTransactionSupplier::new),
+    CONSENSUS_SUBMIT_MESSAGE(ConsensusSubmitMessageTransactionSupplier::new),
+    CONSENSUS_UPDATE_TOPIC(ConsensusUpdateTopicTransactionSupplier::new),
+    CRYPTO_TRANSFER(CryptoTransferTransactionSupplier::new),
+    FREEZE(FreezeTransactionSupplier::new),
+    SCHEDULE_CREATE(ScheduleCreateTransactionSupplier::new),
+    SCHEDULE_DELETE(ScheduleDeleteTransactionSupplier::new),
+    SCHEDULE_SIGN(ScheduleSignTransactionSupplier::new),
+    TOKEN_ASSOCIATE(TokenAssociateTransactionSupplier::new),
+    TOKEN_BURN(TokenBurnTransactionSupplier::new),
+    TOKEN_CREATE(TokenCreateTransactionSupplier::new),
+    TOKEN_DELETE(TokenDeleteTransactionSupplier::new),
+    TOKEN_DISSOCIATE(TokenDissociateTransactionSupplier::new),
+    TOKEN_FREEZE(TokenFreezeTransactionSupplier::new),
+    TOKEN_GRANT_KYC(TokenGrantKycTransactionSupplier::new),
+    TOKEN_MINT(TokenMintTransactionSupplier::new),
+    TOKEN_PAUSE(TokenPauseTransactionSupplier::new),
+    TOKEN_REVOKE_KYC(TokenRevokeKycTransactionSupplier::new),
+    TOKEN_UNFREEZE(TokenUnfreezeTransactionSupplier::new),
+    TOKEN_UNPAUSE(TokenUnpauseTransactionSupplier::new),
+    TOKEN_UPDATE(TokenUpdateTransactionSupplier::new),
+    TOKEN_WIPE(TokenWipeTransactionSupplier::new);
 
-    private final Class<? extends TransactionSupplier<?>> supplier;
+    private final Supplier<? extends TransactionSupplier<?>> supplier;
 }
