@@ -148,11 +148,7 @@ hiero:
           tokenBalance:
             multipleAccounts: 50
             singleAccount: 1000
-      users:
-        []
-        # - username: user
-        #   password: pass
-        #   limit: 500
+      users: []
       stateproof:
         addressBookHistory: false
         enabled: false
