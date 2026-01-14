@@ -16,26 +16,15 @@ import com.swirlds.state.spi.ReadableSingletonState;
 import com.swirlds.state.spi.WritableKVState;
 import com.swirlds.state.spi.WritableQueueState;
 import com.swirlds.state.spi.WritableSingletonState;
-import java.util.Collection;
 import java.util.LinkedList;
-import org.hiero.mirror.web3.state.singleton.SingletonState;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 final class MirrorNodeStateTest {
 
-    @InjectMocks
-    private MirrorNodeState mirrorNodeState;
-
-    @Spy
-    private Collection<ReadableKVState<?, ?>> readableKVStates = new LinkedList<>();
-
-    @Spy
-    private Collection<SingletonState<?>> singletonStates = new LinkedList<>();
+    private final MirrorNodeState mirrorNodeState = new MirrorNodeState(new LinkedList<>(), new LinkedList<>());
 
     @Test
     void getReadableStatesWithSingleton() {

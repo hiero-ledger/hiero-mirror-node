@@ -22,10 +22,10 @@ import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
 import jakarta.inject.Named;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
@@ -53,12 +53,8 @@ public class MirrorNodeState implements State {
     // Key is Service, value is Map of state name to state datasource
     private final Map<String, Map<Integer, Object>> states = new HashMap<>();
 
-    private final Collection<AbstractReadableKVState<?, ?>> readableKVStates;
-
     public MirrorNodeState(
-            final Collection<SingletonState<?>> singletonStates,
-            final Collection<AbstractReadableKVState<?, ?>> readableKVStates) {
-        this.readableKVStates = readableKVStates;
+            final List<SingletonState<?>> singletonStates, final List<AbstractReadableKVState<?, ?>> readableKVStates) {
         initSingletonStates(singletonStates);
         initKVStates(readableKVStates);
         initQueueStates();
@@ -146,26 +142,23 @@ public class MirrorNodeState implements State {
         return Collections.unmodifiableMap(states);
     }
 
-    private void initSingletonStates(final Collection<SingletonState<?>> singletonStates) {
+    private void initSingletonStates(final List<SingletonState<?>> singletonStates) {
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID));
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID));
         singletonStates.forEach(
                 singletonState -> states.computeIfAbsent(singletonState.getServiceName(), k -> new HashMap<>())
                         .put(singletonState.getStateId(), singletonState));
-        Map<Integer, String> defaultSingletonImplementations = new HashMap<>(Map.of(
-                STAKING_NETWORK_REWARDS_STATE_ID, TokenService.NAME,
-                NODE_REWARDS_STATE_ID, TokenService.NAME));
-        defaultSingletonImplementations.forEach((stateId, serviceName) ->
-                states.computeIfAbsent(serviceName, k -> new HashMap<>()).put(stateId, new DefaultSingleton(stateId)));
     }
 
-    private void initKVStates(final Collection<AbstractReadableKVState<?, ?>> readableKVStates) {
+    private void initKVStates(final List<AbstractReadableKVState<?, ?>> readableKVStates) {
         readableKVStates.forEach(kvState -> states.computeIfAbsent(kvState.getServiceName(), k -> new HashMap<>())
                 .put(kvState.getStateId(), kvState));
-        Map<Integer, String> defaultKvImplementations = new HashMap<>(Map.of(
+        final var defaultKvImplementations = Map.of(
                 LAMBDA_STORAGE_STATE_ID, ContractService.NAME,
                 EVM_HOOK_STATES_STATE_ID, ContractService.NAME,
                 SCHEDULE_ID_BY_EQUALITY_STATE_ID, ScheduleService.NAME,
                 SCHEDULED_COUNTS_STATE_ID, ScheduleService.NAME,
-                SCHEDULED_USAGES_STATE_ID, ScheduleService.NAME));
+                SCHEDULED_USAGES_STATE_ID, ScheduleService.NAME);
         defaultKvImplementations.forEach(
                 (stateId, serviceName) -> states.computeIfAbsent(serviceName, k -> new HashMap<>())
                         .put(stateId, createMapReadableStateForId(serviceName, stateId)));
