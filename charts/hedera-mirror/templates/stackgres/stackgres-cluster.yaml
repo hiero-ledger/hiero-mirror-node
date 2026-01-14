@@ -21,6 +21,7 @@ spec:
       prometheusAutobind: {{ .Values.stackgres.observability.enableMetricsExporter }}
   coordinator:
     configurations:
+      patroni: {{ toYaml .Values.stackgres.coordinator.configurations.patroni | nindent 8 }}
       sgPoolingConfig: {{ include "hedera-mirror.stackgres" . }}-coordinator
       sgPostgresConfig: {{ include "hedera-mirror.stackgres" . }}-coordinator
     instances: {{ .Values.stackgres.coordinator.instances }}
@@ -63,6 +64,7 @@ spec:
   shards:
     clusters: {{ .Values.stackgres.worker.instances }}
     configurations:
+      patroni: {{ toYaml .Values.stackgres.worker.configurations.patroni | nindent 8 }}
       sgPoolingConfig: {{ include "hedera-mirror.stackgres" . }}-worker
       sgPostgresConfig: {{ include "hedera-mirror.stackgres" . }}-worker
     instancesPerCluster: {{ .Values.stackgres.worker.replicasPerInstance }}
