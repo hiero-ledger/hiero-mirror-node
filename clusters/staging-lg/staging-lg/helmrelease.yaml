@@ -24,7 +24,13 @@ spec:
           - /spec/scripts
         target:
           kind: SGScript
-    mode: warn
+      - paths:
+          - /spec/coordinator/pods/persistentVolume/size
+          - /spec/shards/pods/persistentVolume/size
+          - /spec/shards/overrides
+        target:
+          kind: SGShardedCluster
+    mode: enabled
   install:
     crds: CreateReplace
   interval: 90s
