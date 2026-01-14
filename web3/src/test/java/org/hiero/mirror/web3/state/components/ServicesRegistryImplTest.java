@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.state.components;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.hedera.node.app.ids.EntityIdService;
+import com.hedera.node.app.service.entityid.impl.EntityIdServiceImpl;
 import com.hedera.node.app.service.file.impl.FileServiceImpl;
 import com.swirlds.state.lifecycle.Service;
 import org.hiero.mirror.web3.state.keyvalue.StateRegistry;
@@ -39,7 +39,7 @@ class ServicesRegistryImplTest {
     @Test
     void testEmptySubRegistry() {
         Service service = new FileServiceImpl();
-        Service service2 = new EntityIdService();
+        Service service2 = new EntityIdServiceImpl();
         ServicesRegistryImpl subRegistry = (ServicesRegistryImpl)
                 servicesRegistry.subRegistryFor(service.getServiceName(), service2.getServiceName());
         assertThat(subRegistry.registrations()).isEmpty();
@@ -48,7 +48,7 @@ class ServicesRegistryImplTest {
     @Test
     void testSubRegistry() {
         Service service = new FileServiceImpl();
-        Service service2 = new EntityIdService();
+        Service service2 = new EntityIdServiceImpl();
         servicesRegistry.register(service);
         servicesRegistry.register(service2);
         ServicesRegistryImpl subRegistry = (ServicesRegistryImpl)

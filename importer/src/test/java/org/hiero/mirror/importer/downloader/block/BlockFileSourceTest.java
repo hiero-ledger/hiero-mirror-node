@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
@@ -76,7 +77,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class BlockFileSourceTest {
+final class BlockFileSourceTest {
 
     private final CommonProperties commonProperties = CommonProperties.getInstance();
 
@@ -326,7 +327,8 @@ class BlockFileSourceTest {
         blockFileSource.get();
 
         // then
-        verify(blockStreamVerifier).verify(argThat(b -> b.getIndex() == block0.getIndex() && b.getNodeId() == 0L));
+        verify(blockStreamVerifier)
+                .verify(argThat(b -> Objects.equals(b.getIndex(), block0.getIndex()) && b.getNodeId() == 0L));
         verify(consensusNodeService).getNodes();
         verify(recordFileRepository).findLatest();
     }
@@ -365,6 +367,26 @@ class BlockFileSourceTest {
                 .isZero();
         assertThat(countMatches(logs, "Failed to process block file " + filename))
                 .isOne();
+    }
+
+    @Test
+    void throwWhenStartFromEarliestAvailableBlockNumber() {
+        // given
+        importerProperties.setStartBlockNumber(-1L);
+        final var streamFileProvider = mock(StreamFileProvider.class);
+        final var source = new BlockFileSource(
+                new BlockStreamReaderImpl(),
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                consensusNodeService,
+                meterRegistry,
+                properties,
+                streamFileProvider);
+
+        // when, then
+        assertThatThrownBy(source::get)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("BlockFileSource doesn't support earliest available block number");
     }
 
     @Test

@@ -71,8 +71,6 @@ final class RequestProperties implements Predicate<ContractCallRequest> {
     @RequiredArgsConstructor
     enum ActionType {
         LOG,
-        MODULARIZED,
-        MONOLITHIC,
         REJECT,
         THROTTLE
     }

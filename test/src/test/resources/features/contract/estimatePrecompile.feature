@@ -10,6 +10,7 @@ Feature: EstimateGas Contract Base Coverage Feature
     Given I successfully create non fungible tokens
     Given I mint and verify a new nft
     Then the mirror node REST API should return status 200 for the HAPI transaction
+    Then I verify the mirror node REST API returns contract states for deployed contract
     And I set lower deviation at 5% and upper deviation at 20%
     Then I call estimateGas with associate function for fungible token
     Then I call estimateGas with associate function for NFT
@@ -175,11 +176,11 @@ Feature: EstimateGas Contract Base Coverage Feature
     Then I call estimateGas with pseudo random number
 
     #### These tests below are recommended to be kept at the end as they change the state #####
-#    Then I call estimateGas with balanceOf function for "FUNGIBLE" and verify the estimated gas against HAPI
-#    Then I call estimateGas with balanceOf function for "NFT" and verify the estimated gas against HAPI
+    Then I call estimateGas with balanceOf function for "FUNGIBLE" and verify the estimated gas against HAPI
+    Then I call estimateGas with balanceOf function for "NFT" and verify the estimated gas against HAPI
     And I update the account and token keys
     Then the mirror node REST API should return status 200 for the HAPI transaction
-#    Then I call estimateGas with transferToken function and verify the estimated gas against HAPI
+    Then I call estimateGas with transferToken function and verify the estimated gas against HAPI
     And I associate the contract with the receiver account
     Then the mirror node REST API should return status 200 for the HAPI transaction
     Then I call estimateGas with transferNFT function and verify the estimated gas against HAPI
@@ -187,8 +188,8 @@ Feature: EstimateGas Contract Base Coverage Feature
     Then I call estimateGas with mintToken function for NFT and verify the estimated gas against HAPI
     And I approve the receiver to use the token
     Then the mirror node REST API should return status 200 for the HAPI transaction
-#    Then I call estimateGas with allowance function for fungible token and verify the estimated gas against HAPI
-#    Then I call estimateGas with allowance function for NFT and verify the estimated gas against HAPI
+    Then I call estimateGas with allowance function for fungible token and verify the estimated gas against HAPI
+    Then I call estimateGas with allowance function for NFT and verify the estimated gas against HAPI
     Then I call estimateGas with approve function and verify the estimated gas against HAPI
     Then I call estimateGas with approveNFT function and verify the estimated gas against HAPI
     Then I call estimateGas with transferFrom function with fungible and verify the estimated gas against HAPI

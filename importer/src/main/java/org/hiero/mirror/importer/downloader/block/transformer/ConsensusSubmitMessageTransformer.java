@@ -7,29 +7,34 @@ import static org.hiero.mirror.importer.util.Utility.DEFAULT_RUNNING_HASH_VERSIO
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.util.Utility;
 
 @Named
-final class ConsensusSubmitMessageTransformer extends AbstractBlockItemTransformer {
+final class ConsensusSubmitMessageTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var topicMessage = blockItem
-                .getStateChangeContext()
-                .getTopicMessage(blockItemTransformation
-                        .transactionBody()
-                        .getConsensusSubmitMessage()
-                        .getTopicID())
-                .orElseThrow();
-        recordBuilder
+        var receiptBuilder = blockTransactionTransformation
+                .recordItemBuilder()
+                .transactionRecordBuilder()
                 .getReceiptBuilder()
+                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION);
+
+        var topicMessage = blockTransaction.getTopicMessage();
+        if (topicMessage == null) {
+            Utility.handleRecoverableError(
+                    "Missing topic message runningHash and sequence number at {}",
+                    blockTransaction.getConsensusTimestamp());
+            return;
+        }
+
+        receiptBuilder
                 .setTopicRunningHash(DomainUtils.fromBytes(topicMessage.getRunningHash()))
-                .setTopicRunningHashVersion(DEFAULT_RUNNING_HASH_VERSION)
                 .setTopicSequenceNumber(topicMessage.getSequenceNumber());
     }
 

@@ -12,10 +12,7 @@ import ContractResultDetailsViewModel from './contractResultDetailsViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
 import ContractResultViewModel from './contractResultViewModel';
 import CryptoAllowanceViewModel from './cryptoAllowanceViewModel';
-import ExchangeRateSetViewModel from './exchangeRateSetViewModel';
-import ExchangeRateViewModel from './exchangeRateViewModel';
 import NetworkNodeViewModel from './networkNodeViewModel';
-import NetworkStakeViewModel from './networkStakeViewModel';
 import NetworkSupplyViewModel from './networkSupplyViewModel';
 import NftTransactionHistoryViewModel from './nftTransactionHistoryViewModel';
 import NftTransferViewModel from './nftTransferViewModel';
@@ -26,7 +23,6 @@ import TokenRelationshipViewModel from './tokenRelationshipViewModel';
 import TopicMessageViewModel from './topicMessageViewModel';
 import TransactionIdViewModel from './transactionIdViewModel';
 import BlockViewModel from './blockViewModel';
-import FeeScheduleViewModel from './feeScheduleViewModel';
 import ContractStateViewModel from './contractStateViewModel';
 
 export {
@@ -42,10 +38,7 @@ export {
   ContractResultStateChangeViewModel,
   ContractResultViewModel,
   CryptoAllowanceViewModel,
-  ExchangeRateSetViewModel,
-  ExchangeRateViewModel,
   NetworkNodeViewModel,
-  NetworkStakeViewModel,
   NetworkSupplyViewModel,
   NftTransactionHistoryViewModel,
   NftTransferViewModel,
@@ -56,6 +49,5 @@ export {
   TopicMessageViewModel,
   TransactionIdViewModel,
   BlockViewModel,
-  FeeScheduleViewModel,
   ContractStateViewModel,
 };

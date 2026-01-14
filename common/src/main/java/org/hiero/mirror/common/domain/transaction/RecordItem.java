@@ -13,6 +13,7 @@ import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -35,10 +36,12 @@ import lombok.ToString;
 import lombok.Value;
 import lombok.experimental.NonFinal;
 import org.apache.commons.codec.binary.Hex;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityTransaction;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.data.util.Version;
@@ -61,6 +64,7 @@ public class RecordItem implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
+    private final boolean blockstream;
     private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
@@ -103,6 +107,23 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private List<TransactionSidecarRecord> sidecarRecords = Collections.emptyList();
+
+    // Transient hook execution queue for CryptoTransfer transactions that may trigger hooks
+    @NonFinal
+    @Setter
+    private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
+
+    /**
+     * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
+     *
+     * @return the next hook execution context, or null if queue is empty
+     */
+    public AbstractHook.Id nextHookContext() {
+        if (hookExecutionQueue == null) {
+            return parent != null ? parent.nextHookContext() : null;
+        }
+        return hookExecutionQueue.poll();
+    }
 
     public void addContractTransaction(EntityId entityId) {
         if (contractTransactionPredicate == null || !contractTransactionPredicate.test(entityId)) {
@@ -171,7 +192,22 @@ public class RecordItem implements StreamItem {
 
     // Whether this is a top level, user submitted transaction that could possibly trigger other internal transactions.
     public boolean isTopLevel() {
-        return transactionRecord.getTransactionID().getNonce() == 0;
+        var transactionNonce = transactionRecord.getTransactionID().getNonce();
+
+        return transactionNonce == 0
+                || (transactionNonce > 0 && transactionRecord.getTransactionID().getScheduled())
+                || !transactionRecord.hasParentConsensusTimestamp()
+                || isSystemFileUpdate();
+    }
+
+    // Whether we have a FileUpdate transaction that is paid by the system account 0.0.50
+    private boolean isSystemFileUpdate() {
+        return transactionBody.hasFileUpdate()
+                && EntityId.of(
+                                CommonProperties.getInstance().getShard(),
+                                CommonProperties.getInstance().getRealm(),
+                                50L)
+                        .equals(payerAccountId);
     }
 
     /**

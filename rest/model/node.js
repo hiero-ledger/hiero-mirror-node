@@ -6,6 +6,7 @@ class Node {
   static tableAlias = 'n';
   static tableName = 'node';
   static ADMIN_KEY = `admin_key`;
+  static ACCOUNT_ID = `account_id`;
   static CREATED_TIMESTAMP = `created_timestamp`;
   static DECLINE_REWARD = `decline_reward`;
   static DELETED = `deleted`;

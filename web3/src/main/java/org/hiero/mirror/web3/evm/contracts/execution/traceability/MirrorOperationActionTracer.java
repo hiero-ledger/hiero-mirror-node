@@ -2,19 +2,23 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
-import com.hedera.services.utils.EntityIdUtils;
-import edu.umd.cs.findbugs.annotations.NonNull;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
+
 import jakarta.inject.Named;
 import java.util.Optional;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.TraceProperties;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.jspecify.annotations.NonNull;
 
 @Named
 @CustomLog
@@ -25,8 +29,16 @@ public class MirrorOperationActionTracer implements OperationTracer {
     private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
+    public void tracePreExecution(final @NonNull MessageFrame frame) {
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(true);
+        }
+    }
+
+    @Override
     public void tracePostExecution(
-            @NonNull final MessageFrame frame, @NonNull final Operation.OperationResult operationResult) {
+            final @NonNull MessageFrame frame, final Operation.@NonNull OperationResult operationResult) {
         if (!traceProperties.isEnabled()) {
             return;
         }
@@ -37,13 +49,12 @@ public class MirrorOperationActionTracer implements OperationTracer {
 
         final var recipientAddress = frame.getRecipientAddress();
         final var recipientNum = recipientAddress != null
-                ? commonEntityAccessor.get(
-                        com.hedera.pbj.runtime.io.buffer.Bytes.wrap(recipientAddress.toArray()), Optional.empty())
+                ? commonEntityAccessor.get(recipientAddress, Optional.empty())
                 : Optional.empty();
 
         if (recipientNum.isPresent()
                 && traceProperties.contractFilterCheck(
-                        EntityIdUtils.asHexedEvmAddress(((Entity) recipientNum.get()).getId()))) {
+                        CommonUtils.hex(toEvmAddress(((Entity) recipientNum.get()).getId())))) {
             return;
         }
 

@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -49,5 +50,30 @@ class EntityRepositoryTest extends RestJavaIntegrationTest {
     void findById() {
         var entity = domainBuilder.entity(-2, domainBuilder.timestamp()).persist();
         assertThat(entityRepository.findById(entity.getId())).contains(entity);
+    }
+
+    @Test
+    void getSupply() {
+        // given
+        final var timestamp = domainBuilder.timestamp();
+        final var entity1 = createEntityWithBalance(2L, 1_000_000L, timestamp);
+        createEntityWithBalance(42L, 2_000_000L, timestamp);
+        final var entity3 = createEntityWithBalance(100L, 500_000L, timestamp);
+
+        // when
+        final var result = entityRepository.getSupply(String.valueOf(entity1.getId()), String.valueOf(entity3.getId()));
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.unreleasedSupply()).isEqualTo(3_500_000L);
+        assertThat(result.consensusTimestamp()).isEqualTo(timestamp);
+    }
+
+    private Entity createEntityWithBalance(long accountNum, long balance, long balanceTimestamp) {
+        final var accountId = domainBuilder.entityNum(accountNum);
+        return domainBuilder
+                .entity()
+                .customize(e -> e.id(accountId.getId()).balance(balance).balanceTimestamp(balanceTimestamp))
+                .persist();
     }
 }

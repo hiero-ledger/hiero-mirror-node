@@ -58,9 +58,12 @@ const protoToName = {
   59: 'TOKENCANCELAIRDROP',
   60: 'TOKENCLAIMAIRDROP',
   74: 'ATOMICBATCH',
+  75: 'LAMBDASSTORE',
+  76: 'HOOKDISPATCH',
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types
+// this provides mapping from a transaction's name to its proto id
 const custom = {};
 
 const UNKNOWN = 'UNKNOWN';

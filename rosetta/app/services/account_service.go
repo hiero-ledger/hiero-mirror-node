@@ -4,12 +4,14 @@ package services
 
 import (
 	"context"
+	"encoding/hex"
 
 	"github.com/coinbase/rosetta-sdk-go/server"
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 )
 
 // AccountAPIService implements the server.AccountAPIServicer interface.
@@ -56,15 +58,19 @@ func (a *AccountAPIService) AccountBalance(
 		return nil, rErr
 	}
 
-	balances, accountIdString, rErr := a.accountRepo.RetrieveBalanceAtBlock(ctx, accountId, block.ConsensusEndNanos)
+	balances, accountIdString, publicKey, rErr := a.accountRepo.RetrieveBalanceAtBlock(ctx, accountId, block.ConsensusEndNanos)
 	if rErr != nil {
 		return nil, rErr
 	}
 
-	var metadata map[string]interface{}
+	metadata := make(map[string]interface{})
 	if accountId.HasAlias() && accountIdString != "" {
-		metadata = map[string]interface{}{"account_id": accountIdString}
+		metadata["account_id"] = accountIdString
 	}
+	if isEd25519PublicKey(publicKey) {
+		metadata["public_key"] = tools.SafeAddHexPrefix(hex.EncodeToString(publicKey))
+	}
+
 	return &rTypes.AccountBalanceResponse{
 		BlockIdentifier: block.GetRosettaBlockIdentifier(),
 		Balances:        balances.ToRosetta(),
@@ -77,4 +83,39 @@ func (a *AccountAPIService) AccountCoins(
 	_ *rTypes.AccountCoinsRequest,
 ) (*rTypes.AccountCoinsResponse, *rTypes.Error) {
 	return nil, errors.ErrNotImplemented
+}
+
+func (a *AccountAPIService) AllAccountBalances(
+	ctx context.Context,
+	request *rTypes.AllAccountBalancesRequest,
+) (*rTypes.AllAccountBalancesResponse, *rTypes.Error) {
+	// There's no subaccounts, so always delegate to AccountBalance
+	singleAccountBalanceRequest := rTypes.AccountBalanceRequest{
+		NetworkIdentifier: request.NetworkIdentifier,
+		AccountIdentifier: request.AccountIdentifier,
+		BlockIdentifier:   request.BlockIdentifier,
+		Currencies:        request.Currencies,
+	}
+	response, err := a.AccountBalance(ctx, &singleAccountBalanceRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rTypes.AllAccountBalancesResponse{
+		AccountBalances: []*rTypes.AccountBalanceWithSubAccount{
+			{
+				Balances: response.Balances,
+				Metadata: response.Metadata,
+			},
+		},
+		BlockIdentifier: response.BlockIdentifier,
+	}, nil
+}
+
+func isEd25519PublicKey(publicKey []byte) bool {
+	if len(publicKey) == 34 && publicKey[0] == 0x12 && publicKey[1] == 0x20 {
+		return true
+	}
+
+	return false
 }

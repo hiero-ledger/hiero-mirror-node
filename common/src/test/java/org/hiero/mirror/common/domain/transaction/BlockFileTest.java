@@ -28,9 +28,7 @@ class BlockFileTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             ,
             000000000000000000000000000000000000.blk, BLOCK_NODE
             000000000000000000000000000000000000.blk.gz, FILE

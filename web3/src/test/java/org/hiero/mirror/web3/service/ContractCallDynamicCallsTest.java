@@ -17,12 +17,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.store.Store.OnMissing;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
@@ -33,6 +33,8 @@ import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls.TokenTransferList;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls.TransferList;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -42,9 +44,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     private static final List<BigInteger> EMPTY_SERIAL_NUMBERS_LIST = List.of();
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        100,
                             NON_FUNGIBLE_UNIQUE,    0,      NftMetadata
                             """)
@@ -276,13 +276,11 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @Test
-    void associateTokenTransferEthCallFailModularized() throws InvocationTargetException, IllegalAccessException {
+    void associateTokenTransferEthCallFails() throws InvocationTargetException, IllegalAccessException {
         // Given
-        final var modularizedServicesFlag = mirrorNodeEvmProperties.isModularizedServices();
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
-            mirrorNodeEvmProperties.setModularizedServices(true);
             // Re-init the captors, because the flag was changed.
             super.setUpArgumentCaptors();
             Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
@@ -327,15 +325,12 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
         } finally {
             // Restore changed property values.
-            mirrorNodeEvmProperties.setModularizedServices(modularizedServicesFlag);
             mirrorNodeEvmProperties.setProperties(backupProperties);
         }
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -369,9 +364,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0,  IERC20: failed to transfer
                             NON_FUNGIBLE_UNIQUE,    0,      1,  IERC721: failed to transfer
                             """)
@@ -419,9 +412,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -464,12 +455,11 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void approveTokenTransferFromGetAllowanceGetBalance(
             final TokenTypeEnum tokenType, final long amount, final long serialNumber) {
         // Given
@@ -508,9 +498,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -548,9 +536,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -667,9 +653,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0,      false
                             NON_FUNGIBLE_UNIQUE,    0,      1,      true
                             """)
@@ -751,9 +735,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON,        1,      0
                             NON_FUNGIBLE_UNIQUE,    0,      1
                             """)
@@ -835,19 +817,18 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Given
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
-        final var contractAlias = ContractCallContext.run(ctx -> {
-            ctx.initializeStackFrames(store.getStackedStateFrames());
-            final var contractAccount =
-                    store.getAccount(Address.fromHexString(contract.getContractAddress()), OnMissing.THROW);
-            return contractAccount.canonicalAddress();
-        });
+        final var contractEntityOptional =
+                commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
+        final var contractEntity = contractEntityOptional.orElseThrow();
+        final var canonicalAddress =
+                commonEntityAccessor.evmAddressFromId(contractEntity.toEntityId(), Optional.empty());
 
         // When
         final var functionCall = contract.call_getAddressThis();
-        final String result = functionCall.send();
+        final var result = functionCall.send();
 
         // Then
-        assertEquals(contractAlias.toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
@@ -856,19 +837,18 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
         // Given
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
-        final var contractAlias = ContractCallContext.run(ctx -> {
-            ctx.initializeStackFrames(store.getStackedStateFrames());
-            final var contractAccount =
-                    store.getAccount(Address.fromHexString(contract.getContractAddress()), OnMissing.THROW);
-            return contractAccount.canonicalAddress();
-        });
+        final var contractEntityOptional =
+                commonEntityAccessor.get(Address.fromHexString(contract.getContractAddress()), Optional.empty());
+        final var contractEntity = contractEntityOptional.orElseThrow();
+        final var canonicalAddress =
+                commonEntityAccessor.evmAddressFromId(contractEntity.toEntityId(), Optional.empty());
 
         // When
         final var functionCall = contract.call_getAddressThis();
         final String result = functionCall.send();
 
         // Then
-        assertEquals(contractAlias.toHexString(), result);
+        assertEquals(Bytes.wrap(canonicalAddress).toHexString(), result);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 

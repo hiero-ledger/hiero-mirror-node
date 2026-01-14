@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
@@ -37,7 +38,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class BlockStreamVerifierTest {
+final class BlockStreamVerifierTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
@@ -205,19 +206,6 @@ class BlockStreamVerifierTest {
         assertThat(verifier.getLastBlockFile()).get().returns(previous.getIndex(), BlockFile::getIndex);
     }
 
-    private BlockFile getBlockFile(StreamFile<?> previous) {
-        long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
-        String previousHash = previous != null ? previous.getHash() : sha384Hash();
-        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
-        return BlockFile.builder()
-                .hash(sha384Hash())
-                .index(blockNumber)
-                .name(BlockFile.getFilename(blockNumber, true))
-                .previousHash(previousHash)
-                .consensusStart(consensusStart)
-                .build();
-    }
-
     @Test
     void malformedFilename() {
         // given
@@ -248,6 +236,22 @@ class BlockStreamVerifierTest {
         verifyNoInteractions(blockFileTransformer);
         verify(recordFileRepository).findLatest();
         verifyNoInteractions(streamFileNotifier);
+    }
+
+    private BlockFile getBlockFile(StreamFile<?> previous) {
+        long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
+        String previousHash = previous != null ? previous.getHash() : sha384Hash();
+        long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
+        return BlockFile.builder()
+                .blockHeader(BlockHeader.newBuilder().build())
+                .hash(sha384Hash())
+                .index(blockNumber)
+                .name(BlockFile.getFilename(blockNumber, true))
+                .node("host:port")
+                .previousHash(previousHash)
+                .consensusStart(consensusStart)
+                .consensusEnd(consensusStart + 1)
+                .build();
     }
 
     private RecordFile getRecordFile() {

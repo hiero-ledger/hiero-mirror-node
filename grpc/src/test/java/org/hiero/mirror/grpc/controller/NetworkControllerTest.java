@@ -12,11 +12,10 @@ import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import jakarta.annotation.Resource;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.HashSet;
-import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -31,24 +30,21 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-@CustomLog
-class NetworkControllerTest extends GrpcIntegrationTest {
+@RequiredArgsConstructor
+final class NetworkControllerTest extends GrpcIntegrationTest {
 
     private static final Duration WAIT = Duration.ofSeconds(10L);
     private static final long CONSENSUS_TIMESTAMP = 1L;
 
+    private final DomainBuilder domainBuilder;
+    private final SystemEntity systemEntity;
+
     @GrpcClient("local")
     private ReactorNetworkServiceGrpc.ReactorNetworkServiceStub reactiveService;
 
-    @Resource
-    private DomainBuilder domainBuilder;
-
-    @Resource
-    private SystemEntity systemEntity;
-
     @Test
-    void missingFileId() {
-        AddressBookQuery query = AddressBookQuery.newBuilder().build();
+    void getNodesMissingFileId() {
+        final var query = AddressBookQuery.newBuilder().build();
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
                 .thenAwait(WAIT)
                 .expectErrorSatisfies(t -> assertException(t, Status.Code.INVALID_ARGUMENT, "fileId: must not be null"))
@@ -56,8 +52,8 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void invalidFileId() {
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+    void getNodesInvalidFileId() {
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(FileID.newBuilder().setFileNum(-1).build())
                 .build();
         StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
@@ -67,8 +63,8 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void invalidLimit() {
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+    void getNodesInvalidLimit() {
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(FileID.newBuilder().build())
                 .setLimit(-1)
                 .build();
@@ -81,8 +77,8 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void notFound() {
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+    void getNodesNotFound() {
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(systemEntity.addressBookFile102().toFileID())
                 .build();
 
@@ -93,11 +89,11 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void noLimit() {
-        AddressBook addressBook = addressBook();
-        AddressBookEntry addressBookEntry1 = addressBookEntry();
-        AddressBookEntry addressBookEntry2 = addressBookEntry();
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+    void getNodesNoLimit() {
+        final var addressBook = addressBook();
+        final var addressBookEntry1 = addressBookEntry();
+        final var addressBookEntry2 = addressBookEntry();
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
@@ -110,11 +106,10 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void noLimitServiceEndpointWithDomainName() {
-        var addressBook = addressBook();
-        var addressBookEntry1 = addressBookEntryCustomized("www.example-node.com", "", 5000);
-
-        var query = AddressBookQuery.newBuilder()
+    void getNodesNoLimitServiceEndpointWithDomainName() {
+        final var addressBook = addressBook();
+        final var addressBookEntry1 = addressBookEntryCustomized("www.example-node.com", "", 5000);
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
@@ -126,11 +121,10 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void testWithEmptyDomainNameAndIpAddress() {
-        var addressBook = addressBook();
-        var addressBookEntry1 = addressBookEntryCustomized("", "", 0);
-
-        var query = AddressBookQuery.newBuilder()
+    void getNodesTestWithEmptyDomainNameAndIpAddress() {
+        final var addressBook = addressBook();
+        final var addressBookEntry1 = addressBookEntryCustomized("", "", 0);
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
@@ -142,11 +136,11 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     @Test
-    void limitReached() {
-        AddressBook addressBook = addressBook();
-        AddressBookEntry addressBookEntry1 = addressBookEntry();
+    void getNodesLmitReached() {
+        final var addressBook = addressBook();
+        final var addressBookEntry1 = addressBookEntry();
         addressBookEntry();
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(addressBook.getFileId().toFileID())
                 .setLimit(1)
                 .build();
@@ -160,9 +154,9 @@ class NetworkControllerTest extends GrpcIntegrationTest {
 
     @SuppressWarnings("deprecation")
     @Test
-    void nullFields() {
-        AddressBook addressBook = addressBook();
-        AddressBookEntry addressBookEntry = domainBuilder
+    void getNodesNullFields() {
+        final var addressBook = addressBook();
+        final var addressBookEntry = domainBuilder
                 .addressBookEntry()
                 .customize(a -> a.consensusTimestamp(CONSENSUS_TIMESTAMP)
                         .description(null)
@@ -171,7 +165,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
                         .publicKey(null)
                         .stake(null))
                 .persist();
-        AddressBookQuery query = AddressBookQuery.newBuilder()
+        final var query = AddressBookQuery.newBuilder()
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
@@ -205,8 +199,8 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     }
 
     private AddressBookEntry addressBookEntryCustomized(String domainName, String ipAddress, int port) {
-        var serviceEndpoints = new HashSet<AddressBookServiceEndpoint>();
-        var endpoint = domainBuilder
+        final var serviceEndpoints = new HashSet<AddressBookServiceEndpoint>();
+        final var endpoint = domainBuilder
                 .addressBookServiceEndpoint()
                 .customize(a -> a.domainName(domainName).ipAddressV4(ipAddress).port(port))
                 .get();
@@ -253,7 +247,7 @@ class NetworkControllerTest extends GrpcIntegrationTest {
     private void assertException(Throwable t, Status.Code status, String message) {
         assertThat(t).isNotNull().isInstanceOf(StatusRuntimeException.class).hasMessageContaining(message);
 
-        StatusRuntimeException statusRuntimeException = (StatusRuntimeException) t;
+        final var statusRuntimeException = (StatusRuntimeException) t;
         assertThat(statusRuntimeException.getStatus().getCode()).isEqualTo(status);
     }
 }

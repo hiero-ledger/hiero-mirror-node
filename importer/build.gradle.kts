@@ -28,6 +28,8 @@ dependencies {
     implementation("org.apache.commons:commons-collections4")
     implementation("org.apache.velocity:velocity-engine-core")
     implementation("org.flywaydb:flyway-database-postgresql")
+    implementation("org.hyperledger.besu:besu-datatypes")
+    implementation("org.hyperledger.besu:evm")
     implementation("org.hyperledger.besu:secp256k1")
     implementation("org.msgpack:jackson-dataformat-msgpack")
     implementation("org.postgresql:postgresql")
@@ -42,11 +44,6 @@ dependencies {
     implementation("software.amazon.awssdk:sts")
     protobuf("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
     runtimeOnly("io.grpc:grpc-netty")
-    runtimeOnly(
-        group = "io.netty",
-        name = "netty-resolver-dns-native-macos",
-        classifier = "osx-aarch_64",
-    )
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")

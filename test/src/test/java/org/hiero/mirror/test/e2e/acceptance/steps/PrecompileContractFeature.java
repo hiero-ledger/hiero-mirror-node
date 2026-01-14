@@ -3,8 +3,9 @@
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.ALLOWANCE_DIRECT_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.BALANCE_OF_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.PrecompileContractFeature.ContractMethods.DECIMALS_SELECTOR;
@@ -227,13 +228,8 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void checkIfInvalidAccountIsToken() {
         var data = encodeData(PRECOMPILE, IS_TOKEN_SELECTOR, asAddress(ZERO_ADDRESS));
 
-        if (web3Properties.isModularizedServices()) {
-            var result = callContract(data, precompileTestContractSolidityAddress);
-            assertFalse(result.getResultAsBoolean());
-        } else {
-            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
-        }
+        var result = callContract(data, precompileTestContractSolidityAddress);
+        assertFalse(result.getResultAsBoolean());
     }
 
     @And("the contract call REST API to is token with valid account id should return an error")
@@ -243,13 +239,8 @@ public class PrecompileContractFeature extends AbstractFeature {
                 IS_TOKEN_SELECTOR,
                 asAddress(
                         accountClient.getAccount(AccountNameEnum.TOKEN_TREASURY).getAccountId()));
-        if (web3Properties.isModularizedServices()) {
-            var result = callContract(data, precompileTestContractSolidityAddress);
-            assertFalse(result.getResultAsBoolean());
-        } else {
-            assertThatThrownBy(() -> callContract(data, precompileTestContractSolidityAddress))
-                    .isInstanceOf(HttpClientErrorException.BadRequest.class);
-        }
+        var result = callContract(data, precompileTestContractSolidityAddress);
+        assertFalse(result.getResultAsBoolean());
     }
 
     @And("verify fungible token isn't frozen")
@@ -397,13 +388,7 @@ public class PrecompileContractFeature extends AbstractFeature {
     public void getDefaultKycOfFungibleToken() {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, fungibleTokenCustomFeeAddress);
         var response = callContract(data, precompileTestContractSolidityAddress);
-        boolean defaultKycStatus = true;
-        // In the modularized code, the status is now false when the token has a Granted status,
-        // whereas the mono logic returns true. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-
+        var defaultKycStatus = false;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
@@ -412,13 +397,7 @@ public class PrecompileContractFeature extends AbstractFeature {
         var data = encodeData(PRECOMPILE, GET_TOKEN_DEFAULT_KYC_SELECTOR, nonFungibleTokenAddress);
 
         var response = callContract(data, precompileTestContractSolidityAddress);
-        boolean defaultKycStatus = false;
-        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
-        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-
+        var defaultKycStatus = true;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
@@ -816,27 +795,29 @@ public class PrecompileContractFeature extends AbstractFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements SelectorInterface {
-        IS_TOKEN_SELECTOR("isTokenAddress"),
-        IS_TOKEN_FROZEN_SELECTOR("isTokenFrozen"),
-        IS_KYC_GRANTED_SELECTOR("isKycGranted"),
-        GET_TOKEN_DEFAULT_FREEZE_SELECTOR("getTokenDefaultFreeze"),
-        GET_TOKEN_DEFAULT_KYC_SELECTOR("getTokenDefaultKyc"),
-        GET_CUSTOM_FEES_FOR_TOKEN_SELECTOR("getCustomFeesForToken"),
-        GET_INFORMATION_FOR_TOKEN_SELECTOR("getInformationForToken"),
-        GET_INFORMATION_FOR_FUNGIBLE_TOKEN_SELECTOR("getInformationForFungibleToken"),
-        GET_INFORMATION_FOR_NON_FUNGIBLE_TOKEN_SELECTOR("getInformationForNonFungibleToken"),
-        GET_TYPE_SELECTOR("getType"),
-        GET_EXPIRY_INFO_FOR_TOKEN_SELECTOR("getExpiryInfoForToken"),
-        GET_TOKEN_KEY_PUBLIC_SELECTOR("getTokenKeyPublic"),
-        NAME_SELECTOR("name()"),
-        SYMBOL_SELECTOR("symbol()"),
-        DECIMALS_SELECTOR("decimals()"),
-        TOTAL_SUPPLY_SELECTOR("totalSupply()"),
-        BALANCE_OF_SELECTOR("balanceOf(address)"),
-        ALLOWANCE_DIRECT_SELECTOR("allowance(address,address)"),
-        OWNER_OF_SELECTOR("ownerOf(uint256)"),
-        GET_APPROVED_DIRECT_SELECTOR("getApproved(uint256)"),
-        IS_APPROVED_FOR_ALL_SELECTOR("isApprovedForAll(address,address)");
+        IS_TOKEN_SELECTOR("isTokenAddress", MUTABLE),
+        IS_TOKEN_FROZEN_SELECTOR("isTokenFrozen", MUTABLE),
+        IS_KYC_GRANTED_SELECTOR("isKycGranted", MUTABLE),
+        GET_TOKEN_DEFAULT_FREEZE_SELECTOR("getTokenDefaultFreeze", MUTABLE),
+        GET_TOKEN_DEFAULT_KYC_SELECTOR("getTokenDefaultKyc", MUTABLE),
+        GET_CUSTOM_FEES_FOR_TOKEN_SELECTOR("getCustomFeesForToken", MUTABLE),
+        GET_INFORMATION_FOR_TOKEN_SELECTOR("getInformationForToken", MUTABLE),
+        GET_INFORMATION_FOR_FUNGIBLE_TOKEN_SELECTOR("getInformationForFungibleToken", MUTABLE),
+        GET_INFORMATION_FOR_NON_FUNGIBLE_TOKEN_SELECTOR("getInformationForNonFungibleToken", MUTABLE),
+        GET_TYPE_SELECTOR("getType", MUTABLE),
+        GET_EXPIRY_INFO_FOR_TOKEN_SELECTOR("getExpiryInfoForToken", MUTABLE),
+        GET_TOKEN_KEY_PUBLIC_SELECTOR("getTokenKeyPublic", MUTABLE),
+        NAME_SELECTOR("name()", VIEW),
+        SYMBOL_SELECTOR("symbol()", VIEW),
+        DECIMALS_SELECTOR("decimals()", VIEW),
+        TOTAL_SUPPLY_SELECTOR("totalSupply()", VIEW),
+        BALANCE_OF_SELECTOR("balanceOf(address)", VIEW),
+        ALLOWANCE_DIRECT_SELECTOR("allowance(address,address)", VIEW),
+        OWNER_OF_SELECTOR("ownerOf(uint256)", VIEW),
+        GET_APPROVED_DIRECT_SELECTOR("getApproved(uint256)", VIEW),
+        IS_APPROVED_FOR_ALL_SELECTOR("isApprovedForAll(address,address)", VIEW);
+
         private final String selector;
+        private final FunctionType functionType;
     }
 }

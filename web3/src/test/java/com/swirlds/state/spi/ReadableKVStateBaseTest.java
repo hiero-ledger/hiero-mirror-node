@@ -7,6 +7,7 @@ import static org.mockito.Mockito.mock;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.token.TokenService;
 import java.util.Map;
 import java.util.Set;
 import org.hiero.mirror.web3.ContextExtension;
@@ -26,8 +27,10 @@ class ReadableKVStateBaseTest {
         final var accountID = mock(AccountID.class);
         final var account = mock(Account.class);
         final ReadableKVStateBase<AccountID, Account> readableKVStateBase =
-                new MapReadableKVState<>(AccountReadableKVState.KEY, Map.of());
-        ContractCallContext.get().getReadCacheState(AccountReadableKVState.KEY).put(accountID, account);
+                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, Map.of());
+        ContractCallContext.get()
+                .getReadCacheState(AccountReadableKVState.STATE_ID)
+                .put(accountID, account);
         assertThat(readableKVStateBase.readKeys()).isEqualTo(Set.of(accountID));
     }
 
@@ -36,7 +39,7 @@ class ReadableKVStateBaseTest {
         final var accountID = mock(AccountID.class);
         final var account = mock(Account.class);
         final ReadableKVStateBase<AccountID, Account> readableKVStateBase =
-                new MapReadableKVState<>(AccountReadableKVState.KEY, Map.of());
+                new MapReadableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, Map.of());
         readableKVStateBase.markRead(accountID, account);
         assertThat(readableKVStateBase.hasBeenRead(accountID)).isTrue();
         readableKVStateBase.reset();

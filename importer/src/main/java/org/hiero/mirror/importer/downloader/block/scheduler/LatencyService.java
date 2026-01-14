@@ -31,7 +31,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class LatencyService implements AutoCloseable {
+public final class LatencyService implements AutoCloseable {
 
     private final BlockProperties blockProperties;
     private final BlockStreamReader blockStreamReader;
@@ -79,8 +79,8 @@ public class LatencyService implements AutoCloseable {
             return;
         }
 
-        var executor = getExecutor();
-        int backlog = blockProperties.getScheduler().getLatencyService().getBacklog();
+        final var executor = getExecutor();
+        final int backlog = blockProperties.getScheduler().getLatencyService().getBacklog();
         for (int i = 0; i < backlog + 1; i++) {
             Task task = null;
             try {
@@ -108,7 +108,7 @@ public class LatencyService implements AutoCloseable {
     }
 
     @RequiredArgsConstructor
-    private class Task implements Runnable {
+    private final class Task implements Runnable {
 
         private final long bornGeneration;
         private final BlockNode node;
@@ -120,13 +120,14 @@ public class LatencyService implements AutoCloseable {
                 return;
             }
 
-            long nextBlockNumber = blockStreamVerifier.getNextBlockNumber();
-            if (!node.hasBlock(nextBlockNumber)) {
+            final long nextBlockNumber = blockStreamVerifier.getNextBlockNumber();
+            if (nextBlockNumber < 0 || !node.getBlockRange().contains(nextBlockNumber)) {
                 return;
             }
 
             log.info("Measuring {}'s latency by streaming block {}", node, nextBlockNumber);
-            var timeout = blockProperties.getScheduler().getLatencyService().getTimeout();
+            final var timeout =
+                    blockProperties.getScheduler().getLatencyService().getTimeout();
             node.streamBlocks(nextBlockNumber, nextBlockNumber, this::measureLatency, timeout);
 
             if (bornGeneration == generation.get()) {
@@ -135,8 +136,8 @@ public class LatencyService implements AutoCloseable {
             }
         }
 
-        private boolean measureLatency(BlockStream blockStream) {
-            var blockFile = blockStreamReader.read(blockStream);
+        private boolean measureLatency(final BlockStream blockStream, final String blockNode) {
+            final var blockFile = blockStreamReader.read(blockStream);
             node.recordLatency(Utils.getLatency(blockFile, blockStream));
             return false;
         }

@@ -4,6 +4,7 @@ package org.hiero.mirror.monitor.subscribe.rest;
 
 import jakarta.inject.Named;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
@@ -22,19 +23,27 @@ public class RestApiClient {
 
     private static final String PREFIX = "/api/v1";
 
-    private final WebClient webClient;
+    private final WebClient webClientRest;
+    private final WebClient webClientRestJava;
 
     public RestApiClient(MonitorProperties monitorProperties, WebClient.Builder webClientBuilder) {
-        String url = monitorProperties.getMirrorNode().getRest().getBaseUrl();
-        webClient = webClientBuilder
-                .baseUrl(url)
+        final var rest = monitorProperties.getMirrorNode().getRest();
+        final var restJava = monitorProperties.getMirrorNode().getRestJava();
+        final var restUrl = rest.getBaseUrl();
+        final var restJavaUrl = restJava != null ? restJava.getBaseUrl() : rest.getBaseUrl();
+        webClientRest = webClientBuilder
+                .baseUrl(restUrl)
                 .defaultHeaders(h -> h.setAccept(List.of(MediaType.APPLICATION_JSON)))
                 .build();
-        log.info("Connecting to mirror node {}", url);
+        webClientRestJava = Objects.equals(restUrl, restJavaUrl)
+                ? webClientRest
+                : webClientRest.mutate().baseUrl(restJavaUrl).build();
+        log.info("Connecting to mirror node REST API {}", restUrl);
+        log.info("Connecting to mirror node REST Java API {}", restJavaUrl);
     }
 
     public <T> Mono<T> retrieve(Class<T> responseClass, String uri, Object... parameters) {
-        return webClient
+        return webClientRest
                 .get()
                 .uri(uri.replace(PREFIX, StringUtils.EMPTY), parameters)
                 .retrieve()
@@ -54,6 +63,6 @@ public class RestApiClient {
     }
 
     public Mono<HttpStatusCode> getNetworkStakeStatusCode() {
-        return webClient.get().uri("/network/stake").exchangeToMono(r -> Mono.just(r.statusCode()));
+        return webClientRestJava.get().uri("/network/stake").exchangeToMono(r -> Mono.just(r.statusCode()));
     }
 }

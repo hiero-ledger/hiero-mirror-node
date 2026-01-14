@@ -33,4 +33,33 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessage("No network stake data found");
     }
+
+    @Test
+    void getSupplyFromEntity() {
+        // given
+        final var balance = 1_000_000_000L;
+        final var timestamp = domainBuilder.timestamp();
+        domainBuilder
+                .entity()
+                .customize(e -> e.id(domainBuilder.entityNum(2).getId())
+                        .balance(balance)
+                        .balanceTimestamp(timestamp))
+                .persist();
+
+        // when
+        final var result = networkService.getSupply(Bound.EMPTY);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.consensusTimestamp()).isEqualTo(timestamp);
+        assertThat(result.releasedSupply()).isNotNull();
+    }
+
+    @Test
+    void getSupplyNotFound() {
+        // when, then
+        assertThatThrownBy(() -> networkService.getSupply(Bound.EMPTY))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Network supply not found");
+    }
 }

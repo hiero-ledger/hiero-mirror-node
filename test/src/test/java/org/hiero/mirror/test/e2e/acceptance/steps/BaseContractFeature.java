@@ -9,11 +9,16 @@ import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.rest.model.ContractResponse;
 import org.hiero.mirror.rest.model.ContractResult;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public abstract class BaseContractFeature extends AbstractFeature {
     protected DeployedContract deployedParentContract;
     private Long nonceVal = 0L;
     private final List<String> childContracts = new ArrayList<>();
+
+    @Autowired
+    private AcceptanceTestProperties acceptanceTestProperties;
 
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract =
@@ -63,22 +68,44 @@ public abstract class BaseContractFeature extends AbstractFeature {
         return mirrorContract;
     }
 
+    protected final void verifyContractExecutionResults(String timestamp) {
+        final var contractResults = mirrorClient.getContractResults(timestamp).getResults();
+
+        assertThat(contractResults).isNotEmpty().anySatisfy(this::verifyContractExecutionResults);
+    }
+
     protected void verifyContractExecutionResultsById() {
-        List<ContractResult> contractResults = mirrorClient
+        final var contractResults = mirrorClient
                 .getContractResultsById(deployedParentContract.contractId().toString())
                 .getResults();
 
         assertThat(contractResults).isNotEmpty().allSatisfy(this::verifyContractExecutionResults);
     }
 
-    protected void verifyContractExecutionResultsByTransactionId() {
-        ContractResult contractResult = mirrorClient.getContractResultByTransactionId(
+    protected void verifyContractExecutionResultByIdAndTimestamp(String timestamp) {
+        final var contractResult = mirrorClient.getContractResultsByIdAndTimestamp(
+                deployedParentContract.contractId().toString(), timestamp);
+        if (acceptanceTestProperties.isSkipEntitiesCleanup()) {
+            System.out.println("TIMESTAMP=" + contractResult.getTimestamp());
+            System.out.println("HASH=" + contractResult.getHash());
+        }
+
+        assertThat(contractResult).isNotNull();
+        assertThat(contractResult.getContractId())
+                .isEqualTo(deployedParentContract.contractId().toString());
+        assertThat(contractResult.getTimestamp()).isEqualTo(timestamp);
+    }
+
+    protected String verifyContractExecutionResultsByTransactionId() {
+        final var contractResult = mirrorClient.getContractResultByTransactionId(
                 networkTransactionResponse.getTransactionIdStringNoCheckSum());
 
         verifyContractExecutionResults(contractResult);
         assertThat(contractResult.getBlockHash()).isNotBlank();
         assertThat(contractResult.getBlockNumber()).isPositive();
         assertThat(contractResult.getHash()).isNotBlank();
+
+        return contractResult.getTimestamp();
     }
 
     protected void verifyContractExecutionResults(ContractResult contractResult) {

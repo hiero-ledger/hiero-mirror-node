@@ -5,7 +5,7 @@ import {jest} from '@jest/globals';
 import config from '../../config';
 import {Cache} from '../../cache';
 import integrationContainerOps from '../integrationContainerOps';
-import {defaultBeforeAllTimeoutMillis} from '../integrationUtils';
+import {slowStepTimeoutMillis} from '../integrationUtils';
 import {cacheKeyGenerator, responseCacheCheckHandler, responseCacheUpdateHandler} from '../../middleware';
 import {CachedApiResponse} from '../../model';
 import {httpStatusCodes, responseBodyLabel, responseCacheKeyLabel} from '../../constants';
@@ -25,7 +25,7 @@ beforeAll(async () => {
 
   config.redis.uri = `0.0.0.0:${redisContainer.getMappedPort(6379)}`;
   cache = new Cache();
-}, defaultBeforeAllTimeoutMillis);
+}, slowStepTimeoutMillis);
 
 afterAll(async () => {
   await cache.stop();
@@ -33,11 +33,11 @@ afterAll(async () => {
   logger.info('Stopped Redis container');
   config.cache.response.compress = compressEnabled;
   config.redis.enabled = false;
-});
+}, slowStepTimeoutMillis);
 
 beforeEach(async () => {
   await cache.clear();
-});
+}, slowStepTimeoutMillis);
 
 describe('Response cache middleware', () => {
   let mockRequest, mockResponse;

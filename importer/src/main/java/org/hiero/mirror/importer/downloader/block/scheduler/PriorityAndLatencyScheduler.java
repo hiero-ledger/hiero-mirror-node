@@ -2,10 +2,12 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeMap;
 import lombok.Value;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
@@ -13,22 +15,29 @@ import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.ManagedChannelBuilderProvider;
 import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.hiero.mirror.importer.downloader.block.StreamProperties;
+import org.jspecify.annotations.Nullable;
 
 final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
     private final TreeMap<Integer, PriorityGroup> priorityGroups;
 
     PriorityAndLatencyScheduler(
-            Collection<BlockNodeProperties> blockNodeProperties,
-            LatencyService latencyService,
-            ManagedChannelBuilderProvider managedChannelBuilderProvider,
-            SchedulerProperties schedulerProperties,
-            StreamProperties streamProperties) {
+            final Collection<BlockNodeProperties> blockNodeProperties,
+            final LatencyService latencyService,
+            final ManagedChannelBuilderProvider managedChannelBuilderProvider,
+            final MeterRegistry meterRegistry,
+            final SchedulerProperties schedulerProperties,
+            final StreamProperties streamProperties) {
         super(latencyService, schedulerProperties);
 
         priorityGroups = new TreeMap<>();
         for (var blockNodeProperty : blockNodeProperties) {
-            var node = new BlockNode(managedChannelBuilderProvider, blockNodeProperty, streamProperties);
+            var node = new BlockNode(
+                    managedChannelBuilderProvider,
+                    this::drainGrpcBuffer,
+                    meterRegistry,
+                    blockNodeProperty,
+                    streamProperties);
             priorityGroups
                     .computeIfAbsent(node.getPriority(), PriorityGroup::new)
                     .getNodes()
@@ -42,6 +51,8 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
             private final Iterator<PriorityGroup> groupIter =
                     priorityGroups.values().iterator();
+
+            @Nullable
             private Iterator<BlockNode> nodeGroupIterator;
 
             @Override
@@ -57,18 +68,20 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
 
             @Override
             public BlockNode next() {
-                return nodeGroupIterator.next();
+                return Objects.requireNonNull(nodeGroupIterator).next();
             }
         };
     }
 
     @Override
     protected Iterator<BlockNode> getNodeGroupIterator() {
-        return priorityGroups.get(current.get().getPriority()).getIterator();
+        return Objects.requireNonNull(
+                        priorityGroups.get(Objects.requireNonNull(current.get()).getPriority()))
+                .getIterator();
     }
 
     @Value
-    private class PriorityGroup {
+    private static class PriorityGroup {
 
         private final int priority;
         private final List<BlockNode> nodes;

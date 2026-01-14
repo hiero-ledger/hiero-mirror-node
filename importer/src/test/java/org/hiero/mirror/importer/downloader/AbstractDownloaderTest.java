@@ -46,6 +46,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.gaul.s3proxy.S3Proxy;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
@@ -255,30 +256,6 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         s3Proxy.stop();
     }
 
-    private void initProperties() {
-        importerProperties = new ImporterProperties();
-        importerProperties.setDataPath(dataPath);
-        importerProperties.setStartBlockNumber(101L);
-        importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
-
-        commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
-        commonDownloaderProperties.setEndpointOverride("http://localhost:" + S3_PROXY_PORT);
-        // tests (except for "testPartialCollection" test) expect every Streamfile to be present
-        commonDownloaderProperties.setDownloadRatio(BigDecimal.ONE);
-
-        downloaderProperties = getDownloaderProperties();
-    }
-
-    private void preparePathType(PathType pathType) {
-        commonDownloaderProperties.setPathType(pathType);
-        commonDownloaderProperties.setPathRefreshInterval(Duration.ZERO);
-        if (pathType == PathType.ACCOUNT_ID) {
-            fileCopier.copy();
-        } else {
-            fileCopier.copyAsNodeIdStructure(Path::getParent, importerProperties.getNetwork());
-        }
-    }
-
     @ParameterizedTest(name = "Download and verify files with path type: {0}")
     @EnumSource(PathType.class)
     void download(PathType pathType) {
@@ -392,17 +369,32 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         verifyUnsuccessful();
     }
 
-    @ParameterizedTest(name = "Write stream files with path type: {0}")
-    @EnumSource(PathType.class)
-    void writeFiles(PathType pathType) throws Exception {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            ACCOUNT_ID, true
+            ACCOUNT_ID, false
+            AUTO, true
+            AUTO, false
+            NODE_ID, true
+            NODE_ID, false
+            """)
+    @SneakyThrows
+    void writeFiles(PathType pathType, boolean groupByDay) {
+        importerProperties.setGroupByDay(groupByDay);
         downloaderProperties.setWriteFiles(true);
         preparePathType(pathType);
         expectLastStreamFile(Instant.EPOCH);
         downloader.download();
-        assertThat(Files.walk(importerProperties.getDataPath()))
+        final var archivedFilePathPredicate = getArchivedFilePathPredicate();
+        final var streamPath = importerProperties.getStreamPath();
+        assertThat(Files.walk(streamPath))
                 .filteredOn(p -> !p.toFile().isDirectory())
                 .hasSizeGreaterThan(0)
-                .allMatch(this::isStreamFile);
+                .allMatch(this::isStreamFile)
+                .allMatch(s -> {
+                    var relativePath = s.toString().replace(streamPath.toString(), "");
+                    return archivedFilePathPredicate.test(relativePath);
+                });
     }
 
     @ParameterizedTest(name = "Write signature files with path type: {0}")
@@ -648,6 +640,50 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         verifyStreamFiles(List.of(file2));
     }
 
+    private void initProperties() {
+        importerProperties = new ImporterProperties();
+        importerProperties.setDataPath(dataPath);
+        importerProperties.setStartBlockNumber(101L);
+        importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
+
+        commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
+        commonDownloaderProperties.setEndpointOverride("http://localhost:" + S3_PROXY_PORT);
+        // tests (except for "testPartialCollection" test) expect every Streamfile to be present
+        commonDownloaderProperties.setDownloadRatio(BigDecimal.ONE);
+
+        downloaderProperties = getDownloaderProperties();
+    }
+
+    private Predicate<String> getArchivedFilePathPredicate() {
+        var commonProperties = CommonProperties.getInstance();
+        var optionalDatePrefix = importerProperties.isGroupByDay() ? "\\d{4}-\\d{2}-\\d{2}/" : "";
+        var optionalSidecarRegex = streamType == StreamType.RECORD ? "(sidecar/)?" : "";
+
+        String regex;
+        final long realm = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getRealm();
+        final long shard = fileCopier.isIgnoreNonZeroRealmShard() ? 0 : commonProperties.getShard();
+        if (commonDownloaderProperties.getPathType() == PathType.ACCOUNT_ID) {
+            regex = "^/%s%s/%s%d\\.%d\\.\\d+/%s[^/]+$"
+                    .formatted(
+                            optionalDatePrefix,
+                            streamType.getPath(),
+                            streamType.getNodePrefix(),
+                            shard,
+                            realm,
+                            optionalSidecarRegex);
+        } else {
+            regex = "^/%s%s/%d/\\d+/%s/%s[^/]+$"
+                    .formatted(
+                            optionalDatePrefix,
+                            importerProperties.getNetwork(),
+                            shard,
+                            streamType.getNodeIdBasedSuffix(),
+                            optionalSidecarRegex);
+        }
+
+        return Pattern.compile(regex).asPredicate();
+    }
+
     private String getSigFilename(String dataFilename) {
         var streamFilename = StreamFilename.from(dataFilename);
         var dataExtension = streamFilename.getExtension().getName();
@@ -663,6 +699,16 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
         }
 
         throw new IllegalArgumentException("Invalid stream filename " + filename);
+    }
+
+    private void preparePathType(PathType pathType) {
+        commonDownloaderProperties.setPathType(pathType);
+        commonDownloaderProperties.setPathRefreshInterval(Duration.ZERO);
+        if (pathType == PathType.ACCOUNT_ID) {
+            fileCopier.copy();
+        } else {
+            fileCopier.copyAsNodeIdStructure(Path::getParent, importerProperties.getNetwork());
+        }
     }
 
     protected void verifyUnsuccessful() {

@@ -48,10 +48,10 @@ volumes:
 
 ### Configuration
 
-Before starting, [configure](configuration.md) the application by updating the [application.yml](/application.yml)
-file with the desired custom values. This file is passed to Docker Compose and allows customized configuration for each
-of the mirror node components. The `application.yml` file contents represent the minimal set of fields required to
-configure requester pays and must be uncommented and filled in.
+Before starting, [configure](configuration.md) the application by updating the inline configuration at
+`configs.app-config.content` within the `docker-compose.yml` file with the desired custom values. This file is passed to
+Docker Compose and allows customized configuration for each of the mirror node components. The `application.yml` file
+contents represent the minimal set of fields required to configure requester pays and must be uncommented and filled in.
 
 ### Starting
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {check} from 'k6';
+import {scenario as k6Scenario} from 'k6/execution';
 import {Gauge} from 'k6/metrics';
 import './parameters.js';
 
@@ -232,7 +233,7 @@ function defaultMetrics() {
 }
 
 function satisfyParameters(available, required) {
-  return required.length === 0 || required.every((param) => available.hasOwnProperty(param));
+  return required.length === 0 || required.every((param) => available.hasOwnProperty(param) && available[param]);
 }
 
 function markdownReport(data, includeUrlColumn, funcs, scenarios, getUrlFuncs = {}) {
@@ -299,6 +300,11 @@ function markdownReport(data, includeUrlColumn, funcs, scenarios, getUrlFuncs = 
   return markdown;
 }
 
+function sanitizeScenarioName(name) {
+  // k6 requires [0-9A-Za-z_-]
+  return name.replace(/[^0-9A-Za-z_-]/g, '_');
+}
+
 class TestScenarioBuilder {
   constructor() {
     this._checks = {};
@@ -326,6 +332,9 @@ class TestScenarioBuilder {
     const run = function (testParameters) {
       if (that._shouldSkip == null) {
         that._shouldSkip = !satisfyParameters(testParameters, that._requiredParameters);
+        if (that._shouldSkip) {
+          console.warn(`Skipping test scenario ${that._name}`);
+        }
       }
 
       if (!that._shouldSkip) {
@@ -381,4 +390,74 @@ class TestScenarioBuilder {
   }
 }
 
-export {getOptionsWithScenario, getSequentialTestScenarios, getTestReportFilename, markdownReport, TestScenarioBuilder};
+class MultiIdScenarioBuilder {
+  constructor(ids) {
+    this._ids = ids;
+    this._name = null;
+    this._request = null;
+    this._checkName = null;
+    this._checkFunc = null;
+    this._url = null;
+  }
+
+  name(name) {
+    this._name = name;
+    return this;
+  }
+
+  request(func) {
+    this._request = func;
+    return this;
+  }
+
+  url(url) {
+    this._url = url;
+    return this;
+  }
+
+  check(name, func) {
+    this._checkName = name;
+    this._checkFunc = func;
+    return this;
+  }
+
+  build() {
+    const that = this;
+
+    let combinedOptions;
+    for (let i = 0; i < that._ids.length; i++) {
+      const id = that._ids[i];
+      const sanitized = sanitizeScenarioName(id);
+      const scenarioName = `${that._name}-${sanitized}`;
+      const url = that._url.replace('{id}', id);
+      const options = getOptionsWithScenario(scenarioName, null, {url});
+      if (!combinedOptions) {
+        combinedOptions = options;
+      } else {
+        combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
+      }
+    }
+
+    function run() {
+      const active = k6Scenario.name;
+      const scenarioDef = combinedOptions.scenarios[active];
+      const url = (scenarioDef && scenarioDef.tags && scenarioDef.tags.url) || '';
+      const response = that._request(url);
+      check(response, {
+        [that._checkName]: (r) => that._checkFunc(r),
+      });
+    }
+
+    return {options: combinedOptions, run};
+  }
+}
+
+export {
+  getOptionsWithScenario,
+  getSequentialTestScenarios,
+  getTestReportFilename,
+  markdownReport,
+  sanitizeScenarioName,
+  TestScenarioBuilder,
+  MultiIdScenarioBuilder,
+};

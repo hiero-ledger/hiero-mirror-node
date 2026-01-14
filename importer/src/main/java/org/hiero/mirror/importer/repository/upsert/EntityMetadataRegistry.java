@@ -32,6 +32,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hibernate.metamodel.model.domain.SingularPersistentAttribute;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.exception.FieldInaccessibleException;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -39,8 +40,9 @@ import org.springframework.jdbc.core.JdbcOperations;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class EntityMetadataRegistry {
+public final class EntityMetadataRegistry {
 
+    private final DBProperties dbProperties;
     private final EntityManager entityManager;
     private final Map<Class<?>, EntityMetadata> domainEntityMetadata = new ConcurrentHashMap<>();
     private final JdbcOperations jdbcOperations;
@@ -119,10 +121,10 @@ public class EntityMetadataRegistry {
      * Looks up column defaults in the information_schema.columns table.
      */
     private Map<String, InformationSchemaColumns> getColumnSchema(String tableName) {
-        String sql =
-                """
-                select column_name, regexp_replace(column_default, '::.*', '') as column_default,
-                is_nullable = 'YES' as nullable from information_schema.columns where table_name = ?
+        String sql = """
+                select distinct column_name, regexp_replace(column_default, '::.*', '') as column_default,
+                is_nullable = 'YES' as nullable from information_schema.columns
+                where table_name = ? and table_schema = ?
                 """;
 
         var columnSchemas = jdbcOperations.query(
@@ -134,7 +136,8 @@ public class EntityMetadataRegistry {
                     columnSchema.setNullable(rs.getBoolean(3));
                     return columnSchema;
                 },
-                tableName);
+                tableName,
+                dbProperties.getSchema());
         var schema = columnSchemas.stream()
                 .collect(Collectors.toMap(InformationSchemaColumns::getColumnName, Function.identity()));
         if (schema.isEmpty()) {
@@ -162,6 +165,7 @@ public class EntityMetadataRegistry {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Function<Object, Object> getter(Field field) {
         try {
             String prefix = field.getType().equals(boolean.class) ? "is" : "get";
@@ -170,15 +174,15 @@ public class EntityMetadataRegistry {
             MethodType type = MethodType.methodType(field.getType());
             MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
             MethodType functionType = handle.type();
-            return (Function<Object, Object>) LambdaMetafactory.metafactory(
-                            lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType)
-                    .getTarget()
-                    .invokeExact();
+            final var callSite = LambdaMetafactory.metafactory(
+                    lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
+            return (Function<Object, Object>) callSite.getTarget().invokeExact();
         } catch (Throwable t) {
             throw new FieldInaccessibleException(t);
         }
     }
 
+    @SuppressWarnings("unchecked")
     private BiConsumer<Object, Object> setter(Field field) {
         try {
             String methodName = "set" + StringUtils.capitalize(field.getName());
@@ -186,10 +190,9 @@ public class EntityMetadataRegistry {
             MethodType type = MethodType.methodType(void.class, field.getType());
             MethodHandle handle = lookup.findVirtual(field.getDeclaringClass(), methodName, type);
             MethodType functionType = handle.type();
-            return (BiConsumer<Object, Object>) LambdaMetafactory.metafactory(
-                            lookup, "accept", methodType(BiConsumer.class), functionType.erase(), handle, functionType)
-                    .getTarget()
-                    .invokeExact();
+            final var callSite = LambdaMetafactory.metafactory(
+                    lookup, "accept", methodType(BiConsumer.class), functionType.erase(), handle, functionType);
+            return (BiConsumer<Object, Object>) callSite.getTarget().invokeExact();
         } catch (Throwable t) {
             throw new FieldInaccessibleException(t);
         }

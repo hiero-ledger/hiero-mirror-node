@@ -14,8 +14,4 @@ public abstract class EvmException extends MirrorNodeException {
     protected EvmException(String message) {
         super(message);
     }
-
-    protected EvmException(String message, Throwable throwable) {
-        super(message, throwable);
-    }
 }

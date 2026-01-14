@@ -9,43 +9,36 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.hapi.node.base.AccountAmount;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
-import com.hedera.hapi.node.base.TransferList;
-import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
-import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
-import com.hedera.node.app.hapi.utils.CommonPbjConverters;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import com.hederahashgraph.api.proto.java.SignaturePair.SignatureCase;
 import java.nio.ByteBuffer;
 import java.security.KeyPairGenerator;
-import lombok.RequiredArgsConstructor;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.service.AbstractContractCallServiceTest;
 import org.hiero.mirror.web3.web3j.generated.HRC755Contract;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.crypto.Keys;
 import org.web3j.utils.Numeric;
 
-@RequiredArgsConstructor
-class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
+class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKey() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
         final var messageHash = getMessageHash(scheduleEntity);
 
         final var keyPair = Keys.createEcKeyPair();
@@ -54,21 +47,15 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
         // When
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -77,56 +64,45 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deployWithoutPersist(HRC755Contract::deploy);
         final var scheduleContract = scheduleContractPersist(
                 testWeb3jService.getContractRuntime(), Address.fromHexString(contract.getContractAddress()));
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(scheduleContract, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(scheduleContract, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
         // When
         final var functionCall =
                 contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
     void authorizeScheduleWithContractNoExec() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
         final var keyPair = Keys.createEcKeyPair();
         final var ecdsaKey = getProtobufKeyECDSA(keyPair.getPublicKey());
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
         // When
         final var functionCall =
                 contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyWhichAlreadySignedFails() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
         final var messageHash = getMessageHash(scheduleEntity);
 
         final var keyPair = Keys.createEcKeyPair();
@@ -136,11 +112,10 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // Persist signature
         domainBuilder
@@ -162,10 +137,11 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyAndAlreadyExistingPayerEdSignature() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
         final var messageHash = getMessageHash(scheduleEntity);
 
         final var keyPair = Keys.createEcKeyPair();
@@ -175,8 +151,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         // Persist payer with custom ED key and get message signature
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
@@ -190,7 +165,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                 Key.newBuilder().setEd25519(publicKeyCompressed).build().toByteArray();
         final var payerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // Persist payer ed signature
         domainBuilder
@@ -206,19 +181,14 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
     void signScheduleWithEdKeyFailsWhenEcdsaExpected() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
 
         // Persist expected ecdsa key signer
         final var keyPair = Keys.createEcKeyPair();
@@ -226,8 +196,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ecdsaKey);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
 
@@ -246,7 +215,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                         .build())
                 .build();
 
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
@@ -261,7 +230,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
     void signScheduleWithEd25519Key() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
 
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
         final var keyPairEd = keyPairGenerator.generateKeyPair();
@@ -282,30 +251,25 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))),
                 SignatureMap.PROTOBUF.toBytes(signatureMap).toByteArray());
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void signScheduleWithEcdsaKeyFailsWhenEd25519Expected() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(HRC755Contract::deploy);
-        final var scheduleEntity = persistScheduleEntity();
+        final var scheduleEntity = scheduleEntityPersist();
 
         // Persist expected ed25519 signer
         final var keyPairGenerator = KeyPairGenerator.getInstance(ED_25519);
@@ -317,15 +281,14 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         final var signerAccount = persistAccountWithEvmAddressAndPublicKey(null, ed25519Key);
 
         final var receiverAccount = accountEntityPersist();
-        final var scheduleTransactionBodyBytes =
-                buildDefaultScheduleTransactionBodyForCryptoTransferBytes(signerAccount, receiverAccount);
+        final var scheduleTransactionBodyBytes = buildDefaultScheduleTransactionBody(signerAccount, receiverAccount);
 
         // Create unexpected ecdsa key signature
         final var keyPair = Keys.createEcKeyPair();
         final var signatureMapBytes = getSignatureMapBytesEcdsa(getMessageHash(scheduleEntity), keyPair);
 
         final var payerAccount = persistEd25519Account();
-        final var schedule = persistSchedule(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
+        final var schedule = schedulePersist(scheduleEntity, payerAccount, scheduleTransactionBodyBytes);
 
         // When
         final var functionCall = contract.send_signScheduleCall(
@@ -343,24 +306,6 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                 .key(domainBuilder.key(KeyCase.ED25519)));
     }
 
-    private Entity persistScheduleEntity() {
-        return domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.SCHEDULE))
-                .persist();
-    }
-
-    private Schedule persistSchedule(
-            final Entity scheduleEntity, final Entity payerAccount, final byte[] transactionBody) {
-        return domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(transactionBody)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
-    }
-
     private byte[] getMessageBytes(final Entity entity) {
         final ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES * 3);
         buffer.putLong(entity.getShard());
@@ -373,6 +318,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
         return new Keccak.Digest256().digest(getMessageBytes(scheduleEntity));
     }
 
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     private byte[] getSignatureMapBytesEcdsa(final byte[] messageHash, final ECKeyPair keyPair) {
         final var signedMessage = signMessageECDSA(messageHash, Numeric.toBytesPadded(keyPair.getPrivateKey(), 32));
         var publicKeyBytestring = convertToCompressedPublicKey(keyPair.getPublicKey());
@@ -385,26 +331,6 @@ class ContractCallSignScheduleTest extends AbstractContractCallServiceTest {
                         .build())
                 .build();
         return SignatureMap.PROTOBUF.toBytes(signatureMap).toByteArray();
-    }
-
-    private byte[] buildDefaultScheduleTransactionBodyForCryptoTransferBytes(
-            final Entity sender, final Entity receiver) {
-        final long transferAmount = 100L;
-        final var scheduleBody = SchedulableTransactionBody.newBuilder()
-                .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
-                        .transfers(TransferList.newBuilder()
-                                .accountAmounts(
-                                        AccountAmount.newBuilder()
-                                                .accountID(EntityIdUtils.toAccountId(sender))
-                                                .amount(-transferAmount)
-                                                .build(),
-                                        AccountAmount.newBuilder()
-                                                .accountID(EntityIdUtils.toAccountId(receiver))
-                                                .amount(transferAmount)
-                                                .build())
-                                .build()))
-                .build();
-        return CommonPbjConverters.asBytes(SchedulableTransactionBody.PROTOBUF, scheduleBody);
     }
 
     private Entity scheduleContractPersist(byte[] runtimeBytecode, Address contractAddress) {

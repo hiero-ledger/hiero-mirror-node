@@ -10,17 +10,17 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 
 @CustomLog
 @Named
-final class UtilPrngTransformer extends AbstractBlockItemTransformer {
+final class UtilPrngTransformer extends AbstractBlockTransactionTransformer {
 
     @Override
-    protected void doTransform(BlockItemTransformation blockItemTransformation) {
-        var blockItem = blockItemTransformation.blockItem();
-        if (!blockItem.isSuccessful()) {
+    protected void doTransform(BlockTransactionTransformation blockTransactionTransformation) {
+        var blockTransaction = blockTransactionTransformation.blockTransaction();
+        if (!blockTransaction.isSuccessful()) {
             return;
         }
 
-        var recordBuilder = blockItemTransformation.recordItemBuilder().transactionRecordBuilder();
-        var utilPrng = blockItem
+        var recordBuilder = blockTransactionTransformation.recordItemBuilder().transactionRecordBuilder();
+        var utilPrng = blockTransaction
                 .getTransactionOutput(TransactionCase.UTIL_PRNG)
                 .map(TransactionOutput::getUtilPrng)
                 .orElseThrow();
@@ -31,7 +31,7 @@ final class UtilPrngTransformer extends AbstractBlockItemTransformer {
                 log.warn(
                         "Unhandled entropy case {} for transaction at {}",
                         utilPrng.getEntropyCase(),
-                        blockItem.getConsensusTimestamp());
+                        blockTransaction.getConsensusTimestamp());
         }
     }
 

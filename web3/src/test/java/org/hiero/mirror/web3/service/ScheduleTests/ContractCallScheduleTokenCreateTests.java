@@ -2,23 +2,16 @@
 
 package org.hiero.mirror.web3.service.ScheduleTests;
 
-import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hiero.mirror.web3.web3j.generated.HIP756Contract;
 import org.junit.jupiter.api.Test;
 
 /**
  * This test class validates the correct results for schedule create token transactions via smart contract calls.
  */
-class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHistoricalTest {
+class ContractCallScheduleTokenCreateTests extends AbstractContractCallScheduleTest {
 
     @Test
     void scheduleCreateFungibleTokenTest() throws Exception {
@@ -30,14 +23,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_TINYBAR_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @Test
@@ -54,14 +42,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 DEFAULT_TINYBAR_VALUE);
         final var callFunction = contract.call_scheduleCreateFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @Test
@@ -74,14 +57,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), DEFAULT_TINYBAR_VALUE);
         final var callFunction =
                 contract.call_scheduleCreateNFT(getAddressFromEntity(autoRenew), getAddressFromEntity(treasury));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @Test
@@ -98,14 +76,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 DEFAULT_TINYBAR_VALUE);
         final var callFunction = contract.call_scheduleCreateNFTWithDesignatedPayer(
                 getAddressFromEntity(autoRenew), getAddressFromEntity(treasury), getAddressFromEntity(designatedPayer));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @Test
@@ -129,14 +102,9 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 token.getName(),
                 token.getName(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 
     @Test
@@ -163,20 +131,8 @@ class ContractCallScheduleTokenCreateTests extends AbstractContractCallServiceHi
                 token.getName(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 getAddressFromEntity(designatedPayer));
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(sendFunction, contract);
-            final var callFunctionResult = callFunction.send();
-            verifyCallFunctionResult(callFunctionResult);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, sendFunction::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
-    }
-
-    protected void verifyCallFunctionResult(final org.web3j.tuples.generated.Tuple2<BigInteger, String> functionCall) {
-        // Because we perform eth_call, we cannot validate if the scheduleId is valid or not, we only check the
-        // format and the status of the result
-        assertThat(functionCall.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-        assertThat(functionCall.component2()).startsWith("0x").hasSize(42).matches("^0x[0-9a-fA-F]+$");
+        verifyEthCallAndEstimateGas(sendFunction, contract);
+        final var callFunctionResult = callFunction.send();
+        verifyCallFunctionResult(callFunctionResult);
     }
 }

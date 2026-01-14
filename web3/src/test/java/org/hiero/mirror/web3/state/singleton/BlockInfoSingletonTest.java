@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
+import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.BLOCKS_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.state.Utils.convertToTimestamp;
 
@@ -23,7 +24,7 @@ class BlockInfoSingletonTest {
 
     @Test
     void get() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
@@ -37,12 +38,12 @@ class BlockInfoSingletonTest {
 
     @Test
     void key() {
-        assertThat(blockInfoSingleton.getKey()).isEqualTo("BLOCKS");
+        assertThat(blockInfoSingleton.getId()).isEqualTo(BLOCKS_STATE_ID);
     }
 
     @Test
     void set() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         blockInfoSingleton.set(BlockInfo.DEFAULT);
         assertThat(blockInfoSingleton.get()).isNotEqualTo(BlockInfo.DEFAULT);
     }

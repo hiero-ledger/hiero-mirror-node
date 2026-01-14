@@ -11,7 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
-import org.hiero.mirror.common.domain.transaction.BlockItem;
+import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
 
 @Named
@@ -20,22 +20,22 @@ public class BlockFileBuilder {
 
     private final DomainBuilder domainBuilder;
 
-    public BlockFile.BlockFileBuilder items(List<BlockItem> blockItems) {
+    public BlockFile.BlockFileBuilder items(List<BlockTransaction> blockTransactions) {
         long blockNumber = domainBuilder.number();
         byte[] bytes = domainBuilder.bytes(256);
         String filename = StringUtils.leftPad(Long.toString(blockNumber), 36, "0") + ".blk.gz";
-        var blockTimestamp = blockItems.isEmpty()
+        var blockTimestamp = blockTransactions.isEmpty()
                 ? domainBuilder.protoTimestamp()
-                : blockItems.getLast().getTransactionResult().getConsensusTimestamp();
-        var firstConsensusTimestamp = blockItems.isEmpty()
+                : blockTransactions.getLast().getTransactionResult().getConsensusTimestamp();
+        var firstConsensusTimestamp = blockTransactions.isEmpty()
                 ? domainBuilder.protoTimestamp()
-                : blockItems.getFirst().getTransactionResult().getConsensusTimestamp();
+                : blockTransactions.getFirst().getTransactionResult().getConsensusTimestamp();
         byte[] previousHash = domainBuilder.bytes(48);
         long consensusStart = DomainUtils.timestampInNanosMax(firstConsensusTimestamp);
-        long consensusEnd = blockItems.isEmpty()
+        long consensusEnd = blockTransactions.isEmpty()
                 ? consensusStart
                 : DomainUtils.timestampInNanosMax(
-                        blockItems.getLast().getTransactionResult().getConsensusTimestamp());
+                        blockTransactions.getLast().getTransactionResult().getConsensusTimestamp());
 
         return BlockFile.builder()
                 .blockHeader(BlockHeader.newBuilder()
@@ -47,14 +47,15 @@ public class BlockFileBuilder {
                 .bytes(bytes)
                 .consensusEnd(consensusEnd)
                 .consensusStart(consensusStart)
-                .count((long) blockItems.size())
+                .count((long) blockTransactions.size())
                 .digestAlgorithm(DigestAlgorithm.SHA_384)
                 .hash(DomainUtils.bytesToHex(domainBuilder.bytes(48)))
                 .index(blockNumber)
-                .items(blockItems)
+                .items(blockTransactions)
                 .loadStart(System.currentTimeMillis())
                 .name(filename)
                 .nodeId(domainBuilder.number())
+                .node(domainBuilder.text(10))
                 .previousHash(DomainUtils.bytesToHex(previousHash))
                 .roundEnd(blockNumber + 1)
                 .roundStart(blockNumber + 1)

@@ -14,16 +14,10 @@ import {
   responseHeadersLabel,
 } from '../constants';
 import {InvalidArgumentError, NotFoundError} from '../errors';
-import {AddressBookEntry, FileData} from '../model';
-import {FileDataService, NetworkNodeService} from '../service';
+import {AddressBookEntry} from '../model';
+import {NetworkNodeService} from '../service';
 import * as utils from '../utils';
-import {
-  ExchangeRateSetViewModel,
-  FeeScheduleViewModel,
-  NetworkNodeViewModel,
-  NetworkStakeViewModel,
-  NetworkSupplyViewModel,
-} from '../viewmodel';
+import {NetworkNodeViewModel, NetworkSupplyViewModel} from '../viewmodel';
 import EntityId from '../entityId';
 
 const networkNodesDefaultSize = 10;
@@ -31,8 +25,6 @@ const networkNodesMaxSize = 25;
 
 class NetworkController extends BaseController {
   static contentTypeTextPlain = 'text/plain; charset=utf-8';
-  acceptedExchangeRateParameters = new Set([filterKeys.TIMESTAMP]);
-  acceptedFeesParameters = new Set([filterKeys.ORDER, filterKeys.TIMESTAMP]);
   acceptedNodeParameters = new Set([filterKeys.FILE_ID, filterKeys.LIMIT, filterKeys.NODE_ID, filterKeys.ORDER]);
   acceptedSupplyParameters = new Set([filterKeys.TIMESTAMP, filterKeys.Q]);
 
@@ -107,39 +99,6 @@ class NetworkController extends BaseController {
     };
   };
 
-  extractFileDataQuery = (filters) => {
-    // get the latest rate only. Since logic pulls most recent items order and limit are omitted in filterQuery
-    const filterQuery = {
-      whereQuery: [],
-    };
-    let order = orderFilterValues.ASC;
-
-    for (const filter of filters) {
-      if (_.isNil(filter)) {
-        continue;
-      }
-
-      if (filter.key === filterKeys.TIMESTAMP) {
-        if (utils.opsMap.ne === filter.operator) {
-          throw new InvalidArgumentError(`Not equals (ne) operator is not supported for ${filterKeys.TIMESTAMP}`);
-        }
-
-        // to ensure most recent occurrence is found convert eq to lte
-        if (utils.opsMap.eq === filter.operator) {
-          filter.operator = utils.opsMap.lte;
-        }
-
-        filterQuery.whereQuery.push(FileDataService.getFilterWhereCondition(FileData.CONSENSUS_TIMESTAMP, filter));
-      }
-
-      if (filter.key === filterKeys.ORDER) {
-        order = filter.value;
-      }
-    }
-
-    return {filterQuery, order};
-  };
-
   extractSupplyQuery = (filters) => {
     const conditions = [];
     const params = [];
@@ -210,27 +169,6 @@ class NetworkController extends BaseController {
   };
 
   /**
-   * Handler function for /network/exchangerate API
-   * @param {Request} req HTTP request object
-   * @param {Response} res HTTP response object
-   * @returns {Promise<void>}
-   */
-  getExchangeRate = async (req, res) => {
-    // extract filters from query param
-    const filters = utils.buildAndValidateFilters(req.query, this.acceptedExchangeRateParameters);
-
-    const {filterQuery} = this.extractFileDataQuery(filters);
-
-    const exchangeRate = await FileDataService.getExchangeRate(filterQuery);
-
-    if (_.isNil(exchangeRate)) {
-      throw new NotFoundError('Not found');
-    }
-
-    res.locals[responseDataLabel] = new ExchangeRateSetViewModel(exchangeRate);
-  };
-
-  /**
    * Handler function for /network/nodes API
    * @param {Request} req HTTP request object
    * @param {Response} res HTTP response object
@@ -259,23 +197,6 @@ class NetworkController extends BaseController {
     }
 
     res.locals[responseDataLabel] = response;
-  };
-
-  /**
-   * Handler function for /network/stake API.
-   * @param {Request} _req HTTP request object
-   * @param {Response} res HTTP response object
-   * @return {Promise<void>}
-   */
-  getNetworkStake = async (_req, res) => {
-    utils.validateReq(_req);
-    const networkStake = await NetworkNodeService.getNetworkStake();
-
-    if (networkStake === null) {
-      throw new NotFoundError({data: null, detail: 'No network stake data found', message: 'Not Found'});
-    }
-
-    res.locals[responseDataLabel] = new NetworkStakeViewModel(networkStake);
   };
 
   /**
@@ -333,28 +254,6 @@ class NetworkController extends BaseController {
     } else {
       res.locals[responseDataLabel] = viewModel;
     }
-  };
-
-  /**
-   * Handler function for /network/fees API.
-   * @param {Request} req HTTP request object
-   * @param {Response} res HTTP response object
-   * @return {Promise<void>}
-   */
-  getFees = async (req, res) => {
-    const filters = utils.buildAndValidateFilters(req.query, this.acceptedFeesParameters);
-    const {filterQuery, order} = this.extractFileDataQuery(filters);
-
-    const [exchangeRate, feeSchedule] = await Promise.all([
-      FileDataService.getExchangeRate(filterQuery),
-      FileDataService.getFeeSchedule(filterQuery),
-    ]);
-
-    if (_.isNil(exchangeRate) || _.isNil(feeSchedule)) {
-      throw new NotFoundError('Not found');
-    }
-
-    res.locals[responseDataLabel] = new FeeScheduleViewModel(feeSchedule, exchangeRate, order);
   };
 }
 

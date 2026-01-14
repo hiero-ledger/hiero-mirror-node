@@ -3,10 +3,10 @@
 package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.WritableQueueStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Queue;
+import org.jspecify.annotations.NonNull;
 
 public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
     /** Represents the backing storage for this state */
@@ -17,16 +17,18 @@ public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
      * pre-populate the queue, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
-     * @param stateKey The state key for this state
+     * @param serviceName The service name for this state
+     * @param stateId The state id for this state
      * @param backingStore The backing store to use
      */
-    public ListWritableQueueState(@Nonnull final String stateKey, @Nonnull final Queue<E> backingStore) {
-        super(stateKey);
+    public ListWritableQueueState(
+            @NonNull final String serviceName, final int stateId, @NonNull final Queue<E> backingStore) {
+        super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
     @Override
-    protected void addToDataSource(@Nonnull E element) {
+    protected void addToDataSource(@NonNull E element) {
         backingStore.add(element);
     }
 
@@ -35,7 +37,7 @@ public class ListWritableQueueState<E> extends WritableQueueStateBase<E> {
         backingStore.remove();
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Iterator<E> iterateOnDataSource() {
         return backingStore.iterator();

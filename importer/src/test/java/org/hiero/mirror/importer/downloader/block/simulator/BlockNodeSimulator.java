@@ -16,11 +16,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
@@ -31,7 +31,6 @@ import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.springframework.util.CollectionUtils;
 
-@CustomLog
 public final class BlockNodeSimulator implements AutoCloseable {
 
     private List<BlockGenerator.BlockRecord> blocks = Collections.emptyList();
@@ -161,11 +160,6 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
-    public BlockNodeSimulator withMissingBlock() {
-        this.missingBlock = true;
-        return this;
-    }
-
     public BlockNodeSimulator withOutOfOrder() {
         this.outOfOrder = true;
         return this;
@@ -173,6 +167,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
 
     public BlockNodeSimulator withPriority(int priority) {
         this.priority = priority;
+        return this;
+    }
+
+    public BlockNodeSimulator withMissingBlock() {
+        this.missingBlock = true;
         return this;
     }
 
@@ -230,6 +229,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
                 return;
             }
 
+            // no other sanity checks, add when needed
             boolean isInfiniteStreaming = request.getEndBlockNumber() == -1;
             int start = (int) (request.getStartBlockNumber() - firstBlockNumber);
             long last = isInfiniteStreaming ? blocks.size() : Math.min(blocks.size(), request.getEndBlockNumber() + 1);
@@ -255,6 +255,7 @@ public final class BlockNodeSimulator implements AutoCloseable {
                         responseObserver.onNext(blockResponse(chunk));
                     }
                 }
+                responseObserver.onNext(endOfBlock(firstBlockNumber + index));
             }
 
             responseObserver.onNext(SUCCESS);
@@ -292,6 +293,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
             var record = blocks.get(index);
             record.latency().compareAndExchange(0L, latency.get());
             record.readyTime().compareAndExchange(0L, System.currentTimeMillis());
+        }
+
+        private static SubscribeStreamResponse endOfBlock(final long blockNumber) {
+            return SubscribeStreamResponse.newBuilder()
+                    .setEndOfBlock(BlockEnd.newBuilder().setBlockNumber(blockNumber))
+                    .build();
         }
     }
 }

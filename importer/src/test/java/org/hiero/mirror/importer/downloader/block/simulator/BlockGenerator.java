@@ -2,13 +2,15 @@
 
 package org.hiero.mirror.importer.downloader.block.simulator;
 
+import static org.hiero.mirror.common.util.DomainUtils.fromBytes;
+
 import com.hedera.hapi.block.stream.input.protoc.EventHeader;
 import com.hedera.hapi.block.stream.input.protoc.RoundHeader;
+import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
-import com.hedera.hapi.platform.event.legacy.EventTransaction;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.time.Duration;
 import java.time.Instant;
@@ -19,7 +21,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.block.api.protoc.BlockItemSet;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
 import org.hiero.mirror.importer.util.Utility;
@@ -34,7 +35,7 @@ public final class BlockGenerator {
     private long blockNumber;
     private byte[] previousBlockRootHash;
 
-    public BlockGenerator(long startBlockNumber) {
+    public BlockGenerator(final long startBlockNumber) {
         this(Duration.ofMillis(1), startBlockNumber, Instant.now());
     }
 
@@ -50,7 +51,7 @@ public final class BlockGenerator {
         this.interval = interval;
     }
 
-    public List<BlockRecord> next(int count) {
+    public List<BlockRecord> next(final int count) {
         var blocks = new ArrayList<BlockRecord>();
         for (int i = 0; i < count; i++) {
             blocks.add(next());
@@ -61,28 +62,15 @@ public final class BlockGenerator {
     @SneakyThrows
     private void calculateBlockRootHash(BlockItemSet block) {
         var blockRootHashDigest = new BlockRootHashDigest();
-        blockRootHashDigest.setPreviousHash(previousBlockRootHash);
-        blockRootHashDigest.setStartOfBlockStateHash(ALL_ZERO_HASH);
-
-        for (var blockItem : block.getBlockItemsList()) {
-            switch (blockItem.getItemCase()) {
-                case EVENT_HEADER, EVENT_TRANSACTION, ROUND_HEADER -> blockRootHashDigest.addInputBlockItem(blockItem);
-                case BLOCK_HEADER, STATE_CHANGES, TRANSACTION_OUTPUT, TRANSACTION_RESULT ->
-                    blockRootHashDigest.addOutputBlockItem(blockItem);
-                default -> {
-                    // other block items aren't considered input / output
-                }
-            }
-        }
-
+        block.getBlockItemsList().forEach(blockRootHashDigest::addBlockItem);
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
 
     private BlockRecord next() {
-        var builder = BlockItemSet.newBuilder();
+        final var builder = BlockItemSet.newBuilder();
 
         // block header
-        var blockTimestamp = recordItemBuilder.timestamp(ChronoUnit.NANOS);
+        final var blockTimestamp = recordItemBuilder.timestamp(ChronoUnit.NANOS);
         builder.addBlockItems(BlockItem.newBuilder()
                 .setBlockHeader(BlockHeader.newBuilder()
                         .setBlockTimestamp(blockTimestamp)
@@ -101,12 +89,9 @@ public final class BlockGenerator {
         }
 
         // block proof
-        builder.addBlockItems(BlockItem.newBuilder()
-                .setBlockProof(BlockProof.newBuilder()
-                        .setBlock(blockNumber)
-                        .setPreviousBlockRootHash(DomainUtils.fromBytes(previousBlockRootHash))
-                        .setStartOfBlockStateRootHash(DomainUtils.fromBytes(ALL_ZERO_HASH))));
-        var block = builder.build();
+        final var block = builder.addBlockItems(blockFooter(previousBlockRootHash))
+                .addBlockItems(blockProof(blockNumber))
+                .build();
         calculateBlockRootHash(block);
         blockNumber++;
         // set blocks roughly apart, so in latency related tests, streaming latency don't reduce drastically from
@@ -118,10 +103,8 @@ public final class BlockGenerator {
 
     private List<BlockItem> transactionUnit() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
-        var eventTransaction = BlockItem.newBuilder()
-                .setEventTransaction(EventTransaction.newBuilder()
-                        .setApplicationTransaction(recordItem.getTransaction().toByteString())
-                        .build())
+        var signedTransaction = BlockItem.newBuilder()
+                .setSignedTransaction(recordItem.getTransaction().getSignedTransactionBytes())
                 .build();
         var transactionResult = BlockItem.newBuilder()
                 .setTransactionResult(TransactionResult.newBuilder()
@@ -130,13 +113,29 @@ public final class BlockGenerator {
                         .setTransferList(recordItem.getTransactionRecord().getTransferList())
                         .build())
                 .build();
-        // for simplicity, no state changes
-        return List.of(eventTransaction, transactionResult);
+        // for simplicity, no state changes / trace data
+        return List.of(signedTransaction, transactionResult);
     }
 
     public record BlockRecord(BlockItemSet block, AtomicLong latency, AtomicLong readyTime) {
         public BlockRecord(BlockItemSet block) {
             this(block, new AtomicLong(0), new AtomicLong(0));
         }
+    }
+
+    private static BlockItem blockFooter(final byte[] previousBlockRootHash) {
+        return BlockItem.newBuilder()
+                .setBlockFooter(BlockFooter.newBuilder()
+                        .setPreviousBlockRootHash(fromBytes(previousBlockRootHash))
+                        // for simplicity, set both to all zero hash
+                        .setRootHashOfAllBlockHashesTree(fromBytes(ALL_ZERO_HASH))
+                        .setStartOfBlockStateRootHash(fromBytes(ALL_ZERO_HASH)))
+                .build();
+    }
+
+    private static BlockItem blockProof(final long blockNumber) {
+        return BlockItem.newBuilder()
+                .setBlockProof(BlockProof.newBuilder().setBlock(blockNumber))
+                .build();
     }
 }

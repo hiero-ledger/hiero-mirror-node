@@ -51,6 +51,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -65,16 +66,36 @@ public class TokenClient extends AbstractNetworkClient {
     private final PrivateKey initialMetadataKey = PrivateKey.generateECDSA();
     private final byte[] initialMetadata = nextBytes(4);
 
-    public TokenClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public TokenClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
     public void clean() {
         var admin = sdkClient.getExpandedOperatorAccountId();
         log.info("Deleting {} tokens and dissociating {} token relationships", tokenIds.size(), associations.size());
-        deleteAll(tokenIds, tokenId -> delete(admin, tokenId));
-        deleteAll(associations.keySet(), association -> dissociate(association.accountId, association.tokenId));
+        var entitiesShouldBeDeleted = deleteOrLogEntities(tokenIds, tokenId -> delete(admin, tokenId));
+        if (entitiesShouldBeDeleted) {
+            deleteAll(associations.keySet(), association -> dissociate(association.accountId, association.tokenId));
+        }
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var tokenName : tokenMap.keySet()) {
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            // The token addresses need to be left-padded with zeroes in order to match the expected format.
+            if (tokenName.equals(TokenNameEnum.NFT_AIRDROP)) {
+                System.out.println(tokenName.getSymbol() + "=" + tokenMap.get(tokenName).tokenId);
+            } else {
+                System.out.println(tokenName.getSymbol() + "="
+                        + String.format(
+                                "%s%s",
+                                "0".repeat(24),
+                                tokenMap.get(tokenName).tokenId().toEvmAddress()));
+            }
+        }
     }
 
     @Override
@@ -84,6 +105,10 @@ public class TokenClient extends AbstractNetworkClient {
 
     public TokenResponse getToken(TokenNameEnum tokenNameEnum) {
         return getToken(tokenNameEnum, List.of());
+    }
+
+    public ExpandedAccountId getAccountId() {
+        return sdkClient.getExpandedOperatorAccountId();
     }
 
     public TokenResponse getToken(TokenNameEnum tokenNameEnum, List<CustomFee> customFees) {
@@ -620,15 +645,15 @@ public class TokenClient extends AbstractNetworkClient {
         return response;
     }
 
-    public NetworkTransactionResponse delete(ExpandedAccountId accountId, TokenId token) {
+    public NetworkTransactionResponse delete(ExpandedAccountId accountId, TokenId tokenId) {
         TokenDeleteTransaction tokenDissociateTransaction =
-                new TokenDeleteTransaction().setTokenId(token).setTransactionMemo(getMemo("Delete token"));
+                new TokenDeleteTransaction().setTokenId(tokenId).setTransactionMemo(getMemo("Delete token"));
 
         var keyList = KeyList.of(accountId.getPrivateKey());
         var response = executeTransactionAndRetrieveReceipt(tokenDissociateTransaction, keyList);
-        log.info("Deleted token {} via {}", token, response.getTransactionId());
-        tokenIds.remove(token);
-        tokenMap.values().removeIf(tokenResponse -> token.equals(tokenResponse.tokenId));
+        log.info("Deleted token {} via {}", tokenId, response.getTransactionId());
+        tokenIds.remove(tokenId);
+        tokenMap.values().removeIf(tokenResponse -> tokenId.equals(tokenResponse.tokenId));
         return response;
     }
 

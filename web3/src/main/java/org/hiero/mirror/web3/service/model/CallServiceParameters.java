@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -17,17 +16,17 @@ public interface CallServiceParameters {
 
     long getGas();
 
+    long getGasPrice();
+
     Address getReceiver();
 
-    HederaEvmAccount getSender();
+    Address getSender();
 
     TracerType getTracerType();
 
     long getValue();
 
     boolean isEstimate();
-
-    boolean isModularized();
 
     boolean isStatic();
 

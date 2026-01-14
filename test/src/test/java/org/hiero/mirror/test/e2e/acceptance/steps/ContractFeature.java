@@ -124,7 +124,8 @@ public class ContractFeature extends BaseContractFeature {
     public void verifyContract() {
         verifyContractFromMirror(false);
         verifyContractExecutionResultsById();
-        verifyContractExecutionResultsByTransactionId();
+        var contractResultTimestamp = verifyContractExecutionResultsByTransactionId();
+        verifyContractExecutionResultByIdAndTimestamp(contractResultTimestamp);
     }
 
     @Then("the mirror node REST API should verify the updated contract entity")
@@ -180,6 +181,10 @@ public class ContractFeature extends BaseContractFeature {
     @Then("the mirror node REST API should verify the deleted contract entity")
     public void verifyDeletedContractMirror() {
         verifyContractFromMirror(true);
+
+        var parentContract =
+                mirrorClient.getContracts(deployedParentContract.contractId().toString());
+        assertThat(parentContract.getContracts().getFirst().getDeleted()).isTrue();
     }
 
     @Given("I call the parent contract to retrieve child contract bytecode")
@@ -295,9 +300,26 @@ public class ContractFeature extends BaseContractFeature {
         executeSelfDestructTransaction();
     }
 
+    @And("the mirror node contract logs REST API should return a non-empty response")
+    public void checkContractLogs() {
+        var contractLogsPerSingleContract = mirrorClient.getContractLogsByContractId(
+                deployedParentContract.contractId().toString());
+        assertThat(contractLogsPerSingleContract.getLogs()).isNotNull().isNotEmpty();
+
+        var contractLogs = mirrorClient.getContractLogs(
+                contractLogsPerSingleContract.getLogs().getFirst().getTimestamp());
+        assertThat(contractLogs.getLogs())
+                .isNotNull()
+                .isNotEmpty()
+                .containsAnyElementsOf(contractLogsPerSingleContract.getLogs());
+        assertThat(contractLogsPerSingleContract.getLogs())
+                .contains(contractLogs.getLogs().getFirst());
+    }
+
     @Override
     protected ContractResponse verifyContractFromMirror(boolean isDeleted) {
         var mirrorContract = super.verifyContractFromMirror(isDeleted);
+
         assertThat(mirrorContract.getAdminKey()).isNotNull();
         assertThat(mirrorContract.getAdminKey().getKey())
                 .isEqualTo(contractClient

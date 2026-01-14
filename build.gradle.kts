@@ -2,6 +2,7 @@
 
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
+import task.Release
 
 description = "Hedera Mirror Node imports data from consensus nodes and serves it via an API"
 
@@ -15,59 +16,64 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("blockNodeVersion", "0.17.0")
-    set("commons-lang3.version", "3.18.0") // Temporary until next Spring Boot
-    set("grpcVersion", "1.75.0")
-    set("jooq.version", "3.20.6") // Must match buildSrc/build.gradle.kts
+    set("besuVersion", "24.3.3")
+    set("blockNodeVersion", "0.24.2")
+    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
+    set("consensusNodeVersion", "0.69.1")
+    set("grpcVersion", "1.78.0")
+    set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
-    set("nodeJsVersion", "22.17.1")
-    set("protobufVersion", "4.32.0")
+    set("nodeJsVersion", "22.21.1")
+    set("protobufVersion", "4.33.3")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
+    set("web3jVersion", "5.0.1")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
 // using a dependency
 dependencies {
     constraints {
+        val besuVersion: String by rootProject.extra
         val blockNodeVersion: String by rootProject.extra
+        val consensusNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
+        val web3jVersion: String by rootProject.extra
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.81")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.guava:guava:33.4.8-jre")
+        api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:2.9")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
-        api("com.hedera.hashgraph:app:0.64.3")
-        api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.63.5")
-        api("com.hedera.hashgraph:sdk:2.62.0")
+        api("com.hedera.hashgraph:app:$consensusNodeVersion")
+        api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
+        api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
-        api("commons-io:commons-io:2.20.0")
+        api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.23.0")
-        api("io.fabric8:kubernetes-client-bom:7.3.1")
+        api("io.fabric8:kubernetes-client-bom:7.5.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
-        api("io.projectreactor:reactor-core-micrometer:1.2.9")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
+        api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("io.swagger:swagger-annotations:1.6.16")
-        api("io.vertx:vertx-web:4.5.16") // Temporary until next Fabric8 version
+        api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
-        api("net.java.dev.jna:jna:5.17.0")
+        api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
@@ -75,17 +81,18 @@ dependencies {
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
-        api("org.gaul:s3proxy:2.7.0")
+        api("org.gaul:s3proxy:3.0.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
-        api("org.hyperledger.besu:evm:24.3.3")
+        api("org.hyperledger.besu:besu-datatypes:$besuVersion")
+        api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
-        api("org.msgpack:jackson-dataformat-msgpack:0.9.10")
+        api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
-        api("org.web3j:core:4.12.2")
-        api("software.amazon.awssdk:bom:2.33.0")
+        api("org.web3j:core:$web3jVersion")
+        api("software.amazon.awssdk:bom:2.41.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -248,37 +255,12 @@ spotless {
     }
 }
 
-fun replaceVersion(files: String, match: String) {
-    ant.withGroovyBuilder {
-        "replaceregexp"("match" to match, "replace" to project.version, "flags" to "gm") {
-            "fileset"(
-                "dir" to rootProject.projectDir,
-                "includes" to files,
-                "excludes" to "**/node_modules/",
-            )
-        }
-    }
-}
-
 tasks.nodeSetup { onlyIf { !this.nodeDir.get().asFile.exists() } }
 
-tasks.register("release") {
+tasks.register<Release>("release") {
     description = "Replaces release version in files."
     group = "release"
-    doLast {
-        replaceVersion("charts/**/Chart.yaml", "(?<=^(appVersion|version): ).+")
-        replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
-        replaceVersion("gradle.properties", "(?<=^version=).+")
-        replaceVersion(
-            "rest/**/package*.json",
-            "(?<=\"@hiero-ledger/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+",
-        )
-        replaceVersion("rest/**/openapi.yml", "(?<=^  version: ).+")
-        replaceVersion(
-            "tools/traffic-replay/log-downloader/package*.json",
-            "(?<=\"@hiero-ledger/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+",
-        )
-    }
+    directory = layout.settingsDirectory
 }
 
 tasks.spotlessApply { dependsOn(tasks.nodeSetup) }

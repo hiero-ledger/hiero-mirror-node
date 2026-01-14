@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block.scheduler;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -15,11 +16,13 @@ final class PriorityScheduler extends AbstractScheduler {
     private final List<BlockNode> nodes;
 
     PriorityScheduler(
-            Collection<BlockNodeProperties> blockNodeProperties,
-            ManagedChannelBuilderProvider channelBuilderProvider,
-            StreamProperties streamProperties) {
+            final Collection<BlockNodeProperties> blockNodeProperties,
+            final ManagedChannelBuilderProvider channelBuilderProvider,
+            final MeterRegistry meterRegistry,
+            final StreamProperties streamProperties) {
         nodes = blockNodeProperties.stream()
-                .map(properties -> new BlockNode(channelBuilderProvider, properties, streamProperties))
+                .map(properties -> new BlockNode(
+                        channelBuilderProvider, this::drainGrpcBuffer, meterRegistry, properties, streamProperties))
                 .sorted()
                 .toList();
     }

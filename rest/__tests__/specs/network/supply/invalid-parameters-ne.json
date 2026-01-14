@@ -3,13 +3,26 @@
   "setup": {},
   "urls": ["/api/v1/network/supply?timestamp=ne:1"],
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Invalid parameter: Not equals (ne) operator is not supported for timestamp"
-        }
-      ]
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: Not equals (ne) operator is not supported for timestamp"
+          }
+        ]
+      }
     }
   }
 }

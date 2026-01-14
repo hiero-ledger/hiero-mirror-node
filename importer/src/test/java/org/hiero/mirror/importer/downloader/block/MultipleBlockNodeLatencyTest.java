@@ -66,8 +66,6 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be two switches
-        //        int port1 = simulators.getFirst().getPort();
-        //        int port2 = simulators.get(1).getPort();
         assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),

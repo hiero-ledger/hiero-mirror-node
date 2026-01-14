@@ -330,7 +330,7 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
         transferList.addAccountAmounts(
                 AccountAmount.newBuilder().setAccountID(PAYER).setAmount(-2000).build());
         transferList.addAccountAmounts(AccountAmount.newBuilder()
-                .setAccountID(systemEntity.feeCollectorAccount().toAccountID())
+                .setAccountID(systemEntity.networkAdminFeeAccount().toAccountID())
                 .setAmount(1000)
                 .build());
         transferList.addAccountAmounts(

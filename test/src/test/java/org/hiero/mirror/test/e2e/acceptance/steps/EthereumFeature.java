@@ -32,6 +32,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient;
 import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.ExecuteContractResult;
 import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
+import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
@@ -43,6 +44,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     protected final EthereumClient ethereumClient;
 
     protected final AccountClient accountClient;
+
+    private final Web3Properties web3Properties;
 
     protected AccountId ethereumSignerAccount;
     protected PrivateKey ethereumSignerPrivateKey;
@@ -66,12 +69,16 @@ public class EthereumFeature extends AbstractEstimateFeature {
     }
 
     @Given("I successfully create contract by Legacy ethereum transaction")
-    public void createNewERCtestContract() {
+    public void createContract() {
         deployedParentContract = ethereumContractCreate(PARENT_CONTRACT);
 
         gasConsumedSelector = Objects.requireNonNull(mirrorClient
                 .getContractInfo(deployedParentContract.contractId().toEvmAddress())
                 .getBytecode());
+
+        var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, false);
     }
 
     @Then("the mirror node REST API should return status {int} for the eth contract creation transaction")
@@ -92,7 +99,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     public void verifyDeployedContractMirror() {
         verifyContractFromMirror(false);
         verifyContractExecutionResultsById();
-        verifyContractExecutionResultsByTransactionId();
+        var contractResultTimestamp = verifyContractExecutionResultsByTransactionId();
+        verifyContractExecutionResults(contractResultTimestamp);
     }
 
     @And("the mirror node Rest API should verify the contracts have correct nonce")
@@ -114,6 +122,10 @@ public class EthereumFeature extends AbstractEstimateFeature {
         assertThat(deployedParentContract.contractId().toEvmAddress()).isNotEqualTo(childAddress);
         addChildContract(childAddress);
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, CREATE_CHILD, BigInteger.valueOf(1000));
+
+        String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractId = networkTransactionResponse.getReceipt().contractId.toEvmAddress();
+        verifyGasConsumed(txId, contractId, true);
     }
 
     @Given("I successfully call function using EIP-2930 ethereum transaction")
@@ -128,10 +140,19 @@ public class EthereumFeature extends AbstractEstimateFeature {
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, GET_BYTE_CODE);
     }
 
-    @Then("the mirror node contract results API should return an accurate gas consumed")
-    public void verifyGasConsumedIsCorrect() {
+    @And("the mirror node contract results opcodes API should return a non-empty response")
+    public void verifyOpcodes() {
+        if (!web3Properties.getOpcodeTracer().isEnabled()) {
+            return;
+        }
+        log.info("Opcode tracer is enabled -> verify contract results opcodes against web3.");
         String txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
-        verifyGasConsumed(txId);
+        var opcodes = mirrorClient.getContractResultsOpcodes(txId);
+        assertThat(opcodes).isNotNull();
+        // Just verify that a list of opcodes is returned as any other static resource might get
+        // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
+        // stricter validation in the web3 module.
+        assertThat(opcodes.getOpcodes()).isNotEmpty();
     }
 
     public DeployedContract ethereumContractCreate(ContractResource contractResource) {

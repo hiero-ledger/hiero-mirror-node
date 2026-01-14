@@ -15,10 +15,10 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.state.token.AccountApprovalForAllAllowance;
 import com.hedera.hapi.node.state.token.AccountCryptoAllowance;
 import com.hedera.hapi.node.state.token.AccountFungibleTokenAllowance;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.config.data.ContractsConfig;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
-import jakarta.annotation.Nonnull;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -39,6 +39,7 @@ import org.hiero.mirror.web3.repository.TokenAccountRepository;
 import org.hiero.mirror.web3.repository.TokenAllowanceRepository;
 import org.hiero.mirror.web3.repository.projections.TokenAccountAssociationsCount;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 public abstract class AbstractAliasedAccountReadableKVState<K, V> extends AbstractReadableKVState<K, V> {
 
@@ -46,22 +47,22 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
-    private final SystemEntity systemEntity;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected final SystemEntity systemEntity;
 
     protected AbstractAliasedAccountReadableKVState(
-            @Nonnull String stateKey,
-            @Nonnull AccountBalanceRepository accountBalanceRepository,
-            @Nonnull CryptoAllowanceRepository cryptoAllowanceRepository,
-            @Nonnull NftAllowanceRepository nftAllowanceRepository,
-            @Nonnull NftRepository nftRepository,
-            @Nonnull SystemEntity systemEntity,
-            @Nonnull TokenAccountRepository tokenAccountRepository,
-            @Nonnull TokenAllowanceRepository tokenAllowanceRepository,
-            @Nonnull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
-        super(stateKey);
+            int stateId,
+            @NonNull AccountBalanceRepository accountBalanceRepository,
+            @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
+            @NonNull NftAllowanceRepository nftAllowanceRepository,
+            @NonNull NftRepository nftRepository,
+            @NonNull SystemEntity systemEntity,
+            @NonNull TokenAccountRepository tokenAccountRepository,
+            @NonNull TokenAllowanceRepository tokenAllowanceRepository,
+            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+        super(TokenService.NAME, stateId);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
         this.nftAllowanceRepository = nftAllowanceRepository;
@@ -107,6 +108,18 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                 .build();
     }
 
+    /**
+     * Returns the default key for accounts that don't have a key set.
+     * In hedera.app there isn't a case in which an account does not have a key set in the state - it is
+     * either valid, or it is an empty KeyList. This key is added in the account state in the mirror node
+     * for consistency as well as to prevent potential NullPointerException.
+     *
+     * @return EMPTY_KEY_LIST as the default key for accounts without keys
+     */
+    protected Key getDefaultKey() {
+        return EMPTY_KEY_LIST;
+    }
+
     private Key getKey(final Entity entity, final boolean isSmartContract) {
         final var key = parseKey(entity.getKey());
         if (key == null) {
@@ -119,10 +132,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                                 .build())
                         .build();
             } else {
-                // In hedera.app there isn't a case in which an account does not have a key set in the state - it is
-                // either valid, or it is an empty KeyList as the one below. This key is added in the account state in
-                // the mirror node for consistency as well as to prevent from potential NullPointerException.
-                return EMPTY_KEY_LIST;
+                return getDefaultKey();
             }
         }
         return key;
@@ -149,36 +159,40 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
                     Long createdTimestamp = entity.getCreatedTimestamp();
                     if (createdTimestamp == null || t >= createdTimestamp) {
                         long treasuryAccountId = systemEntity.treasuryAccount().getId();
-                        return accountBalanceRepository
+                        final var historicalBalance = accountBalanceRepository
                                 .findHistoricalAccountBalanceUpToTimestamp(entity.getId(), t, treasuryAccountId)
                                 .orElse(0L);
+                        return getBalanceOrDefaultToMinimum(entity, historicalBalance);
                     } else {
-                        return 0L;
+                        return getBalanceOrDefaultToMinimum(entity, 0L);
                     }
                 })
                 .orElseGet(() -> {
-                    final Long currentBalance = entity.getBalance();
-                    if (!mirrorNodeEvmProperties.isOverridePayerBalanceValidation()) {
-                        return Objects.requireNonNullElse(currentBalance, 0L);
-                    }
-
-                    final ContractCallContext context = ContractCallContext.get();
-                    final boolean isBalanceCall = context.isBalanceCall();
-                    final long minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
-
-                    try {
-                        // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
-                        if (!isBalanceCall
-                                && entity.getType() != CONTRACT
-                                && (currentBalance == null || currentBalance < minimumBalance)) {
-                            return minimumBalance;
-                        }
-                        return currentBalance;
-                    } finally {
-                        // Always reset the balanceCall flag
-                        context.setBalanceCall(false);
-                    }
+                    final var currentBalance = entity.getBalance();
+                    return getBalanceOrDefaultToMinimum(entity, currentBalance);
                 }));
+    }
+
+    private Long getBalanceOrDefaultToMinimum(final Entity entity, final Long balance) {
+        final ContractCallContext context = ContractCallContext.get();
+
+        if (mirrorNodeEvmProperties.isValidatePayerBalance() && context.validatePayerBalance()) {
+            return Objects.requireNonNullElse(balance, 0L);
+        }
+
+        final var isBalanceCall = ContractCallContext.isBalanceCallSafe();
+        final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
+
+        try {
+            // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
+            if (!isBalanceCall && entity.getType() != CONTRACT && (balance == null || balance < minimumBalance)) {
+                return minimumBalance;
+            }
+            return balance;
+        } finally {
+            // Always reset the balanceCall flag
+            context.setBalanceCall(false);
+        }
     }
 
     private Supplier<List<AccountCryptoAllowance>> getCryptoAllowances(

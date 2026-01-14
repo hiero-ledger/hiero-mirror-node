@@ -209,6 +209,8 @@ web3:
       enabled: true
   hpa:
     enabled: true
+    gasUsed:
+      enabled: true
     minReplicas: 2
   podDisruptionBudget:
     enabled: true

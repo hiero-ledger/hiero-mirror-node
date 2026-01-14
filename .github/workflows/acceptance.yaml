@@ -8,13 +8,12 @@ on:
       - "main"
       - "release/**"
     paths:
+      - ".github/workflows/acceptance.yaml"
       - "test/**"
   push:
     branches:
       - "main"
       - "release/**"
-    tags:
-      - "v*"
   workflow_dispatch:
     inputs:
       branch:
@@ -32,87 +31,236 @@ defaults:
 jobs:
   acceptance:
     runs-on: hiero-mirror-node-linux-large
-    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        stream-type:
+          - RECORD
+          - BLOCK
+    timeout-minutes: 50
     env:
-      CONSENSUS_VERSION: v0.65.0
+      BLOCK_NODE_CHART_VERSION: v0.24.2
+      CONSENSUS_VERSION: v0.69.1-rc.3
+      HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
+      SOLO_VERSION: v0.52.0
+    permissions:
+      pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911 # v2.13.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: "3.19.2"
 
       - name: Setup Kind
-        uses: helm/kind-action@a1b0e391336a6ee6713a0583f8c6240d70863de3 # v1.12.0
+        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
         with:
-          kubectl_version: v1.32.3
+          cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
+          kubectl_version: v1.33.7
 
       - name: Install JDK
-        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: "temurin"
           java-version: 21
 
       - name: Install Solo CLI via npm
-        run: npm install -g @hashgraph/solo@v0.43.0
+        run: npm install -g @hashgraph/solo@${SOLO_VERSION}
 
-      - name: Build Mirror Node Test JAR
-        run: ./gradlew test:build -x test
+      - name: Determine base and tag
+        timeout-minutes: 15
+        run: |
+          set -ex
 
-      - name: Build Mirror Node Test Docker image
-        run: docker build -t gcr.io/mirrornode/hedera-mirror-test:${{ github.base_ref }} ./test
+          TAG=$(sed -nE 's/^version: (.+)$/\1/p' charts/hedera-mirror/Chart.yaml)
+          BASE=""
+          TRIGGERED_BY_TAG=false
+          if [[ "$TAG" != *SNAPSHOT ]]; then
+            BASE="v$TAG"
+            # The dereferenced tag corresponds to the commit the annotated tag refers to
+            DEREFERENCED_TAG="v${TAG}^{}"
+            git ls-remote --tags origin "${DEREFERENCED_TAG}" | grep $(git rev-parse HEAD) && TRIGGERED_BY_TAG=true \
+              || true
+          fi
+
+          echo "BASE=${BASE}" >> $GITHUB_ENV
+          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "TRIGGERED_BY_TAG=${TRIGGERED_BY_TAG}" >> $GITHUB_ENV
+
+          if [[ "$TRIGGERED_BY_TAG" == "true" ]]; then
+            # wait for images becoming ready if it's a tagged commit
+            for module in grpc importer monitor rest rest-java test web3; do
+              while ! docker manifest inspect "gcr.io/mirrornode/hedera-mirror-$module:$TAG" >/dev/null 2>&1; do
+                sleep 10
+              done
+            done
+          fi
+
+      - name: Find changed modules
+        id: changeset
+        if: env.TRIGGERED_BY_TAG != 'true'
+        uses: step-security/paths-filter@6eee183b0d2fd101d3f8ee2935c127bca14c5625 # v3.0.5
+        with:
+          base: ${{ env.BASE }}
+          filters: |
+            grpc:
+            - 'grpc/**'
+            importer:
+            - 'importer/**'
+            monitor:
+            - 'monitor/**'
+            rest:
+            - 'rest/!(check-state-proof|monitoring)?(/**)'
+            rest-java:
+            - 'rest-java/**'
+            test:
+            - 'test/**'
+            web3:
+            - 'web3/**'
+
+      - name: Build images
+        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
+        run: |
+          set -ex
+          echo '${{ steps.changeset.outputs.changes }}' | jq -r '.[]' | while read module; do
+            ./gradlew ":${module}:dockerBuild" -x :rest:monitoring:dockerBuild -PimageTag="${TAG}"
+            kind load docker-image "gcr.io/mirrornode/hedera-mirror-${module}:${TAG}" -n "${SOLO_CLUSTER_NAME}"
+          done
 
       - name: Setup Solo Cluster
         run: |
           set -ex
 
-          kind create cluster -n "${SOLO_CLUSTER_NAME}"
           solo init
-          solo cluster-ref connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --context kind-"${SOLO_CLUSTER_NAME}"
-          kind load docker-image gcr.io/mirrornode/hedera-mirror-test:${{ github.base_ref }} -n "${SOLO_CLUSTER_NAME}"
-          solo deployment create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
-          solo deployment add-cluster --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --num-consensus-nodes 1
-          solo cluster-ref setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
-          solo node keys --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-          solo network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
-          solo node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
-          solo node start --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --context kind-"${SOLO_CLUSTER_NAME}"
+          solo deployment config create --deployment "${SOLO_DEPLOYMENT}" --namespace "${SOLO_NAMESPACE}"
+          solo deployment cluster attach --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+            --num-consensus-nodes 1
+          solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
-          cat <<EOF > mirror.yaml
-          global:
-            image:
-              tag: "${{ github.base_ref }}"
+          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
+            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+              --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
+          fi
+          solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
+
+          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
+            cat <<EOF > mirror.yaml
+          importer:
+            env:
+              HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
+              SPRING_PROFILES_ACTIVE: 'blocknode'
+          monitor:
+            env:
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+              enabled: true
+          rest:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+          restjava:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+          test:
+            cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
+            annotations:
+              helm.sh/hook-delete-policy: before-hook-creation
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+            enabled: true
+          web3:
+            env:
+              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+          EOF
+
+          else
+            cat <<EOF > mirror.yaml
+          monitor:
+            env:
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+              enabled: true
+          rest:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
+          restjava:
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
           test:
             annotations:
               helm.sh/hook-delete-policy: before-hook-creation
-            cucumberTags: "@acceptance and not @estimateprecompile"
             env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
             enabled: true
+          web3:
+            env:
+              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+            test:
+              annotations:
+                helm.sh/hook-delete-policy: before-hook-creation
           EOF
+          fi
 
-          solo mirror-node deploy --deployment "${SOLO_DEPLOYMENT}" -f mirror.yaml --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --pinger
+          helm dependency update charts/hedera-mirror
+          solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --deployment "${SOLO_DEPLOYMENT}" \
+            -f mirror.yaml --mirror-node-chart-dir ./charts --pinger --enable-ingress
+          APP_VERSION=$(helm ls -n "${SOLO_NAMESPACE}" -o json \
+            | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
+          echo "Installed hedera-mirror chart version $APP_VERSION"
 
           echo "Solo cluster setup completed successfully!"
 
       - name: Run acceptance tests
-        run: helm test mirror -n "${SOLO_NAMESPACE}" --logs --filter name=mirror-acceptance --timeout 20m
+        run: |
+          helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
+            --timeout 20m | tee output_log.txt
+
+      - name: Run k6 tests
+        if: ${{ matrix.stream-type != 'BLOCK' }}
+        env:
+          BASE_URL: "http://127.0.0.1:8081"
+          DEFAULT_DURATION: "3s"
+          DEFAULT_GRACEFUL_STOP: "1s"
+          DEFAULT_VUS: 2
+        uses: ./.github/actions/k6
 
       - name: Show Pod Logs on Failure
         continue-on-error: true
@@ -129,11 +277,6 @@ jobs:
           for pod in $(kubectl get pods -n "${SOLO_NAMESPACE}" -o name); do
             if [ -n "$pod" ]; then
               echo "--- Logs for pod: $pod ---"
-              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=1000 || echo "Could not get logs for pod $pod"
+              kubectl logs "$pod" -n "${SOLO_NAMESPACE}" --all-containers=true --tail=10000 || echo "Could not get logs for pod $pod"
             fi
           done
-
-      - name: Cleanup
-        continue-on-error: true
-        if: always()
-        run: kind delete cluster -n "${SOLO_CLUSTER_NAME}"

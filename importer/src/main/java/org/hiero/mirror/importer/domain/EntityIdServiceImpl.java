@@ -13,7 +13,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.GeneratedMessage;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Optional;
@@ -28,6 +27,7 @@ import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.repository.EntityRepository;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
@@ -113,7 +113,7 @@ public class EntityIdServiceImpl implements EntityIdService {
         }
     }
 
-    private @Nonnull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
+    private @NonNull Optional<EntityId> cacheLookup(ByteString key, Callable<Optional<EntityId>> loader) {
         try {
             return Objects.requireNonNullElse(cache.get(key, loader), Optional.empty());
         } catch (Cache.ValueRetrievalException e) {

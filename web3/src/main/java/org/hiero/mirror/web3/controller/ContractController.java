@@ -4,9 +4,7 @@ package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
-import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
@@ -22,7 +20,6 @@ import org.hiero.mirror.web3.viewmodel.ContractCallResponse;
 import org.hyperledger.besu.datatypes.Address;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -37,16 +34,12 @@ class ContractController {
     private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")
-    ContractCallResponse call(
-            @RequestBody @Valid ContractCallRequest request,
-            @RequestHeader(value = MODULARIZED_HEADER, required = false) String isModularizedHeader,
-            HttpServletResponse response) {
+    ContractCallResponse call(@RequestBody @Valid ContractCallRequest request, HttpServletResponse response) {
         try {
             throttleManager.throttle(request);
             validateContractMaxGasLimit(request);
 
-            final var params = constructServiceParameters(request, isModularizedHeader);
-            response.addHeader(MODULARIZED_HEADER, String.valueOf(params.isModularized()));
+            final var params = constructServiceParameters(request);
             final var result = contractExecutionService.processCall(params);
             return new ContractCallResponse(result);
         } catch (InvalidParametersException e) {
@@ -56,10 +49,8 @@ class ContractController {
         }
     }
 
-    private ContractExecutionParameters constructServiceParameters(
-            ContractCallRequest request, final String isModularizedHeader) {
+    private ContractExecutionParameters constructServiceParameters(ContractCallRequest request) {
         final var fromAddress = request.getFrom() != null ? Address.fromHexString(request.getFrom()) : Address.ZERO;
-        final var sender = new HederaEvmAccount(fromAddress);
 
         Address receiver;
 
@@ -81,29 +72,16 @@ class ContractController {
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
 
-        boolean isModularized = evmProperties.directTrafficThroughTransactionExecutionService();
-
-        // Temporary workaround to ensure modularized services are fully available when enabled.
-        // This prevents flakiness in acceptance tests, as directTrafficThroughTransactionExecutionService()
-        // can distribute traffic between the old and new logic.
-        if (isModularizedHeader != null && evmProperties.isModularizedServices()) {
-            isModularized = Boolean.parseBoolean(isModularizedHeader);
-        }
-
-        if (request.getModularized() != null) {
-            isModularized = request.getModularized();
-        }
-
         return ContractExecutionParameters.builder()
                 .block(block)
                 .callData(data)
                 .callType(callType)
                 .gas(request.getGas())
+                .gasPrice(request.getGasPrice())
                 .isEstimate(request.isEstimate())
-                .isModularized(isModularized)
                 .isStatic(isStaticCall)
                 .receiver(receiver)
-                .sender(sender)
+                .sender(fromAddress)
                 .value(request.getValue())
                 .build();
     }

@@ -9,6 +9,7 @@ import static org.hiero.mirror.importer.TestUtils.findAllMatches;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.hederahashgraph.api.proto.java.ContractID;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.stream.Collectors;
@@ -16,7 +17,6 @@ import java.util.stream.LongStream;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,18 +40,26 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         var blocks = generator.next(20);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
+                .withHostPrefix("a")
+                .withInProcessChannel()
                 .withLatency(10)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
+                .withHostPrefix("b")
+                .withInProcessChannel()
                 .withLatency(100)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
+                .withHostPrefix("c")
+                .withInProcessChannel()
                 .withLatency(10)
                 .withPriority(1);
         addSimulatorWithBlocks(blocks)
                 .withBlockInterval(interval)
+                .withHostPrefix("d")
+                .withInProcessChannel()
                 .withLatency(10)
                 .withPriority(1);
         subscriber = getBlockNodeSubscriber();
@@ -70,13 +78,11 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
 
         // it's non-deterministic that at exactly which block, based on latency, the scheduler will switch from one
         // block node server to the lower latency one. However, there should be two switches
-        int port1 = simulators.getFirst().getPort();
-        int port2 = simulators.get(1).getPort();
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(localhost:\\d+\\)"))
+        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
-                        String.format("from BlockNode(localhost:%d)", port1),
-                        String.format("from BlockNode(localhost:%d)", port2),
-                        String.format("from BlockNode(localhost:%d)", port1));
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(1)),
+                        String.format("from BlockNode(%s)", endpoint(0)));
     }
 
     @Test
@@ -87,18 +93,26 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         var blocks = generator.next(40);
         addSimulatorWithBlocks(blocks.subList(0, 15))
                 .withBlockInterval(interval)
+                .withHostPrefix("a")
+                .withInProcessChannel()
                 .withLatency(10)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks.subList(0, 15))
                 .withBlockInterval(interval)
+                .withHostPrefix("b")
+                .withInProcessChannel()
                 .withLatency(100)
                 .withPriority(0);
         addSimulatorWithBlocks(blocks.subList(13, 30))
                 .withBlockInterval(interval)
+                .withHostPrefix("c")
+                .withInProcessChannel()
                 .withLatency(100)
                 .withPriority(1);
         addSimulatorWithBlocks(blocks.subList(20, 40))
                 .withBlockInterval(interval)
+                .withHostPrefix("d")
+                .withInProcessChannel()
                 .withLatency(5)
                 .withPriority(1);
         subscriber = getBlockNodeSubscriber();
@@ -121,13 +135,13 @@ final class MultipleBlockNodePriorityAndLatencyTest extends AbstractBlockNodeInt
         // - switch to node0
         // - switch to node2
         // - switch to node3
-        var ports = simulators.stream().map(BlockNodeSimulator::getPort).toList();
-        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(localhost:\\d+\\)"))
+        assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
-                        String.format("from BlockNode(localhost:%d)", ports.get(0)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(1)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(0)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(2)),
-                        String.format("from BlockNode(localhost:%d)", ports.get(3)));
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(1)),
+                        String.format("from BlockNode(%s)", endpoint(0)),
+                        String.format("from BlockNode(%s)", endpoint(2)),
+                        String.format("from BlockNode(%s)", endpoint(3)));
+        ContractID.newBuilder().setContractNum(365).build();
     }
 }

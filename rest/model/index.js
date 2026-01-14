@@ -24,7 +24,6 @@ import FileData from './fileData';
 import FixedFee from './fixedFee';
 import Node from './node';
 import NetworkNode from './networkNode';
-import NetworkStake from './networkStake';
 import Nft from './nft';
 import NftHistory from './nftHistory';
 import NftTransfer from './nftTransfer';
@@ -48,7 +47,6 @@ import TransactionHash from './transactionHash';
 import TransactionId from './transactionId';
 import TransactionResult from './transactionResult';
 import TransactionType from './transactionType';
-import FeeSchedule from './feeSchedule';
 import ContractState from './contractState';
 
 export {
@@ -76,7 +74,6 @@ export {
   FixedFee,
   Node,
   NetworkNode,
-  NetworkStake,
   Nft,
   NftHistory,
   NftTransfer,
@@ -100,6 +97,5 @@ export {
   TransactionId,
   TransactionResult,
   TransactionType,
-  FeeSchedule,
   ContractState,
 };

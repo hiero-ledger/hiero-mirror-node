@@ -2,17 +2,15 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
+import static com.hedera.node.app.blocks.schemas.V0560BlockStreamSchema.BLOCK_STREAM_INFO_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.node.state.blockstream.BlockStreamInfo;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.web3.ContextExtension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 
-@ExtendWith(ContextExtension.class)
 class BlockStreamInfoSingletonTest {
 
     private final BlockStreamInfoSingleton blockStreamInfoSingleton = new BlockStreamInfoSingleton();
@@ -22,10 +20,10 @@ class BlockStreamInfoSingletonTest {
     @DisplayName("should return the correct state key")
     void key() {
         // when
-        final var key = blockStreamInfoSingleton.getKey();
+        final var key = blockStreamInfoSingleton.getId();
 
         // then
-        assertThat(key).isEqualTo("BLOCK_STREAM_INFO");
+        assertThat(key).isEqualTo(BLOCK_STREAM_INFO_STATE_ID);
     }
 
     @Test

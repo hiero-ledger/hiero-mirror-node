@@ -7,6 +7,7 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.Contrac
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_PRECOMPILE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.ALLOWANCE_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.GET_APPROVED_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.GET_OWNER_OF_SELECTOR;
@@ -995,9 +996,10 @@ public class HistoricalFeature extends AbstractEstimateFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements SelectorInterface {
-        GET_COUNTER("counter");
+        GET_COUNTER("getCounter", VIEW);
 
         private final String selector;
+        private final FunctionType functionType;
     }
 
     record Selector(SelectorInterface selector, ContractResource resource, String contractAddress) {}

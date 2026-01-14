@@ -13,6 +13,7 @@ import static org.hiero.mirror.importer.util.UtilityTest.EVM_ADDRESS;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,6 +60,9 @@ import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
+import org.hiero.mirror.common.domain.hook.HookExtensionPoint;
+import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.token.Nft;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.ErrataType;
@@ -71,6 +75,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
+import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAllowanceRepository;
@@ -99,6 +104,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
     private final ContractRepository contractRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
+    private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
@@ -323,9 +329,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             false, true
                             false, false
                             # clear cache after the first record file to test the scenario the evm address is looked up from db
@@ -445,7 +449,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         assertAll(
                 () -> assertEquals(3, transactionRepository.count()),
                 () -> assertEntities(hollowAccount),
-                () -> assertCryptoTransfers(8),
+                () -> assertCryptoTransfers(7),
                 () -> assertThat(entityRepository.findByAlias(EVM_ADDRESS)).hasValue(hollowAccount.getId()),
                 () -> assertThat(transactionRepository.findAll())
                         .map(org.hiero.mirror.common.domain.transaction.Transaction::getItemizedTransfer)
@@ -646,7 +650,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         assertAll(
                 () -> assertEquals(0, contractRepository.count()),
-                // 3 for hbar transfers, and 1 for reward payout from 0.0.800
+                // 3 for default transfers and 1 for reward payout from 0.0.800
                 () -> assertEquals(4, cryptoTransferRepository.count()),
                 () -> assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(sender, receiver1, receiver2),
                 () -> assertThat(stakingRewardTransferRepository.findAll())
@@ -675,7 +679,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                         .setTransferList(TransferList.newBuilder()
                                 .addAccountAmounts(accountAmount(payer.getId(), -2800L))
                                 .addAccountAmounts(accountAmount(NODE, 1000L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 2000L))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 2000L))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L)))
                         .addPaidStakingRewards(accountAmount(payer.getId(), 200L))
                         .getReceiptBuilder()
@@ -871,7 +875,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -914,7 +918,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .build();
         parseRecordItemAndCommit(recordItem);
 
@@ -952,7 +956,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200L))
                                 .addAccountAmounts(accountAmount(account.getId(), 180L))
                                 .addAccountAmounts(accountAmount(NODE, 5L))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 15L))))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 15L))))
                 .receipt(r -> r.setStatus(ResponseCodeEnum.INSUFFICIENT_ACCOUNT_BALANCE))
                 .build();
         parseRecordItemAndCommit(recordItem);
@@ -1739,7 +1743,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), 100))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -200))))
                 .build();
         var afterNextMidnight = TestUtils.asStartOfEpochDay(currentDay + 1).plusNanos(5);
@@ -1752,7 +1756,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                                 .addAccountAmounts(
                                         accountAmount(account.toEntityId().getId(), -40))
                                 .addAccountAmounts(accountAmount(2, 20))
-                                .addAccountAmounts(accountAmount(systemEntity.feeCollectorAccount(), 80))
+                                .addAccountAmounts(accountAmount(systemEntity.networkAdminFeeAccount(), 80))
                                 .addAccountAmounts(accountAmount(systemEntity.stakingRewardAccount(), -60))))
                 .build();
         parseRecordItemsAndCommit(List.of(consensusSubmitMessage1, consensusSubmitMessage2));
@@ -1823,10 +1827,127 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 .containsOnly(unknownResult);
     }
 
+    @Test
+    void cryptoCreateWithHooks() {
+        // given
+        var recordItem = recordItemBuilder.cryptoCreate().build();
+
+        var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
+        var cryptoCreateBody = recordItem.getTransactionBody().getCryptoCreateAccount();
+        var hookCreationDetails = cryptoCreateBody.getHookCreationDetails(0);
+
+        // Extract hook details from the transaction
+        var hookId = hookCreationDetails.getHookId();
+        var contractId =
+                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var adminKey = hookCreationDetails.getAdminKey();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // Find and verify hook from database
+        var hookOptional = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertEntities(EntityId.of(accountId)),
+                () -> assertTransactionAndRecord(recordItem.getTransactionBody(), recordItem.getTransactionRecord()));
+
+        var dbHook = hookOptional.get();
+        assertAll(
+                () -> assertEquals(hookId, dbHook.getHookId()),
+                () -> assertEquals(contractId, dbHook.getContractId()),
+                () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                () -> assertFalse(dbHook.getDeleted()));
+    }
+
+    @Test
+    void cryptoUpdateWithHooksSequentialOperations() {
+        // Step 1: Create an account with hooks
+        var createAccountWithHooksRecordItem = recordItemBuilder.cryptoCreate().build();
+        parseRecordItemAndCommit(createAccountWithHooksRecordItem);
+
+        var accountId = createAccountWithHooksRecordItem
+                .getTransactionRecord()
+                .getReceipt()
+                .getAccountID();
+        var cryptoCreateBody =
+                createAccountWithHooksRecordItem.getTransactionBody().getCryptoCreateAccount();
+        var hookCreationDetails = cryptoCreateBody.getHookCreationDetails(0);
+
+        // Extract hook details from the transaction
+        var hookId = hookCreationDetails.getHookId();
+        var contractId =
+                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var adminKey = hookCreationDetails.getAdminKey();
+
+        // Assert after creation
+        final var hookOptional = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional.isPresent(), "Hook should exist after creation"),
+                () -> assertFalse(hookOptional.get().getDeleted(), "Hook should not be deleted after creation"),
+                () -> assertEquals(1, hookRepository.count(), "Should have 1 hook after creation"));
+        var dbHook = hookOptional.get();
+        assertAll(
+                () -> assertEquals(hookId, dbHook.getHookId()),
+                () -> assertEquals(contractId, dbHook.getContractId()),
+                () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
+                () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
+                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
+                () -> assertEquals(
+                        createAccountWithHooksRecordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
+                () -> assertFalse(dbHook.getDeleted()));
+
+        // Step 2: Delete and create hook in same transaction
+        var deletionAndCreationRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.addHookIdsToDelete(1L).setAccountIDToUpdate(accountId))
+                .build();
+        parseRecordItemAndCommit(deletionAndCreationRecordItem);
+
+        // Assert after deletion and creation in same transaction
+        final var hookOptional2 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional2.isPresent(), "Hook should exist after deletion and creation"),
+                () -> assertFalse(hookOptional2.get().getDeleted(), "Hook should not be deleted after recreation"),
+                () -> assertEquals(
+                        deletionAndCreationRecordItem.getConsensusTimestamp(),
+                        hookOptional2.get().getCreatedTimestamp(),
+                        "Hook should have creation timestamp from the transaction"),
+                () -> assertEquals(
+                        1, hookRepository.count(), "Should have 1 hook record (upsert merges delete and create)"));
+
+        // Step 3: Final deletion
+        var finalDeleteRecordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b -> b.clearHookCreationDetails()
+                        .addHookIdsToDelete(1L)
+                        .setAccountIDToUpdate(accountId)
+                        .clearHookCreationDetails())
+                .build();
+        parseRecordItemAndCommit(finalDeleteRecordItem);
+
+        // Assert after final deletion
+        final var hookOptional3 = hookRepository.findById(
+                new AbstractHook.Id(hookId, EntityId.of(accountId).getId()));
+        assertAll(
+                () -> assertTrue(hookOptional3.isPresent(), "Hook should still exist after final soft delete"),
+                () -> assertTrue(
+                        hookOptional3.get().getDeleted(), "Hook should be marked as deleted after final deletion"),
+                () -> assertEquals(1, hookRepository.count(), "Hook count should remain same for soft delete"),
+                () -> assertTrue(hookOptional3.get().getDeleted()));
+    }
+
     private void assertAllowances(RecordItem recordItem, Collection<Nft> expectedNfts) {
         assertAll(
                 () -> assertEquals(1, cryptoAllowanceRepository.count()),
-                () -> assertEquals(4, cryptoTransferRepository.count()),
+                () -> assertEquals(3, cryptoTransferRepository.count()),
                 () -> assertEquals(0, entityRepository.count()),
                 () -> assertEquals(3, nftAllowanceRepository.count()),
                 () -> assertEquals(1, tokenAllowanceRepository.count()),

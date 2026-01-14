@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 
 import static org.hiero.mirror.importer.downloader.block.BlockNode.LATENCY_COMPARATOR;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -20,14 +21,20 @@ final class LatencyScheduler extends AbstractLatencyAwareScheduler {
     private final List<BlockNode> nodes;
 
     LatencyScheduler(
-            Collection<BlockNodeProperties> blockNodeProperties,
-            LatencyService latencyService,
-            ManagedChannelBuilderProvider managedChannelBuilderProvider,
-            SchedulerProperties schedulerProperties,
-            StreamProperties streamProperties) {
+            final Collection<BlockNodeProperties> blockNodeProperties,
+            final LatencyService latencyService,
+            final ManagedChannelBuilderProvider managedChannelBuilderProvider,
+            final MeterRegistry meterRegistry,
+            final SchedulerProperties schedulerProperties,
+            final StreamProperties streamProperties) {
         super(latencyService, schedulerProperties);
         nodes = blockNodeProperties.stream()
-                .map(properties -> new BlockNode(managedChannelBuilderProvider, properties, streamProperties))
+                .map(properties -> new BlockNode(
+                        managedChannelBuilderProvider,
+                        this::drainGrpcBuffer,
+                        meterRegistry,
+                        properties,
+                        streamProperties))
                 .sorted(LATENCY_COMPARATOR)
                 .collect(Collectors.toCollection(ArrayList::new));
     }

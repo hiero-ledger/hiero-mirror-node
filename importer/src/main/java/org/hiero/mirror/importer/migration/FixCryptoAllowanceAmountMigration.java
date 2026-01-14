@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.util.Map;
@@ -16,6 +15,7 @@ import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Profile;
 import org.springframework.dao.DataAccessException;
@@ -36,13 +36,11 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
 
     private static final String DROP_MIGRATION_TABLE_SQL = "drop table if exists crypto_allowance_migration";
 
-    private static final String GET_END_TIMESTAMP_SQL =
-            """
+    private static final String GET_END_TIMESTAMP_SQL = """
             select (select lower(timestamp_range) from crypto_allowance_migration where owner = 0 and spender = 0)
             """;
 
-    private static final String INIT_MIGRATION_TABLE_SQL =
-            """
+    private static final String INIT_MIGRATION_TABLE_SQL = """
             begin;
 
             create table crypto_allowance_migration (like crypto_allowance, primary key (owner, spender));
@@ -71,8 +69,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
             commit;
             """;
 
-    private static final String MERGE_AMOUNT_SQL =
-            """
+    private static final String MERGE_AMOUNT_SQL = """
             lock table crypto_allowance in access exclusive mode;
             lock table crypto_allowance_history in access exclusive mode;
 
@@ -87,8 +84,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
             where m.owner = h.owner and m.spender = h.spender and lower(m.timestamp_range) = lower(h.timestamp_range);
             """;
 
-    private static final String UPDATE_MIGRATION_AMOUNT_SQL =
-            """
+    private static final String UPDATE_MIGRATION_AMOUNT_SQL = """
             with approved_debit as (
               select sum(t.amount) as amount_spent, entity_id as owner, t.payer_account_id as spender
               from crypto_transfer t
@@ -105,8 +101,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
             where m.owner = a.owner and m.spender = a.spender
             """;
 
-    private static final String UPDATE_SENTINEL_TIMESTAMP_SQL =
-            """
+    private static final String UPDATE_SENTINEL_TIMESTAMP_SQL = """
             update crypto_allowance_migration
             set timestamp_range = int8range(:timestamp, null)
             where owner = 0 and spender = 0;
@@ -151,7 +146,7 @@ public class FixCryptoAllowanceAmountMigration extends AsyncJavaMigration<Long> 
         return MigrationVersion.fromVersion("1.84.2"); // The version crypto_allowance_migration is created
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Optional<Long> migratePartial(Long last) {
         long minTimestamp = getEarliestTimestamp();

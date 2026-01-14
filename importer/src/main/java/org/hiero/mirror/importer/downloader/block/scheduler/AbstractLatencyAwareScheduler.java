@@ -6,6 +6,7 @@ import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -15,6 +16,7 @@ import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.SchedulerProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
+import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
@@ -23,13 +25,13 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
     protected final SchedulerProperties schedulerProperties;
 
     protected final List<BlockNode> candidates = new CopyOnWriteArrayList<>();
-    protected final AtomicReference<BlockNode> current = new AtomicReference<>();
+    protected final AtomicReference<@Nullable BlockNode> current = new AtomicReference<>();
     protected final AtomicLong lastScheduledTime = new AtomicLong(0);
 
     protected long lastPostProcessingLatency;
 
     @Override
-    public BlockNode getNode(long blockNumber) {
+    public BlockNode getNode(final AtomicLong blockNumber) {
         try {
             latencyService.cancelAll();
             current.set(super.getNode(blockNumber));
@@ -37,7 +39,7 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
             candidates.addAll(getCandidates());
             latencyService.setNodes(candidates);
             lastScheduledTime.set(System.currentTimeMillis());
-            return current.get();
+            return Objects.requireNonNull(current.get());
         } catch (BlockStreamException ex) {
             current.set(null);
             throw ex;
@@ -56,15 +58,16 @@ abstract class AbstractLatencyAwareScheduler extends AbstractScheduler {
             return false;
         }
 
-        long latency = Utils.getLatency(blockFile, blockStream);
-        current.get().recordLatency(latency);
+        final long latency = Utils.getLatency(blockFile, blockStream);
+        final var node = Objects.requireNonNull(current.get());
+        node.recordLatency(latency);
 
         if (System.currentTimeMillis() - lastScheduledTime.get()
                 < schedulerProperties.getMinRescheduleInterval().toMillis()) {
             return false;
         }
 
-        long updatedLatency = current.get().getLatency();
+        long updatedLatency = node.getLatency();
         for (var candidate : candidates) {
             if (updatedLatency
                     >= candidate.getLatency()

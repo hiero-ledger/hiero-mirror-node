@@ -10,12 +10,12 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ContractCallResponse;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Wraps an instance of OpenAPI model object {@link ContractCallResponse} and provides additional convenience

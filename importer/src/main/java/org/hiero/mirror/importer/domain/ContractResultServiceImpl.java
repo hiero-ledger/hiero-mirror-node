@@ -3,20 +3,17 @@
 package org.hiero.mirror.importer.domain;
 
 import com.google.common.base.Stopwatch;
-import com.google.protobuf.ByteString;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
 import com.hedera.services.stream.proto.ContractBytecode;
 import com.hedera.services.stream.proto.ContractStateChange;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.contract.ContractLog;
@@ -30,23 +27,31 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NonNull;
 
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class ContractResultServiceImpl implements ContractResultService {
+final class ContractResultServiceImpl implements ContractResultService {
 
+    public static final int HOOK_CONTRACT_NUM = 365;
+    private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;
     private final EntityListener entityListener;
+    private final ImporterProperties importerProperties;
     private final SidecarContractMigration sidecarContractMigration;
     private final TransactionHandlerFactory transactionHandlerFactory;
+    private final EvmHookStorageHandler evmHookStorageHandler;
 
     @Override
     @SuppressWarnings("java:S2259")
@@ -55,7 +60,6 @@ public class ContractResultServiceImpl implements ContractResultService {
             return;
         }
 
-        var transactionBody = recordItem.getTransactionBody();
         var transactionRecord = recordItem.getTransactionRecord();
         var functionResult = transactionRecord.hasContractCreateResult()
                 ? transactionRecord.getContractCreateResult()
@@ -64,8 +68,8 @@ public class ContractResultServiceImpl implements ContractResultService {
         final var sidecarProcessingResult = processSidecarRecords(recordItem);
 
         // handle non create/call transactions
-        var contractCallOrCreate = isContractCreateOrCall(transactionBody);
-        if (!contractCallOrCreate && !isValidContractFunctionResult(functionResult)) {
+        boolean contractCallOrCreate = isContractCreateOrCall(transaction);
+        if (!contractCallOrCreate && !isContractFunctionResultSet(functionResult)) {
             addDefaultEthereumTransactionContractResult(recordItem, transaction);
             // skip any other transaction which is neither a create/call and has no valid ContractFunctionResult
             return;
@@ -119,12 +123,13 @@ public class ContractResultServiceImpl implements ContractResultService {
         entityListener.onContractResult(contractResult);
     }
 
-    private boolean isValidContractFunctionResult(ContractFunctionResult contractFunctionResult) {
+    private boolean isContractFunctionResultSet(ContractFunctionResult contractFunctionResult) {
         return !contractFunctionResult.equals(ContractFunctionResult.getDefaultInstance());
     }
 
-    private boolean isContractCreateOrCall(TransactionBody transactionBody) {
-        return transactionBody.hasContractCall() || transactionBody.hasContractCreateInstance();
+    private boolean isContractCreateOrCall(Transaction transaction) {
+        return transaction.getType() == TransactionType.CONTRACTCALL.getProtoId()
+                || transaction.getType() == TransactionType.CONTRACTCREATEINSTANCE.getProtoId();
     }
 
     private void processContractAction(ContractAction action, int index, RecordItem recordItem) {
@@ -234,22 +239,14 @@ public class ContractResultServiceImpl implements ContractResultService {
             contractResult.setFailedInitcode(sidecarProcessingResult.initcode());
         }
 
-        if (isValidContractFunctionResult(functionResult)) {
-            if (!isContractCreateOrCall(recordItem.getTransactionBody())) {
-                // amount, gasLimit and functionParameters were missing from record proto prior to HAPI v0.25
-                contractResult.setAmount(functionResult.getAmount());
-                contractResult.setGasLimit(functionResult.getGas());
-                contractResult.setFunctionParameters(DomainUtils.toBytes(functionResult.getFunctionParameters()));
-            }
-
+        if (isContractFunctionResultSet(functionResult)) {
             contractResult.setBloom(DomainUtils.toBytes(functionResult.getBloom()));
             contractResult.setCallResult(DomainUtils.toBytes(functionResult.getContractCallResult()));
             contractResult.setCreatedContractIds(contractIds);
             contractResult.setErrorMessage(functionResult.getErrorMessage());
             contractResult.setFunctionResult(functionResult.toByteArray());
             contractResult.setGasUsed(functionResult.getGasUsed());
-
-            sidecarProcessingResult.updateGasConsumed(contractResult);
+            updateGasConsumed(contractResult, sidecarProcessingResult, recordItem);
 
             if (functionResult.hasSenderId()) {
                 var senderId = EntityId.of(functionResult.getSenderId());
@@ -308,6 +305,13 @@ public class ContractResultServiceImpl implements ContractResultService {
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         var contractId = EntityId.of(stateChange.getContractId());
         var payerAccountId = recordItem.getPayerAccountId();
+
+        // Check if this is hook storage change (contract 365 = 0x16d)
+        if (isHookExecution(recordItem) && isHookExecution(stateChange)) {
+            processHookStorageChanges(recordItem, stateChange);
+            return;
+        }
+
         for (var storageChange : stateChange.getStorageChangesList()) {
             var contractStateChange = new org.hiero.mirror.common.domain.contract.ContractStateChange();
             contractStateChange.setConsensusTimestamp(consensusTimestamp);
@@ -380,7 +384,7 @@ public class ContractResultServiceImpl implements ContractResultService {
         var stopwatch = Stopwatch.createStarted();
 
         Long topLevelActionSidecarGasUsed = null;
-        ByteString payloadBytes = null;
+        byte[] payloadBytes = null;
         boolean isContractCreation = false;
 
         for (final var sidecarRecord : sidecarRecords) {
@@ -404,7 +408,7 @@ public class ContractResultServiceImpl implements ContractResultService {
                 if (migration) {
                     contractBytecodes.add(sidecarRecord.getBytecode());
                 } else {
-                    payloadBytes = sidecarRecord.getBytecode().getInitcode();
+                    payloadBytes = contractInitcodeService.get(sidecarRecord.getBytecode(), recordItem);
                     isContractCreation = true;
                 }
             }
@@ -422,8 +426,30 @@ public class ContractResultServiceImpl implements ContractResultService {
                     stopwatch);
         }
 
-        return new SidecarProcessingResult(
-                DomainUtils.toBytes(payloadBytes), isContractCreation, topLevelActionSidecarGasUsed);
+        return new SidecarProcessingResult(payloadBytes, isContractCreation, topLevelActionSidecarGasUsed);
+    }
+
+    /**
+     * Updates gas consumed based on HAPI version and smart contract throttling version. If the RecordItem's HAPI
+     * version is equal or greater than the smart contract throttling version, uses the gas used field from
+     * {@link ContractResult}. Otherwise, uses the existing logic with manual calculation.
+     *
+     * @param contractResult          The contract result to update
+     * @param sidecarProcessingResult The sidecar processing result containing gas usage information
+     * @param recordItem              The record item being processed
+     */
+    private void updateGasConsumed(
+            ContractResult contractResult, SidecarProcessingResult sidecarProcessingResult, RecordItem recordItem) {
+        final var throttlingVersion = importerProperties.getSmartContractThrottlingVersion();
+        final var hapiVersion = recordItem.getHapiVersion();
+
+        if (hapiVersion.isGreaterThanOrEqualTo(throttlingVersion)) {
+            // Use directly gas used field
+            contractResult.setGasConsumed(contractResult.getGasUsed());
+        } else {
+            // Use legacy logic for manual calculation of gas consumed for older HAPI versions
+            sidecarProcessingResult.calculateGasConsumed(contractResult);
+        }
     }
 
     /**
@@ -479,6 +505,66 @@ public class ContractResultServiceImpl implements ContractResultService {
     }
 
     /**
+     * Determines if a RecordItem represents a hook execution. Hook executions are ContractCall transactions to the
+     * system hook contract (0x16d) that have a parent consensus timestamp.
+     *
+     * @param recordItem the record item to check
+     * @return true if this is a hook execution, false otherwise
+     */
+    private boolean isHookExecution(RecordItem recordItem) {
+        var transactionRecord = recordItem.getTransactionRecord();
+        var transactionBody = recordItem.getTransactionBody();
+
+        // Must be a ContractCall transaction to 0.0.365 with a parent consensus timestamp
+        return transactionBody.hasContractCall()
+                && transactionRecord.hasParentConsensusTimestamp()
+                && entityIdService
+                        .lookup(transactionBody.getContractCall().getContractID())
+                        .map(entityId -> entityId.getNum() == HOOK_CONTRACT_NUM)
+                        .orElse(false);
+    }
+
+    /**
+     * Determines if a StateChange represents a hook execution. Hook executions are ContractCall transactions to the
+     * system hook contract (0.0.365).
+     *
+     * @param stateChange the state change from the sidecar
+     * @return true if this is a hook execution, false otherwise
+     */
+    private boolean isHookExecution(ContractStateChange stateChange) {
+        // Must be a ContractCall transaction to 0.0.365 with a parent consensus timestamp
+        return entityIdService
+                .lookup(stateChange.getContractId())
+                .map(entityId -> entityId.getNum() == HOOK_CONTRACT_NUM)
+                .orElse(false);
+    }
+
+    /**
+     * Processes hook storage changes from contract state changes targeting the hook system contract (0.0.365). Uses the
+     * transient queue in the parent RecordItem to track sequential hook execution context.
+     *
+     * @param recordItem  the record item containing the hook execution transaction
+     * @param stateChange the contract state change containing hook storage updates
+     */
+    private void processHookStorageChanges(RecordItem recordItem, ContractStateChange stateChange) {
+        // Get one hook context for this ContractStateChange
+        var hookContext = recordItem.nextHookContext();
+        if (hookContext == null || hookContext.getOwnerId() == EntityId.EMPTY.getId()) {
+            Utility.handleRecoverableError(
+                    "No hook context available in parent transaction for hook execution at consensus timestamp {}",
+                    recordItem.getConsensusTimestamp());
+            return;
+        }
+
+        // Process each storage change with the same hook context
+        evmHookStorageHandler.processStorageUpdatesForSidecar(
+                recordItem.getConsensusTimestamp(),
+                hookContext.getHookId(),
+                hookContext.getOwnerId(),
+                stateChange.getStorageChangesList());
+    }
+
+    /**
      * Record representing the result of processing sidecar records.
      *
      * @param initcode           The payload of the contract transaction.
@@ -495,7 +581,7 @@ public class ContractResultServiceImpl implements ContractResultService {
         /**
          * Update the gas consumed for a contract transaction.
          */
-        void updateGasConsumed(ContractResult contractResult) {
+        void calculateGasConsumed(ContractResult contractResult) {
             if (totalGasUsed == null) {
                 return;
             }

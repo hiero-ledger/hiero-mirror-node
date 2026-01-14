@@ -3,19 +3,37 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.common.collect.Range;
+import java.util.Objects;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
+import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.CacheManager;
 
+@ExtendWith(ContextExtension.class)
 @RequiredArgsConstructor
 class EntityRepositoryTest extends Web3IntegrationTest {
     private final EntityRepository entityRepository;
+
+    @Qualifier(CACHE_MANAGER_ENTITY)
+    private final CacheManager entityCacheManager;
+
+    @Qualifier(CACHE_MANAGER_SYSTEM_ACCOUNT)
+    private final CacheManager systemAccountCacheManager;
 
     @Test
     void findByIdAndDeletedIsFalseSuccessfulCall() {
@@ -449,6 +467,62 @@ class EntityRepositoryTest extends Web3IntegrationTest {
         assertThat(entityRepository.findMaxId()).isEqualTo(lastId);
     }
 
+    @Test
+    void findByIdAndDeletedIsFalseWhenSystemAccountIsCachedInBothCaches() {
+        final var systemEntity =
+                domainBuilder.entity().customize(e -> e.id(777L)).persist();
+        ContractCallContext.get().setBalanceCall(false);
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
+                .contains(systemEntity);
+
+        entityRepository.delete(systemEntity);
+        invalidateCache();
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
+                .as("Entity should be found in the system account cache after clearing the regular cache")
+                .contains(systemEntity);
+    }
+
+    @Test
+    void findByIdAndDeletedIsFalseWhenSystemAccountIsCachedOnlyInEntityCacheOnBalanceCall() {
+        final var systemEntity =
+                domainBuilder.entity().customize(e -> e.id(777L)).persist();
+        ContractCallContext.get().setBalanceCall(true);
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
+                .contains(systemEntity);
+
+        entityRepository.delete(systemEntity);
+        invalidateCache();
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(systemEntity.getId()))
+                .as("Entity should NOT be found after clearing the regular cache")
+                .isEmpty();
+    }
+
+    @ParameterizedTest()
+    @ValueSource(booleans = {true, false})
+    void findByIdAndDeletedIsFalseWhenRegularAccountIsCachedOnlyInEntityCache(boolean isBalanceCall) {
+        final var regularEntity =
+                domainBuilder.entity().customize(e -> e.id(2000L)).persist();
+        ContractCallContext.get().setBalanceCall(isBalanceCall);
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(regularEntity.getId()))
+                .contains(regularEntity);
+
+        entityRepository.delete(regularEntity);
+        invalidateCache();
+
+        assertThat(entityRepository.findByIdAndDeletedIsFalse(regularEntity.getId()))
+                .as("Entity should NOT be found after clearing the regular cache")
+                .isEmpty();
+    }
+
+    private void invalidateCache() {
+        var cache = Objects.requireNonNull(entityCacheManager.getCache(CACHE_NAME), "Cache should NOT be null");
+        cache.invalidate();
+    }
     // Method that provides the test data
     private static Stream<Arguments> shardAndRealmData() {
         return Stream.of(Arguments.of(0L, 0L), Arguments.of(1L, 2L));

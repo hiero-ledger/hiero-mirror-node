@@ -10,6 +10,7 @@ import com.google.common.collect.Range;
 import com.hederahashgraph.api.proto.java.FeeExemptKeyList;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
@@ -19,11 +20,12 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
 
-class CommonMapperTest {
+final class CommonMapperTest {
 
     private final CommonMapper commonMapper = Mappers.getMapper(CommonMapper.class);
     private final DomainBuilder domainBuilder = new DomainBuilder();
@@ -177,6 +179,78 @@ class CommonMapperTest {
         assertThat(commonMapper.mapRange(Range.openClosed(110000000L, 1100000000L)))
                 .usingRecursiveComparison()
                 .isEqualTo(range);
+    }
+
+    @Test
+    void mapTimestampRangeNullable() {
+        var range = new TimestampRangeNullable();
+        var now = System.nanoTime();
+        var timestampString = StringUtils.leftPad(String.valueOf(now), 10, '0');
+
+        // test1
+        assertThat(commonMapper.mapTimestampRangeNullable(null)).isNull();
+
+        // test2
+        range.setFrom("0.0");
+        range.setTo(null);
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.atLeast(0L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test3
+        range.setFrom("0.0");
+        range.setTo(timestampString.substring(0, timestampString.length() - NANO_DIGITS) + "."
+                + timestampString.substring(timestampString.length() - NANO_DIGITS));
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(0L, now)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test4
+        range.setFrom("1586567700.453054000");
+        range.setTo("1586567700.453054000");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(1586567700453054000L, 1586567700453054000L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test5
+        range.setFrom("0.000000001");
+        range.setTo("0.000000100");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(1L, 100L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+
+        // test6
+        range.setFrom("0.110000000");
+        range.setTo("1.100000000");
+        assertThat(commonMapper.mapTimestampRangeNullable(Range.openClosed(110000000L, 1100000000L)))
+                .usingRecursiveComparison()
+                .isEqualTo(range);
+    }
+
+    @Test
+    void mapTimestamp() {
+        assertThat(commonMapper.mapTimestamp(null)).isNull();
+        assertThat(commonMapper.mapTimestamp(0L)).isEqualTo("0.0");
+        assertThat(commonMapper.mapTimestamp(123456789L)).isEqualTo("0.123456789");
+        assertThat(commonMapper.mapTimestamp(123456789000000000L)).isEqualTo("123456789.000000000");
+        assertThat(commonMapper.mapTimestamp(123456789012345678L)).isEqualTo("123456789.012345678");
+    }
+
+    @Test
+    void mapTimestampSeconds() {
+        assertThat(commonMapper.mapTimestampSeconds(null)).isNull();
+        assertThat(commonMapper.mapTimestampSeconds(
+                        TimestampSeconds.newBuilder().setSeconds(12345).build()))
+                .isEqualTo(12345);
+    }
+
+    @Test
+    void mapByteArrayToHexString() {
+        assertThat(commonMapper.mapByteArrayToHexString(null)).isNull();
+        assertThat(commonMapper.mapByteArrayToHexString(new byte[] {}))
+                .isEqualTo("0x0000000000000000000000000000000000000000000000000000000000000000");
+        assertThat(commonMapper.mapByteArrayToHexString(new byte[] {0x0A, 0x1B, 0x2C}))
+                .isEqualTo("0x00000000000000000000000000000000000000000000000000000000000a1b2c");
     }
 
     private org.hiero.mirror.rest.model.Key toKey(byte[] bytes, TypeEnum type) {

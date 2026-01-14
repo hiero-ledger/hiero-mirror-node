@@ -18,7 +18,7 @@ const config = getMirrorConfig();
 const NETWORK_FEE = 1n;
 const NODE_FEE = 2n;
 const SERVICE_FEE = 4n;
-const DEFAULT_FEE_COLLECTOR_NUM = EntityId.systemEntity.feeCollector.num;
+const DEFAULT_FEE_COLLECTOR_NUM = EntityId.systemEntity.networkAdminFeeAccount.num;
 const DEFAULT_NODE_ID = 3;
 const DEFAULT_PAYER_ACCOUNT_ID = 102;
 const DEFAULT_SENDER_ID = 101;
@@ -49,7 +49,6 @@ const setup = async (testDataJson) => {
   await loadEntityStakes(testDataJson.entityStakes);
   await loadEthereumTransactions(testDataJson.ethereumtransactions);
   await loadFileData(testDataJson.filedata);
-  await loadNetworkStakes(testDataJson.networkstakes);
   await loadNfts(testDataJson.nfts);
   await loadNodes(testDataJson.nodes);
   await loadNodeStakes(testDataJson.nodestakes);
@@ -364,16 +363,6 @@ const loadNfts = async (nfts) => {
 
   for (const nft of nfts) {
     await addNft(nft);
-  }
-};
-
-const loadNetworkStakes = async (networkStakes) => {
-  if (networkStakes == null) {
-    return;
-  }
-
-  for (const networkStake of networkStakes) {
-    await addNetworkStake(networkStake);
   }
 };
 
@@ -976,10 +965,12 @@ const addTransaction = async (transaction) => {
 };
 
 const addTransactionHash = async (transactionHash) => {
-  transactionHash.hash = valueToBuffer(transactionHash.hash);
-  transactionHash.distribution_id = transactionHash.hash.readInt16BE();
-  transactionHash.payer_account_id = EntityId.parse(transactionHash.payer_account_id).getEncodedId();
-  await insertDomainObject('transaction_hash', Object.keys(transactionHash), transactionHash);
+  const hashCopy = {...transactionHash};
+  const hashBuffer = valueToBuffer(hashCopy.hash);
+  hashCopy.hash = hashBuffer.subarray(0, 32);
+  hashCopy.hash_suffix = hashBuffer.length > 32 ? hashBuffer.subarray(32) : null;
+  hashCopy.payer_account_id = EntityId.parse(hashCopy.payer_account_id).getEncodedId();
+  await insertDomainObject('transaction_hash', Object.keys(hashCopy), hashCopy);
 };
 
 const insertTransfers = async (
@@ -1122,6 +1113,7 @@ const contractStateDefaults = {
 };
 
 const nodeDefaults = {
+  account_id: null,
   admin_key: 'OiG1sc5qQaLDwUfqfBg8urypfFGcwlesArZzBDsEgvyr0MQ',
   created_timestamp: 1664365660048674966,
   decline_reward: false,
@@ -1608,36 +1600,6 @@ const addTokenBalance = async (tokenBalance) => {
   );
 };
 
-const addNetworkStake = async (networkStakeInput) => {
-  const stakingPeriodEnd = 86_400_000_000_000n - 1n;
-  const networkStake = {
-    consensus_timestamp: 0,
-    epoch_day: 0,
-    max_stake_rewarded: 10,
-    max_staking_reward_rate_per_hbar: 17808,
-    max_total_reward: 20,
-    node_reward_fee_denominator: 0,
-    node_reward_fee_numerator: 100,
-    reserved_staking_rewards: 30,
-    reward_balance_threshold: 40,
-    stake_total: 10000000,
-    staking_period: stakingPeriodEnd,
-    staking_period_duration: 1440,
-    staking_periods_stored: 365,
-    staking_reward_fee_denominator: 100,
-    staking_reward_fee_numerator: 100,
-    staking_reward_rate: 100000000000,
-    staking_start_threshold: 25000000000000000,
-    unreserved_staking_reward_balance: 50,
-    ...networkStakeInput,
-  };
-  const insertFields = Object.keys(networkStake)
-    .filter((k) => !k.startsWith('_'))
-    .sort();
-
-  await insertDomainObject('network_stake', insertFields, networkStake);
-};
-
 const nftDefaults = {
   account_id: '0.0.0',
   created_timestamp: 0,
@@ -1677,6 +1639,7 @@ const addNode = async (nodeInput) => {
 
   convertByteaFields(['admin_key'], node);
   node.grpc_proxy_endpoint = node.grpc_proxy_endpoint ? JSONStringify(node.grpc_proxy_endpoint) : null;
+  node.account_id = encodedIdFromSpecValue(node.account_id);
   await insertDomainObject('node', Object.keys(nodeDefaults), node);
 };
 
@@ -1794,7 +1757,6 @@ export default {
   loadEntities,
   loadEthereumTransactions,
   loadFileData,
-  loadNetworkStakes,
   loadNodes,
   loadNodeStakes,
   loadRecordFiles,

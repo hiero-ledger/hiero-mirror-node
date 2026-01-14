@@ -29,10 +29,15 @@ public class CompositeEthereumTransactionParser implements EthereumTransactionPa
     }
 
     @Override
-    public byte[] getHash(byte[] callData, EntityId callDataId, long consensusTimestamp, byte[] transactionBytes) {
+    public byte[] getHash(
+            byte[] callData,
+            EntityId callDataId,
+            long consensusTimestamp,
+            byte[] transactionBytes,
+            boolean useCurrentState) {
         try {
             var parser = getEthereumTransactionParser(transactionBytes);
-            return parser.getHash(callData, callDataId, consensusTimestamp, transactionBytes);
+            return parser.getHash(callData, callDataId, consensusTimestamp, transactionBytes, useCurrentState);
         } catch (Exception e) {
             log.warn("Failed to calculate hash for ethereum transaction at {}", consensusTimestamp, e);
             return ArrayUtils.EMPTY_BYTE_ARRAY;

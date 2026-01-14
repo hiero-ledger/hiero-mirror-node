@@ -9,6 +9,7 @@ Feature: HCS Base Coverage Feature
     And ALICE publishes message to topic
     Then I verify the publish message transaction from ALICE in mirror node REST API
     Then I verify the published message in mirror node REST API
+    Then I verify the published message can be retrieved by consensus timestamp
     And DAVE publishes message to topic
     Then I verify the publish message transaction from DAVE in mirror node REST API
     Then I verify the published message in mirror node REST API

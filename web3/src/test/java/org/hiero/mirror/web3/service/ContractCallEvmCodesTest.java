@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.node.app.service.evm.utils.EthSigsUtils.recoverAddressFromPubKey;
+import static com.hedera.node.app.hapi.utils.EthSigsUtils.recoverAddressFromPubKey;
 import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_SOLIDITY_ADDRESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -11,7 +11,7 @@ import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.getUnixSeconds;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,6 +35,8 @@ import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hiero.mirror.web3.web3j.generated.EvmCodes.G1Point;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.web3j.abi.FunctionReturnDecoder;
@@ -49,18 +51,6 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     private static final Long EVM_46_BLOCK_INDEX = 150L;
 
     private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    /**
-     * Verifies that the chainId function of the EvmCodes contract returns
-     * the chain id of the network that the contract is running on.
-     */
-    @Test
-    void chainId() throws Exception {
-        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        var actualNetworkChainId = contract.call_chainId().send();
-        var hederaNetworkChainId = mirrorNodeEvmProperties.chainIdBytes32().toBigInteger();
-        assertThat(actualNetworkChainId).isEqualTo(hederaNetworkChainId);
-    }
 
     @Test
     void recoverAddressPrecompiledContract() throws Exception {
@@ -241,6 +231,7 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void selfDestructCall() throws Exception {
         // Given
         final var senderEntityId = domainBuilder.entityId();

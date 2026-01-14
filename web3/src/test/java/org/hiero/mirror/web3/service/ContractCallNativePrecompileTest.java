@@ -8,7 +8,6 @@ import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -31,7 +30,7 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
     @BeforeEach
     void setup() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
-        domainBuilder.entity(systemEntity.feeCollectorAccount()).persist();
+        domainBuilder.entity(systemEntity.networkAdminFeeAccount()).persist();
         persistRewardAccounts();
     }
 
@@ -230,15 +229,14 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
     private ContractExecutionParameters serviceParametersForExecution(
             final Bytes callData, final Address contractAddress) {
         final var account = accountEntityWithEvmAddressPersist();
-        final HederaEvmAccount sender = new HederaEvmAccount(Address.wrap(Bytes.wrap(account.getEvmAddress())));
 
         return ContractExecutionParameters.builder()
-                .sender(sender)
+                .sender(Address.wrap(Bytes.wrap(account.getEvmAddress())))
                 .receiver(contractAddress)
                 .callData(callData)
                 .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(0L)
                 .isStatic(false)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(false)
                 .callType(ETH_CALL)
                 .value(0L)

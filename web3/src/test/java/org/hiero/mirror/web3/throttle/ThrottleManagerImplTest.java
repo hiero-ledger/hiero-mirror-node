@@ -109,23 +109,6 @@ final class ThrottleManagerImplTest {
         var request = request();
         throttleManager.throttle(request);
         assertThat(output).contains("ContractCallRequest(");
-        assertThat(request.getModularized()).isNull();
-    }
-
-    @Test
-    void requestMonolithic() {
-        requestProperties.setAction(ActionType.MONOLITHIC);
-        var request = request();
-        throttleManager.throttle(request);
-        assertThat(request.getModularized()).isFalse();
-    }
-
-    @Test
-    void requestModularized() {
-        requestProperties.setAction(ActionType.MODULARIZED);
-        var request = request();
-        throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -135,7 +118,6 @@ final class ThrottleManagerImplTest {
         assertThatThrownBy(() -> throttleManager.throttle(request))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining("Invalid request");
-        assertThat(request.getModularized()).isNull();
     }
 
     @Test
@@ -149,7 +131,6 @@ final class ThrottleManagerImplTest {
         assertThatThrownBy(() -> throttleManager.throttle(request))
                 .isInstanceOf(ThrottleException.class)
                 .hasMessageContaining(REQUEST_PER_SECOND_LIMIT_EXCEEDED);
-        assertThat(request.getModularized()).isNull();
     }
 
     @Test
@@ -162,32 +143,26 @@ final class ThrottleManagerImplTest {
     @Test
     void requestMultipleActions(CapturedOutput output) {
         var modularizedRequest = new RequestProperties();
-        modularizedRequest.setAction(ActionType.MODULARIZED);
         throttleProperties.setRequest(List.of(requestProperties, modularizedRequest));
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
         assertThat(output).contains("ContractCallRequest(");
     }
 
     @Test
     void requestNoFilters() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestProperties.setFilters(List.of());
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestMultipleFilters() {
         var dataFilter = new RequestFilter();
         dataFilter.setExpression("beef");
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestProperties.setFilters(List.of(requestFilter, dataFilter));
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
@@ -215,93 +190,57 @@ final class ThrottleManagerImplTest {
     }
 
     @Test
-    void requestPercentage() {
-        int countModularized = 0;
-        int requests = 1000;
-        requestProperties.setAction(ActionType.MODULARIZED);
-        requestProperties.setRate(50);
-        throttleProperties.setRequestsPerSecond(requests);
-        throttleProperties.setGasPerSecond(GAS_PER_SECOND * requests);
-        var customThrottleManager = createThrottleManager();
-
-        for (int i = 0; i < requests; ++i) {
-            var request = request();
-            request.setGas(21_000L);
-            customThrottleManager.throttle(request);
-
-            var modularized = request.getModularized();
-            if (modularized != null && modularized) {
-                ++countModularized;
-            }
-        }
-
-        assertThat(countModularized).isGreaterThan(400).isLessThan(600);
-    }
-
-    @Test
     void requestFilterData() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("dead");
         requestFilter.setField(FilterField.DATA);
         requestFilter.setType(FilterType.CONTAINS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestFilterEstimate() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("false");
         requestFilter.setField(FilterField.ESTIMATE);
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestFilterFrom() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("04e2");
         requestFilter.setField(FilterField.FROM);
         requestFilter.setType(FilterType.CONTAINS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestFilterGas() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression(String.valueOf(GAS_PER_SECOND));
         requestFilter.setField(FilterField.GAS);
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestFilterTo() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("0x00000000000000000000000000000000000004e4");
         requestFilter.setField(FilterField.TO);
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     @Test
     void requestFilterValue() {
-        requestProperties.setAction(ActionType.MODULARIZED);
         requestFilter.setExpression("1");
         requestFilter.setField(FilterField.VALUE);
         requestFilter.setType(FilterType.EQUALS);
         var request = request();
         throttleManager.throttle(request);
-        assertThat(request.getModularized()).isTrue();
     }
 
     private Bucket createBucket(long capacity) {

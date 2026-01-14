@@ -6,7 +6,7 @@ import {Cache} from '../../cache';
 import config from '../../config';
 import integrationContainerOps from '../integrationContainerOps';
 import integrationDomainOps from '../integrationDomainOps';
-import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import {slowStepTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 
 let cache;
 let redisContainer;
@@ -29,7 +29,7 @@ beforeAll(async () => {
   server = (await import('../../server')).default;
   await global.pool.end();
   global.pool = pool;
-}, defaultBeforeAllTimeoutMillis);
+}, slowStepTimeoutMillis);
 
 afterAll(async () => {
   await cache.stop();
@@ -37,7 +37,7 @@ afterAll(async () => {
   logger.info('Stopped Redis container');
   config.cache.response.enabled = false;
   config.redis.enabled = false;
-});
+}, slowStepTimeoutMillis);
 
 describe('Response cache', () => {
   const expectedBody = JSON.stringify({

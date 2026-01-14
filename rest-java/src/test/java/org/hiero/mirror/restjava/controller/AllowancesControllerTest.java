@@ -29,7 +29,7 @@ import org.springframework.web.client.RestClient.RequestHeadersSpec;
 import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 
 @RequiredArgsConstructor
-class AllowancesControllerTest extends ControllerTest {
+final class AllowancesControllerTest extends ControllerTest {
 
     private final NftAllowanceMapper mapper;
 
@@ -45,7 +45,7 @@ class AllowancesControllerTest extends ControllerTest {
         @Override
         protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
             var entity = domainBuilder.entity().persist();
-            var allowance = nftAllowance(a -> a.owner(entity.getId()));
+            nftAllowance(a -> a.owner(entity.getId()));
             return uriSpec.uri("", entity.getNum());
         }
 
@@ -298,10 +298,7 @@ class AllowancesControllerTest extends ControllerTest {
                     () -> restClient.get().uri("", id).retrieve().body(NftAllowancesResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'id' with value: '" + id + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'id'");
         }
 
         @ParameterizedTest
@@ -324,17 +321,14 @@ class AllowancesControllerTest extends ControllerTest {
                     .body(NftAllowancesResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'account.id' with value: '" + accountId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'account.id'");
         }
 
         @ParameterizedTest
         @CsvSource({
             "101, limit must be less than or equal to 100",
             "-1, limit must be greater than 0",
-            "a, Failed to convert 'limit' with value: 'a'"
+            "a, Failed to convert 'limit'"
         })
         void invalidLimit(String limit, String expected) {
             // When
@@ -350,9 +344,9 @@ class AllowancesControllerTest extends ControllerTest {
 
         @ParameterizedTest
         @CsvSource({
-            "ascending, Failed to convert 'order' with value: 'ascending'",
-            "dsc, Failed to convert 'order' with value: 'dsc'",
-            "invalid, Failed to convert 'order' with value: 'invalid'"
+            "ascending, Failed to convert 'order'",
+            "dsc, Failed to convert 'order'",
+            "invalid, Failed to convert 'order'"
         })
         void invalidOrder(String order, String expected) {
             // When
@@ -369,12 +363,12 @@ class AllowancesControllerTest extends ControllerTest {
         @ParameterizedTest
         @ValueSource(
                 strings = {
-                    "0.000000000000000000000000000000000186Fb1b",
-                    "0.0.000000000000000000000000000000000186Fb1b",
-                    "0x000000000000000000000000000000000186Fb1b",
-                    "0.0.AABBCC22",
-                    "0.AABBCC22",
-                    "AABBCC22"
+                    "0." + EVM_ADDRESS,
+                    "0.0." + EVM_ADDRESS,
+                    "0x" + EVM_ADDRESS,
+                    "0.0." + ALIAS,
+                    "0." + ALIAS,
+                    ALIAS
                 })
         void notFound(String accountId) {
             // When
@@ -425,10 +419,7 @@ class AllowancesControllerTest extends ControllerTest {
                     .body(NftAllowancesResponse.class);
 
             // Then
-            validateError(
-                    callable,
-                    HttpClientErrorException.BadRequest.class,
-                    "Failed to convert 'token.id' with value: '" + tokenId + "'");
+            validateError(callable, HttpClientErrorException.BadRequest.class, "Failed to convert 'token.id'");
         }
 
         @Test

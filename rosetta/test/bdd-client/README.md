@@ -12,7 +12,7 @@ The client currently supports basic crypto create, alias account creation, and c
 
 ## Requirements
 
-- golang 1.24+
+- golang 1.25+
 - two testnet accounts with private key
 - aws / gcp credentials with requester pay enabled to access the network cloud storage
 

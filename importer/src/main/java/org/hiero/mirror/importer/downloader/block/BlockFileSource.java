@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.importer.downloader.block.scheduler.Scheduler.EARLIEST_AVAILABLE_BLOCK_NUMBER;
+
 import com.google.common.base.Stopwatch;
 import com.hedera.hapi.block.stream.protoc.Block;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -25,25 +27,28 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NullMarked;
 
 @Named
+@NullMarked
 final class BlockFileSource extends AbstractBlockSource {
+
+    private static final String DEFAULT_NODE_ENDPOINT = "cloud";
 
     private final ConsensusNodeService consensusNodeService;
     private final StreamFileProvider streamFileProvider;
 
     // metrics
     private final Timer cloudStorageLatencyMetric;
-    private final Timer downloadLatencyMetric;
 
     BlockFileSource(
-            BlockStreamReader blockStreamReader,
-            BlockStreamVerifier blockStreamVerifier,
-            CommonDownloaderProperties commonDownloaderProperties,
-            ConsensusNodeService consensusNodeService,
-            MeterRegistry meterRegistry,
-            BlockProperties properties,
-            StreamFileProvider streamFileProvider) {
+            final BlockStreamReader blockStreamReader,
+            final BlockStreamVerifier blockStreamVerifier,
+            final CommonDownloaderProperties commonDownloaderProperties,
+            final ConsensusNodeService consensusNodeService,
+            final MeterRegistry meterRegistry,
+            final BlockProperties properties,
+            final StreamFileProvider streamFileProvider) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
         this.consensusNodeService = consensusNodeService;
         this.streamFileProvider = streamFileProvider;
@@ -53,26 +58,26 @@ final class BlockFileSource extends AbstractBlockSource {
                         + "and the time at which the file was created in the cloud storage provider")
                 .tag("type", StreamType.BLOCK.toString())
                 .register(meterRegistry);
-
-        downloadLatencyMetric = Timer.builder("hiero.mirror.importer.stream.latency")
-                .description("The difference in time between the consensus time of the last transaction in the file "
-                        + "and the time at which the file was downloaded and verified")
-                .tag("type", StreamType.BLOCK.toString())
-                .register(meterRegistry);
     }
 
     @Override
-    protected void doGet(long blockNumber, Long endBlockNumber) {
-        var nodes = getRandomizedNodes();
-        var stopwatch = Stopwatch.createStarted();
-        var streamFilename = StreamFilename.from(blockNumber);
-        var filename = streamFilename.getFilename();
-        var streamPath = commonDownloaderProperties.getImporterProperties().getStreamPath();
+    protected void doGet(final long blockNumber, final Long endBlockNumber) {
+        if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
+            throw new IllegalStateException(
+                    this.getClass().getSimpleName() + " doesn't support earliest available block number");
+        }
+
+        final var nodes = getRandomizedNodes();
+        final var stopwatch = Stopwatch.createStarted();
+        final var streamFilename = StreamFilename.from(blockNumber);
+        final var filename = streamFilename.getFilename();
+        final var streamPath =
+                commonDownloaderProperties.getImporterProperties().getStreamPath();
         var timeout = commonDownloaderProperties.getTimeout();
 
         for (int i = 0; i < nodes.size() && timeout.isPositive(); i++) {
-            var node = nodes.get(i);
-            long nodeId = node.getNodeId();
+            final var node = nodes.get(i);
+            final long nodeId = node.getNodeId();
 
             try {
                 var blockFileData = streamFileProvider
@@ -82,12 +87,11 @@ final class BlockFileSource extends AbstractBlockSource {
                 log.debug("Downloaded block file {} from node {}", filename, nodeId);
 
                 var blockStream = getBlockStream(blockFileData, nodeId);
-                var blockFile = onBlockStream(blockStream);
+                var blockFile = onBlockStream(blockStream, DEFAULT_NODE_ENDPOINT);
 
                 var cloudStorageTime = blockFileData.getLastModified();
                 var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
                 cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
-                downloadLatencyMetric.record(Duration.between(consensusEnd, Instant.now()));
 
                 if (properties.isWriteFiles()) {
                     Utility.archiveFile(blockFileData.getFilePath(), blockStream.bytes(), streamPath);
@@ -110,10 +114,10 @@ final class BlockFileSource extends AbstractBlockSource {
         throw new BlockStreamException("Failed to download block file " + filename);
     }
 
-    private BlockStream getBlockStream(StreamFileData blockFileData, long nodeId) throws IOException {
-        try (var inputStream = blockFileData.getInputStream()) {
-            var block = Block.parseFrom(inputStream);
-            byte[] bytes = blockFileData.getBytes();
+    private BlockStream getBlockStream(final StreamFileData blockFileData, final long nodeId) throws IOException {
+        try (final var inputStream = blockFileData.getInputStream()) {
+            final var block = Block.parseFrom(inputStream);
+            final byte[] bytes = blockFileData.getBytes();
             return new BlockStream(
                     block.getItemsList(),
                     System.currentTimeMillis(),
@@ -125,7 +129,7 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     private List<ConsensusNode> getRandomizedNodes() {
-        var nodes = new ArrayList<>(consensusNodeService.getNodes());
+        final var nodes = new ArrayList<>(consensusNodeService.getNodes());
         Collections.shuffle(nodes);
         return nodes;
     }

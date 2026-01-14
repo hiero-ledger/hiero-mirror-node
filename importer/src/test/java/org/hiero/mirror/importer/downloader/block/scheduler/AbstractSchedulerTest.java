@@ -8,8 +8,11 @@ import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Collection;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -17,6 +20,7 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.mirror.importer.downloader.block.BlockNode;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
+import org.jspecify.annotations.NullUnmarked;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,10 +28,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith({GrpcCleanupExtension.class, MockitoExtension.class})
+@NullUnmarked
 abstract class AbstractSchedulerTest {
 
     @Mock
     protected LatencyService latencyService;
+
+    protected MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @AutoClose
     protected Scheduler scheduler;
@@ -43,7 +50,7 @@ abstract class AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when, then
-        assertThatThrownBy(() -> scheduler.getNode(1))
+        assertThatThrownBy(() -> scheduler.getNode(new AtomicLong(1)))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessageContaining("No block node can provide block 1");
     }
@@ -77,6 +84,10 @@ abstract class AbstractSchedulerTest {
         for (int i = 0; i < 5; i++) {
             blockNode.recordLatency(latency);
         }
+    }
+
+    protected static AtomicLong blockNumber(final long number) {
+        return new AtomicLong(number);
     }
 
     protected static ServerStatusResponse withAllBlocks() {

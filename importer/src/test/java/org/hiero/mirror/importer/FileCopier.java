@@ -9,7 +9,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
 import lombok.CustomLog;
-import lombok.NonNull;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -22,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.jspecify.annotations.NonNull;
 
 @CustomLog
 @Value

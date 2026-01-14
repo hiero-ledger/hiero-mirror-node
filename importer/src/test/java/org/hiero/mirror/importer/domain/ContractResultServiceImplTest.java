@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
+import com.hederahashgraph.api.proto.java.ContractCallTransactionBody.Builder;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenType;
@@ -20,47 +21,68 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.contract.ContractTransaction;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.hook.AbstractHook;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.converter.VersionConverter;
 import org.hiero.mirror.importer.migration.SidecarContractMigration;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.hiero.mirror.importer.parser.record.transactionhandler.EvmHookStorageHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandler;
 import org.hiero.mirror.importer.parser.record.transactionhandler.TransactionHandlerFactory;
+import org.hiero.mirror.importer.service.ContractInitcodeService;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.data.util.Version;
 
 @ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
-class ContractResultServiceImplTest {
+final class ContractResultServiceImplTest {
+
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
     private static final String RECOVERABLE_ERROR_LOG_PREFIX = "Recoverable error. ";
+    private static final Version DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION = Version.parse("0.67.0");
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
     private final EntityProperties entityProperties = new EntityProperties(systemEntity);
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
+    @Mock
+    private ContractInitcodeService contractInitcodeService;
+
     @Mock(strictness = LENIENT)
     private EntityIdService entityIdService;
 
     @Mock
     private EntityListener entityListener;
+
+    @Mock
+    private ImporterProperties importerProperties;
 
     @Mock
     private SidecarContractMigration sidecarContractMigration;
@@ -70,6 +92,9 @@ class ContractResultServiceImplTest {
 
     @Mock
     private TransactionHandler transactionHandler;
+
+    @Mock
+    private EvmHookStorageHandler evmHookStorageHandler;
 
     private ContractResultService contractResultService;
 
@@ -128,8 +153,18 @@ class ContractResultServiceImplTest {
     @BeforeEach
     void beforeEach() {
         doReturn(transactionHandler).when(transactionHandlerFactory).get(any(TransactionType.class));
+        when(importerProperties.getSmartContractThrottlingVersion())
+                .thenReturn(DEFAULT_SMART_CONTRACT_THROTTLING_HAPI_VERSION);
+
         contractResultService = new ContractResultServiceImpl(
-                entityProperties, entityIdService, entityListener, sidecarContractMigration, transactionHandlerFactory);
+                contractInitcodeService,
+                entityProperties,
+                entityIdService,
+                entityListener,
+                importerProperties,
+                sidecarContractMigration,
+                transactionHandlerFactory,
+                evmHookStorageHandler);
     }
 
     @ParameterizedTest
@@ -193,5 +228,137 @@ class ContractResultServiceImplTest {
             expectedTransaction.setContractIds(sorted);
         });
         assertThat(actual).containsExactlyInAnyOrderElementsOf(expectedContractTransactions);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"0.67.0", "0.67.1", "0.67.0-rc.1", "0.68.0"})
+    void gasConsumedWithEqualOrGreaterHapiVersionThanSmartContractThrottling(
+            @ConvertWith(VersionConverter.class) Version hapiVersion) {
+        // Given
+        var recordItem = recordItemBuilder
+                .contractCall(ContractID.newBuilder().setContractNum(1000).build())
+                .recordItem(r -> r.hapiVersion(hapiVersion))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        var capturedContractResult = contractResultCaptor.getValue();
+        assertThat(capturedContractResult.getGasConsumed()).isEqualTo(capturedContractResult.getGasUsed());
+    }
+
+    @Test
+    void gasConsumedWithOlderHapiVersionThanSmartContractThrottling() {
+        // Given
+        var recordItem = recordItemBuilder
+                .contractCall(ContractID.newBuilder().setContractNum(1000).build())
+                .recordItem(r -> r.hapiVersion(Version.parse("0.65.0"))) // Older HAPI version
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        var contractResultCaptor = ArgumentCaptor.forClass(ContractResult.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        verify(entityListener, times(1)).onContractResult(contractResultCaptor.capture());
+        var capturedContractResult = contractResultCaptor.getValue();
+        assertThat(capturedContractResult.getGasConsumed()).isLessThan(capturedContractResult.getGasUsed());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2, 3, 4})
+    void processHookStorageChanges_SuccessfulHookExecution(int hookCount) {
+        // Given
+        var parentRecordItem = recordItemBuilder.cryptoTransfer().build();
+        var hookQueue = new java.util.ArrayDeque<AbstractHook.Id>();
+        // Add 2 hook contexts since default contractCall creates 2 storage changes
+        final var hookId = 123L;
+        final var ownerId = 1001L;
+        IntStream.range(0, hookCount).forEach(i -> {
+            hookQueue.add(new AbstractHook.Id(hookId + i, ownerId + i));
+        });
+        parentRecordItem.setHookExecutionQueue(hookQueue);
+
+        final var contractId = ContractID.newBuilder().setContractNum(365).build();
+        RecordItemBuilder.Builder<Builder> recordItemBuilder = this.recordItemBuilder
+                .contractCall(contractId)
+                .record(r -> r.setParentConsensusTimestamp(this.recordItemBuilder.timestamp()))
+                .recordItem(r -> r.parent(parentRecordItem));
+
+        IntStream.range(0, hookCount - 1).forEach(index -> {
+            recordItemBuilder.sidecarRecords(r -> r.add(this.recordItemBuilder.contractStateChanges(contractId)));
+        });
+
+        var recordItem = recordItemBuilder.build();
+
+        when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(365L)));
+
+        var transaction = domainBuilder.transaction().get();
+        var hookStorageChangeCaptor =
+                ArgumentCaptor.forClass(org.hiero.mirror.common.domain.hook.HookStorageChange.class);
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // then
+        // Verify evmHookStorageHandler.processStorageUpdatesForSidecar is called instead of direct entityListener calls
+        verify(evmHookStorageHandler, times(hookCount))
+                .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "true, true, true, true", // Valid hook execution with value written
+        "true, true, true, false", // Valid hook execution without value written
+        "false, false, false, true", // Not hook execution (wrong contract)
+        "true, false, false, true", // Hook execution but no parent timestamp
+        "true, true, false, true", // Hook execution with parent timestamp but no parent record
+    })
+    void processHookStorageChanges_VariousScenarios(
+            boolean isHookContract, boolean hasParentTimestamp, boolean hasParentRecord, boolean hasValueWritten) {
+
+        // Given
+        var contractNum = isHookContract ? 365L : 999L;
+        var recordItemBuilder_ = recordItemBuilder.contractCall(
+                ContractID.newBuilder().setContractNum(contractNum).build());
+
+        if (hasParentTimestamp) {
+            recordItemBuilder_.record(r -> r.setParentConsensusTimestamp(recordItemBuilder.timestamp()));
+        }
+
+        if (hasParentRecord) {
+            var parentRecordItem = recordItemBuilder.cryptoTransfer().build();
+            var hookQueue = new java.util.ArrayDeque<AbstractHook.Id>();
+            // Add enough hook contexts for the default 2 storage changes
+            hookQueue.add(new AbstractHook.Id(1L, 1001L));
+            hookQueue.add(new AbstractHook.Id(2L, 1002L));
+            parentRecordItem.setHookExecutionQueue(hookQueue);
+            recordItemBuilder_.recordItem(r -> r.parent(parentRecordItem));
+        }
+
+        var recordItem = recordItemBuilder_.build();
+
+        when(entityIdService.lookup(any(ContractID.class))).thenReturn(Optional.of(EntityId.of(contractNum)));
+
+        var transaction = domainBuilder.transaction().get();
+
+        // When
+        contractResultService.process(recordItem, transaction);
+
+        // Then
+        boolean shouldProcessHook = isHookContract && hasParentTimestamp && hasParentRecord;
+        if (shouldProcessHook) {
+            // Should process hook storage changes via evmHookStorageHandler
+            verify(evmHookStorageHandler, times(1))
+                    .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
+        } else {
+            verify(evmHookStorageHandler, times(0))
+                    .processStorageUpdatesForSidecar(any(Long.class), any(Long.class), any(Long.class), any());
+        }
     }
 }

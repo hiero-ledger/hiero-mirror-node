@@ -19,17 +19,14 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
      * @return an Optional containing the balance if found, or an empty Optional if no matching balance
      *         entry is found before the given block timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                  select * from account_balance
                  where
                      account_id = ?1 and
                      consensus_timestamp <= ?2
                  order by consensus_timestamp desc
                  limit 1
-                 """,
-            nativeQuery = true)
+                 """, nativeQuery = true)
     Optional<AccountBalance> findByIdAndTimestampLessThan(long accountId, long blockTimestamp);
 
     /**
@@ -59,9 +56,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
      *         If there are no crypto transfers between the consensus_timestamp of account_balance and the block timestamp,
      *         the method will return the balance present at consensus_timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     with balance_timestamp as (
                         select consensus_timestamp
                         from account_balance
@@ -87,8 +82,7 @@ public interface AccountBalanceRepository extends CrudRepository<AccountBalance,
                         (ct.errata is null or ct.errata <> 'DELETE')
                     )
                     select coalesce((select balance from balance_snapshot), 0) + coalesce((select amount from change), 0)
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<Long> findHistoricalAccountBalanceUpToTimestamp(
             long accountId, long blockTimestamp, long treasuryAccountId);
 }

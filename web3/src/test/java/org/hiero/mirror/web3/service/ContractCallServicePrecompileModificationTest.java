@@ -3,20 +3,17 @@
 package org.hiero.mirror.web3.service;
 
 import static com.hedera.hapi.node.base.ResponseCodeEnum.ACCOUNT_STILL_OWNS_NFTS;
-import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_ALREADY_ASSOCIATED_TO_ACCOUNT;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TOKEN_NOT_ASSOCIATED_TO_ACCOUNT;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES;
 import static com.hedera.hapi.node.base.TokenType.FUNGIBLE_COMMON;
 import static com.hedera.hapi.node.base.TokenType.NON_FUNGIBLE_UNIQUE;
-import static com.hedera.services.utils.EntityIdUtils.asHexedEvmAddress;
 import static com.hedera.services.utils.EntityIdUtils.entityIdFromContractId;
 import static com.hedera.services.utils.EntityIdUtils.toContractID;
-import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.INVALID_TOKEN_ID;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
-import static org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.ALLOW_LONG_ZERO_ADDRESSES;
+import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.EMPTY_UNTRIMMED_ADDRESS;
@@ -24,12 +21,9 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
-import com.hedera.services.store.models.Id;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +33,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
+import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -47,9 +42,9 @@ import org.hiero.mirror.common.domain.token.TokenFreezeStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenPauseStatusEnum;
 import org.hiero.mirror.common.domain.token.TokenSupplyTypeEnum;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
@@ -66,6 +61,8 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.TransferList;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -73,6 +70,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class ContractCallServicePrecompileModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
+
+    private static int MAX_TOKEN_NAME_UTF8_BYTES = 100;
+    private static int MAX_MEMO_UTF8_BYTES = 100;
 
     private static Stream<Arguments> tokenData() {
         return Stream.of(Arguments.of(FUNGIBLE_COMMON.name(), true), Arguments.of(NON_FUNGIBLE_UNIQUE.name(), false));
@@ -173,22 +173,12 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
-    @ParameterizedTest
-    @ValueSource(booleans = {true, false})
-    void setApprovalForAll(boolean longZeroAddressAllowed) throws Exception {
+    @Test
+    void setApprovalForAll() throws Exception {
         // Given
-        final var spender = accountEntityWithEvmAddressPersist();
-
+        final var spender = accountEntityPersist();
         final var token = nonFungibleTokenPersist();
         final var tokenId = token.getTokenId();
-
-        String spenderAddress;
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
-        if (longZeroAddressAllowed) {
-            spenderAddress = getAddressFromEntity(spender);
-        } else {
-            spenderAddress = getAliasFromEntity(spender);
-        }
 
         tokenAccountPersist(tokenId, spender.getId());
 
@@ -201,14 +191,38 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         nonFungibleTokenInstancePersist(token, 1L, contractEntityId, spender.toEntityId());
 
         // When
-        final var functionCall =
-                contract.call_setApprovalForAllExternal(toAddress(tokenId).toHexString(), spenderAddress, Boolean.TRUE);
-
+        final var functionCall = contract.call_setApprovalForAllExternal(
+                toAddress(tokenId).toHexString(), getAddressFromEntity(spender), Boolean.TRUE);
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
 
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
+    @Test
+    void txnFailsWhenAccountWithAliasIsReferencedByLongZeroAddress() {
+        // Given account with alias is created
+        final var spender = accountEntityWithEvmAddressPersist();
+        final var token = nonFungibleTokenPersist();
+        final var tokenId = token.getTokenId();
+
+        tokenAccountPersist(tokenId, spender.getId());
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+        final var contractEntityId = entityIdFromEvmAddress(contractAddress);
+        tokenAccount(ta -> ta.tokenId(tokenId).accountId(contractEntityId.getId()));
+
+        nonFungibleTokenInstancePersist(token, 1L, contractEntityId, spender.toEntityId());
+
+        // When the account with alias is referenced by long zero address
+        final var longZeroAddress = getAddressFromEntity(spender);
+        final var functionCall = contract.call_setApprovalForAllExternal(
+                toAddress(tokenId).toHexString(), longZeroAddress, Boolean.TRUE);
+
+        // Then the transaction fails
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessageContaining("CONTRACT_REVERT_EXECUTED");
     }
 
     @ParameterizedTest
@@ -393,11 +407,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var functionCall = contract.call_dissociate(tokenAddress);
 
         ResponseCodeEnum statusCode;
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            statusCode = isFungible ? TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES : ACCOUNT_STILL_OWNS_NFTS;
-        } else {
-            statusCode = isFungible ? SUCCESS : ACCOUNT_STILL_OWNS_NFTS;
-        }
+        statusCode = isFungible ? TRANSACTION_REQUIRES_ZERO_TOKEN_BALANCES : ACCOUNT_STILL_OWNS_NFTS;
         final var expected = BigInteger.valueOf(statusCode.protoOrdinal());
         assertThat(functionCall.send()).isNotNull().isEqualTo(expected);
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
@@ -414,13 +424,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         tokenAccountPersist(token.getTokenId(), contractEntityId.getId());
         final var functionCall = contract.call_isAssociated(tokenAddress);
 
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertTrue(functionCall.send());
-            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
-            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        assertTrue(functionCall.send());
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
     @ParameterizedTest(name = "isAssociated returns false for {0} token when no association exists")
@@ -431,13 +437,9 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         final var functionCall = contract.call_isAssociated(tokenAddress);
 
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertFalse(functionCall.send());
-            verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
-            verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        assertFalse(functionCall.send());
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
 
     @Test
@@ -464,19 +466,16 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @ParameterizedTest
-    @CsvSource({"true, true", "true, false", "false, true", "false, false"})
-    void mintNFT(final boolean useAlias, boolean longZeroAddressAllowed) throws Exception {
+    @CsvSource({"true", "false"})
+    void mintNFT(final boolean useAlias) throws Exception {
         // Given
         final var treasury = useAlias ? accountEntityWithEvmAddressPersist() : accountEntityPersist();
-        final var tokenEntity = tokenEntityPersistWithAutoRenewAccount(
-                useAlias ? accountEntityWithEvmAddressPersist() : accountEntityPersist());
+        final var tokenEntity = tokenEntityPersist();
 
         nonFungibleTokenPersist(tokenEntity, treasury);
-
         tokenAccountPersist(tokenEntity.getId(), treasury.getId());
 
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(longZeroAddressAllowed));
 
         // When
         final var functionCall = contract.call_mintTokenExternal(
@@ -488,8 +487,6 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         assertThat(result.component3().getFirst()).isEqualTo(BigInteger.ONE);
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
-
-        System.setProperty(ALLOW_LONG_ZERO_ADDRESSES, Boolean.toString(false));
     }
 
     @Test
@@ -590,6 +587,36 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         // Then
         assertThat(result.component2()).isEqualTo(BigInteger.valueOf(totalSupply - 1));
+        verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
+        verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
+    }
+
+    @Test
+    void mintTokenNativePrecompileAndBurn() throws Exception {
+        // Given
+        final var treasury = accountEntityPersist();
+        final var token = fungibleTokenPersistWithTreasuryAccount(treasury.toEntityId());
+        final var tokenId = token.getTokenId();
+        tokenAccountPersist(tokenId, treasury.getId());
+
+        final var totalSupply = token.getTotalSupply();
+        final var mintAmount = 30L;
+        final var burnAmount = 10L;
+
+        final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
+
+        // When
+        final var functionCall = contract.call_mintTokenNativePrecompileAndBurnExternal(
+                toAddress(tokenId).toHexString(),
+                BigInteger.valueOf(mintAmount),
+                BigInteger.valueOf(burnAmount),
+                new ArrayList<>());
+        final var result = functionCall.send();
+
+        // Then
+        assertThat(result.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.protoOrdinal()));
+        assertThat(result.component2()).isEqualTo(BigInteger.valueOf(totalSupply + mintAmount));
+        assertThat(result.component3()).isEqualTo(BigInteger.valueOf(totalSupply + mintAmount - burnAmount));
         verifyEthCallAndEstimateGas(functionCall, contract, ZERO_VALUE);
         verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contract);
     }
@@ -790,7 +817,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createFungibleToken() throws Exception {
         // Given
         final var value = 10000L * 100_000_000_000L;
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -832,7 +859,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         var decimals = BigInteger.valueOf(10L);
         var value = 10000L * 100_000_000L;
 
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -888,7 +915,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createNonFungibleTokenWithCustomFees() throws Exception {
         // Given
         var value = 10000L * 100_000_000L;
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -942,7 +969,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     void createNonFungibleToken() throws Exception {
         // Given
         var value = 10000L * 100_000_000L;
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
 
         accountBalanceRecordsPersist(sender);
 
@@ -973,6 +1000,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Test
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void create2ContractAndTransferFromIt() throws Exception {
         // Given
         final var receiver = accountEntityWithEvmAddressPersist();
@@ -1003,22 +1031,15 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         final var token = fungibleTokenPersist();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var modularizedCall = contract.call_callNotExistingPrecompile(asHexedEvmAddress(token.getTokenId()));
-            assertThat(Bytes.wrap(modularizedCall.send())).isEqualTo(Bytes.EMPTY);
-        } else {
-            final var functionCall = contract.send_callNotExistingPrecompile(asHexedEvmAddress(token.getTokenId()));
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(INVALID_TOKEN_ID.name());
-        }
+        final var call = contract.call_callNotExistingPrecompile(CommonUtils.hex(toEvmAddress(token.getTokenId())));
+        assertThat(Bytes.wrap(call.send())).isEqualTo(Bytes.EMPTY);
     }
 
     @Test
     void createFungibleTokenWithInheritKeysCall() throws Exception {
         // Given
         final var value = 10000 * 100_000_000L;
-        final var sender = accountEntityWithEvmAddressPersist();
+        final var sender = accountEntityWithEvmAddressAndSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
 
         // When
@@ -1042,7 +1063,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.metadata(new byte[mirrorNodeEvmProperties.getMaxMemoUtf8Bytes() + 1]))
+                .customize(t -> t.metadata(new byte[MAX_MEMO_UTF8_BYTES + 1]))
                 .get());
 
         // When
@@ -1061,8 +1082,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.name(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.name(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When
@@ -1081,8 +1101,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
 
         final var tokenToCreate = convertTokenEntityToHederaToken(domainBuilder
                 .token()
-                .customize(t -> t.symbol(new String(
-                        new byte[mirrorNodeEvmProperties.getMaxTokenNameUtf8Bytes() + 1], StandardCharsets.UTF_8)))
+                .customize(t -> t.symbol(new String(new byte[MAX_TOKEN_NAME_UTF8_BYTES + 1], StandardCharsets.UTF_8)))
                 .get());
 
         // When
@@ -1547,9 +1566,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             FUNGIBLE_COMMON, ED25519
                             FUNGIBLE_COMMON, ECDSA_SECPK256K1
                             FUNGIBLE_COMMON, CONTRACT_ID
@@ -1652,8 +1669,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
                 token.getName(),
                 token.getSymbol(),
                 treasuryAccountId != null
-                        ? asHexedEvmAddress(new Id(
-                                treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum()))
+                        ? CommonUtils.hex(toEvmAddress(treasuryAccountId))
                         : Address.ZERO.toHexString(),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
@@ -1674,8 +1690,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
         return new HederaToken(
                 token.getName(),
                 token.getSymbol(),
-                asHexedEvmAddress(
-                        new Id(treasuryAccountId.getShard(), treasuryAccountId.getRealm(), treasuryAccountId.getNum())),
+                CommonUtils.hex(toEvmAddress(treasuryAccountId)),
                 new String(token.getMetadata(), StandardCharsets.UTF_8),
                 token.getSupplyType().equals(TokenSupplyTypeEnum.FINITE),
                 BigInteger.valueOf(token.getMaxSupply()),

@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.hedera.services.stream.proto.CallOperationType;
@@ -25,6 +26,7 @@ import com.hederahashgraph.api.proto.java.ContractNonceInfo;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord;
+import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.hiero.mirror.common.domain.StreamType;
@@ -51,6 +54,7 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.parser.record.RecordStreamFileListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
@@ -71,7 +75,9 @@ import org.springframework.data.util.Version;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @RequiredArgsConstructor
-class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
+final class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
+
+    private static final ByteString ALL_ZERO_BLOOM = ByteString.copyFrom(new byte[256]);
 
     private final ContractRepository contractRepository;
     private final ContractActionRepository contractActionRepository;
@@ -95,9 +101,17 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         entityProperties.getPersist().setTrackNonce(true);
     }
 
-    @Test
-    void processContractCall() {
-        RecordItem recordItem = recordItemBuilder.contractCall().build();
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void processContractCall(final boolean allZeroBloom) {
+        final var recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> {
+                    if (allZeroBloom) {
+                        r.getContractCallResultBuilder().clearLogInfo().setBloom(ALL_ZERO_BLOOM);
+                    }
+                })
+                .build();
 
         process(recordItem);
 
@@ -216,22 +230,60 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         assertThat(entityRepository.count()).isZero();
     }
 
-    @Test
-    void processEthereumTransactionCreate() {
-        var ethereumTransaction = domainBuilder.ethereumTransaction(true).get();
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, true, false
+            true, true, false
+            true, false, false
+            true, false, true
+            """)
+    void processEthereumTransactionCreate(boolean blockstream, boolean initcodeInlined, boolean withHexPrefix) {
+        // given
+        var ethereumTransaction =
+                domainBuilder.ethereumTransaction(initcodeInlined).get();
         var recordItem = recordItemBuilder
                 .ethereumTransaction(true)
-                .recordItem(r -> r.ethereumTransaction(ethereumTransaction))
+                .record(r -> {
+                    if (blockstream) {
+                        r.getContractCreateResultBuilder()
+                                .clearAmount()
+                                .clearFunctionParameters()
+                                .clearGas();
+                    }
+                })
+                .recordItem(r -> r.blockstream(blockstream).ethereumTransaction(ethereumTransaction))
                 .build();
+        byte[] rawInitcode = ethereumTransaction.getCallData();
+        if (!initcodeInlined) {
+            byte[] offloaded = domainBuilder.bytes(64);
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                            .entityId(ethereumTransaction.getCallDataId())
+                            .fileData(TestUtils.toBytecodeFileContent(offloaded, withHexPrefix)))
+                    .persist();
+            rawInitcode = offloaded;
+        }
 
+        // when
         process(recordItem);
 
+        // then
         assertContractResult(recordItem);
         assertContractLogs(recordItem);
         assertContractActions(recordItem);
         assertContractStateChanges(recordItem);
         assertThat(contractRepository.count()).isZero();
         assertThat(entityRepository.count()).isZero();
+
+        if (blockstream) {
+            assertThat(contractResultRepository.findAll())
+                    .hasSize(1)
+                    .first()
+                    .returns(new BigInteger(ethereumTransaction.getValue()).longValue(), ContractResult::getAmount)
+                    .returns(rawInitcode, ContractResult::getFunctionParameters)
+                    .returns(ethereumTransaction.getGasLimit(), ContractResult::getGasLimit);
+        }
     }
 
     @ParameterizedTest
@@ -374,10 +426,20 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                 .returns(22074L, ContractResult::getGasConsumed);
     }
 
-    @Test
-    void processGasConsumedCalculationContractCreate() {
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, false
+            true, false
+            true, true
+            """)
+    void processGasConsumedCalculationContractCreate(boolean blockstream, boolean withHexPrefix) {
         // Given RecordItem with 2 contract actions and bytecode sidecar record
-        final var recordItem = recordItemBuilder.contractCreate().build();
+        final byte[] constructorParameters = new byte[] {1, 0, 0, 1};
+        final var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.setConstructorParameters(ByteString.copyFrom(constructorParameters)))
+                .recordItem(r -> r.blockstream(blockstream))
+                .build();
 
         final var contractActionRecord = TransactionSidecarRecord.newBuilder()
                 .setActions(ContractActions.newBuilder()
@@ -386,10 +448,23 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
                                 contractAction(CallOperationType.OP_CALL, ContractActionType.CALL, 1))))
                 .build();
 
+        final var bytecode = new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1};
+        final var initcode = Bytes.concat(bytecode, constructorParameters);
         final var bytecodeRecord = TransactionSidecarRecord.newBuilder()
                 .setBytecode(ContractBytecode.newBuilder()
-                        .setInitcode(ByteString.copyFrom(new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1})))
+                        .setInitcode(blockstream ? ByteString.EMPTY : DomainUtils.fromBytes(initcode)))
                 .build();
+
+        if (blockstream) {
+            final var fileId = EntityId.of(
+                    recordItem.getTransactionBody().getContractCreateInstance().getFileID());
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.consensusTimestamp(recordItem.getConsensusTimestamp() - 1)
+                            .entityId(fileId)
+                            .fileData(TestUtils.toBytecodeFileContent(bytecode, withHexPrefix)))
+                    .persist();
+        }
 
         recordItem.setSidecarRecords(List.of(contractActionRecord, bytecodeRecord));
 
@@ -397,15 +472,9 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
         process(recordItem);
 
         // Then
-        final var contractResult = contractResultRepository
-                .findById(recordItem.getConsensusTimestamp())
-                .orElse(null);
-
-        assertThat(contractResult)
-                .isNotNull()
-                .extracting(ContractResult::getGasConsumed)
-                .isNotNull()
-                .isEqualTo(53146L);
+        assertThat(contractResultRepository.findById(recordItem.getConsensusTimestamp()))
+                .get()
+                .returns(53186L, ContractResult::getGasConsumed);
     }
 
     @Test
@@ -716,19 +785,22 @@ class ContractResultServiceImplIntegrationTest extends ImporterIntegrationTest {
 
     @SuppressWarnings("deprecation")
     private void assertContractResult(RecordItem recordItem) {
-        var functionResult = getFunctionResult(recordItem);
-        var createdIds = functionResult.getCreatedContractIDsList().stream()
+        final var functionResult = getFunctionResult(recordItem);
+        final byte[] expectedBloom = functionResult.getBloom().equals(ALL_ZERO_BLOOM)
+                ? ArrayUtils.EMPTY_BYTE_ARRAY
+                : toBytes(functionResult.getBloom());
+        final var createdIds = functionResult.getCreatedContractIDsList().stream()
                 .map(x -> EntityId.of(x).getId())
                 .toList();
-        var failedInitcode = getFailedInitcode(recordItem);
-        var hash = getTransactionHash(recordItem);
+        final var failedInitcode = getFailedInitcode(recordItem);
+        final var hash = getTransactionHash(recordItem);
 
         assertThat(contractResultRepository.findAll())
                 .hasSize(1)
                 .first()
                 .returns(recordItem.getConsensusTimestamp(), ContractResult::getConsensusTimestamp)
                 .returns(recordItem.getPayerAccountId(), ContractResult::getPayerAccountId)
-                .returns(toBytes(functionResult.getBloom()), ContractResult::getBloom)
+                .returns(expectedBloom, ContractResult::getBloom)
                 .returns(toBytes(functionResult.getContractCallResult()), ContractResult::getCallResult)
                 .returns(createdIds, ContractResult::getCreatedContractIds)
                 .returns(parseContractResultStrings(functionResult.getErrorMessage()), ContractResult::getErrorMessage)

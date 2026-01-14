@@ -27,21 +27,21 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when, then
-        var node = scheduler.getNode(0);
+        var node = scheduler.getNode(blockNumber(0));
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
 
         // when server-00's latency becomes higher then server-01
         setLatency(node, 500);
-        node = scheduler.getNode(1);
+        node = scheduler.getNode(blockNumber(1));
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(1));
 
         // when requesting a block priority-0 nodes don't have
-        node = scheduler.getNode(2);
+        node = scheduler.getNode(blockNumber(2));
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(2));
 
         // when server-02's latency becomes higher than server-03
         setLatency(node, 600);
-        node = scheduler.getNode(3);
+        node = scheduler.getNode(blockNumber(3));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.get(3));
@@ -58,10 +58,18 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when, then
-        assertThat(scheduler.getNode(0)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.getFirst());
-        assertThat(scheduler.getNode(1)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.get(1));
-        assertThat(scheduler.getNode(2)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.get(2));
-        assertThat(scheduler.getNode(3)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.getLast());
+        assertThat(scheduler.getNode(blockNumber(0)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.getFirst());
+        assertThat(scheduler.getNode(blockNumber(1)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.get(1));
+        assertThat(scheduler.getNode(blockNumber(2)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.get(2));
+        assertThat(scheduler.getNode(blockNumber(3)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.getLast());
     }
 
     @Override
@@ -72,6 +80,7 @@ final class PriorityAndLatencySchedulerTest extends AbstractSchedulerTest {
                 blockNodeProperties,
                 latencyService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                meterRegistry,
                 schedulerProperties,
                 new StreamProperties());
     }

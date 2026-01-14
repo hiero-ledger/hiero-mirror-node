@@ -29,21 +29,21 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when
-        var node = scheduler.getNode(0);
+        var node = scheduler.getNode(blockNumber(0));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
 
         // when server-00's latency gets updated
         setLatency(node, 500);
-        node = scheduler.getNode(1);
+        node = scheduler.getNode(blockNumber(1));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
 
         // when server-01's latency becomes higher
         setLatency(node, 700);
-        node = scheduler.getNode(1);
+        node = scheduler.getNode(blockNumber(1));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getFirst());
@@ -62,14 +62,14 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when
-        var node = scheduler.getNode(1);
+        var node = scheduler.getNode(blockNumber(1));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
 
         // when server-01's latency gets updated
         node.recordLatency(500);
-        node = scheduler.getNode(2);
+        node = scheduler.getNode(blockNumber(2));
 
         // then
         assertThat(node.getProperties()).isEqualTo(blockNodeProperties.getLast());
@@ -83,6 +83,7 @@ final class LatencySchedulerTest extends AbstractSchedulerTest {
                 blockNodeProperties,
                 latencyService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                meterRegistry,
                 schedulerProperties,
                 new StreamProperties());
     }

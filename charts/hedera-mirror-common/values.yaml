@@ -242,6 +242,14 @@ prometheus-adapter:
         name:
           as: "requests_per_second"
         metricsQuery: "sum(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)"
+      - seriesQuery: 'hiero_mirror_web3_evm_gas_used_total{application="web3",namespace!=""}'
+        resources:
+          overrides:
+            namespace:
+              resource: "namespace"
+        name:
+          as: "avg_evm_gas_used_per_second"
+        metricsQuery: 'avg(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)'
 
 prometheus:
   alertmanager:
@@ -660,6 +668,11 @@ traefik:
 zfs:
   alloy:
     enabled: false
+  autoGrow:
+    growPercent: 10
+    intervalSeconds: 120
+    maxStepGb: 50
+    thresholdPercent: 80
   coordinator:
     initialDiskSize: 300GB
   enabled: false
@@ -717,7 +730,7 @@ zfs:
             path: /
         scripts:
           configMap:
-            name: "{{ .Release.Name }}-zfs-init"
+            name: "{{ .Release.Name }}-zfs-manager"
             defaultMode: 0744
       initContainers:
         label-wait:

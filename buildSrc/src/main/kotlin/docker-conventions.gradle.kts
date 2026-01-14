@@ -26,7 +26,6 @@ fun imageTags(): Collection<String> {
 
 val dockerBuild =
     tasks.register<DockerBuildImage>("dockerBuild") {
-        onlyIf { projectDir.resolve("Dockerfile").exists() }
         buildArgs.put("VERSION", project.version.toString())
         images.addAll(imageTags())
         inputDir = file(projectDir)
@@ -40,7 +39,6 @@ val dockerBuild =
     }
 
 tasks.register<DockerPushImage>("dockerPush") {
-    onlyIf { projectDir.resolve("Dockerfile").exists() }
     dependsOn(dockerBuild)
     images.addAll(imageTags())
 }

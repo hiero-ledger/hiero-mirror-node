@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block.scheduler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import org.hiero.mirror.importer.downloader.block.BlockNodeProperties;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
@@ -27,8 +28,11 @@ final class SchedulerSupplierTest {
         blockProperties.setNodes(List.of(blockNodeProperties));
         blockProperties.setScheduler(schedulerProperties);
         var latencyService = mock(LatencyService.class);
-        var factory =
-                new SchedulerSupplier(blockProperties, latencyService, InProcessManagedChannelBuilderProvider.INSTANCE);
+        var factory = new SchedulerSupplier(
+                blockProperties,
+                latencyService,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                new SimpleMeterRegistry());
 
         // when, then
         assertThat(factory.get()).isInstanceOf(getExpectedClass(type));

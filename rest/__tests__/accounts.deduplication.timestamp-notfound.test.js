@@ -29,7 +29,7 @@ describe('Accounts deduplicate timestamp not found tests', () => {
   const entityId7 = EntityId.parseString('7');
   const entityId8 = EntityId.parseString('8');
   const entityId9 = EntityId.parseString('9');
-  const entityId98 = EntityId.systemEntity.feeCollector;
+  const entityId98 = EntityId.systemEntity.networkAdminFeeAccount;
 
   beforeEach(async () => {
     await integrationDomainOps.loadAccounts([

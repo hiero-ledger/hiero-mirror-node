@@ -54,7 +54,7 @@ import org.mockito.Mock;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.context.ApplicationEventPublisher;
 
-class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, RecordFileParser> {
+final class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, RecordFileParser> {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -85,15 +85,16 @@ class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, Reco
         if (parsed) {
             verify(recordItemListener).onItem(recordItem);
             verify(recordStreamFileListener).onEnd(recordFile);
+        } else if (dbError) {
+            verify(recordStreamFileListener, never()).onEnd(recordFile);
+        }
+
+        if (parsed || dbError) {
             // Can't verify the event object since ApplicationEvent has a timestamp field for when the event happened
             verify(applicationEventPublisher)
                     .publishEvent(argThat(e -> e instanceof RecordFileParsedEvent recordFileParsedEvent
                             && recordFileParsedEvent.getConsensusEnd() == recordFile.getConsensusEnd()));
         } else {
-            if (dbError) {
-                verify(recordStreamFileListener, never()).onEnd(recordFile);
-            }
-
             verify(applicationEventPublisher, never()).publishEvent(any());
         }
     }
@@ -171,10 +172,10 @@ class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, Reco
         RecordItem recordItem2 = contractCall(contractFunctionResult2, timestamp, 0);
 
         var contractFunctionResult3 = contractFunctionResult(1000000000000L, new byte[] {0, 1, 1, 2, 2, 6, 0});
-        RecordItem recordItem3 = ethereumTransaction(contractFunctionResult3, timestamp, 0);
+        RecordItem recordItem3 = ethereumTransaction(contractFunctionResult3, timestamp, timestamp * 2, 0);
 
         var contractFunctionResult4 = contractFunctionResult(1000000000000L, new byte[] {0, 1, 1, 2, 2, 6, 0});
-        RecordItem recordItem4 = ethereumTransaction(contractFunctionResult4, timestamp, 1);
+        RecordItem recordItem4 = ethereumTransaction(contractFunctionResult4, timestamp, timestamp * 2, 1);
 
         RecordItem recordItem5 = cryptoTransferRecordItem(1L);
 
@@ -455,11 +456,17 @@ class RecordFileParserTest extends AbstractStreamFileParserTest<RecordFile, Reco
     }
 
     private RecordItem ethereumTransaction(
-            ContractFunctionResult contractFunctionResult, long timestamp, int transactionIdNonce) {
+            ContractFunctionResult contractFunctionResult,
+            long timestamp,
+            long parentTimestamp,
+            int transactionIdNonce) {
         return recordItemBuilder
                 .ethereumTransaction(true)
                 .record(builder -> builder.setContractCallResult(contractFunctionResult)
                         .setConsensusTimestamp(Timestamp.newBuilder().setNanos((int) timestamp))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds((int) parentTimestamp)
+                                .setNanos((int) parentTimestamp))
                         .setTransactionID(TransactionID.newBuilder()
                                 .setNonce(transactionIdNonce)
                                 .build()))

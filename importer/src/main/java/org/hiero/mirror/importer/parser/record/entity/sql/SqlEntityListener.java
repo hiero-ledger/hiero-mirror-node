@@ -27,6 +27,9 @@ import org.hiero.mirror.common.domain.entity.FungibleAllowance;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.HookStorage;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
@@ -60,6 +63,7 @@ import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordPar
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
+import org.hiero.mirror.importer.repository.HookStorageRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -81,6 +85,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private final EntityProperties entityProperties;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
+    private final HookStorageRepository hookStorageRepository;
     private final SqlProperties sqlProperties;
 
     @Override
@@ -204,6 +209,29 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onFileData(FileData fileData) {
         context.add(fileData);
+    }
+
+    @Override
+    public void onHook(Hook hook) {
+        context.merge(hook.getId(), hook, this::mergeHook);
+    }
+
+    @Override
+    public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
+        context.add(storageChange);
+
+        if (storageChange.getValueWritten() != null) {
+            final var hookStorage = HookStorage.builder()
+                    .createdTimestamp(storageChange.getConsensusTimestamp())
+                    .hookId(storageChange.getHookId())
+                    .ownerId(storageChange.getOwnerId())
+                    .key(storageChange.getKey())
+                    .modifiedTimestamp(storageChange.getConsensusTimestamp())
+                    .value(storageChange.getValueWritten())
+                    .build();
+
+            context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
+        }
     }
 
     @Override
@@ -364,7 +392,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         }
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(TransactionType.of(transaction.getType()))) {
-            context.add(transaction.toTransactionHash());
+            var hash = transaction.toTransactionHash();
+            if (hash != null && hash.hashIsValid()) {
+                context.add(hash);
+            }
         }
 
         onNftTransferList(transaction);
@@ -626,6 +657,35 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         return dest;
     }
 
+    private Hook mergeHook(Hook previous, Hook current) {
+        long adjustment =
+                previous.getDeleted() && previous.getTimestampLower().equals(current.getTimestampLower()) ? 1 : 0;
+        previous.setTimestampUpper(current.getTimestampLower() + adjustment);
+
+        if (current.getCreatedTimestamp() != null
+                && current.getCreatedTimestamp().equals(current.getTimestampLower())) {
+            // hook creation, don't merge
+            return current;
+        }
+
+        if (current.getExtensionPoint() == null) {
+            current.setExtensionPoint(previous.getExtensionPoint());
+        }
+        if (current.getType() == null) {
+            current.setType(previous.getType());
+        }
+        if (current.getContractId() == null) {
+            current.setContractId(previous.getContractId());
+        }
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
+        }
+        if (current.getCreatedTimestamp() == null) {
+            current.setCreatedTimestamp(previous.getCreatedTimestamp());
+        }
+        return current;
+    }
+
     private NftAllowance mergeNftAllowance(NftAllowance previous, NftAllowance current) {
         previous.setTimestampUpper(current.getTimestampLower());
         return current;
@@ -635,9 +695,22 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
         current.setCreatedTimestamp(previous.getCreatedTimestamp());
 
+        if (current.getAccountId() == null) {
+            current.setAccountId(previous.getAccountId());
+        }
+
         if (current.getAdminKey() == null) {
             current.setAdminKey(previous.getAdminKey());
         }
+
+        if (current.getDeclineReward() == null) {
+            current.setDeclineReward(previous.getDeclineReward());
+        }
+
+        if (current.getGrpcProxyEndpoint() == null) {
+            current.setGrpcProxyEndpoint(previous.getGrpcProxyEndpoint());
+        }
+
         return current;
     }
 
@@ -834,6 +907,22 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         previous.setTimestampUpper(current.getTimestampLower());
 
         return current;
+    }
+
+    private HookStorage mergeHookStorage(HookStorage previous, HookStorage current) {
+
+        if (previous.isDeleted() && !current.isDeleted()) {
+            /* This is set to the negative timestamp to aid coalesce sql on the upsertable column
+             we need to be able to identify the point where the hook storage lifecycle was started again
+             in order to set the created timestamp correctly
+            */
+            previous.setCreatedTimestamp(~current.getCreatedTimestamp() + 1);
+        }
+
+        previous.setValue(current.getValue());
+        previous.setModifiedTimestamp(current.getModifiedTimestamp());
+
+        return previous;
     }
 
     private void onNftTransferList(Transaction transaction) {

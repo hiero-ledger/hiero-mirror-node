@@ -20,7 +20,6 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hiero.mirror.web3.web3j.generated.GetScheduleInfo;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,7 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * This test class validates the correct results for getting schedule info for a token create transaction via smart contract calls .
  */
-class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistoricalTest {
+class ContractCallGetScheduleInfoTest extends AbstractContractCallScheduleTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getFungibleCreateScheduleInfoNonExisting(final Boolean isFungible) {
@@ -77,20 +76,13 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
         final var entityId = EntityId.of(schedule.getScheduleId());
         final var functionCall = contract.call_getFungibleCreateTokenInfo(getAddressFromEntityId(entityId));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var functionCallResult = functionCall.send();
-            assertThat(functionCallResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
-            assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
-            assertThat(functionCallResult.component2().tokenInfo.token.treasury)
-                    .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
-            assertThat(functionCallResult.component2().tokenInfo.token.maxSupply)
-                    .isEqualTo(BigInteger.valueOf(maxSupply));
-
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var functionCallResult = functionCall.send();
+        assertThat(functionCallResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
+        assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
+        assertThat(functionCallResult.component2().tokenInfo.token.treasury)
+                .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
+        assertThat(functionCallResult.component2().tokenInfo.token.maxSupply).isEqualTo(BigInteger.valueOf(maxSupply));
     }
 
     @Test
@@ -121,19 +113,13 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallServiceHistori
         final var entityId = EntityId.of(schedule.getScheduleId());
         final var functionCall = contract.call_getNonFungibleCreateTokenInfo(getAddressFromEntityId(entityId));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var functionCallResult = functionCall.send();
-            assertThat(functionCallResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
-            assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
-            assertThat(functionCallResult.component2().tokenInfo.token.treasury)
-                    .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
-            assertThat(functionCallResult.component2().tokenInfo.token.maxSupply)
-                    .isEqualTo(BigInteger.valueOf(maxSupply));
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var functionCallResult = functionCall.send();
+        assertThat(functionCallResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
+        assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
+        assertThat(functionCallResult.component2().tokenInfo.token.treasury)
+                .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
+        assertThat(functionCallResult.component2().tokenInfo.token.maxSupply).isEqualTo(BigInteger.valueOf(maxSupply));
     }
 
     /**

@@ -10,17 +10,19 @@ import java.util.List;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.exception.InvalidEthereumBytesException;
 import org.hiero.mirror.importer.repository.FileDataRepository;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
 
 @Named
-public class Eip2930EthereumTransactionParser extends AbstractEthereumTransactionParser {
+public final class Eip2930EthereumTransactionParser extends AbstractEthereumTransactionParser {
 
     public static final int EIP2930_TYPE_BYTE = 1;
     private static final byte[] EIP2930_TYPE_BYTES = Integers.toBytes(EIP2930_TYPE_BYTE);
     private static final String TRANSACTION_TYPE_NAME = "EIP2930";
     private static final int EIP2930_TYPE_RLP_ITEM_COUNT = 11;
 
-    public Eip2930EthereumTransactionParser(FileDataRepository fileDataRepository) {
-        super(fileDataRepository);
+    public Eip2930EthereumTransactionParser(
+            ContractBytecodeService contractBytecodeService, FileDataRepository fileDataRepository) {
+        super(contractBytecodeService, fileDataRepository);
     }
 
     @Override

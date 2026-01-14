@@ -106,7 +106,8 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var channelBuilderProvider = nodes.getFirst().getPort() == -1
                 ? InProcessManagedChannelBuilderProvider.INSTANCE
                 : managedChannelBuilderProvider;
-        var schedulerSupplier = new SchedulerSupplier(blockProperties, latencyService, channelBuilderProvider);
+        var schedulerSupplier =
+                new SchedulerSupplier(blockProperties, latencyService, channelBuilderProvider, meterRegistry);
         return new BlockNodeSubscriber(
                 blockStreamReader, blockStreamVerifier, commonDownloaderProperties, blockProperties, schedulerSupplier);
     }

@@ -11,7 +11,7 @@ import org.hiero.mirror.restjava.repository.TokenAirdropRepository;
 
 @Named
 @RequiredArgsConstructor
-public class TokenAirdropServiceImpl implements TokenAirdropService {
+final class TokenAirdropServiceImpl implements TokenAirdropService {
 
     private final EntityService entityService;
     private final TokenAirdropRepository repository;

@@ -2,15 +2,16 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.NonNull;
 import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
@@ -19,9 +20,11 @@ import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.jspecify.annotations.NullMarked;
 
 @Named
-public class BlockStreamVerifier {
+@NullMarked
+public final class BlockStreamVerifier {
 
     static final BlockFile EMPTY = BlockFile.builder().build();
     private static final long GENESIS_BLOCK_NUMBER = 0;
@@ -31,28 +34,34 @@ public class BlockStreamVerifier {
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
 
-    // Metrics
-    private final MeterRegistry meterRegistry;
-    private final Timer.Builder streamVerificationMetric;
+    private final MeterProvider<Timer> streamVerificationMeterProvider;
+    private final MeterProvider<Timer> streamLatencyMeterProvider;
     private final Timer streamCloseMetric;
 
     private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
 
     public BlockStreamVerifier(
-            BlockFileTransformer blockFileTransformer,
-            CommonDownloaderProperties commonDownloaderProperties,
-            RecordFileRepository recordFileRepository,
-            StreamFileNotifier streamFileNotifier,
-            MeterRegistry meterRegistry) {
+            final BlockFileTransformer blockFileTransformer,
+            final CommonDownloaderProperties commonDownloaderProperties,
+            final RecordFileRepository recordFileRepository,
+            final StreamFileNotifier streamFileNotifier,
+            final MeterRegistry meterRegistry) {
         this.blockFileTransformer = blockFileTransformer;
         this.commonDownloaderProperties = commonDownloaderProperties;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
-        this.meterRegistry = meterRegistry;
 
-        this.streamVerificationMetric = Timer.builder("hiero.mirror.importer.stream.verification")
+        // Metrics
+        this.streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
                 .description("The duration in seconds it took to verify consensus and hash chain of a stream file")
-                .tag("type", StreamType.BLOCK.toString());
+                .tag("type", StreamType.BLOCK.toString())
+                .withRegistry(meterRegistry);
+
+        this.streamLatencyMeterProvider = Timer.builder("hiero.mirror.importer.stream.latency")
+                .description("The difference in time between the consensus time of the last transaction in the block "
+                        + "and the time at which the block was verified")
+                .tag("type", StreamType.BLOCK.toString())
+                .withRegistry(meterRegistry);
 
         streamCloseMetric = Timer.builder("hiero.mirror.importer.stream.close.latency")
                 .description("The difference between the consensus start of the current and the last stream file")
@@ -61,7 +70,7 @@ public class BlockStreamVerifier {
     }
 
     public Optional<BlockFile> getLastBlockFile() {
-        return lastBlockFile.get().or(() -> {
+        return Objects.requireNonNull(lastBlockFile.get()).or(() -> {
             var last = recordFileRepository
                     .findLatest()
                     .map(r -> BlockFile.builder()
@@ -85,12 +94,16 @@ public class BlockStreamVerifier {
                 .orElse(GENESIS_BLOCK_NUMBER);
     }
 
-    public void verify(@NonNull BlockFile blockFile) {
+    public void verify(BlockFile blockFile) {
         var startTime = Instant.now();
         boolean success = true;
         try {
             verifyBlockNumber(blockFile);
             verifyHashChain(blockFile);
+            final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
+            streamLatencyMeterProvider
+                    .withTag("block_node", blockFile.getNode())
+                    .record(Duration.between(consensusEnd, Instant.now()));
             var recordFile = blockFileTransformer.transform(blockFile);
             streamFileNotifier.verified(recordFile);
 
@@ -106,9 +119,8 @@ public class BlockStreamVerifier {
             success = false;
             throw e;
         } finally {
-            streamVerificationMetric
-                    .tag("success", String.valueOf(success))
-                    .register(meterRegistry)
+            streamVerificationMeterProvider
+                    .withTags("success", String.valueOf(success), "block_node", blockFile.getNode())
                     .record(Duration.between(startTime, Instant.now()));
         }
     }

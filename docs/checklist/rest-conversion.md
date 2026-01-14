@@ -35,8 +35,9 @@ regressions are introduced.
 - [ ] New `routes.<apiName>` property added to `charts/hedera-mirror-rest-java/values.yaml` and defaulted to `false`
 - [ ] New route added to ingress conditional on routes property
 - [ ] New route added to gateway conditional on routes property
-- [ ] After rollout, manually enable in environments for a short period of time and watch metrics
-- [ ] Permanently enable in previewnet and testnet for a release
+- [ ] Enable route in integration environment before tagging and test it
+- [ ] Enable route in previewnet and watch metrics/logs
+- [ ] Enable route in both testnet clusters for a release and watch metrics/logs
 
 ## Phase Two
 
@@ -44,6 +45,7 @@ Phase two enables the new route by default so that it rolls out to mainnet for t
 until we're confident there are no regressions.
 
 - [ ] Enable route by default in Ingress and Gateway
+- [ ] Update JavaScript monitor to use REST Java URL for route
 - [ ] Remove temporary enablement in previewnet and testnet so that default is used
 
 ## Phase Three

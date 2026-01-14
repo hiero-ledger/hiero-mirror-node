@@ -4,6 +4,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.importer.TestUtils.toEntityTransactions;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -73,6 +75,27 @@ class ConsensusSubmitMessageTransactionHandlerTest extends AbstractTransactionHa
                 .returns(expectedRunningHashVersion, TopicMessage::getRunningHashVersion)
                 .returns(receipt.getTopicSequenceNumber(), TopicMessage::getSequenceNumber)
                 .returns(transaction.getEntityId(), TopicMessage::getTopicId);
+        assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
+    }
+
+    @Test
+    void updateTransactionFromBlockstreamWithoutRunningHash() {
+        // Given
+        var recordItem = recordItemBuilder
+                .consensusSubmitMessage()
+                .clearIncrementer()
+                .receipt(r -> r.clearTopicRunningHash().clearTopicSequenceNumber())
+                .recordItem(r -> r.blockstream(true))
+                .build();
+        var transaction = domainBuilder.transaction().get();
+        var expectedEntityTransactions =
+                toEntityTransactions(recordItem, transaction.getNodeAccountId(), transaction.getPayerAccountId());
+
+        // When
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // Then
+        verify(entityListener, never()).onTopicMessage(any());
         assertThat(recordItem.getEntityTransactions()).containsExactlyInAnyOrderEntriesOf(expectedEntityTransactions);
     }
 

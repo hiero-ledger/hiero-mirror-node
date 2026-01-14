@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ACCOUNTS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_BYTECODE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_FILES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
@@ -12,8 +13,19 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOPICS_VALUE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPTY_CONTEXT;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getAccountId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getFileId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTokenId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTopicId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.UInt64Value;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
@@ -25,18 +37,16 @@ import com.hedera.hapi.platform.state.legacy.NodeId;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AccountPendingAirdrop;
+import com.hederahashgraph.api.proto.java.Bytecode;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.File;
-import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Token;
-import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
-import com.hederahashgraph.api.proto.java.TopicID;
-import java.security.SecureRandom;
 import java.util.List;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
@@ -44,9 +54,57 @@ import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 
-class StateChangeContextTest {
+final class StateChangeContextTest {
 
-    private static long id = new SecureRandom().nextLong();
+    @Test
+    void accounts() {
+        // given
+        var accountId1 = getAccountId();
+        var accountId2 = getAccountId();
+        var accountId3 = getAccountId();
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(accountId1))
+                .addStateChanges(accountMapUpdateChange(accountId2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getAccount(accountId1)).get().returns(accountId1, Account::getAccountId);
+        assertThat(context.getAccount(accountId2)).get().returns(accountId2, Account::getAccountId);
+        assertThat(context.getAccount(accountId3)).isEmpty();
+    }
+
+    @Test
+    void accountId() {
+        // given
+        final var accountId1 = getAccountId();
+        final var account1Alias = alias();
+        final var accountId2 = getAccountId();
+        final var contractId = getAccountId();
+        final var evmAddress = evmAddress();
+        final var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(accountMapUpdateChange(accountId1, account1Alias))
+                .addStateChanges(accountMapUpdateChange(accountId2))
+                .addStateChanges(contractMapUpdateChange(contractId, evmAddress))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getAccountId(account1Alias)).contains(accountId1);
+        assertThat(context.getAccountId(evmAddress)).isEmpty();
+        assertThat(context.getContractId(evmAddress))
+                .contains(ContractID.newBuilder()
+                        .setShardNum(contractId.getShardNum())
+                        .setRealmNum(contractId.getRealmNum())
+                        .setContractNum(contractId.getAccountNum())
+                        .build());
+    }
 
     @Test
     void contractId() {
@@ -57,7 +115,6 @@ class StateChangeContextTest {
         var evmAddress2 = evmAddress();
         var contractId3 = getAccountId();
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(accountIdMapUpdateChange())
                 .addStateChanges(accountMapUpdateChange())
                 .addStateChanges(contractMapUpdateChange(contractId1, evmAddress1))
                 .addStateChanges(contractMapUpdateChange(contractId2, evmAddress2))
@@ -83,6 +140,115 @@ class StateChangeContextTest {
                 .returns(contractId2.getAccountNum(), ContractID::getContractNum)
                 .returns(false, ContractID::hasEvmAddress);
         assertThat(context.getContractId(evmAddress())).isEmpty();
+    }
+
+    @Test
+    void contractBytecode() {
+        // given
+        var contractId = getContractId();
+        var bytecode = bytes(128);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(StateChange.newBuilder()
+                        .setStateId(STATE_ID_BYTECODE_VALUE)
+                        .setMapUpdate(MapUpdateChange.newBuilder()
+                                .setKey(MapChangeKey.newBuilder().setContractIdKey(contractId))
+                                .setValue(MapChangeValue.newBuilder()
+                                        .setBytecodeValue(Bytecode.newBuilder().setCode(bytecode)))))
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractBytecode(contractId)).contains(bytecode);
+        assertThat(context.getContractBytecode(getContractId())).isEmpty();
+    }
+
+    @Test
+    void contractStorageChangeByIdAndIndex() {
+        // given
+        var contractIdA = getContractId();
+        var contractASlot1 = bytes(32);
+        var contractASlot1Value = bytes(4);
+        var contractASlot2 = bytes(32);
+        var contractIdB = getContractId();
+        var contractBSlot1 = bytes(32);
+        var contractBSlot1Value = bytes(8);
+        var contractBSlot2 = bytes(32);
+        var contractBSlot2Value = bytes(12);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(contractStorageMapUpdateChange(contractIdA, contractASlot1, contractASlot1Value))
+                .addStateChanges(contractStorageMapDeleteChange(contractIdA, contractASlot2))
+                .addStateChanges(contractStorageMapUpdateChange(contractIdB, contractBSlot1, contractBSlot1Value))
+                // an identical MapUpdateChange
+                .addStateChanges(
+                        makeIdentical(contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Value)))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        assertThat(context.getContractStorageChange(contractIdA, 0))
+                .isEqualTo(new StateChangeContext.SlotValue(contractASlot1, BytesValue.of(contractASlot1Value)));
+        assertThat(context.getContractStorageChange(contractIdA, 1))
+                .isEqualTo(new StateChangeContext.SlotValue(contractASlot2, BytesValue.getDefaultInstance()));
+        assertThat(context.getContractStorageChange(contractIdB, 0))
+                .isEqualTo(new StateChangeContext.SlotValue(contractBSlot1, BytesValue.of(contractBSlot1Value)));
+        assertThat(context.getContractStorageChange(contractIdA, -1)).isNull();
+        assertThat(context.getContractStorageChange(contractIdB, 1)).isNull();
+        assertThat(context.getContractStorageChange(getContractId(), 0)).isNull();
+    }
+
+    @Test
+    void getContractStorageValueWritten() {
+        // given
+        var contractIdA = getContractId();
+        var contractASlot1 = bytes(24);
+        var contractASlot1Padded =
+                DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(contractASlot1)));
+        var contractASlot1Value = bytes(4);
+        var contractASlot2 = bytes(32);
+        var contractIdB = getContractId();
+        var contractBSlot1 = bytes(32);
+        var contractBSlot1Value = bytes(8);
+        var contractBSlot2 = bytes(32);
+        var contractBSlot2Value = bytes(12);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(contractStorageMapUpdateChange(contractIdA, contractASlot1Padded, contractASlot1Value))
+                .addStateChanges(contractStorageMapDeleteChange(contractIdA, contractASlot2))
+                .addStateChanges(contractStorageMapUpdateChange(contractIdB, contractBSlot1, contractBSlot1Value))
+                // an identical MapUpdateChange
+                .addStateChanges(
+                        makeIdentical(contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Value)))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        var contractASlotKeyBuilder = SlotKey.newBuilder().setContractID(contractIdA);
+        assertThat(context.getContractStorageValueWritten(
+                        contractASlotKeyBuilder.setKey(contractASlot1).build()))
+                .isEqualTo(BytesValue.of(contractASlot1Value));
+        assertThat(context.getContractStorageValueWritten(
+                        contractASlotKeyBuilder.setKey(contractASlot1Padded).build()))
+                .isEqualTo(BytesValue.of(contractASlot1Value));
+        assertThat(context.getContractStorageValueWritten(
+                        contractASlotKeyBuilder.setKey(contractASlot2).build()))
+                .isEqualTo(BytesValue.getDefaultInstance());
+        assertThat(context.getContractStorageValueWritten(
+                        contractASlotKeyBuilder.setKey(bytes(32)).build()))
+                .isNull();
+        var contractBSlotKeyBuilder = SlotKey.newBuilder().setContractID(contractIdB);
+        assertThat(context.getContractStorageValueWritten(
+                        contractBSlotKeyBuilder.setKey(contractBSlot1).build()))
+                .isEqualTo(BytesValue.of(contractBSlot1Value));
+        assertThat(context.getContractStorageValueWritten(
+                        contractBSlotKeyBuilder.setKey(contractBSlot2).build()))
+                .isNull();
     }
 
     @Test
@@ -270,10 +436,7 @@ class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
         var topicIds = List.of(context.getNewTopicId(), context.getNewTopicId(), context.getNewTopicId());
         var topic1Message = context.getTopicMessage(topicId1);
-        var topic2Messages = List.of(
-                context.getTopicMessage(topicId2),
-                context.getTopicMessage(topicId2),
-                context.getTopicMessage(topicId2));
+        var topic2Messages = List.of(context.getTopicMessage(topicId2), context.getTopicMessage(topicId2));
 
         // then
         var expectedTopic2Messages = List.of(
@@ -281,26 +444,18 @@ class StateChangeContextTest {
                         .runningHash(DomainUtils.toBytes(topic2RunningHash))
                         .sequenceNumber(2L)
                         .build()),
-                Optional.of(TopicMessage.builder()
-                        .runningHash(DomainUtils.EMPTY_BYTE_ARRAY)
-                        .sequenceNumber(1L)
-                        .build()),
                 Optional.<TopicMessage>empty());
         assertThat(topicIds).containsExactly(Optional.of(topicId2), Optional.of(topicId1), Optional.empty());
         assertThat(topic1Message).isEmpty();
         assertThat(topic2Messages).containsExactlyElementsOf(expectedTopic2Messages);
     }
 
+    private ByteString alias() {
+        return DomainUtils.fromBytes(CommonUtils.nextBytes(34));
+    }
+
     private ByteString evmAddress() {
         return DomainUtils.fromBytes(CommonUtils.nextBytes(20));
-    }
-
-    private AccountID getAccountId() {
-        return AccountID.newBuilder().setAccountNum(id++).build();
-    }
-
-    private FileID getFileId() {
-        return FileID.newBuilder().setFileNum(id++).build();
     }
 
     private PendingAirdropId getPendingAirdropId() {
@@ -311,35 +466,25 @@ class StateChangeContextTest {
                 .build();
     }
 
-    private TokenID getTokenId() {
-        return TokenID.newBuilder().setTokenNum(id++).build();
+    private StateChange accountMapUpdateChange(AccountID accountId) {
+        return accountMapUpdateChange(accountId, ByteString.EMPTY);
     }
 
-    private TopicID getTopicId() {
-        return TopicID.newBuilder().setTopicNum(id++).build();
-    }
-
-    private StateChange accountIdMapUpdateChange() {
-        var accountId = getAccountId();
-        return StateChange.newBuilder()
-                .setStateId(STATE_ID_ACCOUNTS_VALUE)
-                .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
-                        .setValue(MapChangeValue.newBuilder().setAccountIdValue(accountId))
-                        .build())
-                .build();
-    }
-
-    private StateChange accountMapUpdateChange() {
-        var accountId = getAccountId();
+    private StateChange accountMapUpdateChange(AccountID accountId, ByteString alias) {
         return StateChange.newBuilder()
                 .setStateId(STATE_ID_ACCOUNTS_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
                         .setKey(MapChangeKey.newBuilder().setAccountIdKey(accountId))
                         .setValue(MapChangeValue.newBuilder()
-                                .setAccountValue(Account.newBuilder().setAccountId(accountId)))
+                                .setAccountValue(Account.newBuilder()
+                                        .setAccountId(accountId)
+                                        .setAlias(alias)))
                         .build())
                 .build();
+    }
+
+    private StateChange accountMapUpdateChange() {
+        return accountMapUpdateChange(getAccountId());
     }
 
     private StateChange contractMapUpdateChange(AccountID accountId, ByteString evmAddress) {

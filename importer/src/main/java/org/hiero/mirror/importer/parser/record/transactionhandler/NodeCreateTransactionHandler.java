@@ -8,13 +8,17 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
 
-    public NodeCreateTransactionHandler(EntityListener entityListener) {
+    private final EntityIdService entityIdService;
+
+    public NodeCreateTransactionHandler(EntityListener entityListener, EntityIdService entityIdService) {
         super(entityListener);
+        this.entityIdService = entityIdService;
     }
 
     @Override
@@ -38,8 +42,10 @@ class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
                 ? toServiceEndpoint(consensusTimestamp, nodeCreate.getGrpcProxyEndpoint())
                 : null;
         var key = nodeCreate.hasAdminKey() ? nodeCreate.getAdminKey().toByteArray() : null;
+        final var accountId = entityIdService.lookup(nodeCreate.getAccountId()).orElse(EntityId.EMPTY);
 
         return Node.builder()
+                .accountId(accountId)
                 .adminKey(key)
                 .createdTimestamp(consensusTimestamp)
                 .declineReward(nodeCreate.getDeclineReward())

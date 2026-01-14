@@ -11,9 +11,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 class AbstractTokenTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             -100, , -100
             , 500, 500
             , -500, -500

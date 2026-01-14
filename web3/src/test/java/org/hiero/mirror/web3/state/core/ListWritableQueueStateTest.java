@@ -25,7 +25,7 @@ class ListWritableQueueStateTest {
     @Test
     void testAddToDatasource() {
         final var elem = new Object();
-        final var queueState = new ListWritableQueueState<>("KEY", backingStore);
+        final var queueState = new ListWritableQueueState<>("SERVICE_NAME", 1, backingStore);
         queueState.addToDataSource(elem);
         assertThat(backingStore).contains(elem);
     }
@@ -34,7 +34,7 @@ class ListWritableQueueStateTest {
     void testRemoveFromDatasource() {
         final var elem = new Object();
         backingStore.add(elem);
-        final var queueState = new ListWritableQueueState<>("KEY", backingStore);
+        final var queueState = new ListWritableQueueState<>("SERVICE_NAME", 1, backingStore);
         queueState.removeFromDataSource();
         assertThat(backingStore).isEmpty();
     }
@@ -44,7 +44,7 @@ class ListWritableQueueStateTest {
         final var elem = new Object();
         backingStore.add(elem);
         final var iterator = backingStore.iterator();
-        final var queueState = new ListWritableQueueState<>("KEY", backingStore);
+        final var queueState = new ListWritableQueueState<>("SERVICE_NAME", 1, backingStore);
         assertThat(queueState.iterateOnDataSource().next()).isEqualTo(iterator.next());
     }
 }

@@ -26,7 +26,9 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when, then
-        assertThat(scheduler.getNode(0)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.getFirst());
+        assertThat(scheduler.getNode(blockNumber(0)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.getFirst());
     }
 
     @Test
@@ -40,15 +42,26 @@ final class PrioritySchedulerTest extends AbstractSchedulerTest {
         scheduler = createScheduler(blockNodeProperties);
 
         // when, then
-        assertThat(scheduler.getNode(0)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.getFirst());
-        assertThat(scheduler.getNode(1)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.get(1));
-        assertThat(scheduler.getNode(2)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.get(2));
-        assertThat(scheduler.getNode(3)).extracting(BlockNode::getProperties).isEqualTo(blockNodeProperties.getLast());
+        assertThat(scheduler.getNode(blockNumber(0)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.getFirst());
+        assertThat(scheduler.getNode(blockNumber(1)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.get(1));
+        assertThat(scheduler.getNode(blockNumber(2)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.get(2));
+        assertThat(scheduler.getNode(blockNumber(3)))
+                .extracting(BlockNode::getProperties)
+                .isEqualTo(blockNodeProperties.getLast());
     }
 
     @Override
     protected Scheduler createScheduler(Collection<BlockNodeProperties> blockNodeProperties) {
         return new PriorityScheduler(
-                blockNodeProperties, InProcessManagedChannelBuilderProvider.INSTANCE, new StreamProperties());
+                blockNodeProperties,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                meterRegistry,
+                new StreamProperties());
     }
 }

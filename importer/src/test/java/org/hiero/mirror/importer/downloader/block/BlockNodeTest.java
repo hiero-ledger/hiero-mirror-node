@@ -4,15 +4,18 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.StreamObserver;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,8 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -37,8 +40,6 @@ import org.hiero.block.api.protoc.ServerStatusResponse;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
-import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.junit.jupiter.api.AfterEach;
@@ -53,11 +54,11 @@ import org.mockito.Mockito;
 @ExtendWith(GrpcCleanupExtension.class)
 final class BlockNodeTest extends BlockNodeTestBase {
 
-    private static final Function<BlockStream, Boolean> IGNORE = b -> false;
+    private static final BiFunction<BlockStream, String, Boolean> IGNORE = (b, n) -> false;
+    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = grpcCall -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
-    private CommonDownloaderProperties commonDownloaderProperties;
     private BlockNodeProperties blockNodeProperties;
     private BlockNode node;
     private StreamProperties streamProperties;
@@ -70,13 +71,15 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
-        commonDownloaderProperties.init();
-        commonDownloaderProperties.setTimeout(TIMEOUT);
         blockNodeProperties = new BlockNodeProperties();
         blockNodeProperties.setHost(SERVER);
         streamProperties = new StreamProperties();
-        node = new BlockNode(InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties, streamProperties);
+        node = new BlockNode(
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                blockNodeProperties,
+                streamProperties);
     }
 
     @AfterEach
@@ -89,16 +92,26 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // given
         var first = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
                 blockNodeProperties("localhost", 100, 0),
                 streamProperties);
         var second = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
                 blockNodeProperties("localhost", 101, 0),
                 streamProperties);
         var third = new BlockNode(
-                InProcessManagedChannelBuilderProvider.INSTANCE, blockNodeProperties("peer", 99, 0), streamProperties);
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
+                blockNodeProperties("peer", 99, 0),
+                streamProperties);
         var forth = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                NOOP_GRPC_BUFFER_DISPOSER,
+                meterRegistry,
                 blockNodeProperties("localhost", 50, 1),
                 streamProperties);
 
@@ -121,7 +134,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
-    void hasBlock(Resources resources) {
+    void getBlockRange(Resources resources) {
         // given
         runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
                 .setFirstAvailableBlock(20)
@@ -129,13 +142,23 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .build());
 
         // when, then
-        assertThat(node.hasBlock(1)).isFalse();
-        assertThat(node.hasBlock(20)).isTrue();
-        assertThat(node.hasBlock(101)).isFalse();
+        assertThat(node.getBlockRange()).isEqualTo(Range.closed(20L, 100L));
     }
 
     @Test
-    void hasBlockTimeout(Resources resources) {
+    void getBlockRangeFromEmptyBlockNode(Resources resources) {
+        // given
+        runBlockNodeService(resources, () -> ServerStatusResponse.newBuilder()
+                .setFirstAvailableBlock(-1)
+                .setLastAvailableBlock(-1)
+                .build());
+
+        // when, then
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
+    }
+
+    @Test
+    void getBlockRangeTimeout(Resources resources) {
         // given
         streamProperties.setResponseTimeout(Duration.ofMillis(1));
         runBlockNodeService(resources, () -> {
@@ -151,7 +174,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        assertThat(node.hasBlock(20)).isFalse();
+        assertThat(node.getBlockRange().isEmpty()).isTrue();
     }
 
     @Test
@@ -169,7 +192,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when fails twice in a row, the node should still be active
         for (int i = 0; i < 2; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
             assertThat(node.isActive()).isTrue();
@@ -180,7 +203,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         server = runBlockStreamSubscribeService(
                 resources,
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS)));
-        node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout());
+        node.streamBlocks(0, null, IGNORE, TIMEOUT);
         assertThat(node.isActive()).isTrue();
 
         // when fails three times in a row
@@ -189,7 +212,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 resources,
                 ResponsesOrError.fromResponse(subscribeStreamResponse(SubscribeStreamResponse.Code.NOT_AVAILABLE)));
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
             boolean expected = i < 2;
@@ -204,12 +227,14 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 subscribeStreamResponse(blockItemSet(blockHead(0))),
                 subscribeStreamResponse(blockItemSet()),
                 subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())),
-                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())));
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, null, accumulate(streamed), commonDownloaderProperties.getTimeout());
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
 
         // then
         assertThat(streamed)
@@ -226,7 +251,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Received status NOT_AVAILABLE from " + node);
     }
@@ -238,7 +263,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Incorrect first block item case EVENT_HEADER");
     }
@@ -253,7 +278,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Received block items of a new block while the previous block is still pending");
     }
@@ -265,7 +290,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("The first block item is record file and there are more than one block items");
     }
@@ -276,7 +301,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromError(new RuntimeException("oops")));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(StatusException.class);
     }
@@ -286,20 +311,22 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // given
         var responses = List.of(
                 subscribeStreamResponse(blockItemSet(recordFileItem())),
-                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1),
+                subscribeStreamResponse(blockItemSet(blockHead(2), eventHeader(), blockProof())),
+                subscribeStreamResponse(2),
                 subscribeStreamResponse(SubscribeStreamResponse.Code.SUCCESS));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
         var streamed = new ArrayList<BlockStream>();
-        node.streamBlocks(0, null, accumulate(streamed), commonDownloaderProperties.getTimeout());
+        node.streamBlocks(0, null, accumulate(streamed), TIMEOUT);
 
         // then
         assertThat(streamed)
                 .hasSize(2)
                 .satisfies(
                         blocks -> assertRecordItem(blocks.getFirst()),
-                        blocks -> assertBlockStream(blocks.getLast(), 1));
+                        blocks -> assertBlockStream(blocks.getLast(), 2));
     }
 
     @Test
@@ -317,8 +344,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         });
 
         // when, then
-        commonDownloaderProperties.setTimeout(Duration.ofMillis(100));
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, Duration.ofMillis(100)))
                 .isInstanceOf(BlockStreamException.class)
                 .hasCauseInstanceOf(TimeoutException.class);
         latch.countDown();
@@ -334,7 +360,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
-        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                 .isInstanceOf(BlockStreamException.class)
                 .hasMessage("Too many block items in a pending block: received 4, limit 2");
     }
@@ -355,7 +381,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
         }
@@ -366,7 +392,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
         // when become inactive again
         for (int i = 0; i < 3; i++) {
-            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, commonDownloaderProperties.getTimeout()))
+            assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT))
                     .isInstanceOf(BlockStreamException.class)
                     .hasMessageContaining("Received status NOT_AVAILABLE from " + node);
         }
@@ -380,8 +406,39 @@ final class BlockNodeTest extends BlockNodeTestBase {
         }
     }
 
-    private Function<BlockStream, Boolean> accumulate(Collection<BlockStream> collection) {
-        return blockStream -> {
+    @Test
+    void streamBlocksSuccessDoesNotIncreaseErrorMetric(Resources resources) {
+        // given
+        var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0))),
+                subscribeStreamResponse(blockItemSet()),
+                subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, null, IGNORE, TIMEOUT);
+
+        // then
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(0);
+    }
+
+    @Test
+    void streamBlocksIncrementErrorMetricOnException(Resources resources) {
+        // given
+        var responses = List.of(subscribeStreamResponse(blockItemSet(recordFileItem(), blockHead(0))));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+        assertThatThrownBy(() -> node.streamBlocks(0, null, IGNORE, TIMEOUT)).isInstanceOf(BlockStreamException.class);
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
+    }
+
+    private BiFunction<BlockStream, String, Boolean> accumulate(Collection<BlockStream> collection) {
+        return (blockStream, blockNode) -> {
             collection.add(blockStream);
             return false;
         };
@@ -394,14 +451,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .hasSize(1)
                 .first()
                 .returns(BlockItem.ItemCase.RECORD_FILE, BlockItem::getItemCase);
-    }
-
-    private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
-        var properties = new BlockNodeProperties();
-        properties.setHost(host);
-        properties.setPort(port);
-        properties.setPriority(priority);
-        return properties;
     }
 
     private void assertBlockStream(BlockStream blockStream, long number) {
@@ -421,6 +470,14 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .satisfies(b -> assertThat(b.loadStart())
                         .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
                 .returns(-1L, BlockStream::nodeId);
+    }
+
+    private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
+        var properties = new BlockNodeProperties();
+        properties.setHost(host);
+        properties.setPort(port);
+        properties.setPriority(priority);
+        return properties;
     }
 
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {
@@ -449,11 +506,11 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     private Server runBlockStreamSubscribeService(Resources resources, ResponsesOrError responsesOrError) {
         return runBlockStreamSubscribeService(resources, responseObserver -> {
-            if (!responsesOrError.responses().isEmpty()) {
-                responsesOrError.responses().forEach(responseObserver::onNext);
+            if (!responsesOrError.getResponses().isEmpty()) {
+                responsesOrError.getResponses().forEach(responseObserver::onNext);
                 responseObserver.onCompleted();
             } else {
-                responseObserver.onError(responsesOrError.error());
+                responseObserver.onError(responsesOrError.getError());
             }
         });
     }

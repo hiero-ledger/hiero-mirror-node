@@ -7,9 +7,11 @@ import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.jspecify.annotations.NullMarked;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@NullMarked
 @RequiredArgsConstructor
 abstract class AbstractBlockSource implements BlockSource {
 
@@ -21,24 +23,29 @@ abstract class AbstractBlockSource implements BlockSource {
 
     @Override
     public final void get() {
-        long nextBlockNumber = blockStreamVerifier.getNextBlockNumber();
-        var endBlockNumber = commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
-        if (endBlockNumber != null && nextBlockNumber > endBlockNumber) {
-            return;
+        final long blockNumber = blockStreamVerifier.getNextBlockNumber();
+        if (shouldGetBlock(blockNumber)) {
+            doGet(
+                    blockNumber,
+                    commonDownloaderProperties.getImporterProperties().getEndBlockNumber());
         }
-
-        doGet(nextBlockNumber, endBlockNumber);
     }
 
-    protected abstract void doGet(long blockNumber, Long endBlockNumber);
+    protected abstract void doGet(final long blockNumber, final Long endBlockNumber);
 
-    protected final BlockFile onBlockStream(BlockStream blockStream) {
+    protected final BlockFile onBlockStream(final BlockStream blockStream, final String blockNode) {
         var blockFile = blockStreamReader.read(blockStream);
         if (!properties.isPersistBytes()) {
             blockFile.setBytes(null);
         }
-
+        blockFile.setNode(blockNode);
         blockStreamVerifier.verify(blockFile);
         return blockFile;
+    }
+
+    protected final boolean shouldGetBlock(final long blockNumber) {
+        final var endBlockNumber =
+                commonDownloaderProperties.getImporterProperties().getEndBlockNumber();
+        return endBlockNumber == null || blockNumber <= endBlockNumber;
     }
 }

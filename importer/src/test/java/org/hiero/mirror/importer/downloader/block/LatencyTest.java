@@ -17,9 +17,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 final class LatencyTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             '', -9223372036854775808
             '1,2', -9223372036854775808
             '1,2,3', -9223372036854775808

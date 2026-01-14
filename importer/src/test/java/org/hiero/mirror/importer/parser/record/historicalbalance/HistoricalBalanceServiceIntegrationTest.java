@@ -394,15 +394,13 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
     private Long createRecordFilePartitions(long endTimestamp) {
         Long partitionEnd = Long.MAX_VALUE;
         try {
-            partitionEnd = ownerJdbcTemplate.queryForObject(
-                    """
+            partitionEnd = ownerJdbcTemplate.queryForObject("""
                 select to_timestamp
                 from mirror_node_time_partitions
                 where parent = 'record_file'
                 order by to_timestamp desc
                 limit 1
-                """,
-                    Long.class);
+                """, Long.class);
         } catch (EmptyResultDataAccessException ex) {
             return partitionEnd;
         }
@@ -420,25 +418,18 @@ class HistoricalBalanceServiceIntegrationTest extends ImporterIntegrationTest {
                   partition_interval := ?::interval,
                   start_from := ?::timestamptz,
                   end_at := ?::timestamptz)
-                """,
-                Boolean.class,
-                partitionTimeInterval,
-                partitionStartDate,
-                partitionEndDate);
+                """, Boolean.class, partitionTimeInterval, partitionStartDate, partitionEndDate);
 
         return partitionEnd;
     }
 
     private void deleteRecordFilePartitions(Long fromTimestamp) {
-        var partitions = ownerJdbcTemplate.queryForList(
-                """
+        var partitions = ownerJdbcTemplate.queryForList("""
                 select name
                 from mirror_node_time_partitions
                 where parent = 'record_file' and from_timestamp >= ?
                 order by from_timestamp
-                """,
-                String.class,
-                fromTimestamp);
+                """, String.class, fromTimestamp);
         if (partitions.isEmpty()) {
             return;
         }

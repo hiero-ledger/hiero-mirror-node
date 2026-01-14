@@ -16,7 +16,6 @@ import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import java.util.List;
 import lombok.SneakyThrows;
-import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.FallbackFee;
 import org.hiero.mirror.common.domain.token.FixedFee;
@@ -754,13 +753,6 @@ class ContractCallServiceERCTokenModificationFunctionsTest extends AbstractContr
         final var result = testWeb3jService.getTransactionResult();
         // Then
         assertThat(result).isEqualTo("0x");
-    }
-
-    private Entity hollowAccountPersist() {
-        return domainBuilder
-                .entity()
-                .customize(e -> e.key(null).maxAutomaticTokenAssociations(10).receiverSigRequired(false))
-                .persist();
     }
 
     @SneakyThrows

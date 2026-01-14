@@ -6,7 +6,7 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext;
 
-abstract class AbstractTokenTransformer extends AbstractBlockItemTransformer {
+abstract class AbstractTokenTransformer extends AbstractBlockTransactionTransformer {
 
     void updateTotalSupply(
             RecordItem.RecordItemBuilder recordItemBuilder,

@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.evm.properties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.node.config.data.ContractsConfig;
 import com.swirlds.config.api.ConfigData;
 import java.lang.reflect.Field;
@@ -16,7 +15,7 @@ import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class MirrorNodeEvmPropertiesIntegrationTest extends Web3IntegrationTest {
+final class MirrorNodeEvmPropertiesIntegrationTest extends Web3IntegrationTest {
 
     private static final String DOT_SEPARATOR = ".";
     private static final String CONTRACTS_CONFIG = "contracts";
@@ -52,10 +51,8 @@ class MirrorNodeEvmPropertiesIntegrationTest extends Web3IntegrationTest {
     @Test
     void verifyUpstreamPropertiesExist() {
         Set<String> propertyKeys = properties.getProperties().keySet();
-        propertyKeys.stream()
-                .filter(configKey -> !configKey.equals(TransactionExecutors.MAX_SIGNED_TXN_SIZE_PROPERTY))
-                .forEach(configKey ->
-                        assertThat(getContractsConfigKey(configKey)).isEqualTo(configKey));
+        propertyKeys.stream().forEach(configKey -> assertThat(getContractsConfigKey(configKey))
+                .isEqualTo(configKey));
     }
 
     @Test
