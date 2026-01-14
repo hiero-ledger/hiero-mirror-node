@@ -44,7 +44,6 @@ public class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceIm
                 .flatMapMany(topicMessageService::subscribeTopic)
                 .map(this::toResponse)
                 .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .doFinally(signalType -> log.debug("subscribeTopic stream ended with signal: {}", signalType))
                 .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
     }
 

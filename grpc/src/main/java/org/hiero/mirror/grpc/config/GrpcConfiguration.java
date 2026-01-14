@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.grpc.config;
 
+import io.grpc.ServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -26,26 +26,24 @@ class GrpcConfiguration {
         return transactionTemplate;
     }
 
-    @Bean(destroyMethod = "close")
-    Executor grpcVirtualThreadExecutor() {
-        return Executors.newVirtualThreadPerTaskExecutor();
-    }
-
     @Bean
     ServerBuilderCustomizer<NettyServerBuilder> grpcServerConfigurer(
-            Executor grpcVirtualThreadExecutor, GrpcProperties grpcProperties) {
+            GrpcProperties grpcProperties, Executor applicationTaskExecutor) {
         final var nettyProperties = grpcProperties.getNetty();
-
         return serverBuilder -> {
-            if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
-                nettyServerBuilder
-                        .executor(grpcVirtualThreadExecutor)
-                        .maxConnectionIdle(
-                                nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
-                        .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection())
-                        .maxInboundMessageSize(nettyProperties.getMaxInboundMessageSize())
-                        .maxInboundMetadataSize(nettyProperties.getMaxInboundMetadataSize());
-            }
+            serverBuilder.executor(applicationTaskExecutor);
+            customizeServerBuilder(serverBuilder, nettyProperties);
         };
+    }
+
+    private void customizeServerBuilder(ServerBuilder<?> serverBuilder, NettyProperties nettyProperties) {
+        if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
+
+            nettyServerBuilder
+                    .maxConnectionIdle(nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
+                    .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection())
+                    .maxInboundMessageSize(nettyProperties.getMaxInboundMessageSize())
+                    .maxInboundMetadataSize(nettyProperties.getMaxInboundMetadataSize());
+        }
     }
 }

@@ -34,7 +34,6 @@ public class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase
                 .flatMapMany(networkService::getNodes)
                 .map(this::toNodeAddress)
                 .onErrorMap(ProtoUtil::toStatusRuntimeException)
-                .doFinally(signalType -> log.debug("getNodes stream ended with signal: {}", signalType))
                 .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
     }
 
