@@ -15,8 +15,9 @@ import org.slf4j.LoggerFactory;
 
 abstract class AbstractScheduler implements Scheduler {
 
-    private final ExecutorService executor;
     protected final Logger log = LoggerFactory.getLogger(getClass());
+
+    private final ExecutorService executor;
 
     protected AbstractScheduler() {
         executor = Executors.newSingleThreadExecutor();
@@ -70,7 +71,7 @@ abstract class AbstractScheduler implements Scheduler {
         });
     }
 
-    protected static boolean hasBlock(final AtomicLong nextBlockNumber, final BlockNode node) {
+    private static boolean hasBlock(final AtomicLong nextBlockNumber, final BlockNode node) {
         final var blockRange = node.getBlockRange();
         if (blockRange.isEmpty()) {
             return false;

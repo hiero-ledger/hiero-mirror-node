@@ -83,8 +83,8 @@ final class PriorityAndLatencyScheduler extends AbstractLatencyAwareScheduler {
     @Value
     private static class PriorityGroup {
 
-        private final int priority;
         private final List<BlockNode> nodes;
+        private final int priority;
 
         PriorityGroup(int priority) {
             this.priority = priority;
