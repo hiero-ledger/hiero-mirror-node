@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.controller;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -40,7 +41,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@RequestMapping("/api/v1/network")
+@RequestMapping(value = "/api/v1/network", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 final class NetworkController {

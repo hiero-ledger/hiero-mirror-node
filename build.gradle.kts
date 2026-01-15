@@ -16,7 +16,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("besuVersion", "24.3.3")
+    set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.69.1")
@@ -68,10 +68,8 @@ dependencies {
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
-        api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
-        api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
@@ -80,7 +78,6 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
         api("org.gaul:s3proxy:3.0.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
@@ -89,8 +86,6 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
-        api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
-        api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:$web3jVersion")
         api("software.amazon.awssdk:bom:2.41.5")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
