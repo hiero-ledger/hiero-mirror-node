@@ -9,7 +9,6 @@ import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
-import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -51,7 +50,6 @@ public final class StateChangeContext {
     private final Map<TokenID, Long> tokenTotalSupplies = new HashMap<>();
     private final List<TopicID> topicIds = new ArrayList<>();
     private final Map<TopicID, TopicMessage> topicState = new HashMap<>();
-    private final Map<LambdaSlotKey, BytesValue> lambdaStorageChanges = new HashMap<>();
 
     private StateChangeContext() {}
 
