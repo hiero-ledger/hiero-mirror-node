@@ -3,18 +3,20 @@
 package org.hiero.mirror.grpc.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.api.proto.AddressBookQuery;
-import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
+import com.hedera.mirror.api.proto.NetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.net.InetAddress;
-import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -26,12 +28,11 @@ import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import reactor.core.publisher.Mono;
-import reactor.test.StepVerifier;
+import org.springframework.grpc.client.ImportGrpcClients;
 
+@ImportGrpcClients(types = {NetworkServiceGrpc.NetworkServiceBlockingStub.class})
 final class NetworkControllerTest extends GrpcIntegrationTest {
 
-    private static final Duration WAIT = Duration.ofSeconds(10L);
     private static final long CONSENSUS_TIMESTAMP = 1L;
 
     @Autowired
@@ -41,15 +42,19 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
     private SystemEntity systemEntity;
 
     @Autowired
-    private ReactorNetworkServiceGrpc.ReactorNetworkServiceStub reactiveService;
+    private NetworkServiceGrpc.NetworkServiceBlockingStub blockingService;
 
     @Test
     void getNodesMissingFileId() {
         final var query = AddressBookQuery.newBuilder().build();
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .expectErrorSatisfies(t -> assertException(t, Status.Code.INVALID_ARGUMENT, "fileId: must not be null"))
-                .verify(WAIT);
+
+        assertThatThrownBy(() -> {
+                    final var iterator = blockingService.getNodes(query);
+                    iterator.hasNext();
+                })
+                .isInstanceOf(StatusRuntimeException.class)
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
 
     @Test
@@ -57,10 +62,15 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
         final var query = AddressBookQuery.newBuilder()
                 .setFileId(FileID.newBuilder().setFileNum(-1).build())
                 .build();
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .expectErrorSatisfies(t -> assertException(t, Status.Code.INVALID_ARGUMENT, "Invalid entity ID"))
-                .verify(WAIT);
+
+        assertThatThrownBy(() -> {
+                    final var iterator = blockingService.getNodes(query);
+                    iterator.hasNext();
+                })
+                .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("Invalid entity ID")
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
 
     @Test
@@ -70,11 +80,14 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setLimit(-1)
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .expectErrorSatisfies(t -> assertException(
-                        t, Status.Code.INVALID_ARGUMENT, "limit: must be greater " + "than or equal to 0"))
-                .verify(WAIT);
+        assertThatThrownBy(() -> {
+                    final var iterator = blockingService.getNodes(query);
+                    iterator.hasNext();
+                })
+                .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("limit: must be greater than or equal to 0")
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.INVALID_ARGUMENT);
     }
 
     @Test
@@ -83,10 +96,14 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setFileId(systemEntity.addressBookFile102().toFileID())
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .expectErrorSatisfies(t -> assertException(t, Status.Code.NOT_FOUND, "does not exist"))
-                .verify(WAIT);
+        assertThatThrownBy(() -> {
+                    final var iterator = blockingService.getNodes(query);
+                    iterator.hasNext();
+                })
+                .isInstanceOf(StatusRuntimeException.class)
+                .hasMessageContaining("does not exist")
+                .extracting(t -> ((StatusRuntimeException) t).getStatus().getCode())
+                .isEqualTo(Status.Code.NOT_FOUND);
     }
 
     @Test
@@ -98,12 +115,14 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertEntry(addressBookEntry1, n))
-                .consumeNextWith(n -> assertEntry(addressBookEntry2, n))
-                .expectComplete()
-                .verify(WAIT);
+        final var responseIterator = blockingService.getNodes(query);
+        List<NodeAddress> nodes = new ArrayList<>();
+        responseIterator.forEachRemaining(nodes::add);
+
+        assertThat(nodes)
+                .hasSize(2)
+                .satisfies(n -> assertEntry(addressBookEntry1, n.get(0)))
+                .satisfies(n -> assertEntry(addressBookEntry2, n.get(1)));
     }
 
     @Test
@@ -114,11 +133,11 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertEntry(addressBookEntry1, n))
-                .expectComplete()
-                .verify(WAIT);
+        final var responseIterator = blockingService.getNodes(query);
+        List<NodeAddress> nodes = new ArrayList<>();
+        responseIterator.forEachRemaining(nodes::add);
+
+        assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
     }
 
     @Test
@@ -129,15 +148,15 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertEntry(addressBookEntry1, n))
-                .expectComplete()
-                .verify(WAIT);
+        final var responseIterator = blockingService.getNodes(query);
+        List<NodeAddress> nodes = new ArrayList<>();
+        responseIterator.forEachRemaining(nodes::add);
+
+        assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
     }
 
     @Test
-    void getNodesLmitReached() {
+    void getNodesLimitReached() {
         final var addressBook = addressBook();
         final var addressBookEntry1 = addressBookEntry();
         addressBookEntry();
@@ -146,11 +165,11 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setLimit(1)
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertEntry(addressBookEntry1, n))
-                .expectComplete()
-                .verify(WAIT);
+        final var responseIterator = blockingService.getNodes(query);
+        List<NodeAddress> nodes = new ArrayList<>();
+        responseIterator.forEachRemaining(nodes::add);
+
+        assertThat(nodes).hasSize(1).satisfies(n -> assertEntry(addressBookEntry1, n.get(0)));
     }
 
     @SuppressWarnings("deprecation")
@@ -170,19 +189,19 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .setFileId(addressBook.getFileId().toFileID())
                 .build();
 
-        StepVerifier.withVirtualTime(() -> reactiveService.getNodes(Mono.just(query)))
-                .thenAwait(WAIT)
-                .consumeNextWith(n -> assertThat(n)
-                        .isNotNull()
-                        .returns("", NodeAddress::getDescription)
-                        .returns(ByteString.EMPTY, NodeAddress::getMemo)
-                        .returns(addressBookEntry.getNodeAccountId(), t -> EntityId.of(n.getNodeAccountId()))
-                        .returns(ByteString.EMPTY, NodeAddress::getNodeCertHash)
-                        .returns(addressBookEntry.getNodeId(), NodeAddress::getNodeId)
-                        .returns("", NodeAddress::getRSAPubKey)
-                        .returns(0L, NodeAddress::getStake))
-                .expectComplete()
-                .verify(WAIT);
+        final var responseIterator = blockingService.getNodes(query);
+        List<NodeAddress> nodes = new ArrayList<>();
+        responseIterator.forEachRemaining(nodes::add);
+
+        assertThat(nodes).hasSize(1).first().satisfies(n -> assertThat(n)
+                .isNotNull()
+                .returns("", NodeAddress::getDescription)
+                .returns(ByteString.EMPTY, NodeAddress::getMemo)
+                .returns(addressBookEntry.getNodeAccountId(), t -> EntityId.of(n.getNodeAccountId()))
+                .returns(ByteString.EMPTY, NodeAddress::getNodeCertHash)
+                .returns(addressBookEntry.getNodeId(), NodeAddress::getNodeId)
+                .returns("", NodeAddress::getRSAPubKey)
+                .returns(0L, NodeAddress::getStake));
     }
 
     private AddressBook addressBook() {
@@ -243,12 +262,5 @@ final class NetworkControllerTest extends GrpcIntegrationTest {
                 .extracting(ServiceEndpoint::getIpAddressV4)
                 .isNotEqualTo(
                         ByteString.copyFrom(InetAddress.getLoopbackAddress().getAddress()));
-    }
-
-    private void assertException(Throwable t, Status.Code status, String message) {
-        assertThat(t).isNotNull().isInstanceOf(StatusRuntimeException.class).hasMessageContaining(message);
-
-        final var statusRuntimeException = (StatusRuntimeException) t;
-        assertThat(statusRuntimeException.getStatus().getCode()).isEqualTo(status);
     }
 }

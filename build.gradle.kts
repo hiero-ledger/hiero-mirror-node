@@ -25,7 +25,6 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "22.21.1")
     set("protobufVersion", "4.33.3")
-    set("reactorGrpcVersion", "1.2.4")
     set("springGrpcVersion", "0.12.0")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.1")
@@ -41,7 +40,6 @@ dependencies {
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
-        val reactorGrpcVersion: String by rootProject.extra
         val springGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
         val web3jVersion: String by rootProject.extra
@@ -61,7 +59,6 @@ dependencies {
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
-        api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.23.0")
