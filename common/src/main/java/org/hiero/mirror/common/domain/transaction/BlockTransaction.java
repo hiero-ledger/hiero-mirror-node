@@ -16,7 +16,6 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionOutput.TransactionC
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.trace.protoc.EvmTraceData;
 import com.hedera.hapi.block.stream.trace.protoc.TraceData;
-import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.SlotKey;
@@ -61,7 +60,7 @@ public class BlockTransaction implements StreamItem {
 
     @NonFinal
     @Setter
-    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
+    private Map<ContractSlotKey, ByteString> contractStorageReads = Collections.emptyMap();
 
     private final EvmTraceData evmTraceData;
 
@@ -95,10 +94,6 @@ public class BlockTransaction implements StreamItem {
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
 
     private final TransactionResult transactionResult;
-
-    @NonFinal
-    @Setter
-    private Map<LambdaSlotKey, ByteString> lambdaStorageReads = Collections.emptyMap();
 
     @Builder(toBuilder = true)
     public BlockTransaction(
@@ -174,7 +169,7 @@ public class BlockTransaction implements StreamItem {
      * @param slotKey - The contract storage's slot key
      * @return The value written
      */
-    public BytesValue getValueWritten(final SlotKey slotKey) {
+    public BytesValue getValueWritten(final ContractSlotKey slotKey) {
         final var normalizedSlotKey = normalize(slotKey);
         for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
             final var valueRead = nextInner.getValueRead(normalizedSlotKey);
@@ -185,25 +180,6 @@ public class BlockTransaction implements StreamItem {
 
         // fall back to statechanges
         return getStateChangeContext().getContractStorageValueWritten(normalizedSlotKey);
-    }
-
-    /**
-     * Get value written to the storage slot at {@link LambdaSlotKey} by the transaction. Returns the first read value
-     * in subsequent transactions, or the value in statechanges.
-     *
-     * @param lambdaSlotKey - The hook storage's slot key
-     * @return The value written
-     */
-    public BytesValue getValueWritten(final LambdaSlotKey lambdaSlotKey) {
-        final var normalizedSlotKey = normalize(lambdaSlotKey);
-        for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
-            final var valueRead = nextInner.getValueRead(normalizedSlotKey);
-            if (valueRead != null) {
-                return BytesValue.of(valueRead);
-            }
-        }
-        // fall back to statechanges
-        return getStateChangeContext().getLambdaStorageValueWritten(lambdaSlotKey);
     }
 
     public Optional<TransactionOutput> getTransactionOutput(final TransactionCase transactionCase) {
@@ -234,12 +210,8 @@ public class BlockTransaction implements StreamItem {
                 : StateChangeContext.EMPTY_CONTEXT;
     }
 
-    private ByteString getValueRead(final SlotKey slotKey) {
+    private ByteString getValueRead(final ContractSlotKey slotKey) {
         return contractStorageReads.get(slotKey);
-    }
-
-    private ByteString getValueRead(final LambdaSlotKey slotKey) {
-        return lambdaStorageReads.get(slotKey);
     }
 
     private BlockTransaction parseParent() {

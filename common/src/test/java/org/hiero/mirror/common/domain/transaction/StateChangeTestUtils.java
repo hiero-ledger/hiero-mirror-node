@@ -113,6 +113,13 @@ public final class StateChangeTestUtils {
                 .build();
     }
 
+    public static ContractSlotKey convert(LambdaSlotKey lambdaSlotKey) {
+        return ContractSlotKey.builder()
+                .hookId(lambdaSlotKey.getHookId())
+                .key(lambdaSlotKey.getKey())
+                .build();
+    }
+
     private static long nextId() {
         return id.getAndIncrement();
     }

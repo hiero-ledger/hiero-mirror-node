@@ -13,7 +13,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
-import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -21,7 +20,6 @@ import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -35,6 +33,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,6 +74,17 @@ final class DomainUtilsTest {
                 arguments(new byte[] {1}, 5, new byte[] {0, 0, 0, 0, 1}),
                 arguments(new byte[] {1, 2}, -2, new byte[] {1, 2}),
                 arguments(null, 15, new byte[] {}));
+    }
+
+    private static Stream<Arguments> provideByteArraysForTrim() {
+        return Stream.of(
+                Arguments.of(null, null),
+                Arguments.of(new byte[0], ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
+                Arguments.of(new byte[] {0, 0, 0}, ArrayUtils.EMPTY_BYTE_ARRAY),
+                Arguments.of(new byte[] {0, 0, 1, 2}, new byte[] {1, 2}),
+                Arguments.of(new byte[] {0, 5, 6}, new byte[] {5, 6}),
+                Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 
     @Test
@@ -267,13 +277,13 @@ final class DomainUtilsTest {
             """)
     void normalize(String input, String trimmed) {
         var contractId = ContractID.newBuilder().setContractNum(1000).build();
-        var slotKey = SlotKey.newBuilder()
-                .setContractID(contractId)
-                .setKey(ByteString.fromHex(input))
+        var slotKey = ContractSlotKey.builder()
+                .contractId(contractId)
+                .key(ByteString.fromHex(input))
                 .build();
-        var expected = SlotKey.newBuilder()
-                .setContractID(contractId)
-                .setKey(ByteString.fromHex(trimmed))
+        var expected = ContractSlotKey.builder()
+                .contractId(contractId)
+                .key(ByteString.fromHex(trimmed))
                 .build();
         assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
     }
@@ -291,13 +301,13 @@ final class DomainUtilsTest {
                 .setEntityId(HookEntityId.newBuilder()
                         .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
                 .build();
-        var lambdaSlotKey = LambdaSlotKey.newBuilder()
-                .setHookId(hookId)
-                .setKey(ByteString.fromHex(input))
+        var lambdaSlotKey = ContractSlotKey.builder()
+                .hookId(hookId)
+                .key(ByteString.fromHex(input))
                 .build();
-        var expected = LambdaSlotKey.newBuilder()
-                .setHookId(hookId)
-                .setKey(ByteString.fromHex(trimmed))
+        var expected = ContractSlotKey.builder()
+                .hookId(hookId)
+                .key(ByteString.fromHex(trimmed))
                 .build();
         assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);
     }
@@ -588,16 +598,5 @@ final class DomainUtilsTest {
         } else {
             assertThat(result.getNum()).isEqualTo(expectedNum);
         }
-    }
-
-    private static Stream<Arguments> provideByteArraysForTrim() {
-        return Stream.of(
-                Arguments.of(null, null),
-                Arguments.of(new byte[0], ArrayUtils.EMPTY_BYTE_ARRAY),
-                Arguments.of(new byte[] {1, 2, 3}, new byte[] {1, 2, 3}),
-                Arguments.of(new byte[] {0, 0, 0}, ArrayUtils.EMPTY_BYTE_ARRAY),
-                Arguments.of(new byte[] {0, 0, 1, 2}, new byte[] {1, 2}),
-                Arguments.of(new byte[] {0, 5, 6}, new byte[] {5, 6}),
-                Arguments.of(new byte[] {0, 1, 2, 0}, new byte[] {1, 2, 0}));
     }
 }

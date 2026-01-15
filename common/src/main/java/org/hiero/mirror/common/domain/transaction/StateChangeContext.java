@@ -15,7 +15,6 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TopicID;
 import java.util.ArrayList;
@@ -43,7 +42,7 @@ public final class StateChangeContext {
     private final Map<ByteString, AccountID> accountIds = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
-    private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
+    private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
     private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
@@ -85,14 +84,36 @@ public final class StateChangeContext {
                     }
                 } else if (stateChange.hasMapDelete()) {
                     if (stateChange.getMapDelete().getKey().hasSlotKeyKey()) {
-                        var slotKey = stateChange.getMapDelete().getKey().getSlotKeyKey();
+                        final var contractSlotKey = ContractSlotKey.builder()
+                                .key(stateChange
+                                        .getMapDelete()
+                                        .getKey()
+                                        .getSlotKeyKey()
+                                        .getKey())
+                                .contractId(stateChange
+                                        .getMapDelete()
+                                        .getKey()
+                                        .getSlotKeyKey()
+                                        .getContractID())
+                                .build();
                         // use the default BytesValue instance when the storage slot is deleted
-                        processContractStorageChange(slotKey, BytesValue.getDefaultInstance());
+                        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
                     }
                     if (stateChange.getMapDelete().getKey().hasLambdaSlotKey()) {
-                        var slotKey = stateChange.getMapDelete().getKey().getLambdaSlotKey();
+                        final var contractSlotKey = ContractSlotKey.builder()
+                                .key(stateChange
+                                        .getMapDelete()
+                                        .getKey()
+                                        .getLambdaSlotKey()
+                                        .getKey())
+                                .hookId(stateChange
+                                        .getMapDelete()
+                                        .getKey()
+                                        .getLambdaSlotKey()
+                                        .getHookId())
+                                .build();
                         // use the default BytesValue instance when the storage slot is deleted
-                        processLambdaStorageChange(slotKey, BytesValue.getDefaultInstance());
+                        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
                     }
                 }
             }
@@ -133,12 +154,8 @@ public final class StateChangeContext {
         return indexed.get(index);
     }
 
-    public @Nullable BytesValue getContractStorageValueWritten(SlotKey slotKey) {
+    public @Nullable BytesValue getContractStorageValueWritten(ContractSlotKey slotKey) {
         return contractStorageChanges.get(normalize(slotKey));
-    }
-
-    public @Nullable BytesValue getLambdaStorageValueWritten(LambdaSlotKey slotKey) {
-        return lambdaStorageChanges.get(normalize(slotKey));
     }
 
     public Optional<FileID> getNewFileId() {
@@ -252,8 +269,12 @@ public final class StateChangeContext {
         }
 
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
+        final var contractSlotKey = ContractSlotKey.builder()
+                .contractId(slotKey.getContractID())
+                .key(slotKey.getKey())
+                .build();
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        processContractStorageChange(slotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 
     private void processLambdaStorageChange(MapUpdateChange mapUpdate) {
@@ -261,22 +282,23 @@ public final class StateChangeContext {
             return;
         }
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        processLambdaStorageChange(mapUpdate.getKey().getLambdaSlotKey(), BytesValue.of(valueWritten));
+        final var lambdaSlotKey = mapUpdate.getKey().getLambdaSlotKey();
+        final var contractSlotKey = ContractSlotKey.builder()
+                .hookId(lambdaSlotKey.getHookId())
+                .key(lambdaSlotKey.getKey())
+                .build();
+        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 
-    private void processLambdaStorageChange(LambdaSlotKey slotKey, BytesValue valueWritten) {
-        slotKey = normalize(slotKey);
-        final var trimmed = DomainUtils.trim(valueWritten);
-        lambdaStorageChanges.put(slotKey, trimmed);
-    }
-
-    private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
+    private void processContractStorageChange(ContractSlotKey slotKey, BytesValue valueWritten) {
         slotKey = normalize(slotKey);
         final var trimmed = DomainUtils.trim(valueWritten);
         contractStorageChanges.put(slotKey, trimmed);
-        contractStorageChangesIndexed
-                .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
-                .add(new SlotValue(slotKey.getKey(), trimmed));
+        if (slotKey.getContractId() != null) {
+            contractStorageChangesIndexed
+                    .computeIfAbsent(slotKey.getContractId(), c -> new ArrayList<>())
+                    .add(new SlotValue(slotKey.getKey(), trimmed));
+        }
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

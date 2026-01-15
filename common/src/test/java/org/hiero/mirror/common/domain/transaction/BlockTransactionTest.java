@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPT
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.convert;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
@@ -30,7 +31,6 @@ import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -52,6 +52,37 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 final class BlockTransactionTest {
+
+    @SneakyThrows
+    private static Stream<Arguments> provideTransactionHashTestArguments() {
+        var signedTransactionHex = """
+                0a440a0f0a0908b9c1e4c00610aa07120218021202180318988c0522020878320766756e642d3536721c0a1a0a0b0a02183810\
+                80d0dbc3f4020a0b0a02180210ffcfdbc3f40212470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b2\
+                01ecc51581126d8efd29db0ebed54cae5130eff35013d1f219ce3bd33459488e164427b5cbb21f6707\
+                """;
+        var signedTransactionHash =
+                "364747682d512bf8cdd4323a277b8bdb81734b96fcdacfccef3e213de7f29db07e8465c8d9ed05d5276108b5f2f2d1a7";
+        // fields serialized in the reverse order, sigMap first then bodyBytes
+        var invertedSignedTransactionHex = """
+                12470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b201ecc51581126d8efd29db0ebed54cae5130ef\
+                f35013d1f219ce3bd33459488e164427b5cbb21f67070a440a0f0a0908b9c1e4c00610aa07120218021202180318988c052202\
+                0878320766756e642d3536721c0a1a0a0b0a0218381080d0dbc3f4020a0b0a02180210ffcfdbc3f402\
+                """;
+        var invertedSignedTransactionHash =
+                "3a61a1a809da09aa49c44dd290fcb687243b593a34cd62c0be15b65a6424e8d49e6985afa83dc4cb0f56f5a383657f6b";
+        var signedTransaction = SignedTransaction.parseFrom(Hex.decodeHex(signedTransactionHex));
+        var legacySignedTransactionHex = Hex.encodeHexString(signedTransaction.toBuilder()
+                .setUseSerializedTxMessageHashAlgorithm(true)
+                .build()
+                .toByteArray());
+        var legacySignedTransactionHash =
+                "89e787e62ac5cbe42245bb427cb91e458ad001f3baeed2e464a4e8ca8c73a7e7b13825b72cfbbaf1127dd6a988d179c7";
+        return Stream.of(
+                Arguments.of("signed transaction", signedTransactionHex, signedTransactionHash),
+                Arguments.of(
+                        "inverted signed transaction", invertedSignedTransactionHex, invertedSignedTransactionHash),
+                Arguments.of("legacy signed transaction", legacySignedTransactionHex, legacySignedTransactionHash));
+    }
 
     @ParameterizedTest
     @EnumSource(
@@ -423,9 +454,9 @@ final class BlockTransactionTest {
                         .build())
                 .build();
         var contractStorageReads = Map.of(
-                SlotKey.newBuilder()
-                        .setContractID(contractIdA)
-                        .setKey(contractASlot1)
+                ContractSlotKey.builder()
+                        .contractId(contractIdA)
+                        .key(contractASlot1)
                         .build(),
                 contractASlot1IntermediateValue);
         inner2.setContractStorageReads(contractStorageReads);
@@ -442,49 +473,47 @@ final class BlockTransactionTest {
                         .build())
                 .build();
         contractStorageReads = Map.of(
-                SlotKey.newBuilder()
-                        .setContractID(contractIdB)
-                        .setKey(contractBSlot2)
+                ContractSlotKey.builder()
+                        .contractId(contractIdB)
+                        .key(contractBSlot2)
                         .build(),
                 contractBSlot2IntermediateValue);
         inner3.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner3);
 
         // then
-        var slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(contractASlot1)
+        var slotKey = ContractSlotKey.builder()
+                .contractId(contractIdA)
+                .key(contractASlot1)
                 .build();
         assertThat(inner1.getValueWritten(slotKey)).returns(contractASlot1IntermediateValue, BytesValue::getValue);
         assertThat(inner1.getValueWritten(
-                        slotKey.toBuilder().setKey(contractASlot1Padded).build()))
+                        slotKey.toBuilder().key(contractASlot1Padded).build()))
                 .returns(contractASlot1IntermediateValue, BytesValue::getValue);
         assertThat(inner2.getValueWritten(slotKey)).returns(contractASlot1Value, BytesValue::getValue);
 
         // a deleted slot
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdB)
-                .setKey(contractBSlot1)
+        slotKey = ContractSlotKey.builder()
+                .contractId(contractIdB)
+                .key(contractBSlot1)
                 .build();
         assertThat(inner1.getValueWritten(slotKey)).isEqualTo(BytesValue.getDefaultInstance());
 
         // a slot not changed
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(contractASlot2)
+        slotKey = ContractSlotKey.builder()
+                .contractId(contractIdA)
+                .key(contractASlot2)
                 .build();
         assertThat(inner1.getValueWritten(slotKey)).isNull();
 
         // a non-existent slot
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(bytes(32))
-                .build();
+        slotKey =
+                ContractSlotKey.builder().contractId(contractIdA).key(bytes(32)).build();
         assertThat(inner2.getValueWritten(slotKey)).isNull();
 
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdB)
-                .setKey(contractBSlot2)
+        slotKey = ContractSlotKey.builder()
+                .contractId(contractIdB)
+                .key(contractBSlot2)
                 .build();
         assertThat(inner2.getValueWritten(slotKey)).returns(contractBSlot2IntermediateValue, BytesValue::getValue);
         assertThat(inner3.getValueWritten(slotKey)).returns(contractBSlot2Value, BytesValue::getValue);
@@ -576,9 +605,12 @@ final class BlockTransactionTest {
                 .build();
 
         // Test parent transaction retrieves values from state changes
-        assertThat(parent.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
-        assertThat(parent.getValueWritten(lambdaSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
-        assertThat(parent.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+        var contractSlotKey1 = convert(lambdaSlotKey1);
+        assertThat(parent.getValueWritten(contractSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
+        ContractSlotKey contractSlotKey2 = convert(lambdaSlotKey2);
+        assertThat(parent.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+        ContractSlotKey contractSlotKey3 = convert(lambdaSlotKey3);
+        assertThat(parent.getValueWritten(contractSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
 
         // Create batch transactions with lambda storage reads
         var inner1 = defaultBuilder()
@@ -602,7 +634,7 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        inner2.setLambdaStorageReads(Map.of(lambdaSlotKey1, lambdaSlot1IntermediateValue));
+        inner2.setContractStorageReads(Map.of(contractSlotKey1, lambdaSlot1IntermediateValue));
         inner1.setNextInBatch(inner2);
 
         var inner3 = defaultBuilder()
@@ -615,54 +647,26 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        inner3.setLambdaStorageReads(Map.of(lambdaSlotKey3, lambdaSlot3IntermediateValue));
+        inner3.setContractStorageReads(Map.of(contractSlotKey3, lambdaSlot3IntermediateValue));
         inner2.setNextInBatch(inner3);
 
         // Test intermediate value resolution and key normalization
-        assertThat(inner1.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
-        assertThat(inner1.getValueWritten(lambdaSlotKey1Padded))
+        assertThat(inner1.getValueWritten(contractSlotKey1))
                 .returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
-        assertThat(inner2.getValueWritten(lambdaSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(convert(lambdaSlotKey1Padded)))
+                .returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(contractSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
 
         // Test deleted slot returns default BytesValue
-        assertThat(inner1.getValueWritten(lambdaSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+        assertThat(inner1.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
 
         // Test slot3 intermediate value resolution
-        assertThat(inner2.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3IntermediateValue, BytesValue::getValue);
-        assertThat(inner3.getValueWritten(lambdaSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(contractSlotKey3))
+                .returns(lambdaSlot3IntermediateValue, BytesValue::getValue);
+        assertThat(inner3.getValueWritten(contractSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
 
         // Test non-existent slot
-        assertThat(parent.getValueWritten(getLambdaSlotKey(4L, bytes(32)))).isNull();
-    }
-
-    @SneakyThrows
-    private static Stream<Arguments> provideTransactionHashTestArguments() {
-        var signedTransactionHex = """
-                0a440a0f0a0908b9c1e4c00610aa07120218021202180318988c0522020878320766756e642d3536721c0a1a0a0b0a02183810\
-                80d0dbc3f4020a0b0a02180210ffcfdbc3f40212470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b2\
-                01ecc51581126d8efd29db0ebed54cae5130eff35013d1f219ce3bd33459488e164427b5cbb21f6707\
-                """;
-        var signedTransactionHash =
-                "364747682d512bf8cdd4323a277b8bdb81734b96fcdacfccef3e213de7f29db07e8465c8d9ed05d5276108b5f2f2d1a7";
-        // fields serialized in the reverse order, sigMap first then bodyBytes
-        var invertedSignedTransactionHex = """
-                12470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b201ecc51581126d8efd29db0ebed54cae5130ef\
-                f35013d1f219ce3bd33459488e164427b5cbb21f67070a440a0f0a0908b9c1e4c00610aa07120218021202180318988c052202\
-                0878320766756e642d3536721c0a1a0a0b0a0218381080d0dbc3f4020a0b0a02180210ffcfdbc3f402\
-                """;
-        var invertedSignedTransactionHash =
-                "3a61a1a809da09aa49c44dd290fcb687243b593a34cd62c0be15b65a6424e8d49e6985afa83dc4cb0f56f5a383657f6b";
-        var signedTransaction = SignedTransaction.parseFrom(Hex.decodeHex(signedTransactionHex));
-        var legacySignedTransactionHex = Hex.encodeHexString(signedTransaction.toBuilder()
-                .setUseSerializedTxMessageHashAlgorithm(true)
-                .build()
-                .toByteArray());
-        var legacySignedTransactionHash =
-                "89e787e62ac5cbe42245bb427cb91e458ad001f3baeed2e464a4e8ca8c73a7e7b13825b72cfbbaf1127dd6a988d179c7";
-        return Stream.of(
-                Arguments.of("signed transaction", signedTransactionHex, signedTransactionHash),
-                Arguments.of(
-                        "inverted signed transaction", invertedSignedTransactionHex, invertedSignedTransactionHash),
-                Arguments.of("legacy signed transaction", legacySignedTransactionHex, legacySignedTransactionHash));
+        assertThat(parent.getValueWritten(convert(getLambdaSlotKey(4L, bytes(32)))))
+                .isNull();
     }
 }
