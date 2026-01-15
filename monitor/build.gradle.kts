@@ -4,6 +4,7 @@ description = "Hiero Mirror Node Monitor"
 
 plugins {
     id("openapi-conventions")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 

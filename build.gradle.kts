@@ -122,14 +122,20 @@ repositories {
 
 spotless {
     val licenseHeader = "// SPDX-License-Identifier: Apache-2.0\n\n"
-
+    val nodeExec =
+        when (System.getProperty("os.name").lowercase().contains("windows")) {
+            true -> Paths.get("node.exe")
+            else -> Paths.get("bin", "node")
+        }
     val npmExec =
         when (System.getProperty("os.name").lowercase().contains("windows")) {
             true -> Paths.get("npm.cmd")
             else -> Paths.get("bin", "npm")
         }
     val npmSetup = tasks.named("npmSetup").get() as NpmSetupTask
-    val npmExecutable = npmSetup.npmDir.get().asFile.toPath().resolve(npmExec)
+    val nodeDir = npmSetup.npmDir.get().asFile.toPath()
+    val npmExecutable = nodeDir.resolve(npmExec)
+    val nodeExecutable = nodeDir.resolve(nodeExec)
 
     isEnforceCheck = false
 
@@ -156,6 +162,7 @@ spotless {
         leadingTabsToSpaces(2)
         licenseHeader(licenseHeader, "$")
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
@@ -203,6 +210,7 @@ spotless {
         endWithNewline()
         leadingTabsToSpaces(2)
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
         target("**/*.json", "**/*.md")
@@ -246,6 +254,7 @@ spotless {
         endWithNewline()
         leadingTabsToSpaces(2)
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
         licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")

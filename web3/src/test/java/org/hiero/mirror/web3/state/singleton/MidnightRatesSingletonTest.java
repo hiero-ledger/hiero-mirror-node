@@ -42,6 +42,6 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     @Test
     void key() {
-        assertThat(midnightRatesSingleton.getId()).isEqualTo(MIDNIGHT_RATES_STATE_ID);
+        assertThat(midnightRatesSingleton.getStateId()).isEqualTo(MIDNIGHT_RATES_STATE_ID);
     }
 }

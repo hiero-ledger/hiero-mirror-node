@@ -19,6 +19,6 @@ class CongestionLevelStartsSingletonTest {
 
     @Test
     void key() {
-        assertThat(congestionLevelStartsSingleton.getId()).isEqualTo(CONGESTION_LEVEL_STARTS_STATE_ID);
+        assertThat(congestionLevelStartsSingleton.getStateId()).isEqualTo(CONGESTION_LEVEL_STARTS_STATE_ID);
     }
 }

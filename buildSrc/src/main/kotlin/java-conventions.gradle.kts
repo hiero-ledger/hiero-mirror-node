@@ -45,13 +45,15 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    // Disable dangling-doc-comments due to graphql-gradle-plugin-project #25
     // Disable serial and this-escape warnings due to errors in generated code
+    // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
         listOf(
             "-parameters",
             "-Werror",
             "-Xlint:all",
-            "-Xlint:-this-escape,-preview,-dangling-doc-comments",
+            "-Xlint:-dangling-doc-comments,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
     options.encoding = "UTF-8"

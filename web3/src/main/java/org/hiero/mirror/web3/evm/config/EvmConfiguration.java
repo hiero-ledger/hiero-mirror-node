@@ -4,8 +4,6 @@ package org.hiero.mirror.web3.evm.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
 import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
@@ -14,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hiero.mirror.web3.state.components.NoOpMetrics;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -205,16 +202,6 @@ public class EvmConfiguration {
     @Bean
     public GasCalculator provideGasCalculator() {
         return new CustomGasCalculator();
-    }
-
-    @Bean
-    public StoreMetricsServiceImpl storeMetricsService() {
-        return new StoreMetricsServiceImpl(new NoOpMetrics());
-    }
-
-    @Bean
-    public ConfigProviderImpl configProvider() {
-        return new ConfigProviderImpl(false, null, mirrorNodeEvmProperties.getProperties());
     }
 
     @Bean

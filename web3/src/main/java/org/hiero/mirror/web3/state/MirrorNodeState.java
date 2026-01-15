@@ -2,121 +2,62 @@
 
 package org.hiero.mirror.web3.state;
 
-import static com.hedera.node.app.service.token.impl.handlers.BaseCryptoHandler.asAccount;
-import static com.hedera.node.app.spi.fees.NoopFeeCharging.UNIVERSAL_NOOP_FEE_CHARGING;
+import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.LAMBDA_STORAGE_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_COUNTS_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULED_USAGES_STATE_ID;
+import static com.hedera.node.app.service.schedule.impl.schemas.V0570ScheduleSchema.SCHEDULE_ID_BY_EQUALITY_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0490TokenSchema.STAKING_NETWORK_REWARDS_STATE_ID;
+import static com.hedera.node.app.service.token.impl.schemas.V0610TokenSchema.NODE_REWARDS_STATE_ID;
+import static com.hedera.node.app.state.recordcache.schemas.V0490RecordCacheSchema.TRANSACTION_RECEIPTS_STATE_ID;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.hedera.hapi.node.base.Key;
-import com.hedera.hapi.node.base.SignatureMap;
-import com.hedera.hapi.node.transaction.ThrottleDefinitions;
-import com.hedera.node.app.blocks.BlockStreamService;
-import com.hedera.node.app.fees.FeeService;
-import com.hedera.node.app.info.NodeInfoImpl;
-import com.hedera.node.app.records.BlockRecordService;
-import com.hedera.node.app.service.contract.impl.ContractServiceImpl;
-import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
-import com.hedera.node.app.service.entityid.impl.EntityIdServiceImpl;
-import com.hedera.node.app.service.file.impl.FileServiceImpl;
-import com.hedera.node.app.service.schedule.impl.ScheduleServiceImpl;
-import com.hedera.node.app.service.token.impl.TokenServiceImpl;
-import com.hedera.node.app.services.AppContextImpl;
-import com.hedera.node.app.services.ServicesRegistry;
-import com.hedera.node.app.spi.AppContext.Gossip;
-import com.hedera.node.app.spi.signatures.SignatureVerifier;
+import com.hedera.node.app.service.contract.ContractService;
+import com.hedera.node.app.service.schedule.ScheduleService;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.node.app.state.recordcache.RecordCacheService;
-import com.hedera.node.app.throttle.AppThrottleFactory;
-import com.hedera.node.app.throttle.CongestionThrottleService;
-import com.hedera.node.app.throttle.ThrottleAccumulator;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.swirlds.metrics.api.Metrics;
 import com.swirlds.state.State;
 import com.swirlds.state.spi.EmptyWritableStates;
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
-import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
-import java.time.InstantSource;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import lombok.RequiredArgsConstructor;
 import org.hiero.base.crypto.Hash;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hiero.mirror.web3.state.components.NoOpMetrics;
-import org.hiero.mirror.web3.state.components.SchemaRegistryImpl;
 import org.hiero.mirror.web3.state.core.FunctionReadableSingletonState;
 import org.hiero.mirror.web3.state.core.FunctionWritableSingletonState;
 import org.hiero.mirror.web3.state.core.ListReadableQueueState;
 import org.hiero.mirror.web3.state.core.ListWritableQueueState;
+import org.hiero.mirror.web3.state.core.MapReadableKVState;
 import org.hiero.mirror.web3.state.core.MapReadableStates;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
 import org.hiero.mirror.web3.state.core.MapWritableStates;
+import org.hiero.mirror.web3.state.keyvalue.AbstractReadableKVState;
+import org.hiero.mirror.web3.state.singleton.DefaultSingleton;
 import org.hiero.mirror.web3.state.singleton.SingletonState;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
-@SuppressWarnings({"rawtypes", "unchecked"})
 @Named
-@RequiredArgsConstructor
 public class MirrorNodeState implements State {
 
     private final Map<String, ReadableStates> readableStates = new ConcurrentHashMap<>();
     private final Map<String, WritableStates> writableStates = new ConcurrentHashMap<>();
 
     // Key is Service, value is Map of state name to state datasource
-    private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
+    private final Map<String, Map<Integer, Object>> states = new HashMap<>();
 
-    private final List<ReadableKVState> readableKVStates;
-    private final ServicesRegistry servicesRegistry;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-
-    private static final CommonProperties commonProperties = CommonProperties.getInstance();
-    private static final NodeInfoImpl DEFAULT_NODE_INFO = new NodeInfoImpl(
-            0L,
-            asAccount(commonProperties.getShard(), commonProperties.getRealm(), 3L),
-            10L,
-            List.of(),
-            Bytes.EMPTY,
-            List.of(),
-            true,
-            Bytes.EMPTY);
-    private static final Metrics NO_OP_METRICS = new NoOpMetrics();
-
-    @PostConstruct
-    private void init() {
-        registerServices(servicesRegistry);
-
-        servicesRegistry.registrations().forEach(registration -> {
-            if (!(registration.registry() instanceof SchemaRegistryImpl schemaRegistry)) {
-                throw new IllegalArgumentException("Can only be used with SchemaRegistryImpl instances");
-            }
-
-            schemaRegistry.migrate(
-                    registration.serviceName(), this, mirrorNodeEvmProperties.getVersionedConfiguration());
-        });
-    }
-
-    public MirrorNodeState addService(@NonNull final String serviceName, @NonNull final Map<Integer, ?> dataSources) {
-        final var serviceStates = this.states.computeIfAbsent(serviceName, k -> new ConcurrentHashMap<>());
-        dataSources.forEach((k, b) -> {
-            if (!serviceStates.containsKey(k)) {
-                serviceStates.put(k, b);
-            }
-        });
-
-        // Purge any readable states whose state definitions are now stale,
-        // since they don't include the new data sources we just added
-        readableStates.remove(serviceName);
-        writableStates.remove(serviceName);
-        return this;
+    public MirrorNodeState(
+            final List<SingletonState<?>> singletonStates, final List<AbstractReadableKVState<?, ?>> readableKVStates) {
+        initSingletonStates(singletonStates);
+        initKVStates(readableKVStates);
+        initQueueStates();
     }
 
     @NonNull
@@ -131,18 +72,10 @@ public class MirrorNodeState implements State {
             for (final var entry : serviceStates.entrySet()) {
                 final var stateId = entry.getKey();
                 final var state = entry.getValue();
-                if (state instanceof Queue queue) {
-                    data.put(stateId, new ListReadableQueueState(serviceName, stateId, queue));
+                if (state instanceof Queue<?> queue) {
+                    data.put(stateId, new ListReadableQueueState<>(serviceName, stateId, queue));
                 } else if (state instanceof ReadableKVState<?, ?> kvState) {
-                    final var readableKVState = readableKVStates.stream()
-                            .filter(r -> r.getStateId() == stateId)
-                            .findFirst();
-
-                    if (readableKVState.isPresent()) {
-                        data.put(stateId, readableKVState.get());
-                    } else {
-                        data.put(stateId, kvState);
-                    }
+                    data.put(stateId, kvState);
                 } else if (state instanceof SingletonState<?> singleton) {
                     data.put(stateId, new FunctionReadableSingletonState<>(serviceName, stateId, singleton));
                 }
@@ -181,6 +114,11 @@ public class MirrorNodeState implements State {
     }
 
     @Override
+    public void setHash(Hash hash) {
+        // No-op
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -204,55 +142,33 @@ public class MirrorNodeState implements State {
         return Collections.unmodifiableMap(states);
     }
 
-    private void registerServices(final ServicesRegistry servicesRegistry) {
-        // Register all service schema RuntimeConstructable factories before platform init
-        final var config = mirrorNodeEvmProperties.getVersionedConfiguration();
-        final var appContext = new AppContextImpl(
-                InstantSource.system(),
-                signatureVerifier(),
-                Gossip.UNAVAILABLE_GOSSIP,
-                () -> config,
-                () -> DEFAULT_NODE_INFO,
-                () -> NO_OP_METRICS,
-                new AppThrottleFactory(
-                        () -> config, () -> this, () -> ThrottleDefinitions.DEFAULT, ThrottleAccumulator::new),
-                () -> UNIVERSAL_NOOP_FEE_CHARGING,
-                new AppEntityIdFactory(config));
-        Set.of(
-                        new EntityIdServiceImpl(),
-                        new TokenServiceImpl(appContext),
-                        new FileServiceImpl(),
-                        new ContractServiceImpl(appContext, NO_OP_METRICS),
-                        new BlockRecordService(),
-                        new FeeService(),
-                        new CongestionThrottleService(),
-                        new RecordCacheService(),
-                        new ScheduleServiceImpl(appContext),
-                        new BlockStreamService())
-                .forEach(servicesRegistry::register);
+    private void initSingletonStates(final List<SingletonState<?>> singletonStates) {
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, STAKING_NETWORK_REWARDS_STATE_ID));
+        singletonStates.add(new DefaultSingleton(TokenService.NAME, NODE_REWARDS_STATE_ID));
+        singletonStates.forEach(
+                singletonState -> states.computeIfAbsent(singletonState.getServiceName(), k -> new HashMap<>())
+                        .put(singletonState.getStateId(), singletonState));
     }
 
-    private SignatureVerifier signatureVerifier() {
-        return new SignatureVerifier() {
-            @Override
-            public boolean verifySignature(
-                    @NonNull Key key,
-                    @NonNull Bytes bytes,
-                    SignatureVerifier.@NonNull MessageType messageType,
-                    @NonNull SignatureMap signatureMap,
-                    @Nullable Function<Key, SimpleKeyStatus> simpleKeyVerifier) {
-                throw new UnsupportedOperationException("Not implemented");
-            }
-
-            @Override
-            public KeyCounts countSimpleKeys(@NonNull Key key) {
-                throw new UnsupportedOperationException("Not implemented");
-            }
-        };
+    private void initKVStates(final List<AbstractReadableKVState<?, ?>> readableKVStates) {
+        readableKVStates.forEach(kvState -> states.computeIfAbsent(kvState.getServiceName(), k -> new HashMap<>())
+                .put(kvState.getStateId(), kvState));
+        final var defaultKvImplementations = Map.of(
+                LAMBDA_STORAGE_STATE_ID, ContractService.NAME,
+                EVM_HOOK_STATES_STATE_ID, ContractService.NAME,
+                SCHEDULE_ID_BY_EQUALITY_STATE_ID, ScheduleService.NAME,
+                SCHEDULED_COUNTS_STATE_ID, ScheduleService.NAME,
+                SCHEDULED_USAGES_STATE_ID, ScheduleService.NAME);
+        defaultKvImplementations.forEach(
+                (stateId, serviceName) -> states.computeIfAbsent(serviceName, k -> new HashMap<>())
+                        .put(stateId, createMapReadableStateForId(serviceName, stateId)));
     }
 
-    @Override
-    public void setHash(Hash hash) {
-        // No-op
+    private void initQueueStates() {
+        states.put(RecordCacheService.NAME, new HashMap<>(Map.of(TRANSACTION_RECEIPTS_STATE_ID, new LinkedList<>())));
+    }
+
+    private MapReadableKVState<?, ?> createMapReadableStateForId(final String serviceName, int id) {
+        return new MapReadableKVState<>(serviceName, id, new HashMap<>());
     }
 }

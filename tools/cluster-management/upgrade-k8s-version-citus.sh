@@ -157,19 +157,20 @@ done
 function upgradePool() {
   local pool="$1"
   log "Upgrading node pool: ${pool}"
-  local args=(
-    "${GCP_K8S_TARGET_CLUSTER_NAME}"
-    --node-pool="${pool}"
-    --cluster-version="${VERSION}"
-    --location="${GCP_K8S_TARGET_CLUSTER_REGION}"
-    --project="${GCP_TARGET_PROJECT}"
-  )
+
+  gcloud container clusters upgrade "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+      --node-pool="${pool}" \
+      --cluster-version="${VERSION}" \
+      --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+      --project="${GCP_TARGET_PROJECT}"
 
   if [[ -n "${SYSTEM_CONFIG_FILE}" ]]; then
-    args+=(--system-config-from-file="${SYSTEM_CONFIG_FILE}")
+     gcloud container node-pools update "${pool}" \
+        --cluster="${GCP_K8S_TARGET_CLUSTER_NAME}" \
+        --location="${GCP_K8S_TARGET_CLUSTER_REGION}" \
+        --project="${GCP_TARGET_PROJECT}" \
+        --system-config-from-file="${SYSTEM_CONFIG_FILE}"
   fi
-
-  gcloud container clusters upgrade "${args[@]}"
 }
 
 function upgradeCitusPools() {
