@@ -24,7 +24,7 @@
   "editable": false,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 140,
+  "id": 152,
   "links": [],
   "panels": [
     {
@@ -89,7 +89,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -169,7 +169,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -251,7 +251,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -335,7 +335,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -400,13 +400,14 @@
           "fields": "",
           "values": false
         },
+        "sort": "desc",
         "tooltip": {
           "hideZeros": false,
           "mode": "single",
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -415,7 +416,6 @@
           "editorMode": "code",
           "exemplar": true,
           "expr": "sum(hiero_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"}) by (iteration) / on() group_left() sum(hiero_mirror_web3_evm_gas_used_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",type=\"ETH_ESTIMATE_GAS\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "{{ type }}",
           "range": true,
@@ -423,79 +423,6 @@
         }
       ],
       "title": "Gas Iterations",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
-      "description": "The percentage of traffic received by the modularized flow",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 3,
-        "x": 15,
-        "y": 0
-      },
-      "id": 94,
-      "options": {
-        "displayLabels": [],
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "pieType": "pie",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.2.0-16677249643",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "${prometheus}"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (modularized) / on() group_left() sum(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
-          "instant": false,
-          "interval": "1m",
-          "legendFormat": "{{ modularized }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Modularized percent",
       "type": "piechart"
     },
     {
@@ -546,6 +473,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -601,7 +529,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -653,140 +581,7 @@
               "type": "linear"
             },
             "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 15000000
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "Value"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 13
-      },
-      "id": 85,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.2.0-16677249643",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "${prometheus}"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",modularized=\"false\"}[$__rate_interval])) by (status)",
-          "interval": "1m",
-          "legendFormat": "{{ status }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "EVM Execution Rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
-      "description": "The number of modularized EVM invocations per second grouped by response code",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisGridShow": false,
-            "axisLabel": "Requests per second",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "hue",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -820,7 +615,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 13
       },
       "id": 96,
       "options": {
@@ -842,7 +637,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -850,148 +645,14 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",modularized=\"true\"}[$__rate_interval])) by (status)",
+          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (status)",
           "interval": "1m",
           "legendFormat": "{{ status }}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "EVM Execution Rate (Modularized)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${prometheus}"
-      },
-      "description": "How much percent of traffic is modularized",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisGridShow": false,
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "hue",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "percent"
-            },
-            "thresholdsStyle": {
-              "mode": "dashed"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 15000000
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "__systemRef": "hideSeriesFrom",
-            "matcher": {
-              "id": "byNames",
-              "options": {
-                "mode": "exclude",
-                "names": [
-                  "Value"
-                ],
-                "prefix": "All except:",
-                "readOnly": true
-              }
-            },
-            "properties": [
-              {
-                "id": "custom.hideFrom",
-                "value": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": true
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 29
-      },
-      "id": 97,
-      "options": {
-        "legend": {
-          "calcs": [
-            "min",
-            "max",
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": false,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.2.0-16677249643",
-      "targets": [
-        {
-          "datasource": {
-            "uid": "${prometheus}"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum(rate(hiero_mirror_web3_evm_invocation_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (modularized)",
-          "interval": "1m",
-          "legendFormat": "{{ modularized }}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Modularized Traffic Percent",
+      "title": "EVM Execution Rate",
       "type": "timeseries"
     },
     {
@@ -1030,6 +691,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1076,7 +738,7 @@
                 "id": "custom.hideFrom",
                 "value": {
                   "legend": false,
-                  "tooltip": false,
+                  "tooltip": true,
                   "viz": true
                 }
               }
@@ -1088,7 +750,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 21
       },
       "id": 95,
       "options": {
@@ -1110,7 +772,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1164,6 +826,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1210,7 +873,7 @@
                 "id": "custom.hideFrom",
                 "value": {
                   "legend": false,
-                  "tooltip": false,
+                  "tooltip": true,
                   "viz": true
                 }
               }
@@ -1222,7 +885,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 29
       },
       "id": 93,
       "options": {
@@ -1244,7 +907,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1252,7 +915,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(hiero_mirror_web3_evm_gas_limit_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type, modularized)",
+          "expr": "sum(rate(hiero_mirror_web3_evm_gas_limit_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (type)",
           "interval": "1m",
           "legendFormat": "{{ type }}",
           "range": true,
@@ -1298,6 +961,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1331,7 +995,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 37
       },
       "id": 86,
       "options": {
@@ -1353,7 +1017,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1407,6 +1071,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1441,7 +1106,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 45
       },
       "id": 81,
       "options": {
@@ -1463,7 +1128,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1517,6 +1182,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1550,7 +1216,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 69
+        "y": 53
       },
       "id": 77,
       "options": {
@@ -1572,7 +1238,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1626,6 +1292,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1659,7 +1326,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 61
       },
       "id": 82,
       "options": {
@@ -1681,7 +1348,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1735,6 +1402,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1768,7 +1436,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 85
+        "y": 69
       },
       "id": 80,
       "options": {
@@ -1790,7 +1458,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1814,7 +1482,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 93
+        "y": 77
       },
       "id": 25,
       "panels": [],
@@ -1856,6 +1524,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1889,7 +1558,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 94
+        "y": 78
       },
       "id": 2,
       "options": {
@@ -1911,7 +1580,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -1927,7 +1596,6 @@
             "uid": "${prometheus}"
           },
           "expr": "avg(jvm_memory_used_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "used",
           "refId": "B"
@@ -1937,7 +1605,6 @@
             "uid": "${prometheus}"
           },
           "expr": "avg(jvm_memory_max_bytes{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "max",
           "refId": "C"
@@ -1982,6 +1649,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2014,7 +1682,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 103
+        "y": 87
       },
       "id": 3,
       "options": {
@@ -2036,7 +1704,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2044,7 +1712,6 @@
           },
           "editorMode": "code",
           "expr": "avg(process_cpu_usage{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"} * system_cpu_count{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "usage",
           "range": true,
@@ -2089,6 +1756,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2183,7 +1851,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 112
+        "y": 96
       },
       "id": 7,
       "options": {
@@ -2199,7 +1867,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2250,6 +1918,7 @@
               "type": "log"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2344,7 +2013,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 120
+        "y": 104
       },
       "id": 59,
       "options": {
@@ -2360,7 +2029,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2419,6 +2088,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2468,7 +2138,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 128
+        "y": 112
       },
       "id": 15,
       "interval": "1m",
@@ -2491,7 +2161,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2516,7 +2186,6 @@
             "uid": "${prometheus}"
           },
           "expr": "avg(hikaricp_connections_max{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "max",
           "refId": "C"
@@ -2527,7 +2196,6 @@
           },
           "editorMode": "code",
           "expr": "avg(hikaricp_connections_pending{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "pending",
           "range": true,
@@ -2572,6 +2240,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2621,7 +2290,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 136
+        "y": 120
       },
       "id": 72,
       "interval": "1m",
@@ -2644,7 +2313,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2669,7 +2338,6 @@
             "uid": "${prometheus}"
           },
           "expr": "avg(jdbc_connections_max{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "max",
           "refId": "C"
@@ -2678,8 +2346,7 @@
           "datasource": {
             "uid": "${prometheus}"
           },
-          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"})",
-          "hide": false,
+          "expr": "avg(jdbc_connections_min{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=\"$pod\"})",
           "interval": "1m",
           "legendFormat": "min",
           "refId": "E"
@@ -2724,6 +2391,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": 3600000,
             "stacking": {
               "group": "A",
@@ -2755,7 +2423,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 144
+        "y": 128
       },
       "id": 83,
       "options": {
@@ -2777,7 +2445,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2831,6 +2499,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": 3600000,
             "stacking": {
               "group": "A",
@@ -2862,7 +2531,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 153
+        "y": 137
       },
       "id": 101,
       "options": {
@@ -2884,7 +2553,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -2938,6 +2607,7 @@
               "type": "linear"
             },
             "showPoints": "auto",
+            "showValues": false,
             "spanNulls": 3600000,
             "stacking": {
               "group": "A",
@@ -2969,7 +2639,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 162
+        "y": 146
       },
       "id": 98,
       "options": {
@@ -2991,7 +2661,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3045,6 +2715,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3076,7 +2747,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 171
+        "y": 155
       },
       "id": 84,
       "options": {
@@ -3092,7 +2763,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3149,6 +2820,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": true,
             "stacking": {
               "group": "A",
@@ -3184,7 +2856,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 179
+        "y": 163
       },
       "id": 100,
       "options": {
@@ -3204,7 +2876,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3228,7 +2900,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 187
+        "y": 171
       },
       "id": 88,
       "panels": [],
@@ -3271,6 +2943,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3308,7 +2981,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 188
+        "y": 172
       },
       "id": 89,
       "options": {
@@ -3326,7 +2999,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3334,7 +3007,6 @@
           },
           "editorMode": "code",
           "expr": "sum (cache_gets_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\",result=\"hit\"}) by (cache_manager, cache) / sum (cache_gets_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (cache_manager, cache)",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "{{ cache_manager }}.{{ cache }}",
           "range": true,
@@ -3380,6 +3052,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3417,7 +3090,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 188
+        "y": 172
       },
       "id": 90,
       "options": {
@@ -3435,7 +3108,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3443,7 +3116,6 @@
           },
           "editorMode": "code",
           "expr": "avg(cache_size{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}) by (cache_manager, cache)",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "{{ cache_manager }}.{{ cache }}",
           "range": true,
@@ -3489,6 +3161,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3526,7 +3199,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 196
+        "y": 180
       },
       "id": 91,
       "options": {
@@ -3544,7 +3217,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3552,7 +3225,6 @@
           },
           "editorMode": "code",
           "expr": "avg(rate(cache_gets_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (cache_manager, cache)",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "{{ cache_manager }}.{{ cache }}",
           "range": true,
@@ -3598,6 +3270,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3635,7 +3308,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 196
+        "y": 180
       },
       "id": 92,
       "options": {
@@ -3653,7 +3326,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3661,7 +3334,6 @@
           },
           "editorMode": "code",
           "expr": "avg(rate(cache_puts_total{application=\"$application\",cluster=~\"$cluster\",namespace=~\"$namespace\",pod=~\"$pod\"}[$__rate_interval])) by (cache_manager, cache)",
-          "hide": false,
           "interval": "1m",
           "legendFormat": "{{ cache_manager }}.{{ cache }}",
           "range": true,
@@ -3677,7 +3349,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 204
+        "y": 188
       },
       "id": 35,
       "panels": [],
@@ -3720,6 +3392,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -3844,7 +3517,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 205
+        "y": 189
       },
       "id": 5,
       "options": {
@@ -3860,7 +3533,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.2.0-16677249643",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3890,7 +3563,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 213
+        "y": 197
       },
       "id": 54,
       "options": {
@@ -3899,12 +3572,13 @@
         "enableLogDetails": false,
         "prettifyLogMessage": false,
         "showCommonLabels": false,
+        "showControls": false,
         "showLabels": false,
         "showTime": false,
         "sortOrder": "Ascending",
         "wrapLogMessage": false
       },
-      "pluginVersion": "12.2.0-16606054638",
+      "pluginVersion": "12.4.0-20160616057",
       "targets": [
         {
           "datasource": {
@@ -3921,7 +3595,7 @@
   ],
   "preload": false,
   "refresh": "1m",
-  "schemaVersion": 41,
+  "schemaVersion": 42,
   "tags": [
     "hiero",
     "mirror",
@@ -3997,6 +3671,7 @@
         },
         "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 5,
         "type": "query"
       },
@@ -4020,6 +3695,7 @@
         },
         "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
@@ -4043,6 +3719,7 @@
         },
         "refresh": 2,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       }
@@ -4068,5 +3745,5 @@
   "timezone": "",
   "title": "Mirror Web3 API",
   "uid": "Si3C9zAnk",
-  "version": 7
+  "version": 8
 }

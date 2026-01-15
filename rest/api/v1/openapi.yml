@@ -53,6 +53,54 @@ paths:
           $ref: "#/components/responses/NotFoundError"
       tags:
         - accounts
+  /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks:
+    get:
+      summary: List hooks for an account
+      description: Returns a list of hooks associated with a given account ID, alias, or EVM address.
+      operationId: getHooks
+      parameters:
+        - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"
+        - $ref: "#/components/parameters/hookIdQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParamDesc"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HooksResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - accounts
+  /api/v1/accounts/{idOrAliasOrEvmAddress}/hooks/{hookId}/storage:
+    get:
+      summary: Get hook storage slots
+      description: Returns a list of hook storage slots associated with a given hook.
+      operationId: getHookStorage
+      parameters:
+        - $ref: "#/components/parameters/accountIdOrAliasOrEvmAddressPathParam"
+        - $ref: "#/components/parameters/hookIdPathParam"
+        - $ref: "#/components/parameters/keyQueryParam"
+        - $ref: "#/components/parameters/limitQueryParam"
+        - $ref: "#/components/parameters/orderQueryParam"
+        - $ref: "#/components/parameters/timestampQueryParam"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HooksStorageResponse"
+        "400":
+          $ref: "#/components/responses/InvalidParameterError"
+        "404":
+          $ref: "#/components/responses/NotFoundError"
+      tags:
+        - accounts
   /api/v1/accounts/{idOrAliasOrEvmAddress}/nfts:
     get:
       summary: Get nfts for an account info
@@ -866,6 +914,37 @@ paths:
           $ref: "#/components/responses/ServiceUnavailableError"
       tags:
         - network
+    post:
+      summary: Estimate network fees
+      description: Given a HAPI transaction, estimate the network fees in tinycents.
+      operationId: estimateFees
+      parameters:
+        - $ref: "#/components/parameters/estimateModeQueryParam"
+      requestBody:
+        content:
+          application/protobuf:
+            schema:
+              format: binary
+              type: string
+          application/x-protobuf:
+            schema:
+              format: binary
+              type: string
+        description: A protobuf encoded HAPI Transaction
+        required: true
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeeEstimateResponse"
+        400:
+          $ref: "#/components/responses/InvalidParameterError"
+        500:
+          $ref: "#/components/responses/ServiceUnavailableError"
+      tags:
+        - network
   /api/v1/network/nodes:
     get:
       summary: Get the network address book nodes
@@ -1400,7 +1479,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.139.0-SNAPSHOT
+  version: 0.147.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1550,6 +1629,108 @@ components:
           $ref: "#/components/schemas/CryptoAllowances"
         links:
           $ref: "#/components/schemas/Links"
+    HooksResponse:
+      type: object
+      required:
+        - hooks
+        - links
+      properties:
+        hooks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hook"
+        links:
+          $ref: "#/components/schemas/Links"
+    Hook:
+      type: object
+      required:
+        - admin_key
+        - contract_id
+        - created_timestamp
+        - deleted
+        - extension_point
+        - hook_id
+        - owner_id
+        - timestamp_range
+        - type
+      properties:
+        admin_key:
+          $ref: "#/components/schemas/Key"
+        contract_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+          description: The contract entity that contains the hook's executing bytecode
+        created_timestamp:
+          allOf:
+            - $ref: "#/components/schemas/TimestampNullable"
+          description: The consensus timestamp when the hook was created
+        deleted:
+          description: Whether the hook has been deleted
+          example: false
+          type: boolean
+        extension_point:
+          description: The extension point this hook implements
+          enum: [ACCOUNT_ALLOWANCE_HOOK]
+          example: ACCOUNT_ALLOWANCE_HOOK
+          type: string
+        hook_id:
+          description: The unique identifier for the hook within the owner's scope
+          example: 1
+          format: int64
+          type: integer
+        owner_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+          description: The entity that owns the hook
+        timestamp_range:
+          $ref: "#/components/schemas/TimestampRangeNullable"
+        type:
+          description: The type of the hook implementation
+          enum: [LAMBDA]
+          example: LAMBDA
+          type: string
+    HookStorage:
+      type: object
+      required:
+        - key
+        - timestamp
+        - value
+      properties:
+        key:
+          example: "0x00000000000000000000000000000000000000000000000000000000000f9a17"
+          format: binary
+          nullable: false
+          type: string
+        value:
+          example: "0x00000000000000000000000000000000000000000000000000000000000f9a17"
+          format: binary
+          nullable: true
+          type: string
+        timestamp:
+          $ref: "#/components/schemas/Timestamp"
+    HooksStorageResponse:
+      type: object
+      required:
+        - hook_id
+        - links
+        - owner_id
+        - storage
+      properties:
+        hook_id:
+          description: The unique identifier of the hook within the owner's scope
+          example: 1
+          format: int64
+          type: integer
+        links:
+          $ref: "#/components/schemas/Links"
+        owner_id:
+          allOf:
+            - $ref: "#/components/schemas/EntityId"
+            - description: The entity that owns the hook
+        storage:
+          type: array
+          items:
+            $ref: "#/components/schemas/HookStorage"
     NetworkExchangeRateSetResponse:
       type: object
       properties:
@@ -3212,6 +3393,125 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FixedCustomFee"
+    FeeEstimate:
+      description: The fee estimate for the network component. Includes the base fee and any extras associated with it.
+      properties:
+        base:
+          description: The base fee price, in tinycents.
+          example: 1000
+          format: int64
+          minimum: 0
+          type: integer
+        extras:
+          description: The extra fees that apply for this fee component.
+          items:
+            $ref: "#/components/schemas/FeeExtra"
+          type: array
+      required:
+        - base
+        - extras
+      type: object
+    FeeEstimateMode:
+      description: Estimate solely based on the transaction's inherent properties or use network state.
+      default: INTRINSIC
+      enum: [INTRINSIC, STATE]
+      type: string
+    FeeEstimateNetwork:
+      description: The network fee component which covers the cost of gossip, consensus, signature verifications, fee payment, and storage.
+      properties:
+        multiplier:
+          description: Multiplied by the node fee to determine the total network fee.
+          example: 2
+          format: int32
+          minimum: 0
+          type: integer
+        subtotal:
+          description: The subtotal in tinycents for the network fee component which is calculated by multiplying the node subtotal by the network multiplier.
+          example: 1200
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - multiplier
+        - subtotal
+      type: object
+    FeeEstimateResponse:
+      description: The response containing the estimated transaction fees.
+      properties:
+        network:
+          $ref: "#/components/schemas/FeeEstimateNetwork"
+        node:
+          allOf:
+            - $ref: "#/components/schemas/FeeEstimate"
+            - description: The node fee component which is to be paid to the node that submitted the transaction to the network. This fee exists to compensate the node for the work it performed to pre-check the transaction before submitting it, and incentivizes the node to accept new transactions from users.
+        notes:
+          description: An array of strings for any caveats.
+          example: ["Fallback to worst-case due to missing state"]
+          items:
+            type: string
+          type: array
+        service:
+          allOf:
+            - $ref: "#/components/schemas/FeeEstimate"
+            - description: The service fee component which covers execution costs, state saved in the Merkle tree, and additional costs to the blockchain storage.
+        total:
+          description: The sum of the network, node, and service subtotals in tinycents.
+          example: 1000
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - network
+        - node
+        - notes
+        - service
+        - total
+      type: object
+    FeeExtra:
+      description: The extra fee charged for the transaction.
+      properties:
+        charged:
+          description: The charged count of items as calculated by `max(0, count - included)`.
+          example: 1
+          format: int32
+          minimum: 0
+          type: integer
+        count:
+          description: The actual count of items received.
+          example: 2
+          format: int32
+          minimum: 0
+          type: integer
+        fee_per_unit:
+          description: The fee price per unit in tinycents.
+          example: 100
+          format: int64
+          minimum: 0
+          type: integer
+        included:
+          description: The count of this "extra" that is included for free.
+          example: 1
+          format: int32
+          minimum: 0
+          type: integer
+        name:
+          description: The unique name of this extra fee as defined in the fee schedule.
+          example: Signatures
+          type: string
+        subtotal:
+          description: The subtotal in tinycents for this extra fee. Calculated by multiplying the charged count by the fee_per_unit.
+          example: 100
+          format: int64
+          minimum: 0
+          type: integer
+      required:
+        - charged
+        - count
+        - fee_per_unit
+        - included
+        - name
+        - subtotal
+      type: object
     FixedCustomFee:
       type: object
       properties:
@@ -3673,7 +3973,7 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
-        - NODE
+        - LAMBDASSTORE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
@@ -3704,7 +4004,6 @@ components:
         - TOKENUPDATENFTS
         - TOKENWIPE
         - UNCHECKEDSUBMIT
-        - UNKNOWN
         - UTILPRNG
     Tokens:
       type: array
@@ -4477,6 +4776,61 @@ components:
         default: 25
         minimum: 1
         maximum: 100
+    hookIdQueryParam:
+      description: The ID of the hook
+      example: 1234
+      in: query
+      name: hook.id
+      schema:
+        format: int64
+        type: integer
+        minimum: 1
+        maximum: 9223372036854775807
+      required: false
+    hookIdPathParam:
+      description: The ID of the hook
+      example: 1234
+      in: path
+      name: hookId
+      schema:
+        format: int64
+        type: integer
+        minimum: 0
+        maximum: 9223372036854775807
+      required: true
+    keyQueryParam:
+      description: A string representing a pair of operator:address of a hook storage entry
+      examples:
+        zeroXPrefix:
+          summary: Example of key equals operator with 0x prefix
+          value: eq:0x00000000000000000000000000000000000000000000000000000000000f9a15
+        noZeroPadding:
+          summary: Example of key equals operator without zero padding
+          value: eq:f9a15
+        noOperator:
+          summary: Example of key equals with no operator
+          value: 00000000000000000000000000000000000000000000000000000000000f9a15
+        eqOperator:
+          summary: Example of key equals operator
+          value: eq:00000000000000000000000000000000000000000000000000000000000f9a15
+        gtOperator:
+          summary: Example of key gt operator
+          value: gt:00000000000000000000000000000000000000000000000000000000000f9a15
+        gteOperator:
+          summary: Example of key gte operator
+          value: gte:00000000000000000000000000000000000000000000000000000000000f9a15
+        ltOperator:
+          summary: Example of key lt operator
+          value: lt:00000000000000000000000000000000000000000000000000000000000f9a15
+        lteOperator:
+          summary: Example of key lte operator
+          value: lte:00000000000000000000000000000000000000000000000000000000000f9a15
+      in: query
+      name: key
+      schema:
+        example: eq:0x00000000000000000000000000000000000000000000000000000000000f9a10
+        pattern: ^((eq|gte?|lte?)\:)?(0x)?[0-9A-Fa-f]{1,64}$
+        type: string
     blockNumberQueryParam:
       name: block.number
       in: query
@@ -4827,7 +5181,7 @@ components:
         type: array
         items:
           type: string
-          pattern: ^((eq|gt|gte|lt|lte|ne):)?\d{1,10}(.\d{1,9})?$
+          pattern: ^((eq|gt|gte|lt|lte|ne):)?\d{1,10}(\.\d{1,9})?$
     timestampPathParam:
       name: timestamp
       in: path
@@ -4836,7 +5190,7 @@ components:
       example: 1234567890.000000700
       schema:
         type: string
-        pattern: ^\d{1,10}(.\d{1,9})?$
+        pattern: ^\d{1,10}(\.\d{1,9})?$
     stateTimestampQueryParam:
       description: The consensus timestamp of the contract state as a Unix timestamp in seconds.nanoseconds format with an optional comparison operator. See [unixtimestamp.com](https://www.unixtimestamp.com/) for a simple way to convert a date to the 'seconds' part of the Unix time.
       name: timestamp
@@ -4886,7 +5240,7 @@ components:
         type: array
         items:
           type: string
-          pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(.\d{1,9})?$
+          pattern: ^((eq|gt|gte|lt|lte):)?\d{1,10}(\.\d{1,9})?$
     tokenInfoTimestampQueryParam:
       description: The Unix timestamp in seconds.nanoseconds format. See [unixtimestamp.com](https://www.unixtimestamp.com/) for a simple way to convert a date to the 'seconds' part of the Unix time.
       name: timestamp
@@ -4922,7 +5276,7 @@ components:
           value: lte:1234567890.000000700
       schema:
         type: string
-        pattern: ^((eq|lt|lte):)?\d{1,10}(.\d{1,9})?$
+        pattern: ^((eq|lt|lte):)?\d{1,10}(\.\d{1,9})?$
     logTopic0QueryParam:
       name: topic0
       in: query
@@ -4990,6 +5344,13 @@ components:
       schema:
         type: boolean
         default: false
+    estimateModeQueryParam:
+      description: Estimate solely based on the transaction's inherent properties or use network state.
+      in: query
+      name: mode
+      example: INTRINSIC
+      schema:
+        $ref: "#/components/schemas/FeeEstimateMode"
     stack:
       name: stack
       description: If provided and set to false, stack information will not be included in the response
@@ -5017,7 +5378,7 @@ components:
     transactionTypeQueryParam:
       name: transactiontype
       in: query
-      example: cryptotransfer
+      example:
       schema:
         $ref: "#/components/schemas/TransactionTypes"
     transactionIdPathParam:
@@ -5091,7 +5452,6 @@ components:
         type: string
         maxLength: 100
         minLength: 3
-
     tokenTypeQueryParam:
       name: type
       in: query

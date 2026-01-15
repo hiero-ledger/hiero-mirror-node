@@ -35,11 +35,6 @@ dependencies {
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("io.cucumber:cucumber-spring")
     testImplementation("io.grpc:grpc-okhttp")
-    testImplementation(
-        group = "io.netty",
-        name = "netty-resolver-dns-native-macos",
-        classifier = "osx-aarch_64",
-    )
     testImplementation("jakarta.inject:jakarta.inject-api")
     testImplementation("net.java.dev.jna:jna")
     testImplementation("org.apache.commons:commons-lang3")
@@ -58,20 +53,25 @@ dependencies {
 // task
 tasks.named("test") { enabled = false }
 
+val maxParallelism = project.property("maxParallelism") as String
+val test by testing.suites.existing(JvmTestSuite::class)
+
 tasks.register<Test>("acceptance") {
+    classpath = files(test.map { it.sources.runtimeClasspath })
     description = "Acceptance tests configuration"
     group = "verification"
-    val maxParallelism = project.property("maxParallelism") as String
     jvmArgs = listOf("-Xmx1024m", "-Xms1024m")
     maxParallelForks =
         if (maxParallelism.isNotBlank()) maxParallelism.toInt()
         else Runtime.getRuntime().availableProcessors()
+    testClassesDirs = files(test.map { it.sources.output.classesDirs })
     useJUnitPlatform {}
-
-    // Copy relevant system properties to the forked test process
-    System.getProperties()
-        .filter { it.key.toString().matches(Regex("^(cucumber|hedera|hiero|spring)\\..*")) }
-        .forEach { systemProperty(it.key.toString(), it.value) }
+    doFirst {
+        // Copy relevant system properties to the forked test process
+        System.getProperties()
+            .filter { it.key.toString().matches(Regex("^(cucumber|hedera|hiero|spring)\\..*")) }
+            .forEach { systemProperty(it.key.toString(), it.value) }
+    }
 }
 
 tasks.build { dependsOn("shadowJar") }

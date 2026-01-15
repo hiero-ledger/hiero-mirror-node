@@ -2,13 +2,12 @@
 
 package org.hiero.mirror.web3.service;
 
-import static com.hedera.node.app.service.evm.accounts.HederaEvmContractAliases.isMirror;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRACTCREATEINSTANCE;
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
+import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -25,21 +24,22 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.rest.model.OpcodesResponse;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.store.accessor.EntityDatabaseAccessor;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -53,19 +53,20 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final EthereumTransactionRepository ethereumTransactionRepository;
     private final TransactionRepository transactionRepository;
     private final ContractResultRepository contractResultRepository;
-    private final EntityDatabaseAccessor entityDatabaseAccessor;
+    private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
     public OpcodesResponse processOpcodeCall(
             @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
-        final ContractDebugParameters params =
-                buildCallServiceParameters(transactionIdOrHashParameter, options.isModularized());
-        final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
-        return buildOpcodesResponse(result);
+        final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter);
+        return ContractCallContext.run(ctx -> {
+            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
+            return buildOpcodesResponse(result);
+        });
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHash, boolean isModularized) {
+            @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Optional<Transaction> transaction;
         final Optional<EthereumTransaction> ethereumTransaction;
@@ -101,15 +102,15 @@ public class OpcodeServiceImpl implements OpcodeService {
             }
         }
 
-        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction, isModularized);
+        return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
         final Optional<Address> recipientAddress =
-                result.transactionProcessingResult().getRecipient();
+                result.recipient() != Address.ZERO ? Optional.of(result.recipient()) : Optional.empty();
 
         final Optional<Entity> recipientEntity =
-                recipientAddress.flatMap(address -> entityDatabaseAccessor.get(address, Optional.empty()));
+                recipientAddress.flatMap(address -> commonEntityAccessor.get(address, Optional.empty()));
 
         return new OpcodesResponse()
                 .address(recipientEntity
@@ -121,7 +122,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         .map(EntityId::toString)
                         .orElse(null))
                 .failed(!result.transactionProcessingResult().isSuccessful())
-                .gas(result.transactionProcessingResult().getGasUsed())
+                .gas(result.transactionProcessingResult().gasUsed())
                 .opcodes(result.opcodes().stream()
                         .map(opcode -> new Opcode()
                                 .depth(opcode.depth())
@@ -141,17 +142,14 @@ public class OpcodeServiceImpl implements OpcodeService {
                                                 entry -> entry.getKey().toHexString(),
                                                 entry -> entry.getValue().toHexString()))))
                         .toList())
-                .returnValue(
-                        Optional.ofNullable(result.transactionProcessingResult().getOutput())
-                                .map(Bytes::toHexString)
-                                .orElse(Bytes.EMPTY.toHexString()));
+                .returnValue(Optional.ofNullable(Bytes.fromHexString(
+                                result.transactionProcessingResult().contractCallResult()))
+                        .map(Bytes::toHexString)
+                        .orElse(Bytes.EMPTY.toHexString()));
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            Long consensusTimestamp,
-            Optional<Transaction> transaction,
-            Optional<EthereumTransaction> ethTransaction,
-            boolean isModularized) {
+            Long consensusTimestamp, Optional<Transaction> transaction, Optional<EthereumTransaction> ethTransaction) {
         final ContractResult contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
@@ -169,15 +167,14 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .callData(getCallData(ethTransaction, contractResult))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
-                .isModularized(isModularized)
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
-                .sender(new HederaEvmAccount(getSenderAddress(contractResult)))
+                .sender(getSenderAddress(contractResult))
                 .value(getValue(ethTransaction, contractResult).longValue())
                 .build();
     }
 
     private Address getSenderAddress(ContractResult contractResult) {
-        return entityDatabaseAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+        return commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
     }
 
     private Address getReceiverAddress(
@@ -188,8 +185,8 @@ public class OpcodeServiceImpl implements OpcodeService {
                         return Optional.of(Address.ZERO);
                     }
                     Address address = Address.wrap(Bytes.wrap(transaction.getToAddress()));
-                    if (isMirror(address.toArrayUnsafe())) {
-                        return entityDatabaseAccessor
+                    if (ConversionUtils.isLongZero(address)) {
+                        return commonEntityAccessor
                                 .get(address, Optional.empty())
                                 .map(this::getEntityAddress);
                     }
@@ -200,7 +197,7 @@ public class OpcodeServiceImpl implements OpcodeService {
                         return Address.ZERO;
                     }
                     final var contractId = EntityId.of(contractResult.getContractId());
-                    return entityDatabaseAccessor.evmAddressFromId(contractId, Optional.empty());
+                    return commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
                 });
     }
 

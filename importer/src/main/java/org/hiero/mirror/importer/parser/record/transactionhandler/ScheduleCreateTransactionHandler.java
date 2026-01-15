@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
+import com.hederahashgraph.api.proto.java.AccountID;
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -52,7 +53,21 @@ class ScheduleCreateTransactionHandler extends AbstractEntityCrudTransactionHand
 
         var body = recordItem.getTransactionBody().getScheduleCreate();
         long consensusTimestamp = recordItem.getConsensusTimestamp();
+
         var creatorAccount = recordItem.getPayerAccountId();
+
+        var parentRecordItem = recordItem.getParent();
+        if (parentRecordItem != null && parentRecordItem.getEthereumTransaction() != null) {
+            var transactionRecord = parentRecordItem.getTransactionRecord();
+            var functionResult = transactionRecord.hasContractCreateResult()
+                    ? transactionRecord.getContractCreateResult()
+                    : transactionRecord.getContractCallResult();
+
+            if (!AccountID.getDefaultInstance().equals(functionResult.getSenderId())) {
+                creatorAccount = EntityId.of(functionResult.getSenderId());
+            }
+        }
+
         var expirationTime =
                 body.hasExpirationTime() ? DomainUtils.timestampInNanosMax(body.getExpirationTime()) : null;
         var payerAccount = body.hasPayerAccountID() ? EntityId.of(body.getPayerAccountID()) : creatorAccount;

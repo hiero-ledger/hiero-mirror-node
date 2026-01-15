@@ -3,15 +3,17 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_PROOF;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Range;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import io.grpc.CallOptions;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCalls;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -24,43 +26,65 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.Getter;
+import org.hiero.block.api.protoc.BlockEnd;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
 import org.hiero.block.api.protoc.SubscribeStreamRequest;
 import org.hiero.block.api.protoc.SubscribeStreamResponse;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
+import org.hiero.mirror.importer.util.Utility;
+import org.jspecify.annotations.NullMarked;
 
 @CustomLog
+@NullMarked
 final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
+    static final String ERROR_METRIC_NAME = "hiero.mirror.importer.stream.error";
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
+    private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
     private static final long UNKNOWN_NODE_ID = -1;
+
     private final ManagedChannel channel;
     private final AtomicInteger errors = new AtomicInteger();
+    private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
+
+    @Getter
     private final BlockNodeProperties properties;
+
     private final AtomicReference<Instant> readmitTime = new AtomicReference<>(Instant.now());
     private final StreamProperties streamProperties;
+
+    private final Counter errorsMetric;
 
     @Getter
     private boolean active = true;
 
     BlockNode(
-            ManagedChannelBuilderProvider channelBuilderProvider,
-            BlockNodeProperties properties,
-            StreamProperties streamProperties) {
+            final ManagedChannelBuilderProvider channelBuilderProvider,
+            final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer,
+            final BlockNodeProperties properties,
+            final StreamProperties streamProperties,
+            final MeterRegistry meterRegistry) {
         this.channel = channelBuilderProvider
                 .get(properties)
                 .maxInboundMessageSize(
                         (int) streamProperties.getMaxStreamResponseSize().toBytes())
                 .build();
+        this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
         this.streamProperties = streamProperties;
+        this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
+                .description("The number of errors that occurred while streaming from a particular block node.")
+                .tag("type", StreamType.BLOCK.toString())
+                .tag("block_node", properties.getEndpoint())
+                .register(meterRegistry);
     }
 
     @Override
@@ -72,49 +96,49 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         channel.shutdown();
     }
 
-    public boolean hasBlock(long blockNumber) {
+    public Range<Long> getBlockRange() {
         try {
-            var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
+            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
-            var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
-            return blockNumber >= response.getFirstAvailableBlock() && blockNumber <= response.getLastAvailableBlock();
+            final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
+            final long firstBlockNumber = response.getFirstAvailableBlock();
+            return firstBlockNumber != -1
+                    ? Range.closed(firstBlockNumber, response.getLastAvailableBlock())
+                    : EMPTY_BLOCK_RANGE;
         } catch (Exception ex) {
             log.error("Failed to get server status for {}", this, ex);
-            return false;
+            return EMPTY_BLOCK_RANGE;
         }
     }
 
     public void streamBlocks(
-            long blockNumber,
-            CommonDownloaderProperties commonDownloaderProperties,
-            Consumer<BlockStream> onBlockStream) {
-        var grpcCall = new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
+            final long blockNumber,
+            final CommonDownloaderProperties commonDownloaderProperties,
+            final Consumer<BlockStream> onBlockStream) {
+        final var callHolder =
+                new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
-            long endBlockNumber = Objects.requireNonNullElse(
+            final long endBlockNumber = Objects.requireNonNullElse(
                     commonDownloaderProperties.getImporterProperties().getEndBlockNumber(), -1L);
-            var assembler = new BlockAssembler(commonDownloaderProperties.getTimeout());
-            var request = SubscribeStreamRequest.newBuilder()
+            final var assembler = new BlockAssembler(onBlockStream, commonDownloaderProperties.getTimeout());
+            final var request = SubscribeStreamRequest.newBuilder()
                     .setEndBlockNumber(endBlockNumber)
                     .setStartBlockNumber(blockNumber)
                     .build();
-            grpcCall.set(ClientCalls.blockingV2ServerStreamingCall(
+            final var grpcCall = ClientCalls.blockingV2ServerStreamingCall(
                     channel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
                     CallOptions.DEFAULT,
-                    request));
+                    request);
+            callHolder.set(grpcCall);
             SubscribeStreamResponse response;
 
             boolean serverSuccess = false;
-            while (!serverSuccess
-                    && (response = grpcCall.get().read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
+            while (!serverSuccess && (response = grpcCall.read(assembler.timeout(), TimeUnit.MILLISECONDS)) != null) {
                 switch (response.getResponseCase()) {
-                    case BLOCK_ITEMS -> {
-                        var blockStream = assembler.assemble(response.getBlockItems());
-                        if (blockStream != null) {
-                            onBlockStream.accept(blockStream);
-                        }
-                    }
+                    case BLOCK_ITEMS -> assembler.onBlockItemSet(response.getBlockItems());
+                    case END_OF_BLOCK -> assembler.onEndOfBlock(response.getEndOfBlock());
                     case STATUS -> {
                         var status = response.getStatus();
                         if (status == SubscribeStreamResponse.Code.SUCCESS) {
@@ -139,14 +163,16 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             onError();
             throw new BlockStreamException(ex);
         } finally {
-            if (grpcCall.get() != null) {
-                grpcCall.get().cancel("unsubscribe", null);
+            final var call = callHolder.get();
+            if (call != null) {
+                call.cancel("unsubscribe", null);
+                grpcBufferDisposer.accept(call);
             }
         }
     }
 
     @Override
-    public int compareTo(BlockNode other) {
+    public int compareTo(final BlockNode other) {
         return COMPARATOR.compare(this, other);
     }
 
@@ -155,7 +181,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return String.format("BlockNode(%s)", properties.getEndpoint());
     }
 
-    public BlockNode tryReadmit(boolean force) {
+    public BlockNode tryReadmit(final boolean force) {
         if (!active && (force || Instant.now().isAfter(readmitTime.get()))) {
             active = true;
         }
@@ -164,6 +190,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     }
 
     private void onError() {
+        errorsMetric.increment();
         if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {
             active = false;
             errors.set(0);
@@ -177,33 +204,49 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     private class BlockAssembler {
 
+        private final Consumer<BlockStream> blockStreamConsumer;
         private final List<List<BlockItem>> pending = new ArrayList<>();
         private final Stopwatch stopwatch;
         private final Duration timeout;
         private long loadStart;
         private int pendingCount = 0;
 
-        BlockAssembler(Duration timeout) {
+        BlockAssembler(final Consumer<BlockStream> blockStreamConsumer, final Duration timeout) {
+            this.blockStreamConsumer = blockStreamConsumer;
             this.stopwatch = Stopwatch.createUnstarted();
             this.timeout = timeout;
         }
 
-        BlockStream assemble(BlockItemSet blockItemSet) {
+        void onBlockItemSet(final BlockItemSet blockItemSet) {
             var blockItems = blockItemSet.getBlockItemsList();
             if (blockItems.isEmpty()) {
                 log.warn("Received empty BlockItemSet from block node");
-                return null;
+                return;
             }
 
-            var firstItemCase = blockItems.getFirst().getItemCase();
+            final var firstItemCase = blockItems.getFirst().getItemCase();
             append(blockItems, firstItemCase);
 
             if (firstItemCase == BLOCK_HEADER || firstItemCase == RECORD_FILE) {
                 loadStart = System.currentTimeMillis();
             }
+        }
 
-            if (firstItemCase != RECORD_FILE && blockItems.getLast().getItemCase() != BLOCK_PROOF) {
-                return null;
+        void onEndOfBlock(final BlockEnd blockEnd) {
+            final long blockNumber = blockEnd.getBlockNumber();
+            if (pending.isEmpty()) {
+                Utility.handleRecoverableError(
+                        "Received end-of-block message for block {} while there's no pending block items", blockNumber);
+                return;
+            }
+
+            final var firstBlockItem = pending.getFirst().getFirst();
+            if (firstBlockItem.getItemCase() == BLOCK_HEADER
+                    && firstBlockItem.getBlockHeader().getNumber() != blockNumber) {
+                Utility.handleRecoverableError(
+                        "Block number mismatch in BlockHeader({}) and EndOfBlock({})",
+                        firstBlockItem.getBlockHeader().getNumber(),
+                        blockNumber);
             }
 
             List<BlockItem> block;
@@ -212,7 +255,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             } else {
                 // assemble when there are more than one BlockItemSet
                 block = new ArrayList<>();
-                for (var items : pending) {
+                for (final var items : pending) {
                     block.addAll(items);
                 }
             }
@@ -221,10 +264,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             pendingCount = 0;
             stopwatch.reset();
 
-            var filename = firstItemCase != RECORD_FILE
+            final var filename = firstBlockItem.getItemCase() == BLOCK_HEADER
                     ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
                     : null;
-            return new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID);
+            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID));
         }
 
         long timeout() {
@@ -236,7 +279,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             return timeout.toMillis() - stopwatch.elapsed(TimeUnit.MILLISECONDS);
         }
 
-        private void append(List<BlockItem> blockItems, BlockItem.ItemCase firstItemCase) {
+        private void append(final List<BlockItem> blockItems, final BlockItem.ItemCase firstItemCase) {
             if ((firstItemCase == BLOCK_HEADER || firstItemCase == RECORD_FILE) && !pending.isEmpty()) {
                 throw new BlockStreamException(
                         "Received block items of a new block while the previous block is still pending");

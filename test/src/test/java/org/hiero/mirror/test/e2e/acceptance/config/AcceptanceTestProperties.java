@@ -4,6 +4,7 @@ package org.hiero.mirror.test.e2e.acceptance.config;
 
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.hashgraph.sdk.LedgerId;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
@@ -75,7 +76,7 @@ public final class AcceptanceTestProperties {
     @NotNull
     @DecimalMax("1000000")
     @DecimalMin("1.0")
-    private BigDecimal operatorBalance = BigDecimal.valueOf(70); // Amount in USD
+    private BigDecimal operatorBalance = BigDecimal.valueOf(72); // Amount in USD
 
     @NotBlank
     private String operatorId;
@@ -92,6 +93,8 @@ public final class AcceptanceTestProperties {
 
     @NotNull
     private NodeNameEnum nodeType = NodeNameEnum.MIRROR;
+
+    private boolean skipEntitiesCleanup;
 
     public void setOperatorId(String operatorId) {
         var configuredOperator = AccountId.fromString(operatorId);
@@ -114,10 +117,11 @@ public final class AcceptanceTestProperties {
     @Getter
     @RequiredArgsConstructor
     public enum HederaNetwork {
-        MAINNET(295L),
-        TESTNET(296L),
-        PREVIEWNET(297L),
-        OTHER(298L);
+        MAINNET(295L, LedgerId.MAINNET),
+        TESTNET(296L, LedgerId.TESTNET),
+        PREVIEWNET(297L, LedgerId.PREVIEWNET),
+        OTHER(298L, LedgerId.fromBytes(new byte[] {(byte) 3}));
         private final long chainId;
+        private final LedgerId ledgerId;
     }
 }

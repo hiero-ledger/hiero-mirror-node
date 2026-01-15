@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.restjava.service;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -12,14 +11,12 @@ import org.hiero.mirror.restjava.repository.TopicRepository;
 
 @Named
 @RequiredArgsConstructor
-public class TopicServiceImpl implements TopicService {
+final class TopicServiceImpl implements TopicService {
 
     private final TopicRepository topicRepository;
 
     @Override
-    public Topic findById(@Nonnull EntityId id) {
-        return topicRepository
-                .findById(id.getId())
-                .orElseThrow(() -> new EntityNotFoundException("Entity not found: " + id));
+    public Topic findById(EntityId id) {
+        return topicRepository.findById(id.getId()).orElseThrow(() -> new EntityNotFoundException("Topic not found"));
     }
 }

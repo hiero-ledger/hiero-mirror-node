@@ -23,19 +23,6 @@ is used for the persistence layer.
 
 _Note:_ Gas estimation only supports the `latest` block
 
-## Unsupported Operations
-
-| Operation Type                                                | Mono Support | Modularized Support |
-| ------------------------------------------------------------- | ------------ | ------------------- |
-| operations for HederaAccountService system contract           | N            | Y                   |
-| operations for HederaScheduleService system contract          | N            | Y                   |
-| token airdrop operations (airdropTokens, claimAirdrops, etc.) | N            | Y                   |
-| update token custom fees                                      | N            | Y                   |
-| HRC isAssociated()                                            | N            | Y                   |
-
-_Note: "Modularized Support" reflects the capabilities of the new modularized Web3 codebase.
-For details, see the [Modularized Web3 docs](./modularized.md)._
-
 ## Acceptance Tests
 
 The [acceptance tests](/test/README.md) contain a suite of tests to validate a web3 deployment.

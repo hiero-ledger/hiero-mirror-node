@@ -4,7 +4,6 @@ package org.hiero.mirror.monitor;
 
 import static org.hiero.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
 
-import jakarta.annotation.Nullable;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
@@ -14,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import lombok.Data;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.entity.EntityId;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -57,15 +56,20 @@ public class MonitorProperties {
      */
     @PostConstruct
     void init() {
-        var accountId = EntityId.of(operator.getAccountId());
+        var accountId = operator.getAccountId().split("\\.", 3);
+        if (accountId == null || accountId.length != 3) {
+            throw new IllegalArgumentException("Invalid operator account ID");
+        }
+
         long shard = commonProperties.getShard();
         long realm = commonProperties.getRealm();
-        if (accountId.getShard() == shard && accountId.getRealm() == realm) {
+
+        if (Long.valueOf(accountId[0]) == shard && Long.valueOf(accountId[1]) == realm) {
             return;
         }
 
         if (DEFAULT_OPERATOR_ACCOUNT_ID.equals(operator.getAccountId())) {
-            operator.setAccountId(EntityId.of(shard, realm, accountId.getNum()).toString());
+            operator.setAccountId("%d.%d.%s".formatted(shard, realm, accountId[2]));
         } else {
             throw new IllegalArgumentException(
                     "Operator account id %s has invalid shard/realm, expect shard=%d and realm=%d"

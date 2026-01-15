@@ -30,12 +30,11 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
-public class BackfillEthereumTransactionHashMigration extends RepeatableMigration {
+public final class BackfillEthereumTransactionHashMigration extends RepeatableMigration {
 
-    private static final String INSERT_TRANSACTION_HASH_SQL =
-            """
-            insert into transaction_hash (consensus_timestamp, distribution_id, hash, payer_account_id)
-            values (?, ?, ?, ?)
+    private static final String INSERT_TRANSACTION_HASH_SQL = """
+            insert into transaction_hash (consensus_timestamp, hash, payer_account_id)
+            values (?, ?, ?)
             """;
     private static final ParameterizedPreparedStatementSetter<MigrationEthereumTransaction> PSS = (ps, transaction) -> {
         ps.setBytes(1, transaction.getHash());
@@ -43,23 +42,20 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
     };
     private static final RowMapper<MigrationEthereumTransaction> ROW_MAPPER =
             new DataClassRowMapper<>(MigrationEthereumTransaction.class);
-    private static final String SELECT_ETHEREUM_TRANSACTION_SQL =
-            """
+    private static final String SELECT_ETHEREUM_TRANSACTION_SQL = """
             select call_data, call_data_id, consensus_timestamp, data, hash, payer_account_id
             from ethereum_transaction
             where hash = ''::bytea and consensus_timestamp > ?
             order by consensus_timestamp
             limit 200
             """;
-    private static final String UPDATE_CONTRACT_RESULT_SQL =
-            """
+    private static final String UPDATE_CONTRACT_RESULT_SQL = """
             update contract_result
             set transaction_hash = ?
             where consensus_timestamp = ?
             """;
     // Workaround for citus as changing the value of distribution column contract_transaction_hash.hash is not allowed
-    private static final String UPDATE_CONTRACT_TRANSACTION_HASH_SQL =
-            """
+    private static final String UPDATE_CONTRACT_TRANSACTION_HASH_SQL = """
             with deleted as (
               delete from contract_transaction_hash
               where consensus_timestamp = ? and hash = ''::bytea
@@ -69,8 +65,7 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
             select consensus_timestamp, entity_id, ?, payer_account_id, transaction_result
             from deleted
             """;
-    private static final String UPDATE_ETHEREUM_HASH_SQL =
-            """
+    private static final String UPDATE_ETHEREUM_HASH_SQL = """
             update ethereum_transaction
             set hash = ?
             where consensus_timestamp = ?
@@ -98,30 +93,24 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
 
     @Override
     protected void doMigrate() throws IOException {
-        var found = new AtomicInteger();
-        var patched = new AtomicInteger();
-        var stopwatch = Stopwatch.createStarted();
+        final var found = new AtomicInteger();
+        final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var patched = new AtomicInteger();
+        final var stopwatch = Stopwatch.createStarted();
 
         getTransactionOperations().executeWithoutResult(s -> {
             long consensusTimestamp = -1;
             for (; ; ) {
-                var transactions = jdbcOperationsProvider
-                        .getObject()
-                        .query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
+                final var transactions =
+                        jdbcOperations.query(SELECT_ETHEREUM_TRANSACTION_SQL, ROW_MAPPER, consensusTimestamp);
                 if (transactions.isEmpty()) {
                     break;
                 }
 
                 found.addAndGet(transactions.size());
                 consensusTimestamp = transactions.getLast().getConsensusTimestamp();
-                var patchedTransactions = transactions.stream()
-                        .map(t -> {
-                            var callDataId = t.getCallDataId() == null ? null : EntityId.of(t.getCallDataId());
-                            t.setHash(ethereumTransactionParserProvider
-                                    .getObject()
-                                    .getHash(t.getCallData(), callDataId, t.getConsensusTimestamp(), t.getData()));
-                            return t;
-                        })
+                final var patchedTransactions = transactions.stream()
+                        .peek(this::getHash)
                         .filter(t -> ArrayUtils.isNotEmpty(t.getHash()))
                         .toList();
                 patched.addAndGet(patchedTransactions.size());
@@ -142,10 +131,9 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
         if (patchedTransactions.isEmpty()) {
             return;
         }
+
         final var jdbcOperations = jdbcOperationsProvider.getObject();
-
         jdbcOperations.batchUpdate(UPDATE_CONTRACT_RESULT_SQL, patchedTransactions, patchedTransactions.size(), PSS);
-
         jdbcOperations.batchUpdate(
                 UPDATE_CONTRACT_TRANSACTION_HASH_SQL,
                 patchedTransactions,
@@ -154,11 +142,10 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
                     ps.setLong(1, transaction.getConsensusTimestamp());
                     ps.setBytes(2, transaction.getHash());
                 });
-
         jdbcOperations.batchUpdate(UPDATE_ETHEREUM_HASH_SQL, patchedTransactions, patchedTransactions.size(), PSS);
 
         if (entityProperties.getPersist().shouldPersistTransactionHash(ETHEREUMTRANSACTION)) {
-            var transactionHashes = patchedTransactions.stream()
+            final var transactionHashes = patchedTransactions.stream()
                     .map(t -> TransactionHash.builder()
                             .consensusTimestamp(t.getConsensusTimestamp())
                             .hash(t.getHash())
@@ -168,11 +155,23 @@ public class BackfillEthereumTransactionHashMigration extends RepeatableMigratio
             jdbcOperations.batchUpdate(
                     INSERT_TRANSACTION_HASH_SQL, transactionHashes, transactionHashes.size(), (ps, transactionHash) -> {
                         ps.setLong(1, transactionHash.getConsensusTimestamp());
-                        ps.setShort(2, transactionHash.getDistributionId());
-                        ps.setBytes(3, transactionHash.getHash());
-                        ps.setLong(4, transactionHash.getPayerAccountId());
+                        ps.setBytes(2, transactionHash.getHash());
+                        ps.setLong(3, transactionHash.getPayerAccountId());
                     });
         }
+    }
+
+    private void getHash(MigrationEthereumTransaction ethereumTransaction) {
+        final var callDataId =
+                ethereumTransaction.getCallDataId() == null ? null : EntityId.of(ethereumTransaction.getCallDataId());
+        final var ethereumTransactionParser = ethereumTransactionParserProvider.getObject();
+        final byte[] hash = ethereumTransactionParser.getHash(
+                ethereumTransaction.getCallData(),
+                callDataId,
+                ethereumTransaction.getConsensusTimestamp(),
+                ethereumTransaction.getData(),
+                false);
+        ethereumTransaction.setHash(hash);
     }
 
     private TransactionOperations getTransactionOperations() {

@@ -16,7 +16,6 @@ public class ModelBuilder {
     private static final Long DEFAULT_CONTRACT_CALL_GAS_PRICE = 100_000_000L;
     private static final Long DEFAULT_CONTRACT_CALL_VALUE = 0L;
     private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED = 30;
-    private static final int DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS = 100;
 
     public static ContractCallRequest contractCallRequest() {
         return new ContractCallRequest()
@@ -30,14 +29,6 @@ public class ModelBuilder {
     public static ContractCallRequest contractCallRequest(final int actualGasUsed) {
         final Long calculatedContractCallGas =
                 Math.round(actualGasUsed * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED / 100.0)));
-        final ContractCallRequest contractCallRequest = contractCallRequest();
-        contractCallRequest.setGas(calculatedContractCallGas);
-        return contractCallRequest;
-    }
-
-    public static ContractCallRequest contractCallRequestNestedCalls(final int actualGasUsed) {
-        final Long calculatedContractCallGas =
-                Math.round(actualGasUsed * (1 + (DEFAULT_PERCENTAGE_OF_ACTUAL_GAS_USED_NESTED_CALLS / 100.0)));
         final ContractCallRequest contractCallRequest = contractCallRequest();
         contractCallRequest.setGas(calculatedContractCallGas);
         return contractCallRequest;

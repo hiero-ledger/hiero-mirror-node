@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.repository;
 
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_ENTITY;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_ACCOUNT;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_ALIAS;
 import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_ADDRESS;
@@ -10,12 +11,22 @@ import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_EVM_A
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface EntityRepository extends CrudRepository<Entity, Long> {
 
-    @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_ENTITY, unless = "#result == null")
+    @Caching(
+            cacheable = {
+                @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_ENTITY, unless = "#result == null"),
+                @Cacheable(
+                        cacheNames = CACHE_NAME,
+                        cacheManager = CACHE_MANAGER_SYSTEM_ACCOUNT,
+                        condition =
+                                "#entityId < 1000 && !T(org.hiero.mirror.web3.common.ContractCallContext).isBalanceCallSafe()",
+                        unless = "#result == null")
+            })
     Optional<Entity> findByIdAndDeletedIsFalse(Long entityId);
 
     @Cacheable(
@@ -30,14 +41,11 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             cacheManager = CACHE_MANAGER_ENTITY,
             key = "T(java.util.Arrays).hashCode(#alias)",
             unless = "#result == null")
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select *
             from entity
             where (evm_address = ?1 or alias = ?1) and deleted is not true
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<Entity> findByEvmAddressOrAliasAndDeletedIsFalse(byte[] alias);
 
     /**
@@ -48,9 +56,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             with entity_cte as (
                 select id
                 from entity
@@ -75,8 +81,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<Entity> findActiveByEvmAddressAndTimestamp(byte[] evmAddress, long blockTimestamp);
 
     /**
@@ -87,9 +92,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             with entity_cte as (
                 select id
                 from entity
@@ -114,8 +117,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<Entity> findActiveByEvmAddressOrAliasAndTimestamp(byte[] alias, long blockTimestamp);
 
     /**
@@ -131,9 +133,7 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
      * @return an Optional containing the entity's state at the specified timestamp.
      *         If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     (
                         select *
                         from entity
@@ -151,18 +151,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
                     )
                     order by timestamp_range desc
                     limit 1
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Optional<Entity> findActiveByIdAndTimestamp(long id, long blockTimestamp);
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     select id
                     from entity
                     order by id desc
                     limit 1
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     Long findMaxId();
 }

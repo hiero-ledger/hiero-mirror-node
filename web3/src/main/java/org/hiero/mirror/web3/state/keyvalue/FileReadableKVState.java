@@ -2,12 +2,13 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
+import com.hedera.node.app.service.file.FileService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.Optional;
@@ -21,6 +22,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.utils.Suppliers;
+import org.jspecify.annotations.NonNull;
 
 /**
  * This class serves as a repository layer between hedera app services read only state and the Postgres database in
@@ -28,9 +30,9 @@ import org.hiero.mirror.web3.utils.Suppliers;
  * properly be utilized by the hedera app components
  */
 @Named
-public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
+final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
 
-    public static final String KEY = "FILES";
+    public static final int STATE_ID = FILES_STATE_ID;
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
@@ -39,14 +41,14 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
             SystemFileLoader systemFileLoader) {
-        super(KEY);
+        super(FileService.NAME, FILES_STATE_ID);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
     }
 
     @Override
-    protected File readFromDataSource(@Nonnull FileID key) {
+    protected File readFromDataSource(@NonNull FileID key) {
         final var timestamp = ContractCallContext.get().getTimestamp();
         final var fileEntityId = toEntityId(key);
         final var fileId = fileEntityId.getId();
@@ -82,5 +84,10 @@ public class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private long getCurrentTimestamp() {
         final var now = Instant.now();
         return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
+    }
+
+    @Override
+    public String getServiceName() {
+        return FileService.NAME;
     }
 }

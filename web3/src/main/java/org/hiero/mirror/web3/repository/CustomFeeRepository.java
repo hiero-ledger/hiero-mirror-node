@@ -19,9 +19,7 @@ public interface CustomFeeRepository extends CrudRepository<CustomFee, Long> {
      * @return an Optional containing the custom fee state at the specified timestamp.
      * If there is no record found for the given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             (
                 select *
                 from custom_fee
@@ -39,7 +37,6 @@ public interface CustomFeeRepository extends CrudRepository<CustomFee, Long> {
             )
             order by timestamp_range desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<CustomFee> findByTokenIdAndTimestamp(long entityId, long blockTimestamp);
 }

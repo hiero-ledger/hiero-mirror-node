@@ -7,6 +7,7 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.data.util.Predicates.negate;
 
 import com.google.common.collect.Range;
+import com.google.common.primitives.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
@@ -43,6 +44,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.bouncycastle.util.encoders.Hex;
 import org.gaul.s3proxy.S3Proxy;
 import org.gaul.shaded.org.eclipse.jetty.util.component.AbstractLifeCycle;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -64,6 +66,7 @@ public class TestUtils {
 
     public static final int S3_PROXY_PORT = 8001;
 
+    private static final byte[] HEX_PREFIX_BYTES = new byte[] {'0', 'x'};
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // Customize BeanUtilsBean to not copy properties for null since non-nulls represent partial updates in our system.
@@ -93,6 +96,7 @@ public class TestUtils {
     /**
      * Dynamically lookup method references for every getter in object with the given return type
      */
+    @SuppressWarnings("unchecked")
     public static <O, R> Collection<Supplier<R>> gettersByType(O object, Class<?> returnType) {
         MethodHandles.Lookup lookup = MethodHandles.lookup();
         Class<?> objectClass = object.getClass();
@@ -110,10 +114,9 @@ public class TestUtils {
                 }
 
                 MethodType functionType = handle.type();
-                var function = (Function<O, R>) LambdaMetafactory.metafactory(
-                                lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType)
-                        .getTarget()
-                        .invokeExact();
+                final var callSite = LambdaMetafactory.metafactory(
+                        lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
+                var function = (Function<O, R>) callSite.getTarget().invokeExact();
                 getters.add(() -> function.apply(object));
             } catch (Throwable t) {
                 throw new RuntimeException(t);
@@ -192,9 +195,9 @@ public class TestUtils {
 
     public void insertIntoTransactionHash(JdbcTemplate jdbcTemplate, TransactionHash hash) {
         var sql =
-                "INSERT INTO transaction_hash(consensus_timestamp,distribution_id,hash,payer_account_id) VALUES (?,?,?,?)";
+                "INSERT INTO transaction_hash(consensus_timestamp,hash,hash_suffix,payer_account_id) VALUES (?,?,?,?)";
         jdbcTemplate.update(
-                sql, hash.getConsensusTimestamp(), hash.getDistributionId(), hash.getHash(), hash.getPayerAccountId());
+                sql, hash.getConsensusTimestamp(), hash.getHash(), hash.getHashSuffix(), hash.getPayerAccountId());
     }
 
     public static long plus(long timestamp, Duration delta) {
@@ -232,6 +235,11 @@ public class TestUtils {
                 .setRealmNum(Long.parseLong(parts[1]))
                 .setAccountNum(Long.parseLong(parts[2]))
                 .build();
+    }
+
+    public static byte[] toBytecodeFileContent(byte[] raw, boolean withHexPrefix) {
+        byte[] encoded = Hex.encode(raw);
+        return withHexPrefix ? Bytes.concat(HEX_PREFIX_BYTES, encoded) : encoded;
     }
 
     public static ContractID toContractId(Entity contract) {

@@ -10,10 +10,13 @@ import (
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/domain/types"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/errors"
-	tdomain "github.com/hiero-ledger/hiero-mirror-node/rosetta/test/domain"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/tools"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/mocks"
+	"github.com/hiero-ledger/hiero-mirror-node/rosetta/test/utils"
+	"github.com/hiero-ledger/hiero-sdk-go/v2/proto/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"github.com/thanhpk/randstr"
 )
 
 func amount() types.AmountSlice {
@@ -39,6 +42,15 @@ func getAccountBalanceRequest(customizers ...func(*rTypes.AccountBalanceRequest)
 	return r
 }
 
+func getAllAccountBalancesRequest(request *rTypes.AccountBalanceRequest) *rTypes.AllAccountBalancesRequest {
+	return &rTypes.AllAccountBalancesRequest{
+		NetworkIdentifier: request.NetworkIdentifier,
+		AccountIdentifier: request.AccountIdentifier,
+		BlockIdentifier:   request.BlockIdentifier,
+		Currencies:        request.Currencies,
+	}
+}
+
 func accountBalanceRequestRemoveBlockIdentifier(request *rTypes.AccountBalanceRequest) {
 	request.BlockIdentifier = nil
 }
@@ -61,11 +73,26 @@ func expectedAccountBalanceResponse(customizers ...func(*rTypes.AccountBalanceRe
 				Currency: types.CurrencyHbar,
 			},
 		},
+		Metadata: map[string]interface{}{},
 	}
-	for _, customize := range customizers {
-		customize(response)
+	for _, customizer := range customizers {
+		if customizer != nil {
+			customizer(response)
+		}
 	}
 	return response
+}
+
+func expectedAllAccountBalancesResponse(response *rTypes.AccountBalanceResponse) *rTypes.AllAccountBalancesResponse {
+	return &rTypes.AllAccountBalancesResponse{
+		BlockIdentifier: response.BlockIdentifier,
+		AccountBalances: []*rTypes.AccountBalanceWithSubAccount{
+			{
+				Balances: response.Balances,
+				Metadata: response.Metadata,
+			},
+		},
+	}
 }
 
 func accountBalanceResponseMetadata(metadata map[string]interface{}) func(*rTypes.AccountBalanceResponse) {
@@ -96,55 +123,171 @@ func (suite *accountServiceSuite) SetupTest() {
 }
 
 func (suite *accountServiceSuite) TestAccountBalance() {
-	// given:
-	suite.mockBlockRepo.On("RetrieveLatest").Return(block(), mocks.NilError)
-	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), "", mocks.NilError)
+	publicKey := utils.MustMarshal(utils.Ed25519PublicKey())
+	metadataCustomizer := accountBalanceResponseMetadata(map[string]interface{}{
+		"public_key": tools.SafeAddHexPrefix(hex.EncodeToString(publicKey)),
+	})
+	tests := []struct {
+		publicKey          []byte
+		metadataCustomizer func(*rTypes.AccountBalanceResponse)
+	}{
+		{
+			publicKey:          publicKey,
+			metadataCustomizer: metadataCustomizer,
+		},
+		{
+			publicKey: nil,
+		},
+		{
+			publicKey: make([]byte, 0),
+		},
+		{
+			publicKey: []byte{0x12},
+		},
+		{
+			publicKey: []byte{0x12, 0x20, 0xff},
+		},
+		{
+			publicKey: append([]byte{0x12, 0x21}, randstr.Bytes(32)...),
+		},
+		{
+			publicKey: utils.MustMarshal(utils.EcdsaSecp256k1PublicKey()),
+		},
+		{
+			publicKey: utils.MustMarshal(utils.KeyListKey([]*services.Key{utils.Ed25519PublicKey(), utils.EcdsaSecp256k1PublicKey()})),
+		},
+	}
 
-	// when:
-	actual, err := suite.accountService.AccountBalance(
-		defaultContext,
-		getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier),
-	)
+	for _, tt := range tests {
+		suite.T().Run(hex.EncodeToString(tt.publicKey), func(t *testing.T) {
+			// given:
+			// calling SetupTest explicitly so for every test, the mocks are fresh
+			suite.SetupTest()
+			suite.mockBlockRepo.On("RetrieveLatest").Return(block(), mocks.NilError)
+			suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), "", tt.publicKey, mocks.NilError)
+			request := getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier)
+			response := expectedAccountBalanceResponse(tt.metadataCustomizer)
 
-	// then:
-	assert.Equal(suite.T(), expectedAccountBalanceResponse(), actual)
-	assert.Nil(suite.T(), err)
-	suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
-	suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+			// when:
+			actual, err := suite.accountService.AccountBalance(defaultContext, request)
+
+			// then:
+			assert.Equal(suite.T(), response, actual)
+			assert.Nil(suite.T(), err)
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+
+			// when:
+			allBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+			// then:
+			assert.Equal(suite.T(), expectedAllAccountBalancesResponse(response), allBalancesResponse)
+			assert.Nil(suite.T(), err)
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+		})
+	}
 }
 
 func (suite *accountServiceSuite) TestAliasAccountBalance() {
-	// given:
 	accountId := "0.0.100"
-	_, pk := tdomain.GenEd25519KeyPair()
-	alias := ed25519AliasPrefix + hex.EncodeToString(pk.BytesRaw())
-	metadata := map[string]interface{}{"account_id": accountId}
-	suite.mockBlockRepo.On("RetrieveLatest").Return(block(), mocks.NilError)
-	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), accountId, mocks.NilError)
+	publicKey := utils.MustMarshal(utils.Ed25519PublicKey())
+	alias := tools.SafeAddHexPrefix(hex.EncodeToString(publicKey))
+	accountIdMetadataCustomizer := accountBalanceResponseMetadata(
+		map[string]interface{}{"account_id": accountId})
+	fullMetadataCustomizer := accountBalanceResponseMetadata(map[string]interface{}{
+		"account_id": accountId,
+		"public_key": alias,
+	})
+	tests := []struct {
+		publicKey          []byte
+		metadataCustomizer func(*rTypes.AccountBalanceResponse)
+	}{
+		{
+			publicKey:          publicKey,
+			metadataCustomizer: fullMetadataCustomizer,
+		},
+		{
+			publicKey:          nil,
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          make([]byte, 0),
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          []byte{0x12},
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          []byte{0x12, 0x20, 0xff},
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          append([]byte{0x12, 0x21}, randstr.Bytes(32)...),
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          utils.MustMarshal(utils.EcdsaSecp256k1PublicKey()),
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+		{
+			publicKey:          utils.MustMarshal(utils.KeyListKey([]*services.Key{utils.Ed25519PublicKey(), utils.EcdsaSecp256k1PublicKey()})),
+			metadataCustomizer: accountIdMetadataCustomizer,
+		},
+	}
 
-	// when:
-	actual, err := suite.accountService.AccountBalance(
-		defaultContext,
-		getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier, accountBalanceRequestUseAccount(alias)),
-	)
+	for _, tt := range tests {
+		suite.T().Run(hex.EncodeToString(tt.publicKey), func(t *testing.T) {
+			// given
+			// calling SetupTest explicitly so for every test, the mocks are fresh
+			suite.SetupTest()
+			suite.mockBlockRepo.On("RetrieveLatest").Return(block(), mocks.NilError)
+			suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), accountId, tt.publicKey, mocks.NilError)
+			request := getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier, accountBalanceRequestUseAccount(alias))
+			response := expectedAccountBalanceResponse(tt.metadataCustomizer)
 
-	// then:
-	assert.Equal(suite.T(), expectedAccountBalanceResponse(accountBalanceResponseMetadata(metadata)), actual)
-	assert.Nil(suite.T(), err)
-	suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
-	suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+			// when
+			actual, err := suite.accountService.AccountBalance(defaultContext, request)
+
+			// then
+			assert.Equal(suite.T(), response, actual)
+			assert.Nil(suite.T(), err)
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+
+			// when
+			allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+			// then
+			assert.Equal(suite.T(), expectedAllAccountBalancesResponse(response), allAccountBalancesResponse)
+			assert.Nil(suite.T(), err)
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByIdentifier")
+			suite.mockBlockRepo.AssertNotCalled(suite.T(), "FindByHash")
+		})
+	}
 }
 
 func (suite *accountServiceSuite) TestAccountBalanceWithBlockIdentifier() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
-	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), "", mocks.NilError)
+	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(amount(), "", []byte{}, mocks.NilError)
+	request := getAccountBalanceRequest()
+	response := expectedAccountBalanceResponse()
 
 	// when:
-	actual, err := suite.accountService.AccountBalance(defaultContext, getAccountBalanceRequest())
+	actual, err := suite.accountService.AccountBalance(defaultContext, request)
 
 	// then:
-	assert.Equal(suite.T(), expectedAccountBalanceResponse(), actual)
+	assert.Equal(suite.T(), response, actual)
+	assert.Nil(suite.T(), err)
+	suite.mockBlockRepo.AssertNotCalled(suite.T(), "RetrieveLatest")
+
+	// when:
+	allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+	// then:
+	assert.Equal(suite.T(), expectedAllAccountBalancesResponse(response), allAccountBalancesResponse)
 	assert.Nil(suite.T(), err)
 	suite.mockBlockRepo.AssertNotCalled(suite.T(), "RetrieveLatest")
 }
@@ -152,13 +295,21 @@ func (suite *accountServiceSuite) TestAccountBalanceWithBlockIdentifier() {
 func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenRetrieveLatestFails() {
 	// given:
 	suite.mockBlockRepo.On("RetrieveLatest").Return(mocks.NilBlock, &rTypes.Error{})
+	request := getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier)
 
 	// when:
-	actual, err := suite.accountService.AccountBalance(defaultContext,
-		getAccountBalanceRequest(accountBalanceRequestRemoveBlockIdentifier))
+	actual, err := suite.accountService.AccountBalance(defaultContext, request)
 
 	// then:
 	assert.Nil(suite.T(), actual)
+	assert.NotNil(suite.T(), err)
+	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RetrieveBalanceAtBlock")
+
+	// when:
+	allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+	// then:
+	assert.Nil(suite.T(), allAccountBalancesResponse)
 	assert.NotNil(suite.T(), err)
 	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RetrieveBalanceAtBlock")
 }
@@ -166,12 +317,22 @@ func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenRetrieveLatestFail
 func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenRetrieveBlockFails() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(mocks.NilBlock, &rTypes.Error{})
+	request := getAccountBalanceRequest()
 
 	// when:
-	actual, err := suite.accountService.AccountBalance(defaultContext, getAccountBalanceRequest())
+	actual, err := suite.accountService.AccountBalance(defaultContext, request)
 
 	// then:
 	assert.Nil(suite.T(), actual)
+	assert.NotNil(suite.T(), err)
+	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RetrieveBalanceAtBlock")
+	suite.mockBlockRepo.AssertNotCalled(suite.T(), "RetrieveLatest")
+
+	// when:
+	allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+	// then:
+	assert.Nil(suite.T(), allAccountBalancesResponse)
 	assert.NotNil(suite.T(), err)
 	suite.mockAccountRepo.AssertNotCalled(suite.T(), "RetrieveBalanceAtBlock")
 	suite.mockBlockRepo.AssertNotCalled(suite.T(), "RetrieveLatest")
@@ -180,13 +341,21 @@ func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenRetrieveBlockFails
 func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenRetrieveBalanceAtBlockFails() {
 	// given:
 	suite.mockBlockRepo.On("FindByIdentifier").Return(block(), mocks.NilError)
-	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(types.AmountSlice{}, "", &rTypes.Error{})
+	suite.mockAccountRepo.On("RetrieveBalanceAtBlock").Return(types.AmountSlice{}, "", []byte{}, &rTypes.Error{})
+	request := getAccountBalanceRequest()
 
 	// when:
-	actual, err := suite.accountService.AccountBalance(defaultContext, getAccountBalanceRequest())
+	actual, err := suite.accountService.AccountBalance(defaultContext, request)
 
 	// then:
 	assert.Nil(suite.T(), actual)
+	assert.NotNil(suite.T(), err)
+
+	// when:
+	allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+	// then:
+	assert.Nil(suite.T(), allAccountBalancesResponse)
 	assert.NotNil(suite.T(), err)
 }
 
@@ -194,16 +363,21 @@ func (suite *accountServiceSuite) TestAccountBalanceThrowsWhenAddressInvalid() {
 	for _, invalidAddress := range []string{"abc", "-1"} {
 		suite.T().Run(invalidAddress, func(t *testing.T) {
 			// given
+			request := getAccountBalanceRequest(accountBalanceRequestUseAccount(invalidAddress))
+
 			// when
-			actual, err := suite.accountService.AccountBalance(
-				defaultContext,
-				getAccountBalanceRequest(accountBalanceRequestUseAccount(invalidAddress)),
-			)
+			actual, err := suite.accountService.AccountBalance(defaultContext, request)
 
 			// then
 			assert.Equal(t, errors.ErrInvalidAccount, err)
 			assert.Nil(t, actual)
 
+			// when
+			allAccountBalancesResponse, err := suite.accountService.AllAccountBalances(defaultContext, getAllAccountBalancesRequest(request))
+
+			// then
+			assert.Equal(t, errors.ErrInvalidAccount, err)
+			assert.Nil(t, allAccountBalancesResponse)
 		})
 	}
 }
@@ -215,4 +389,43 @@ func (suite *accountServiceSuite) TestAccountCoins() {
 	// then:
 	assert.Equal(suite.T(), errors.ErrNotImplemented, err)
 	assert.Nil(suite.T(), result)
+}
+
+func TestIsEd25519PublicKey(t *testing.T) {
+	tests := []struct {
+		publicKey []byte
+		isEd25519 bool
+	}{
+		{
+			publicKey: utils.MustMarshal(utils.Ed25519PublicKey()),
+			isEd25519: true,
+		},
+		{
+			publicKey: nil,
+		},
+		{
+			publicKey: make([]byte, 0),
+		},
+		{
+			publicKey: []byte{0x12},
+		},
+		{
+			publicKey: []byte{0x12, 0x20, 0x33},
+		},
+		{
+			publicKey: append([]byte{0x12, 0x21}, randstr.Bytes(32)...),
+		},
+		{
+			publicKey: utils.MustMarshal(utils.EcdsaSecp256k1PublicKey()),
+		},
+		{
+			publicKey: utils.MustMarshal(utils.KeyListKey([]*services.Key{utils.Ed25519PublicKey(), utils.EcdsaSecp256k1PublicKey()})),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(hex.EncodeToString(tt.publicKey), func(t *testing.T) {
+			assert.Equal(t, tt.isEd25519, isEd25519PublicKey(tt.publicKey))
+		})
+	}
 }

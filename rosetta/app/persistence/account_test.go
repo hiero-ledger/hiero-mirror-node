@@ -30,6 +30,7 @@ const (
 const (
 	accountDeleteTimestamp         = secondSnapshotTimestamp + 180
 	account1CreatedTimestamp       = firstSnapshotTimestamp - 100
+	account1UpdatedTimestamp       = secondSnapshotTimestamp + 10
 	account2DeletedTimestamp       = account1CreatedTimestamp - 1
 	account2CreatedTimestamp       = account2DeletedTimestamp - 9
 	consensusTimestamp             = firstSnapshotTimestamp + 200
@@ -81,6 +82,8 @@ type accountRepositorySuite struct {
 	account4Alias    []byte
 	account5Alias    []byte
 	account6Alias    []byte
+	publicKeyBytes1  []byte
+	publicKeyBytes2  []byte
 	realm            int64
 	shard            int64
 	treasuryEntityId domain.EntityId
@@ -93,6 +96,8 @@ func (s *accountRepositorySuite) getEntityId(num int64) domain.EntityId {
 func (suite *accountRepositorySuite) SetupSuite() {
 	suite.accountId = types.NewAccountIdFromEntityId(suite.getEntityId(accountNum1))
 	suite.accountIdString = suite.accountId.String()
+	suite.publicKeyBytes1 = utils.MustMarshal(utils.Ed25519PublicKey())
+	suite.publicKeyBytes2 = utils.MustMarshal(utils.EcdsaSecp256k1PublicKey())
 	suite.treasuryEntityId = suite.getEntityId(2)
 }
 
@@ -102,6 +107,14 @@ func (suite *accountRepositorySuite) SetupTest() {
 	accountId1 := suite.getEntityId(accountNum1).EncodedId
 	tdomain.NewEntityBuilder(dbClient, accountId1, account1CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.accountAlias).
+		Historical(true).
+		Key(suite.publicKeyBytes1).
+		TimestampRange(account1CreatedTimestamp, account1UpdatedTimestamp).
+		Persist()
+	tdomain.NewEntityBuilder(dbClient, accountId1, account1CreatedTimestamp, domain.EntityTypeAccount).
+		Alias(suite.accountAlias).
+		Key(suite.publicKeyBytes2).
+		ModifiedTimestamp(account1UpdatedTimestamp).
 		Persist()
 
 	// account balance files, always add an account_balance row for treasury
@@ -152,12 +165,15 @@ func (suite *accountRepositorySuite) SetupTest() {
 	// accounts for GetAccountAlias tests
 	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum3).EncodedId, account3CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account3Alias).
+		Key(suite.account3Alias).
 		Persist()
 	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum4).EncodedId, account4CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account4Alias).
+		Key(suite.account4Alias).
 		Persist()
 	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum5).EncodedId, account5CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account5Alias).
+		Key(suite.account5Alias).
 		Persist()
 	tdomain.NewEntityBuilder(dbClient, suite.getEntityId(accountNum6).EncodedId, account6CreatedTimestamp, domain.EntityTypeAccount).
 		Alias(suite.account6Alias).
@@ -248,11 +264,12 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlock() {
 
 	// when
 	// query
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(defaultContext, suite.accountId, consensusTimestamp)
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(defaultContext, suite.accountId, consensusTimestamp)
 
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes2, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmounts, actualAmounts)
 }
 
@@ -271,7 +288,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterSecondSnapsh
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		secondSnapshotTimestamp+6,
@@ -280,6 +297,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterSecondSnapsh
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes1, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmount, actualAmounts)
 }
 
@@ -308,7 +326,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		thirdSnapshotTimestamp,
@@ -317,10 +335,11 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes2, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmount, actualAmounts)
 
 	// when
-	actualAmounts, accountIdString, err = repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err = repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		thirdSnapshotTimestamp+1,
@@ -330,6 +349,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAfterThirdSnapsho
 	hbarAmount.Value += 10
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.NotNil(suite.T(), publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmount, actualAmounts)
 }
 
@@ -348,7 +368,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockForDeletedAccount
 	// account is deleted before the third account balance file, so there is no balance info in the file. querying the
 	// account balance for a timestamp after the third account balance file should then return the balance at the time
 	// the account is deleted
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		thirdSnapshotTimestamp+10,
@@ -357,6 +377,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockForDeletedAccount
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes2, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmounts, actualAmounts)
 }
 
@@ -372,7 +393,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAtAccountDeletion
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		accountDeleteTimestamp,
@@ -381,6 +402,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockAtAccountDeletion
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes2, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmounts, actualAmounts)
 }
 
@@ -392,7 +414,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountEntity()
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		consensusTimestamp,
@@ -401,6 +423,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountEntity()
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Empty(suite.T(), accountIdString)
+	assert.Nil(suite.T(), publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmounts, actualAmounts)
 }
 
@@ -414,7 +437,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoInitialBalance(
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		consensusTimestamp,
@@ -423,6 +446,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoInitialBalance(
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), suite.accountIdString, accountIdString)
+	assert.Equal(suite.T(), suite.publicKeyBytes2, publicKey)
 	assert.ElementsMatch(suite.T(), expectedAmounts, actualAmounts)
 }
 
@@ -432,7 +456,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountBalance(
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		consensusTimestamp,
@@ -441,6 +465,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockNoAccountBalance(
 	// then
 	assert.NotNil(suite.T(), err)
 	assert.Empty(suite.T(), accountIdString)
+	assert.Nil(suite.T(), publicKey)
 	assert.Nil(suite.T(), actualAmounts)
 }
 
@@ -449,7 +474,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockDbConnectionError
 	repo := NewAccountRepository(invalidDbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		consensusTimestamp,
@@ -458,6 +483,7 @@ func (suite *accountRepositorySuite) TestRetrieveBalanceAtBlockDbConnectionError
 	// then
 	assert.Equal(suite.T(), errors.ErrDatabaseError, err)
 	assert.Empty(suite.T(), accountIdString)
+	assert.Empty(suite.T(), publicKey)
 	assert.Nil(suite.T(), actualAmounts)
 }
 
@@ -604,7 +630,7 @@ func (suite *accountRepositoryWithAliasSuite) TestRetrieveBalanceAtBlockNoAccoun
 	repo := NewAccountRepository(dbClient, suite.treasuryEntityId)
 
 	// when
-	actualAmounts, accountIdString, err := repo.RetrieveBalanceAtBlock(
+	actualAmounts, accountIdString, publicKey, err := repo.RetrieveBalanceAtBlock(
 		defaultContext,
 		suite.accountId,
 		consensusTimestamp,
@@ -613,5 +639,6 @@ func (suite *accountRepositoryWithAliasSuite) TestRetrieveBalanceAtBlockNoAccoun
 	// then
 	assert.Nil(suite.T(), err)
 	assert.Equal(suite.T(), types.AmountSlice{&types.HbarAmount{}}, actualAmounts)
+	assert.Nil(suite.T(), publicKey)
 	assert.Empty(suite.T(), accountIdString)
 }

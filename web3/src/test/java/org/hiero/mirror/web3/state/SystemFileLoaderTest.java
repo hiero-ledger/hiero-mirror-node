@@ -62,7 +62,7 @@ class SystemFileLoaderTest {
     @BeforeEach
     void setup() {
         systemEntity = new SystemEntity(commonProperties);
-        final var mirrorNodeEvmProperties = new MirrorNodeEvmProperties(commonProperties, systemEntity);
+        final var mirrorNodeEvmProperties = new MirrorNodeEvmProperties();
         systemFileLoader = new SystemFileLoader(mirrorNodeEvmProperties, fileDataRepository, systemEntity);
         configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
     }

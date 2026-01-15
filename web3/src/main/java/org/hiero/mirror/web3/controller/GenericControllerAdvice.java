@@ -2,6 +2,13 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_BALANCE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_FEE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.FAIL_INVALID;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_NOT_ACTIVE;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.PLATFORM_TRANSACTION_NOT_CREATED;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.UNKNOWN;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.WAITING_FOR_LEDGER_ID;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -10,6 +17,9 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import java.util.EnumSet;
+import java.util.Set;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
@@ -19,6 +29,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse.ErrorMessage;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
@@ -29,7 +40,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.ErrorResponse;
@@ -46,6 +56,15 @@ import org.springframework.web.util.WebUtils;
 @CustomLog
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class GenericControllerAdvice extends ResponseEntityExceptionHandler {
+
+    static final Set<ResponseCodeEnum> SERVER_RESPONSE_CODES = EnumSet.of(
+            FAIL_INVALID,
+            FAIL_FEE,
+            FAIL_BALANCE,
+            PLATFORM_NOT_ACTIVE,
+            PLATFORM_TRANSACTION_NOT_CREATED,
+            UNKNOWN,
+            WAITING_FOR_LEDGER_ID);
 
     @Bean
     @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
@@ -78,9 +97,16 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         final var childTransactionErrors = e.getChildTransactionErrors().stream()
                 .map(message -> new ErrorMessage(message, StringUtils.EMPTY, StringUtils.EMPTY))
                 .toList();
-        return new ResponseEntity<>(
-                new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
-                BAD_REQUEST);
+
+        if (SERVER_RESPONSE_CODES.contains(e.getResponseCode())) {
+            return new ResponseEntity<>(
+                    new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
+                    INTERNAL_SERVER_ERROR);
+        } else {
+            return new ResponseEntity<>(
+                    new GenericErrorResponse(e.getMessage(), e.getDetail(), e.getData(), childTransactionErrors),
+                    BAD_REQUEST);
+        }
     }
 
     @ExceptionHandler

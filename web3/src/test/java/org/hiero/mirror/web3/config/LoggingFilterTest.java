@@ -3,11 +3,10 @@
 package org.hiero.mirror.web3.config;
 
 import static com.google.common.net.HttpHeaders.X_FORWARDED_FOR;
+import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTED;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.web.util.WebUtils.ERROR_EXCEPTION_ATTRIBUTE;
 
-import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,12 +41,11 @@ class LoggingFilterTest {
     @SneakyThrows
     void filterOnSuccess(CapturedOutput output) {
         var request = new MockHttpServletRequest("GET", "/");
-        response.addHeader(MODULARIZED_HEADER, "true");
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, chain);
 
-        assertLog(output, "INFO", "\\w+ GET / in \\d+ ms \\(mod=true\\): 200");
+        assertLog(output, "INFO", "\\w+ GET / in \\d+ ms " + ": 200");
     }
 
     @Test
@@ -68,12 +66,11 @@ class LoggingFilterTest {
         String clientIp = "10.0.0.100";
         var request = new MockHttpServletRequest("GET", "/");
         request.addHeader(X_FORWARDED_FOR, clientIp);
-        response.addHeader(MODULARIZED_HEADER, "false");
         response.setStatus(HttpStatus.OK.value());
 
         new ForwardedHeaderFilter().doFilter(request, response, (req, res) -> loggingFilter.doFilter(req, res, chain));
 
-        assertLog(output, "INFO", clientIp + " GET / in \\d+ ms \\(mod=false\\): 200");
+        assertLog(output, "INFO", clientIp + " GET / in \\d+ ms : 200");
     }
 
     @Test
@@ -88,7 +85,7 @@ class LoggingFilterTest {
             throw exception;
         });
 
-        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms \\(mod=null\\): 500 " + exception.getMessage());
+        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms : 500 " + exception.getMessage());
     }
 
     @Test
@@ -102,7 +99,7 @@ class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, (req, res) -> {});
 
-        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms \\(mod=null\\): 500 " + exception.getMessage());
+        assertLog(output, "WARN", "\\w+ GET / in \\d+ ms : 500 " + exception.getMessage());
     }
 
     @Test
@@ -115,7 +112,7 @@ class LoggingFilterTest {
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
 
-        assertLog(output, "INFO", "\\w+ POST / in \\d+ ms \\(mod=null\\): 200 Success - .+");
+        assertLog(output, "INFO", "\\w+ POST / in \\d+ ms : 200 Success - .+");
         assertThat(output.getOut()).contains(content);
     }
 
@@ -171,12 +168,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -197,12 +189,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        detail,
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, detail, "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -222,13 +209,7 @@ class LoggingFilterTest {
         request.setContent(content.getBytes(StandardCharsets.UTF_8));
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
-                new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        childErrors));
+                new MirrorEvmTransactionException(CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, childErrors));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));
@@ -248,12 +229,7 @@ class LoggingFilterTest {
         request.setAttribute(
                 ERROR_EXCEPTION_ATTRIBUTE,
                 new MirrorEvmTransactionException(
-                        ResponseCodeEnum.CONTRACT_REVERT_EXECUTED.name(),
-                        "detail",
-                        "0123456",
-                        null,
-                        true,
-                        List.of("childMessage")));
+                        CONTRACT_REVERT_EXECUTED, "detail", "0123456", null, List.of("childMessage")));
         response.setStatus(HttpStatus.OK.value());
 
         loggingFilter.doFilter(request, response, (req, res) -> IOUtils.toString(req.getReader()));

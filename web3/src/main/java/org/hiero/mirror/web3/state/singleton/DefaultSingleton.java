@@ -7,10 +7,17 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class DefaultSingleton extends AtomicReference<Object> implements SingletonState<Object> {
-    private final String key;
+
+    private final String serviceName;
+    private final int id;
 
     @Override
-    public String getKey() {
-        return key;
+    public int getStateId() {
+        return id;
+    }
+
+    @Override
+    public String getServiceName() {
+        return serviceName;
     }
 }

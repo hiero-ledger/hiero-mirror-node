@@ -135,10 +135,12 @@ labels: {}
 monitor:
   enabled: true
   env:
-    HIERO_MIRROR_MONITOR_MIRROR_NODE_GRPC_HOST: "{{ .Release.Name }}-grpc"
-    HIERO_MIRROR_MONITOR_MIRROR_NODE_GRPC_PORT: "5600"
-    HIERO_MIRROR_MONITOR_MIRROR_NODE_REST_HOST: "{{ .Release.Name }}-rest"
-    HIERO_MIRROR_MONITOR_MIRROR_NODE_REST_PORT: "80"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_GRPC_HOST: "{{ .Release.Name }}-grpc"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_GRPC_PORT: "5600"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_REST_HOST: "{{ .Release.Name }}-rest"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_REST_PORT: "80"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_HOST: "{{ .Release.Name }}-restjava"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_PORT: "80"
 
 nameOverride: mirror
 
@@ -224,7 +226,9 @@ redis:
   enabled: true
   host: "{{ .Release.Name }}-redis"
   image:
-    repository: bitnamilegacy/redis
+    registry: gcr.io
+    repository: mirrornode/redis
+    tag: 8.2.2
   kubectl:
     image:
       repository: rancher/kubectl
@@ -262,7 +266,9 @@ redis:
   sentinel:
     enabled: true
     image:
-      repository: bitnamilegacy/redis-sentinel
+      registry: gcr.io
+      repository: mirrornode/redis-sentinel
+      tag: 8.2.2
     masterSet: mirror
     persistence:
       enabled: true
@@ -339,6 +345,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1
@@ -370,7 +380,7 @@ stackgres:
   enabled: false
   extensions:
     - name: citus
-      version: "12.1-1"
+      version: "13.2.0"
     - name: btree_gist
       version: stable
     - name: pg_trgm
@@ -380,7 +390,7 @@ stackgres:
     enableMetricsExporter: true
   podAntiAffinity: true
   postgresVersion: "16.2"
-  priorityClassName: ""
+  priorityClassName: system-cluster-critical  # This fails on Helm 4 without a default. values-prod.yaml overrides it.
   replication:
     initialization:
       mode: FromReplica
@@ -403,6 +413,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1

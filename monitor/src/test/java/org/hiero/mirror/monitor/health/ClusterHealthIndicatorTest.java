@@ -49,22 +49,36 @@ class ClusterHealthIndicatorTest {
     @Mock
     private TransactionGenerator transactionGenerator;
 
+    @Mock
+    private ReleaseHealthProperties releaseHealthProperties;
+
     @InjectMocks
     private ClusterHealthIndicator clusterHealthIndicator;
 
     @ParameterizedTest
     @CsvSource({
-        "1.0, 1.0, 200, UP", // healthy
-        "0.0, 1.0, 200, UNKNOWN", // publishing inactive
-        "1.0, 0.0, 200, UNKNOWN", // subscribing inactive
-        "0.0, 0.0, 200, UNKNOWN", // publishing and subscribing inactive
-        "1.0, 1.0, 400, UNKNOWN", // unknown network stake
-        "1.0, 1.0, 500, DOWN", // network stake down
-        "0.0, 0.0, 500, DOWN", // publishing and subscribing inactive and network stake down
-        "0.0, 1.0, 500, DOWN", // network stake down and publishing inactive
-        "1.0, 0.0, 500, DOWN", // network stake down and subscribing inactive
+        "1.0, 1.0, 200, UP, false", // healthy
+        "0.0, 1.0, 200, UNKNOWN, false", // publishing inactive
+        "1.0, 0.0, 200, UNKNOWN, false", // subscribing inactive
+        "0.0, 0.0, 200, UNKNOWN, false", // publishing and subscribing inactive
+        "1.0, 1.0, 400, UNKNOWN, false", // unknown network stake
+        "1.0, 1.0, 500, DOWN, false", // network stake down
+        "0.0, 0.0, 500, DOWN, false", // publishing and subscribing inactive and network stake down
+        "0.0, 1.0, 500, DOWN, false", // network stake down and publishing inactive
+        "1.0, 0.0, 500, DOWN, false", // network stake down and subscribing inactive
+        "1.0, 1.0, 200, UP, true", // healthy
+        "0.0, 1.0, 500, DOWN, true", // publishing inactive
+        "1.0, 0.0, 500, DOWN, true", // subscribing inactive
+        "0.0, 0.0, 500, DOWN, true", // publishing and subscribing inactive
+        "1.0, 1.0, 400, UNKNOWN, true", // unknown network stake
+        "1.0, 1.0, 500, DOWN, true", // network stake down
+        "0.0, 0.0, 500, DOWN, true", // publishing and subscribing inactive and network stake down
+        "0.0, 1.0, 500, DOWN, true", // network stake down and publishing inactive
+        "1.0, 0.0, 500, DOWN, true", // network stake down and subscribing inactive
     })
-    void health(double publishRate, double subscribeRate, int networkStatusCode, Status status) {
+    void health(
+            double publishRate, double subscribeRate, int networkStatusCode, Status status, boolean failWhenInactive) {
+        when(releaseHealthProperties.isFailWhenInactive()).thenReturn(failWhenInactive);
         when(transactionGenerator.scenarios()).thenReturn(Flux.just(publishScenario(publishRate)));
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(subscribeRate)));
         when(restApiClient.getNetworkStakeStatusCode())

@@ -21,8 +21,11 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
 import org.springframework.context.MessageSourceResolvable;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.support.DefaultMessageSourceResolvable;
 import org.springframework.context.support.StaticMessageSource;
 import org.springframework.core.Ordered;
@@ -34,7 +37,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
-import org.springframework.lang.Nullable;
 import org.springframework.validation.Errors;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -45,7 +47,10 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.HandlerMapping;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.util.WebUtils;
 
@@ -58,11 +63,30 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     private final MessageSource messageSource = new ErrorMessageSource();
     private final RestJavaProperties properties;
 
+    @Bean
+    @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
+    WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**").allowedOrigins("*");
+            }
+        };
+    }
+
     @ModelAttribute
     private void responseHeaders(HttpServletRequest request, HttpServletResponse response) {
         var requestMapping = String.valueOf(request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE));
         var responseHeaders = properties.getResponse().getHeaders().getHeadersForPath(requestMapping);
         responseHeaders.forEach(response::setHeader);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    private ResponseEntity<Object> typeMismatch(final TypeMismatchException e, final WebRequest request) {
+        // Explicitly don't log the parameter value to avoid cross-site scripting attacks
+        final var detail = "Failed to convert '%s'".formatted(e.getPropertyName());
+        var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, detail);
+        return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({

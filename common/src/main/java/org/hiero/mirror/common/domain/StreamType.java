@@ -6,6 +6,7 @@ import com.google.common.collect.ImmutableSortedSet;
 import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.SortedSet;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
@@ -50,7 +51,7 @@ public enum StreamType {
         this.path = path;
         this.nodePrefix = nodePrefix;
         this.suffix = suffix;
-        this.nodeIdBasedSuffix = name().toLowerCase();
+        this.nodeIdBasedSuffix = name().toLowerCase(Locale.ENGLISH);
         this.fileCloseInterval = fileCloseInterval;
 
         dataExtensions = IntStream.range(0, extensions.size())

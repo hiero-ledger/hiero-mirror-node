@@ -2,7 +2,6 @@
 
 import * as constants from '../../constants';
 import {NetworkController} from '../../controllers';
-import {FileData} from '../../model';
 import networkCtrl from '../../controllers/networkController';
 import * as utils from '../../utils';
 import EntityId from '../../entityId.js';
@@ -161,125 +160,6 @@ describe('validateExtractNetworkNodesQuery throw', () => {
   specs.forEach((spec) => {
     test(`${spec.name}`, () => {
       expect(() => NetworkController.extractNetworkNodesQuery(spec.input.filters)).toThrowErrorMatchingSnapshot();
-    });
-  });
-});
-
-describe('extractFileDataQuery', () => {
-  const defaultExpected = {
-    filterQuery: {
-      whereQuery: [],
-    },
-    order: constants.orderFilterValues.ASC,
-  };
-
-  const specs = [
-    {
-      name: 'no timestamp',
-      input: {
-        filters: [],
-      },
-      expected: {
-        ...defaultExpected,
-      },
-    },
-    {
-      name: 'le timestamp',
-      input: {
-        filters: [
-          {
-            key: constants.filterKeys.TIMESTAMP,
-            operator: utils.opsMap.lt,
-            value: 2,
-          },
-        ],
-      },
-      expected: {
-        ...defaultExpected,
-        filterQuery: {
-          whereQuery: [
-            {
-              query: `${FileData.CONSENSUS_TIMESTAMP}  < `,
-              param: 2,
-            },
-          ],
-        },
-      },
-    },
-    {
-      name: 'lte timestamp',
-      input: {
-        filters: [
-          {
-            key: constants.filterKeys.TIMESTAMP,
-            operator: utils.opsMap.lte,
-            value: 2,
-          },
-        ],
-      },
-      expected: {
-        ...defaultExpected,
-        filterQuery: {
-          whereQuery: [
-            {
-              query: `${FileData.CONSENSUS_TIMESTAMP}  <= `,
-              param: 2,
-            },
-          ],
-        },
-      },
-    },
-    {
-      name: 'gt timestamp',
-      input: {
-        filters: [
-          {
-            key: constants.filterKeys.TIMESTAMP,
-            operator: utils.opsMap.gt,
-            value: 2,
-          },
-        ],
-      },
-      expected: {
-        ...defaultExpected,
-        filterQuery: {
-          whereQuery: [
-            {
-              query: `${FileData.CONSENSUS_TIMESTAMP}  > `,
-              param: 2,
-            },
-          ],
-        },
-      },
-    },
-    {
-      name: 'gte timestamp',
-      input: {
-        filters: [
-          {
-            key: constants.filterKeys.TIMESTAMP,
-            operator: utils.opsMap.gte,
-            value: 2,
-          },
-        ],
-      },
-      expected: {
-        ...defaultExpected,
-        filterQuery: {
-          whereQuery: [
-            {
-              query: `${FileData.CONSENSUS_TIMESTAMP}  >= `,
-              param: 2,
-            },
-          ],
-        },
-      },
-    },
-  ];
-
-  specs.forEach((spec) => {
-    test(`${spec.name}`, () => {
-      expect(networkCtrl.extractFileDataQuery(spec.input.filters)).toEqual(spec.expected);
     });
   });
 });

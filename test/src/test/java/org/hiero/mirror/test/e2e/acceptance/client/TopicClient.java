@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -39,15 +40,24 @@ public class TopicClient extends AbstractNetworkClient {
     private final Map<Long, Instant> recordPublishInstants;
     private final Collection<TopicId> topicIds = new CopyOnWriteArrayList<>();
 
-    public TopicClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public TopicClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         recordPublishInstants = new ConcurrentHashMap<>();
     }
 
     @Override
     public void clean() {
         log.info("Deleting {} topics", topicIds.size());
-        deleteAll(topicIds, this::deleteTopic);
+        deleteOrLogEntities(topicIds, this::deleteTopic);
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var topicId : topicIds) {
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println("DEFAULT_TOPIC=" + topicId.num);
+        }
     }
 
     public NetworkTransactionResponse createTopic(ExpandedAccountId adminAccount, PublicKey submitKey) {

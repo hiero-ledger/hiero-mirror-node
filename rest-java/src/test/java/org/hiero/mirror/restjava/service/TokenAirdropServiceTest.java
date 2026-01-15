@@ -9,11 +9,11 @@ import static org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestTy
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.common.EntityIdAliasParameter;
-import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
-import org.hiero.mirror.restjava.common.EntityIdNumParameter;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest;
 import org.hiero.mirror.restjava.dto.TokenAirdropRequest.AirdropRequestType;
+import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 

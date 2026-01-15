@@ -4,9 +4,11 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hashgraph.sdk.AccountAllowanceApproveTransaction;
+import com.hedera.hashgraph.sdk.AccountAllowanceDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
+import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -26,8 +28,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
@@ -36,14 +40,15 @@ import org.springframework.retry.support.RetryTemplate;
 @Named
 public class AccountClient extends AbstractNetworkClient {
 
-    private static final long DEFAULT_INITIAL_BALANCE = 75_000_000L; // 0.75 ℏ
+    private static final long DEFAULT_INITIAL_BALANCE = 100_000_000L; // 1 ℏ
 
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
     private final long initialBalance;
 
-    public AccountClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public AccountClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
         try {
             initialBalance = getBalance();
             log.info(
@@ -59,7 +64,7 @@ public class AccountClient extends AbstractNetworkClient {
     @Override
     public void clean() {
         log.info("Deleting {} accounts", accountIds.size());
-        deleteAll(accountIds, this::delete);
+        deleteOrLogEntities(accountIds, this::delete);
 
         var cost = initialBalance - getBalance();
         log.warn("Tests cost {} to run", Hbar.fromTinybars(cost));
@@ -76,6 +81,19 @@ public class AccountClient extends AbstractNetworkClient {
         }
 
         client.setOperator(operatorId.getAccountId(), operatorId.getPrivateKey());
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var accountName : accountMap.keySet()) {
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println(accountName + "="
+                    + accountMap.get(accountName).getAccountId().toEvmAddress());
+            System.out.println("DEFAULT_ACCOUNT_ID_" + accountName + "="
+                    + accountMap.get(accountName).getAccountId());
+            System.out.println("DEFAULT_ACCOUNT_ID_KEY_" + accountName + "="
+                    + accountMap.get(accountName).getPublicKey().toStringRaw());
+        }
     }
 
     @Override
@@ -305,6 +323,19 @@ public class AccountClient extends AbstractNetworkClient {
         return response;
     }
 
+    public NetworkTransactionResponse deleteAllowanceForNft(ExpandedAccountId spender, NftId nftId) {
+        var transaction =
+                new AccountAllowanceDeleteTransaction().deleteAllTokenNftAllowances(nftId, spender.getAccountId());
+        var response = executeTransactionAndRetrieveReceipt(transaction, KeyList.of(spender.getPrivateKey()));
+        log.info(
+                "Deleted allowance for spender {} on NFT {} for serial {} via {}",
+                spender,
+                nftId.tokenId,
+                nftId.serial,
+                response.getTransactionId());
+        return response;
+    }
+
     public NetworkTransactionResponse approveNftAllSerials(TokenId tokenId, ContractId spender)
             throws InvalidProtocolBufferException {
         var ownerAccountId = sdkClient.getExpandedOperatorAccountId().getAccountId();
@@ -330,6 +361,19 @@ public class AccountClient extends AbstractNetworkClient {
                 spender,
                 tokenId,
                 response.getTransactionId());
+        return response;
+    }
+
+    public NetworkTransactionResponse updateAccount(
+            ExpandedAccountId accountId, Consumer<AccountUpdateTransaction> transaction) {
+        final var accountUpdateTransaction = new AccountUpdateTransaction();
+        transaction.accept(accountUpdateTransaction);
+        accountUpdateTransaction
+                .setAccountId(accountId.getAccountId())
+                .freezeWith(client)
+                .sign(accountId.getPrivateKey());
+        var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
+        log.info(" account updated via {}", response.getTransactionId());
         return response;
     }
 

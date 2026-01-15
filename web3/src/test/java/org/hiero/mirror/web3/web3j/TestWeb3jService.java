@@ -11,7 +11,6 @@ import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.web3j.crypto.TransactionUtils.generateTransactionHashHexEncoded;
 
 import com.google.common.collect.Range;
-import com.hedera.node.app.service.evm.store.models.HederaEvmAccount;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import io.reactivex.Flowable;
 import java.io.IOException;
@@ -283,16 +282,15 @@ public class TestWeb3jService implements Web3jService {
             final BlockType block,
             final long gasLimit,
             final Address sender) {
-        final var senderAccount = new HederaEvmAccount(sender);
         return ContractExecutionParameters.builder()
-                .sender(senderAccount)
+                .sender(sender)
                 .value(value)
                 .receiver(contractAddress)
                 .callData(callData)
                 .gas(gasLimit)
+                .gasPrice(0L)
                 .isStatic(false)
                 .callType(callType)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .block(block)
                 .build();
@@ -301,12 +299,12 @@ public class TestWeb3jService implements Web3jService {
     protected ContractExecutionParameters serviceParametersForExecutionSingle(
             final Transaction transaction, final CallServiceParameters.CallType callType, final BlockType block) {
         return ContractExecutionParameters.builder()
-                .sender(new HederaEvmAccount(sender))
+                .sender(sender)
                 .value(value)
                 .receiver(Address.fromHexString(transaction.getTo()))
                 .callData(Bytes.fromHexString(transaction.getData()))
                 .gas(TRANSACTION_GAS_LIMIT)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
+                .gasPrice(0L)
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)
@@ -316,15 +314,14 @@ public class TestWeb3jService implements Web3jService {
 
     public ContractExecutionParameters serviceParametersForTopLevelContractCreate(
             final String contractInitCode, final CallServiceParameters.CallType callType, final Address senderAddress) {
-        final var senderEvmAccount = new HederaEvmAccount(senderAddress);
 
         final var callData = Bytes.wrap(Hex.decode(contractInitCode));
         return ContractExecutionParameters.builder()
-                .sender(senderEvmAccount)
+                .sender(senderAddress)
                 .callData(callData)
                 .receiver(Address.ZERO)
                 .gas(TRANSACTION_GAS_LIMIT)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
+                .gasPrice(0L)
                 .isStatic(false)
                 .callType(callType)
                 .isEstimate(ETH_ESTIMATE_GAS == callType)

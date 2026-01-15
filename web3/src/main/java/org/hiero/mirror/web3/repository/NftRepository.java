@@ -37,9 +37,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
      * @return an Optional containing the nft's state at the specified timestamp. If there is no record found for the
      * given criteria, an empty Optional is returned.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select n.*
             from (
                 (
@@ -66,8 +64,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
             order by n.timestamp_range desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<Nft> findActiveByIdAndTimestamp(long tokenId, long serialNumber, long blockTimestamp);
 
     @Query(
@@ -86,9 +83,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
      * @param blockTimestamp the block timestamp used to filter the results.
      * @return the number of nfts the accountId owns at the specified timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select count(*)
             from (
                 (
@@ -109,8 +104,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
             ) as n
             left join entity e on e.id = n.token_id
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     long countByAccountIdAndTimestampNotDeleted(long accountId, long blockTimestamp);
 
     /**
@@ -123,9 +117,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
      * @param blockTimestamp the block timestamp used to filter the results.
      * @return the number of nft serial numbers the accountId owns at the specified timestamp for specific tokenId.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select count(*)
             from (
                 (
@@ -148,8 +140,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
                 ) as n
             join entity e on e.id = n.token_id
             where (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<Long> nftBalanceByAccountIdTokenIdAndTimestamp(long accountId, long tokenId, long blockTimestamp);
 
     /**
@@ -161,9 +152,7 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
      * @param blockTimestamp the block timestamp used to filter the results.
      * @return the token's total supply at the specified timestamp.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select count(*)
             from nft as n
             left join entity as e on e.id = n.token_id
@@ -171,7 +160,6 @@ public interface NftRepository extends CrudRepository<Nft, AbstractNft.Id> {
               n.created_timestamp <= :blockTimestamp and
               (n.deleted is false or lower(n.timestamp_range) > :blockTimestamp) and
               (e.deleted is not true or lower(e.timestamp_range) > :blockTimestamp)
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     long findNftTotalSupplyByTokenIdAndTimestamp(long tokenId, long blockTimestamp);
 }

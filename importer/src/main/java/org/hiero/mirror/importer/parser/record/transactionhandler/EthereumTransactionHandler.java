@@ -4,9 +4,11 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import jakarta.inject.Named;
+import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
+import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -17,12 +19,14 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
 import org.hiero.mirror.importer.util.Utility;
 
 @Named
 @RequiredArgsConstructor
-class EthereumTransactionHandler extends AbstractTransactionHandler {
+final class EthereumTransactionHandler extends AbstractTransactionHandler {
 
+    private final ContractBytecodeService contractBytecodeService;
     private final EntityListener entityListener;
     private final EntityProperties entityProperties;
     private final EthereumTransactionParser ethereumTransactionParser;
@@ -48,6 +52,45 @@ class EthereumTransactionHandler extends AbstractTransactionHandler {
     @Override
     public TransactionType getType() {
         return TransactionType.ETHEREUMTRANSACTION;
+    }
+
+    @Override
+    public void updateContractResult(ContractResult contractResult, RecordItem recordItem) {
+        if (!recordItem.isBlockstream()) {
+            super.updateContractResult(contractResult, recordItem);
+            return;
+        }
+
+        if (recordItem.getEthereumTransaction() == null) {
+            // This can happen when decoding from the transaction bytes has failed, set default values for not-null
+            // columns
+            contractResult.setFunctionParameters(ArrayUtils.EMPTY_BYTE_ARRAY);
+            contractResult.setGasLimit(0L);
+            return;
+        }
+
+        // In blockstreams, no EvmTransactionResult.internal_call_context is populated for ethereum transactions.
+        // The values for the fields amount / gasLimit / functionParameters should get populated from the transaction
+        // body and the call data file if offloaded.
+        var ethereumTransaction = recordItem.getEthereumTransaction();
+        contractResult.setAmount(new BigInteger(ethereumTransaction.getValue()).longValue());
+        contractResult.setGasLimit(ethereumTransaction.getGasLimit());
+
+        byte[] callData = ethereumTransaction.getCallData();
+        var callDataId = ethereumTransaction.getCallDataId();
+        if (ArrayUtils.isEmpty(callData) && !EntityId.isEmpty(callDataId)) {
+            // call data file (callDataId) is ignored by consensus node if there's call data in ethereum data
+            callData = contractBytecodeService.get(callDataId);
+            if (callData == null) {
+                Utility.handleRecoverableError(
+                        "Failed to read call data from file {} for ethereum transaction at {}",
+                        callDataId,
+                        recordItem.getConsensusTimestamp());
+            }
+        }
+
+        // #12199, function_parameters is a not-null db column, so set it to an empty array as fallback
+        contractResult.setFunctionParameters(callData != null ? callData : ArrayUtils.EMPTY_BYTE_ARRAY);
     }
 
     @Override
@@ -79,7 +122,8 @@ class EthereumTransactionHandler extends AbstractTransactionHandler {
                         ethereumTransaction.getCallData(),
                         ethereumTransaction.getCallDataId(),
                         ethereumTransaction.getConsensusTimestamp(),
-                        ethereumTransaction.getData());
+                        ethereumTransaction.getData(),
+                        true);
                 ethereumTransaction.setHash(hash);
             }
 

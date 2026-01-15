@@ -8,14 +8,14 @@ import {PostgreSqlContainer} from '@testcontainers/postgresql';
 
 import {isV2Schema} from './testutils.js';
 
-const FLYWAY_DATA_PATH = path.join('.', 'build', 'flyway');
+const FLYWAY_DATA_PATH = path.join('.', 'build', process.platform === 'win32' ? 'flyway data' : 'flyway');
 const FLYWAY_EXE_PATH = path.join('.', 'node_modules', 'node-flywaydb', 'bin', 'flyway');
 const FLYWAY_VERSION = '11.8.2';
 
 const DB_NAME = 'mirror_node';
 const OWNER_USER = 'mirror_node';
 const DATABASE_IMAGES = {
-  v1: 'postgres:16-alpine',
+  v1: 'gcr.io/mirrornode/postgres:16-alpine',
   v2: 'gcr.io/mirrornode/citus:12.1.1',
 };
 
@@ -68,7 +68,7 @@ const initializeFlyway = () => {
 
   fs.mkdirSync(FLYWAY_DATA_PATH, {recursive: true});
   fs.writeFileSync(flywayConfigPath, JSON.stringify(flywayConfig));
-  const command = `node ${FLYWAY_EXE_PATH} -c ${flywayConfigPath} info`;
+  const command = `node ${FLYWAY_EXE_PATH} -c "${flywayConfigPath}" info`;
   const options = {stdio: 'pipe'};
 
   let retries = 10;

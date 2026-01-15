@@ -2,15 +2,10 @@
 
 package org.hiero.mirror.web3.evm.utils;
 
-import static org.hiero.mirror.common.util.DomainUtils.EMPTY_BYTE_ARRAY;
 import static org.hiero.mirror.common.util.DomainUtils.fromEvmAddress;
-import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.hedera.node.app.service.evm.store.contracts.precompile.codec.EvmKey;
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.Key;
 import lombok.experimental.UtilityClass;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -18,23 +13,6 @@ import org.hyperledger.besu.datatypes.Address;
 
 @UtilityClass
 public class EvmTokenUtils {
-
-    public static final Address EMPTY_EVM_ADDRESS = Address.wrap(Bytes.wrap(new byte[20]));
-
-    public static EvmKey evmKey(final byte[] keyBytes) throws InvalidProtocolBufferException {
-        if (keyBytes == null) {
-            return new EvmKey();
-        }
-        var key = Key.parseFrom(keyBytes);
-        final var contractId = key.hasContractID() ? toAddress(key.getContractID()) : EMPTY_EVM_ADDRESS;
-        final var ed25519 = key.hasEd25519() ? toBytes(key.getEd25519()) : EMPTY_BYTE_ARRAY;
-        final var ecdsaSecp256K1 = key.hasECDSASecp256K1() ? toBytes(key.getECDSASecp256K1()) : EMPTY_BYTE_ARRAY;
-
-        final var delegatableContractId =
-                key.hasDelegatableContractId() ? toAddress(key.getDelegatableContractId()) : EMPTY_EVM_ADDRESS;
-
-        return new EvmKey(contractId, ed25519, ecdsaSecp256K1, delegatableContractId);
-    }
 
     public static Long entityIdNumFromEvmAddress(final Address address) {
         final var id = fromEvmAddress(address.toArrayUnsafe());

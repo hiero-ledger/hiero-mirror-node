@@ -22,6 +22,8 @@ import org.hiero.mirror.common.domain.entity.EntityTransaction;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
+import org.hiero.mirror.common.domain.hook.Hook;
+import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -42,10 +44,12 @@ import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.importer.exception.ImporterException;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Primary;
 
 @CustomLog
 @Named
+@NullMarked
 @Primary
 @RequiredArgsConstructor
 public class CompositeEntityListener implements EntityListener {
@@ -129,6 +133,16 @@ public class CompositeEntityListener implements EntityListener {
     @Override
     public void onFileData(FileData fileData) throws ImporterException {
         onEach(EntityListener::onFileData, fileData);
+    }
+
+    @Override
+    public void onHook(Hook hook) throws ImporterException {
+        onEach(EntityListener::onHook, hook);
+    }
+
+    @Override
+    public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
+        onEach(EntityListener::onHookStorageChange, storageChange);
     }
 
     @Override

@@ -2,29 +2,32 @@
 
 package org.hiero.mirror.web3.state.keyvalue;
 
+import static com.hedera.node.app.service.token.impl.schemas.V0530TokenSchema.AIRDROPS_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 
 import com.hedera.hapi.node.base.PendingAirdropId;
 import com.hedera.hapi.node.base.PendingAirdropValue;
 import com.hedera.hapi.node.state.token.AccountPendingAirdrop;
-import jakarta.annotation.Nonnull;
+import com.hedera.node.app.service.token.TokenService;
 import jakarta.inject.Named;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.TokenAirdropRepository;
+import org.jspecify.annotations.NonNull;
 
 @Named
-public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
+final class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
 
-    public static final String KEY = "PENDING_AIRDROPS";
+    public static final int STATE_ID = AIRDROPS_STATE_ID;
+
     private final TokenAirdropRepository tokenAirdropRepository;
 
     protected AirdropsReadableKVState(final TokenAirdropRepository tokenAirdropRepository) {
-        super(KEY);
+        super(TokenService.NAME, STATE_ID);
         this.tokenAirdropRepository = tokenAirdropRepository;
     }
 
     @Override
-    protected AccountPendingAirdrop readFromDataSource(@Nonnull PendingAirdropId key) {
+    protected AccountPendingAirdrop readFromDataSource(@NonNull PendingAirdropId key) {
         final var senderId = toEntityId(key.senderId()).getId();
         final var receiverId = toEntityId(key.receiverId()).getId();
         final var tokenId = toEntityId(
@@ -51,5 +54,10 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
 
     private PendingAirdropValue mapToPendingAirdropValue(final long amount) {
         return PendingAirdropValue.newBuilder().amount(amount).build();
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

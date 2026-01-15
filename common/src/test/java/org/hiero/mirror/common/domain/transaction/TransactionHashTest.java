@@ -7,21 +7,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class TransactionHashTest {
 
     private final DomainBuilder domainBuilder = new DomainBuilder();
 
-    @Test
-    void testHashIsValid() {
-        var nullHash = TransactionHash.builder().build();
-        assertThat(nullHash.hashIsValid()).isFalse();
-
-        var emptyHash = TransactionHash.builder().hash(new byte[0]).build();
-        assertThat(emptyHash.hashIsValid()).isFalse();
-
-        byte[] bytes = new byte[3];
+    @ParameterizedTest
+    @ValueSource(ints = {32, 48})
+    void testHashIsValid(int hashSize) {
+        byte[] bytes = new byte[hashSize];
         bytes[0] = (byte) 0x81;
         bytes[1] = 0x22;
         bytes[2] = 0x25;
@@ -29,9 +24,20 @@ class TransactionHashTest {
         assertThat(nonEmptyHash.hashIsValid()).isTrue();
     }
 
+    @ParameterizedTest
+    @ValueSource(ints = {0, 31, 33, 47, 49, 50})
+    void testHashIsInValid(int hashSize) {
+        var nullHash = TransactionHash.builder().build();
+        assertThat(nullHash.hashIsValid()).isFalse();
+
+        byte[] bytes = new byte[hashSize];
+        var nonEmptyHash = TransactionHash.builder().hash(bytes).build();
+        assertThat(nonEmptyHash.hashIsValid()).isFalse();
+    }
+
     @Test
     void testShardCalculation() {
-        byte[] bytes = new byte[3];
+        byte[] bytes = new byte[32];
         bytes[0] = (byte) 0x81;
         bytes[1] = 0x22;
         bytes[2] = 0x25;
@@ -47,35 +53,10 @@ class TransactionHashTest {
         assertThat(builder.build().calculateV1Shard()).isEqualTo(5);
     }
 
-    @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-            0, 1, 1
-            0, -1, 255
-            127, -1, 32767
-            -15, -86, -3670
-            -128, 0, -32768
-            """)
-    void testDistributionId(byte first, byte second, short expected) {
-        var hash = domainBuilder.bytes(48);
-        hash[0] = first;
-        hash[1] = second;
-        var transactionHash = new TransactionHash();
-        transactionHash.setHash(hash);
-        assertThat(transactionHash.getDistributionId()).isEqualTo(expected);
-    }
-
     @Test
-    void testDistributionIdWhenHashTooShort() {
+    void hashInvalidSize() {
         var transactionHash = new TransactionHash();
-        transactionHash.setHash(null);
-        assertThat(transactionHash.getDistributionId()).isEqualTo((short) 0);
-
-        transactionHash.setHash(new byte[0]);
-        assertThat(transactionHash.getDistributionId()).isEqualTo((short) 0);
-
-        transactionHash.setHash(new byte[1]);
-        assertThat(transactionHash.getDistributionId()).isEqualTo((short) 0);
+        transactionHash.setHash(new byte[31]);
+        assertThat(transactionHash.getHash()).isNull();
     }
 }

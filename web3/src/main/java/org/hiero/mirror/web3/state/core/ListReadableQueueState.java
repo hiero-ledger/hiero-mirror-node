@@ -3,11 +3,11 @@
 package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableQueueStateBase;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Queue;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public class ListReadableQueueState<E> extends ReadableQueueStateBase<E> {
 
@@ -19,11 +19,13 @@ public class ListReadableQueueState<E> extends ReadableQueueStateBase<E> {
      * pre-populate the queue, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
-     * @param stateKey The state key for this state
+     * @param serviceName The service name for this state
+     * @param stateId The state id for this state
      * @param backingStore The backing store to use
      */
-    public ListReadableQueueState(@Nonnull final String stateKey, @Nonnull final Queue<E> backingStore) {
-        super(stateKey);
+    public ListReadableQueueState(
+            @NonNull final String serviceName, final int stateId, @NonNull final Queue<E> backingStore) {
+        super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
@@ -33,7 +35,7 @@ public class ListReadableQueueState<E> extends ReadableQueueStateBase<E> {
         return backingStore.peek();
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Iterator<E> iterateOnDataSource() {
         return backingStore.iterator();

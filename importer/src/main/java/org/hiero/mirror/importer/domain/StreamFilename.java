@@ -19,15 +19,16 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.EqualsAndHashCode;
-import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 import org.hiero.mirror.common.domain.StreamType;
+import org.hiero.mirror.common.domain.StreamType.Extension;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.jspecify.annotations.NonNull;
 
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Value
@@ -189,7 +190,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
                     }
                 }
 
-                return TypeInfo.of(compressor, extensions.get(streamTypeExtension), fileType, sidecarIndex, type);
+                return new TypeInfo(compressor, extensions.get(streamTypeExtension), fileType, sidecarIndex, type);
             }
         }
 
@@ -265,12 +266,6 @@ public class StreamFilename implements Comparable<StreamFilename> {
         SIGNATURE
     }
 
-    @Value(staticConstructor = "of")
-    private static class TypeInfo {
-        String compressor;
-        StreamType.Extension extension;
-        FileType fileType;
-        String sidecarId;
-        StreamType streamType;
-    }
+    private record TypeInfo(
+            String compressor, Extension extension, FileType fileType, String sidecarId, StreamType streamType) {}
 }

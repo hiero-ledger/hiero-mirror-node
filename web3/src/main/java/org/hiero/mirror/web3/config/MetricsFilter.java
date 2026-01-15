@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.config;
 
-import static org.hiero.mirror.web3.utils.Constants.MODULARIZED_HEADER;
 import static org.springframework.http.HttpHeaders.CONTENT_LENGTH;
 import static org.springframework.web.servlet.HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE;
 
@@ -30,7 +29,6 @@ class MetricsFilter extends OncePerRequestFilter {
     static final String RESPONSE_BYTES = "hiero.mirror.web3.response.bytes";
 
     private static final String METHOD = "method";
-    private static final String MODULARIZED = "modularized";
     private static final String URI = "uri";
 
     private final MeterProvider<DistributionSummary> requestBytesProvider;
@@ -60,8 +58,7 @@ class MetricsFilter extends OncePerRequestFilter {
 
     private void recordMetrics(HttpServletRequest request, HttpServletResponse response) {
         if (request.getAttribute(BEST_MATCHING_PATTERN_ATTRIBUTE) instanceof String uri) {
-            var modularized = response.getHeader(MODULARIZED_HEADER);
-            var tags = Tags.of(METHOD, request.getMethod(), MODULARIZED, String.valueOf(modularized), URI, uri);
+            var tags = Tags.of(METHOD, request.getMethod(), URI, uri);
 
             var contentLengthHeader = request.getHeader(CONTENT_LENGTH);
             if (contentLengthHeader != null) {

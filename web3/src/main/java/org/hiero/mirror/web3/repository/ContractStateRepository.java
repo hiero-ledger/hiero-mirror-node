@@ -20,14 +20,11 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
     @Cacheable(cacheNames = CACHE_NAME, cacheManager = CACHE_MANAGER_CONTRACT_STATE)
     Optional<byte[]> findStorage(final Long contractId, final byte[] key);
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
                     select slot, value from contract_state
                     where contract_id = :contractId
                     and slot in (:slots)
-                    """,
-            nativeQuery = true)
+                    """, nativeQuery = true)
     List<ContractSlotValue> findStorageBatch(@Param("contractId") Long contractId, @Param("slots") List<byte[]> slots);
 
     /**
@@ -44,9 +41,7 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
      * @param blockTimestamp The block timestamp up to which to retrieve the storage value.
      * @return An {@code Optional} containing the byte array of the storage value if found, or an empty {@code Optional} if not.
      */
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select
                 coalesce(value_written, value_read) as value
             from contract_state_change
@@ -55,7 +50,6 @@ public interface ContractStateRepository extends CrudRepository<ContractState, L
             and consensus_timestamp <= ?3
             order by consensus_timestamp desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<byte[]> findStorageByBlockTimestamp(long id, byte[] slot, long blockTimestamp);
 }

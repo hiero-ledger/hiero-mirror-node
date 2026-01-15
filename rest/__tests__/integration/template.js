@@ -28,7 +28,7 @@ import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
 import {JSONParse} from '../../utils';
-import {defaultBeforeAllTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import {slowStepTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
@@ -83,6 +83,7 @@ const getResponseHeaders = (spec, specPath) => {
     ...getResponseHeadersFromFileOrDefault(specPath),
     ...(spec.responseHeaders ?? {}),
   };
+  spec.responseHeadersMatrix = spec.responseHeadersMatrix ?? {};
 };
 
 const getSpecs = async () => {
@@ -96,10 +97,7 @@ const getSpecs = async () => {
       walk(specRootPath)
         .filter((f) => f.endsWith('.json') && !f.endsWith(responseHeadersFilename))
         .map(async (f) => {
-          const specText = fs.readFileSync(f, 'utf8');
-          const spec =
-            f.indexOf('stateproof') > -1 ? JSONParse(specText) : transformShardRealmValues(JSONParse(specText));
-          spec.name = path.basename(f);
+          const spec = readAndTransformSpec(f);
           getResponseHeaders(spec, f);
 
           const key = path.dirname(f).replace(specRootPath, '');
@@ -125,6 +123,14 @@ const getSpecs = async () => {
     specMap[key].push(...specs);
     return specMap;
   }, {});
+};
+
+const readAndTransformSpec = (filepath) => {
+  const text = fs.readFileSync(filepath, 'utf8');
+  const spec = JSONParse(text);
+  const transformed = filepath.indexOf('stateproof') > -1 ? spec : transformShardRealmValues(spec);
+  transformed.name = path.basename(filepath);
+  return transformed;
 };
 
 setupIntegrationTest();
@@ -155,19 +161,12 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
   };
 
   const getTests = (spec) => {
-    const tests = spec.tests || [
-      {
-        url: spec.url,
-        urls: spec.urls,
-        responseJson: spec.responseJson,
-        responseStatus: spec.responseStatus,
-      },
-    ];
+    const tests = spec.tests || [spec];
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseStatus} = test;
-        return urls.map((url) => ({url, responseJson, responseStatus}));
+        const {responseJson, responseJsonMatrix, responseStatus} = test;
+        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus}));
       })
     );
   };
@@ -295,7 +294,10 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     logger.debug('uploading file objects to mock s3 service');
     const s3ObjectKeys = [];
     for (const filePath of walk(dataPath)) {
-      const s3ObjectKey = path.relative(dataPath, filePath);
+      const s3ObjectKey =
+        process.platform === 'win32'
+          ? path.relative(dataPath, filePath).replace(/\\/g, '/')
+          : path.relative(dataPath, filePath);
       const fileStream = fs.createReadStream(filePath);
       await s3client.send(
         new PutObjectCommand({
@@ -321,7 +323,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     }
 
     configClone = _.cloneDeep(config);
-  }, defaultBeforeAllTimeoutMillis);
+  }, slowStepTimeoutMillis);
 
   afterAll(async () => {
     if (s3Ops) {
@@ -359,13 +361,17 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                 if (response.status === 200 && dir.endsWith('stateproof')) {
                   jsonObj = transformStateProofResponse(jsonObj);
                 }
-                expect(jsonObj).toEqual(tt.responseJson);
+                const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
+                expect(jsonObj).toEqual(responseJson);
               } else {
-                expect(response.text).toEqual(tt.responseJson);
+                const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
+                expect(response.text).toEqual(responseJson);
               }
 
               if (response.status >= 200 && response.status < 300) {
-                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(spec.responseHeaders));
+                const expectedHeaders =
+                  spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ?? spec.responseHeaders ?? {};
+                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(expectedHeaders));
               }
             });
           });

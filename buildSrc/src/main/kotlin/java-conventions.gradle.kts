@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import net.ltgt.gradle.errorprone.errorprone
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
@@ -8,6 +9,7 @@ plugins {
     id("io.spring.dependency-management")
     id("jacoco")
     id("java-library")
+    id("net.ltgt.errorprone")
     id("org.gradle.test-retry")
 }
 
@@ -15,6 +17,7 @@ configurations.all {
     exclude(group = "com.nimbusds") // Unused and has a vulnerability
     exclude(group = "com.github.jnr") // Unused and has licensing issues
     exclude(group = "commons-logging", "commons-logging")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-core")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
 }
@@ -33,6 +36,9 @@ val mockitoAgent = configurations.register("mockitoAgent")
 
 dependencies {
     annotationProcessor(platform(project(":")))
+    // Versions for errorprone don't seem to work when only specified in root build.gradle.kts
+    errorprone("com.google.errorprone:error_prone_core:2.42.0")
+    errorprone("com.uber.nullaway:nullaway:0.12.10")
     implementation(platform(project(":")))
     mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -40,10 +46,22 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     // Disable serial and this-escape warnings due to errors in generated code
+    // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
-        listOf("-parameters", "-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview")
+        listOf(
+            "-parameters",
+            "-Werror",
+            "-Xlint:all",
+            "-Xlint:-this-escape,-preview,-rawtypes,-unchecked",
+        )
     )
     options.encoding = "UTF-8"
+    options.errorprone {
+        disableAllChecks = true
+        check("NullAway", net.ltgt.gradle.errorprone.CheckSeverity.ERROR)
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
+    }
     sourceCompatibility = "21"
     targetCompatibility = "21"
 }
@@ -65,10 +83,7 @@ tasks.withType<Test>().configureEach {
     systemProperty("spring.test.constructor.autowire.mode", "ALL")
     systemProperty("spring.main.cloud-platform", "NONE")
     useJUnitPlatform {}
-    if (
-        System.getenv().containsKey("CI") &&
-            !System.getenv().containsKey("HIERO_MIRROR_WEB3_EVM_MODULARIZEDSERVICES")
-    ) {
+    if (System.getenv().containsKey("CI")) {
         retry { maxRetries = 3 }
     }
 }

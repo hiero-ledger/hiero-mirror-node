@@ -5,6 +5,7 @@ package org.hiero.mirror.test.e2e.acceptance.steps;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.AccountClient.AccountNameEnum.BOB;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.ALLOWANCE_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.BALANCE_OF_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.ERCContractFeature.ContractMethods.DECIMALS_SELECTOR;
@@ -340,17 +341,18 @@ public class ERCContractFeature extends AbstractFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements SelectorInterface {
-        ALLOWANCE_SELECTOR("allowance"),
-        BALANCE_OF_SELECTOR("balanceOf"),
-        DECIMALS_SELECTOR("decimals"),
-        GET_APPROVED_SELECTOR("getApproved"),
-        GET_OWNER_OF_SELECTOR("getOwnerOf"),
-        IS_APPROVED_FOR_ALL_SELECTOR("isApprovedForAll"),
-        NAME_SELECTOR("name"),
-        SYMBOL_SELECTOR("symbol"),
-        TOKEN_URI_SELECTOR("tokenURI"),
-        TOTAL_SUPPLY_SELECTOR("totalSupply");
+        ALLOWANCE_SELECTOR("allowance", VIEW),
+        BALANCE_OF_SELECTOR("balanceOf", VIEW),
+        DECIMALS_SELECTOR("decimals", VIEW),
+        GET_APPROVED_SELECTOR("getApproved", VIEW),
+        GET_OWNER_OF_SELECTOR("getOwnerOf", VIEW),
+        IS_APPROVED_FOR_ALL_SELECTOR("isApprovedForAll", VIEW),
+        NAME_SELECTOR("name", VIEW),
+        SYMBOL_SELECTOR("symbol", VIEW),
+        TOKEN_URI_SELECTOR("tokenURI", VIEW),
+        TOTAL_SUPPLY_SELECTOR("totalSupply", VIEW);
 
         private final String selector;
+        private final FunctionType functionType;
     }
 }

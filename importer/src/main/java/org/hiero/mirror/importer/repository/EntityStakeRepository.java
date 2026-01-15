@@ -19,9 +19,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
     @Transactional
     void lockFromConcurrentUpdates();
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
             with last_epoch_day as (
               select coalesce((select epoch_day from node_stake order by consensus_timestamp desc limit 1), -1) as epoch_day
             ), entity_stake_info as (
@@ -35,8 +33,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                         else false
                    end
             from staking_reward_account
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     boolean updated(long stakingRewardAccount);
 
     /**
@@ -65,9 +62,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
      * period, add the reward earned in the ending period to the current as the new pending reward
      */
     @Modifying
-    @Query(
-            value =
-                    """
+    @Query(value = """
             drop index if exists entity_stake_temp__id;
             truncate table entity_stake_temp;
 
@@ -90,7 +85,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                   limit 1
                 )
               )
-              order by epoch_day
+              order by consensus_timestamp
               limit 1
             ), ending_period_stake_state as (
               select
@@ -106,9 +101,10 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
                 where ns.consensus_timestamp = ending_period.consensus_timestamp
               ) node_stake on es.staked_node_id_start = node_id
             ), forfeited_period as (
-              select node_id, reward_rate
+              select distinct on(node_id) node_id, reward_rate
               from node_stake
               where epoch_day = (select epoch_day from ending_period) - 365
+              order by node_id, consensus_timestamp
             ), proxy_staking as (
               select staked_account_id, sum(balance) as staked_to_me
               from entity_state_start
@@ -192,8 +188,7 @@ public interface EntityStakeRepository extends CrudRepository<EntityStake, Long>
               staked_to_me = excluded.staked_to_me,
               stake_total_start = excluded.stake_total_start,
               timestamp_range = excluded.timestamp_range;
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     @Transactional
     void updateEntityStake(long stakingRewardAccount);
 }

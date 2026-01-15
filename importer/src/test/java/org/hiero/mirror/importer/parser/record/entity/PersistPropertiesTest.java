@@ -19,9 +19,7 @@ class PersistPropertiesTest {
     private static final SystemEntity SYSTEM_ENTITY = new SystemEntity(CommonProperties.getInstance());
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             , false
             0, false
             10, true
@@ -67,9 +65,7 @@ class PersistPropertiesTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             true, CRYPTOTRANSFER, true,
             true, CONSENSUSSUBMITMESSAGE, false,
             false, CRYPTOTRANSFER, false,

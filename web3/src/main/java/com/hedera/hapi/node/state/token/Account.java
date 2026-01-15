@@ -91,6 +91,19 @@ import java.util.function.Supplier;
  *                             <p>
  *                             This value SHALL NOT be empty if this account is "sender" for any
  *                             pending airdrop, and SHALL be empty otherwise.
+ * @param numberPendingAirdrops <b>(35)</b> A number of pending airdrops.
+ *                              <p>
+ *                              This count SHALL be used to calculate rent _without_ walking the linked
+ *                              list of pending airdrops associated to this account via the
+ *                              `head_pending_airdrop_id` field.</p><br/>
+ *                              This value MUST be updated for every airdrop, clam, or cancel transaction
+ *                              that designates this account as a receiver.<br/>
+ *                              This number MUST always match the count of entries in the "list"
+ *                              identified by `head_pending_airdrop_id`.
+ * @param numberHooksInUse <b>(36)</b> The number of hooks currently in use on this account.
+ * @param firstHookId <b>(37)</b> If the account has more than zero hooks in use, the id of the first hook in its
+ *                    doubly-linked list of hooks.
+ * @param numberLambdaStorageSlots <b>(38)</b> The number of storage slots in use by this account's lambdas.
  */
 public record Account(
         @Nullable AccountID accountId,
@@ -126,7 +139,10 @@ public record Account(
         boolean expiredAndPendingRemoval,
         @Nonnull Bytes firstContractStorageKey,
         @Nullable PendingAirdropId headPendingAirdropId,
-        long numberPendingAirdrops) {
+        long numberPendingAirdrops,
+        long numberHooksInUse,
+        long firstHookId,
+        long numberLambdaStorageSlots) {
     /** Protobuf codec for reading and writing in protobuf format */
     public static final Codec<Account> PROTOBUF = new com.hedera.hapi.node.state.token.codec.AccountProtoCodec();
     /** JSON codec for reading and writing in JSON format */
@@ -172,7 +188,10 @@ public record Account(
             boolean expiredAndPendingRemoval,
             Bytes firstContractStorageKey,
             PendingAirdropId headPendingAirdropId,
-            long numberPendingAirdrops) {
+            long numberPendingAirdrops,
+            long numberHooksInUse,
+            long firstHookId,
+            long numberLambdaStorageSlots) {
         this(
                 accountId,
                 alias,
@@ -207,7 +226,10 @@ public record Account(
                 expiredAndPendingRemoval,
                 firstContractStorageKey,
                 headPendingAirdropId,
-                numberPendingAirdrops);
+                numberPendingAirdrops,
+                numberHooksInUse,
+                firstHookId,
+                numberLambdaStorageSlots);
     }
 
     /**
@@ -348,6 +370,15 @@ public record Account(
         }
         if (numberPendingAirdrops != DEFAULT.numberPendingAirdrops) {
             result = 31 * result + Long.hashCode(numberPendingAirdrops);
+        }
+        if (numberHooksInUse != DEFAULT.numberHooksInUse) {
+            result = 31 * result + Long.hashCode(numberHooksInUse);
+        }
+        if (firstHookId != DEFAULT.firstHookId) {
+            result = 31 * result + Long.hashCode(firstHookId);
+        }
+        if (numberLambdaStorageSlots != DEFAULT.numberLambdaStorageSlots) {
+            result = 31 * result + Long.hashCode(numberLambdaStorageSlots);
         }
         long hashCode = result;
         // Shifts: 30, 27, 16, 20, 5, 18, 10, 24, 30
@@ -521,7 +552,16 @@ public record Account(
         if (headPendingAirdropId != null && !headPendingAirdropId.equals(thatObj.headPendingAirdropId)) {
             return false;
         }
-        return numberPendingAirdrops == thatObj.numberPendingAirdrops;
+        if (numberPendingAirdrops != thatObj.numberPendingAirdrops) {
+            return false;
+        }
+        if (numberHooksInUse != thatObj.numberHooksInUse) {
+            return false;
+        }
+        if (firstHookId != thatObj.firstHookId) {
+            return false;
+        }
+        return numberLambdaStorageSlots == thatObj.numberLambdaStorageSlots;
     }
 
     @Override
@@ -900,7 +940,10 @@ public record Account(
                 expiredAndPendingRemoval,
                 firstContractStorageKey,
                 headPendingAirdropId,
-                numberPendingAirdrops);
+                numberPendingAirdrops,
+                numberHooksInUse,
+                firstHookId,
+                numberLambdaStorageSlots);
     }
 
     public long tinybarBalance() {
@@ -1090,6 +1133,12 @@ public record Account(
 
         private long numberPendingAirdrops = 0;
 
+        private long numberHooksInUse = 0;
+
+        private long firstHookId = 0;
+
+        private long numberLambdaStorageSlots = 0;
+
         /**
          * Create an empty builder
          */
@@ -1163,6 +1212,10 @@ public record Account(
          *                             pending airdrop, and SHALL be empty otherwise.
          * @param numberPendingAirdrops <b>(35)</b> The number of pending airdrops owned by the account. This number is used to collect rent
          *                              for the account.
+         * @param numberHooksInUse <b>(36)</b> The number of hooks currently in use on this account.
+         * @param firstHookId <b>(37)</b> If the account has more than zero hooks in use, the id of the first hook in its
+         *                    doubly-linked list of hooks.
+         * @param numberLambdaStorageSlots <b>(38)</b> The number of storage slots in use by this account's lambdas.
          */
         @SuppressWarnings("java:S107")
         public Builder(
@@ -1199,7 +1252,10 @@ public record Account(
                 boolean expiredAndPendingRemoval,
                 Bytes firstContractStorageKey,
                 PendingAirdropId headPendingAirdropId,
-                long numberPendingAirdrops) {
+                long numberPendingAirdrops,
+                long numberHooksInUse,
+                long firstHookId,
+                long numberLambdaStorageSlots) {
             this.accountId = accountId;
             this.alias = alias != null ? alias : Bytes.EMPTY;
             this.key = key;
@@ -1238,6 +1294,9 @@ public record Account(
             this.firstContractStorageKey = firstContractStorageKey != null ? firstContractStorageKey : Bytes.EMPTY;
             this.headPendingAirdropId = headPendingAirdropId;
             this.numberPendingAirdrops = numberPendingAirdrops;
+            this.numberHooksInUse = numberHooksInUse;
+            this.firstHookId = firstHookId;
+            this.numberLambdaStorageSlots = numberLambdaStorageSlots;
         }
 
         /**
@@ -1280,7 +1339,10 @@ public record Account(
                     expiredAndPendingRemoval,
                     firstContractStorageKey,
                     headPendingAirdropId,
-                    numberPendingAirdrops);
+                    numberPendingAirdrops,
+                    numberHooksInUse,
+                    firstHookId,
+                    numberLambdaStorageSlots);
         }
 
         /**
@@ -1874,6 +1936,39 @@ public record Account(
          */
         public Builder numberPendingAirdrops(long numberPendingAirdrops) {
             this.numberPendingAirdrops = numberPendingAirdrops;
+            return this;
+        }
+
+        /**
+         * <b>(36)</b> The number of hooks currently in use on this account.
+         *
+         * @param numberHooksInUse value to set
+         * @return builder to continue building with
+         */
+        public Builder numberHooksInUse(long numberHooksInUse) {
+            this.numberHooksInUse = numberHooksInUse;
+            return this;
+        }
+
+        /**
+         * <b>(37)</b> If the account has more than zero hooks in use, the id of the first hook in its doubly-linked list of hooks.
+         *
+         * @param firstHookId value to set
+         * @return builder to continue building with
+         */
+        public Builder firstHookId(long firstHookId) {
+            this.firstHookId = firstHookId;
+            return this;
+        }
+
+        /**
+         * <b>(38)</b> The number of storage slots in use by this account's lambdas.
+         *
+         * @param numberLambdaStorageSlots value to set
+         * @return builder to continue building with
+         */
+        public Builder numberLambdaStorageSlots(long numberLambdaStorageSlots) {
+            this.numberLambdaStorageSlots = numberLambdaStorageSlots;
             return this;
         }
     }

@@ -4,21 +4,20 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import java.util.ArrayList;
-import java.util.EmptyStackException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.store.CachingStateFrame;
-import org.hiero.mirror.web3.evm.store.StackedStateFrames;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
@@ -30,13 +29,13 @@ public class ContractCallContext {
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     @Getter(AccessLevel.NONE)
-    private final Map<String, Map<Object, Object>> readCache = new HashMap<>();
+    private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
 
     @Getter(AccessLevel.NONE)
-    private final Map<String, Map<Object, Object>> writeCache = new HashMap<>();
+    private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
     private List<ContractAction> contractActions = List.of();
@@ -50,20 +49,8 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
-    /**
-     * Record file which stores the block timestamp and other historical block details used for filtering of historical
-     * data.
-     */
-    @Setter
-    private RecordFile recordFile;
-
     @Setter
     private EntityNumber entityNumber;
-    /** Current top of stack (which is all linked together) */
-    private CachingStateFrame<Object> stack;
-
-    /** Fixed "base" of stack: a R/O cache frame on top of the DB-backed cache frame */
-    private CachingStateFrame<Object> stackBase;
 
     /**
      * The timestamp used to fetch the state from the stackedStateFrames.
@@ -77,6 +64,9 @@ public class ContractCallContext {
     @Setter
     private long gasRequirement;
 
+    @Setter
+    private Supplier<RecordFile> blockSupplier = () -> null;
+
     private ContractCallContext() {}
 
     public static ContractCallContext get() {
@@ -87,58 +77,45 @@ public class ContractCallContext {
         return SCOPED_VALUE.isBound();
     }
 
+    /**
+     * Safe helper to check if the current context is a balance call without throwing when unbound.
+     */
+    public static boolean isBalanceCallSafe() {
+        return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
+    }
+
+    @SneakyThrows
     public static <T> T run(Function<ContractCallContext, T> function) {
-        return ScopedValue.getWhere(SCOPED_VALUE, new ContractCallContext(), () -> function.apply(SCOPED_VALUE.get()));
+        return ScopedValue.where(SCOPED_VALUE, new ContractCallContext())
+                .call(() -> function.apply(SCOPED_VALUE.get()));
+    }
+
+    /**
+     * Determines if payer balance validation should be performed. Balance validation is enabled when either gasPrice or
+     * value is greater than zero, and a valid sender is provided.
+     *
+     * @return true if balance validation should be performed, false otherwise
+     */
+    public boolean validatePayerBalance() {
+        if (callServiceParameters == null
+                || callServiceParameters.getSender() == null
+                || callServiceParameters.getSender().isZero()) {
+            return false;
+        }
+
+        return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
     }
 
     public void reset() {
-        stack = stackBase;
         writeCache.clear();
-    }
-
-    public int getStackHeight() {
-        return stack.height() - stackBase.height();
-    }
-
-    public void setStack(CachingStateFrame<Object> stack) {
-        this.stack = stack;
-        if (stackBase == null) {
-            stackBase = stack;
-        }
-    }
-
-    public void updateStackFromUpstream() {
-        if (stack == stackBase) {
-            throw new EmptyStackException();
-        }
-        setStack(stack.getUpstream().orElseThrow(EmptyStackException::new));
     }
 
     public void addOpcodes(Opcode opcode) {
         opcodes.add(opcode);
     }
 
-    /**
-     * Chop the stack back to its base. This keeps the most-upstream-layer which connects to the database, and the
-     * `ROCachingStateFrame` on top of it.  Therefore, everything already read from the database is still present,
-     * unchanged, in the stacked cache.  (Usage case is the multiple calls to `eth_estimateGas` in order to "binary
-     * search" to the closest gas approximation for a given contract call: The _first_ call is the only one that
-     * actually hits the database (via the database accessors), all subsequent executions will fetch the same values
-     * (required!) from the RO-cache without touching the database again - if you cut back the stack between executions
-     * using this method.)
-     */
-    public void initializeStackFrames(final StackedStateFrames stackedStateFrames) {
-        if (stackedStateFrames != null) {
-            final var stateTimestamp = getTimestampOrDefaultFromRecordFile();
-            stackBase = stack = stackedStateFrames.getInitializedStackBase(stateTimestamp);
-        }
-    }
-
     public boolean useHistorical() {
-        if (callServiceParameters != null) {
-            return callServiceParameters.getBlock() != BlockType.LATEST;
-        }
-        return recordFile != null; // Remove recordFile comparison after mono code deletion
+        return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
 
     /**
@@ -153,14 +130,18 @@ public class ContractCallContext {
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {
-        return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
+        return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
-    public Map<Object, Object> getReadCacheState(final String stateKey) {
-        return readCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    public Map<Object, Object> getReadCacheState(final int stateId) {
+        return readCache.computeIfAbsent(stateId, k -> new HashMap<>());
     }
 
-    public Map<Object, Object> getWriteCacheState(final String stateKey) {
-        return writeCache.computeIfAbsent(stateKey, k -> new HashMap<>());
+    public Map<Object, Object> getWriteCacheState(final int stateId) {
+        return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+    }
+
+    public RecordFile getRecordFile() {
+        return blockSupplier.get();
     }
 }

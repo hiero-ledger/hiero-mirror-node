@@ -2,10 +2,10 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
+
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
-import com.hedera.node.app.service.contract.impl.state.ProxyWorldUpdater;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
+import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.Map;
@@ -22,6 +22,8 @@ import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
@@ -29,6 +31,14 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
 
     @Getter
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
+
+    @Override
+    public void tracePreExecution(@NonNull final MessageFrame frame) {
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(true);
+        }
+    }
 
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
@@ -84,13 +94,31 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
         }
 
         try {
-            final var updates = ((ProxyWorldUpdater) frame.getWorldUpdater()).pendingStorageUpdates();
+            var worldUpdater = frame.getWorldUpdater();
+            while (worldUpdater.parentUpdater().isPresent()) {
+                worldUpdater = worldUpdater.parentUpdater().get();
+            }
+
+            if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
+                // The storage updates are kept only in the RootProxyWorldUpdater.
+                // If we don't have one -> something unexpected happened and an attempt to
+                // get the storage changes from a ProxyWorldUpdater would result in a
+                // NullPointerException, so in this case just return an empty map.
+                return Map.of();
+            }
+            final var updates = rootProxyWorldUpdater
+                    .getEvmFrameState()
+                    .getTxStorageUsage(true)
+                    .accesses();
             return updates.stream()
                     .flatMap(storageAccesses ->
                             storageAccesses.accesses().stream()) // Properly flatten the nested structure
                     .collect(Collectors.toMap(
                             e -> Bytes.wrap(e.key().toArray()),
-                            e -> Bytes.wrap(e.value().toArray()),
+                            e -> Bytes.wrap(
+                                    e.writtenValue() != null
+                                            ? e.writtenValue().toArray()
+                                            : e.value().toArray()),
                             (v1, v2) -> v1, // in case of duplicates, keep the first value
                             TreeMap::new));
 

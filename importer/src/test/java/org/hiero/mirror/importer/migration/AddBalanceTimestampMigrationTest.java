@@ -39,8 +39,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAccountHistoryRepository tokenAccountHistoryRepository;
 
-    private static final String REVERT_DDL =
-            """
+    private static final String REVERT_DDL = """
         alter table entity drop column balance_timestamp;
         alter table entity_history drop column balance_timestamp;
         alter table token_account drop column balance_timestamp;

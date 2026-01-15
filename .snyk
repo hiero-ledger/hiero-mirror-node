@@ -5,5 +5,6 @@ patch: {}
 exclude:
   global:
     - monitor/src/main/java/org/hiero/mirror/monitor/OperatorProperties.java
+    - rest/constants.js
     - rest/tokens.js
     - rest/middleware/responseCacheHandler.js

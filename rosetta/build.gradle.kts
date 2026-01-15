@@ -9,5 +9,5 @@ plugins {
 
 go {
     pkg = "./app/..."
-    version = "1.24.1"
+    version = "1.25.4"
 }

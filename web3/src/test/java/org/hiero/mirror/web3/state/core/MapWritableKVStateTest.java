@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.token.TokenService;
 import com.swirlds.state.spi.ReadableKVState;
 import java.util.Collections;
 import org.hiero.mirror.web3.ContextExtension;
@@ -37,7 +38,8 @@ class MapWritableKVStateTest {
 
     @BeforeEach
     void setup() {
-        mapWritableKVState = new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVState);
+        mapWritableKVState =
+                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVState);
     }
 
     @Test
@@ -103,7 +105,7 @@ class MapWritableKVStateTest {
     @Test
     void testEqualsDifferentKeys() {
         MapWritableKVState<AccountID, Account> other =
-                new MapWritableKVState<>(AliasesReadableKVState.KEY, readableKVState);
+                new MapWritableKVState<>(TokenService.NAME, AliasesReadableKVState.STATE_ID, readableKVState);
         assertThat(mapWritableKVState).isNotEqualTo(other);
     }
 
@@ -111,7 +113,7 @@ class MapWritableKVStateTest {
     void testEqualsDifferentValues() {
         final var readableKVStateMock = mock(ReadableKVState.class);
         MapWritableKVState<AccountID, Account> other =
-                new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVStateMock);
+                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateMock);
         other.put(accountID, account);
         assertThat(mapWritableKVState).isNotEqualTo(other);
     }
@@ -119,7 +121,7 @@ class MapWritableKVStateTest {
     @Test
     void testHashCode() {
         MapWritableKVState<AccountID, Account> other =
-                new MapWritableKVState<>(AccountReadableKVState.KEY, readableKVState);
+                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVState);
         assertThat(mapWritableKVState).hasSameHashCodeAs(other);
     }
 }

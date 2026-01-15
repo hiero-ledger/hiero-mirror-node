@@ -13,8 +13,7 @@ import org.springframework.jdbc.core.JdbcOperations;
 @Named
 class MergeDuplicateBlocksMigration extends RepeatableMigration {
 
-    private static final String SQL =
-            """
+    private static final String SQL = """
                     with block1 as (
                       delete from record_file
                       where consensus_end = 1675962000231859003 and index = 44029066

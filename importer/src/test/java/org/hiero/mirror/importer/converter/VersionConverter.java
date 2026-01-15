@@ -16,7 +16,8 @@ public class VersionConverter implements ArgumentConverter {
         }
 
         if (input instanceof String inputString) {
-            return Version.parse(inputString);
+            final var dashIndex = inputString.indexOf("-");
+            return Version.parse(dashIndex > -1 ? inputString.substring(0, dashIndex) : inputString);
         } else {
             throw new ArgumentConversionException("Input " + input + " is not a string");
         }

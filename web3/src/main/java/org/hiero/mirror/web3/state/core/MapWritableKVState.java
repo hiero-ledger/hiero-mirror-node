@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
 public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
@@ -14,34 +14,36 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
     private final ReadableKVState<K, V> readableBackingStore;
 
     public MapWritableKVState(
-            @Nonnull final String stateKey, @Nonnull final ReadableKVState<K, V> readableBackingStore) {
-        super(stateKey);
+            @NonNull final String serviceName,
+            final int stateId,
+            @NonNull final ReadableKVState<K, V> readableBackingStore) {
+        super(serviceName, stateId);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
     @Override
-    protected V readFromDataSource(@Nonnull K key) {
+    protected V readFromDataSource(@NonNull K key) {
         return readableBackingStore.get(key);
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return readableBackingStore.keys();
     }
 
     @Override
-    protected V getForModifyFromDataSource(@Nonnull K key) {
+    protected V getForModifyFromDataSource(@NonNull K key) {
         return readableBackingStore.get(key);
     }
 
     @Override
-    protected void putIntoDataSource(@Nonnull K key, @Nonnull V value) {
+    protected void putIntoDataSource(@NonNull K key, @NonNull V value) {
         put(key, value);
     }
 
     @Override
-    protected void removeFromDataSource(@Nonnull K key) {
+    protected void removeFromDataSource(@NonNull K key) {
         remove(key);
     }
 
@@ -60,12 +62,12 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MapWritableKVState<?, ?> that = (MapWritableKVState<?, ?>) o;
-        return Objects.equals(getStateKey(), that.getStateKey())
+        return Objects.equals(getStateId(), that.getStateId())
                 && Objects.equals(readableBackingStore, that.readableBackingStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateKey(), readableBackingStore);
+        return Objects.hash(getStateId(), readableBackingStore);
     }
 }

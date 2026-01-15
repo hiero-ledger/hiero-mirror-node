@@ -4,10 +4,10 @@ package org.hiero.mirror.web3.state.core;
 
 import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.ReadableKVStateBase;
-import jakarta.annotation.Nonnull;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import org.jspecify.annotations.NonNull;
 
 /**
  * A simple implementation of {@link ReadableKVState} backed by a
@@ -28,20 +28,22 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * pre-populate the map, or if you want to use Mockito to mock it or cause it to throw
      * exceptions when certain keys are accessed, etc.
      *
-     * @param stateKey The state key for this state
+     * @param serviceName The service name for this state
+     * @param stateId The state key for this state
      * @param backingStore The backing store to use
      */
-    public MapReadableKVState(@Nonnull final String stateKey, @Nonnull final Map<K, V> backingStore) {
-        super(stateKey);
+    public MapReadableKVState(
+            @NonNull final String serviceName, final int stateId, @NonNull final Map<K, V> backingStore) {
+        super(stateId, serviceName);
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
     @Override
-    protected V readFromDataSource(@Nonnull K key) {
+    protected V readFromDataSource(@NonNull K key) {
         return backingStore.get(key);
     }
 
-    @Nonnull
+    @NonNull
     @Override
     protected Iterator<K> iterateFromDataSource() {
         return backingStore.keySet().iterator();
@@ -58,11 +60,11 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         MapReadableKVState<?, ?> that = (MapReadableKVState<?, ?>) o;
-        return Objects.equals(getStateKey(), that.getStateKey()) && Objects.equals(backingStore, that.backingStore);
+        return Objects.equals(getStateId(), that.getStateId()) && Objects.equals(backingStore, that.backingStore);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getStateKey(), backingStore);
+        return Objects.hash(getStateId(), backingStore);
     }
 }

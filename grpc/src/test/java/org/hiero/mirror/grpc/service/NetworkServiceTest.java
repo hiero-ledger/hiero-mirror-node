@@ -208,7 +208,8 @@ class NetworkServiceTest extends GrpcIntegrationTest {
     }
 
     private List<AddressBookEntry> getNodes(AddressBookFilter filter) {
-        return networkService.getNodes(filter).collectList().block(Duration.ofMillis(1000L));
+        final var nodes = networkService.getNodes(filter).collectList().block(Duration.ofMillis(1000L));
+        return nodes != null ? nodes : List.of();
     }
 
     private AddressBook addressBook() {
@@ -238,6 +239,55 @@ class NetworkServiceTest extends GrpcIntegrationTest {
                 .customize(e -> e.consensusTimestamp(NODE_STAKE_CONSENSUS_TIMESTAMP)
                         .nodeId(nodeId)
                         .stake(stake))
+                .persist();
+    }
+
+    @Test
+    void overrideNodeAccountIdWhenPresent() {
+        var addressBook = addressBook();
+        var addressBookEntry1 = addressBookEntry();
+        var addressBookEntry2 = addressBookEntry();
+        var node1AccountId = domainBuilder.entityId();
+        var node2AccountId = domainBuilder.entityId();
+        createNode(addressBookEntry1.getNodeId(), node1AccountId);
+        createNode(addressBookEntry2.getNodeId(), node2AccountId);
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var nodes = getNodes(filter);
+
+        assertThat(nodes).hasSize(2);
+        assertThat(nodes.get(0).getNodeAccountId()).isEqualTo(node1AccountId);
+        assertThat(nodes.get(1).getNodeAccountId()).isEqualTo(node2AccountId);
+    }
+
+    @Test
+    void keepExistingNodeAccountIdWhenRepositoryAccountIdIsEmpty() {
+        var addressBook = addressBook();
+        var entry = addressBookEntry();
+        var originalAccountId = entry.getNodeAccountId();
+
+        domainBuilder
+                .node()
+                .customize(n ->
+                        n.nodeId(entry.getNodeId()).accountId(EntityId.EMPTY).deleted(false))
+                .persist();
+
+        var filter = AddressBookFilter.builder().fileId(addressBook.getFileId()).build();
+        var result = getNodes(filter);
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getNodeAccountId()).isEqualTo(originalAccountId);
+    }
+
+    // Helper method to add to the test class
+    private void createNode(long nodeId, EntityId accountId) {
+        domainBuilder
+                .node()
+                .customize(n -> {
+                    n.nodeId(nodeId);
+                    if (accountId != null) {
+                        n.accountId(accountId);
+                    }
+                    n.deleted(false);
+                })
                 .persist();
     }
 }

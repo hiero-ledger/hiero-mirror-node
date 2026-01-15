@@ -7,7 +7,7 @@ import {log} from './logger.js';
 import {ReportFile} from './reportfile.js';
 import {toHbars, toIsoString} from './utils.js';
 
-const feeAccount = /^\d+\.\d+\.(98|800|801|[3-9]|[1-3][0-9])$/;
+const feeAccount = /^\d+\.\d+\.(98|800|801|802|[3-9]|[1-3][0-9])$/;
 
 export const report = async (options) => {
   options.account = [...options.account]; // Convert to array so stringify works

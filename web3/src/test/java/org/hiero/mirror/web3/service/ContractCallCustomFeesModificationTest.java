@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
@@ -33,19 +32,15 @@ import org.junit.jupiter.api.Test;
  *      transferred from or to the treasury account.
  */
 class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-    private boolean isModularized;
     private Map<String, String> evmProperties;
 
     @BeforeEach
-    void beforeEach() throws InvocationTargetException, IllegalAccessException {
-        isModularized = mirrorNodeEvmProperties.isModularizedServices();
+    void beforeEach() {
         evmProperties = mirrorNodeEvmProperties.getProperties();
-        activateModularizedFlagAndInitializeState();
     }
 
     @AfterEach
     void afterEach() {
-        mirrorNodeEvmProperties.setModularizedServices(isModularized);
         mirrorNodeEvmProperties.setProperties(evmProperties);
     }
 

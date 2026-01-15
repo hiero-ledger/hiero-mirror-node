@@ -183,8 +183,7 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
 
     public static void persistMigrationContractResult(
             final MigrationContractResult result, JdbcOperations jdbcOperations) {
-        final String sql =
-                """
+        final String sql = """
                 insert into contract_result
                 (amount, bloom, call_result, consensus_timestamp, contract_id, created_contract_ids,
                 error_message, failed_initcode, function_parameters, function_result, gas_limit, gas_used,

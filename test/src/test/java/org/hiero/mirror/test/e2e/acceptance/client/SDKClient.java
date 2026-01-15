@@ -12,6 +12,7 @@ import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.Client;
 import com.hedera.hashgraph.sdk.Hbar;
+import com.hedera.hashgraph.sdk.LedgerId;
 import com.hedera.hashgraph.sdk.TopicDeleteTransaction;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageSubmitTransaction;
@@ -140,7 +141,7 @@ public class SDKClient implements Cleanable {
 
         if (!CollectionUtils.isEmpty(customNodes)) {
             log.debug("Creating SDK client for {} network with nodes: {}", network, customNodes);
-            return toClient(getNetworkMap(customNodes));
+            return toClient(getNetworkMap(customNodes), network.getLedgerId());
         }
 
         if (acceptanceTestProperties.isRetrieveAddressBook()) {
@@ -151,7 +152,7 @@ public class SDKClient implements Cleanable {
                         .pollDelay(Duration.ofMillis(100))
                         .pollInterval(Durations.FIVE_SECONDS)
                         .until(this::getAddressBook, ab -> ab.getNodeAddressCount() > 0);
-                return toClient(addressBook);
+                return toClient(addressBook, network.getLedgerId());
             } catch (Exception e) {
                 log.warn("Error retrieving address book", e);
             }
@@ -161,7 +162,7 @@ public class SDKClient implements Cleanable {
             throw new IllegalArgumentException("nodes must not be empty when network is OTHER");
         }
 
-        return configureClient(Client.forName(network.toString().toLowerCase()));
+        return configureClient(Client.forName(network.toString().toLowerCase()).setLedgerId(network.getLedgerId()));
     }
 
     private NodeAddressBook getNetworkMap(Set<NodeProperties> nodes) {
@@ -212,7 +213,11 @@ public class SDKClient implements Cleanable {
                 }
 
                 var accountId = queryReceipt.accountId;
-                log.info("Created operator account {} with public key {}", accountId, publicKey);
+                log.info(
+                        "Created operator account {} with public key {} via {}",
+                        accountId,
+                        publicKey,
+                        response.transactionId);
                 return new ExpandedAccountId(accountId, privateKey);
             }
         } catch (Exception e) {
@@ -262,8 +267,8 @@ public class SDKClient implements Cleanable {
     }
 
     @SneakyThrows
-    private Client toClient(NodeAddressBook addressBook) {
-        var client = Client.forNetwork(Map.of());
+    private Client toClient(NodeAddressBook addressBook, LedgerId ledgerId) {
+        var client = Client.forNetwork(Map.of()).setLedgerId(ledgerId);
         client.setNetworkFromAddressBook(
                 com.hedera.hashgraph.sdk.NodeAddressBook.fromBytes(addressBook.toByteString()));
         return configureClient(client).setMirrorNetwork(List.of(acceptanceTestProperties.getMirrorNodeAddress()));

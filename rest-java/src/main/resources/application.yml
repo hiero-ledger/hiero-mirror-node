@@ -24,6 +24,12 @@ hiero:
               "Cache-Control": "public, max-age=5"
             "[/api/v1/network/stake]":
               "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/exchangerate]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/fees]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/supply]":
+              "Cache-Control": "public, max-age=60"
 logging:
   level:
     root: warn

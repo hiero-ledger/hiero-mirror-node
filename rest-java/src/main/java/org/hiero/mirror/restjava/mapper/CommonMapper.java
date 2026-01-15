@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.mapper;
 import com.google.common.collect.Range;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Arrays;
@@ -19,6 +20,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.Key;
 import org.hiero.mirror.rest.model.Key.TypeEnum;
 import org.hiero.mirror.rest.model.TimestampRange;
+import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.exception.InvalidMappingException;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingInheritanceStrategy;
@@ -38,6 +40,14 @@ public interface CommonMapper {
     Pattern PATTERN_ECDSA = Pattern.compile("^(3a21|32250a233a21|2a29080112250a233a21)([A-Fa-f0-9]{66})$");
     Pattern PATTERN_ED25519 = Pattern.compile("^(1220|32240a221220|2a28080112240a221220)([A-Fa-f0-9]{64})$");
     long SECONDS_PER_DAY = 86400L;
+    String TIMESTAMP_ZERO = "0.0";
+
+    default String mapByteArrayToHexString(byte[] source) {
+        if (source == null) {
+            return null;
+        }
+        return "0x" + StringUtils.leftPad(Hex.encodeHexString(source), 64, '0');
+    }
 
     default String mapEntityId(Long source) {
         if (source == null || source == 0) {
@@ -113,16 +123,33 @@ public interface CommonMapper {
         return target;
     }
 
-    @Named(QUALIFIER_TIMESTAMP)
-    default String mapTimestamp(long timestamp) {
-        if (timestamp == 0) {
-            return "0.0";
+    default TimestampRangeNullable mapTimestampRangeNullable(Range<Long> source) {
+        if (source == null) {
+            return null;
         }
 
-        var timestampString = StringUtils.leftPad(String.valueOf(timestamp), NANO_DIGITS + 1, '0');
-        return new StringBuilder(timestampString)
-                .insert(timestampString.length() - NANO_DIGITS, '.')
-                .toString();
+        var target = new TimestampRangeNullable();
+        if (source.hasLowerBound()) {
+            target.setFrom(mapTimestamp(source.lowerEndpoint()));
+        }
+
+        if (source.hasUpperBound()) {
+            target.setTo(mapTimestamp(source.upperEndpoint()));
+        }
+
+        return target;
+    }
+
+    @Named(QUALIFIER_TIMESTAMP)
+    default String mapTimestamp(Long timestamp) {
+        return timestamp != null ? DomainUtils.toTimestamp(timestamp) : null;
+    }
+
+    default Long mapTimestampSeconds(TimestampSeconds source) {
+        if (source == null) {
+            return null;
+        }
+        return source.getSeconds();
     }
 
     @Named(QUALIFIER_TIMESTAMP_RANGE)
@@ -134,7 +161,8 @@ public interface CommonMapper {
     }
 
     /**
-     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #FRACTION_SCALE} decimal places.
+     * Calculates the fractional value of a numerator and denominator as a float with up to {@value #FRACTION_SCALE}
+     * decimal places.
      *
      * @param numerator   the numerator of the fraction
      * @param denominator the denominator of the fraction

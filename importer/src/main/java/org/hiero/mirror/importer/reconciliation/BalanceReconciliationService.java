@@ -52,8 +52,7 @@ class BalanceReconciliationService {
     private static final String BALANCE_QUERY =
             "select account_id, balance from account_balance " + "where consensus_timestamp = ?";
 
-    private static final String CRYPTO_TRANSFER_QUERY =
-            """
+    private static final String CRYPTO_TRANSFER_QUERY = """
                     select entity_id, sum(amount) balance from crypto_transfer
                     where consensus_timestamp > ? and consensus_timestamp <= ? and (errata is null or errata <> 'DELETE')
                     group by entity_id""";
@@ -61,8 +60,7 @@ class BalanceReconciliationService {
     private static final String TOKEN_BALANCE_QUERY =
             "select account_id, token_id, balance from token_balance " + "where consensus_timestamp = ?";
 
-    private static final String TOKEN_TRANSFER_QUERY =
-            """
+    private static final String TOKEN_TRANSFER_QUERY = """
                     select account_id, token_id, sum(amount) as balance
                     from token_transfer where consensus_timestamp > ? and consensus_timestamp <= ?
                     group by token_id, account_id""";

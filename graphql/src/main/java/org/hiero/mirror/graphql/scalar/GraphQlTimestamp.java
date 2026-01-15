@@ -13,11 +13,12 @@ import graphql.schema.CoercingParseLiteralException;
 import graphql.schema.CoercingParseValueException;
 import graphql.schema.CoercingSerializeException;
 import graphql.schema.GraphQLScalarType;
-import jakarta.annotation.Nonnull;
 import java.time.Instant;
 import java.util.Locale;
+import org.jspecify.annotations.NullMarked;
 
-public class GraphQlTimestamp implements Coercing<Instant, String> {
+@NullMarked
+public final class GraphQlTimestamp implements Coercing<Instant, String> {
 
     public static final GraphQLScalarType INSTANCE = GraphQLScalarType.newScalar()
             .name("Timestamp")
@@ -26,11 +27,8 @@ public class GraphQlTimestamp implements Coercing<Instant, String> {
             .build();
 
     @Override
-    public @Nonnull Instant parseLiteral(
-            @Nonnull Value<?> input,
-            @Nonnull CoercedVariables variables,
-            @Nonnull GraphQLContext graphQLContext,
-            @Nonnull Locale locale)
+    public Instant parseLiteral(
+            Value<?> input, CoercedVariables variables, GraphQLContext graphQLContext, Locale locale)
             throws CoercingParseLiteralException {
         if (input instanceof StringValue str) {
             return Instant.parse(str.getValue());
@@ -39,8 +37,7 @@ public class GraphQlTimestamp implements Coercing<Instant, String> {
     }
 
     @Override
-    public @Nonnull Instant parseValue(
-            @Nonnull Object input, @Nonnull GraphQLContext graphQLContext, @Nonnull Locale locale)
+    public Instant parseValue(Object input, GraphQLContext graphQLContext, Locale locale)
             throws CoercingParseValueException {
         if (input instanceof Instant instant) {
             return instant;
@@ -51,7 +48,7 @@ public class GraphQlTimestamp implements Coercing<Instant, String> {
     }
 
     @Override
-    public String serialize(@Nonnull Object input, @Nonnull GraphQLContext graphQLContext, @Nonnull Locale locale)
+    public String serialize(Object input, GraphQLContext graphQLContext, Locale locale)
             throws CoercingSerializeException {
         if (input instanceof Instant instant) {
             return instant.toString();

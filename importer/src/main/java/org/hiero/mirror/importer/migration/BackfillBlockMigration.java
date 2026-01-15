@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.migration;
 
-import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import java.util.Map;
 import java.util.Optional;
@@ -12,6 +11,7 @@ import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
@@ -76,7 +76,7 @@ public class BackfillBlockMigration extends AsyncJavaMigration<Long> {
      * @param lastConsensusEnd The consensus end timestamp of the last record file
      * @return The consensus end of the processed record file or null if no record file is processed
      */
-    @Nonnull
+    @NonNull
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusEnd) {
         return recordFileRepositoryProvider

@@ -3,15 +3,14 @@
 package org.hiero.mirror.common.util;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.CommonUtils.nextBytes;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -19,6 +18,7 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.ThresholdKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -30,6 +30,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
@@ -41,7 +42,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class DomainUtilsTest {
+final class DomainUtilsTest {
 
     private static final String ED25519_KEY = "60beee88a761e079f71b03b5fe041979369e96450a7455b203a2578c8a7d4852";
     private static final String ECDSA_384_KEY = "0000001365636473612d736861322d6e69737470333834000000086e697374703338"
@@ -193,9 +194,8 @@ class DomainUtilsTest {
         var timeNanos = DomainUtils.convertToNanos(seconds, nanos);
         var fromTimeStamp = Instant.ofEpochSecond(0, timeNanos);
 
-        assertAll(
-                () -> assertEquals(seconds, fromTimeStamp.getEpochSecond()),
-                () -> assertEquals(nanos, fromTimeStamp.getNano()));
+        assertAll(() -> assertThat(seconds).isEqualTo(fromTimeStamp.getEpochSecond()), () -> assertThat(nanos)
+                .isEqualTo(fromTimeStamp.getNano()));
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -207,7 +207,7 @@ class DomainUtilsTest {
         "-9223372036, -854775809"
     })
     void convertInstantToNanosThrows(long seconds, int nanos) {
-        assertThrows(ArithmeticException.class, () -> DomainUtils.convertToNanos(seconds, nanos));
+        assertThatThrownBy(() -> DomainUtils.convertToNanos(seconds, nanos)).isInstanceOf(ArithmeticException.class);
     }
 
     @ParameterizedTest(name = "with seconds {0} and nanos {1}")
@@ -239,10 +239,40 @@ class DomainUtilsTest {
         assertThat(DomainUtils.convertToNanosMax(instant)).isEqualTo(expected);
     }
 
+    @Test
+    void isSystemEntity() {
+        assertThat(DomainUtils.isSystemEntity(null)).isFalse();
+        assertThat(DomainUtils.isSystemEntity(EntityId.EMPTY)).isFalse();
+
+        var domainBuilder = new DomainBuilder();
+        assertThat(DomainUtils.isSystemEntity(domainBuilder.entityNum(999))).isTrue();
+        assertThat(DomainUtils.isSystemEntity(domainBuilder.entityNum(1000))).isFalse();
+    }
+
     @ParameterizedTest(name = "leftPadBytes: ({0}, {1}): {2}")
     @MethodSource("paddingByteProvider")
     void leftPadBytes(byte[] bytes, int paddingLength, byte[] expected) {
         assertThat(DomainUtils.leftPadBytes(bytes, paddingLength)).isEqualTo(expected);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            1234, 1234
+            00, ''
+            00001234, 1234
+            1234567890000000000000000000000000, 1234567890000000000000000000000000
+            """)
+    void normalize(String input, String trimmed) {
+        var contractId = ContractID.newBuilder().setContractNum(1000).build();
+        var slotKey = SlotKey.newBuilder()
+                .setContractID(contractId)
+                .setKey(ByteString.fromHex(input))
+                .build();
+        var expected = SlotKey.newBuilder()
+                .setContractID(contractId)
+                .setKey(ByteString.fromHex(trimmed))
+                .build();
+        assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
     }
 
     @Test
@@ -265,8 +295,8 @@ class DomainUtilsTest {
         var fromTimeStamp = Instant.ofEpochSecond(0, timeStampInNanos);
 
         assertAll(
-                () -> assertEquals(timestamp.getSeconds(), fromTimeStamp.getEpochSecond()),
-                () -> assertEquals(timestamp.getNanos(), fromTimeStamp.getNano()));
+                () -> assertThat(timestamp.getSeconds()).isEqualTo(fromTimeStamp.getEpochSecond()),
+                () -> assertThat(timestamp.getNanos()).isEqualTo(fromTimeStamp.getNano()));
     }
 
     @Test
@@ -274,9 +304,7 @@ class DomainUtilsTest {
     void timeStampInNanosInvalid() {
         var timestamp =
                 Timestamp.newBuilder().setSeconds(1568376750538L).setNanos(0).build();
-        assertThrows(ArithmeticException.class, () -> {
-            DomainUtils.timeStampInNanos(timestamp);
-        });
+        assertThatThrownBy(() -> DomainUtils.timeStampInNanos(timestamp)).isInstanceOf(ArithmeticException.class);
     }
 
     @Test
@@ -329,8 +357,8 @@ class DomainUtilsTest {
 
     @Test
     void fromEvmAddressIncorrectSize() {
-        assertNull(DomainUtils.fromEvmAddress(null));
-        assertNull(DomainUtils.fromEvmAddress(new byte[10]));
+        assertThat(DomainUtils.fromEvmAddress(null)).isNull();
+        assertThat(DomainUtils.fromEvmAddress(new byte[10])).isNull();
     }
 
     @Test
@@ -338,8 +366,8 @@ class DomainUtilsTest {
         var entityId = EntityId.of(1, 2, 255);
         var expected = "00000000000000000000000000000000000000FF";
         assertThat(DomainUtils.toEvmAddress(entityId)).asHexString().isEqualTo(expected);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((EntityId) null));
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(EntityId.EMPTY));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((EntityId) null)).isInstanceOf(InvalidEntityException.class);
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress(EntityId.EMPTY)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -355,7 +383,7 @@ class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(AccountID.getDefaultInstance()))
                 .asHexString()
                 .isEqualTo(EMPTY_EVM_ADDRESS);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((AccountID) null));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((AccountID) null)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -379,8 +407,10 @@ class DomainUtilsTest {
         var contractIdDefault = ContractID.getDefaultInstance();
         assertThat(DomainUtils.toEvmAddress(contractId)).asHexString().isEqualTo(expected);
         assertThat(DomainUtils.toEvmAddress(contractIdEvm)).asHexString().isEqualTo(expected);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((ContractID) null));
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress(contractIdDefault));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((ContractID) null))
+                .isInstanceOf(InvalidEntityException.class);
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress(contractIdDefault))
+                .isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -396,7 +426,7 @@ class DomainUtilsTest {
         assertThat(DomainUtils.toEvmAddress(TokenID.getDefaultInstance()))
                 .asHexString()
                 .isEqualTo(EMPTY_EVM_ADDRESS);
-        assertThrows(InvalidEntityException.class, () -> DomainUtils.toEvmAddress((TokenID) null));
+        assertThatThrownBy(() -> DomainUtils.toEvmAddress((TokenID) null)).isInstanceOf(InvalidEntityException.class);
     }
 
     @Test
@@ -467,13 +497,43 @@ class DomainUtilsTest {
         assertThat(DomainUtils.toSnakeCase(input)).isEqualTo(input);
     }
 
+    @Test
+    void toTimestamp() {
+        assertThat(DomainUtils.toTimestamp(0)).isEqualTo("0.0");
+        assertThat(DomainUtils.toTimestamp(1)).isEqualTo("0.000000001");
+        assertThat(DomainUtils.toTimestamp(1123456789)).isEqualTo("1.123456789");
+    }
+
+    @Test
+    void trimByteString() {
+        assertThat(DomainUtils.trim((ByteString) null)).isNull();
+        assertThat(DomainUtils.trim(ByteString.EMPTY)).isSameAs(ByteString.EMPTY);
+        final var shouldNotTrim = ByteString.copyFrom(new byte[] {0x1, 0x2});
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2});
+        final var expected = ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2});
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
+    }
+
+    @Test
+    void trimBytesValue() {
+        assertThat(DomainUtils.trim((BytesValue) null)).isNull();
+        final var emptyValue = BytesValue.of(ByteString.EMPTY);
+        assertThat(DomainUtils.trim(emptyValue)).isSameAs(emptyValue);
+        final var shouldNotTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x2}));
+        assertThat(DomainUtils.trim(shouldNotTrim)).isSameAs(shouldNotTrim);
+        final var shouldTrim = BytesValue.of(ByteString.copyFrom(new byte[] {0x0, 0x0, 0x1, 0x0, 0x2}));
+        final var expected = BytesValue.of(ByteString.copyFrom(new byte[] {0x1, 0x0, 0x2}));
+        assertThat(DomainUtils.trim(shouldTrim)).isEqualTo(expected);
+    }
+
     @ParameterizedTest
     @MethodSource("provideByteArraysForTrim")
     void testTrim(byte[] input, byte[] expected) {
         byte[] result = DomainUtils.trim(input);
 
         if (input == null) {
-            assertNull(result);
+            assertThat(result).isNull();
         } else {
             assertArrayEquals(expected, result);
         }
@@ -497,7 +557,7 @@ class DomainUtilsTest {
         var result = DomainUtils.fromTrimmedEvmAddress(input);
 
         if (expectedNum == null) {
-            assertNull(result);
+            assertThat(result).isNull();
         } else {
             assertThat(result.getNum()).isEqualTo(expectedNum);
         }

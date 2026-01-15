@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.migration;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import jakarta.annotation.Nonnull;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +11,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.Value;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.db.DBProperties;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.jdbc.core.DataClassRowMapper;
@@ -53,8 +53,7 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
                 .addValue("description", TEST_MIGRATION_DESCRIPTION)
                 .addValue("script", migrationHistory.script())
                 .addValue("checksum", migrationHistory.checksum());
-        var sql =
-                """
+        var sql = """
                 insert into flyway_schema_history (installed_rank, description, type, script, checksum,
                 installed_by, execution_time, success) values (:installedRank, :description, 'JDBC', :script,
                 :checksum, 20, 100, true)
@@ -63,14 +62,11 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
     }
 
     protected List<AsyncJavaMigrationBaseTest.MigrationHistory> getAllMigrationHistory() {
-        return namedParameterJdbcOperations.query(
-                """
+        return namedParameterJdbcOperations.query("""
                         select installed_rank, checksum, execution_time, script
                         from flyway_schema_history
                         where description = :description
-                        order by installed_rank asc""",
-                Map.of("description", TEST_MIGRATION_DESCRIPTION),
-                MAPPER);
+                        order by installed_rank asc""", Map.of("description", TEST_MIGRATION_DESCRIPTION), MAPPER);
     }
 
     protected record MigrationHistory(Integer checksum, int executionTime, int installedRank, String script) {}
@@ -95,9 +91,8 @@ class AsyncJavaMigrationBaseTest extends ImporterIntegrationTest {
             return TEST_MIGRATION_DESCRIPTION;
         }
 
-        @Nonnull
         @Override
-        protected Optional<Long> migratePartial(final Long last) {
+        protected @NonNull Optional<Long> migratePartial(final Long last) {
             if (sleep > 0) {
                 Uninterruptibles.sleepUninterruptibly(sleep, TimeUnit.SECONDS);
             }

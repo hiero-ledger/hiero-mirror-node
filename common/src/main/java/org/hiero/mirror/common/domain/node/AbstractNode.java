@@ -17,6 +17,7 @@ import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
+import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
 @MappedSuperclass
@@ -24,6 +25,8 @@ import org.hiero.mirror.common.domain.Upsertable;
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
 public abstract class AbstractNode implements History {
+
+    private EntityId accountId;
 
     @ToString.Exclude
     private byte[] adminKey;

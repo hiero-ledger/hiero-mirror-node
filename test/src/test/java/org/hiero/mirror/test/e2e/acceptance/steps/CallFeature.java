@@ -10,6 +10,8 @@ import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameE
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ERC;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.ESTIMATE_GAS;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractResource.PRECOMPILE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.MUTABLE;
+import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.ADDRESS_BALANCE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.APPROVE_NFT_TOKEN_AND_TRANSFER;
@@ -338,13 +340,7 @@ public class CallFeature extends AbstractFeature {
     public void htsGetTokenDefaultKycStatus() {
         var data = encodeData(PRECOMPILE, HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR, fungibleTokenAddress);
         var response = callContract(data, precompileContractAddress);
-        boolean defaultKycStatus = false;
-        // In the modularized code, the status is now true when the token has a KycNotApplicable status,
-        // whereas the mono logic returns false. We need to toggle the status based on the modularized flag.
-        if (web3Properties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-
+        var defaultKycStatus = true;
         assertThat(response.getResultAsBoolean()).isEqualTo(defaultKycStatus);
     }
 
@@ -783,32 +779,33 @@ public class CallFeature extends AbstractFeature {
     @Getter
     @RequiredArgsConstructor
     enum ContractMethods implements SelectorInterface {
-        IERC721_TOKEN_NAME_SELECTOR("nameIERC721"),
-        IERC721_TOKEN_SYMBOL_SELECTOR("symbolIERC721"),
-        IERC721_TOKEN_TOTAL_SUPPLY_SELECTOR("totalSupplyIERC721"),
-        IERC721_TOKEN_BALANCE_OF_SELECTOR("balanceOfIERC721"),
-        HTS_IS_TOKEN_SELECTOR("isTokenAddress"),
-        HTS_IS_FROZEN_SELECTOR("isTokenFrozen"),
-        HTS_IS_KYC_GRANTED_SELECTOR("isKycGranted"),
-        HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR("getTokenDefaultFreeze"),
-        HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR("getTokenDefaultKyc"),
-        UPDATE_COUNTER_SELECTOR("updateCounter"),
-        STATE_UPDATE_N_TIMES_SELECTOR("updateStateNTimes"),
-        DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE_SELECTOR("deployNestedContracts"),
-        DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE2_SELECTOR("deployNestedContracts2"),
-        REENTRANCY_CALL_WITH_GAS("reentrancyCallWithGas"),
-        MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury"),
-        BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury"),
-        WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount"),
-        PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus"),
-        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus"),
-        APPROVE_TOKEN_GET_ALLOWANCE("approveTokenGetAllowance"),
-        DISSOCIATE_TOKEN_FAIL_TRANSFER("associateTokenDissociateFailTransfer"),
-        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance"),
-        APPROVE_NFT_TOKEN_AND_TRANSFER("approveNftAndTransfer"),
-        GRANT_KYC_REVOKE_KYC("grantKycRevokeKyc"),
-        ADDRESS_BALANCE("addressBalance");
+        IERC721_TOKEN_NAME_SELECTOR("nameIERC721", VIEW),
+        IERC721_TOKEN_SYMBOL_SELECTOR("symbolIERC721", VIEW),
+        IERC721_TOKEN_TOTAL_SUPPLY_SELECTOR("totalSupplyIERC721", VIEW),
+        IERC721_TOKEN_BALANCE_OF_SELECTOR("balanceOfIERC721", VIEW),
+        HTS_IS_TOKEN_SELECTOR("isTokenAddress", VIEW),
+        HTS_IS_FROZEN_SELECTOR("isTokenFrozen", VIEW),
+        HTS_IS_KYC_GRANTED_SELECTOR("isKycGranted", VIEW),
+        HTS_GET_DEFAULT_FREEZE_STATUS_SELECTOR("getTokenDefaultFreeze", VIEW),
+        HTS_GET_TOKEN_DEFAULT_KYC_STATUS_SELECTOR("getTokenDefaultKyc", VIEW),
+        UPDATE_COUNTER_SELECTOR("updateCounter", MUTABLE),
+        STATE_UPDATE_N_TIMES_SELECTOR("updateStateNTimes", MUTABLE),
+        DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE_SELECTOR("deployNestedContracts", MUTABLE),
+        DEPLOY_NESTED_CONTRACT_CONTRACT_VIA_CREATE2_SELECTOR("deployNestedContracts2", MUTABLE),
+        REENTRANCY_CALL_WITH_GAS("reentrancyCallWithGas", MUTABLE),
+        MINT_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("mintTokenGetTotalSupplyAndBalanceOfTreasury", MUTABLE),
+        BURN_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("burnTokenGetTotalSupplyAndBalanceOfTreasury", MUTABLE),
+        WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE("wipeTokenGetTotalSupplyAndBalanceOfAccount", MUTABLE),
+        PAUSE_UNPAUSE_GET_STATUS("pauseTokenGetPauseStatusUnpauseGetPauseStatus", MUTABLE),
+        FREEZE_UNFREEZE_GET_STATUS("freezeTokenGetFreezeStatusUnfreezeGetFreezeStatus", MUTABLE),
+        APPROVE_TOKEN_GET_ALLOWANCE("approveTokenGetAllowance", MUTABLE),
+        DISSOCIATE_TOKEN_FAIL_TRANSFER("associateTokenDissociateFailTransfer", MUTABLE),
+        APPROVE_FUNGIBLE_TOKEN_AND_TRANSFER("approveFungibleTokenTransferFromGetAllowanceGetBalance", MUTABLE),
+        APPROVE_NFT_TOKEN_AND_TRANSFER("approveNftAndTransfer", MUTABLE),
+        GRANT_KYC_REVOKE_KYC("grantKycRevokeKyc", MUTABLE),
+        ADDRESS_BALANCE("addressBalance", VIEW);
 
         private final String selector;
+        private final FunctionType functionType;
     }
 }

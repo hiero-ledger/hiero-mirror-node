@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
-import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.ClaimAirdrop;
 import org.junit.jupiter.api.Test;
@@ -36,11 +35,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var functionCall =
                 contract.send_claim(getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -64,11 +59,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var functionCall = contract.send_claimNFTAirdrop(
                 getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress, DEFAULT_SERIAL_NUMBER);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -124,11 +115,7 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         // When
         final var functionCall = contract.send_claimAirdrops(senders, receivers, tokens, serials);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -185,12 +172,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         // When
         final var functionCall = contract.send_claimAirdrops(senders, receivers, tokens, serials);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -207,12 +190,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var functionCall =
                 contract.send_claim(getAddressFromEntity(sender), getAddressFromEntity(receiver), tokenAddress);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -227,12 +206,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         final var functionCall = contract.send_claim(
                 getAddressFromEntity(sender), getAddressFromEntity(receiver), getAddressFromEntity(token));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -255,12 +230,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         // When
         final var functionCall = contract.send_claim(tokenAddress, getAddressFromEntity(receiver), tokenAddress);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -284,12 +255,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
         // When
         final var functionCall = contract.send_claim(getAddressFromEntity(sender), tokenAddress, tokenAddress);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -313,12 +280,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                 getAddressFromEntity(receiver),
                 DEFAULT_SERIAL_NUMBER);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     @Test
@@ -345,12 +308,8 @@ class ContractCallClaimAirdropSystemContractTest extends AbstractContractCallSer
                 tokenAddress,
                 BigInteger.valueOf(DEFAULT_SERIAL_NUMBER.longValue() + 1));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        } else {
-            assertThrows(PrecompileNotSupportedException.class, functionCall::send);
-        }
+        final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
     }
 
     private Entity persistClaimAirdropReceiver() {

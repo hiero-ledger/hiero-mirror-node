@@ -15,27 +15,29 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.BinaryOperator;
 import java.util.function.Consumer;
 import lombok.Getter;
-import lombok.NonNull;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Stores the domain objects parsed from the stream files before persisting to the database.
  */
 @Named
+@NullMarked
 public class ParserContext {
-    private Set<Long> evmAddressLookupIds = new HashSet<>();
 
     private final Map<Class<?>, DomainContext<?>> state = new ConcurrentSkipListMap<>(new DomainClassComparator());
+    private final Set<Long> evmAddressLookupIds = new HashSet<>();
 
     public <T> void addTransient(T object) {
         var domainContext = getDomainContext(object);
         domainContext.getNonPersisted().add(object);
     }
 
-    public <T> void add(@NonNull T object) {
+    public <T> void add(T object) {
         add(object, null);
     }
 
-    public <T> void add(@NonNull T object, Object key) {
+    public <T> void add(T object, @Nullable Object key) {
         var domainContext = getDomainContext(object);
         domainContext.getInserts().add(object);
 
@@ -44,7 +46,7 @@ public class ParserContext {
         }
     }
 
-    public <T> void addAll(@NonNull Collection<T> objects) {
+    public <T> void addAll(Collection<T> objects) {
         if (!objects.isEmpty()) {
             var first = objects.iterator().next();
             var domainContext = getDomainContext(first);
@@ -57,26 +59,26 @@ public class ParserContext {
         evmAddressLookupIds.clear();
     }
 
-    public void forEach(@NonNull Consumer<Collection<?>> sink) {
+    public void forEach(Consumer<Collection<?>> sink) {
         state.forEach((c, v) -> sink.accept(v.getInserts()));
     }
 
-    public <T> T get(@NonNull Class<T> domainClass, @NonNull Object key) {
+    public <T> @Nullable T get(Class<T> domainClass, Object key) {
         var domainContext = getDomainContext(domainClass);
         return domainContext.getState().get(key);
     }
 
-    public <T> Collection<T> get(@NonNull Class<T> domainClass) {
+    public <T> Collection<T> get(Class<T> domainClass) {
         var domainContext = getDomainContext(domainClass);
         return Collections.unmodifiableList(domainContext.getInserts());
     }
 
-    public <T> Collection<T> getTransient(@NonNull Class<T> domainClass) {
+    public <T> Collection<T> getTransient(Class<T> domainClass) {
         var domainContext = getDomainContext(domainClass);
         return Collections.unmodifiableList(domainContext.getNonPersisted());
     }
 
-    public <T> void merge(@NonNull Object key, @NonNull T value, @NonNull BinaryOperator<T> mergeFunction) {
+    public <T> void merge(Object key, T value, BinaryOperator<T> mergeFunction) {
         var domainContext = getDomainContext(value);
         var merged = domainContext.getState().merge(key, value, mergeFunction);
 
@@ -85,7 +87,7 @@ public class ParserContext {
         }
     }
 
-    public void remove(@NonNull Class<?> domainClass) {
+    public void remove(Class<?> domainClass) {
         var domainContext = getDomainContext(domainClass);
         domainContext.clear();
     }

@@ -4,10 +4,13 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.common.collect.Range;
+import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.Descriptors;
@@ -38,6 +41,8 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.service.ContractBytecodeService;
+import org.hiero.mirror.importer.service.ContractInitcodeServiceImpl;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,9 +51,18 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
+import org.mockito.Mock;
 import org.springframework.data.util.Version;
 
-class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTest {
+
+    private static final int DEFAULT_BYTECODE_SIDECAR_INDEX = 2;
+
+    @Mock
+    private ContractBytecodeService contractBytecodeService;
+
+    @Mock
+    private EVMHookHandler evmHookHandler;
 
     @Captor
     private ArgumentCaptor<Contract> contracts;
@@ -60,7 +74,12 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new ContractCreateTransactionHandler(entityIdService, entityListener, entityProperties);
+        return new ContractCreateTransactionHandler(
+                new ContractInitcodeServiceImpl(contractBytecodeService),
+                entityIdService,
+                entityListener,
+                entityProperties,
+                evmHookHandler);
     }
 
     @Override
@@ -126,6 +145,50 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
     }
 
     @Test
+    void evmHookHandlerCalledWithHookCreationDetails() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearAutoRenewAccountId())
+                .build();
+        var transaction = transaction(recordItem);
+        var ownerId = EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        var transactionBody = recordItem.getTransactionBody().getContractCreateInstance();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler)
+                .process(
+                        eq(recordItem),
+                        eq(ownerId.getId()),
+                        eq(transactionBody.getHookCreationDetailsList()),
+                        eq(List.of()));
+
+        // Verify entity was created
+        assertEntity(ownerId, recordItem.getConsensusTimestamp());
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void evmHookHandlerNotCalledWhenNoHooks() {
+        // given
+        var recordItem = recordItemBuilder
+                .contractCreate()
+                .transactionBody(b -> b.clearHookCreationDetails())
+                .build();
+        var transaction = transaction(recordItem);
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
+    }
+
+    @Test
     void updateContractResultEmptyContractCallFunctionParams() {
         ContractResult contractResult = new ContractResult();
         var recordItem = recordItemBuilder.contractCreate().build();
@@ -178,12 +241,23 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
         assertThat(recordItem.getEntityTransactions()).isEmpty();
     }
 
-    @Test
-    void updateTransactionSuccessful() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void updateTransactionSuccessful(boolean blockstream) {
         // given
-        var recordItem = recordItemBuilder.contractCreate().build();
-        var contractId =
-                EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());
+        var protoContractId = recordItemBuilder.contractId();
+        var recordItem = recordItemBuilder
+                .contractCreate(protoContractId)
+                .recordItem(r -> r.blockstream(blockstream))
+                .sidecarRecords(sidecars -> {
+                    if (blockstream) {
+                        sidecars.get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                                .getBytecodeBuilder()
+                                .clearInitcode();
+                    }
+                })
+                .build();
+        var contractId = EntityId.of(protoContractId);
         var timestamp = recordItem.getConsensusTimestamp();
         var transaction = domainBuilder
                 .transaction()
@@ -195,8 +269,19 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 ? key.getEd25519().toByteArray()
                 : key.getECDSASecp256K1().toByteArray();
         var autoRenewAccount = body.getAutoRenewAccountId();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var fileId = EntityId.of(body.getFileID());
+        byte[] initcode;
+        if (blockstream) {
+            byte[] bytecode = domainBuilder.bytes(1024);
+            when(contractBytecodeService.get(fileId)).thenReturn(bytecode);
+            initcode = Bytes.concat(bytecode, DomainUtils.toBytes(body.getConstructorParameters()));
+        } else {
+            initcode = DomainUtils.toBytes(recordItem
+                    .getSidecarRecords()
+                    .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                    .getBytecode()
+                    .getInitcode());
+        }
         when(entityIdService.lookup(autoRenewAccount)).thenReturn(Optional.of(EntityId.of(autoRenewAccount)));
 
         // when
@@ -208,9 +293,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .returns(null, Entity::getEvmAddress)
                 .returns(key.toByteArray(), Entity::getKey)
                 .returns(Hex.encodeHexString(simpleKey), Entity::getPublicKey);
-        assertContract(contractId)
-                .returns(EntityId.of(body.getFileID()), Contract::getFileId)
-                .returns(initCode, Contract::getInitcode);
+        assertContract(contractId).returns(fileId, Contract::getFileId).returns(initcode, Contract::getInitcode);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }
@@ -283,8 +366,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
         var aliasAccountId = domainBuilder.entityNum(10L);
         when(entityIdService.lookup(aliasAccount)).thenReturn(Optional.of(aliasAccountId));
         var expectedEntityTransactions = getExpectedEntityTransactions(recordItem, transaction);
@@ -404,8 +490,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
         when(entityIdService.lookup(AccountID.newBuilder().setAlias(alias).build()))
                 .thenReturn(Optional.ofNullable(entityId));
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -447,8 +536,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
         transactionHandler.updateTransaction(transaction, recordItem);
         assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
         assertContract(contractId).returns(null, Contract::getFileId).returns(initCode, Contract::getInitcode);
@@ -479,8 +571,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
         transactionHandler.updateTransaction(transaction, recordItem);
         assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
         assertContract(contractId).returns(null, Contract::getFileId).returns(initCode, Contract::getInitcode);
@@ -544,8 +639,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
         transactionHandler.updateTransaction(transaction, recordItem);
         assertEntity(contractId, timestamp).returns(null, Entity::getAutoRenewAccountId);
         assertContract(contractId).returns(initCode, Contract::getInitcode).satisfies(c -> assertThat(c.getFileId())
@@ -617,8 +715,11 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
                 .transaction()
                 .customize(t -> t.consensusTimestamp(timestamp).entityId(contractId))
                 .get();
-        var initCode = DomainUtils.toBytes(
-                recordItem.getSidecarRecords().get(2).getBytecode().getInitcode());
+        var initCode = DomainUtils.toBytes(recordItem
+                .getSidecarRecords()
+                .get(DEFAULT_BYTECODE_SIDECAR_INDEX)
+                .getBytecode()
+                .getInitcode());
 
         // when
         transactionHandler.updateTransaction(transaction, recordItem);
@@ -669,7 +770,7 @@ class ContractCreateTransactionHandlerTest extends AbstractTransactionHandlerTes
     void migrationBytecodeNotProcessed() {
         var recordItem = recordItemBuilder
                 .contractCreate()
-                .sidecarRecords(r -> r.get(2).setMigration(true))
+                .sidecarRecords(r -> r.get(DEFAULT_BYTECODE_SIDECAR_INDEX).setMigration(true))
                 .build();
         var contractId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getContractID());

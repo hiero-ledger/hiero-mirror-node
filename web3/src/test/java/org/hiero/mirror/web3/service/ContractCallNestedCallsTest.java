@@ -4,12 +4,14 @@ package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.ED25519;
+import static org.hiero.mirror.web3.service.utils.KeyValueType.INHERIT_ACCOUNT_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.CREATE_TOKEN_VALUE;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ECDSA_KEY;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.NEW_ED25519_KEY;
 
 import com.google.protobuf.ByteString;
-import com.hedera.services.store.contracts.precompile.codec.KeyValueWrapper.KeyValueType;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -21,12 +23,15 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
+import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.HederaToken;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.KeyValue;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls.TokenKey;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
@@ -34,9 +39,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     private static final String EXPECTED_RESULT_NEGATIVE_TESTS = "hardcodedResult";
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -93,9 +96,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -294,12 +295,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+    @CsvSource(textBlock = """
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -308,12 +307,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-        final var sender = accountEntityPersist();
-        final var treasury = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -344,12 +339,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+    @CsvSource(textBlock = """
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -358,12 +351,8 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
-        final var sender = accountEntityPersist();
-        final var treasury = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
+        final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
         final var tokenInfo = getHederaToken(
                 contract.getContractAddress(),
@@ -439,10 +428,11 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
 
     @Test
     @SuppressWarnings("deprecation")
+    @DisabledOnOs(value = OS.WINDOWS, disabledReason = "Native secp256k1 DLL not available on Windows")
     void nestedDeployTwoContracts() throws Exception {
         // Given
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
-        final var sender = accountEntityPersist();
+        final var sender = accountEntityWithSufficientBalancePersist();
         testWeb3jService.setValue(100_000_000_000L);
         testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
         // When

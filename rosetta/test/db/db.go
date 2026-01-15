@@ -5,7 +5,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"github.com/ory/dockertest/v3"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ory/dockertest/v3"
 
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/config"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
@@ -189,7 +190,7 @@ func createPostgresDb(pool *dockertest.Pool, network *dockertest.Network) (*dock
 
 	options := &dockertest.RunOptions{
 		Name:       getDbHostname(network.Network),
-		Repository: "postgres",
+		Repository: "gcr.io/mirrornode/postgres",
 		Tag:        "16-alpine",
 		Env:        env,
 		Mounts:     []string{filepath.Clean(path.Join(moduleRoot, initScript)) + ":/docker-entrypoint-initdb.d/init.sh"},
@@ -233,6 +234,7 @@ func runFlywayMigration(pool *dockertest.Pool, network *dockertest.Network, para
 		"placeholders.db-name":                          dbName,
 		"placeholders.db-user":                          ownerUsername,
 		"placeholders.topicRunningHashV2AddedTimestamp": "0",
+		"placeholders.transactionHashLookbackInterval":  "'60 days'",
 		"target": "latest",
 		"url":    params.toJdbcUrl(getDbHostname(network.Network) + ":5432"),
 		"user":   ownerUsername,

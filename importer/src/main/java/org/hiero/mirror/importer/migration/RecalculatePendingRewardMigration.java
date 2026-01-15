@@ -22,8 +22,7 @@ public class RecalculatePendingRewardMigration extends AbstractJavaMigration {
             HederaNetwork.TESTNET, 1659139200596847383L);
 
     // Recalculate pending reward since for some staking periods it's accumulated more than one time.
-    private static final String MIGRATION_SQL =
-            """
+    private static final String MIGRATION_SQL = """
                     with crypto_transfer as (
                       select *
                       from crypto_transfer

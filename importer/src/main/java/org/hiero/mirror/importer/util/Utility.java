@@ -26,6 +26,7 @@ import java.util.Arrays;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -96,6 +97,16 @@ public class Utility {
 
     public static Instant convertToInstant(Timestamp timestamp) {
         return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
+
+    /**
+     * Decodes hex encoded bytecode with optional "0x" prefix
+     *
+     * @param bytecode Hex-encoded bytecode
+     * @return decoded bytecode
+     */
+    public static byte[] decodeBytecode(byte[] bytecode) {
+        return org.bouncycastle.util.encoders.Hex.decode(stripHexPrefix(bytecode));
     }
 
     /**
@@ -239,5 +250,14 @@ public class Utility {
         var address = new byte[20];
         System.arraycopy(keyHash, 12, address, 0, 20);
         return address;
+    }
+
+    private static byte[] stripHexPrefix(byte[] data) {
+        // If the first two bytes are hex prefix '0x', strip them
+        if (data.length >= 2 && data[0] == (byte) 0x30 && data[1] == (byte) 0x78) {
+            return ArrayUtils.subarray(data, 2, data.length);
+        }
+
+        return data;
     }
 }

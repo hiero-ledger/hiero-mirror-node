@@ -1110,8 +1110,6 @@ class ContractController extends BaseController {
 
     let transactionDetails;
 
-    // Exclude duplicate transactions and ethereum transactions failed with wrong ethereum nonce
-    const excludeTransactionResults = [duplicateTransactionResult, wrongNonceTransactionResult];
     const {transactionIdOrHash} = req.params;
     if (utils.isValidEthHash(transactionIdOrHash)) {
       const detailsByHash = await ContractService.getContractTransactionDetailsByHash(
@@ -1122,26 +1120,10 @@ class ContractController extends BaseController {
       const transactionId = TransactionId.fromString(transactionIdOrHash);
       const nonce = getLastNonceParamValue(req.query);
       // Map the transactions id to a consensus timestamp
-      const transactions = await TransactionService.getTransactionDetailsFromTransactionId(
-        transactionId,
-        nonce,
-        excludeTransactionResults
-      );
+      const transactions = await TransactionService.getTransactionDetailsFromTransactionId(transactionId, nonce);
 
       if (transactions.length === 0) {
         throw new NotFoundError();
-      } else if (transactions.length > 1) {
-        for (const transaction of transactions) {
-          if (!isContractTransaction(transaction)) {
-            throw new NotFoundError();
-          }
-        }
-
-        logger.error(
-          'Transaction invariance breached: there should be at most one transaction with none-duplicate-transaction ' +
-            'result for a specific (payer + valid start timestamp + nonce) combination'
-        );
-        throw new Error('Transaction invariance breached');
       }
       transactionDetails = transactions[0];
       // want to look up involved contract parties using the payer account id

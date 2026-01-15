@@ -9,7 +9,11 @@ import {Transaction} from '../model/';
 import EntityId from '../entityId';
 
 const {
-  query: {maxScheduledTransactionConsensusTimestampRangeNs},
+  query: {
+    maxScheduledTransactionConsensusTimestampRangeNs,
+    maxTransactionConsensusTimestampRangeNs,
+    maxValidStartTimestampDriftNs,
+  },
 } = config;
 
 const {
@@ -481,8 +485,11 @@ const addTimestampIndices = (arr, minIndex, maxIndex) => {
 describe('extractSqlFromTransactionsByIdOrHashRequest', () => {
   describe('success', () => {
     const defaultTransactionIdStr = '0.0.200-123456789-987654321';
-    const defaultParams = addTimestampIndices([200n, 123456789987654321n, 123456789987654321n, 123458889987654321n]);
-    const transactionKeys = [200n, 123456789987654321n];
+    const validStartNs = 123456789987654321n;
+    const minConsensusTimestamp = validStartNs - maxValidStartTimestampDriftNs;
+    const maxConsensusTimestamp = validStartNs + maxTransactionConsensusTimestampRangeNs;
+    const defaultParams = addTimestampIndices([200n, validStartNs, minConsensusTimestamp, maxConsensusTimestamp]);
+    const transactionKeys = [200n, validStartNs];
 
     const testSpecs = [
       {
@@ -628,23 +635,29 @@ describe('extractSqlFromTransactionsByIdOrHashRequest', () => {
 describe('getTransactionsByTransactionIdsSql', () => {
   describe('success', () => {
     const defaultTransactionIdStr = '0.0.200-123456789-987654321';
+    const minValidStartNs = 123456789987654321n;
+    const maxValidStartNs = 123456789987654322n;
+
+    const minConsensusTimestampForId = minValidStartNs - maxValidStartTimestampDriftNs;
+    const maxConsensusTimestampForId = maxValidStartNs + maxTransactionConsensusTimestampRangeNs;
+
     const defaultParams = addTimestampIndices([
       200n,
-      123456789987654321n,
+      minValidStartNs,
       201n,
-      123456789987654322n,
-      123456789987654321n,
-      123458889987654322n,
+      maxValidStartNs,
+      minConsensusTimestampForId,
+      maxConsensusTimestampForId,
     ]);
 
-    const defaultTransactionKeys = [200n, 123456789987654321n, 201n, 123456789987654322n];
+    const defaultTransactionKeys = [200n, minValidStartNs, 201n, maxValidStartNs];
 
     const nullPayerParams = addTimestampIndices([
-      123456789987654321n,
+      minValidStartNs,
       201n,
-      123456789987654322n,
-      123456789987654321n,
-      123456789987654322n,
+      maxValidStartNs,
+      minValidStartNs,
+      maxValidStartNs,
     ]);
 
     const nullPayerTransactionKeys = [null, 123456789987654321n, 201n, 123456789987654322n];
@@ -1156,7 +1169,7 @@ describe('getStakingRewardTimestamps', () => {
         consensus_timestamp: 1565779602000000002,
         crypto_transfer_list: [
           {
-            entity_id: EntityId.systemEntity.feeCollector.getEncodedId(),
+            entity_id: EntityId.systemEntity.networkAdminFeeAccount.getEncodedId(),
           },
         ],
       },

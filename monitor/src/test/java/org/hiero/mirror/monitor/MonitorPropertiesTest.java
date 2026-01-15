@@ -22,9 +22,7 @@ class MonitorPropertiesTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             0.0.2, 0.0.2, 0, 0
             0.0.10, 0.0.10, 0, 0
             1.5.2, 0.0.2, 5, 1

@@ -125,58 +125,52 @@ class BackfillFailedEthereumTransactionContractResultMigrationTest extends Impor
     }
 
     private void persistTransactions(List<Transaction> transactions) {
-        jdbcTemplate.batchUpdate(
-                """
+        jdbcTemplate.batchUpdate("""
                 insert into transaction (consensus_timestamp, index, nonce, payer_account_id, result, type,
                 valid_start_ns) values (?, ?, ?, ?, ?, ?, ?)
-                """,
-                transactions,
-                transactions.size(),
-                (ps, transaction) -> {
-                    ps.setLong(1, transaction.getConsensusTimestamp());
-                    ps.setLong(2, transaction.getIndex());
-                    ps.setLong(3, transaction.getNonce());
-                    ps.setLong(4, transaction.getPayerAccountId().getId());
-                    ps.setLong(5, transaction.getResult());
-                    ps.setShort(6, transaction.getType().shortValue());
-                    ps.setLong(7, transaction.getValidStartNs());
-                });
+                """, transactions, transactions.size(), (ps, transaction) -> {
+            ps.setLong(1, transaction.getConsensusTimestamp());
+            ps.setLong(2, transaction.getIndex());
+            ps.setLong(3, transaction.getNonce());
+            ps.setLong(4, transaction.getPayerAccountId().getId());
+            ps.setLong(5, transaction.getResult());
+            ps.setShort(6, transaction.getType().shortValue());
+            ps.setLong(7, transaction.getValidStartNs());
+        });
     }
 
     private List<MigrationContractResult> findAllContractResults() {
-        return jdbcTemplate.query(
-                """
+        return jdbcTemplate.query("""
                         select amount, bloom, call_result, consensus_timestamp, contract_id, created_contract_ids,
                         error_message, failed_initcode, function_parameters, function_result, gas_limit, gas_used, payer_account_id,
                         sender_id, transaction_hash, transaction_index, transaction_nonce,
                         transaction_result from contract_result
-                        """,
-                (rs, rowNum) -> {
-                    long payerAccountId = rs.getLong("payer_account_id");
-                    Array createdContractIds = rs.getArray("created_contract_ids");
+                        """, (rs, rowNum) -> {
+            long payerAccountId = rs.getLong("payer_account_id");
+            Array createdContractIds = rs.getArray("created_contract_ids");
 
-                    return MigrationContractResult.builder()
-                            .amount(rs.getLong("amount") == 0 ? null : rs.getLong("amount"))
-                            .bloom(rs.getBytes("bloom"))
-                            .callResult(rs.getBytes("call_result"))
-                            .consensusTimestamp(rs.getLong("consensus_timestamp"))
-                            .contractId(rs.getLong("contract_id"))
-                            .createdContractIds(
-                                    createdContractIds == null ? null : List.of((Long[]) createdContractIds.getArray()))
-                            .errorMessage(rs.getString("error_message"))
-                            .failedInitcode(rs.getBytes("failed_initcode"))
-                            .functionParameters(rs.getBytes("function_parameters"))
-                            .functionResult(rs.getBytes("function_result"))
-                            .gasLimit(rs.getLong("gas_limit"))
-                            .gasUsed(rs.getLong("gas_used"))
-                            .payerAccountId(EntityId.of(payerAccountId))
-                            .senderId(rs.getLong("sender_id") == 0 ? null : EntityId.of(rs.getLong("sender_id")))
-                            .transactionHash(rs.getBytes("transaction_hash"))
-                            .transactionIndex(rs.getInt("transaction_index"))
-                            .transactionNonce(rs.getInt("transaction_nonce"))
-                            .transactionResult(rs.getInt("transaction_result"))
-                            .build();
-                });
+            return MigrationContractResult.builder()
+                    .amount(rs.getLong("amount") == 0 ? null : rs.getLong("amount"))
+                    .bloom(rs.getBytes("bloom"))
+                    .callResult(rs.getBytes("call_result"))
+                    .consensusTimestamp(rs.getLong("consensus_timestamp"))
+                    .contractId(rs.getLong("contract_id"))
+                    .createdContractIds(
+                            createdContractIds == null ? null : List.of((Long[]) createdContractIds.getArray()))
+                    .errorMessage(rs.getString("error_message"))
+                    .failedInitcode(rs.getBytes("failed_initcode"))
+                    .functionParameters(rs.getBytes("function_parameters"))
+                    .functionResult(rs.getBytes("function_result"))
+                    .gasLimit(rs.getLong("gas_limit"))
+                    .gasUsed(rs.getLong("gas_used"))
+                    .payerAccountId(EntityId.of(payerAccountId))
+                    .senderId(rs.getLong("sender_id") == 0 ? null : EntityId.of(rs.getLong("sender_id")))
+                    .transactionHash(rs.getBytes("transaction_hash"))
+                    .transactionIndex(rs.getInt("transaction_index"))
+                    .transactionNonce(rs.getInt("transaction_nonce"))
+                    .transactionResult(rs.getInt("transaction_result"))
+                    .build();
+        });
     }
 
     @SneakyThrows

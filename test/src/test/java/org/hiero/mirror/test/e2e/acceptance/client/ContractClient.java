@@ -17,32 +17,48 @@ import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.TransactionRecord;
 import jakarta.inject.Named;
-import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.springframework.retry.support.RetryTemplate;
 
 @Named
 public class ContractClient extends AbstractNetworkClient {
 
-    private final Collection<ContractId> contractIds = new CopyOnWriteArrayList<>();
+    private final Map<String, ContractId> contractMap = new ConcurrentHashMap<>();
 
-    public ContractClient(SDKClient sdkClient, RetryTemplate retryTemplate) {
-        super(sdkClient, retryTemplate);
+    public ContractClient(
+            SDKClient sdkClient, RetryTemplate retryTemplate, AcceptanceTestProperties acceptanceTestProperties) {
+        super(sdkClient, retryTemplate, acceptanceTestProperties);
     }
 
     @Override
     public void clean() {
-        log.info("Deleting {} contracts", contractIds.size());
-        deleteAll(contractIds, id -> deleteContract(id, client.getOperatorAccountId(), null));
+        log.info("Deleting {} contracts", contractMap.size());
+        deleteOrLogEntities(contractMap.values(), id -> deleteContract(id, client.getOperatorAccountId(), null));
+    }
+
+    @Override
+    protected void logEntities() {
+        for (var contractName : contractMap.keySet()) {
+            // Log the values so that they can be parsed in CI and passed to the k6 tests as input.
+            System.out.println(
+                    contractName + "=" + contractMap.get(contractName).toEvmAddress());
+            System.out.printf("%s_ID=%s%n", contractName, contractMap.get(contractName).num);
+        }
     }
 
     public NetworkTransactionResponse createContract(
-            FileId fileId, long gas, Hbar payableAmount, ContractFunctionParameters contractFunctionParameters) {
-        var memo = getMemo("Create contract");
+            String contractName,
+            FileId fileId,
+            long gas,
+            Hbar payableAmount,
+            ContractFunctionParameters contractFunctionParameters) {
+        var memo = getMemo(String.format("Create contract %s", contractName));
         ContractCreateTransaction contractCreateTransaction = new ContractCreateTransaction()
                 .setAdminKey(sdkClient.getExpandedOperatorAccountId().getPublicKey())
                 .setBytecodeFileId(fileId)
@@ -64,7 +80,7 @@ public class ContractClient extends AbstractNetworkClient {
 
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
-        contractIds.add(contractId);
+        contractMap.put(contractName, contractId);
 
         return response;
     }
@@ -98,7 +114,7 @@ public class ContractClient extends AbstractNetworkClient {
 
         var response = executeTransactionAndRetrieveReceipt(contractDeleteTransaction);
         log.info("Deleted contract {} via {}", contractId, response.getTransactionId());
-        contractIds.remove(contractId);
+        contractMap.remove(contractId);
         return response;
     }
 
@@ -182,6 +198,10 @@ public class ContractClient extends AbstractNetworkClient {
         return functionResult;
     }
 
+    public String getClientAddress() {
+        return sdkClient.getClient().getOperatorAccountId().toEvmAddress();
+    }
+
     private void logContractFunctionResult(String functionName, ContractFunctionResult contractFunctionResult) {
         if (contractFunctionResult == null) {
             return;
@@ -209,10 +229,6 @@ public class ContractClient extends AbstractNetworkClient {
                 return Optional.empty();
             }
         }
-    }
-
-    public String getClientAddress() {
-        return sdkClient.getClient().getOperatorAccountId().toEvmAddress();
     }
 
     public record ExecuteContractResult(

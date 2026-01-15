@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.constraints.AssertTrue;
@@ -37,9 +36,6 @@ public class ContractCallRequest {
 
     @Min(0)
     private long gasPrice;
-
-    @JsonIgnore
-    private Boolean modularized;
 
     @Hex(minLength = ADDRESS_LENGTH, maxLength = ADDRESS_LENGTH, allowEmpty = true)
     private String to;

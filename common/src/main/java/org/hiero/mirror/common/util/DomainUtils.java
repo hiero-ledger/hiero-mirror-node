@@ -7,6 +7,7 @@ import com.google.common.primitives.Bytes;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteOutput;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.BytesValue;
 import com.google.protobuf.Internal;
 import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
@@ -14,9 +15,9 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
+import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
-import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -35,19 +36,23 @@ import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @UtilityClass
 public class DomainUtils {
 
-    private static final byte[] MIRROR_PREFIX = new byte[12];
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
     public static final int EVM_ADDRESS_LENGTH = 20;
+    public static final long NANOS_PER_SECOND = 1_000_000_000L;
     public static final long TINYBARS_IN_ONE_HBAR = 100_000_000L;
 
-    public static final long NANOS_PER_SECOND = 1_000_000_000L;
+    private static final long MAX_SYSTEM_ENTITY_NUM = 999;
+    private static final byte[] MIRROR_PREFIX = new byte[12];
+    private static final int NANO_DIGITS = 9;
     private static final char NULL_CHARACTER = (char) 0;
     private static final char NULL_REPLACEMENT = '�'; // Standard replacement character 0xFFFD
+    private static final String TIMESTAMP_ZERO = "0.0";
 
     static {
         try {
@@ -83,7 +88,7 @@ public class DomainUtils {
      * ECDSA_SECP256K1). If the protobuf encoding of a Key is a single primitive key or a complex key with exactly one
      * primitive key within it, return the key as a String with lowercase hex encoding.
      *
-     * @param protobufKey
+     * @param protobufKey the protobuf encoding of a Key
      * @return public key as a string in hex encoding, or null
      */
     public static String getPublicKey(@Nullable byte[] protobufKey) {
@@ -173,11 +178,15 @@ public class DomainUtils {
         }
     }
 
+    public boolean isSystemEntity(EntityId entityId) {
+        return !EntityId.isEmpty(entityId) && entityId.getNum() <= MAX_SYSTEM_ENTITY_NUM;
+    }
+
     /**
      * Pad a byte array with leading zeros to a given length.
      *
-     * @param bytes
-     * @param length
+     * @param bytes  the byte array to pad
+     * @param length the length to pad to
      */
     public static byte[] leftPadBytes(byte[] bytes, int length) {
         if (bytes == null) {
@@ -298,6 +307,18 @@ public class DomainUtils {
         return fromEvmAddress(Bytes.concat(padding, evmAddress));
     }
 
+    public static SlotKey normalize(SlotKey slotKey) {
+        var key = slotKey.getKey();
+        var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
+        if (normalizedBytes.length == key.size()) {
+            return slotKey;
+        }
+
+        return slotKey.toBuilder()
+                .setKey(DomainUtils.fromBytes(normalizedBytes))
+                .build();
+    }
+
     public static byte[] trim(final byte[] data) {
         if (ArrayUtils.isEmpty(data)) {
             return data;
@@ -321,8 +342,30 @@ public class DomainUtils {
         return ArrayUtils.subarray(data, i, data.length);
     }
 
+    public static ByteString trim(final ByteString data) {
+        if (data == null || data.isEmpty() || data.byteAt(0) != 0) {
+            return data;
+        }
+
+        final byte[] value = DomainUtils.toBytes(data);
+        final byte[] trimmed = trim(value);
+
+        return trimmed == value ? data : DomainUtils.fromBytes(trimmed);
+    }
+
+    public static BytesValue trim(final BytesValue data) {
+        if (data == null) {
+            return null;
+        }
+
+        final var value = data.getValue();
+        final var trimmed = trim(value);
+
+        return trimmed == value ? data : BytesValue.of(trimmed);
+    }
+
     public static byte[] toEvmAddress(ContractID contractId) {
-        if (contractId == null || contractId == ContractID.getDefaultInstance()) {
+        if (contractId == null || ContractID.getDefaultInstance().equals(contractId)) {
             throw new InvalidEntityException("Invalid ContractID");
         }
 
@@ -373,6 +416,17 @@ public class DomainUtils {
             return text;
         }
         return CaseFormat.UPPER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, text);
+    }
+
+    public String toTimestamp(long timestamp) {
+        if (timestamp == 0) {
+            return TIMESTAMP_ZERO;
+        }
+
+        var timestampString = StringUtils.leftPad(String.valueOf(timestamp), NANO_DIGITS + 1, '0');
+        return new StringBuilder(timestampString)
+                .insert(timestampString.length() - NANO_DIGITS, '.')
+                .toString();
     }
 
     static class UnsafeByteOutput extends ByteOutput {

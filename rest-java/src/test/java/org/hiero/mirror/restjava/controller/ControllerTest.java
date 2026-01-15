@@ -22,7 +22,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
@@ -35,7 +37,11 @@ import org.springframework.web.client.RestClient.RequestHeadersUriSpec;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class ControllerTest extends RestJavaIntegrationTest {
 
+    protected static final String ALIAS = "HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA";
+    protected static final String EVM_ADDRESS = "000000000000000000000000000000000186Fb1b";
+
     private static final String BASE_PATH = "/api/v1/";
+
     protected RestClient.Builder restClientBuilder;
 
     @Autowired
@@ -79,11 +85,19 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
                 .contains(detail);
     }
 
-    protected abstract class EndpointTest {
+    protected abstract class RestTest {
 
         protected RestClient restClient;
 
         protected abstract String getUrl();
+
+        /*
+         * This method allows subclasses to do any setup work like entity persistence and provide a default URI and
+         * parameters for the parent class to run its common set of tests.
+         */
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            return uriSpec.uri("");
+        }
 
         @BeforeEach
         void setup() {
@@ -91,11 +105,41 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
             restClient = restClientBuilder.baseUrl(baseUrl + suffix).build();
         }
 
-        /*
-         * This method allows subclasses to do any setup work like entity persistence and provide a default URI and
-         * parameters for the parent class to run its common set of tests.
-         */
-        protected abstract RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec);
+        @Test
+        void callSuccessfulCors() {
+            // When
+            var headers = defaultRequest(restClient.options())
+                    .header("Origin", "http://example.com")
+                    .header("Access-Control-Request-Method", "POST")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .getHeaders();
+
+            // Then
+            assertThat(headers.getAccessControlAllowOrigin()).isEqualTo("*");
+            assertThat(headers.getFirst("Access-Control-Allow-Methods")).contains("GET", "HEAD", "POST");
+        }
+    }
+
+    protected abstract class EndpointTest extends RestTest {
+
+        @Test
+        void etagHeader() {
+            // Given
+            final var request = defaultRequest(restClient.get());
+
+            // When
+            final var etag = request.retrieve().toBodilessEntity().getHeaders().getETag();
+
+            // Then
+            assertThat(etag).isNotBlank();
+            assertThat(request.header(HttpHeaders.IF_NONE_MATCH, etag)
+                            .retrieve()
+                            .toBodilessEntity())
+                    .returns(etag, r -> r.getHeaders().getETag())
+                    .returns(null, ResponseEntity::getBody)
+                    .returns(HttpStatus.NOT_MODIFIED, ResponseEntity::getStatusCode);
+        }
 
         @Test
         void headers() {

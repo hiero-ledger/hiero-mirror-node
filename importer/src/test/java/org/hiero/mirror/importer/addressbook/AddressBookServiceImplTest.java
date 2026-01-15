@@ -208,6 +208,17 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     }
 
     @Test
+    void appendFileWithoutFileCreateOrUpdate() {
+        byte[] addressBookBytes = UPDATED.toByteArray();
+        int index = addressBookBytes.length / 2;
+        byte[] addressBookPartial = Arrays.copyOfRange(addressBookBytes, 0, index);
+
+        assertDoesNotThrow(() -> append(addressBookPartial, 8L, true));
+        assertArrayEquals(
+                initialAddressBookBytes, addressBookService.getCurrent().getFileData());
+    }
+
+    @Test
     void updatePartialFile() {
         byte[] addressBookBytes = UPDATED.toByteArray();
         int index = addressBookBytes.length / 2;
@@ -992,9 +1003,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .containsExactly(0L, 1L, 2L, 3L);
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             EQUAL, 10000, 1, 4
                             EQUAL, 0, 1, 4
                             STAKE, 10000, 10000, 40000
@@ -1026,9 +1035,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
                 .containsExactly(0L, 1L, 2L, 3L);
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             EQUAL, 1, 6
                             STAKE, 10000, 60000
                             STAKE_IN_ADDRESS_BOOK, 10000, 40000

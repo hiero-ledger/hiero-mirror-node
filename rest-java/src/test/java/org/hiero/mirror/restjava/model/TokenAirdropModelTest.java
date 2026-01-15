@@ -10,8 +10,7 @@ import org.hiero.mirror.rest.model.TokenAirdropsResponse;
 import org.junit.jupiter.api.Test;
 
 class TokenAirdropModelTest {
-    String airdropsResponse =
-            """
+    String airdropsResponse = """
             {
               "airdrops": [
                 {

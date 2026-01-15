@@ -12,19 +12,19 @@ First ensure Node and NPM are installed. Following the instructions specific to 
 Open the Terminal app and run the following commands:
 
 ```shell
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-nvm install 22
-npm install -g @hiero-ledger/mirror-report
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install 24
+npm install -g @hashgraph/mirror-report
 ```
 
 ### Windows
 
-Download the Node.js 22 prebuilt [installer](https://nodejs.org/dist/v22.12.0/node-v22.12.0-x64.msi) for Windows x64.
+Download the Node.js 24 prebuilt [installer](https://nodejs.org/dist/v24.11.1/node-v24.11.1-x64.msi) for Windows x64.
 Follow the prompts to complete the installation with the default options. Open the Command Prompt application and run
 the following:
 
 ```shell
-npm install -g @hiero-ledger/mirror-report
+npm install -g @hashgraph/mirror-report
 ```
 
 ## Upgrading
@@ -32,7 +32,7 @@ npm install -g @hiero-ledger/mirror-report
 To upgrade the version of the report tool, re-run the NPM install command to grab the latest version:
 
 ```shell
-npm install -g @hiero-ledger/mirror-report
+npm install -g @hashgraph/mirror-report
 ```
 
 ## Running

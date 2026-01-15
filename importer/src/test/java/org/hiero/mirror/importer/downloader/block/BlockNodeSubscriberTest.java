@@ -50,11 +50,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith({GrpcCleanupExtension.class, MockitoExtension.class})
-class BlockNodeSubscriberTest extends BlockNodeTestBase {
+final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     private final String[] SERVER_NAMES = {"test1", "test2", "test3"};
-
-    private BlockProperties blockProperties;
 
     @Mock
     private BlockStreamReader blockStreamReader;
@@ -70,7 +68,7 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        blockProperties = new BlockProperties();
+        final var blockProperties = new BlockProperties();
         commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
@@ -84,13 +82,12 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 
     @ParameterizedTest(name = "last block number {0}")
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             5, '1,0,0', '1,0,0'
                             6, '1,1,0', '0,1,0'
                             7, '1,1,1', '0,0,1'
@@ -106,17 +103,17 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 SERVER_NAMES[0],
                 resources,
                 serverStatusResponse(6, 6),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(6))));
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
         startServer(
                 SERVER_NAMES[1],
                 resources,
                 serverStatusResponse(7, 7),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(7))));
+                ResponsesOrError.fromResponses(fullBlockResponses(7)));
         startServer(
                 SERVER_NAMES[2],
                 resources,
                 serverStatusResponse(8, 8),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(8))));
+                ResponsesOrError.fromResponses(fullBlockResponses(8)));
 
         // when
         blockNodeSubscriber.get();
@@ -133,6 +130,57 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
     }
 
     @Test
+    void getFromEarliestAvailableBlockNumber(Resources resources) {
+        // given
+        commonDownloaderProperties.getImporterProperties().setStartBlockNumber(-1L);
+        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(Optional.empty()).when(blockStreamVerifier).getLastBlockFile();
+        doNothing().when(blockStreamVerifier).verify(any());
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+
+        // when
+        blockNodeSubscriber.get();
+
+        // then
+        assertCalls(statusCalls, "1,0,0");
+        assertCalls(streamCalls, "1,0,0");
+        verify(blockStreamReader).read(argThat(blockStream -> {
+            assertBlockStream(blockStream, 6);
+            return true;
+        }));
+        verify(blockStreamVerifier).getLastBlockFile();
+        verify(blockStreamVerifier).verify(any());
+    }
+
+    @Test
+    void getFromEarliestAvailableBlockNumberPastEndBlockNumber(Resources resources) {
+        // given
+        final var importerProperties = commonDownloaderProperties.getImporterProperties();
+        importerProperties.setStartBlockNumber(-1L);
+        importerProperties.setEndBlockNumber(5L);
+        doReturn(Optional.empty()).when(blockStreamVerifier).getLastBlockFile();
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+
+        // when
+        blockNodeSubscriber.get();
+
+        // then
+        assertCalls(statusCalls, "1,0,0");
+        assertCalls(streamCalls, "0,0,0");
+        verify(blockStreamReader, never()).read(any());
+        verify(blockStreamVerifier).getLastBlockFile();
+        verify(blockStreamVerifier, never()).verify(any());
+    }
+
+    @Test
     void getWhenBlockNotAvailable(Resources resources) {
         // given
         doReturn(Optional.of(BlockFile.builder().index(20L).build()))
@@ -142,17 +190,17 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 SERVER_NAMES[0],
                 resources,
                 serverStatusResponse(6, 6),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(6))));
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
         startServer(
                 SERVER_NAMES[1],
                 resources,
                 serverStatusResponse(7, 7),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(7))));
+                ResponsesOrError.fromResponses(fullBlockResponses(7)));
         startServer(
                 SERVER_NAMES[2],
                 resources,
                 serverStatusResponse(8, 8),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(8))));
+                ResponsesOrError.fromResponses(fullBlockResponses(8)));
 
         // when
         assertThatThrownBy(blockNodeSubscriber::get)
@@ -182,8 +230,8 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 SERVER_NAMES[0],
                 resources,
                 serverStatusResponse(1, 100),
-                ResponsesOrError.fromResponses(
-                        List.of(subscribeStreamResponse(blockItemSet(6)), subscribeStreamResponse(Code.SUCCESS))));
+                ResponsesOrError.fromResponses(fullBlockResponses(6))
+                        .addResponse(subscribeStreamResponse(Code.SUCCESS)));
 
         // when
         blockNodeSubscriber.get(); // First call ends the stream
@@ -219,13 +267,12 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 SERVER_NAMES[1],
                 resources,
                 serverStatusResponse(10, 11),
-                ResponsesOrError.fromResponses(
-                        List.of(subscribeStreamResponse(blockItemSet(10)), subscribeStreamResponse(blockItemSet(11)))));
+                ResponsesOrError.fromResponses(fullBlockResponses(10)).addResponses(fullBlockResponses(11)));
         startServer(
                 SERVER_NAMES[2],
                 resources,
                 serverStatusResponse(10, 10),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(10))));
+                ResponsesOrError.fromResponses(fullBlockResponses(10)));
 
         // when, then
         for (int i = 0; i < 3; i++) {
@@ -289,13 +336,12 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 SERVER_NAMES[0],
                 resources,
                 serverStatusResponse(20, 20),
-                ResponsesOrError.fromResponse(subscribeStreamResponse(blockItemSet(20))));
+                ResponsesOrError.fromResponses(fullBlockResponses(20)));
         startServer(
                 SERVER_NAMES[1],
                 resources,
                 serverStatusResponse(10, 11),
-                ResponsesOrError.fromResponses(
-                        List.of(subscribeStreamResponse(blockItemSet(10)), subscribeStreamResponse(blockItemSet(11)))));
+                ResponsesOrError.fromResponses(fullBlockResponses(10)).addResponses(fullBlockResponses(11)));
         blockNodeSubscriber.get();
 
         // then
@@ -370,11 +416,11 @@ class BlockNodeSubscriberTest extends BlockNodeTestBase {
                     SubscribeStreamRequest request, StreamObserver<SubscribeStreamResponse> responseObserver) {
                 recordCall(name, streamCalls);
 
-                if (!streamResponse.responses().isEmpty()) {
-                    streamResponse.responses().forEach(responseObserver::onNext);
+                if (!streamResponse.getResponses().isEmpty()) {
+                    streamResponse.getResponses().forEach(responseObserver::onNext);
                     responseObserver.onCompleted();
                 } else {
-                    responseObserver.onError(streamResponse.error());
+                    responseObserver.onError(streamResponse.getError());
                 }
             }
         };

@@ -2,13 +2,10 @@
 
 package org.hiero.mirror.web3.service;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.exception.BlockNumberOutOfRangeException;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.junit.jupiter.api.Test;
 
@@ -60,11 +57,9 @@ class RecordFileServiceTest extends Web3IntegrationTest {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(1L)).persist();
         domainBuilder.recordFile().customize(f -> f.index(2L)).persist();
-        var recordFileLatest =
+        final var recordFileLatest =
                 domainBuilder.recordFile().customize(f -> f.index(3L)).persist();
-        var blockType = BlockType.of(String.valueOf(recordFileLatest.getIndex() + 1L));
-        assertThatThrownBy(() -> recordFileService.findByBlockType(blockType))
-                .isInstanceOf(BlockNumberOutOfRangeException.class)
-                .hasMessage(UNKNOWN_BLOCK_NUMBER);
+        final var blockType = BlockType.of(String.valueOf(recordFileLatest.getIndex() + 1L));
+        assertThat(recordFileService.findByBlockType(blockType)).isEmpty();
     }
 }

@@ -2,18 +2,18 @@
 
 package org.hiero.mirror.grpc.listener;
 
-import jakarta.annotation.Resource;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.springframework.data.redis.core.ReactiveRedisOperations;
 import reactor.core.publisher.Flux;
 
 @CustomLog
+@RequiredArgsConstructor
 @SuppressWarnings("java:S2187") // Ignore no tests in file warning
-class RedisTopicListenerTest extends AbstractSharedTopicListenerTest {
+final class RedisTopicListenerTest extends AbstractSharedTopicListenerTest {
 
-    @Resource
-    private ReactiveRedisOperations<String, TopicMessage> redisOperations;
+    private final ReactiveRedisOperations<String, TopicMessage> redisOperations;
 
     @Override
     protected ListenerProperties.ListenerType getType() {

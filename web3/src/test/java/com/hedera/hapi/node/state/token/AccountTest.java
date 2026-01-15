@@ -87,6 +87,9 @@ class AccountTest {
         final var firstContractStorageKeyList = BYTES_TESTS_LIST;
         final var headPendingAirdropIdList = PendingAirdropIdTest.ARGUMENTS;
         final var numberPendingAirdropsList = UNSIGNED_LONG_TESTS_LIST;
+        final var numberHooksInUseList = UNSIGNED_LONG_TESTS_LIST;
+        final var firstHookIdList = UNSIGNED_LONG_TESTS_LIST;
+        final var numberLambdaStorageSlotsList = UNSIGNED_LONG_TESTS_LIST;
 
         // work out the longest of all the lists of args as that is how many test cases we need
         final int maxValues = IntStream.of(
@@ -123,7 +126,10 @@ class AccountTest {
                         expiredAndPendingRemovalList.size(),
                         firstContractStorageKeyList.size(),
                         headPendingAirdropIdList.size(),
-                        numberPendingAirdropsList.size())
+                        numberPendingAirdropsList.size(),
+                        numberHooksInUseList.size(),
+                        firstHookIdList.size(),
+                        numberLambdaStorageSlotsList.size())
                 .max()
                 .getAsInt();
         // create new stream of model objects using lists above as constructor params
@@ -163,7 +169,10 @@ class AccountTest {
                         expiredAndPendingRemovalList.get(Math.min(i, expiredAndPendingRemovalList.size() - 1)),
                         firstContractStorageKeyList.get(Math.min(i, firstContractStorageKeyList.size() - 1)),
                         headPendingAirdropIdList.get(Math.min(i, headPendingAirdropIdList.size() - 1)),
-                        numberPendingAirdropsList.get(Math.min(i, numberPendingAirdropsList.size() - 1))))
+                        numberPendingAirdropsList.get(Math.min(i, numberPendingAirdropsList.size() - 1)),
+                        numberHooksInUseList.get(Math.min(i, numberHooksInUseList.size() - 1)),
+                        firstHookIdList.get(Math.min(i, firstHookIdList.size() - 1)),
+                        numberLambdaStorageSlotsList.get(Math.min(i, numberLambdaStorageSlotsList.size() - 1))))
                 .toList();
     }
 
@@ -179,7 +188,7 @@ class AccountTest {
 
     @SuppressWarnings("EqualsWithItself")
     @Test
-    void testTestEqualsAndHashCode() {
+    void testEqualsAndHashCode() {
         if (ARGUMENTS.size() >= 3) {
             final var item1 = ARGUMENTS.get(0);
             final var item2 = ARGUMENTS.get(1);
@@ -611,12 +620,39 @@ class AccountTest {
     }
 
     @Test
-    void testEqualsWithDifferentNumPendingAirdrops() {
+    void testEqualsWithDifferentNumberPendingAirdrops() {
         final var item2 = ARGUMENTS.get(1);
 
-        final var item1WithDifferentNumPendingAirdrops =
+        final var item1WithDifferentNumberPendingAirdrops =
                 item2.copyBuilder().numberPendingAirdrops(0).build();
-        assertNotEquals(item2, item1WithDifferentNumPendingAirdrops);
+        assertNotEquals(item2, item1WithDifferentNumberPendingAirdrops);
+    }
+
+    @Test
+    void testEqualsWithDifferentNumberHooksInUse() {
+        final var item2 = ARGUMENTS.get(1);
+
+        final var item1WithDifferentNumberHooksInUse =
+                item2.copyBuilder().numberHooksInUse(0).build();
+        assertNotEquals(item2, item1WithDifferentNumberHooksInUse);
+    }
+
+    @Test
+    void testEqualsWithDifferentFirstHookId() {
+        final var item2 = ARGUMENTS.get(1);
+
+        final var item1WithDifferentFirstHookId =
+                item2.copyBuilder().firstHookId(0).build();
+        assertNotEquals(item2, item1WithDifferentFirstHookId);
+    }
+
+    @Test
+    void testEqualsWithDifferentNumberLambdaStorageSlots() {
+        final var item2 = ARGUMENTS.get(1);
+
+        final var item1WithDifferentNumberLambdaStorageSlots =
+                item2.copyBuilder().numberLambdaStorageSlots(0).build();
+        assertNotEquals(item2, item1WithDifferentNumberLambdaStorageSlots);
     }
 
     @Test

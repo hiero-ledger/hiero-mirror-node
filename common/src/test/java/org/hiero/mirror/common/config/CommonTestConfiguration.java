@@ -63,6 +63,7 @@ public class CommonTestConfiguration {
                 .put("shardCount", "2")
                 .put("tempSchema", "temporary")
                 .put("topicRunningHashV2AddedTimestamp", "0")
+                .put("transactionHashLookbackInterval", "'60 days'")
                 .build();
 
         var flywayProperties = new FlywayProperties();
@@ -90,7 +91,7 @@ public class CommonTestConfiguration {
 
     @Bean(POSTGRESQL)
     PostgreSQLContainer<?> postgresql() {
-        var imageName = v2 ? "gcr.io/mirrornode/citus:12.1.1" : "postgres:16-alpine";
+        var imageName = v2 ? "gcr.io/mirrornode/citus:12.1.1" : "gcr.io/mirrornode/postgres:16-alpine";
         var dockerImageName = DockerImageName.parse(imageName).asCompatibleSubstituteFor("postgres");
         var logger = LoggerFactory.getLogger(PostgreSQLContainer.class);
         var excluded = "terminating connection due to unexpected postmaster exit";

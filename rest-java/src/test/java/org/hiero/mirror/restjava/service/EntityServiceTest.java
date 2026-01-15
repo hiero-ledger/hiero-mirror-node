@@ -9,16 +9,16 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.common.EntityIdAliasParameter;
-import org.hiero.mirror.restjava.common.EntityIdEvmAddressParameter;
-import org.hiero.mirror.restjava.common.EntityIdNumParameter;
-import org.hiero.mirror.restjava.common.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdAliasParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdEvmAddressParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdNumParameter;
+import org.hiero.mirror.restjava.parameter.EntityIdParameter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 @RequiredArgsConstructor
-class EntityServiceTest extends RestJavaIntegrationTest {
+final class EntityServiceTest extends RestJavaIntegrationTest {
 
     private final EntityService service;
 
@@ -55,7 +55,7 @@ class EntityServiceTest extends RestJavaIntegrationTest {
     @ValueSource(
             strings = {
                 "0.0.000000000000000000000000000000000186Fb1b",
-                "0.0.AABBCC22",
+                "0.0.HIQQEXWKW53RKN4W6XXC4Q232SYNZ3SZANVZZSUME5B5PRGXL663UAQA",
             })
     void lookupNotFound(String id) {
         var entityIdParameter = EntityIdParameter.valueOf(id);

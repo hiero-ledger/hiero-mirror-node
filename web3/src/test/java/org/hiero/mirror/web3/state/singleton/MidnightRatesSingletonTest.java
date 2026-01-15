@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.web3.state.singleton;
 
-import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_KEY;
+import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hedera.hapi.node.base.TimestampSeconds;
@@ -42,6 +42,6 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     @Test
     void key() {
-        assertThat(midnightRatesSingleton.getKey()).isEqualTo(MIDNIGHT_RATES_STATE_KEY);
+        assertThat(midnightRatesSingleton.getStateId()).isEqualTo(MIDNIGHT_RATES_STATE_ID);
     }
 }
