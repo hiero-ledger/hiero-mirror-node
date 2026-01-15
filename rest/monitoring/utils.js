@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import AbortController from 'abort-controller';
 import _ from 'lodash';
 import log4js from 'log4js';
 import * as math from 'mathjs';

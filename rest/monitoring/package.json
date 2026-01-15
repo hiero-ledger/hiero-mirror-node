@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 22"
+    "node": ">= 24"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -16,7 +16,6 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "abort-controller": "3.0.0",
     "compression": "1.8.1",
     "cors": "2.8.5",
     "express": "5.2.1",
