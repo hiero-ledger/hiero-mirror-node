@@ -1834,6 +1834,7 @@ export {
   parseBalanceQueryParam,
   parseBooleanValue,
   parseHexStr,
+  getEffectiveMaxLimit,
   parseInteger,
   parseLimitAndOrderParams,
   parseParams,
