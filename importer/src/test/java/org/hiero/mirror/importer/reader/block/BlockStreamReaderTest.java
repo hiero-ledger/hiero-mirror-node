@@ -20,6 +20,7 @@ import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -322,13 +323,19 @@ public final class BlockStreamReaderTest {
                 .addItems(transactionResult(parentTransactionResult))
                 .addItems(stateChanges(parentStateChanges))
                 .addItems(eventHeader())
-                .addItems(signedTransaction()) // hook execution 1
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 1 - contract call
                 .addItems(transactionResult(hookExecution1Result))
                 .addItems(eventHeader())
-                .addItems(signedTransaction()) // hook execution 2
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 2 - contract call
                 .addItems(transactionResult(hookExecution2Result))
                 .addItems(eventHeader())
-                .addItems(signedTransaction()) // hook execution 3
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 3 - contract call
                 .addItems(transactionResult(hookExecution3Result))
                 .addItems(eventHeader())
                 .addItems(signedTransaction()) // post-parent transaction
