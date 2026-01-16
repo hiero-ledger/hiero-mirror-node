@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 name: Release Automation
 
 on:
@@ -21,9 +23,7 @@ env:
 jobs:
   release:
     name: Release
-    runs-on: mirror-node-linux-medium
-    env:
-      RELEASE_NOTES_FILENAME: release_notes
+    runs-on: hiero-mirror-node-linux-medium
     outputs:
       create_pr: ${{ env.CREATE_PR }}
       next_version_snapshot: ${{ env.NEXT_VERSION_SNAPSHOT }}
@@ -32,13 +32,13 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
       - name: Parse Version
         id: version_parser
-        uses: step-security/semver-utils@a24a84bec134bf99b85937a44b58cc9a1d268edd # v4.3.0
+        uses: step-security/semver-utils@4ae9c1fd6d1c5f8f152fe7e2efe8069a952c2ace # v4.3.2
         with:
           lenient: false
           version: ${{ github.event.inputs.version }}
@@ -61,7 +61,7 @@ jobs:
           EOF
 
       - name: Checkout Repository
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           fetch-depth: 0
           ref: main
@@ -69,22 +69,24 @@ jobs:
 
       - name: Import GPG Key
         id: gpg_importer
-        uses: crazy-max/ghaction-import-gpg@01dd5d3ca463c7f10f7f4f7b4f177225ac661ee4 # v6.1.0
+        uses: step-security/ghaction-import-gpg@69c854a83c7f79463f8bdf46772ab09826c560cd # v6.3.1
         with:
           git_commit_gpgsign: true
+          git_committer_email: ${{ vars.GIT_USER_EMAIL }}
+          git_committer_name: ${{ vars.GIT_USER_NAME }}
           git_tag_gpgsign: true
           git_user_signingkey: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Install JDK
-        uses: actions/setup-java@b36c23c0d998641eff861008f374ee103c25ac73 # v4.4.0
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: "temurin"
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@d156388eb19639ec20ade50009f3d199ce1e2808 # v4
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
 
       - name: Create and Switch to Release Branch
         run: |
@@ -100,27 +102,26 @@ jobs:
           fi
 
       - name: Gradle Release
-        run: ./gradlew release -Pversion=${{ env.VERSION }}
+        run: ./gradlew release --newVersion=${{ env.VERSION }}
 
       - name: Close the Milestone
         if: ${{ steps.version_parser.outputs.prerelease == '' }}
         id: milestone
-        uses: Akkjon/close-milestone@88d3cb00ca452cb8d33f18fc0a1e22a730306b61 # v2.1.0
+        uses: step-security/close-milestone@b097272a7aaa0f5c40dc6bc671d45d35c5e85b51 # v2.2.1
         with:
           milestone_name: ${{ steps.version_parser.outputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Release Notes
-        if: ${{ steps.milestone.outputs.milestone_id != '' }}
-        uses: step-security/release-notes-generator-action@d7cdbb310d4aab8d98f273f4ae20fdd7cb055799 # v3.1.6
-        env:
-          FILENAME: ${{ env.RELEASE_NOTES_FILENAME }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MILESTONE_NUMBER: ${{ steps.milestone.outputs.milestone_id }}
+        if: ${{ steps.version_parser.outputs.prerelease == '' }}
+        uses: steven-sheehy/github-changelog-generator@b4174ba12a75add137b35a1e28907d1ac0511f92
+        with:
+          config-file: .github/release-notes.yml
+          milestone: ${{ steps.version_parser.outputs.release }}
 
       - name: Commit and Tag
-        uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5.0.1
+        uses: step-security/git-auto-commit-action@905c3cd6e9ed2b67b4d46ff401fdb6d745d0ff9d # v7.1.0
         with:
           commit_author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           commit_message: Bump versions for ${{ env.RELEASE_TAG }}
@@ -130,9 +131,9 @@ jobs:
           tagging_message: ${{ env.RELEASE_TAG }}
 
       - name: Create Github Release
-        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # v1.14.0
+        uses: step-security/release-action@03a57407052f15d1537fd5469a6fbbc536aba326 # v1.20.0
         with:
-          bodyFile: ${{ env.RELEASE_NOTES_FILENAME }}.md
+          bodyFile: changelog.md
           commit: ${{ env.RELEASE_BRANCH }}
           draft: ${{ steps.version_parser.outputs.prerelease == '' }}
           name: ${{ env.RELEASE_TAG }}
@@ -143,7 +144,7 @@ jobs:
 
   create_pr:
     name: Create PR
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     needs: release
     if: ${{ needs.release.outputs.create_pr == 'true' }}
     env:
@@ -152,33 +153,35 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
       - name: Checkout Repository
-        uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           ref: main
 
       - name: Import GPG Key
         id: gpg_importer
-        uses: crazy-max/ghaction-import-gpg@01dd5d3ca463c7f10f7f4f7b4f177225ac661ee4 # v6.1.0
+        uses: step-security/ghaction-import-gpg@69c854a83c7f79463f8bdf46772ab09826c560cd # v6.3.1
         with:
           git_commit_gpgsign: true
+          git_committer_email: ${{ vars.GIT_USER_EMAIL }}
+          git_committer_name: ${{ vars.GIT_USER_NAME }}
           git_tag_gpgsign: true
           git_user_signingkey: true
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Install JDK
-        uses: actions/setup-java@b36c23c0d998641eff861008f374ee103c25ac73 # v4.4.0
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
           distribution: "temurin"
           java-version: 21
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@d156388eb19639ec20ade50009f3d199ce1e2808 # v4
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
 
       - name: Reset main to release branch
         run: |
@@ -186,10 +189,10 @@ jobs:
           git reset --hard $RELEASE_BRANCH
 
       - name: Gradle Release for Next Minor Snapshot
-        run: ./gradlew release -Pversion=${{ env.NEXT_VERSION_SNAPSHOT }}
+        run: ./gradlew release --newVersion=${{ env.NEXT_VERSION_SNAPSHOT }}
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
+        uses: peter-evans/create-pull-request@98357b18bf14b5342f975ff684046ec3b2a07725 # v8.0.0
         with:
           author: ${{ steps.gpg_importer.outputs.name }} <${{ steps.gpg_importer.outputs.email }}>
           body: Bump versions for v${{ env.NEXT_VERSION_SNAPSHOT }}

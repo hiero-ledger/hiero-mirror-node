@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -19,7 +21,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-rest
+              value: rest
           equal:
             - namespace
             - pod
@@ -30,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  CONFIG_PATH: "/usr/etc/hedera/"
+  CONFIG_PATH: "/usr/etc/hiero/"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -44,7 +46,45 @@ envFrom: []
 
 fullnameOverride: ""
 
+gateway:
+  gcp:
+    backendPolicy:
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 20
+    enabled: true
+    healthCheckPolicy:
+      config:
+        httpHealthCheck:
+          port: 5551
+          requestPath: "{{ .Values.readinessProbe.httpGet.path }}"
+        type: HTTP
+      healthyThreshold: 1
+  rules:
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-rest.fullname\" $ }}"
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /api/v1
+  target:
+    group: ""
+    kind: Service
+
 global:
+  config: {}
+  env: {}
+  gateway:
+    enabled: false
+    hostnames: []
   image: {}
   middleware: false
   namespaceOverride: ""
@@ -169,7 +209,7 @@ prometheusRules:
     for: 1m
     labels:
       severity: critical
-      application: hedera-mirror-rest
+      application: rest
 
   RestHighCPU:
     annotations:
@@ -180,7 +220,7 @@ prometheusRules:
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-rest
+      application: rest
       area: resource
 
   RestNoPodsReady:
@@ -192,7 +232,7 @@ prometheusRules:
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-rest
+      application: rest
       area: resource
 
   RestNoRequests:
@@ -204,7 +244,7 @@ prometheusRules:
     for: 5m
     labels:
       severity: warning
-      application: hedera-mirror-rest
+      application: rest
 
   RestRequestLatency:
     annotations:
@@ -215,7 +255,7 @@ prometheusRules:
     for: 1m
     labels:
       severity: warning
-      application: hedera-mirror-rest
+      application: rest
 
 readinessProbe:
   httpGet:
@@ -230,7 +270,7 @@ readinessProbe:
 resources:
   limits:
     cpu: 1100m
-    memory: 350Mi
+    memory: 600Mi
   requests:
     cpu: 700m
     memory: 64Mi
@@ -271,7 +311,7 @@ test:
     pullPolicy: IfNotPresent
     pullSecrets: []
     repository: bats/bats
-    tag: 1.11.0
+    tag: 1.11.1
   priorityClassName: ""
 
 tolerations: []
@@ -285,7 +325,7 @@ updateStrategy:
 # Volumes to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
 
 # Volume mounts to add to the container. The key is the volume name and the value is the volume definition. Evaluated as a template.
 volumes:

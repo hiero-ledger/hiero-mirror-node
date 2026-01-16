@@ -1,4 +1,6 @@
-{{- if .Values.alertmanager.inhibitRules.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.alertmanager.inhibitRules.enabled -}}
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:

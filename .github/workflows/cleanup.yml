@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 name: Cleanup
 
 on:
@@ -13,8 +15,9 @@ defaults:
 
 jobs:
   images:
-    runs-on: mirror-node-linux-medium
+    runs-on: hiero-mirror-node-linux-medium
     strategy:
+      fail-fast: false
       matrix:
         module:
           [
@@ -29,19 +32,30 @@ jobs:
             test,
             web3,
           ]
+    permissions:
+      contents: "read"
+      id-token: "write"
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@91182cccc01eb5e619899d80e4e971d6181294a7 # v2.10.1
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
+      # Instead of checking out the code which is completely unnecessary, create the workspace folder,
+      # and .git/info/exclude, required by google-github-auth
+      - name: Create Workspace
+        run: mkdir -p "${{ github.workspace }}/.git/info" && touch "${{ github.workspace }}/.git/info/exclude"
+
       - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@8254fb75a33b976a221574d287e93919e6a36f70 # v2.1.6
+        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
         with:
-          credentials_json: "${{ secrets.GCR_KEY }}"
+          service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
+          workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
 
       - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          cache: true
 
       - name: Configure Docker
         run: gcloud auth configure-docker gcr.io,marketplace.gcr.io

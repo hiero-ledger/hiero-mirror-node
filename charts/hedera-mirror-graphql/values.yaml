@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -19,7 +21,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-graphql
+              value: graphql
           equal:
             - namespace
             - pod
@@ -30,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera/"
+  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hiero/"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -44,7 +46,45 @@ envFrom: []
 
 fullnameOverride: ""
 
+gateway:
+  gcp:
+    backendPolicy:
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 20
+    enabled: true
+    healthCheckPolicy:
+      config:
+        httpHealthCheck:
+          port: 8083
+          requestPath: "{{ .Values.readinessProbe.httpGet.path }}"
+        type: HTTP
+      healthyThreshold: 1
+  rules:
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-graphql.fullname\" $ }}"
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /graphql/alpha
+  target:
+    group: ""
+    kind: Service
+
 global:
+  config: {}
+  env: {}
+  gateway:
+    enabled: false
+    hostnames: []
   image: {}
   middleware: false
   namespaceOverride: ""
@@ -132,10 +172,10 @@ prometheusRules:
       description: "{{ $value | humanizePercentage }} graphql request error rate for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror GraphQL request error rate exceeds 5%"
     enabled: true
-    expr: sum(rate(graphql_request_seconds_count{application="hedera-mirror-graphql", status="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) > 0.05
+    expr: sum(rate(graphql_request_seconds_count{application="graphql", status="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 0.05
     for: 2m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: critical
 
   GraphQLDataFetcherErrors:
@@ -143,10 +183,10 @@ prometheusRules:
       description: "High data fetcher error rate of {{ $value | humanizePercentage }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror GraphQL data fetcher high error rate exceeds 5%"
     enabled: true
-    expr: sum(rate(graphql_datafetcher_seconds_count{application="hedera-mirror-graphql", outcome="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_datafetcher_seconds_count{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) > .05
+    expr: sum(rate(graphql_datafetcher_seconds_count{application="graphql", outcome="ERROR"}[5m])) by (namespace, pod) / sum(rate(graphql_datafetcher_seconds_count{application="graphql"}[5m])) by (namespace, pod) > .05
     for: 1m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: critical
 
   GraphQLHighCPU:
@@ -154,10 +194,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror GraphQL API CPU usage exceeds 80%"
     enabled: true
-    expr: sum(process_cpu_usage{application="hedera-mirror-graphql"}) by (namespace, pod) / sum(system_cpu_count{application="hedera-mirror-graphql"}) by (namespace, pod) > 0.8
+    expr: sum(process_cpu_usage{application="graphql"}) by (namespace, pod) / sum(system_cpu_count{application="graphql"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       area: resource
       severity: critical
 
@@ -166,10 +206,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} is using {{ $value | humanizePercentage }} of available database connections"
       summary: "Mirror GraphQL API database connection utilization exceeds 75%"
     enabled: true
-    expr: sum(hikaricp_connections_active{application="hedera-mirror-graphql"}) by (namespace, pod) / sum(hikaricp_connections_max{application="hedera-mirror-graphql"}) by (namespace, pod) > 0.75
+    expr: sum(hikaricp_connections_active{application="graphql"}) by (namespace, pod) / sum(hikaricp_connections_max{application="graphql"}) by (namespace, pod) > 0.75
     for: 5m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       area: resource
       severity: critical
 
@@ -178,10 +218,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror GraphQL API file descriptor usage exceeds 80%"
     enabled: true
-    expr: sum(process_files_open_files{application="hedera-mirror-graphql"}) by (namespace, pod) / sum(process_files_max_files{application="hedera-mirror-graphql"}) by (namespace, pod) > 0.8
+    expr: sum(process_files_open_files{application="graphql"}) by (namespace, pod) / sum(process_files_max_files{application="graphql"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       area: resource
       severity: critical
 
@@ -190,10 +230,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror GraphQL API memory usage exceeds 80%"
     enabled: true
-    expr: sum(jvm_memory_used_bytes{application="hedera-mirror-graphql"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="hedera-mirror-graphql"}) by (namespace, pod) > 0.8
+    expr: sum(jvm_memory_used_bytes{application="graphql"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="graphql"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       area: resource
       severity: critical
 
@@ -202,10 +242,10 @@ prometheusRules:
       description: "Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
       summary: "High rate of log errors"
     enabled: true
-    expr: sum(increase(logback_events_total{application="hedera-mirror-graphql", level="error"}[1m])) by (namespace, pod) >= 2
+    expr: sum(increase(logback_events_total{application="graphql", level="error"}[1m])) by (namespace, pod) >= 2
     for: 3m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: critical
 
   GraphQLNoPodsReady:
@@ -216,7 +256,7 @@ prometheusRules:
     expr: sum(kube_pod_status_ready{pod=~".*-graphql-.*",condition="true"}) by (namespace) < 1
     for: 2m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       area: resource
       severity: critical
 
@@ -225,10 +265,10 @@ prometheusRules:
       description: "GraphQL API has not seen any requests to {{ $labels.namespace }} for 5m"
       summary: "No GraphQL API requests seen for awhile"
     enabled: true
-    expr: sum(rate(http_server_requests_seconds_count{application="hedera-mirror-graphql"}[3m])) by (namespace) <= 0
+    expr: sum(rate(http_server_requests_seconds_count{application="graphql"}[3m])) by (namespace) <= 0
     for: 5m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: warning
 
   GraphQLQueryLatency:
@@ -236,10 +276,10 @@ prometheusRules:
       description: "High average database query latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror GraphQL API query latency exceeds 1s"
     enabled: true
-    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) > 1
+    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="graphql"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 1
     for: 1m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: warning
 
   GraphQLRequestLatency:
@@ -247,14 +287,11 @@ prometheusRules:
       description: "High average request latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror GraphQL API request latency exceeds 2s"
     enabled: true
-    expr: sum(rate(graphql_request_seconds_sum{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="hedera-mirror-graphql"}[5m])) by (namespace, pod) > 2
+    expr: sum(rate(graphql_request_seconds_sum{application="graphql"}[5m])) by (namespace, pod) / sum(rate(graphql_request_seconds_count{application="graphql"}[5m])) by (namespace, pod) > 2
     for: 1m
     labels:
-      application: hedera-mirror-graphql
+      application: graphql
       severity: warning
-
-rbac:
-  enabled: true
 
 readinessProbe:
   httpGet:
@@ -323,7 +360,9 @@ updateStrategy:
 # Volumes to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
+  temp:
+    mountPath: /tmp
 
 # Volume mounts to add to the container. The key is the volume name and the value is the volume definition. Evaluated as a template.
 volumes:
@@ -331,3 +370,7 @@ volumes:
     secret:
       defaultMode: 420
       secretName: '{{ include "hedera-mirror-graphql.fullname" . }}'
+  temp:
+    emptyDir:
+      medium: Memory
+      sizeLimit: 500Mi

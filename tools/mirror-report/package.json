@@ -1,0 +1,49 @@
+{
+  "author": "Mirror Node Team",
+  "bin": {
+    "mirror": "index.js"
+  },
+  "bugs": {
+    "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
+  },
+  "dependencies": {
+    "commander": "14.0.2",
+    "json-bigint": "1.0.0"
+  },
+  "description": "Generates a report showing an account's hbar transfers",
+  "devDependencies": {
+    "@fetch-mock/jest": "0.2.20",
+    "jest": "30.2.0"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
+  "jest": {
+    "transform": {}
+  },
+  "keywords": [
+    "hedera",
+    "hiero",
+    "mirror",
+    "report",
+    "csv"
+  ],
+  "license": "Apache-2.0",
+  "main": "index.js",
+  "name": "@hiero-ledger/mirror-report",
+  "overrides": {
+    "glob": "13.0.0",
+    "js-yaml": "3.14.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hiero-ledger/hiero-mirror-node.git"
+  },
+  "scripts": {
+    "start": "node ./index.js",
+    "test": "node --experimental-specifier-resolution=node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "type": "module",
+  "version": "0.1.6"
+}

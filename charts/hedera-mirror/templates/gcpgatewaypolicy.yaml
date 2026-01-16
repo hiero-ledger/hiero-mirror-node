@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.global.gateway.enabled (not (empty .Values.global.gateway.gcpGatewayPolicy)) -}}
+apiVersion: networking.gke.io/v1
+kind: GCPGatewayPolicy
+metadata:
+  labels: {{ include "hedera-mirror.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror.fullname" . }}
+  namespace: {{ include "hedera-mirror.namespace" . }}
+spec:
+  default: {{ tpl (toYaml .Values.global.gateway.gcpGatewayPolicy) $ | nindent 4 }}
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: {{ include "hedera-mirror.fullname" . }}
+{{- end }}

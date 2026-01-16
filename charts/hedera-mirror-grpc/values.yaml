@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -19,7 +21,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-grpc
+              value: grpc
           equal:
             - namespace
             - pod
@@ -43,7 +45,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera/"
+  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hiero/"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -57,7 +59,48 @@ envFrom: []
 
 fullnameOverride: ""
 
+gateway:
+  gcp:
+    backendPolicy:
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 20
+    enabled: true
+    healthCheckPolicy:
+      config:
+        httpHealthCheck:
+          port: 8081
+          requestPath: "{{ .Values.readinessProbe.httpGet.path }}"
+        type: HTTP
+      healthyThreshold: 1
+  rules:
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-grpc.fullname\" $ }}"
+          port: 5600
+      matches:
+        - method:
+            service: com.hedera.mirror.api.proto.ConsensusService
+        - method:
+            service: com.hedera.mirror.api.proto.NetworkService
+        - method:
+            service: grpc.reflection.v1alpha.ServerReflection
+  target:
+    group: ""
+    kind: Service
+
 global:
+  config: {}
+  env: {}
+  gateway:
+    enabled: false
+    hostnames: []
   image: {}
   middleware: false
   namespaceOverride: ""
@@ -142,22 +185,22 @@ prometheusRules:
       description: '{{ $value | humanizePercentage }} gRPC {{ $labels.statusCode }} error rate for {{ $labels.namespace }}/{{ $labels.pod }}'
       summary: "Mirror gRPC API error rate exceeds 5%"
     enabled: true
-    expr: sum(rate(grpc_server_processing_duration_seconds_count{application="hedera-mirror-grpc", statusCode!~"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK"}[5m])) by (namespace, pod, statusCode) / sum(rate(grpc_server_processing_duration_seconds_count{application="hedera-mirror-grpc"}[5m])) by (namespace, pod, statusCode) > 0.05
+    expr: sum(rate(grpc_server_processing_duration_seconds_count{application="grpc", statusCode!~"CANCELLED|DEADLINE_EXCEEDED|INVALID_ARGUMENT|NOT_FOUND|OK"}[5m])) by (namespace, pod, statusCode) / sum(rate(grpc_server_processing_duration_seconds_count{application="grpc"}[5m])) by (namespace, pod, statusCode) > 0.05
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
 
   GrpcHighCPU:
     annotations:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror gRPC API CPU usage exceeds 80%"
     enabled: true
-    expr: sum(process_cpu_usage{application="hedera-mirror-grpc"}) by (namespace, pod) / sum(system_cpu_count{application="hedera-mirror-grpc"}) by (namespace, pod) > 0.8
+    expr: sum(process_cpu_usage{application="grpc"}) by (namespace, pod) / sum(system_cpu_count{application="grpc"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
       area: resource
 
   GrpcHighDBConnections:
@@ -165,11 +208,11 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} is using {{ $value | humanizePercentage }} of available database connections"
       summary: "Mirror gRPC API database connection utilization exceeds 75%"
     enabled: true
-    expr: sum(hikaricp_connections_active{application="hedera-mirror-grpc"}) by (namespace, pod) / sum(hikaricp_connections_max{application="hedera-mirror-grpc"}) by (namespace, pod) > 0.75
+    expr: sum(hikaricp_connections_active{application="grpc"}) by (namespace, pod) / sum(hikaricp_connections_max{application="grpc"}) by (namespace, pod) > 0.75
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
       area: resource
 
   GrpcHighFileDescriptors:
@@ -177,11 +220,11 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} file descriptor usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror gRPC API file descriptor usage exceeds 80%"
     enabled: true
-    expr: sum(process_files_open_files{application="hedera-mirror-grpc"}) by (namespace, pod) / sum(process_files_max_files{application="hedera-mirror-grpc"}) by (namespace, pod) > 0.8
+    expr: sum(process_files_open_files{application="grpc"}) by (namespace, pod) / sum(process_files_max_files{application="grpc"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
       area: resource
 
   GrpcHighLatency:
@@ -189,22 +232,22 @@ prometheusRules:
       description: 'High latency of {{ $value | humanizeDuration }} between the main nodes and {{ $labels.namespace }}/{{ $labels.pod }}'
       summary: "Mirror gRPC API consensus to delivery (C2MD) latency exceeds 15s"
     enabled: true
-    expr: sum(rate(hedera_mirror_grpc_consensus_latency_seconds_sum{application="hedera-mirror-grpc"}[5m])) by (namespace, pod) / sum(rate(hedera_mirror_grpc_consensus_latency_seconds_count{application="hedera-mirror-grpc"}[5m])) by (namespace, pod) > 15
+    expr: sum(rate(hiero_mirror_grpc_consensus_latency_seconds_sum{application="grpc"}[5m])) by (namespace, pod) / sum(rate(hiero_mirror_grpc_consensus_latency_seconds_count{application="grpc"}[5m])) by (namespace, pod) > 15
     for: 1m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
 
   GrpcHighMemory:
     annotations:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror gRPC API memory usage exceeds 80%"
     enabled: true
-    expr: sum(jvm_memory_used_bytes{application="hedera-mirror-grpc"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="hedera-mirror-grpc"}) by (namespace, pod) > 0.8
+    expr: sum(jvm_memory_used_bytes{application="grpc"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="grpc"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
       area: resource
 
   GrpcLogErrors:
@@ -212,11 +255,11 @@ prometheusRules:
       description: "Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
       summary: "High rate of log errors"
     enabled: true
-    expr: sum(increase(logback_events_total{application="hedera-mirror-grpc", level="error"}[1m])) by (namespace, pod) >= 2
+    expr: sum(increase(logback_events_total{application="grpc", level="error"}[1m])) by (namespace, pod) >= 2
     for: 3m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
 
   GrpcNoPodsReady:
     annotations:
@@ -227,7 +270,7 @@ prometheusRules:
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
       area: resource
 
   GrpcNoSubscribers:
@@ -235,25 +278,22 @@ prometheusRules:
       description: "{{ $labels.namespace }} has {{ $value }} subscribers for {{ $labels.type }}"
       summary: "Mirror gRPC API has no subscribers"
     enabled: true
-    expr: sum(hedera_mirror_grpc_subscribers{application="hedera-mirror-grpc"}) by (namespace, type) <= 0
+    expr: sum(hiero_mirror_grpc_subscribers{application="grpc"}) by (namespace, type) <= 0
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-grpc
+      application: grpc
 
   GrpcQueryLatency:
     annotations:
       description: "High average database query latency of {{ $value | humanizeDuration }} for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Mirror gRPC API query latency exceeds 1s"
     enabled: true
-    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="hedera-mirror-grpc"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="hedera-mirror-grpc"}[5m])) by (namespace, pod) > 1
+    expr: sum(rate(spring_data_repository_invocations_seconds_sum{application="grpc"}[5m])) by (namespace, pod) / sum(rate(spring_data_repository_invocations_seconds_count{application="grpc"}[5m])) by (namespace, pod) > 1
     for: 1m
     labels:
       severity: warning
-      application: hedera-mirror-grpc
-
-rbac:
-  enabled: true
+      application: grpc
 
 readinessProbe:
   httpGet:
@@ -309,7 +349,7 @@ updateStrategy:
 # Volumes to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
 
 # Volume mounts to add to the container. The key is the volume name and the value is the volume definition. Evaluated as a template.
 volumes:

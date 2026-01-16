@@ -1,0 +1,265 @@
+{
+  "description": "Token api call for all tokens utilizing all available query params",
+  "setup": {
+    "accounts": [
+      {
+        "num": 2
+      }
+    ],
+    "entities": [
+      {
+        "num": 1,
+        "type": "TOKEN",
+        "public_key": "7a3c7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc",
+        "key": [1, 1, 1]
+      },
+      {
+        "num": 1135,
+        "type": "TOKEN",
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [2, 2, 2]
+      },
+      {
+        "num": 25301,
+        "type": "TOKEN",
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [3, 3, 3]
+      },
+      {
+        "num": 25302,
+        "type": "TOKEN",
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61863",
+        "key": [3, 3, 3]
+      },
+      {
+        "num": 45678,
+        "type": "TOKEN",
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [4, 4, 4]
+      }
+    ],
+    "tokens": [
+      {
+        "created_timestamp": "1234567890000000001",
+        "name": "nUmqBeR1",
+        "token_id": "0.0.1",
+        "type": "FUNGIBLE_COMMON",
+        "symbol": "FIRSTMOVERLPDJH"
+      },
+      {
+        "created_timestamp": "1234567890000000002",
+        "name": "nUmℏqBER1135",
+        "token_id": "0.0.1135",
+        "type": "FUNGIBLE_COMMON",
+        "symbol": "ORIGINALRDKSE"
+      },
+      {
+        "created_timestamp": "1234567890000000003",
+        "decimals": 3,
+        "metadata": null,
+        "name": "qber17v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pX",
+        "symbol": "MIRRORTOKEN",
+        "token_id": "0.0.25301",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "created_timestamp": "1234567890000000003",
+        "decimals": 3,
+        "metadata": null,
+        "name": "7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1",
+        "symbol": "MIRRORTOKEN2",
+        "token_id": "0.0.25302",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "created_timestamp": "1234567890000000004",
+        "decimals": 4,
+        "metadata": [1, 1],
+        "name": "nUmqBER45678",
+        "symbol": "HEDERACOIN",
+        "token_id": "0.0.45678",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/tokens?name=ER1&order=desc",
+        "/api/v1/tokens?name=eq:ER1&order=desc",
+        "/api/v1/tokens?name=er1&order=desc",
+        "/api/v1/tokens?name=Er1&order=desc"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1",
+            "symbol": "MIRRORTOKEN2",
+            "token_id": "0.0.25302",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "qber17v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pX",
+            "symbol": "MIRRORTOKEN",
+            "token_id": "0.0.25301",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "020202"
+            },
+            "decimals": 1000,
+            "metadata": "",
+            "name": "nUmℏqBER1135",
+            "symbol": "ORIGINALRDKSE",
+            "token_id": "0.0.1135",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "010101"
+            },
+            "decimals": 1000,
+            "metadata": "",
+            "name": "nUmqBeR1",
+            "symbol": "FIRSTMOVERLPDJH",
+            "token_id": "0.0.1",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?name=%E2%84%8F&order=desc",
+        "/api/v1/tokens?name=eq:%E2%84%8F&order=desc",
+        "/api/v1/tokens?name=ber&name=%E2%84%8F&order=desc"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "020202"
+            },
+            "decimals": 1000,
+            "metadata": "",
+            "name": "nUmℏqBER1135",
+            "symbol": "ORIGINALRDKSE",
+            "token_id": "0.0.1135",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": ["/api/v1/tokens?name=qber1&limit=1&order=desc"],
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1",
+            "symbol": "MIRRORTOKEN2",
+            "token_id": "0.0.25302",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?name=qber1&name=7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pX&order=desc",
+        "/api/v1/tokens?name=qber1&name=7v6xd8tj4rh1uqtwqbthpyfuc0q6h6wadzhrdcyrhbpf3hkxry54fnfehk342uaxkkjh0tmnzzm9xvjvqc34p38wh4w99px&order=desc"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1",
+            "symbol": "MIRRORTOKEN2",
+            "token_id": "0.0.25302",
+            "type": "FUNGIBLE_COMMON"
+          },
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "qber17v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pX",
+            "symbol": "MIRRORTOKEN",
+            "token_id": "0.0.25301",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?name=qber1&name=7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1&order=desc",
+        "/api/v1/tokens?name=qber1&name=7v6xd8tj4rh1uqtwqbthpyfuc0q6h6wadzhrdcyrhbpf3hkxry54fnfehk342uaxkkjh0tmnzzm9xvjvqc34p38wh4w99pxqber1&order=desc"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "tokens": [
+          {
+            "admin_key": {
+              "_type": "ProtobufEncoded",
+              "key": "030303"
+            },
+            "decimals": 3,
+            "metadata": "",
+            "name": "7v6Xd8tJ4rH1uqtWQbThpYFuC0q6h6WAdZhrDCYRhBPF3hkxrY54FNfEHK342uAxKKJh0TmNZzM9XVjVqc34p38wH4W99pXQber1",
+            "symbol": "MIRRORTOKEN2",
+            "token_id": "0.0.25302",
+            "type": "FUNGIBLE_COMMON"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}

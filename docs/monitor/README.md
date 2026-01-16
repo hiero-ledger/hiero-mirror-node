@@ -1,6 +1,6 @@
 # Monitor
 
-The monitor verifies end-to-end functionality of the Hedera network and generates metrics from the results. It supports
+The monitor verifies end-to-end functionality of the network and generates metrics from the results. It supports
 both publishing transactions to HAPI and subscribing to the mirror node API. Configuration is flexible and declarative,
 allowing one to express a mixture of transactions and their expected publish rates, and the tool will do its best to
 make it so. By default, the monitor is already set up with a basic scenario that creates a topic, submits a message
@@ -13,17 +13,16 @@ properties in the next sections. For a full list of configuration options see
 the [config](/docs/configuration.md#monitor)
 documentation.
 
-First, make sure the monitor is configured to talk to the correct Hedera network by
-setting `hedera.mirror.monitor.network` to
+First, make sure the monitor is configured to talk to the correct network by setting `hiero.mirror.monitor.network` to
 `MAINNET`, `PREVIEWNET` or `TESTNET`. If you are not using one of these public environments, the network can be set
-to `OTHER`, and `hedera.mirror.monitor.nodes` and `hedera.mirror.monitor.mirrorNode` properties should be filled in.
+to `OTHER`, and `hiero.mirror.monitor.nodes` and `hiero.mirror.monitor.mirrorNode` properties should be filled in.
 
-Additionally, the operator information in `hedera.mirror.monitor.operator` is required and needs to be populated with a
+Additionally, the operator information in `hiero.mirror.monitor.operator` is required and needs to be populated with a
 valid payer account ID and its private key. Ensure this account has the necessary funds to publish transactions at the
 rate you desire. The following is an example with a custom network configured:
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       mirrorNode:
@@ -56,30 +55,29 @@ API so that each scenario can be monitored separately. Each scenario has a targe
 a client-side rate limiter to achieve the desired rate. Additionally, a percentage of receipts or records can be
 requested for each transaction to verify transactions are reaching consensus.
 
-The monitor can be used to publish at a very high TPS, with a single monitor able to achieve 10K TPS on the Hedera
-network. To publish at higher rates, the `hedera.mirror.monitor.publish.clients` and
-`hedera.mirror.monitor.publish.responseThreads` properties can be adjusted. With the default values of four clients and
+The monitor can be used to publish at a very high TPS, with a single monitor able to achieve 10K TPS on the
+network. To publish at higher rates, the `hiero.mirror.monitor.publish.clients` and
+`hiero.mirror.monitor.publish.responseThreads` properties can be adjusted. With the default values of four clients and
 40 response threads, the monitor can already achieve 10K TPS out of the box. The transaction publisher will round-robin
-the list of clients to send transactions to the Hedera Network, and every transaction is sent to a randomly chosen node,
+the list of clients to send transactions to the network, and every transaction is sent to a randomly chosen node,
 ensuring the load is distributed evenly across all nodes.
 
 The `type` property specifies which transaction type to publish. It also affects which `properties` need to be
 specified, with different transaction types requiring different properties to be set. See the
-[TransactionType](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/TransactionType.java)
+[TransactionType](/monitor/src/main/java/org/hiero/mirror/monitor/publish/transaction/TransactionType.java)
 enum for a list of possible values for `type`. The properties can be seen as fields on the various
-[TransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction) classes that
+[TransactionSupplier](/monitor/src/main/java/org/hiero/mirror/monitor/publish/transaction) classes that
 the `TransactionType` enum references. Most of these properties have a default and don't need to be explicitly
 specified, but some are empty and may need to be populated.
 
 For example, if you want to publish a topic message, you would open the `TransactionType` class,
-find `CONSENSUS_SUBMIT_MESSAGE`, then open the
-[ConsensusSubmitMessageTransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/consensus/ConsensusSubmitMessageTransactionSupplier.java)
+find `CONSENSUS_SUBMIT_MESSAGE`, then open the ConsensusSubmitMessageTransactionSupplier
 class that it references. From there, you can see that fields `maxTransactionFee`, `message`, `retry`, and `topicId` are
 available as properties. Only `topicId` doesn't have a default and will be required. Here's a YAML excerpt that
 specifies some of those properties:
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       publish:
@@ -95,9 +93,8 @@ hedera:
             type: CONSENSUS_SUBMIT_MESSAGE
 ```
 
-Some properties, such as `transferTypes` in
-the [CryptoTransferTransactionSupplier](/hedera-mirror-monitor/src/main/java/com/hedera/mirror/monitor/publish/transaction/account/CryptoTransferTransactionSupplier.java)
-, are Collections, which requires the YAML list syntax.
+Some properties, such as `transferTypes` in the CryptoTransferTransactionSupplier, are Collections, which requires the
+YAML list syntax.
 
 #### Scheduled Transactions
 
@@ -108,13 +105,13 @@ transactions. Due to this the monitor by default will initially support only `Sc
 inner transaction is a `CryptoCreate` with `receiverSignatureRequired` set to true.
 
 By default, all required signatures will be provided. However, this can be modified by
-setting `hedera.mirror.monitor.publish.scenarios.properties.signatoryCount` to be a number greater than 0 but smaller
-than `hedera.mirror.monitor.publish.scenarios.properties.totalSignatoryCount`
-To execute a scheduled scenario set the `hedera.mirror.monitor.publish.scenarios` properties similar to the following
+setting `hiero.mirror.monitor.publish.scenarios.properties.signatoryCount` to be a number greater than 0 but smaller
+than `hiero.mirror.monitor.publish.scenarios.properties.totalSignatoryCount`
+To execute a scheduled scenario set the `hiero.mirror.monitor.publish.scenarios` properties similar to the following
 example.
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       publish:
@@ -141,7 +138,7 @@ you are reusing an existing NFT, be sure to set the `serialNumber` property wher
 the `TransactionSupplier` will start with serial number 1, which may have already been deleted or transferred elsewhere.
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       publish:
@@ -169,8 +166,8 @@ hedera:
 
 The monitor can automatically create account, token, and topic entities on application startup using a special
 expression syntax. This is useful to avoid boilerplate configuration and manual entity creation steps that vary per
-environment. The syntax can currently only be used in `hedera.mirror.monitor.publish.scenarios.properties`
-and `hedera.mirror.monitor.subscribe.grpc.topicId`.
+environment. The syntax can currently only be used in `hiero.mirror.monitor.publish.scenarios.properties`
+and `hiero.mirror.monitor.subscribe.grpc.topicId`.
 
 The syntax takes the form of `${type.name}` where `type` is one of `account`, `schedule`, `token`, or `topic`,
 and `name` is a descriptive label. Based upon the entity type, it will create the appropriate entity on the network with
@@ -180,7 +177,7 @@ The following example uses the expression syntax to create the sender and recipi
 same entities are created once and reused in both the token associate and the token transfer transaction.
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       publish:
@@ -213,7 +210,7 @@ For gRPC, `topicId` is required and controls which topic should be registered fo
 messages. Below is an example of both types:
 
 ```yaml
-hedera:
+hiero:
   mirror:
     monitor:
       subscribe:
@@ -229,16 +226,16 @@ hedera:
             samplePercent: 1.0
 ```
 
-For performance testing subscribers, the `hedera.mirror.monitor.subscribe.clients` property should be adjusted higher to
+For performance testing subscribers, the `hiero.mirror.monitor.subscribe.clients` property should be adjusted higher to
 control the pool of client connections to the server. Since the communication is asynchronous, a number between 1-10
 should suffice. Additionally, the
-`hedera.mirror.monitor.subscribe.grpc.subscribers` property can be adjusted to increase the number of concurrent
+`hiero.mirror.monitor.subscribe.grpc.subscribers` property can be adjusted to increase the number of concurrent
 subscribers for that scenario.
 
 ## REST API
 
 The monitor REST API provides a way to query the status of the scenarios currently publishing and subscribing to various
-Hedera APIs. The monitor [OpenAPI](https://www.openapis.org) specification is available at `/api/v1/docs/openapi`
+Hiero APIs. The monitor [OpenAPI](https://www.openapis.org) specification is available at `/api/v1/docs/openapi`
 and `/api/v1/docs/openapi.yaml`. The [Swagger UI](https://swagger.io/tools/swagger-ui) is also available
 at `/api/v1/docs`. This UI provides a form of documentation, and an interactive way to explore the monitor's REST API.
 

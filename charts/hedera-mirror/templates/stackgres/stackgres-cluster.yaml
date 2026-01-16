@@ -1,4 +1,6 @@
-{{- if .Values.stackgres.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.stackgres.enabled -}}
 apiVersion: stackgres.io/v1alpha1
 kind: SGShardedCluster
 metadata:
@@ -6,16 +8,20 @@ metadata:
   name: {{ include "hedera-mirror.stackgres" . }}
   namespace: {{ include "hedera-mirror.namespace" . }}
 spec:
-  {{- if .Values.stackgres.backup.enabled }}
   configurations:
+    {{- if .Values.stackgres.backup.enabled }}
     backups:
     {{- range $backupConfig := .Values.stackgres.backup.instances }}
     - sgObjectStorage: {{ include "hedera-mirror.stackgres" $ }}-object-storage
-      {{$backupConfig | toYaml | nindent 6}}
+      {{ $backupConfig | toYaml | nindent 6 }}
     {{- end }}
-  {{- end }}
+    {{- end }}
+    observability:
+      disableMetrics: {{ not .Values.stackgres.observability.enableMetricsExporter }}
+      prometheusAutobind: {{ .Values.stackgres.observability.enableMetricsExporter }}
   coordinator:
     configurations:
+      patroni: {{ toYaml .Values.stackgres.coordinator.configurations.patroni | nindent 8 }}
       sgPoolingConfig: {{ include "hedera-mirror.stackgres" . }}-coordinator
       sgPostgresConfig: {{ include "hedera-mirror.stackgres" . }}-coordinator
     instances: {{ .Values.stackgres.coordinator.instances }}
@@ -23,7 +29,7 @@ spec:
       scripts:
         - sgScript: {{ include "hedera-mirror.stackgres" . }}-coordinator
     pods:
-      disableMetricsExporter: {{ not .Values.stackgres.coordinator.enableMetricsExporter }}
+      disableEnvoy: {{ not .Values.stackgres.coordinator.enableEnvoy }}
       disablePostgresUtil: {{ not .Values.stackgres.coordinator.enablePostgresUtil }}
       persistentVolume: {{ .Values.stackgres.coordinator.persistentVolume | toYaml | nindent 8 }}
       resources:
@@ -49,14 +55,16 @@ spec:
   postgres:
     extensions: {{ .Values.stackgres.extensions | toYaml | nindent 6 }}
     ssl:
-      enabled: false  # Disable SSL to work around https://github.com/hashgraph/hedera-mirror-node/issues/9143
+      enabled: false  # Disable SSL to work around issue 9143
     version: {{ .Values.stackgres.postgresVersion | quote }}
-  prometheusAutobind: {{ or .Values.stackgres.coordinator.enableMetricsExporter .Values.stackgres.worker.enableMetricsExporter }}
   replication:
-    mode: {{ .Values.stackgres.coordinator.replication.mode }}
+    initialization:
+      mode: {{ .Values.stackgres.replication.initialization.mode }}
+    mode: {{ .Values.stackgres.replication.mode }}
   shards:
     clusters: {{ .Values.stackgres.worker.instances }}
     configurations:
+      patroni: {{ toYaml .Values.stackgres.worker.configurations.patroni | nindent 8 }}
       sgPoolingConfig: {{ include "hedera-mirror.stackgres" . }}-worker
       sgPostgresConfig: {{ include "hedera-mirror.stackgres" . }}-worker
     instancesPerCluster: {{ .Values.stackgres.worker.replicasPerInstance }}
@@ -65,7 +73,7 @@ spec:
         - sgScript: {{ include "hedera-mirror.stackgres" . }}-worker
     overrides: {{ .Values.stackgres.worker.overrides | toYaml | nindent 6 }}
     pods:
-      disableMetricsExporter: {{ not .Values.stackgres.worker.enableMetricsExporter }}
+      disableEnvoy: {{ not .Values.stackgres.worker.enableEnvoy }}
       disablePostgresUtil: {{ not .Values.stackgres.worker.enablePostgresUtil }}
       persistentVolume: {{ .Values.stackgres.worker.persistentVolume | toYaml | nindent 8 }}
       resources:

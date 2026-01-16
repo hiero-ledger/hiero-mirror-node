@@ -1,0 +1,161 @@
+{
+  "description": "Transaction api calls for a specific transaction with assessed custom fees and effective payer info",
+  "setup": {
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": [
+      {
+        "consensus_timestamp": "1565779555711927001",
+        "payerAccountId": "0.0.300",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "token_transfer_list": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.300",
+            "amount": -1200,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.200",
+            "amount": 200,
+            "is_approval": false
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.400",
+            "amount": 1000
+          }
+        ]
+      }
+    ],
+    "assessedcustomfees": [
+      {
+        "amount": "9",
+        "collector_account_id": "0.0.8901",
+        "consensus_timestamp": "1565779555711000001",
+        "effective_payer_account_ids": ["0.0.4000"]
+      },
+      {
+        "amount": "11",
+        "collector_account_id": "0.0.8901",
+        "consensus_timestamp": "1565779555711927001",
+        "effective_payer_account_ids": ["0.0.5000", "0.0.5001"]
+      },
+      {
+        "amount": "13",
+        "collector_account_id": "0.0.8902",
+        "consensus_timestamp": "1565779555711927001",
+        "effective_payer_account_ids": ["0.0.5002", "0.0.5003"],
+        "token_id": "0.0.10015"
+      },
+      {
+        "amount": "17",
+        "collector_account_id": "0.0.8903",
+        "consensus_timestamp": "1565779555711927001",
+        "effective_payer_account_ids": ["0.0.5005", "0.0.5006"],
+        "token_id": "0.0.90000"
+      }
+    ]
+  },
+  "url": "/api/v1/transactions/0.0.300-1565779555-711927000",
+  "responseStatus": 200,
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1565779555.711927001",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.300-1565779555-711927000",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1565779555.711927000",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.300",
+            "amount": -3,
+            "is_approval": false
+          }
+        ],
+        "token_transfers": [
+          {
+            "account": "0.0.200",
+            "amount": 200,
+            "token_id": "0.0.90000",
+            "is_approval": false
+          },
+          {
+            "account": "0.0.300",
+            "amount": -1200,
+            "token_id": "0.0.90000",
+            "is_approval": true
+          },
+          {
+            "account": "0.0.400",
+            "amount": 1000,
+            "token_id": "0.0.90000",
+            "is_approval": false
+          }
+        ],
+        "assessed_custom_fees": [
+          {
+            "amount": 11,
+            "collector_account_id": "0.0.8901",
+            "effective_payer_account_ids": ["0.0.5000", "0.0.5001"],
+            "token_id": null
+          },
+          {
+            "amount": 13,
+            "collector_account_id": "0.0.8902",
+            "effective_payer_account_ids": ["0.0.5002", "0.0.5003"],
+            "token_id": "0.0.10015"
+          },
+          {
+            "amount": 17,
+            "collector_account_id": "0.0.8903",
+            "effective_payer_account_ids": ["0.0.5005", "0.0.5006"],
+            "token_id": "0.0.90000"
+          }
+        ]
+      }
+    ]
+  }
+}

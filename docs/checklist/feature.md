@@ -19,11 +19,10 @@ aims to document the required changes associated with any new feature.
 ## Importer
 
 - [ ] V1 migration
-- [ ] `V2.0.0__create_tables.sql`
-- [ ] `V2.0.1__distribution.sql`
-- [ ] `V2.0.3__index_init.sql`
+- [ ] V2 migration
 - [ ] Repository
   - [ ] `RetentionRepository` if insert-only
+- [ ] `BlockItemTransformer`
 - [ ] `EntityListener`
 - [ ] `CompositeEntityListener`
 - [ ] `SqlEntityListener`
@@ -32,8 +31,6 @@ aims to document the required changes associated with any new feature.
 - [ ] Tests for each of the above
 - [ ] `RecordItemBuilder`
 - [ ] `EntityRecordItemListener*Test`
-- [ ] `PubSubMessageTest` updated for `TransactionRecord` changes
-- [ ] `pubsub-messages.txt`
 
 ## Monitor
 
@@ -81,13 +78,7 @@ Acceptance and performance tests should be updated whenever there's an API chang
 
 - [ ] [Configuration Properties](/docs/configuration.md)
 - [ ] [Database Indexes Table](/docs/database/README.md#indexes)
+- [ ] [ERD SQL](/docs/database/erd.sql)
+- [ ] [Regenerate](/docs/database/README.md#entity-relationship-diagram-erd) the [ERD diagram](/docs/database/erd.drawio)
 - [ ] [HAPI Compatibility Matrix](/docs/importer/README.md#hapi-compatibility)
 - [ ] [REST Database Table](/docs/rest/README.md#database)
-
-## ETL
-
-The separate [hedera-etl](https://github.com/blockchain-etl/hedera-etl) project should have its BigQuery schema
-definition updated whenever there's a HAPI change.
-
-- [ ] `transaction-types.csv` updated
-- [ ] `transactions-schema.json` updated

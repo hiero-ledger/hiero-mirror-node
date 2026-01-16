@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`extractStakingRewardsQuery throw timestamp ne 1`] = `"Not equals (ne) operator is not supported for timestamp"`;
+
+exports[`extractTokenMultiUnionQuery throw no token.id 1`] = `"serialnumber without a token.id parameter filter"`;
+
+exports[`extractTokenMultiUnionQuery throw serial number multiple equal 1`] = `"Only one equal (eq) operator is allowed for serialnumber"`;
+
+exports[`extractTokenMultiUnionQuery throw serial number multiple lower bounds 1`] = `"Only one gt/gte operator is allowed for serialnumber"`;
+
+exports[`extractTokenMultiUnionQuery throw serial number multiple upper bounds 1`] = `"Only one lt/lte operator is allowed for serialnumber"`;
+
+exports[`extractTokenMultiUnionQuery throw serial number ne 1`] = `"Not equal (ne) operator is not supported for serialnumber"`;
+
+exports[`extractTokenMultiUnionQuery throw serial number range and equal 1`] = `"Can't support both range and equal for serialnumber"`;
+
+exports[`extractTokenMultiUnionQuery throw spender ge gte 1`] = `"Multiple range params not allowed for spender.id"`;
+
+exports[`extractTokenMultiUnionQuery throw spender le lte 1`] = `"Multiple range params not allowed for spender.id"`;
+
+exports[`extractTokenMultiUnionQuery throw spender ne 1`] = `"Not equals (ne) comparison operator is not supported"`;
+
+exports[`extractTokenMultiUnionQuery throw token gt and serial gte 1`] = `"token.id must have gte or eq operator"`;
+
+exports[`extractTokenMultiUnionQuery throw token lt and serial lte 1`] = `"token.id must have lte or eq operator"`;
+
+exports[`extractTokenMultiUnionQuery throw token.id multiple equal 1`] = `"Only one equal (eq) operator is allowed for token.id"`;
+
+exports[`extractTokenMultiUnionQuery throw token.id multiple lower bounds 1`] = `"Only one gt/gte operator is allowed for token.id"`;
+
+exports[`extractTokenMultiUnionQuery throw token.id multiple upper bounds 1`] = `"Only one lt/lte operator is allowed for token.id"`;
+
+exports[`extractTokenMultiUnionQuery throw token.id ne 1`] = `"Not equal (ne) operator is not supported for token.id"`;

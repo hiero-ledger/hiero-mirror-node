@@ -1,0 +1,26 @@
+{
+  "description": "Token nfts api call with invalid tokenid",
+  "setup": {
+    "entities": [],
+    "tokens": [],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": [],
+    "nfts": []
+  },
+  "urls": [
+    "/api/v1/tokens/mirror/nfts",
+    "/api/v1/tokens/0.0.0x000000000000000000000000000000000000046F/nfts",
+    "/api/v1/tokens/06bd279138d5918402fc8ad500526cb2ee0eb985/nfts"
+  ],
+  "responseStatus": 400,
+  "responseJson": {
+    "_status": {
+      "messages": [
+        {
+          "message": "Invalid parameter: tokenid"
+        }
+      ]
+    }
+  }
+}

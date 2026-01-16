@@ -34,13 +34,14 @@ target/
 .project
 
 # Application specific
-hedera-mirror-importer/data/
+importer/data/
 application*.yaml
 application*.yml
 Chart.lock
 /data/
 /db/
 *.log
+changelog.md
 
 ### VisualStudioCode ###
 .vscode/
@@ -121,10 +122,10 @@ local.properties
 *.iml
 
 # check-state-proof output dir
-hedera-mirror-rest/check-state-proof/output
+rest/check-state-proof/output
 
 # generated spec based integration test modules
-hedera-mirror-rest/__tests__/integration/*.spec.test.js
+rest/__tests__/integration/*.spec.test.js
 
 # Rosetta
 rosetta-cli
@@ -137,30 +138,31 @@ release_notes.md
 *report.md
 
 # Acceptance tests / Solidity artifacts
-hedera-mirror-test/src/test/resources/solidity/artifacts/build-info
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/*/*.dbg.json
-hedera-mirror-test/src/test/resources/solidity/cache
-hedera-mirror-test/src/test/resources/solidity/package-lock.json
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/ExpiryHelper.sol
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/HederaResponseCodes.sol
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/HederaTokenService.sol
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/IHederaTokenService.sol
-hedera-mirror-test/src/test/resources/solidity/artifacts/contracts/KeyHelper.sol
-hedera-mirror-test/src/test/resources/solidity/artifacts/@openzeppelin.contracts
+test/src/test/resources/solidity/artifacts/build-info
+test/src/test/resources/solidity/artifacts/contracts/*/*.dbg.json
+test/src/test/resources/solidity/cache
+test/src/test/resources/solidity/package-lock.json
+test/src/test/resources/solidity/artifacts/contracts/ExpiryHelper.sol
+test/src/test/resources/solidity/artifacts/contracts/HederaResponseCodes.sol
+test/src/test/resources/solidity/artifacts/contracts/HederaTokenService.sol
+test/src/test/resources/solidity/artifacts/contracts/IHederaTokenService.sol
+test/src/test/resources/solidity/artifacts/contracts/KeyHelper.sol
+test/src/test/resources/solidity/artifacts/@openzeppelin.contracts
 
 
 # Gradle
 .gradle
 build
 !gradle/wrapper/gradle-wrapper.jar
+**/.kotlin/
 
 # Security
 .dccache
 snyk
 **/secret.*
 
-hedera-mirror-rest/report.*
-hedera-mirror-rest/monitoring/config/serverlist.json
+rest/report.*
+rest/monitoring/config/serverlist.json
+report-*.csv
 
-
-hedera-mirror-web3/src/testHistorical/solidity/openzeppelin
+web3/src/testHistorical/solidity/openzeppelin

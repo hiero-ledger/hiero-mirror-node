@@ -1,49 +1,52 @@
-[![Build](https://github.com/hashgraph/hedera-mirror-node/actions/workflows/gradle.yml/badge.svg)](https://github.com/hashgraph/hedera-mirror-node/actions)
-[![codecov](https://img.shields.io/codecov/c/github/hashgraph/hedera-mirror-node/main)](https://codecov.io/gh/hashgraph/hedera-mirror-node)
-[![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://hedera.com/discord)
+[![Build](https://github.com/hiero-ledger/hiero-mirror-node/actions/workflows/gradle.yml/badge.svg)](https://github.com/hiero-ledger/hiero-mirror-node/actions)
+[![Codacy Grade](https://app.codacy.com/project/badge/Grade/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_grade)
+[![Codacy Coverage](https://app.codacy.com/project/badge/Coverage/e0e3a2f2770644eaa5cfc7b274569a3a)](https://app.codacy.com/gh/hiero-ledger/hiero-mirror-node/dashboard?utm_campaign=Badge_coverage)
+[![Discord](https://img.shields.io/badge/discord-join%20chat-blue.svg)](https://discord.com/channels/905194001349627914/1289954446712770600)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hiero-ledger/hiero-mirror-node/badge)](https://scorecard.dev/viewer/?uri=github.com/hiero-ledger/hiero-mirror-node)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/10697/badge)](https://bestpractices.coreinfrastructure.org/projects/10697)
+[![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
 
-# Hedera Mirror Node
+# Mirror Node
 
-The Hedera Mirror Node acts as an archive node and stores historical data for the Hedera network.
+The mirror node acts as an archive node and stores historical data for a Hiero-based network.
 
 ## Overview
 
-Mirror nodes receive information from the Hedera nodes and can provide value-added services such as APIs, auditing,
+Mirror nodes receive information from consensus nodes and can provide value-added services such as APIs, auditing,
 analytics, visibility services, security threat modeling, data monetization services, etc. Mirror nodes can also run
-additional business logic to support applications built using the Hedera network.
+additional business logic to support applications built using a Hiero-based network.
 
-While mirror nodes receive information from the main nodes, they do not contribute to consensus on the network, and
-their votes are not counted. Only the votes from the main nodes are counted for determining consensus. The trust of the
-Hedera network is derived based on the consensus reached by the main nodes. That trust is transferred to the mirror
+While mirror nodes receive information from consensus nodes, they do not contribute to consensus on the network, and
+their votes are not counted. Only the votes from the consensus nodes are counted for determining consensus. The trust of
+the network is derived based on the consensus reached by consensus nodes. That trust is transferred to the mirror
 nodes using cryptographic signatures on a chain of files.
 
-Eventually, the mirror nodes will be able to run the same code as the Hedera nodes so that they can see the transactions
+Eventually, the mirror nodes will be able to run the same code as consensus nodes so that they can see the transactions
 in real time. To make the initial deployments easier, the mirror node strives to take away the burden of running a full
-Hedera node through creation of periodic files that contain processed information (such as account balances or
-transaction records), and have the full trust of the main nodes. The mirror node software reduces the processing burden
-by receiving pre-constructed files from the network, validating those, populating a database, and providing APIs to
-expose the data. This approach provides the following advantages:
+consensus node through creation of periodic files that contain processed transactions and have the full trust of the
+network. The mirror node software reduces the processing burden by receiving batched files from the network,
+validating those, populating its database, and providing APIs to expose the data. This approach provides the following
+advantages:
 
 - Lower compute and bandwidth requirements
-- Allows users to only save the data that they care about (lower storage requirement)
-- Easy searchable database so the users can add value quickly
-- Easy to consume APIs to make integrations faster
+- Allow users to only save the data that they care about (lower storage requirement)
+- Index the data to facilitate efficient retrieval
+- Expose the data via APIs to make integrations faster
 
 ## Architecture
 
-### Main Nodes
+### Consensus Nodes
 
-- When a transaction reaches consensus, Hedera nodes add the transaction and its associated record to a
+- When a transaction reaches consensus, consensus nodes add the transaction and its associated record to a
   [record file](https://github.com/hashgraph/hedera-protobufs/blob/main/streams/record_stream_file.proto).
 - Record files contain the hash of the previous record file, thus creating an unbreakable validation chain.
-- The file is closed on a regular cadence and a signature file is generated by the node for the record file.
+- The file is closed on a regular cadence, and a signature file is generated by the node for the record file.
 - The record and signature files from each node are then uploaded to Amazon S3 and Google Cloud Storage.
 
 ### Mirror Nodes
 
 - This mirror node software downloads signature files from cloud storage.
-- The signature files are verified using the corresponding node's public key from the address book (stored in
-  a `0.0.102` file).
+- The signature files are verified using the corresponding node's public key from the address book.
 - The verified signature files are checked to ensure at least 1/3 have the same record file hash.
 - For each valid signature file, the corresponding record file is then downloaded from cloud storage and its hash is
   verified against the hash contained in the signature file.
@@ -68,8 +71,8 @@ the [installation](docs/installation.md#running-via-docker-compose) document for
 with Docker Compose. To get up and running quickly with Docker Compose execute the following commands in your terminal:
 
 ```bash
-git clone https://github.com/hashgraph/hedera-mirror-node.git
-cd hedera-mirror-node
+git clone https://github.com/hiero-ledger/hiero-mirror-node.git
+cd hiero-mirror-node
 docker compose up
 ```
 
@@ -79,14 +82,14 @@ docker compose up
 
 ### Demo
 
-The free option utilizes a bucket setup for demonstration purposes. This is not a real Hedera network but simply a dummy
-bucket populated with a day's worth of past testnet data. This is the default option and requires no additional steps.
-Once you've verified your deployment works against the demo bucket, remember to configure it with
-a [public network](#public-networks) then wipe the database and restart the mirror node.
+The free option uses a bucket setup for demonstration purposes. This is simply a dummy bucket populated with a day's
+worth of past testnet data. This is the default option and requires no additional steps. Once you've verified your
+deployment works against the demo bucket, remember to configure it with a [public network](#public-networks), then wipe
+the database and restart the mirror node.
 
 ### Public Networks
 
-To access data from real Hedera networks,
+To access data from Hiero-based networks,
 [AWS](https://docs.aws.amazon.com/AmazonS3/latest/dev/RequesterPaysBuckets.html) or
 [GCS](https://cloud.google.com/storage/docs/requester-pays) requester pays credentials must be used. The charges
 associated with the downloading of stream files are paid for by the requester and not the bucket owner. See
@@ -105,6 +108,7 @@ documentation for more information.
   - [Rosetta API](docs/rosetta/README.md)
   - [Web3 API](docs/web3/README.md)
 - [Configuration](docs/configuration.md)
+- [Development Guide](docs/development.md)
 - [Contributing](docs/contributing.md)
 - [Installation](docs/installation.md)
 - [Troubleshooting](docs/troubleshooting.md)
@@ -113,21 +117,21 @@ documentation for more information.
 
 To perform a new release, run the `Automated Release` GitHub workflow.
 
-## Support
-
-If you have a question on how to use the product, please see our
-[support guide](https://github.com/hashgraph/.github/blob/main/SUPPORT.md).
-
 ## Contributing
 
-Contributions are welcome. Please see the [contributing guide](docs/contributing.md) to see how you can get involved.
+Whether you’re fixing bugs, adding new features, or improving documentation, your contributions are important — let's
+build something great together! Please read our Hiero
+[contributing guide](https://github.com/hiero-ledger/.github/blob/main/CONTRIBUTING.md) as well as our project-specific
+[contributing guide](docs/contributing.md) to see how you can get involved.
+
+For detailed instructions on setting up a local development environment refer to the
+[Development Guide](docs/development.md).
+
+Our role guidelines can be found under **[Hiero-Ledger's roles and groups guidelines](https://github.com/hiero-ledger/governance/blob/main/roles-and-groups.md#maintainers).**
 
 ## Code of Conduct
 
-This project is governed by the
-[Contributor Covenant Code of Conduct](https://github.com/hashgraph/.github/blob/main/CODE_OF_CONDUCT.md). By
-participating, you are expected to uphold this code of conduct. Please report unacceptable behavior
-to [oss@hedera.com](mailto:oss@hedera.com).
+Hiero uses the Linux Foundation Decentralised Trust [Code of Conduct](https://www.lfdecentralizedtrust.org/code-of-conduct).
 
 ## License
 

@@ -1,0 +1,102 @@
+{
+  "description": "Token balances api call for non matching of account id",
+  "setup": {
+    "accounts": [
+      {
+        "num": 17,
+        "public_key": "6ceecd8bb224da4914d53f292e5624f6f4cf8c134c920e1cac8d06f879df5819"
+      },
+      {
+        "num": 18,
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9"
+      },
+      {
+        "num": 19,
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be"
+      },
+      {
+        "num": 20,
+        "public_key": "c7e81a0c1444c6e5b5c1bfb1a02ae5faae44c11e621f286d21242cc584280692"
+      },
+      {
+        "num": 21,
+        "public_key": "5f58f33c65992676de86ac8f5b4b8b4b45c636f12cec8a274d820a3fe1778a3e"
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "TOKEN1",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "balances": [
+      {
+        "timestamp": 2345,
+        "id": 17,
+        "balance": 70,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 17
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 18,
+        "balance": 80,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 18
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 19,
+        "balance": 90,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 19
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 20,
+        "balance": 100,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 20
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 21,
+        "balance": 110,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 21
+          }
+        ]
+      }
+    ],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "url": "/api/v1/tokens/0.0.1/balances?account.id=0.0.3",
+  "responseStatus": 200,
+  "responseJson": {
+    "timestamp": null,
+    "balances": [],
+    "links": {
+      "next": null
+    }
+  }
+}

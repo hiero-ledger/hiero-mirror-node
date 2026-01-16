@@ -1,4 +1,6 @@
-{{- if .Values.hpa.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.hpa.enabled -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

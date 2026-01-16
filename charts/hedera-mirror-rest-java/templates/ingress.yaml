@@ -1,4 +1,6 @@
-{{- if .Values.ingress.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.ingress.enabled -}}
 {{- $fullName := include "hedera-mirror-rest-java.fullname" $ -}}
 {{- $hostname := .Values.global.hostname -}}
 {{- $servicePort := .Values.service.port -}}
@@ -21,6 +23,7 @@ spec:
       http:
         paths:
         {{- range .paths }}
+          {{- if or (empty .condition) (eq (tpl .condition $) "true") }}
           - path: {{ .path }}
             pathType: {{ .type | default "ImplementationSpecific" }}
             backend:
@@ -28,6 +31,7 @@ spec:
                 name: {{ $fullName }}
                 port:
                   number: {{ $servicePort }}
+          {{- end }}
         {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls.enabled }}

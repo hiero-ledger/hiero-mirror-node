@@ -1,7 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
 form:
   - widget: help
     description: |
-      Hedera Mirror Node retrieves transaction data from Google Cloud Stroage. The Mirror Node operator is
+      Mirror Node retrieves transaction data from Google Cloud Stroage. The Mirror Node operator is
       responsible for the operational costs of reading and retrieving data from the Google Cloud bucket. See our
       <a href="https://docs.hedera.com/guides/mirrornet/run-your-own-beta-mirror-node#1-obtain-google-cloud-platform-requester-pay-information">documentation</a>
       for information on how to obtain a GCP account and use it to populate the importer access key, secret key and
@@ -16,7 +18,7 @@ x-google-marketplace:
   # The release version, MUST match the release tag on the deployer.
   publishedVersion: "$TAG"
   publishedVersionMetadata:
-    releaseNote: For release notes refer to https://github.com/hashgraph/hedera-mirror-node/releases
+    releaseNote: For release notes refer to https://github.com/hiero-ledger/hiero-mirror-node/releases
     # releaseTypes - Feature | BugFix | Security
     releaseTypes:
       - Feature
@@ -122,23 +124,23 @@ properties:
     default: LoadBalancer
     description: The gRPC service type
     title: gRPC Service type
-  importer.config.hedera.mirror.importer.downloader.accessKey:
+  importer.config.hiero.mirror.importer.downloader.accessKey:
     type: string
     description: The Google Cloud access key used to pay for downloaded streamed files
     title: Importer GCP access key
-  importer.config.hedera.mirror.importer.downloader.bucketName:
+  importer.config.hiero.mirror.importer.downloader.bucketName:
     type: string
-    description: The Google Cloud Storage bucket name to download streamed files. This value takes priority over network hardcoded bucket names regardless of `hedera.mirror.importer.network` value.
+    description: The Google Cloud Storage bucket name to download streamed files. This value takes priority over network hardcoded bucket names regardless of `hiero.mirror.importer.network` value.
     title: Importer GCS bucket name
-  importer.config.hedera.mirror.importer.downloader.gcpProjectId:
+  importer.config.hiero.mirror.importer.downloader.gcpProjectId:
     type: string
     description: GCP project id to bill for requests to GCS bucket with requester pays enabled.
     title: Importer GCP billing project ID
-  importer.config.hedera.mirror.importer.downloader.secretKey:
+  importer.config.hiero.mirror.importer.downloader.secretKey:
     type: string
     description: The Google Cloud secret key used to pay for downloaded streamed files
     title: Importer GCP secret key
-  importer.config.hedera.mirror.importer.network:
+  importer.config.hiero.mirror.importer.network:
     default: MAINNET
     type: string
     description: Which Hedera network to use. Can be either DEMO (free), TESTNET or MAINNET.
@@ -149,7 +151,7 @@ properties:
       - PREVIEWNET
       - DEMO
       - OTHER
-  importer.config.hedera.mirror.importer.startDate:
+  importer.config.hiero.mirror.importer.startDate:
     type: string
     description: The start date (inclusive) of the data to import. Items before this date will be ignored. Format - YYYY-MM-ddTHH:mm:ss.nnnnnnnnnZ
     title: Importer data start date
@@ -236,9 +238,9 @@ required:
   - namespace
   - grpc.replicas
   - grpc.serviceAccount.name
-  - importer.config.hedera.mirror.importer.downloader.accessKey
-  - importer.config.hedera.mirror.importer.downloader.secretKey
-  - importer.config.hedera.mirror.importer.network
+  - importer.config.hiero.mirror.importer.downloader.accessKey
+  - importer.config.hiero.mirror.importer.downloader.secretKey
+  - importer.config.hiero.mirror.importer.network
   - importer.serviceAccount.name
   - postgresql.persistence.size
   - postgresql.serviceAccount.name

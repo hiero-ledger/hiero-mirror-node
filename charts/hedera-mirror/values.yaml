@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 alertmanager:
   inhibitRules:
     enabled: false
@@ -18,7 +20,7 @@ alertmanager:
       matches:
         - sourceMatch:
             - name: application
-              value: hedera-mirror-importer
+              value: importer
             - name: type
               value: RECORD
           targetMatch:
@@ -72,9 +74,28 @@ db:
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
+  gateway:
+    annotations: {}
+    className: "gke-l7-global-external-managed"
+    enabled: false
+    gcpGatewayPolicy: {}
+    hostnames: []
+    http:
+      enabled: true
+      port: 80
+      redirect: false
+    https:
+      enabled: false
+      port: 443
+      tls:
+        mode: Terminate
   hostname: ""
   image: {}
   namespaceOverride: ""
+  security:
+    allowInsecureImages: true
   podAnnotations: {}
   useReleaseForNameLabel: false  # Set the name label to the release name for Marketplace
 
@@ -114,10 +135,12 @@ labels: {}
 monitor:
   enabled: true
   env:
-    HEDERA_MIRROR_MONITOR_MIRROR_NODE_GRPC_HOST: "{{ .Release.Name }}-grpc"
-    HEDERA_MIRROR_MONITOR_MIRROR_NODE_GRPC_PORT: "5600"
-    HEDERA_MIRROR_MONITOR_MIRROR_NODE_REST_HOST: "{{ .Release.Name }}-rest"
-    HEDERA_MIRROR_MONITOR_MIRROR_NODE_REST_PORT: "80"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_GRPC_HOST: "{{ .Release.Name }}-grpc"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_GRPC_PORT: "5600"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_REST_HOST: "{{ .Release.Name }}-rest"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_REST_PORT: "80"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_HOST: "{{ .Release.Name }}-restjava"
+    HIERO_MIRROR_MONITOR_MIRRORNODE_RESTJAVA_PORT: "80"
 
 nameOverride: mirror
 
@@ -128,6 +151,8 @@ postgresql:
   enabled: true
   metrics:
     enabled: false
+    image:
+      repository: bitnamilegacy/postgres-exporter
     resources:
       limits:
         cpu: 50m
@@ -156,6 +181,7 @@ postgresql:
             key: PGPOOL_POSTGRES_CUSTOM_USERS
     image:
       debug: true
+      repository: bitnamilegacy/pgpool
     numInitChildren: 100
     podAntiAffinityPreset: soft
     podLabels:
@@ -175,6 +201,8 @@ postgresql:
     extraEnvVarsSecret: mirror-passwords
     image:
       debug: true
+      repository: bitnamilegacy/postgresql-repmgr
+      tag: 17.6.0-debian-12-r2
     initdbScriptsCM: "{{ .Release.Name }}-init"
     maxConnections: 200
     password: ""  # Randomly generated if left blank
@@ -197,7 +225,17 @@ redis:
     password: ""  # Randomly generated if left blank
   enabled: true
   host: "{{ .Release.Name }}-redis"
+  image:
+    registry: gcr.io
+    repository: mirrornode/redis
+    tag: 8.2.2
+  kubectl:
+    image:
+      repository: rancher/kubectl
+      tag: v1.33.4
   metrics:
+    image:
+      repository: bitnamilegacy/redis-exporter
     resources:
       limits:
         cpu: 100m
@@ -221,12 +259,16 @@ redis:
     resources:
       limits:
         cpu: 1500m
-        memory: 1000Mi
+        memory: 2000Mi
       requests:
         cpu: 250m
-        memory: 500Mi
+        memory: 1000Mi
   sentinel:
     enabled: true
+    image:
+      registry: gcr.io
+      repository: mirrornode/redis-sentinel
+      tag: 8.2.2
     masterSet: mirror
     persistence:
       enabled: true
@@ -243,6 +285,13 @@ redis:
     create: true
 
 rest:
+  config:
+    hiero:
+      mirror:
+        rest:
+          cache:
+            response:
+              enabled: false
   db:
     password: ""  # Randomly generated if left blank
     username: mirror_rest
@@ -282,7 +331,7 @@ stackgres:
       citus.force_max_query_parallelization: "on"
       citus.max_cached_conns_per_worker: "6"
       citus.max_shared_pool_size: "850"
-      citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around https://github.com/hashgraph/hedera-mirror-node/issues/9143
+      citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around issue 9143
       full_page_writes: "true"  # Required for replication to work in recovery scenarios
       log_checkpoints: "true"
       log_timezone: "Etc/UTC"
@@ -292,10 +341,15 @@ stackgres:
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
       shared_buffers: "7GB"
+      timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
-    enableMetricsExporter: false
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
+    enableEnvoy: false
     enablePostgresUtil: true
     instances: 1
     pgbouncer:
@@ -305,13 +359,18 @@ stackgres:
         max_client_conn: "1600"
         max_prepared_statements: "512"
         pool_mode: transaction
+        server_lifetime: "1200"
       users:
         mirror_node:
           pool_mode: session
         mirror_importer:
           pool_mode: session
-    replication:
-      mode: sync-all
+        mirror_rest:
+          max_user_client_connections: 1000
+          max_user_connections: 250
+        mirror_web3:
+          max_user_client_connections: 1000
+          max_user_connections: 250
     resources:
       cpu: 100m
       memory: 1Gi
@@ -321,20 +380,26 @@ stackgres:
   enabled: false
   extensions:
     - name: citus
-      version: "12.1-1"
+      version: "13.2.0"
     - name: btree_gist
       version: stable
     - name: pg_trgm
       version: "1.6"
   nameOverride: citus
+  observability:
+    enableMetricsExporter: true
   podAntiAffinity: true
   postgresVersion: "16.2"
-  priorityClassName: ""
+  priorityClassName: system-cluster-critical  # This fails on Helm 4 without a default. values-prod.yaml overrides it.
+  replication:
+    initialization:
+      mode: FromReplica
+    mode: sync-all
   worker:
     config:
       autovacuum_max_workers: "2"
       checkpoint_timeout: "1800"
-      citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around https://github.com/hashgraph/hedera-mirror-node/issues/9143
+      citus.node_conninfo: "sslmode=disable"  # Disable SSL to work around issue 9143
       full_page_writes: "false"  # Not required for ZFS and Enabling this causes hash indexes to have spikes in write performance.
       log_checkpoints: "true"
       log_timezone: "Etc/UTC"
@@ -344,10 +409,15 @@ stackgres:
       password_encryption: "scram-sha-256"
       random_page_cost: "1.1"
       shared_buffers: "12GB"
+      timezone: "UTC"
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
-    enableMetricsExporter: false
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
+    enableEnvoy: false
     enablePostgresUtil: true
     instances: 1
     overrides: []  # Override shard(s) configuration
@@ -358,6 +428,7 @@ stackgres:
         max_client_conn: "2000"
         max_prepared_statements: "512"
         pool_mode: transaction
+        server_lifetime: "1200"
       users:
         mirror_node:
           pool_mode: session
@@ -376,7 +447,7 @@ test:
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     helm.sh/hook-weight: "10"
   config:
-    hedera:
+    hiero:
       mirror:
         test:
           acceptance:

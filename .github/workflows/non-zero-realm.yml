@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: "Non-Zero Realm"
+on:
+  schedule:
+    - cron: "0 0 * * *" # Daily at midnight
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        type: string
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+env:
+  LC_ALL: C.UTF-8
+  CGO_ENABLED: 1
+
+jobs:
+  build:
+    name: Build
+    env:
+      HIERO_MIRROR_COMMON_REALM: 127
+      HIERO_MIRROR_COMMON_SHARD: 113
+    runs-on: hiero-mirror-node-linux-large
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - common
+          - graphql
+          - grpc
+          - importer
+          - monitor
+          - rest
+          - rest-java
+          - rosetta
+          - web3
+    timeout-minutes: 40 # increase it from 20 minutes since some jobs often run longer on self-hosted runners
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || github.ref }}
+
+      - name: Install JDK
+        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
+
+      - name: Execute Gradle
+        run: ./gradlew :${{matrix.project}}:build

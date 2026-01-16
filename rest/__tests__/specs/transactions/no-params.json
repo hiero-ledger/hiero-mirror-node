@@ -1,0 +1,357 @@
+{
+  "description": "Transaction api calls with no arguments",
+  "matrix": "bindTimestampRangeMatrix.js",
+  "setup": {
+    "features": {
+      "fakeTime": "2009-02-13T23:50:00Z"
+    },
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 8
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "transactions": [
+      {
+        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": null,
+        "consensus_timestamp": "1234567800000000009",
+        "max_custom_fees": null,
+        "name": "CRYPTOUPDATEACCOUNT",
+        "type": "15",
+        "entity_id": "0.0.10"
+      }
+    ],
+    "cryptotransfers": [
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "payerAccountId": "0.0.10",
+        "recipientAccountId": "0.0.9",
+        "amount": 9223372036847275807,
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98"
+      },
+      {
+        "consensus_timestamp": "1234567890000000002",
+        "payerAccountId": "0.0.10",
+        "recipientAccountId": "0.0.9",
+        "amount": 20,
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98"
+      },
+      {
+        "consensus_timestamp": "1234567890000000003",
+        "payerAccountId": "0.0.8",
+        "recipientAccountId": "0.0.9",
+        "amount": 30,
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98"
+      },
+      {
+        "consensus_timestamp": "1234567890000000004",
+        "payerAccountId": "0.0.10",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "token_transfer_list": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.10",
+            "amount": -9223372036847275807,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.200",
+            "amount": 9223372036847275807,
+            "is_approval": true
+          }
+        ]
+      },
+      {
+        "consensus_timestamp": "1234567890000000005",
+        "payerAccountId": "0.0.8",
+        "recipientAccountId": "0.0.9",
+        "amount": 30,
+        "nodeAccountId": "0.0.3",
+        "nonce": 1,
+        "parent_consensus_timestamp": "1234567800000000009",
+        "treasuryAccountId": "0.0.98",
+        "scheduled": true
+      }
+    ]
+  },
+  "url": "/api/v1/transactions",
+  "responseStatus": 200,
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567890.000000005",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 1,
+        "parent_consensus_timestamp": "1234567800.000000009",
+        "result": "SUCCESS",
+        "scheduled": true,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.8-1234567890-000000004",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000004",
+        "transfers": [
+          {
+            "account": "0.0.8",
+            "amount": -31,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.9",
+            "amount": 30,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567890.000000004",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.10-1234567890-000000003",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000003",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -3,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ],
+        "token_transfers": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.10",
+            "amount": -9223372036847275807,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.200",
+            "amount": 9223372036847275807,
+            "is_approval": true
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567890.000000003",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.8-1234567890-000000002",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000002",
+        "transfers": [
+          {
+            "account": "0.0.8",
+            "amount": -31,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.9",
+            "amount": 30,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567890.000000002",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.10-1234567890-000000001",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000001",
+        "transfers": [
+          {
+            "account": "0.0.9",
+            "amount": 20,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -21,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567890.000000001",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.10-1234567890-000000000",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000000",
+        "transfers": [
+          {
+            "account": "0.0.9",
+            "amount": 9223372036847275807,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -9223372036847275808,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567800.000000009",
+        "entity_id": "0.0.10",
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOUPDATEACCOUNT",
+        "nft_transfers": [],
+        "node": null,
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "bytes": "Ynl0ZXM=",
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.8-1234567800-000000008",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.8",
+            "amount": -3,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ],
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567800.000000008"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

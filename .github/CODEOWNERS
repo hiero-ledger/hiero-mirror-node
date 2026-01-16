@@ -1,0 +1,27 @@
+# Default code owners for entire repository
+*                                               @hiero-ledger/hiero-mirror-node-committers
+
+#########################
+#####  Core Files  ######
+#########################
+
+# NOTE: Must be placed last to ensure enforcement over all other rules
+
+# Protection Rules for Github Configuration Files and Actions Workflows
+/.github/                                       @hiero-ledger/github-maintainers @hiero-ledger/hiero-mirror-node-maintainers
+/.github/workflows/                             @hiero-ledger/github-maintainers @hiero-ledger/hiero-mirror-node-maintainers
+
+# Codacy Tool Configurations
+/config/                                        @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
+.remarkrc                                       @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
+
+# Self-protection for root CODEOWNERS files (this file should not exist and should definitely require approval)
+/CODEOWNERS                                     @hiero-ledger/github-maintainers
+
+# Protect the repository root files
+/README.md                                      @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
+**/LICENSE                                      @hiero-ledger/github-maintainers
+
+# Git Ignore definitions
+**/.gitignore                                   @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers
+**/.gitignore.*                                 @hiero-ledger/github-maintainers  @hiero-ledger/hiero-mirror-node-maintainers

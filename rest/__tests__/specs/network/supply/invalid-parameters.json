@@ -1,0 +1,35 @@
+{
+  "description": "Network supply API with invalid parameters",
+  "setup": {},
+  "urls": [
+    "/api/v1/network/supply?timestamp=foo&limit=1",
+    "/api/v1/network/supply?timestamp=equal:1&limit=1",
+    "/api/v1/network/supply?timestamp=lte:1.2.3&limit=1"
+  ],
+  "responseStatus": 400,
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Failed to convert 'timestamp'",
+            "message": "Bad Request"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Invalid parameter: timestamp"
+          },
+          {
+            "message": "Unknown query parameter: limit"
+          }
+        ]
+      }
+    }
+  }
+}

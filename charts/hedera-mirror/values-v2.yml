@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+
 importer:
   config:
-    hedera:
+    hiero:
       mirror:
         importer:
           db:
@@ -17,7 +19,7 @@ postgresql:
   enabled: false
 rest:
   config:
-    hedera:
+    hiero:
       mirror:
         rest:
           query:
@@ -25,4 +27,3 @@ rest:
             topicMessageLookup: true
 stackgres:
   enabled: true
-

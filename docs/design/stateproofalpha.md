@@ -2,7 +2,7 @@
 
 ## Purpose
 
-State Proof Alpha provides the data to prove a transaction is valid on Hedera Network. It's the interim solution
+State Proof Alpha provides the data to prove a transaction is valid on the network. It's the interim solution
 until [full state proof](https://www.hedera.com/blog/state-proofs-on-hedera) is implemented.
 
 ## Goals

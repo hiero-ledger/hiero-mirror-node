@@ -1,0 +1,84 @@
+{
+  "description": "Get messages with all valid params",
+  "matrix": "topicMessageLookupMatrix.js",
+  "setup": {
+    "accounts": [
+      {
+        "num": 7,
+        "type": "TOPIC"
+      }
+    ],
+    "topicmessages": [
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "sequence_number": 1,
+        "topic_id": 7
+      },
+      {
+        "consensus_timestamp": "1234567890000000002",
+        "sequence_number": 2,
+        "topic_id": 7
+      },
+      {
+        "consensus_timestamp": "1234567890000000003",
+        "sequence_number": 3,
+        "topic_id": 7
+      },
+      {
+        "consensus_timestamp": "1234567890000000004",
+        "sequence_number": 4,
+        "topic_id": 7
+      },
+      {
+        "consensus_timestamp": "1236567890000000005",
+        "running_hash_version": null,
+        "sequence_number": 5,
+        "topic_id": 7
+      },
+      {
+        "consensus_timestamp": "1236567890000000006",
+        "sequence_number": 6,
+        "topic_id": 7
+      }
+    ]
+  },
+  "url": "/api/v1/topics/7/messages?sequenceNumber=gte:3&timestamp=lte:1236567890.000000005&encoding=base64",
+  "responseStatus": 200,
+  "responseJson": {
+    "messages": [
+      {
+        "chunk_info": null,
+        "consensus_timestamp": "1234567890.000000003",
+        "message": "bWVzc2FnZQ==",
+        "payer_account_id": "0.0.3",
+        "running_hash": "cnVubmluZ19oYXNo",
+        "running_hash_version": 2,
+        "sequence_number": 3,
+        "topic_id": "0.0.7"
+      },
+      {
+        "chunk_info": null,
+        "consensus_timestamp": "1234567890.000000004",
+        "message": "bWVzc2FnZQ==",
+        "payer_account_id": "0.0.3",
+        "running_hash": "cnVubmluZ19oYXNo",
+        "running_hash_version": 2,
+        "sequence_number": 4,
+        "topic_id": "0.0.7"
+      },
+      {
+        "chunk_info": null,
+        "consensus_timestamp": "1236567890.000000005",
+        "message": "bWVzc2FnZQ==",
+        "payer_account_id": "0.0.3",
+        "running_hash": "cnVubmluZ19oYXNo",
+        "running_hash_version": 3,
+        "sequence_number": 5,
+        "topic_id": "0.0.7"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

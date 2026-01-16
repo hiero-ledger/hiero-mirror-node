@@ -1,4 +1,6 @@
-{{- if .Values.rbac.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.rbac.enabled -}}
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -6,9 +8,6 @@ metadata:
   name: {{ include "hedera-mirror-monitor.fullname" . }}
   namespace: {{ include "hedera-mirror-monitor.namespace" . }}
 rules:
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["helm.toolkit.fluxcd.io"]
     resources: ["helmreleases"]
     verbs: ["get"]

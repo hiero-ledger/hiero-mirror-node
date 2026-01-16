@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -19,7 +21,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-rosetta
+              value: rosetta
           equal:
             - namespace
             - pod
@@ -30,7 +32,7 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  CONFIG_PATH: "/usr/etc/hedera/"
+  HIERO_MIRROR_ROSETTA_API_CONFIG: "/usr/etc/hiero/application.yaml"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -44,7 +46,51 @@ envFrom: []
 
 fullnameOverride: ""
 
+gateway:
+  gcp:
+    backendPolicy:
+      connectionDraining:
+        drainingTimeoutSec: 10
+      logging:
+        enabled: false
+      maxRatePerEndpoint: 250  # Requires a change to HPA to take effect
+      sessionAffinity:
+        type: CLIENT_IP
+      timeoutSec: 20
+    enabled: true
+    healthCheckPolicy:
+      config:
+        httpHealthCheck:
+          port: 5700
+          requestPath: "{{ .Values.readinessProbe.httpGet.path }}"
+        type: HTTP
+      healthyThreshold: 1
+  rules:
+    - backendRefs:
+        - group: "{{ .Values.gateway.target.group }}"
+          kind: "{{ .Values.gateway.target.kind }}"
+          name: "{{ include \"hedera-mirror-rosetta.fullname\" $ }}"
+          port: 80
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              replacePrefixMatch: "/"
+              type: ReplacePrefixMatch
+      matches:
+        - path:
+            type: PathPrefix
+            value: /rosetta
+  target:
+    group: ""
+    kind: Service
+
 global:
+  config: {}
+  env: {}
+  gateway:
+    enabled: false
+    hostnames: []
   image: {}
   middleware: false
   namespaceOverride: ""
@@ -147,10 +193,10 @@ prometheusRules:
       description: "Rosetta API 5xx error rate for {{ $labels.namespace }}/{{ $labels.pod }} is {{ $value | humanizePercentage }}"
       summary: "Mirror Rosetta API error rate exceeds 5%"
     enabled: true
-    expr: sum(rate(hedera_mirror_rosetta_request_duration_count{application="hedera-mirror-rosetta",status_code=~"^5.."}[5m])) by (namespace, pod) / sum(rate(hedera_mirror_rosetta_request_duration_count{application="hedera-mirror-rosetta"}[5m])) by (namespace, pod) > 0.05
+    expr: sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta",status_code=~"^5.."}[5m])) by (namespace, pod) / sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[5m])) by (namespace, pod) > 0.05
     for: 1m
     labels:
-      application: hedera-mirror-rosetta
+      application: rosetta
       severity: critical
 
   RosettaNoPodsReady:
@@ -161,7 +207,7 @@ prometheusRules:
     expr: sum(kube_pod_status_ready{pod=~".*-rosetta-.*",condition="true"}) by (namespace) < 1
     for: 2m
     labels:
-      application: hedera-mirror-rosetta
+      application: rosetta
       area: resource
       severity: critical
 
@@ -170,10 +216,10 @@ prometheusRules:
       description: "Rosetta API has not seen any requests to {{ $labels.namespace }} for 5m"
       summary: "No Mirror Rosetta API requests seen for awhile"
     enabled: false
-    expr: sum(rate(hedera_mirror_rosetta_request_duration_count{application="hedera-mirror-rosetta"}[3m])) by (namespace) <= 0
+    expr: sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[3m])) by (namespace) <= 0
     for: 5m
     labels:
-      application: hedera-mirror-rosetta
+      application: rosetta
       severity: warning
 
   RosettaSlowResponse:
@@ -181,10 +227,10 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} is taking {{ $value | humanizeDuration }} to generate a response"
       summary: "Mirror Rosetta API is taking too long to respond"
     enabled: true
-    expr: sum(rate(hedera_mirror_rosetta_request_duration_sum{application="hedera-mirror-rosetta"}[5m])) by (namespace, pod) / sum(rate(hedera_mirror_rosetta_request_duration_count{application="hedera-mirror-rosetta"}[5m])) by (namespace, pod) > 2000
+    expr: sum(rate(hiero_mirror_rosetta_request_duration_sum{application="rosetta"}[5m])) by (namespace, pod) / sum(rate(hiero_mirror_rosetta_request_duration_count{application="rosetta"}[5m])) by (namespace, pod) > 2000
     for: 1m
     labels:
-      application: hedera-mirror-rosetta
+      application: rosetta
       severity: warning
 
 readinessProbe:
@@ -254,11 +300,11 @@ updateStrategy:
 # Volume mounts to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
 
 # Volume to add to the container. The key is the volume name and the value is the volume definition. Evaluated as a template.
 volumes:
   config:
     secret:
-      defaultMode: 420
+      defaultMode: 288
       secretName: '{{ include "hedera-mirror-rosetta.fullname" . }}'

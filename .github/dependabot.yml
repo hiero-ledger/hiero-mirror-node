@@ -1,6 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+
 version: 2
 updates:
   - directory: "/"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "github-actions"
     schedule:
@@ -12,31 +18,74 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest"
+  - directory: "/charts"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "helm"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/rest"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "prom-client"
+        versions: [">=15.0.0"]
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest/monitoring"
+  - directory: "/rest/monitoring"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rest/check-state-proof"
+  - directory: "/rest/check-state-proof"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-rosetta"
+  - directory: "/rosetta"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "gomod"
     schedule:
       interval: "weekly"
 
-  - directory: "/hedera-mirror-test/traffic-replay/log-downloader"
+  - directory: "/tools/log-downloader"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "npm"
+    schedule:
+      interval: "weekly"
+
+  - directory: "/tools/mirror-report"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
     open-pull-requests-limit: 10
     package-ecosystem: "npm"
     schedule:

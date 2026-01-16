@@ -7,7 +7,7 @@ consensus. The trust of Hedera mainnet is derived based on the consensus reached
 transferred to the mirror nodes using cryptographic signatures on a chain of records (account balances, events,
 transactions, etc).
 
-For more information, visit our [GitHub](https://github.com/hashgraph/hedera-mirror-node) project.
+For more information, visit our [GitHub](https://github.com/hiero-ledger/hiero-mirror-node) project.
 
 For one click deployment to Google Kubernetes Engine see our
 [Google Cloud Platform Marketplace solution](https://console.cloud.google.com/marketplace/details/mirror-node-public/hedera-mirror-node)
@@ -111,7 +111,7 @@ kubectl create namespace "${NAMESPACE}"
 Clone this repository and checkout the latest stable tag:
 
 ```shell
-git clone https://github.com/hashgraph/hedera-mirror-node.git
+git clone https://github.com/hiero-ledger/hiero-mirror-node.git
 git checkout tags/v0.60.0 # Change version appropriately
 ```
 
@@ -146,14 +146,14 @@ these [on-screen instructions](https://console.cloud.google.com/marketplace/deta
 
 You can use [Google Cloud Shell](https://cloud.google.com/shell/) or a local workstation to follow the steps below.
 
-[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/hashgraph/hedera-mirror-node&cloudshell_open_in_editor=README.md&cloudshell_working_dir=charts/marketplace/gcp)
+[![Open in Cloud Shell](http://gstatic.com/cloudssh/images/open-btn.svg)](https://console.cloud.google.com/cloudshell/editor?cloudshell_git_repo=https://github.com/hiero-ledger/hiero-mirror-node&cloudshell_open_in_editor=README.md&cloudshell_working_dir=charts/marketplace/gcp)
 
 ### Configure
 
 Add the Hedera Mirror Node Helm chart repository:
 
 ```shell
-helm repo add hedera https://hashgraph.github.io/hedera-mirror-node/charts
+helm repo add hedera https://hiero-ledger.github.io/hiero-mirror-node/charts
 ```
 
 Optional: Use a function to generate the password for the components:
@@ -336,30 +336,30 @@ To ensure a smooth upgrade process:
 2. Delete the `${APP_NAME}-importer` Stateful Set workload.
 3. Install the v0.37 solution
 4. Scale down the Importer Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-importer" --replicas=0
-    ```
-4. Scale down the REST API Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-rest" --replicas=0
-    ```
-5. Modify the `mirror-passwords` Kubernetes Secret resource
-    ```shell
-    kubectl edit secrets mirror-passwords
-    ```
-6. Set the `HEDERA_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
+   ```shell
+   kubectl scale deployment "${APP_NAME}-importer" --replicas=0
+   ```
+5. Scale down the REST API Deployment resource
+   ```shell
+   kubectl scale deployment "${APP_NAME}-rest" --replicas=0
+   ```
+6. Modify the `mirror-passwords` Kubernetes Secret resource
+   ```shell
+   kubectl edit secrets mirror-passwords
+   ```
+7. Set the `HIERO_MIRROR_IMPORTER_DB_USERNAME` value to `bWlycm9yX25vZGU=` (the base64 encoded value of the
    default `mirror_node` value)
-7. Set the `HEDERA_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
+8. Set the `HIERO_MIRROR_IMPORTER_DB_RESTUSERNAME` value to `bWlycm9yX2FwaQ==` (the base64 encoded value of the
    default `mirror_api` value)
-8. Scale up the Importer Deployment resource
-    ```shell
-    kubectl scale deployment "${APP_NAME}-importer" --replicas=1
-    ```
-9. Scale up the REST API Deployment resource
+9. Scale up the Importer Deployment resource
+   ```shell
+   kubectl scale deployment "${APP_NAME}-importer" --replicas=1
+   ```
+10. Scale up the REST API Deployment resource
     ```shell
     kubectl scale deployment "${APP_NAME}-rest" --replicas=1
     ```
-10. Post importer and rest operation confirmation, delete the leftover `data-${APP_NAME}-importer-0` persistent volume
+11. Post importer and rest operation confirmation, delete the leftover `data-${APP_NAME}-importer-0` persistent volume
     claim (Importer is no longer stateful)
     ```shell
     kubectl delete pvc "data-${APP_NAME}-importer-0"

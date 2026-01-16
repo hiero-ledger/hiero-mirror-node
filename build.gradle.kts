@@ -1,21 +1,8 @@
-/*
- * Copyright (C) 2022-2024 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import com.github.gradle.node.npm.task.NpmSetupTask
 import java.nio.file.Paths
+import task.Release
 
 description = "Hedera Mirror Node imports data from consensus nodes and serves it via an API"
 
@@ -24,116 +11,94 @@ plugins {
     id("com.github.node-gradle.node")
     id("idea")
     id("java-platform")
-    id("org.sonarqube")
     id("snykcode-extension")
 }
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("grpcVersion", "1.68.0")
-    set("mapStructVersion", "1.6.2")
-    set("nodeJsVersion", "18.18.0")
-    set("protobufVersion", "3.25.5")
+    set("besuVersion", "24.3.3")
+    set("blockNodeVersion", "0.24.2")
+    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
+    set("consensusNodeVersion", "0.69.1")
+    set("grpcVersion", "1.78.0")
+    set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
+    set("mapStructVersion", "1.6.3")
+    set("nodeJsVersion", "24.13.0")
+    set("protobufVersion", "4.33.3")
     set("reactorGrpcVersion", "1.2.4")
-    set("spring-framework.version", "6.1.14") // Temporary until next Spring Boot version
-    set("vertxVersion", "4.5.10")
     set("tuweniVersion", "2.3.1")
+    set("web3jVersion", "5.0.1")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
 // using a dependency
 dependencies {
     constraints {
+        val besuVersion: String by rootProject.extra
+        val blockNodeVersion: String by rootProject.extra
+        val consensusNodeVersion: String by rootProject.extra
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
         val reactorGrpcVersion: String by rootProject.extra
-        val testcontainersSpringBootVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
-        val vertxVersion: String by rootProject.extra
+        val web3jVersion: String by rootProject.extra
 
-        api("com.esaulpaugh:headlong:10.0.2")
+        api("com.asarkar.grpc:grpc-test:2.0.0")
+        api("com.esaulpaugh:headlong:13.3.1")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
-        api("org.bouncycastle:bcprov-jdk18on:1.78.1")
         api("com.bucket4j:bucket4j-core:8.10.1")
-        api("com.google.cloud:spring-cloud-gcp-dependencies:5.7.0")
-        api("com.google.guava:guava:33.3.1-jre")
+        api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:2.8")
-        api("com.graphql-java:graphql-java-extended-scalars:22.0")
-        api("com.graphql-java:graphql-java-extended-validation:22.0")
-        api("com.hedera.hashgraph:app:0.55.1")
-        api("com.hedera.evm:hedera-evm:0.54.2")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.55.0")
-        api("com.hedera.hashgraph:sdk:2.42.0")
+        api("com.graphql-java-generator:graphql-java-client-runtime:3.1")
+        api("com.graphql-java:graphql-java-extended-scalars:24.0")
+        api("com.graphql-java:graphql-java-extended-validation:24.0")
+        api("com.hedera.hashgraph:app:$consensusNodeVersion")
+        api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
+        api("com.hedera.hashgraph:sdk:2.65.0")
         api("com.ongres.scram:client:2.1")
-        api("com.playtika.testcontainers:embedded-google-pubsub:3.1.9")
-        api("com.redis.testcontainers:testcontainers-redis-junit-jupiter:1.4.6")
         api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
-        api("commons-beanutils:commons-beanutils:1.9.4")
-        api("commons-io:commons-io:2.17.0")
-        api("io.cucumber:cucumber-bom:7.20.1")
+        api("commons-beanutils:commons-beanutils:1.11.0")
+        api("commons-io:commons-io:2.21.0")
+        api("io.cucumber:cucumber-bom:7.23.0")
+        api("io.fabric8:kubernetes-client-bom:7.5.0")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.8.3")
-        api("io.projectreactor:reactor-core-micrometer:1.1.11")
-        api("io.swagger:swagger-annotations:1.6.14")
-        api("io.vertx:vertx-pg-client:$vertxVersion")
-        api("io.vertx:vertx-codegen:$vertxVersion")
-        api("io.vertx:vertx-core:$vertxVersion")
+        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
+        api("io.projectreactor:reactor-core-micrometer:1.2.12")
+        api("io.swagger:swagger-annotations:1.6.16")
+        api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
+        api("javax.inject:javax.inject:1")
         api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
-        api("net.java.dev.jna:jna:5.15.0")
-        api("org.apache.commons:commons-collections4:4.4")
-        api("org.apache.commons:commons-compress:1.27.1")
+        api("net.java.dev.jna:jna:5.18.1")
+        api("org.apache.commons:commons-collections4:4.5.0")
+        api("org.apache.commons:commons-compress:1.28.0")
         api("org.apache.commons:commons-math3:3.6.1")
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
-        api("org.apache.velocity:velocity-engine-core:2.4")
+        api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
-        api("org.gaul:s3proxy:2.3.0")
+        api("org.gaul:s3proxy:3.0.0")
+        api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
-        api("org.hyperledger.besu:evm:24.3.3")
+        api("org.hyperledger.besu:besu-datatypes:$besuVersion")
+        api("org.hyperledger.besu:evm:$besuVersion")
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
-        api("org.msgpack:jackson-dataformat-msgpack:0.9.8")
+        api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
-        api("org.springframework.cloud:spring-cloud-dependencies:2023.0.3")
-        api("org.testcontainers:junit-jupiter:1.20.2")
         api("org.mockito:mockito-inline:5.2.0")
-        api("software.amazon.awssdk:bom:2.28.26")
-        api("uk.org.webcompere:system-stubs-jupiter:2.1.7")
-        api("org.web3j:core:4.12.2")
+        api("org.web3j:core:$web3jVersion")
+        api("software.amazon.awssdk:bom:2.41.5")
+        api("tech.pegasys:jc-kzg-4844:1.0.0")
+        api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
 }
 
-allprojects {
-    apply(plugin = "jacoco")
-    apply(plugin = "org.sonarqube")
-
-    sonarqube {
-        properties {
-            property("sonar.host.url", "https://sonarcloud.io")
-            property("sonar.organization", "hashgraph")
-            property("sonar.projectKey", "hedera-mirror-node")
-            property("sonar.sourceEncoding", "UTF-8")
-            property("sonar.issue.ignore.multicriteria", "e1,e2,e3,e4,e5,e6")
-            property("sonar.issue.ignore.multicriteria.e1.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e1.ruleKey", "java:S6212")
-            property("sonar.issue.ignore.multicriteria.e2.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e2.ruleKey", "java:S125")
-            property("sonar.issue.ignore.multicriteria.e3.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e3.ruleKey", "java:S2187")
-            property("sonar.issue.ignore.multicriteria.e4.resourceKey", "**/*.js")
-            property("sonar.issue.ignore.multicriteria.e4.ruleKey", "javascript:S3758")
-            property("sonar.issue.ignore.multicriteria.e5.resourceKey", "**/stateproof/*.sql")
-            property("sonar.issue.ignore.multicriteria.e5.ruleKey", "plsql:S1192")
-            property("sonar.issue.ignore.multicriteria.e6.resourceKey", "**/*.java")
-            property("sonar.issue.ignore.multicriteria.e6.ruleKey", "java:S2970")
-        }
-    }
-}
+allprojects { apply(plugin = "jacoco") }
 
 idea {
     module {
@@ -156,25 +121,7 @@ repositories {
 }
 
 spotless {
-    val licenseHeader =
-        """
-/*
- * Copyright (C) ${'$'}YEAR Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */${"\n\n"}
-"""
-            .trimIndent()
+    val licenseHeader = "// SPDX-License-Identifier: Apache-2.0\n\n"
 
     val npmExec =
         when (System.getProperty("os.name").lowercase().contains("windows")) {
@@ -192,114 +139,129 @@ spotless {
 
     format("go") {
         endWithNewline()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
-        target("hedera-mirror-rosetta/**/*.go")
-        targetExclude("build/**")
+        licenseHeader(licenseHeader, "package")
+        target("rosetta/**/*.go")
+        targetExclude("**/build/**")
+        trimTrailingWhitespace()
+    }
+    format("helm") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")
+        target("charts/**/*.yaml", "charts/**/*.yml")
         trimTrailingWhitespace()
     }
     format("javascript") {
         endWithNewline()
-        indentWithSpaces(2)
-        licenseHeader(licenseHeader, "$").updateYearWithLatest(true)
+        leadingTabsToSpaces(2)
+        licenseHeader(licenseHeader, "$")
         prettier()
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
-            .config(
-                mapOf(
-                    "bracketSpacing" to false,
-                    "printWidth" to 120,
-                    "singleQuote" to true,
-                )
-            )
-        target("hedera-mirror-rest/**/*.js", "hedera-mirror-test/**/*.js")
-        targetExclude("**/build/**", "**/node_modules/**", "**/__tests__/integration/*.test.js")
+            .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
+        target("rest/**/*.js", "tools/**/*.js")
+        targetExclude(
+            "**/build/**",
+            "**/node_modules/**",
+            "**/__tests__/integration/*.spec.test.js",
+            "tools/mirror-report/index.js",
+        )
     }
     java {
         endWithNewline()
+        licenseHeader(licenseHeader, "package")
         palantirJavaFormat()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
+        removeUnusedImports()
         target("**/*.java")
         targetExclude(
             "**/build/**",
-            "hedera-mirror-rest/**",
-            "hedera-mirror-rosetta/**",
+            "rest/**",
+            "rosetta/**",
             // Known issue with Java 21: https://github.com/palantir/palantir-java-format/issues/933
-            "hedera-mirror-rest-java/**/EntityServiceImpl.java"
+            "rest-java/**/EntityServiceImpl.java",
+            "tools/**",
         )
         toggleOffOn()
+        trimTrailingWhitespace()
     }
     kotlin {
         endWithNewline()
         ktfmt().kotlinlangStyle()
-        licenseHeader(licenseHeader, "package").updateYearWithLatest(true)
+        licenseHeader(licenseHeader, "package")
         target("buildSrc/**/*.kt")
         targetExclude("**/build/**")
     }
     kotlinGradle {
         endWithNewline()
         ktfmt().kotlinlangStyle()
-        licenseHeader(licenseHeader, "(description|import|plugins)").updateYearWithLatest(true)
-        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "hedera-mirror-rest/*/*.kts")
-        targetExclude("**/build/**")
+        licenseHeader(licenseHeader, "(description|import|plugins)")
+        target("*.kts", "*/*.kts", "buildSrc/**/*.kts", "rest/*/*.kts")
+        targetExclude("**/build/**", "**/node_modules/**")
+        trimTrailingWhitespace()
     }
     format("miscellaneous") {
         endWithNewline()
-        indentWithSpaces(2)
-        prettier().npmExecutable(npmExecutable)
-        target("**/*.json", "**/*.md", "**/*.yml", "**/*.yaml")
-        targetExclude("**/build/**", "**/charts/**", "**/node_modules/**", "**/package-lock.json")
+        leadingTabsToSpaces(2)
+        prettier()
+            .npmExecutable(npmExecutable)
+            .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
+        target("**/*.json", "**/*.md")
+        targetExclude(
+            "**/build/**",
+            "**/charts/**/dashboards/**",
+            "**/node_modules/**",
+            "**/package-lock.json",
+        )
         trimTrailingWhitespace()
     }
     format("proto") {
         endWithNewline()
-        indentWithSpaces(4)
-        licenseHeader(licenseHeader, "(package|syntax)").updateYearWithLatest(true)
-        target("hedera-mirror-protobuf/**/*.proto")
-        targetExclude("build/**")
+        leadingTabsToSpaces(4)
+        licenseHeader(licenseHeader, "(package|syntax)")
+        target("protobuf/**/*.proto")
+        targetExclude("**/build/**")
+        trimTrailingWhitespace()
+    }
+    format("shell") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        licenseHeader("#!/usr/bin/env bash\n\n" + licenseHeader.replaceFirst("//", "#"), "^[^#\\s]")
+        target("**/*.sh")
+        targetExclude("**/build/**", "**/node_modules/**")
         trimTrailingWhitespace()
     }
     sql {
         endWithNewline()
-        indentWithSpaces()
-        target("hedera-mirror-(common|importer|rest)/**/*.sql")
-        targetExclude("**/build/**", "**/node_modules/**")
+        leadingTabsToSpaces()
+        licenseHeader(licenseHeader.replaceFirst("//", "--"), "^[^-\\s]")
+        target(
+            "common/src/test/resources/*.sql",
+            "importer/**/*.sql",
+            "rest/__tests__/data/**/*.sql",
+        )
+        targetExclude("**/build/**", "**/db/migration/**")
         trimTrailingWhitespace()
     }
-}
-
-fun replaceVersion(files: String, match: String) {
-    ant.withGroovyBuilder {
-        "replaceregexp"("match" to match, "replace" to project.version, "flags" to "gm") {
-            "fileset"(
-                "dir" to rootProject.projectDir,
-                "includes" to files,
-                "excludes" to "**/node_modules/"
-            )
-        }
+    format("yaml") {
+        endWithNewline()
+        leadingTabsToSpaces(2)
+        prettier()
+            .npmExecutable(npmExecutable)
+            .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
+        licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")
+        target("**/*.yaml", "**/*.yml")
+        targetExclude("**/build/**", "charts/**", "**/node_modules/**")
+        trimTrailingWhitespace()
     }
 }
 
 tasks.nodeSetup { onlyIf { !this.nodeDir.get().asFile.exists() } }
 
-// Replace release version in files
-tasks.register("release") {
-    doLast {
-        replaceVersion("charts/**/Chart.yaml", "(?<=^(appVersion|version): ).+")
-        replaceVersion("docker-compose.yml", "(?<=gcr.io/mirrornode/hedera-mirror-.+:).+")
-        replaceVersion("gradle.properties", "(?<=^version=).+")
-        replaceVersion(
-            "hedera-mirror-rest/**/package*.json",
-            "(?<=\"@hashgraph/(check-state-proof|mirror-rest|mirror-monitor)\",\\s{3,7}\"version\": \")[^\"]+"
-        )
-        replaceVersion("hedera-mirror-rest/**/openapi.yml", "(?<=^  version: ).+")
-        replaceVersion(
-            "hedera-mirror-test/traffic-replay/log-downloader/package*.json",
-            "(?<=\"@hashgraph/mirror-log-downloader\",\\s{3,7}\"version\": \")[^\"]+"
-        )
-    }
+tasks.register<Release>("release") {
+    description = "Replaces release version in files."
+    group = "release"
+    directory = layout.settingsDirectory
 }
-
-tasks.sonar { dependsOn(tasks.build) }
 
 tasks.spotlessApply { dependsOn(tasks.nodeSetup) }
 

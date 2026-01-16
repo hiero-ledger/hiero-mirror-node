@@ -1,3 +1,0 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
-
-exports[`validateExtractCryptoAllowancesQuery throw spender.id ne 1`] = `"Not equal (ne) comparison operator is not supported for spender.id"`;

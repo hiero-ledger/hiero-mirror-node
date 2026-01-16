@@ -1,0 +1,90 @@
+{
+  "description": "Transaction api calls for a specific transaction using transaction id and scheduled is false",
+  "setup": {
+    "features": {
+      "fakeTime": "2009-02-13T10:50:00Z"
+    },
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "balances": [],
+    "transactions": [
+      {
+        "batch_key": null,
+        "charged_tx_fee": 7,
+        "payerAccountId": "0.0.10",
+        "nodeAccountId": "0.0.3",
+        "consensus_timestamp": "1234567890000000002",
+        "name": "SCHEDULECREATE",
+        "type": 42,
+        "transfers": [
+          {
+            "account": "0.0.9",
+            "amount": 10
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": true
+          }
+        ],
+        "entity_id": "0.0.1000"
+      }
+    ]
+  },
+  "url": "/api/v1/transactions/0.0.10-1234567890-000000001",
+  "responseStatus": 200,
+  "responseHeaders": {
+    "cache-control": "public, max-age=5"
+  },
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "consensus_timestamp": "1234567890.000000002",
+        "entity_id": "0.0.1000",
+        "charged_tx_fee": 7,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "SCHEDULECREATE",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.10-1234567890-000000001",
+        "transfers": [
+          {
+            "account": "0.0.9",
+            "amount": 10,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": true
+          }
+        ],
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000001"
+      }
+    ]
+  }
+}

@@ -1,4 +1,6 @@
-{{- if .Values.testkube.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.testkube.enabled -}}
 {{- range $idx, $target := $.Values.testkube.test.targets }}
 ---
 apiVersion: tests.testkube.io/v3

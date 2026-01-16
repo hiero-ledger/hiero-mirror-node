@@ -18,14 +18,14 @@ from the top level directory. This will compile a runnable mirror node JAR file 
 In addition to Java 21, you will need to install a [PostgreSQL](https://postgresql.org) database and initialize it.
 
 Since [Flyway](https://flywaydb.org) will manage the database schema, the only required step is to run the database
-initialization script. Locate the SQL script at `hedera-mirror-importer/src/main/resources/db/scripts/init.sh` and edit
+initialization script. Locate the SQL script at `importer/src/main/resources/db/scripts/init.sh` and edit
 the file to change the name and password variables at the top of the file to the desired values. Then make sure the
 application [configuration](configuration.md)
 matches the values in the script. Run the SQL script as a superuser and check the output carefully to ensure no errors
 occurred.
 
 ```console
-./hedera-mirror-importer/src/main/resources/db/scripts/init.sh
+./importer/src/main/resources/db/scripts/init.sh
 ```
 
 ## Running via Gradle
@@ -48,10 +48,10 @@ volumes:
 
 ### Configuration
 
-Before starting, [configure](configuration.md) the application by updating the [application.yml](/application.yml)
-file with the desired custom values. This file is passed to Docker Compose and allows customized configuration for each
-of the mirror node components. The `application.yml` file contents represent the minimal set of fields required to
-configure requester pays and must be uncommented and filled in.
+Before starting, [configure](configuration.md) the application by updating the inline configuration at
+`configs.app-config.content` within the `docker-compose.yml` file with the desired custom values. This file is passed to
+Docker Compose and allows customized configuration for each of the mirror node components. The `application.yml` file
+contents represent the minimal set of fields required to configure requester pays and must be uncommented and filled in.
 
 ### Starting
 

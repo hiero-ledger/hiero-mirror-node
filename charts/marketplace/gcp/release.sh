@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+# SPDX-License-Identifier: Apache-2.0
+
 set -ex
 
 if [[ "$#" -lt 1 ]]; then
@@ -18,11 +21,12 @@ if [[ "$#" -eq 2 ]]; then
     target_tag="${2}"
 fi
 
+annotation="com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
+bats_tag="1.11.1"
+postgresql_tag="17.6.0-debian-12-r2"
+registry="gcr.io/mirror-node-public/hedera-mirror-node"
 target_tag="${target_tag#v}" # Strip v prefix if present
 target_tag_minor="${target_tag%\.*}"
-bats_tag="1.11.0"
-postgresql_tag="16.4.0-debian-12-r14"
-registry="gcr.io/mirror-node-public/hedera-mirror-node"
 
 function retag() {
     local source=${1}
@@ -34,28 +38,33 @@ function retag() {
         target="${registry}"
     fi
 
-    docker pull "${source}" --platform linux/amd64
-    docker tag "${source}" "${target}:${target_tag}"
-    docker push "${target}:${target_tag}"
+    retag_single "${source}" "${target}:${target_tag}"
 
     # Don't update minor tag for pre-release tags
     if [[ ! "${target_tag}" =~ .*-.* ]]; then
-        docker tag "${source}" "${target}:${target_tag_minor}"
-        docker push "${target}:${target_tag_minor}"
+        retag_single "${source}" "${target}:${target_tag_minor}"
     fi
+}
+
+function retag_single() {
+    local source=${1}
+    local target=${2}
+    digest=$(docker buildx imagetools inspect "${source}" --raw | jq '.manifests[] | select(.platform.architecture=="amd64" and .platform.os=="linux") | .digest' -r)
+    source_image="${source//\:*/}"
+    docker buildx imagetools create "${source_image}@${digest}" --tag "${target}" --annotation "index,manifest-descriptor:${annotation}"
 }
 
 # Ensure chart app version matches schema.yaml version
 sed "-i.bak" "s/version: .*/version: ${target_tag}/" values.yaml
 
 # Build Marketplace deployer image
-docker build -f ./Dockerfile -t "${registry}/deployer:${target_tag}" --platform linux/amd64 --build-arg TAG="${target_tag}" ../..
-docker push "${registry}/deployer:${target_tag}"
+docker buildx build --push -f ./Dockerfile --provenance false -t "${registry}/deployer:${target_tag}" -t "${registry}/deployer:${target_tag_minor}" --platform linux/amd64 --build-arg TAG="${target_tag}" --annotation "manifest,manifest-descriptor:${annotation}" ../..
 
-# Retag other images
+# Re-tag our manually built postgresql-repmgr image
+docker buildx imagetools create "${registry}/postgresql-repmgr:${postgresql_tag}" --tag "${registry}/postgresql-repmgr:${target_tag}" --tag "${registry}/postgresql-repmgr:${target_tag_minor}" --annotation "index,manifest-descriptor:${annotation}"
+
+# Re-tag other images
 retag "bats/bats:${bats_tag}" "test"
-retag "bitnami/postgresql-repmgr:${postgresql_tag}" "postgresql-repmgr"
-retag "${registry}/deployer:${target_tag}" "deployer"
 retag "gcr.io/mirrornode/hedera-mirror-grpc:${source_tag}" "grpc"
 retag "gcr.io/mirrornode/hedera-mirror-importer:${source_tag}" ""
 retag "gcr.io/mirrornode/hedera-mirror-rest:${source_tag}" "rest"

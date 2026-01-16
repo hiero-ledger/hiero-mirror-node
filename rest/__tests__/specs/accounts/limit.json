@@ -1,0 +1,265 @@
+{
+  "description": "Account api call for specific a range of accounts with a limit",
+  "setup": {
+    "accounts": [
+      {
+        "balance": 70,
+        "num": 17
+      },
+      {
+        "balance": 80,
+        "balance_timestamp": "2345",
+        "num": 18
+      },
+      {
+        "balance": 100,
+        "num": 20
+      },
+      {
+        "balance": 110,
+        "num": 21
+      }
+    ],
+    "contracts": [
+      {
+        "balance": 90,
+        "balance_timestamp": "2344",
+        "num": 19
+      }
+    ],
+    "tokenaccounts": [
+      {
+        "token_id": "0.0.99998",
+        "account_id": "0.0.18",
+        "balance": 18,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "0.0.99999",
+        "account_id": "0.0.18",
+        "balance": 1818,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "0.0.99999",
+        "account_id": "0.0.20",
+        "balance": 20,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "0.0.99998",
+        "account_id": "0.0.20",
+        "balance": 2020,
+        "created_timestamp": "2300"
+      }
+    ],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "tests": [
+    {
+      "url": "/api/v1/accounts?account.id=gt:0.0.17&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "accounts": [
+          {
+            "balance": {
+              "balance": 80,
+              "timestamp": "0.000002345",
+              "tokens": [
+                {
+                  "token_id": "0.0.99998",
+                  "balance": 18
+                },
+                {
+                  "token_id": "0.0.99999",
+                  "balance": 1818
+                }
+              ]
+            },
+            "account": "0.0.18",
+            "alias": null,
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000012",
+            "expiry_timestamp": null,
+            "auto_renew_period": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "entity memo",
+            "pending_reward": 0,
+            "receiver_sig_required": false,
+            "staked_account_id": null,
+            "staked_node_id": null,
+            "stake_period_start": null
+          },
+          {
+            "balance": {
+              "balance": 90,
+              "timestamp": "0.000002344",
+              "tokens": []
+            },
+            "account": "0.0.19",
+            "alias": null,
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000013",
+            "expiry_timestamp": null,
+            "auto_renew_period": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "contract memo",
+            "pending_reward": 0,
+            "receiver_sig_required": null,
+            "staked_account_id": null,
+            "staked_node_id": null,
+            "stake_period_start": null
+          }
+        ],
+        "links": {
+          "next": "/api/v1/accounts?limit=2&account.id=gt:0.0.19"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/accounts?limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "accounts": [
+          {
+            "account": "0.0.17",
+            "alias": null,
+            "auto_renew_period": null,
+            "balance": {
+              "balance": 70,
+              "timestamp": null,
+              "tokens": []
+            },
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000011",
+            "expiry_timestamp": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "entity memo",
+            "pending_reward": 0,
+            "receiver_sig_required": false,
+            "stake_period_start": null,
+            "staked_account_id": null,
+            "staked_node_id": null
+          },
+          {
+            "account": "0.0.18",
+            "alias": null,
+            "auto_renew_period": null,
+            "balance": {
+              "balance": 80,
+              "timestamp": "0.000002345",
+              "tokens": [
+                {
+                  "balance": 18,
+                  "token_id": "0.0.99998"
+                },
+                {
+                  "balance": 1818,
+                  "token_id": "0.0.99999"
+                }
+              ]
+            },
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000012",
+            "expiry_timestamp": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "entity memo",
+            "pending_reward": 0,
+            "receiver_sig_required": false,
+            "stake_period_start": null,
+            "staked_account_id": null,
+            "staked_node_id": null
+          }
+        ],
+        "links": {
+          "next": "/api/v1/accounts?limit=2&account.id=gt:0.0.18"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/accounts?limit=2&order=desc",
+      "responseStatus": 200,
+      "responseJson": {
+        "accounts": [
+          {
+            "account": "0.0.21",
+            "alias": null,
+            "auto_renew_period": null,
+            "balance": {
+              "balance": 110,
+              "timestamp": null,
+              "tokens": []
+            },
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000015",
+            "expiry_timestamp": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "entity memo",
+            "pending_reward": 0,
+            "receiver_sig_required": false,
+            "stake_period_start": null,
+            "staked_account_id": null,
+            "staked_node_id": null
+          },
+          {
+            "account": "0.0.20",
+            "alias": null,
+            "auto_renew_period": null,
+            "balance": {
+              "balance": 100,
+              "timestamp": null,
+              "tokens": [
+                {
+                  "balance": 20,
+                  "token_id": "0.0.99999"
+                },
+                {
+                  "balance": 2020,
+                  "token_id": "0.0.99998"
+                }
+              ]
+            },
+            "created_timestamp": null,
+            "decline_reward": false,
+            "deleted": false,
+            "ethereum_nonce": null,
+            "evm_address": "0x0000000000000000000000000000000000000014",
+            "expiry_timestamp": null,
+            "key": null,
+            "max_automatic_token_associations": 0,
+            "memo": "entity memo",
+            "pending_reward": 0,
+            "receiver_sig_required": false,
+            "stake_period_start": null,
+            "staked_account_id": null,
+            "staked_node_id": null
+          }
+        ],
+        "links": {
+          "next": "/api/v1/accounts?limit=2&order=desc&account.id=lt:0.0.20"
+        }
+      }
+    }
+  ]
+}

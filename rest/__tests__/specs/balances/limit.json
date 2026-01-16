@@ -1,0 +1,219 @@
+{
+  "description": "Balance api calls for a range of balances with limit",
+  "setup": {
+    "config": {
+      "response": {
+        "limit": {
+          "default": 2,
+          "max": 4,
+          "tokenBalance": {
+            "multipleAccounts": 2
+          }
+        }
+      }
+    },
+    "accounts": [
+      {
+        "num": 17
+      },
+      {
+        "num": 18
+      },
+      {
+        "num": 19
+      },
+      {
+        "num": 20
+      },
+      {
+        "num": 21
+      }
+    ],
+    "balances": [
+      {
+        "timestamp": 2345,
+        "id": 2,
+        "balance": 2
+      },
+      {
+        "timestamp": 2345,
+        "id": 17,
+        "balance": 700,
+        "tokens": [
+          {
+            "token_num": 100001,
+            "balance": 5
+          },
+          {
+            "token_num": 100002,
+            "balance": 10
+          },
+          {
+            "token_num": 100003,
+            "balance": 200
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 18,
+        "balance": 200
+      },
+      {
+        "timestamp": 2345,
+        "id": 19,
+        "balance": 900,
+        "tokens": [
+          {
+            "token_num": 100010,
+            "balance": 95
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 20,
+        "balance": 450,
+        "tokens": [
+          {
+            "token_num": 100001,
+            "balance": 51
+          },
+          {
+            "token_num": 100002,
+            "balance": 101
+          }
+        ]
+      },
+      {
+        "timestamp": 2345,
+        "id": 21,
+        "balance": 300
+      }
+    ]
+  },
+  "tests": [
+    {
+      "url": "/api/v1/balances?account.balance=gte:300&limit=2&order=asc&timestamp=0.0010023",
+      "responseStatus": 200,
+      "responseJson": {
+        "timestamp": "0.000002345",
+        "balances": [
+          {
+            "account": "0.0.17",
+            "balance": 700,
+            "tokens": [
+              {
+                "token_id": "0.0.100001",
+                "balance": 5
+              },
+              {
+                "token_id": "0.0.100002",
+                "balance": 10
+              }
+            ]
+          },
+          {
+            "account": "0.0.19",
+            "balance": 900,
+            "tokens": [
+              {
+                "token_id": "0.0.100010",
+                "balance": 95
+              }
+            ]
+          }
+        ],
+        "links": {
+          "next": "/api/v1/balances?account.balance=gte:300&limit=2&order=asc&timestamp=0.0010023&account.id=gt:0.0.19"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/balances?account.balance=gte:300&limit=5&order=asc&timestamp=0.0010023",
+      "responseStatus": 200,
+      "responseJson": {
+        "timestamp": "0.000002345",
+        "balances": [
+          {
+            "account": "0.0.17",
+            "balance": 700,
+            "tokens": [
+              {
+                "token_id": "0.0.100001",
+                "balance": 5
+              },
+              {
+                "token_id": "0.0.100002",
+                "balance": 10
+              }
+            ]
+          },
+          {
+            "account": "0.0.19",
+            "balance": 900,
+            "tokens": [
+              {
+                "token_id": "0.0.100010",
+                "balance": 95
+              }
+            ]
+          },
+          {
+            "account": "0.0.20",
+            "balance": 450,
+            "tokens": [
+              {
+                "token_id": "0.0.100001",
+                "balance": 51
+              },
+              {
+                "token_id": "0.0.100002",
+                "balance": 101
+              }
+            ]
+          },
+          {
+            "account": "0.0.21",
+            "balance": 300,
+            "tokens": []
+          }
+        ],
+        "links": {
+          "next": "/api/v1/balances?account.balance=gte:300&limit=5&order=asc&timestamp=0.0010023&account.id=gt:0.0.21"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/balances?account.id=gte:0.0.20&limit=2&order=desc&timestamp=0.0010023",
+      "responseStatus": 200,
+      "responseJson": {
+        "timestamp": "0.000002345",
+        "balances": [
+          {
+            "account": "0.0.21",
+            "balance": 300,
+            "tokens": []
+          },
+          {
+            "account": "0.0.20",
+            "balance": 450,
+            "tokens": [
+              {
+                "balance": 101,
+                "token_id": "0.0.100002"
+              },
+              {
+                "balance": 51,
+                "token_id": "0.0.100001"
+              }
+            ]
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}

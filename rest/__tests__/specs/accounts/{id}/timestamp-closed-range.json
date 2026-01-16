@@ -1,0 +1,391 @@
+{
+  "description": "Account api calls for specific account using path and closed timestamp range",
+  "matrix": "bindTimestampRangeMatrix.js",
+  "setup": {
+    "config": {
+      "query": {
+        "maxTransactionsTimestampRangeNs": 31536000000000000
+      }
+    },
+    "features": {
+      "fakeTime": "2023-06-10Z"
+    },
+    "accounts": [
+      {
+        "balance": 88,
+        "balance_timestamp": "1234567890300123456",
+        "num": 8,
+        "timestamp_range": "[1234567890000000007,)",
+        "staked_node_id": 1,
+        "staked_account_id": 1
+      }
+    ],
+    "balances": [
+      {
+        "timestamp": 1680308100000000000,
+        "id": 2,
+        "balance": 201
+      },
+      {
+        "timestamp": 1681084800000000000,
+        "id": 2,
+        "balance": 202
+      },
+      {
+        "timestamp": 1682901000000000000,
+        "id": 2,
+        "balance": 203
+      },
+      {
+        "timestamp": 1684112400000000000,
+        "id": 2,
+        "balance": 204
+      },
+      {
+        "timestamp": 1685578500000000000,
+        "id": 2,
+        "balance": 205
+      },
+      {
+        "timestamp": 1686312900000000000,
+        "id": 2,
+        "balance": 206
+      },
+      {
+        "timestamp": 1680308100000000000,
+        "id": 8,
+        "balance": 801,
+        "tokens": [
+          {
+            "token_num": 99998,
+            "balance": 7
+          },
+          {
+            "token_num": 99999,
+            "balance": 77
+          }
+        ]
+      },
+      {
+        "timestamp": 1682901000000000000,
+        "id": 8,
+        "balance": 803,
+        "tokens": [
+          {
+            "token_num": 99998,
+            "balance": 8
+          },
+          {
+            "token_num": 99999,
+            "balance": 78
+          }
+        ]
+      },
+      {
+        "timestamp": 1684112400000000000,
+        "id": 8,
+        "balance": 804,
+        "tokens": [
+          {
+            "token_num": 99998,
+            "balance": 8
+          },
+          {
+            "token_num": 99999,
+            "balance": 78
+          }
+        ]
+      },
+      {
+        "timestamp": 1685578500000000000,
+        "id": 8,
+        "balance": 805,
+        "tokens": [
+          {
+            "token_num": 99998,
+            "balance": 8
+          },
+          {
+            "token_num": 99999,
+            "balance": 78
+          }
+        ]
+      }
+    ],
+    "cryptotransfers": [
+      {
+        "consensus_timestamp": "1685578500000000001",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "token_transfer_list": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.8",
+            "amount": -1200,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.9",
+            "amount": 1200,
+            "is_approval": true
+          }
+        ]
+      },
+      {
+        "consensus_timestamp": "1685598500000000001",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "token_transfer_list": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.8",
+            "amount": -200,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.1679",
+            "amount": 200,
+            "is_approval": true
+          }
+        ]
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/accounts/0.0.8?timestamp=gt:1669939200&timestamp=lt:1673136000",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1669939200&timestamp=lt:1680308100",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1680305000&timestamp=lt:1680308100",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1686312900&timestamp=lt:1688774400",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1688774400&timestamp=lt:1699401600",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1685598500.000000001&timestamp=lt:1686312900"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "account": "0.0.8",
+        "alias": null,
+        "auto_renew_period": null,
+        "balance": {
+          "balance": 88,
+          "timestamp": "1234567890.300123456",
+          "tokens": []
+        },
+        "created_timestamp": null,
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x0000000000000000000000000000000000000008",
+        "expiry_timestamp": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "stake_period_start": null,
+        "staked_account_id": "0.0.1",
+        "staked_node_id": 1,
+        "transactions": [],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "url": "/api/v1/accounts/0.0.8?timestamp=gt:1680308100&timestamp=lte:1684112400",
+      "responseStatus": 200,
+      "responseJson": {
+        "account": "0.0.8",
+        "alias": null,
+        "auto_renew_period": null,
+        "balance": {
+          "balance": 804,
+          "timestamp": "1684112400.000000000",
+          "tokens": [
+            {
+              "balance": 8,
+              "token_id": "0.0.99998"
+            },
+            {
+              "balance": 78,
+              "token_id": "0.0.99999"
+            }
+          ]
+        },
+        "created_timestamp": null,
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x0000000000000000000000000000000000000008",
+        "expiry_timestamp": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "stake_period_start": null,
+        "staked_account_id": "0.0.1",
+        "staked_node_id": 1,
+        "transactions": [],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/accounts/0.0.8?timestamp=gt:1680308100&timestamp=lte:1686312900",
+        "/api/v1/accounts/0.0.8?timestamp=gt:1668480000&timestamp=lt:1700000000"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "account": "0.0.8",
+        "alias": null,
+        "auto_renew_period": null,
+        "balance": {
+          "balance": 805,
+          "timestamp": "1686312900.000000000",
+          "tokens": [
+            {
+              "balance": 8,
+              "token_id": "0.0.99998"
+            },
+            {
+              "balance": 78,
+              "token_id": "0.0.99999"
+            }
+          ]
+        },
+        "created_timestamp": null,
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x0000000000000000000000000000000000000008",
+        "expiry_timestamp": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "stake_period_start": null,
+        "staked_account_id": "0.0.1",
+        "staked_node_id": 1,
+        "transactions": [
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1685598500.000000001",
+            "entity_id": null,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CRYPTOTRANSFER",
+            "nft_transfers": [],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "token_transfers": [
+              {
+                "account": "0.0.8",
+                "amount": -200,
+                "is_approval": true,
+                "token_id": "0.0.90000"
+              },
+              {
+                "account": "0.0.1679",
+                "amount": 200,
+                "is_approval": true,
+                "token_id": "0.0.90000"
+              }
+            ],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1685598500-000000000",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1685598500.000000000"
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1685578500.000000001",
+            "entity_id": null,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CRYPTOTRANSFER",
+            "nft_transfers": [],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "token_transfers": [
+              {
+                "account": "0.0.8",
+                "amount": -1200,
+                "is_approval": true,
+                "token_id": "0.0.90000"
+              },
+              {
+                "account": "0.0.9",
+                "amount": 1200,
+                "is_approval": true,
+                "token_id": "0.0.90000"
+              }
+            ],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1685578500-000000000",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1685578500.000000000"
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}

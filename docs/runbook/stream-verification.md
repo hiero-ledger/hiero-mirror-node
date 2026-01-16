@@ -16,7 +16,7 @@ environment.
 
 ### Application Configuration
 
-Create application.yml in {HEDERA_REPO}/hedera-mirror-importer/config/
+Create application.yml in `importer/config`
 
 1. Configure Network
 2. Configure start date
@@ -26,7 +26,7 @@ Create application.yml in {HEDERA_REPO}/hedera-mirror-importer/config/
 #### For S3 download application.yml
 
 ```yaml
-hedera:
+hiero:
   mirror:
     importer:
       startDate: 2023-04-19T16:12:00.000000000Z # exclusive
@@ -44,16 +44,17 @@ hedera:
 
 #### For Local Files application.yml
 
-When starting the application, the following subdirectories will be created under `${hedera.mirror.importer.dataPath}`
-`/streams/accountBalances/balance{NODE1...NODEn}` `/streams/recordstreams/record{NODE1...NODEn}` where n is the number of nodes in the address book.
+When starting the application, the following subdirectories will be created under `${hiero.mirror.importer.dataPath}`
+`/streams/accountBalances/balance{NODE1...NODEn}` `/streams/recordstreams/record{NODE1...NODEn}` where n is the number
+of nodes in the address book.
 
 You will need the record file(s) and signature file(s) from at least 1/3 of the nodes and placed under the corresponding
-node folder in `${hedera.mirror.importer.dataPath}/streams/{accountBalances|recordstreams}/{NODE_FOLDER}`.
+node folder in `${hiero.mirror.importer.dataPath}/streams/{accountBalances|recordstreams}/{NODE_FOLDER}`.
 
 These folders are watched for new files, so you may place the necessary files after application has started.
 
 ```yaml
-hedera:
+hiero:
   mirror:
     importer:
       dataPath: { PATH_TO_RECORD_STREAMS }
@@ -69,9 +70,8 @@ hedera:
 
 ## Run the application
 
-1. cd {HEDERA_REPO}
-2. `./gradlew importer:bootRun`
-3. Optionally, run in an IDE and run the bootrun gradle task on the importer module
+1. `./gradlew importer:bootRun`
+2. Optionally, run in an IDE and run the bootrun Gradle task on the importer module
 
 ## Verification
 

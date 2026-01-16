@@ -1,0 +1,364 @@
+{
+  "description": "Token info api call for a given token at timestamp",
+  "setup": {
+    "entities": [
+      {
+        "num": 1,
+        "type": "TOKEN",
+        "memo": "token.0.0.1",
+        "deleted": true
+      },
+      {
+        "num": 1135,
+        "type": "TOKEN",
+        "memo": "token.0.0.1135",
+        "deleted": false,
+        "timestamp_range": "[1234567890000000002,)"
+      },
+      {
+        "num": 1135,
+        "type": "TOKEN",
+        "memo": "token.0.0.1135-history",
+        "deleted": true,
+        "timestamp_range": "[1234567880000000002,1234567890000000002)"
+      },
+      {
+        "num": 1135,
+        "type": "TOKEN",
+        "memo": "token.0.0.1135-history-og",
+        "deleted": false,
+        "timestamp_range": "[1234567870000000002,1234567880000000002)"
+      },
+      {
+        "realm": 7,
+        "num": 25301,
+        "type": "TOKEN",
+        "memo": "token.0.7.25301",
+        "deleted": true
+      },
+      {
+        "realm": 23,
+        "num": 45678,
+        "type": "TOKEN",
+        "memo": "token.0.23.45678",
+        "deleted": null
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "FIRSTMOVERLPDJH",
+        "created_timestamp": "1234567890000000001",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.1135",
+        "symbol": "ORIGINALRDKSE",
+        "custom_fees": [
+          {
+            "entity_id": "0.0.1135",
+            "fractional_fees": [
+              {
+                "collector_account_id": "0.0.8901",
+                "denominator": 1,
+                "maximum_amount": 98,
+                "minimum_amount": 9,
+                "numerator": 1
+              }
+            ],
+            "timestamp_range": "[1234567899999999000,1234567899999999001)"
+          },
+          {
+            "entity_id": "0.0.1135",
+            "fractional_fees": [
+              {
+                "collector_account_id": "0.0.8901",
+                "denominator": 13,
+                "maximum_amount": 980,
+                "minimum_amount": 97,
+                "numerator": 10
+              }
+            ],
+            "timestamp_range": "[1234567899999999001,1234567899999999006)"
+          },
+          {
+            "entity_id": "0.0.1135",
+            "fixed_fees": [
+              {
+                "amount": 12,
+                "collector_account_id": "0.0.8904",
+                "denominating_token_id": "0.0.1137"
+              },
+              {
+                "all_collectors_are_exempt": true,
+                "amount": 13,
+                "collector_account_id": "0.0.8905"
+              }
+            ],
+            "fractional_fees": [
+              {
+                "collector_account_id": "0.0.8901",
+                "denominator": 17,
+                "maximum_amount": 987,
+                "minimum_amount": 79,
+                "numerator": 11
+              },
+              {
+                "all_collectors_are_exempt": true,
+                "collector_account_id": "0.0.8902",
+                "denominator": 13,
+                "minimum_amount": 1,
+                "numerator": 9
+              },
+              {
+                "all_collectors_are_exempt": true,
+                "collector_account_id": "0.0.8904",
+                "denominator": 131,
+                "minimum_amount": 0,
+                "net_of_transfers": true,
+                "numerator": 41
+              }
+            ],
+            "timestamp_range": "[1234567899999999007,)"
+          }
+        ],
+        "created_timestamp": "1234567870000000002",
+        "metadata": null,
+        "type": "FUNGIBLE_COMMON",
+        "timestamp_range": "[1234567890000000002,)"
+      },
+      {
+        "token_id": "0.0.1135",
+        "symbol": "OLDSYMBOL",
+        "custom_fees": [
+          {
+            "entity_id": "0.0.1135",
+            "fractional_fees": [
+              {
+                "collector_account_id": "0.0.8901",
+                "denominator": 1,
+                "maximum_amount": 98,
+                "minimum_amount": 9,
+                "numerator": 1
+              }
+            ],
+            "timestamp_range": "[1234567880000000003,1234567899999999007)"
+          }
+        ],
+        "created_timestamp": "1234567870000000002",
+        "metadata": null,
+        "type": "FUNGIBLE_COMMON",
+        "timestamp_range": "[1234567880000000002,1234567890000000002)"
+      },
+      {
+        "token_id": "0.0.1135",
+        "symbol": "OGSYMBOL",
+        "custom_fees": [
+          {
+            "entity_id": "0.0.1135",
+            "fractional_fees": [
+              {
+                "collector_account_id": "0.0.8901",
+                "denominator": 13,
+                "maximum_amount": 980,
+                "minimum_amount": 97,
+                "numerator": 10
+              }
+            ],
+            "timestamp_range": "[1234567870000000003,1234567880000000003)"
+          }
+        ],
+        "created_timestamp": "1234567870000000002",
+        "metadata": null,
+        "type": "FUNGIBLE_COMMON",
+        "timestamp_range": "[1234567870000000002,1234567880000000002)"
+      },
+      {
+        "token_id": "0.7.25301",
+        "symbol": "MIRRORTOKEN",
+        "created_timestamp": "1234567890000000003",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.23.45678",
+        "symbol": "HEDERACOIN",
+        "created_timestamp": "1234567890000000004",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/tokens/1135?timestamp=1234567899.999999006",
+        "/api/v1/tokens/1135?timestamp=lt:1234567899.999999007",
+        "/api/v1/tokens/1135?timestamp=1234567899.999999001",
+        "/api/v1/tokens/1135?timestamp=lt:1234567899.999999000&timestamp=1234567899.999999001",
+        "/api/v1/tokens/000000000000000000000000000000000000046F?timestamp=lt:1234567899.999999000&timestamp=1234567899.999999001",
+        "/api/v1/tokens/0x000000000000000000000000000000000000046F?timestamp=lt:1234567899.999999000&timestamp=1234567899.999999001",
+        "/api/v1/tokens/0.0.000000000000000000000000000000000000046F?timestamp=lt:1234567899.999999000&timestamp=1234567899.999999001"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "token_id": "0.0.1135",
+        "symbol": "ORIGINALRDKSE",
+        "admin_key": null,
+        "auto_renew_account": null,
+        "auto_renew_period": null,
+        "created_timestamp": "1234567870.000000002",
+        "decimals": "1000",
+        "deleted": false,
+        "expiry_timestamp": null,
+        "fee_schedule_key": null,
+        "freeze_default": false,
+        "freeze_key": null,
+        "initial_supply": "1000000",
+        "kyc_key": null,
+        "max_supply": "9223372036854775807",
+        "memo": "token.0.0.1135",
+        "metadata": "",
+        "metadata_key": null,
+        "modified_timestamp": "1234567890.000000002",
+        "name": "Token name",
+        "pause_key": null,
+        "pause_status": "NOT_APPLICABLE",
+        "supply_key": null,
+        "supply_type": "INFINITE",
+        "total_supply": "1000000",
+        "treasury_account_id": "0.0.98",
+        "type": "FUNGIBLE_COMMON",
+        "wipe_key": null,
+        "custom_fees": {
+          "created_timestamp": "1234567899.999999001",
+          "fixed_fees": [],
+          "fractional_fees": [
+            {
+              "all_collectors_are_exempt": false,
+              "amount": {
+                "denominator": 13,
+                "numerator": 10
+              },
+              "collector_account_id": "0.0.8901",
+              "denominating_token_id": "0.0.1135",
+              "maximum": 980,
+              "minimum": 97,
+              "net_of_transfers": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens/1135?timestamp=1234567880.000000003",
+        "/api/v1/tokens/1135?timestamp=lt:1234567880.000000004",
+        "/api/v1/tokens/1135?timestamp=lte:1234567880.000000003"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "token_id": "0.0.1135",
+        "symbol": "OLDSYMBOL",
+        "admin_key": null,
+        "auto_renew_account": null,
+        "auto_renew_period": null,
+        "created_timestamp": "1234567870.000000002",
+        "custom_fees": {
+          "created_timestamp": "1234567880.000000003",
+          "fixed_fees": [],
+          "fractional_fees": [
+            {
+              "all_collectors_are_exempt": false,
+              "amount": {
+                "denominator": 1,
+                "numerator": 1
+              },
+              "collector_account_id": "0.0.8901",
+              "denominating_token_id": "0.0.1135",
+              "maximum": 98,
+              "minimum": 9,
+              "net_of_transfers": false
+            }
+          ]
+        },
+        "decimals": "1000",
+        "deleted": true,
+        "expiry_timestamp": null,
+        "fee_schedule_key": null,
+        "freeze_default": false,
+        "freeze_key": null,
+        "initial_supply": "1000000",
+        "kyc_key": null,
+        "max_supply": "9223372036854775807",
+        "memo": "token.0.0.1135-history",
+        "metadata": "",
+        "metadata_key": null,
+        "modified_timestamp": "1234567880.000000002",
+        "name": "Token name",
+        "pause_key": null,
+        "pause_status": "NOT_APPLICABLE",
+        "supply_key": null,
+        "supply_type": "INFINITE",
+        "total_supply": "1000000",
+        "treasury_account_id": "0.0.98",
+        "type": "FUNGIBLE_COMMON",
+        "wipe_key": null
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens/1135?timestamp=1234567880.000000002",
+        "/api/v1/tokens/1135?timestamp=lt:1234567880.000000003",
+        "/api/v1/tokens/1135?timestamp=lte:1234567880.000000002"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "token_id": "0.0.1135",
+        "symbol": "OLDSYMBOL",
+        "admin_key": null,
+        "auto_renew_account": null,
+        "auto_renew_period": null,
+        "created_timestamp": "1234567870.000000002",
+        "custom_fees": {
+          "created_timestamp": "1234567870.000000003",
+          "fixed_fees": [],
+          "fractional_fees": [
+            {
+              "all_collectors_are_exempt": false,
+              "amount": {
+                "denominator": 13,
+                "numerator": 10
+              },
+              "collector_account_id": "0.0.8901",
+              "denominating_token_id": "0.0.1135",
+              "maximum": 980,
+              "minimum": 97,
+              "net_of_transfers": false
+            }
+          ]
+        },
+        "decimals": "1000",
+        "deleted": true,
+        "expiry_timestamp": null,
+        "fee_schedule_key": null,
+        "freeze_default": false,
+        "freeze_key": null,
+        "initial_supply": "1000000",
+        "kyc_key": null,
+        "max_supply": "9223372036854775807",
+        "memo": "token.0.0.1135-history",
+        "metadata": "",
+        "metadata_key": null,
+        "modified_timestamp": "1234567880.000000002",
+        "name": "Token name",
+        "pause_key": null,
+        "pause_status": "NOT_APPLICABLE",
+        "supply_key": null,
+        "supply_type": "INFINITE",
+        "total_supply": "1000000",
+        "treasury_account_id": "0.0.98",
+        "type": "FUNGIBLE_COMMON",
+        "wipe_key": null
+      }
+    }
+  ]
+}

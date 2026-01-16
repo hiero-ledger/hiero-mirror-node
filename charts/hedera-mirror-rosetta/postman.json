@@ -41,13 +41,8 @@
             },
             "url": {
               "raw": "{{base_url}}/network/list",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "network",
-                "list"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["network", "list"]
             }
           },
           "response": []
@@ -109,13 +104,8 @@
             },
             "url": {
               "raw": "{{base_url}}/network/options",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "network",
-                "options"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["network", "options"]
             }
           },
           "response": []
@@ -167,13 +157,8 @@
             },
             "url": {
               "raw": "{{base_url}}/network/status",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "network",
-                "status"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["network", "status"]
             }
           },
           "response": []
@@ -227,7 +212,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"network_identifier\": {{networkId}},\n    \"account_identifier\": {\n        \"address\": \"0.0.98\",\n        \"metadata\": {}\n    },\n    \"block_identifier\": {\n        \"index\": {{genesisIndex}}\n    }\n}",
+              "raw": "{\n    \"network_identifier\": {{networkId}},\n    \"account_identifier\": {\n        \"address\": \"{{shard}}.{{realm}}.98\",\n        \"metadata\": {}\n    },\n    \"block_identifier\": {\n        \"index\": {{genesisIndex}}\n    }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -236,13 +221,8 @@
             },
             "url": {
               "raw": "{{base_url}}/account/balance",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "account",
-                "balance"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["account", "balance"]
             }
           },
           "response": []
@@ -308,12 +288,8 @@
             },
             "url": {
               "raw": "{{base_url}}/block",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "block"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["block"]
             }
           },
           "response": []
@@ -366,12 +342,8 @@
             },
             "url": {
               "raw": "{{base_url}}/block",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "block"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["block"]
             }
           },
           "response": []
@@ -424,13 +396,8 @@
             },
             "url": {
               "raw": "{{base_url}}/block/transaction",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "block",
-                "transaction"
-              ]
+              "host": ["{{base_url}}"],
+              "path": ["block", "transaction"]
             }
           },
           "response": []
@@ -445,9 +412,7 @@
       "script": {
         "id": "85972e64-1f88-4ea2-bbae-3261c5b98e59",
         "type": "text/javascript",
-        "exec": [
-          ""
-        ]
+        "exec": [""]
       }
     },
     {
@@ -455,9 +420,7 @@
       "script": {
         "id": "bf7e852f-6001-40e9-88bc-d88441d9c2cc",
         "type": "text/javascript",
-        "exec": [
-          ""
-        ]
+        "exec": [""]
       }
     }
   ],
@@ -467,6 +430,14 @@
       "key": "base_url",
       "value": "http://localhost:5700",
       "type": "string"
+    },
+    {
+      "key": "realm",
+      "value": "0"
+    },
+    {
+      "key": "shard",
+      "value": "0"
     }
   ],
   "protocolProfileBehavior": {}

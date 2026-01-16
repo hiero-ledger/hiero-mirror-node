@@ -1,0 +1,101 @@
+{
+  "description": "Contract results api call for a failed ethereum transaction with contract result with nullable to",
+  "setup": {
+    "contractresults": [
+      {
+        "amount": 30,
+        "call_result": [],
+        "consensus_timestamp": "167654000123456",
+        "contract_id": 0,
+        "created_contract_ids": [],
+        "error_message": "fatal",
+        "failed_initcode": null,
+        "function_parameters": [7, 7],
+        "function_result": [],
+        "gas_consumed": null,
+        "gas_limit": 1000000,
+        "gas_used": 0,
+        "payer_account_id": 8001,
+        "sender_id": 8001,
+        "transaction_result": 16,
+        "transaction_hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+        "transaction_index": 1,
+        "transaction_nonce": 0
+      }
+    ],
+    "recordFiles": [
+      {
+        "index": 17,
+        "gas_used": 50000000,
+        "consensus_start": 167654000123450,
+        "consensus_end": 167654000123460,
+        "hash": "6ceecd8bb224da491"
+      }
+    ],
+    "transactions": [
+      {
+        "consensus_timestamp": 167654000123456,
+        "payerAccountId": "8001",
+        "result": 16,
+        "transaction_hash": "519a008fabde4d",
+        "type": 50,
+        "valid_start_timestamp": 167654000123400
+      }
+    ],
+    "ethereumtransactions": [
+      {
+        "_value_description": "2000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00",
+        "call_data": "0x0707",
+        "consensus_timestamp": 167654000123456,
+        "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+        "payer_account_id": "8001",
+        "to_address": "0x1a8bad6f264dd65e699c396a5739912faa40d18d",
+        "value": "0x0077359400"
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/contracts/results/0.0.8001-167654-000123400",
+    "/api/v1/contracts/results/0.0.8001-167654-000123400?nonce=0",
+    "/api/v1/contracts/results/0.0.8001-167654-000123400?nonce=1&nonce=0",
+    "/api/v1/contracts/results/4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+    "/api/v1/contracts/results/0x4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "access_list": "0x",
+    "amount": 2000000000,
+    "block_gas_used": 50000000,
+    "block_hash": "0x6ceecd8bb224da491",
+    "block_number": 17,
+    "bloom": "0x",
+    "call_result": "0x",
+    "chain_id": "0x",
+    "contract_id": null,
+    "created_contract_ids": [],
+    "error_message": "fatal",
+    "address": null,
+    "failed_initcode": "0x0707",
+    "from": "0x0000000000000000000000000000000000001f41",
+    "function_parameters": "0x0707",
+    "gas_consumed": null,
+    "gas_limit": 1000000,
+    "gas_price": "0x4a817c80",
+    "gas_used": 0,
+    "hash": "0x4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
+    "logs": [],
+    "max_fee_per_gas": "0x",
+    "max_priority_fee_per_gas": "0x",
+    "nonce": 1,
+    "r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c042",
+    "result": "INVALID_CONTRACT_ID",
+    "s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b354",
+    "state_changes": [],
+    "status": "0x0",
+    "timestamp": "167654.000123456",
+    "to": "0x1a8bad6f264dd65e699c396a5739912faa40d18d",
+    "transaction_index": 1,
+    "type": 2,
+    "v": 1
+  }
+}

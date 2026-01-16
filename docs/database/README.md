@@ -49,12 +49,13 @@ The table below documents the database indexes with the usage in APIs / services
 | nft_allowance   | owner, spender, token_id                     | Java REST API | `/api/v1/accounts/:idOrAliasOrAddress/allowances/nfts`   | Used to query non-fungible token allowances for an account when query parameter `owner=true`                                                                                  |
 | nft_allowance   | spender, owner, token_id                     | Java REST API | `/api/v1/accounts/:idOrAliasOrAddress/allowances/nfts`   | Used to query non-fungible token allowances for an account when query parameter `owner=false`                                                                                 |
 | nft_transfer    | consensus_timestamp                          | REST API      | `/api/v1/transactions/:id`                               | Used to join `nft_transfer` and the `tlist` CTE on `consensus_timestamp` equality                                                                                             |
-| token           | name                                         | REST API      | `/api/v1/tokens?name=bar`                                | Used to query for token details by name substring match                                                                                                                       |
-| token           | token_id                                     | REST API      | `/api/v1/tokens?token.id=5`                              | Used to query for token details by token id                                                                                                                                   |
 | nft_transfer    | token_id, serial_number, consensus_timestamp | REST API      | `/api/v1/tokens/:id/nfts/:serialNumber/transactions`     | Used to query the transfer consensus timestamps of a NFT (token_id, serial_number) with optional timestamp filter                                                             |
 | nft_transfer    | consensus_timestamp                          | Rosetta API   | `/account/balance`                                       | Used to calculate an account's nft token balance including serial numbers at a block                                                                                          |
 | nft_transfer    | consensus_timestamp                          | Rosetta API   | `/block`                                                 | Used to join `nft_transfer` and `transaction` on `consensus_timestamp` equality                                                                                               |
 | nft_transfer    | consensus_timestamp                          | Rosetta API   | `/block/transaction`                                     | Used to join `nft_transfer` and `transaction` on `consensus_timestamp` equality                                                                                               |
+| token           | name                                         | REST API      | `/api/v1/tokens?name=bar`                                | Used to query for token details by name substring match                                                                                                                       |
+| token           | token_id                                     | REST API      | `/api/v1/tokens?token.id=5`                              | Used to query for token details by token id                                                                                                                                   |
+| token_account   | token_id, account_id                         | REST API      | `/api/v1/tokens/:id/balances`                            | Used to retrieve balances for a `token_id` ordered by `account_id`                                                                                                            |
 | transaction     | type, consensus_timestamp                    | REST API      | `/api/v1/transactions?type=:type&order=:order`           | Used to retrieve transactions filtered by `type` and sorted by `consensus_timestamp` to facilitate faster by-type transaction requests                                        |
 | transaction     | consensus_timestamp                          | REST API      | `/api/v1/transactions?timestamp=:timestamp&order=:order` | Used to retrieve transactions filtered by `consensus_timestamp` and sorted by `consensus_timestamp` to facilitate faster by-timestamp transaction requests                    |
 | transaction     | payer_account_id, consensus_timestamp        | REST API      | `/api/v1/account/:id`                                    | Used to retrieve transactions filtered by `payer_account_id` and sorted by `consensus_timestamp` to facilitate faster transactions by-account-id requests                     |
@@ -66,7 +67,7 @@ Some Hedera environments get [reset](https://docs.hedera.com/hedera/testnet#test
 nodes connected to those environments will need to be reset to remain functional.
 
 1. Stop the [Importer](/docs/importer/README.md) process.
-2. Run [cleanup.sql](/hedera-mirror-importer/src/main/resources/db/scripts/cleanup.sql) as the database owner to
+2. Run [cleanup.sql](/importer/src/main/resources/db/scripts/cleanup.sql) as the database owner to
    truncate the tables.
 
    ```bash
@@ -79,15 +80,15 @@ nodes connected to those environments will need to be reset to remain functional
    a new bucket, the importer start date can be set to 1970 to ensure no data is missed.
 
    ```properties
-   hedera.mirror.importer.downloader.bucketName=hedera-testnet-streams-YYYY-MM
-   hedera.mirror.importer.startDate=1970-01-01T00:00:00Z
+   hiero.mirror.importer.downloader.bucketName=hedera-testnet-streams-YYYY-MM
+   hiero.mirror.importer.startDate=1970-01-01T00:00:00Z
    ```
 
 4. Start the Importer process and ensure it prints the new bucket on startup and successfully starts syncing.
 5. Update the REST API to the new bucket name if state proofs are enabled.
 
    ```shell
-   HEDERA_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
+   HIERO_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
    ```
 
 6. If any of the mirror node monitoring tools is used, ensure any hardcoded entity IDs in their configuration is updated
@@ -102,17 +103,17 @@ retention job purges historical data beyond a configured time period. By reducin
 database it will reduce operational costs and improve read/write performance. Only data associated with balance
 or transaction data is deleted. Cumulative entity information like accounts, contracts, etc. are not deleted.
 
-To enable retention, set the `hedera.mirror.importer.retention.enabled=true` property on the importer. A job will run
-every `hedera.mirror.importer.retention.frequency` with a default of one day to prune older data. To control how far
-back to remove data set the `hedera.mirror.importer.retention.period` appropriately. Keep in mind this retention period
+To enable retention, set the `hiero.mirror.importer.retention.enabled=true` property on the importer. A job will run
+every `hiero.mirror.importer.retention.frequency` with a default of one day to prune older data. To control how far
+back to remove data set the `hiero.mirror.importer.retention.period` appropriately. Keep in mind this retention period
 is relative to the timestamp of the last transaction in the database and not to the current wall-clock time. Data is
 deleted atomically one or more blocks at a time starting from the earliest block and increasing, so data should be
-consistent even when querying the earliest data. There are also `hedera.mirror.importer.retention.exclude/include`
+consistent even when querying the earliest data. There are also `hiero.mirror.importer.retention.exclude/include`
 properties that can be used to filter which tables are included or excluded from retention, defaulting to include all.
 
 The first time the job is run it may take a long time to complete due to the potentially terabytes worth of data to
 purge. Subsequent runs should be much faster as it will only have to purge the data accumulated between the last run.
-The importer database user denoted by the `hedera.mirror.importer.db.username` property will need to be altered to have
+The importer database user denoted by the `hiero.mirror.importer.db.username` property will need to be altered to have
 delete permission if it does not already have it.
 
 ## Upgrade
@@ -149,7 +150,7 @@ The time to dump the whole database usually depends on the size of the largest t
 
 ### New PostgreSQL Database Instance Configuration
 
-Run [init.sh](/hedera-mirror-importer/src/main/resources/db/scripts/init.sh) or the equivalent SQL statements to create
+Run [init.sh](/importer/src/main/resources/db/scripts/init.sh) or the equivalent SQL statements to create
 required database objects including the `mirror_node` database, the roles, the schema, and access privileges.
 
 The following configuration needs to be applied to the database instance to improve the write speed.
@@ -193,7 +194,7 @@ the saved snapshot before retry.
 
 Some tables may contain errata information to workaround known issues with the stream files. The state of the consensus
 nodes was never impacted, only the externalization of these changes to the stream files that the mirror node consumes.
-There were three instances of bugs in the node software that misrepresented the side-effects of certain user
+The below scenarios are considered bugs in the node software that misrepresented the side-effects of certain user
 transactions in the balance and record streams. These issues should only appear in mainnet.
 
 ### Account Balance File Skew
@@ -202,7 +203,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: 6949 account balance files
 - Problem: Early account balances file did not respect the invariant that all transfers less than or equal to the
   timestamp of the file are reflected within that file.
-- Solution: Fixed in Hedera Services in Sept 2020. Fixed in Mirror Node v0.53.0 by adding
+- Solution: Fixed in Consensus Node in Sept 2020. Fixed in Mirror Node v0.53.0 by adding
   a `account_balance_file.time_offset` field with a value of `-1` that is used as an adjustment to the balance file's
   consensus timestamp for use when querying transfers.
 
@@ -212,7 +213,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: Affected the records of 1177 transactions.
 - Problem: When a crypto transfer failed due to an insufficient account balance, the attempted transfers were
   nonetheless listed in the record.
-- Solution: Fixed in Hedera Services v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field to
+- Solution: Fixed in Consensus Node v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field to
   the `crypto_transfer` table and setting the spurious transfers' `errata` field to `DELETE` to indicate they should be
   omitted.
 
@@ -222,7 +223,7 @@ transactions in the balance and record streams. These issues should only appear 
 - Scope: Affected the records of 31 transactions
 - Problem: When a transaction over-bid the balance of its payer account as a fee payment, its record was omitted from
   the stream. When a transaction’s payer account could not afford the network fee, its record was omitted.
-- Solution: Fixed in Hedera Services v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field
+- Solution: Fixed in Consensus Node v0.4.0 late 2019. Fixed in Mirror Node in v0.53.0 by adding an `errata` field
   to `crypto_transfer` and `transaction` tables and inserting the missing rows with the `errata` field set to `INSERT`.
 
 ### Record Missing for FAIL_INVALID NFT transfers
@@ -235,8 +236,8 @@ transactions in the balance and record streams. These issues should only appear 
   Under certain conditions in the 0.27.5 release, a bug in the logic maintaining these lists could cause NFT transfers
   to fail, without refunding fees. This would manifest itself as a `FAIL_INVALID` transaction that does not get written
   to the record stream.
-- Solution: Fixed in Hedera Services [v0.27.7](https://docs.hedera.com/guides/docs/release-notes/services#v0.27.7) on
-  August 9th 2022. Fixed in Mirror Node in v0.64.0 by a migration that adds the missing transactions and transfers.
+- Solution: Fixed in Consensus Node v0.27.7 on August 9th 2022. Fixed in Mirror Node in v0.64.0 by a migration that
+  adds the missing transactions and transfers.
 
 ### Record Missing for FAIL_INVALID NFT transfers
 
@@ -246,15 +247,15 @@ transactions in the balance and record streams. These issues should only appear 
   makes an account appear to own fewer NFTs than it actually does. This can subsequently prevent an NFT owner from being
   changed as part of an atomic operation. When the atomic operation fails, an errata record is required for the missing
   transactions.
-- Solution: Fixed in Hedera Services [v0.34.2](https://github.com/hashgraph/hedera-services/releases/tag/v0.34.2) on
-  February 17, 2023. Fixed in Mirror Node in v0.74.3 by a migration that adds the missing transactions.
+- Solution: Fixed in Consensus Node v0.34.2 on February 17, 2023. Fixed in Mirror Node in v0.74.3 by a migration that
+  adds the missing transactions.
 
 ## Breaking Schema Changes Introduced in 0.96.0
 
 In version 0.96.0, a new database schema was introduced to handle the processing of upsertable entities. This change
 doesn't require any manual steps for new operators that use one of our initialization scripts or helm charts to
 configure the database. However, existing operators upgrading to 0.96.0 or later are required to create the schema by
-configuring and executing the script [here](/hedera-mirror-importer/src/main/resources/db/scripts/init-temp-schema.sh)
+configuring and executing the script [here](/importer/src/main/resources/db/scripts/init-temp-schema.sh)
 before the upgrade.
 
 ```shell
@@ -291,13 +292,13 @@ is expected to migrate full mainnet data in 10 days.
    keep the importer down on the source for the length of the migration)
 7. If you created a clone in step 6, you may now restart the importer on the source.
 8. Populate correct values for the source and target configuration in the
-   [migration.config](/hedera-mirror-importer/src/main/resources/db/scripts/v2/migration.config). The source should be
+   [migration.config](/importer/src/main/resources/db/scripts/v2/migration.config). The source should be
    the source from step 5.
-9. Run the [migration.sh](/hedera-mirror-importer/src/main/resources/db/scripts/v2/migration.sh) script. Due to the time
+9. Run the [migration.sh](/importer/src/main/resources/db/scripts/v2/migration.sh) script. Due to the time
    it will take to complete the migration, it is recommended to run the script in a way that doesn't require your
    terminal session to remain open (e.g. `./migration.sh > migration.log 2> migration-error.log & disown`)
 10. Update the mirror node configuration to point to the new Citus DB and enable the importer. If you have modified the
-    configuration of any checksums for repeatable migrations under `hedera.mirror.importer.migration`, you must make
+    configuration of any checksums for repeatable migrations under `hiero.mirror.importer.migration`, you must make
     sure this configuration remains the same in the new cluster.
 11. If you did not create a clone in step 6, you may now restart the importer process on the source.
 
@@ -308,3 +309,78 @@ Please refer to this [document](/docs/database/citus.md) for the steps.
 ## Bootstrap a DB from exported data
 
 Please refer to this [document](/docs/database/bootstrap.md) for instructions.
+
+## Entity Relationship Diagram (ERD)
+
+To generate an ERD of the mirror node database schema:
+
+1. Set up a local PostgreSQL database using Docker:
+
+   ```bash
+   docker run --name postgres-erd -e POSTGRES_DB=mirror_node -e POSTGRES_USER=mirror_node -e POSTGRES_PASSWORD=mirror_node_pass -p 5432:5432 -d postgres:16
+   ```
+
+2. Run the importer to populate the schema:
+
+   ```bash
+   ./gradlew :importer:bootRun
+   ```
+
+3. Prepare the database for ERD generation by running the combined script that truncates data, drops partitions, and
+   adds foreign keys:
+
+   ```bash
+   psql -h localhost -d mirror_node -U mirror_node -f docs/database/erd.sql
+   ```
+
+4. Use IntelliJ IDEA's built-in database diagram feature:
+   - Connect to the database using the Database tool window
+   - Right-click on the `public` schema
+   - Select "Diagrams" → "Show Visualization..."
+   - Choose the tables you want to include in the diagram
+   - For cleaner visualization, disable "Show Comments" and "Show Columns" in the diagram options
+   - Export the diagram as Intellij UML or other formats as needed
+
+This approach automatically reads the actual database schema including all foreign key constraints, ensuring the ERD
+stays synchronized with the codebase without requiring separate maintenance files. The truncate script ensures that any
+test data inserted by the importer doesn't interfere with foreign key constraint visualization. The partition removal
+script converts partitioned tables to regular tables, which is necessary for proper foreign key constraint visualization
+in ERD tools since foreign key constraints cannot reference partitioned tables in PostgreSQL.
+
+## Current ERD Diagram
+
+The Entity Relationship Diagram is maintained as an IDEA UML file:
+
+- [Entity Relationship Diagram](erd.drawio) - Complete database schema with relationships in DrawIO format for use with
+  diagrams.net
+
+### Viewing the ERD
+
+You can view the ERD diagram in several ways:
+
+#### Online (diagrams.net)
+
+1. Go to [diagrams.net](https://app.diagrams.net/)
+2. Choose "Open Existing Diagram"
+3. Select "From Device" and upload the `erd.drawio` file
+
+#### Offline (Draw.io Desktop)
+
+1. Download and install the Draw.io Desktop app from [GitHub releases](https://github.com/jgraph/drawio-desktop/releases)
+2. Open the application
+3. File → Open and select the `erd.drawio` file
+
+#### VS Code Extension
+
+1. Install the "Draw.io Integration" extension in VS Code
+2. Open the `erd.drawio` file directly in VS Code - it will render the diagram inline
+
+### Updating the ERD
+
+To update the ERD diagram after schema changes:
+
+1. Follow steps 1-3 above to prepare the database with the latest schema
+2. Generate a new ERD using IntelliJ IDEA's database diagram feature
+3. Export the diagram in a format compatible with diagrams.net
+4. Update the `erd.drawio` file with the new relationships and table structures
+5. Commit the updated DrawIO file to maintain the ERD in version control

@@ -13,8 +13,8 @@ Installs the Hedera Mirror Node Helm wrapper chart. This chart will install the 
 
 ## Requirements
 
-- [Helm 3+](https://helm.sh)
-- [Kubernetes 1.29+](https://kubernetes.io)
+- [Helm 4+](https://helm.sh)
+- [Kubernetes 1.32+](https://kubernetes.io)
 
 Set environment variables that will be used for the remainder of the document:
 
@@ -27,7 +27,7 @@ export RELEASE="mirror1"
 To install the wrapper chart:
 
 ```shell script
-$ helm repo add hedera https://hashgraph.github.io/hedera-mirror-node/charts
+$ helm repo add hedera https://hiero-ledger.github.io/hiero-mirror-node/charts
 $ helm upgrade --install "${RELEASE}" hedera/hedera-mirror
 ```
 
@@ -86,13 +86,14 @@ a [Standalone NEG](https://cloud.google.com/kubernetes-engine/docs/how-to/standa
 1. Create a Kubernetes cluster utilizing a custom subnet.
 
    This can be done by setting a unique name for the subnet in the UI or through the console with the following command
+
    ```shell script
    gcloud container clusters create mirror-node \
        --enable-ip-alias \
        --create-subnetwork="" \
        --network=default \
        --zone=us-central1-a \
-       --cluster-version=1.29 \
+       --cluster-version=1.32 \
        --machine-type=n2-custom-6-15360
    ```
 
@@ -135,7 +136,7 @@ To configure:
 ```yaml
 test:
   config:
-    hedera:
+    hiero:
       mirror:
         test:
           acceptance:
@@ -226,6 +227,20 @@ release:
 kubectl delete $(kubectl get pvc -o name)
 ```
 
+## Development
+
+The Helm charts use Bitnami for various chart components. Newer Bitnami images are no longer freely available, so we
+need to periodically build their images from source and publish them to our own registry. After building the images
+using the below steps, update the `values.yaml` to use the newly built images.
+
+```bash
+export REDIS_VERSION="8.2.2"
+git checkout https://github.com/bitnami/containers.git
+cd containers/bitnami/
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis:${REDIS_VERSION} --provenance false --push redis/8.2/debian-12
+docker buildx build --platform linux/amd64,linux/arm64 -t gcr.io/mirrornode/redis-sentinel:${REDIS_VERSION} --provenance false --push redis-sentinel/8.2/debian-12
+```
+
 ## Troubleshooting
 
 To troubleshoot a pod, you can view its log and describe the pod to see its status. See the
@@ -237,14 +252,28 @@ kubectl logs -f --tail=100 "${POD_NAME}"
 kubectl logs -f --prefix --tail=10 -l app.kubernetes.io/name=importer
 ```
 
-To change application properties without restarting, you can create a
-[ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
-named `hedera-mirror-grpc` or `hedera-mirror-importer` and supply an `application.yaml` or `application.properties`.
-Note that some properties that are used on startup will still require a restart.
+To change an application's properties, create
+a [ConfigMap](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#create-configmaps-from-files)
+and mount it into the container by specifying `volumes`
+and `volumeMounts` in your custom values.yaml. Create the ConfigMap from a properties file:
 
 ```shell script
-echo "logging.level.com.hedera.mirror.grpc=TRACE" > application.properties
-kubectl create configmap hedera-mirror-grpc --from-file=application.properties
+echo "logging.level.org.hiero.mirror.grpc=TRACE" > application.properties
+kubectl create configmap grpc --from-file=application.properties
+```
+
+Add the following to your values.yaml to mount it:
+
+```yaml
+volumes:
+  custom:
+    configMap:
+      name: grpc
+      defaultMode: 420
+volumeMounts:
+  custom:
+    mountPath: /custom
+    readOnly: true
 ```
 
 Dashboard, metrics and alerts can be viewed via [Grafana](https://grafana.com). See the [Using](#using) section for how
@@ -261,7 +290,7 @@ kubectl exec -it "${RELEASE}-postgres-postgresql-0" -c postgresql -- psql -d mir
 V2:
 
 ```shell
-DB_PASSWORD="$(kubectl get secrets -o yaml ${RELEASE}-passwords |ksd | yq '.stringData.HEDERA_MIRROR_REST_DB_PASSWORD')"
+DB_PASSWORD="$(kubectl get secrets -o yaml ${RELEASE}-passwords |ksd | yq '.stringData.HIERO_MIRROR_REST_DB_PASSWORD')"
 kubectl run psql-util -it --rm --image=bitnami/postgresql:16 --env="PGPASSWORD=${DB_PASSWORD}" --command -- psql -h "${RELEASE}-citus-reads" -U mirror_rest -d mirror_node
 ```
 

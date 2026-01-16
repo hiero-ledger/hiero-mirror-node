@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0
+
+hiero:
+  mirror:
+    restJava:
+      db:
+        host: 127.0.0.1
+        name: mirror_node
+        password: mirror_rest_java_pass
+        port: 5432
+        sslMode: DISABLE
+        statementTimeout: 10000
+        username: mirror_rest_java
+      response:
+        headers:
+          defaults:
+            # Headers set by default unless overridden in specific request mapping paths defined below.
+            "Access-Control-Allow-Origin": "*"
+            "Cache-Control": "public, max-age=1"
+          path:
+            # Override inherited defaults and define additional headers for individual controller request mappings.
+            # "[]" around the path preserves special characters. Multiple header name/value pairs may be defined per path.
+            "[/api/v1/topics/{id}]":
+              "Cache-Control": "public, max-age=5"
+            "[/api/v1/network/stake]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/exchangerate]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/fees]":
+              "Cache-Control": "public, max-age=60"
+            "[/api/v1/network/supply]":
+              "Cache-Control": "public, max-age=60"
+logging:
+  level:
+    root: warn
+    org.hiero.mirror.restjava: info
+    org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
+  pattern:
+    console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
+management:
+  endpoint:
+    health:
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db, ping
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        step: 60s
+server:
+  compression:
+    enabled: true
+  forward-headers-strategy: framework #Enable spring ForwardedHeaderFilter
+  http2:
+    enabled: true
+  max-http-request-header-size: 2KB
+  port: 8084
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 3s
+    max-http-form-post-size: 1KB
+    max-swallow-size: 1KB
+spring:
+  application:
+    name: rest-java
+  datasource:
+    name: ${hiero.mirror.restJava.db.name}
+    password: ${hiero.mirror.restJava.db.password}
+    url: jdbc:postgresql://${hiero.mirror.restJava.db.host}:${hiero.mirror.restJava.db.port}/${hiero.mirror.restJava.db.name}?options=-c%20statement_timeout=${hiero.mirror.restJava.db.statementTimeout}
+    username: ${hiero.mirror.restJava.db.username}
+    hikari:
+      connection-timeout: 3000
+      data-source-properties:
+        idle_in_transaction_session_timeout: "30000"
+        lock_timeout: "10000"
+        sslmode: ${hiero.mirror.restJava.db.sslMode}
+        tcpKeepAlive: true
+      maximum-pool-size: 50
+      minimum-idle: 4
+      validation-timeout: 3000
+  jooq:
+    sql-dialect: Postgres
+  jpa:
+    database: PostgreSQL
+    open-in-view: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true

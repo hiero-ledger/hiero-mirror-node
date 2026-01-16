@@ -1,0 +1,30 @@
+{
+  "description": "Network supply API with no accounts",
+  "setup": {
+    "accounts": []
+  },
+  "url": "/api/v1/network/supply",
+  "responseStatus": 404,
+  "responseJsonMatrix": {
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Network supply not found",
+            "message": "Not Found"
+          }
+        ]
+      }
+    },
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Not found"
+          }
+        ]
+      }
+    }
+  }
+}

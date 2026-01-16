@@ -1,0 +1,3 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`HashObject truncated buffer 1`] = `"Error reading byte array, expect 48-byte data got 44-byte"`;

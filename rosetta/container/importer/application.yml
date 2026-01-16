@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: Apache-2.0
+
+hiero:
+  mirror:
+    importer:
+      migration:
+        fixAirdropTokenAssociationMigration:
+          enabled: false
+
+spring:
+  flyway:
+    locations: "classpath:db/migration/common,classpath:db/migration/v1,filesystem:/app/importer/sql"

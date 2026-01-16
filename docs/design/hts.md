@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Hedera Token Service (HTS) builds upon the Cryptocurrency Service to provide decentralized issuance of custom tokens on the Hedera Network.
+The Hedera Token Service (HTS) builds upon the Cryptocurrency Service to provide decentralized issuance of custom tokens on the Network.
 The behavior will be similar to that of the native HBAR token and as such the Mirror Node will persist token balances and transfer lists and support the retrieval of information through its APIs.
 
 This document highlights the architecture and design changes to be made to support HTS.
@@ -185,7 +185,7 @@ To support the goals the following database schema changes should be made
 - Add a `TokenIdConverter`
 
 ```java
-    package com.hedera.mirror.importer.converter;
+    package org.hiero.mirror.importer.converter;
     ...
     public class TokenIdConverter extends AbstractEntityIdConverter {
 
@@ -630,8 +630,6 @@ Optional Filters
 - Update `EntityType` with `TOKEN` option
 
 ```java
-    package com.hedera.mirror.grpc.domain;
-
     public enum EntityType {
 
         UNKNOWN, // Filler value to offset next values by one to match database values
@@ -661,7 +659,7 @@ TBD
 ## Open Questions
 
 - [x] What's the maximum character size of the token `symbol` string
-  - A: Max length is currently 100 chars to match memo, https://github.com/hashgraph/hedera-services/blob/separate-tokenrels-fcm/hedera-node/src/main/resources/bootstrap.properties#L56
+  - A: Max length is currently 100 chars to match memo
 - [x] Will a `token_id` and `token` be assigned a default value for HBARs across the network e.g. i.e. '1' and 'HBAR' respectively
   - A: Currently no since hbar is not treated as an entity like tokens will be.
 - [x] Should token only entity items exist in their own table or be added to `entity`?

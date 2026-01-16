@@ -11,21 +11,21 @@ is used for the persistence layer.
 
 ## Supported Operations
 
-| Estimate | Static | Operation Type                                                                            | Supported | Historical | Reads | Modifications |
-|----------|--------|-------------------------------------------------------------------------------------------|-----------|------------|-------|---------------|
-| Y        | Y      | non precompile functions                                                                  | Y         | Y          | Y     | Y             |
-| Y        | N      | non precompile functions with lazy account creation                                       | Y         | Y          | Y     | Y             |
-| Y        | Y      | operations for ERC precompile functions (balance, symbol, tokenURI, name, decimals, etc.) | Y         | Y          | Y     | N             |
-| Y        | Y      | read-only ERC precompile functions                                                        | Y         | Y          | Y     | N             |
-| Y        | Y      | modifying ERC precompile functions                                                        | Y         | Y          | Y     | Y             |
-| Y        | Y      | read-only operations for HTS system contract                                              | Y         | Y          | Y     | N             |
-| Y        | N      | modifying operations for HTS system contract                                              | Y         | Y          | Y     | Y             |
+| Estimate | Static | Operation Type                                                                            | Historical | Reads | Modifications |
+| -------- | ------ | ----------------------------------------------------------------------------------------- | ---------- | ----- | ------------- |
+| Y        | Y      | non precompile functions                                                                  | Y          | Y     | Y             |
+| Y        | N      | non precompile functions with lazy account creation                                       | Y          | Y     | Y             |
+| Y        | Y      | operations for ERC precompile functions (balance, symbol, tokenURI, name, decimals, etc.) | Y          | Y     | N             |
+| Y        | Y      | read-only ERC precompile functions                                                        | Y          | Y     | N             |
+| Y        | Y      | modifying ERC precompile functions                                                        | Y          | Y     | Y             |
+| Y        | Y      | read-only operations for HTS system contract                                              | Y          | Y     | N             |
+| Y        | N      | modifying operations for HTS system contract                                              | Y          | Y     | Y             |
 
 _Note:_ Gas estimation only supports the `latest` block
 
 ## Acceptance Tests
 
-The [acceptance tests](/hedera-mirror-test/README.md) contain a suite of tests to validate a web3 deployment.
+The [acceptance tests](/test/README.md) contain a suite of tests to validate a web3 deployment.
 The `@web3` acceptance tag can be used to specifically target the web3 module.
 
 `./gradlew :test:acceptance --info -Dcucumber.filter.tags=@web3`

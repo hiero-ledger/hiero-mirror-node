@@ -1,0 +1,172 @@
+{
+  "description": "Transaction api calls using transaction id or hash with duplicate transactions",
+  "matrix": "transactionHashV1Matrix.js",
+  "setup": {
+    "accounts": [
+      {
+        "num": 4
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "transactions": [
+      {
+        "charged_tx_fee": 20,
+        "payerAccountId": "0.0.10",
+        "nodeAccountId": "0.0.4",
+        "consensus_timestamp": "1234567890000000040",
+        "valid_start_timestamp": "1234567890000000001",
+        "name": "CRYPTOTRANSFER",
+        "result": 22,
+        "transaction_hash": "3b17da10d0bfef8e67f50b010f9f500dfa4f8e455544f1285b04191f2eca4ab1b749c249368bc23023fb83f861ed1fb4",
+        "type": 14,
+        "transfers": [
+          {
+            "account": "0.0.4",
+            "amount": 5
+          },
+          {
+            "account": "0.0.9",
+            "amount": 80
+          },
+          {
+            "account": "0.0.10",
+            "amount": -100
+          },
+          {
+            "account": "0.0.98",
+            "amount": 15
+          }
+        ]
+      },
+      {
+        "charged_tx_fee": 15,
+        "payerAccountId": "0.0.10",
+        "nodeAccountId": "0.0.4",
+        "consensus_timestamp": "1234567891000000123",
+        "valid_start_timestamp": "1234567890000000001",
+        "name": "CRYPTOTRANSFER",
+        "result": 11,
+        "transaction_hash": "3b17da10d0bfef8e67f50b010f9f500dfa4f8e455544f1285b04191f2eca4ab1b749c249368bc23023fb83f861ed1fb4",
+        "type": 14,
+        "transfers": [
+          {
+            "account": "0.0.4",
+            "amount": 5
+          },
+          {
+            "account": "0.0.10",
+            "amount": -15
+          },
+          {
+            "account": "0.0.98",
+            "amount": 10
+          }
+        ]
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/transactions/0.0.10-1234567890-000000001",
+    "/api/v1/transactions/OxfaENC_745n9QsBD59QDfpPjkVVRPEoWwQZHy7KSrG3ScJJNovCMCP7g_hh7R-0",
+    "/api/v1/transactions/3b17da10d0bfef8e67f50b010f9f500dfa4f8e455544f1285b04191f2eca4ab1b749c249368bc23023fb83f861ed1fb4",
+    "/api/v1/transactions/0x3b17da10d0bfef8e67f50b010f9f500dfa4f8e455544f1285b04191f2eca4ab1b749c249368bc23023fb83f861ed1fb4"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "consensus_timestamp": "1234567890.000000040",
+        "charged_tx_fee": 20,
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.4",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "OxfaENC/745n9QsBD59QDfpPjkVVRPEoWwQZHy7KSrG3ScJJNovCMCP7g/hh7R+0",
+        "transaction_id": "0.0.10-1234567890-000000001",
+        "transfers": [
+          {
+            "account": "0.0.4",
+            "amount": 5,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.9",
+            "amount": 80,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -100,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 15,
+            "is_approval": false
+          }
+        ],
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000001"
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "consensus_timestamp": "1234567891.000000123",
+        "charged_tx_fee": 15,
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.4",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "DUPLICATE_TRANSACTION",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "OxfaENC/745n9QsBD59QDfpPjkVVRPEoWwQZHy7KSrG3ScJJNovCMCP7g/hh7R+0",
+        "transaction_id": "0.0.10-1234567890-000000001",
+        "transfers": [
+          {
+            "account": "0.0.4",
+            "amount": 5,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -15,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 10,
+            "is_approval": false
+          }
+        ],
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567890.000000001"
+      }
+    ]
+  }
+}

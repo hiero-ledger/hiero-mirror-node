@@ -1,66 +1,40 @@
-/*
- * Copyright (C) 2022-2024 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 plugins { id("com.gradle.develocity") version ("3.17") }
 
-rootProject.name = "hedera-mirror-node"
+rootProject.name = "hiero-mirror-node"
 
-include(":hedera-mirror-common")
+include(":common")
 
-include(":hedera-mirror-graphql")
+include(":graphql")
 
-include(":hedera-mirror-grpc")
+include(":grpc")
 
-include(":hedera-mirror-importer")
+include(":importer")
 
-include(":hedera-mirror-monitor")
+include(":monitor")
 
-include(":hedera-mirror-protobuf")
+include(":protobuf")
 
-include(":hedera-mirror-rest")
+include(":rest")
 
-include(":hedera-mirror-rest-java")
+include(":rest-java")
 
-include(":hedera-mirror-rest:check-state-proof")
+include(":rest:check-state-proof")
 
-include(":hedera-mirror-rest:monitoring")
+include(":rest:monitoring")
 
-include(":hedera-mirror-rosetta")
+include(":rosetta")
 
-include(":hedera-mirror-test")
+include(":test")
 
-include(":hedera-mirror-web3")
-
-shortenProjectName(rootProject)
-
-// Shorten project name to remove verbose "hedera-mirror-" prefix
-fun shortenProjectName(project: ProjectDescriptor) {
-    if (project != rootProject) {
-        project.name = project.name.removePrefix("hedera-mirror-")
-    }
-    project.children.forEach(this::shortenProjectName)
-}
+include(":web3")
 
 develocity {
     buildScan {
+        publishing.onlyIf { System.getenv().containsKey("CI") }
         termsOfUseUrl = "https://gradle.com/terms-of-service"
         termsOfUseAgree = "yes"
         tag("CI")
     }
 }
-
-// Temporarily workaround sonarqube depends on compile task warning
-System.setProperty("sonar.gradle.skipCompile", "true")

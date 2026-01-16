@@ -1,0 +1,16 @@
+{
+  "description": "Get messages with invalid topic num",
+  "matrix": "topicMessageLookupMatrix.js",
+  "setup": {},
+  "url": "/api/v1/topics/92233720368547758080/messages",
+  "responseStatus": 400,
+  "responseJson": {
+    "_status": {
+      "messages": [
+        {
+          "message": "Invalid parameter: topic.id"
+        }
+      ]
+    }
+  }
+}

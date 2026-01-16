@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: Apache-2.0
+
+hiero:
+  mirror:
+    web3:
+      db:
+        host: 127.0.0.1
+        name: mirror_node
+        password: mirror_web3_pass
+        port: 5432
+        sslMode: DISABLE
+        statementTimeout: 2000
+        username: mirror_web3
+      opcode:
+        tracer:
+          enabled: false
+logging:
+  level:
+    root: warn
+    org.hiero.mirror.web3: info
+    org.hibernate.orm.deprecation: error # Suppress hibernate.dialect warnings
+  pattern:
+    console: "%clr(%date{${LOG_DATEFORMAT_PATTERN:yyyy-MM-dd'T'HH:mm:ss.SSS}, UTC}Z){faint} %clr(${LOG_LEVEL_PATTERN:%5level}) %clr(%thread){magenta} %clr(%logger{20}){cyan} %m %exception%n"
+management:
+  endpoint:
+    health:
+      group:
+        liveness:
+          include: ping
+        readiness:
+          include: db, ping
+  endpoints:
+    web:
+      exposure:
+        include: health, info, prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  prometheus:
+    metrics:
+      export:
+        step: 60s
+server:
+  compression:
+    enabled: true
+  forward-headers-strategy: framework # Enable spring ForwardedHeaderFilter
+  http2:
+    enabled: true
+  max-http-request-header-size: 2KB
+  port: 8545
+  shutdown: graceful
+  tomcat:
+    connection-timeout: 3s
+    max-http-form-post-size: 1MB
+    max-swallow-size: 1MB
+spring:
+  application:
+    name: web3
+  datasource:
+    name: ${hiero.mirror.web3.db.name}
+    password: ${hiero.mirror.web3.db.password}
+    url: jdbc:postgresql://${hiero.mirror.web3.db.host}:${hiero.mirror.web3.db.port}/${hiero.mirror.web3.db.name}?options=-c%20statement_timeout=${hiero.mirror.web3.db.statementTimeout}
+    username: ${hiero.mirror.web3.db.username}
+    hikari:
+      connection-timeout: 3000
+      data-source-properties:
+        idle_in_transaction_session_timeout: "30000"
+        lock_timeout: "10000"
+        sslmode: ${hiero.mirror.web3.db.sslMode}
+        tcpKeepAlive: true
+      maximum-pool-size: 50
+      minimum-idle: 4
+      validation-timeout: 3000
+  jpa:
+    database: PostgreSQL
+    open-in-view: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  threads:
+    virtual:
+      enabled: true

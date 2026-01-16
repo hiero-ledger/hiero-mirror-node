@@ -1,0 +1,136 @@
+{
+  "description": "Account api call using all queries",
+  "setup": {
+    "accounts": [
+      {
+        "balance": 70,
+        "num": 17,
+        "realm": 1,
+        "shard": 1023,
+        "public_key": "6ceecd8bb224da4914d53f292e5624f6f4cf8c134c920e1cac8d06f879df5819",
+        "expiration_timestamp": 123456781,
+        "auto_renew_period": 11111,
+        "key": [1, 1, 1]
+      },
+      {
+        "balance": 80,
+        "num": 18,
+        "realm": 1,
+        "shard": 1023,
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+        "expiration_timestamp": 123456782,
+        "auto_renew_period": 22222,
+        "key": [2, 2, 2]
+      },
+      {
+        "balance": 90,
+        "balance_timestamp": "2345",
+        "num": 19,
+        "realm": 1,
+        "shard": 1023,
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+        "auto_renew_period": 33333,
+        "created_timestamp": "9999123456789",
+        "key": [3, 3, 3]
+      },
+      {
+        "balance": 100,
+        "num": 20,
+        "realm": 1,
+        "shard": 1023,
+        "public_key": "c7e81a0c1444c6e5b5c1bfb1a02ae5faae44c11e621f286d21242cc584280692",
+        "expiration_timestamp": 123456784,
+        "auto_renew_period": 44444,
+        "key": [4, 4, 4]
+      },
+      {
+        "balance": 110,
+        "num": 21,
+        "realm": 1,
+        "shard": 1023,
+        "public_key": "5f58f33c65992676de86ac8f5b4b8b4b45c636f12cec8a274d820a3fe1778a3e",
+        "expiration_timestamp": 123456785,
+        "auto_renew_period": 55555,
+        "key": [5, 5, 5]
+      }
+    ],
+    "tokenaccounts": [
+      {
+        "token_id": "1023.0.99998",
+        "account_id": "1023.1.17",
+        "balance": 17,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "1023.0.99999",
+        "account_id": "1023.1.17",
+        "balance": 1717,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "1023.0.99999",
+        "account_id": "1023.1.18",
+        "balance": 18,
+        "created_timestamp": "2300",
+        "associated": false
+      },
+      {
+        "token_id": "1023.0.99998",
+        "account_id": "1023.1.19",
+        "balance": 19,
+        "created_timestamp": "2300"
+      },
+      {
+        "token_id": "1023.0.99999",
+        "account_id": "1023.1.19",
+        "balance": 1919,
+        "created_timestamp": "2300"
+      }
+    ]
+  },
+  "url": "/api/v1/accounts?account.id=gte:1023.1.18&account.id=lt:1023.1.20&account.balance=gt:45&account.publicKey=3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be&order=desc&balance=true",
+  "responseStatus": 200,
+  "responseJson": {
+    "accounts": [
+      {
+        "account": "1023.1.19",
+        "alias": null,
+        "auto_renew_period": 33333,
+        "balance": {
+          "balance": 90,
+          "timestamp": "0.000002345",
+          "tokens": [
+            {
+              "token_id": "1023.0.99999",
+              "balance": 1919
+            },
+            {
+              "token_id": "1023.0.99998",
+              "balance": 19
+            }
+          ]
+        },
+        "created_timestamp": "9999.123456789",
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x0000000000000000000000000000000000000013",
+        "expiry_timestamp": "43332.123456789",
+        "key": {
+          "_type": "ProtobufEncoded",
+          "key": "030303"
+        },
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "staked_account_id": null,
+        "staked_node_id": null,
+        "stake_period_start": null
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

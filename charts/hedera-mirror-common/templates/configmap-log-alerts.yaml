@@ -1,8 +1,11 @@
-{{- if (gt (len .Values.loki.rules) 0) }}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if (gt (len .Values.loki.rules) 0) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
   labels: {{ include "hedera-mirror-common.labels" . | nindent 4 }}
+    loki_rule: ""
   name: mirror-log-alerts
   namespace: {{ include "hedera-mirror-common.namespace" . }}
 data:

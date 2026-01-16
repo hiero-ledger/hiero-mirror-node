@@ -12,8 +12,7 @@ This document outlines the steps necessary to upgrade the version of the mirror 
 
 ## Test Locally
 
-- [ ] Build a deployer image using
-      the [instructions](https://github.com/hashgraph/hedera-mirror-node/blob/master/charts/marketplace/gcp/BUILDING.md)
+- [ ] Build a deployer image using the [instructions](/charts/marketplace/gcp/BUILDING.md)
 - [ ] Create a test GKE cluster
 - [ ] Run `mpdev verify` successfully
 - [ ] Run `mpdev install` successfully

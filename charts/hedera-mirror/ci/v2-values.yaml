@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 graphql:
   enabled: true
   test:
@@ -25,6 +27,7 @@ rest:
   monitor:
     config:
       contract:
+        call: false  # Temporary until #12049
         logs: false
       freshness: false
       interval: 5
@@ -54,7 +57,7 @@ stackgres:
   podAntiAffinity: false
 web3:
   env:
-    HEDERA_MIRROR_WEB3_EVM_NETWORK: OTHER
+    HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
   resources:
     requests:
       cpu: 100m

@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.global.gateway.enabled .Values.gateway.gcp.enabled (not (empty .Values.gateway.gcp.healthCheckPolicy)) -}}
+apiVersion: networking.gke.io/v1
+kind: HealthCheckPolicy
+metadata:
+  labels: {{ include "hedera-mirror-grpc.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-grpc.fullname" . }}
+  namespace: {{ include "hedera-mirror-grpc.namespace" . }}
+spec:
+  default: {{ tpl (toYaml .Values.gateway.gcp.healthCheckPolicy) $ | nindent 4 }}
+  targetRef:
+    group: {{ .Values.gateway.target.group | quote }}
+    kind: {{ .Values.gateway.target.kind }}
+    name: {{ include "hedera-mirror-grpc.fullname" . }}
+{{- end }}

@@ -1,0 +1,244 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: Copy StackGres Citus Cluster
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.target_cluster_name }}
+  cancel-in-progress: true
+
+on:
+  workflow_call:
+    inputs:
+      source_cluster_location:
+        type: string
+        default: "us-central1"
+        required: true
+      source_cluster_name:
+        type: string
+        default: "mainnet-na"
+        required: true
+      source_project:
+        type: string
+        default: "prod"
+        required: true
+      target_cluster_location:
+        type: string
+        default: "us-central1"
+        required: true
+      target_cluster_name:
+        type: string
+        default: "mainnet-staging-na"
+        required: true
+      target_default_pool:
+        type: string
+        default: "mainnet-staging-na"
+        required: true
+      target_project:
+        type: string
+        default: "nonprod"
+        required: true
+      teardown_target:
+        type: boolean
+        default: true
+        required: true
+    secrets:
+      GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID:
+        required: true
+      GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT:
+        required: true
+      GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID:
+        required: true
+      GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER:
+        required: true
+  workflow_dispatch:
+    inputs:
+      source_cluster_location:
+        default: "us-central1"
+        description: "Source: GKE location (zone or region)"
+        required: true
+      source_cluster_name:
+        description: "Source: GKE cluster name"
+        default: "mainnet-na"
+        required: true
+      source_project:
+        default: prod
+        description: "Source: GCP project"
+        options: [prod, nonprod]
+        required: true
+        type: choice
+      target_cluster_location:
+        default: "us-central1"
+        description: "Target: GKE location (zone or region)"
+        required: true
+      target_cluster_name:
+        default: "mainnet-staging-na"
+        description: "Target: GKE cluster name"
+        required: true
+      target_default_pool:
+        default: "mainnet-staging-na"
+        description: "Target: default pool name"
+        required: true
+      target_project:
+        default: nonprod
+        description: "Target: GCP project"
+        options: [prod, nonprod]
+        required: true
+        type: choice
+      teardown_target:
+        default: true
+        description: "Tear down target cluster after k6 tests run"
+        required: true
+        type: boolean
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  run-copy:
+    name: Copy Citus from source to target
+    runs-on: hiero-mirror-node-linux-medium
+    timeout-minutes: 900 # 15 hours
+    env:
+      GCP_SNAPSHOT_PROJECT: ${{ inputs.source_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      GCP_K8S_SOURCE_CLUSTER_NAME: ${{ inputs.source_cluster_name }}
+      GCP_K8S_SOURCE_CLUSTER_REGION: ${{ inputs.source_cluster_location }}
+      GCP_K8S_TARGET_CLUSTER_NAME: ${{ inputs.target_cluster_name }}
+      GCP_K8S_TARGET_CLUSTER_REGION: ${{ inputs.target_cluster_location }}
+      GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
+      K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
+      K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
+      SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+      WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Ensure jq is available
+        run: jq --version || (sudo apt-get update && sudo apt-get install -y jq)
+
+      - name: Setup gcloud + kubectl + GKE auth plugin
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        with:
+          cache: true
+          install_components: gke-gcloud-auth-plugin, kubectl
+
+      - name: Create application default credentials
+        run: |
+          set -euo pipefail
+          : "${ACTIONS_ID_TOKEN_REQUEST_URL:?missing OIDC URL}"
+          : "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:?missing OIDC token}"
+          ADC_DIR="${RUNNER_TEMP}/wif-adc"
+          mkdir -p "$ADC_DIR"
+          SUBJECT_TOKEN_FILE="${ADC_DIR}/subject.jwt"
+          ADC_JSON="${ADC_DIR}/adc.json"
+          : > "$SUBJECT_TOKEN_FILE"
+          AUD="//iam.googleapis.com/${WIF_PROVIDER}"
+          cat >"$ADC_JSON" <<EOF
+          {
+            "type": "external_account",
+            "audience": "${AUD}",
+            "subject_token_type": "urn:ietf:params:oauth:token-type:jwt",
+            "token_url": "https://sts.googleapis.com/v1/token",
+            "service_account_impersonation_url": "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${SA_EMAIL}:generateAccessToken",
+            "credential_source": {
+              "file": "${SUBJECT_TOKEN_FILE}"
+            }
+          }
+          EOF
+          export GOOGLE_APPLICATION_CREDENTIALS="$ADC_JSON"
+          export CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE="$ADC_JSON"
+          {
+            echo "GOOGLE_APPLICATION_CREDENTIALS=$ADC_JSON"
+            echo "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=$ADC_JSON"
+            echo "SUBJECT_TOKEN_FILE=$SUBJECT_TOKEN_FILE"
+            echo "AUD=$AUD"
+          } >> "$GITHUB_ENV"
+          ENC_AUD="$(jq -rn --arg s "$AUD" '$s|@uri')"
+          TOKEN_JSON="$(curl -sSf -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENC_AUD}")"
+          OIDC="$(jq -r '.value // empty' <<<"$TOKEN_JSON")"
+          test -n "$OIDC"
+          printf '%s' "$OIDC" > "$SUBJECT_TOKEN_FILE"
+          gcloud auth application-default print-access-token >/dev/null
+          gcloud config set container/use_application_default_credentials true
+
+      - name: Get GKE credentials (source)
+        run: |
+          set -euo pipefail
+          gcloud container clusters get-credentials "${GCP_K8S_SOURCE_CLUSTER_NAME}" \
+            --region "${GCP_K8S_SOURCE_CLUSTER_REGION}" \
+            --project "${GCP_SNAPSHOT_PROJECT}"
+          SRC_CURR="$(kubectl config current-context)"
+          kubectl config rename-context "${SRC_CURR}" "${K8S_SOURCE_CLUSTER_CONTEXT}"
+
+      - name: Get GKE credentials (target)
+        run: |
+          set -euo pipefail
+          gcloud container clusters get-credentials "${GCP_K8S_TARGET_CLUSTER_NAME}" \
+            --region "${GCP_K8S_TARGET_CLUSTER_REGION}" \
+            --project "${GCP_TARGET_PROJECT}"
+          TGT_CURR="$(kubectl config current-context)"
+          kubectl config rename-context "${TGT_CURR}" "${K8S_TARGET_CLUSTER_CONTEXT}"
+
+      - name: Cache Cloud SDK paths
+        run: |
+          set -euo pipefail
+          GCLOUD_BIN="$(command -v gcloud)"
+          KUBECTL_BIN="$(command -v kubectl)"
+          CLOUDSDK_BIN_DIR="$(dirname "$GCLOUD_BIN")"
+          echo "GCLOUD_BIN=$GCLOUD_BIN" >> "$GITHUB_ENV"
+          echo "KUBECTL_BIN=$KUBECTL_BIN" >> "$GITHUB_ENV"
+          echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
+
+      - name: Setup Testkube CLI
+        uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
+        with:
+          version: v2.3.0
+
+      - name: Setup Flux CLI
+        uses: fluxcd/flux2/action@8454b02a32e48d775b9f563cb51fdcb1787b5b93 # v2.7.5
+        with:
+          version: v2.3.0
+
+      - name: Execute copy script
+        env:
+          AUTO_CONFIRM: "true"
+          DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
+          WAIT_FOR_K6: ${{ inputs.teardown_target }}
+        run: |
+          set -Eeuo pipefail
+          export PATH="${CLOUDSDK_BIN_DIR}:${PATH}"
+          hash -r
+          (
+            set -euo pipefail
+            while true; do
+              ENC_AUD="$(jq -rn --arg s "$AUD" '$s|@uri')"
+              if TOKEN_JSON="$(curl -sS -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENC_AUD}")"; then
+                OIDC="$(jq -r '.value // empty' <<<"$TOKEN_JSON")"
+                if [[ -n "$OIDC" ]]; then
+                  printf '%s' "$OIDC" > "$SUBJECT_TOKEN_FILE"
+                  gcloud auth application-default print-access-token >/dev/null 2>&1 || true
+                fi
+              fi
+              kubectl --context "${K8S_SOURCE_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
+              kubectl --context "${K8S_TARGET_CLUSTER_CONTEXT}" --request-timeout=10s get --raw=/version >/dev/null 2>&1 || true
+              sleep 120
+            done
+          ) &
+          REFRESH_PID=$!
+          trap 'kill "$REFRESH_PID" 2>/dev/null || true' EXIT INT TERM
+          cd ./tools/cluster-management/
+          ./copy-live-environment.sh

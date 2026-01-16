@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Load environment configuration: Max Timestamp Range invalid 1`] = `"invalid query.maxTimestampRange 3x"`;
+
+exports[`Load environment configuration: Max Timestamp Range null 1`] = `"invalid query.maxTimestampRange null"`;
+
+exports[`Override query config invalid maxRecordFileCloseInterval 1`] = `"invalid query.maxRecordFileCloseInterval 1g"`;
+
+exports[`Override query config invalid maxScheduledTransactionConsensusTimestampRange 1`] = `"invalid query.maxScheduledTransactionConsensusTimestampRange 1k"`;
+
+exports[`Override query config invalid maxTimestampRange 1`] = `"invalid query.maxTimestampRange 1q"`;
+
+exports[`Override query config invalid maxTransactionConsensusTimestampRange 1`] = `"invalid query.maxTransactionConsensusTimestampRange 1z"`;
+
+exports[`Override query config invalid maxTransactionsTimestampRange 1`] = `"invalid query.maxTransactionsTimestampRange 1z"`;

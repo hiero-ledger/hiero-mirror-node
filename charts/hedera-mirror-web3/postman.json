@@ -49,15 +49,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/contracts/call",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "contracts",
-                "call"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "contracts", "call"]
             }
           },
           "response": []

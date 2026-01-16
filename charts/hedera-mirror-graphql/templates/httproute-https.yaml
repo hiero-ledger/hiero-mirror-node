@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.global.gateway.enabled .Values.global.gateway.https.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels: {{ include "hedera-mirror-graphql.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-graphql.fullname" . }}-https
+  namespace: {{ include "hedera-mirror-graphql.namespace" . }}
+spec:
+  hostnames:
+  {{- range $hostname := .Values.global.gateway.hostnames }}
+    - {{ $hostname | quote }}
+  {{- end }}
+  parentRefs:
+    - name: {{ .Release.Name }}
+      port: {{ .Values.global.gateway.https.port }}
+  rules: {{ tpl (toYaml .Values.gateway.rules) $ | nindent 4 }}
+{{- end }}

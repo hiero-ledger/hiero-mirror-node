@@ -1,4 +1,6 @@
-{{- if (and .Values.monitor.enabled .Values.monitor.test.enabled) -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if (and .Values.monitor.enabled .Values.monitor.test.enabled) -}}
 apiVersion: v1
 kind: Pod
 metadata:

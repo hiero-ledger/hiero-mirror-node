@@ -4,9 +4,9 @@
 
 The Rosetta API is a REST API complying with
 the [Rosetta API Specification](https://www.rosetta-api.org/docs/welcome.html) with a focus on blockchain data
-integration. This server enables exchanges to be able to integrate and work with the Hedera Hashgraph network. The
+integration. This server enables exchanges to be able to integrate and work with the network. The
 server is written in Golang and is largely based on the [rosetta-sdk-go](https://github.com/coinbase/rosetta-sdk-go).
-Its main job is to respond to Rosetta requests, to the extent allowed by Hedera, while fetching information from the
+Its main job is to respond to Rosetta requests, to the extent allowed by Hiero, while fetching information from the
 mirror node database.
 
 ## Architecture
@@ -42,25 +42,25 @@ the data, and triggering the business logic services.
 ### Running Locally
 
 The recommended way to run Rosetta locally is to use the all-in-one docker image. Below are the steps to build the image
-for a Hedera mirror node release. Please replace the example release `v0.60.0` with the latest release from
-our [releases page](https://github.com/hashgraph/hedera-mirror-node/releases).
+for a mirror node release. Please replace the example release `v0.60.0` with the latest release from
+our releases page.
 
-1. Download the [Dockerfile](/hedera-mirror-rosetta/build/Dockerfile).
+1. Download the [Dockerfile](/rosetta/build/Dockerfile).
 
 2. Run `docker build --build-arg GIT_REF=v0.60.0 -t hedera-mirror-rosetta:0.60.0 .`
 
 Configure and run the server in online mode:
 
 1. Follow the [guide](https://docs.hedera.com/guides/mirrornet/run-your-own-beta-mirror-node) to configure requester
-   pays for Hedera testnet.
+   pays for testnet.
 
 2. Set the desired configuration for both the [Importer](/docs/configuration.md#importer)
    and [Rosetta API](/docs/configuration.md#rosetta-api) in a new `application.yml` file to be mounted to the container.
    Alternatively, every property can be also be set via corresponding environment variables that can be passed to the
-   container. For example, the YAML property `hedera.mirror.importer.startDate` can be set
-   as `-e HEDERA_MIRROR_IMPORTER_STARTDATE=1970-01-01T01:01:00Z`.
+   container. For example, the YAML property `hiero.mirror.importer.startDate` can be set
+   as `-e HIERO_MIRROR_IMPORTER_STARTDATE=1970-01-01T01:01:00Z`.
 
-3. Set `hedera.mirror.importer.startDate` to 15 minutes before UTC now and zero the seconds, for example, if UTC now is
+3. Set `hiero.mirror.importer.startDate` to 15 minutes before UTC now and zero the seconds, for example, if UTC now is
    `2021-12-06T15:25:20Z`, startDate should set to `2021-12-06T15:10:00Z`. Setting `startDate` properly can make the
    importer get the genesis account balance file faster.
 
@@ -85,10 +85,10 @@ passing `-e MODE=offline`.
 
 Before running any tests, we need to make sure the server has ingested the genesis balance file and the genesis block.
 This can be done using the shell
-script [wait-for-mirror-node.sh](/hedera-mirror-rosetta/scripts/wait-for-mirror-node.sh). The script will report that
+script [wait-for-mirror-node.sh](/rosetta/scripts/wait-for-mirror-node.sh). The script will report that
 mirror node syncing has started when the genesis information is available.
 
-A sample [configuration file](/hedera-mirror-rosetta/scripts/validation/testnet/validation.json) is provided to run
+A sample [configuration file](/rosetta/scripts/validation/testnet/validation.json) is provided to run
 rosetta-cli tests. Please refer to [the official guide](https://docs.cloud.coinbase.com/rosetta/docs/configuration-file)
 for the options.
 
@@ -97,14 +97,14 @@ to work around the known `rosetta-cli` performance issue of loading large genesi
 
 #### Genesis Balance File
 
-As an alternative, run the [script](/hedera-mirror-rosetta/scripts/validation/get-genesis-balance.sh) script to get the
+As an alternative, run the [script](/rosetta/scripts/validation/get-genesis-balance.sh) script to get the
 genesis account balance file.
 
 The `get-genesis-balance.sh` script takes the following form
 
 `./get-genesis-balance.sh <network> <account_limit> <transfer_window_ns>`
 
-- `network` - The Hedera network to validate against. Options include `demo` or `testnet` with a default of `demo`
+- `network` - The network to validate against. Options include `demo` or `testnet` with a default of `demo`
 - `account_limit` - The max number of accounts to list in the file. Default is 20.
 - `transfer_window_ns` - The additional ns duration added to the `starting_timestamp` to search for accounts when an
   account limit is used. Default is 1 week i.e. 604800000000000 ns

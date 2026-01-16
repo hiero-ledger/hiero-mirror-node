@@ -1,4 +1,6 @@
-{{- if .Values.podMonitor.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.podMonitor.enabled -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:

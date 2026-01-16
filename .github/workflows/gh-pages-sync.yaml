@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+
+name: GitHub Pages Sync
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync Pages
+    runs-on: hiero-mirror-node-linux-medium
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: "hashgraph/hedera-mirror-node"
+          ref: gh-pages
+          fetch-depth: "0"
+          token: ${{ secrets.GH_ACCESS_TOKEN_HG }}
+
+      - name: Add Remote
+        run: git remote add HIERO https://github.com/hiero-ledger/hiero-mirror-node.git
+
+      - name: Get the latest from HIERO
+        run: git fetch HIERO
+
+      - name: Sync gh-pages locally
+        run: git rebase --merge HIERO/gh-pages
+
+      - name: Push updates
+        run: git push --force --set-upstream origin gh-pages

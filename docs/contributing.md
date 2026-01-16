@@ -1,15 +1,16 @@
 # Contributing
 
-Hedera strives for decentralization and that includes in its development process. As such, outside contributions are
-welcomed and encouraged. For general guidelines on how to contribute to Hedera projects, please read the organization's
-[contributing guide](https://github.com/hashgraph/.github/blob/main/CONTRIBUTING.md). This document outlines additional
-processes that the mirror node uses for its development.
+Hiero strives for decentralization and that includes in its development process. As such, outside contributions are
+welcomed and encouraged. For general guidelines on how to contribute to Hiero projects, please read the organization's
+[contributing guide](https://github.com/hiero-ledger/.github/blob/main/CONTRIBUTING.md). This document outlines
+additional processes that the mirror node uses for its development.
 
 ## Issues
 
 Issues should be created using one of the issue templates. GitHub allows these templates to be bypassed in some areas
 of its user interface, but users should refrain from doing so and ensure all fields of the template are filled.
-Any issues that have been addressed on main or a release branch are required to have a milestone associated with them.
+Any issues that have been addressed on the `main` branch or a release branch are required to have a milestone associated
+with them.
 
 ### Labels
 
@@ -53,6 +54,6 @@ issue should have a project assigned to ensure work is not tracked twice on the 
 Before opening a PR, the submitter should ensure all tests pass locally and any manual testing has been conducted to
 verify the new functionality. The PR should stay as draft and without requesting reviewers until all requirements of the
 ticket are complete, all checks pass, and a self-review of the changes has been conducted. Once that criteria has been
-met, the PR can be marked as ready for review and the `hashgraph/hedera-mirror-node` team requested for a review. PRs
+met, the PR can be marked as ready for review and the `@hiero-ledger/github-committers` team requested for a review. PRs
 require at least one approval to merge, but in practice we encourage at least two approvals before
 merging most PRs.

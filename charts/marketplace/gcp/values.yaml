@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 applicationResource:
   enabled: true
   partnerId: mirror-node-public
@@ -13,11 +15,11 @@ graphql:
 
 grpc:
   config:
-    hedera:
+    hiero:
       mirror:
         grpc:
           listener:
-            type: NOTIFY
+            type: SHARED_POLL
     management:
       endpoint:
         health:
@@ -28,8 +30,6 @@ grpc:
     enabled: false
   ingress:
     enabled: false
-  rbac:
-    enabled: false
   service:
     type: LoadBalancer
   serviceAccount:
@@ -37,7 +37,7 @@ grpc:
 
 importer:
   config:
-    hedera:
+    hiero:
       mirror:
         importer:
           downloader:
@@ -45,8 +45,6 @@ importer:
           parser:
             record:
               entity:
-                notify:
-                  enabled: true
                 redis:
                   enabled: false
     management:
@@ -55,8 +53,6 @@ importer:
           group:
             readiness:
               exclude: redis
-  rbac:
-    enabled: false
   replicas: 1
   resources:
     requests:
@@ -80,7 +76,7 @@ redis:
 
 rest:
   config:
-    hedera:
+    hiero:
       mirror:
         rest:
           metrics:
@@ -91,8 +87,6 @@ rest:
   ingress:
     enabled: false
   monitor:
-    enabled: false
-  rbac:
     enabled: false
   serviceAccount:
     create: false

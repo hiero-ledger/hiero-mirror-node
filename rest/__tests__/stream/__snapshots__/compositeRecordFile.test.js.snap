@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`from record file buffer or compact object check individual field from v2 buffer - toCompactObject - ["0.0.365299-1615141267-266970662"] 1`] = `"Unsupported operation"`;
+
+exports[`from record file buffer or compact object check individual field from v5 buffer - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from record file buffer or compact object check individual field from v5 compact object - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from record file buffer or compact object check individual field from v6 buffer - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from record file buffer or compact object check individual field from v6 compact object - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from record file buffer or compact object end running hash mismatch 1`] = `"End object running hash mismatch"`;
+
+exports[`from record file buffer or compact object end running hash mismatch 2`] = `"End object running hash mismatch"`;
+
+exports[`from record file buffer or compact object from non-Buffer obj 1`] = `"Cannot read properties of undefined (reading 'readInt32BE')"`;
+
+exports[`from record file buffer or compact object truncated v2 buffer 1`] = `"Error reading byte array, expect 221-byte data got 220-byte"`;
+
+exports[`from record file buffer or compact object truncated v5 buffer 1`] = `"Error reading byte array, expect 48-byte data got 47-byte"`;
+
+exports[`from record file buffer or compact object truncated v6 buffer 1`] = `"index out of range: 6658 + 1 > 6658"`;
+
+exports[`from record file buffer or compact object v2 buffer with extra data 1`] = `"Unsupported marker 0, expect 2"`;
+
+exports[`from record file buffer or compact object v5 buffer with extra data 1`] = `"Extra data discovered in record file"`;
+
+exports[`from record file buffer or compact object v6 buffer with extra data 1`] = `"index out of range: 6660 + 1 > 6660"`;
+
+exports[`unsupported record file version create object from version 3 1`] = `"Unsupported record file"`;
+
+exports[`unsupported record file version create object from version 4 1`] = `"Unsupported record file"`;
+
+exports[`unsupported record file version create object from version 7 1`] = `"Unsupported record file"`;

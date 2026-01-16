@@ -1,3 +1,0 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
-
-exports[`HashObject truncated buffer 1`] = `"Error reading byte array, expect 48-byte data got 44-byte"`;

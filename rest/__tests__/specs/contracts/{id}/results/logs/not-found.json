@@ -1,0 +1,29 @@
+{
+  "description": "Contract logs api call for a specific contract using contract id with varied filters and no matching results",
+  "setup": {},
+  "tests": [
+    {
+      "url": "/api/v1/contracts/0.0.5001/results/logs",
+      "responseStatus": 200,
+      "responseJson": {
+        "logs": [],
+        "links": {
+          "next": null
+        }
+      }
+    },
+    {
+      "url": "/api/v1/contracts/0x5555555555555555555555555555555555555555/results/logs",
+      "responseStatus": 404,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "No contract with the given evm address 0x5555555555555555555555555555555555555555 has been found."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

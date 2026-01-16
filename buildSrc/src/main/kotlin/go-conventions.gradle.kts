@@ -1,18 +1,4 @@
-/*
- * Copyright (C) 2022-2024 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 import org.gradle.internal.io.NullOutputStream
 import plugin.go.Go
@@ -26,9 +12,11 @@ plugins {
 
 apply<GoPlugin>()
 
+val go = project.extensions.getByName<GoExtension>("go")
+
 val goBuild =
     tasks.register<Go>("goBuild") {
-        val binary = layout.buildDirectory.asFile.get().resolve(project.projectDir.name)
+        val binary = layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name)
         val ldFlags = "-w -s -X main.Version=${project.version}"
         environment["CGO_ENABLED"] = "true"
         args("build", "-ldflags", ldFlags, "-o", binary)
@@ -55,12 +43,11 @@ tasks.register<Go>("generate") {
 }
 
 tasks.register<Exec>("run") {
-    commandLine(layout.buildDirectory.asFile.get().resolve(project.projectDir.name))
+    commandLine(layout.buildDirectory.asFile.get().resolve(layout.projectDirectory.asFile.name))
     dependsOn(goBuild)
 }
 
 tasks.register<Go>("test") {
-    val go = project.extensions.getByName<GoExtension>("go")
     args(
         "test",
         "-coverpkg=${go.pkg}",
@@ -68,14 +55,14 @@ tasks.register<Go>("test") {
         "-covermode=atomic",
         "-race",
         "-v",
-        go.pkg
+        go.pkg,
     )
     dependsOn("fix")
-
-    // Gradle is logging all Go output to stdout, so this change makes it behave like other tasks
-    // and not log
-    if (gradle.startParameter.logLevel >= LogLevel.LIFECYCLE) {
-        standardOutput = NullOutputStream.INSTANCE
+    val disableLogging = gradle.startParameter.logLevel >= LogLevel.LIFECYCLE
+    doFirst {
+        if (disableLogging) {
+            standardOutput = NullOutputStream.INSTANCE
+        }
     }
 }
 
@@ -87,13 +74,6 @@ tasks.register("clean") { dependsOn(goClean) }
 listOf(tasks.dependencyCheckAggregate, tasks.dependencyCheckAnalyze).forEach {
     it.configure {
         dependsOn("setup")
-        doFirst {
-            dependencyCheck {
-                analyzers {
-                    val go = project.extensions.getByName<GoExtension>("go")
-                    pathToGo = go.goBin.toString()
-                }
-            }
-        }
+        doFirst { dependencyCheck { analyzers { pathToGo = go.goBin.toString() } } }
     }
 }

@@ -1,7 +1,0 @@
-hedera:
-  mirror:
-    rest:
-      metrics:
-        enabled: false
-      redis:
-        enabled: false

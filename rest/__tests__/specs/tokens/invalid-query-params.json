@@ -1,0 +1,163 @@
+{
+  "description": "Token api call for all tokens utilizing all available but invalid query params",
+  "setup": {
+    "entities": [
+      {
+        "num": 1,
+        "public_key": "7a3c7a3c5477bdf4a63742647d7cfc4544acc1899d07141caf4cd9fea2f75b28a5cc",
+        "key": [1, 1, 1]
+      },
+      {
+        "num": 1135,
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [2, 2, 2]
+      },
+      {
+        "num": 25301,
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [3, 3, 3]
+      },
+      {
+        "num": 45678,
+        "public_key": "2b60955bcbf0cf5e9ea880b52e5b63f664b08edf6ed15e301049517438d61864",
+        "key": [4, 4, 4]
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "FIRSTMOVERLPDJH",
+        "created_timestamp": "1234567890000000001",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.1135",
+        "symbol": "ORIGINALRDKSE",
+        "created_timestamp": "1234567890000000002",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.25301",
+        "symbol": "MIRRORTOKEN",
+        "created_timestamp": "1234567890000000003",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.45678",
+        "symbol": "HEDERACOIN",
+        "created_timestamp": "1234567890000000004",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=abc&limit=-2&publickey=-2&order=any&block.number=3",
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=0.0.0x0000000000000000000000000000000000000012&limit=-2&publickey=-2&order=any&block.number=3",
+        "/api/v1/tokens?account.id=lte:0.1.2.3&token.id=06bd279138d5918402fc8ad500526cb2ee0eb985&limit=-2&publickey=-2&order=any&block.number=3"
+      ],
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "Invalid parameter: account.id"
+            },
+            {
+              "message": "Invalid parameter: token.id"
+            },
+            {
+              "message": "Invalid parameter: limit"
+            },
+            {
+              "message": "Invalid parameter: publickey"
+            },
+            {
+              "message": "Invalid parameter: order"
+            },
+            {
+              "message": "Unknown query parameter: block.number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=IAmALongStringThatIsLongerThanTheMaximumSizeForATokenNameWhichIsOneHundredBytesAndNotOneSingleByteMore",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=ab",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=ne:bar",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=lt:bar",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=lte:bar",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=gt:bar",
+        "/api/v1/tokens?limit=-2&publickey=-2&order=any&block.number=3&name=gte:bar"
+      ],
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "Invalid parameter: limit"
+            },
+            {
+              "message": "Invalid parameter: publickey"
+            },
+            {
+              "message": "Invalid parameter: order"
+            },
+            {
+              "message": "Invalid parameter: name"
+            },
+            {
+              "message": "Unknown query parameter: block.number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?account.id=gt:5&name=validname",
+        "/api/v1/tokens?account.id=gte:5&name=validname",
+        "/api/v1/tokens?account.id=lt:5&name=validname",
+        "/api/v1/tokens?account.id=lte:5&name=validname",
+        "/api/v1/tokens?account.id=eq:5&name=validname",
+        "/api/v1/tokens?account.id=5&name=validname"
+      ],
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "account.id and name cannot be used together"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "urls": [
+        "/api/v1/tokens?token.id=gt:5&name=validname",
+        "/api/v1/tokens?token.id=gte:5&name=validname",
+        "/api/v1/tokens?token.id=lt:5&name=validname",
+        "/api/v1/tokens?token.id=lte:5&name=validname",
+        "/api/v1/tokens?token.id=eq:5&name=validname",
+        "/api/v1/tokens?token.id=5&name=validname"
+      ],
+      "responseStatus": 400,
+      "responseJson": {
+        "_status": {
+          "messages": [
+            {
+              "message": "token.id and name can not be used together. Use a more specific name instead."
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

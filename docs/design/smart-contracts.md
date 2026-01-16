@@ -2,10 +2,10 @@
 
 ## Purpose
 
-Smart contracts have existed on Hedera since Open Access, but the mirror node has never stored all the data associated
+Smart contracts have existed since open access, but the mirror node has never stored all the data associated
 with smart contract transactions in its database. With the
 [announcement](https://hedera.com/blog/hedera-evm-smart-contracts-now-bring-highest-speed-programmability-to-tokenization)
-to bring high speed smart contract execution to the Hedera network, it has become more important to ensure the mirror
+to bring high speed smart contract execution to the network, it has become more important to ensure the mirror
 node is storing the appropriate smart contract information and making it retrievable via its APIs.
 
 ## Goals
@@ -448,12 +448,12 @@ at [ETH methods](https://besu.hyperledger.org/en/stable/Reference/API-Methods/#e
 The Mirror Node should implement a subset of the standard calls used to:
 
 - Support existing Ethereum developers who may call the JSON-RPC endpoints directly.
-- Encompass Hedera EVM translation logic that can be wrapped by potential Web3 modules.
+- Encompass EVM translation logic that can be wrapped by potential Web3 modules.
 
 #### Setup
 
-- Create a new Maven module `hedera-mirror-web3`
-- Create a new Maven module `hedera-mirror-common` that encompasses all domain POJOs and repositories
+- Create a new Maven module `web3`
+- Create a new Maven module `common` that encompasses all domain POJOs and repositories
 - Use Spring WebFlux to establish a JSON-RPC server
   with [JSON-RPC 2.0 specification](https://www.jsonrpc.org/specification) support to service rpc calls
 - Use `spring-boot-starter-data-jpa` for database access
@@ -462,8 +462,8 @@ The Mirror Node should implement a subset of the standard calls used to:
 
 #### Domain/Repository
 
-Existing domain classes can be utilized from the `hedera-mirror-common` dependencies. Applicable CRUD repositories can
-be created using Spring based on `hedera-mirror-common` domains to extract information from the database.
+Existing domain classes can be utilized from the `common` dependencies. Applicable CRUD repositories can
+be created using Spring based on `common` domains to extract information from the database.
 
 #### Service
 
@@ -592,11 +592,11 @@ Wikis [JSON-RPC API](https://eth.wiki/json-rpc/API)
 | [eth_getTransactionByHash](https://eth.wiki/json-rpc/API#eth_gettransactionbyhash)                               | Returns transaction information for the specified transaction hash.                                | P1                           | Mirror node can return contract transaction metadata details mapped by transaction hash.                                                |
 | [eth_getTransactionCount](https://eth.wiki/json-rpc/API#eth_gettransactioncount)                                 | Returns the number of transactions sent from a specified address.                                  | P2                           | Mirror node can return contract transaction count from the specified contract address.                                                  |
 | [eth_getTransactionReceipt](https://eth.wiki/json-rpc/API#eth_gettransactionreceipt)                             | Returns the receipt of a transaction by transaction hash.                                          | P0                           | Mirror node can return contract transaction details mapped by transaction hash.                                                         |
-| [eth_getUncleByBlockHashAndIndex](https://eth.wiki/json-rpc/API#eth_getunclebyblockhashandindex)                 | Returns uncle specified by block hash and index.                                                   | N/A                          | Hedera has no concept of uncles. Gossip protocol avoids this pitfall.                                                                   |
-| [eth_getUncleByBlockNumberAndIndex](https://eth.wiki/json-rpc/API#eth_getunclebyblocknumberandindex)             | Returns uncle specified by block number and index.                                                 | N/A                          | Hedera has no concept of uncles. Gossip protocol avoids this pitfall.                                                                   |
-| [eth_getUncleCountByBlockHash](https://eth.wiki/json-rpc/API#eth_getunclecountbyblockhash)                       | Returns the number of uncles in a block from a block matching the given block hash.                | N/A                          | Hedera has no concept of uncles. Gossip protocol avoids this pitfall.                                                                   |
-| [eth_getUncleCountByBlockNumber](https://eth.wiki/json-rpc/API#eth_getunclecountbyblocknumber)                   | Returns the number of uncles in a block matching the specified block number.                       | N/A                          | Hedera has no concept of uncles. Gossip protocol avoids this pitfall.                                                                   |
-| [eth_getWork](https://eth.wiki/json-rpc/API#eth_getwork)                                                         | Returns the hash of the current block, the seed hash, and the required target boundary condition.  | N/A                          | Hedera uses the Gossip about Gossip protocol which is not proof of work based.                                                          |
+| [eth_getUncleByBlockHashAndIndex](https://eth.wiki/json-rpc/API#eth_getunclebyblockhashandindex)                 | Returns uncle specified by block hash and index.                                                   | N/A                          | Hiero has no concept of uncles. Gossip protocol avoids this pitfall.                                                                    |
+| [eth_getUncleByBlockNumberAndIndex](https://eth.wiki/json-rpc/API#eth_getunclebyblocknumberandindex)             | Returns uncle specified by block number and index.                                                 | N/A                          | Hiero has no concept of uncles. Gossip protocol avoids this pitfall.                                                                    |
+| [eth_getUncleCountByBlockHash](https://eth.wiki/json-rpc/API#eth_getunclecountbyblockhash)                       | Returns the number of uncles in a block from a block matching the given block hash.                | N/A                          | Hiero has no concept of uncles. Gossip protocol avoids this pitfall.                                                                    |
+| [eth_getUncleCountByBlockNumber](https://eth.wiki/json-rpc/API#eth_getunclecountbyblocknumber)                   | Returns the number of uncles in a block matching the specified block number.                       | N/A                          | Hiero has no concept of uncles. Gossip protocol avoids this pitfall.                                                                    |
+| [eth_getWork](https://eth.wiki/json-rpc/API#eth_getwork)                                                         | Returns the hash of the current block, the seed hash, and the required target boundary condition.  | N/A                          | Hiero uses the Gossip about Gossip protocol which is not proof of work based.                                                           |
 | [eth_hashrate](https://eth.wiki/json-rpc/API#eth_hashrate)                                                       | Returns the number of hashes per second with which the node is mining.                             | N/A                          | Mirror node is not an EVM bearing client                                                                                                |
 | [eth_mining](https://eth.wiki/json-rpc/API#eth_mining)                                                           | Whether the client is actively mining new blocks.                                                  | N/A                          | Mirror node is not an EVM bearing client                                                                                                |
 | [eth_newBlockFilter](https://eth.wiki/json-rpc/API#eth_newblockfilter)                                           | Creates a filter to retrieve new block hashes.                                                     | N/A                          | Mirror node REST APIs should be stateless and will not support persisting filters. Instead, desired filter should be applied to getLogs |
@@ -869,7 +869,7 @@ The Mirror Node should additional provide support for this.
 ## Open Questions
 
 1. What will the externalization of the contract call type in the transaction record look like? Still being designed.
-2. How will EVM internal transactions (i.e. non HTS precompiled child transactions) show up in record stream and will
+2. How will EVM internal transactions (i.e. non-HTS precompiled child transactions) show up in record stream and will
    they follow a hierarchy that highlights transfer succession or will it be flattened? Still being designed.
 3. How should we expose EVM internal transactions under `/api/v1/contracts/{id}/results/{timestamp}`
    & `/api/v1/contracts/results/{transactionId}`? Still being designed. One suggestion under is
@@ -887,7 +887,7 @@ The Mirror Node should additional provide support for this.
 ## Answered Questions
 
 1. How should we allow searching by topics or logs? Ans: By topics, with timestamp filter on logs.
-2. How will Hedera transactions triggered from a smart contract be externalized in the record stream? Ans: Each contract
+2. How will transactions triggered from a smart contract be externalized in the record stream? Ans: Each contract
    triggered transaction will show up as a separate transaction and record with an incremented consensus timestamp and a
    parent timestamp populated.
 3. Should we show individual function parameters in a normalized form? Ans: We decided against it at this time as it
@@ -898,11 +898,11 @@ The Mirror Node should additional provide support for this.
    Ethereum's [transactionReceipt](https://web3js.readthedocs.io/en/v1.2.11/web3-eth.html#gettransaction)
    Ans: Yes, as we can easily extract from transaction and record tables.
 5. Would a custom `api/v1/evm` or `api/v1/eth` endpoint be valuable and needed to provide a separation of concern
-   between Hedera and Ethereum logic. Ans: Though valuable to the separation of concern it brings too much overhead, and
+   between Hiero and Ethereum logic. Ans: Though valuable to the separation of concern it brings too much overhead, and
    the endpoint themselves aren't known to existing developers. Better to put effort on existing endpoints and JSON-RPC
 6. With the use of `transaction_id` to retrieve entity metadata rows should we consider a caching and or db mapping to
    extract the entityId and timestamp? Ans: For now caching and internal db mapping not needed. We'll simply do 2 calls
    to get transaction info and then contract details.
-7. How should we expose Hedera child transactions under `/api/v1/contracts/{id}/results/{timestamp}`
+7. How should we expose child transactions under `/api/v1/contracts/{id}/results/{timestamp}`
    and `/api/v1/contracts/results/{transactionId}`? Users can get a flattened list of parent and child transactions
    via `/api/v1/transaction/{transactionId}` and use that to query the contract results.

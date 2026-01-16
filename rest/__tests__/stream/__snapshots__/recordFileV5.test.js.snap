@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`from v5 buffer or compact object check individual field from v5 buffer - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from v5 buffer or compact object check individual field from v5 compact object - toCompactObject - ["0.0.1-123-123456789"] 1`] = `"Transaction 0.0.1-123-123456789 not found in the successful transactions map"`;
+
+exports[`from v5 buffer or compact object end running hash mismatch 1`] = `"End object running hash mismatch"`;
+
+exports[`from v5 buffer or compact object truncated v5 buffer 1`] = `"Error reading byte array, expect 48-byte data got 47-byte"`;
+
+exports[`from v5 buffer or compact object v5 buffer with extra data 1`] = `"Extra data discovered in record file"`;
+
+exports[`unsupported record file version create object from version 1 1`] = `"Unsupported record file version, expect 5"`;
+
+exports[`unsupported record file version create object from version 2 1`] = `"Unsupported record file version, expect 5"`;
+
+exports[`unsupported record file version create object from version 3 1`] = `"Unsupported record file version, expect 5"`;
+
+exports[`unsupported record file version create object from version 4 1`] = `"Unsupported record file version, expect 5"`;
+
+exports[`unsupported record file version create object from version 6 1`] = `"Unsupported record file version, expect 5"`;

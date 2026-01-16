@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`from v2 buffer check individual field from v2 buffer - toCompactObject - ["0.0.365299-1615141267-266970662"] 1`] = `"Unsupported operation"`;
+
+exports[`from v2 buffer from non-Buffer obj 1`] = `"Unsupported record file"`;
+
+exports[`from v2 buffer truncated v2 buffer 1`] = `"Error reading byte array, expect 221-byte data got 220-byte"`;
+
+exports[`from v2 buffer v2 buffer with extra data 1`] = `"Unsupported marker 0, expect 2"`;
+
+exports[`unsupported record file version create object from version 3 1`] = `"Unsupported record file"`;
+
+exports[`unsupported record file version create object from version 4 1`] = `"Unsupported record file"`;
+
+exports[`unsupported record file version create object from version 5 1`] = `"Unsupported record file"`;
+
+exports[`unsupported record file version create object from version 6 1`] = `"Unsupported record file"`;

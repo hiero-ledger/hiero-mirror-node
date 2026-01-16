@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 affinity:
   podAntiAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
@@ -33,7 +35,7 @@ alertmanager:
               value: resource
           targetMatch:
             - name: application
-              value: hedera-mirror-monitor
+              value: monitor
           equal:
             - namespace
             - pod
@@ -57,7 +59,8 @@ config: {}
 
 # Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
 env:
-  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hedera/"
+  SPRING_CONFIG_ADDITIONAL_LOCATION: "file:/usr/etc/hiero/"
+  SPRING_PROFILES_ACTIVE: "kubernetes"
   # FOO:
   #   valueFrom:
   #     secretKeyRef:
@@ -72,6 +75,8 @@ envFrom: []
 fullnameOverride: ""
 
 global:
+  config: {}
+  env: {}
   image: {}
   namespaceOverride: ""
   podAnnotations: {}
@@ -127,11 +132,11 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} CPU usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror Monitor CPU usage exceeds 80%"
     enabled: true
-    expr: sum(process_cpu_usage{application="hedera-mirror-monitor"}) by (namespace, pod) / sum(system_cpu_count{application="hedera-mirror-monitor"}) by (namespace, pod) > 0.8
+    expr: sum(process_cpu_usage{application="monitor"}) by (namespace, pod) / sum(system_cpu_count{application="monitor"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
       area: resource
 
   MonitorHighMemory:
@@ -139,11 +144,11 @@ prometheusRules:
       description: "{{ $labels.namespace }}/{{ $labels.pod }} memory usage reached {{ $value | humanizePercentage }}"
       summary: "Mirror Monitor memory usage exceeds 80%"
     enabled: true
-    expr: sum(jvm_memory_used_bytes{application="hedera-mirror-monitor"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="hedera-mirror-monitor"}) by (namespace, pod) > 0.8
+    expr: sum(jvm_memory_used_bytes{application="monitor"}) by (namespace, pod) / sum(jvm_memory_max_bytes{application="monitor"}) by (namespace, pod) > 0.8
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
       area: resource
 
   MonitorLogErrors:
@@ -151,11 +156,11 @@ prometheusRules:
       description: "Logs for {{ $labels.namespace }}/{{ $labels.pod }} have reached {{ $value }} error messages/s in a 3m period"
       summary: "High rate of log errors"
     enabled: true
-    expr: sum(increase(logback_events_total{application="hedera-mirror-monitor", level="error"}[2m])) by (namespace, pod) >= 2
+    expr: sum(increase(logback_events_total{application="monitor", level="error"}[2m])) by (namespace, pod) >= 2
     for: 3m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
 
   MonitorNoPodsReady:
     annotations:
@@ -166,7 +171,7 @@ prometheusRules:
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
       area: resource
 
   MonitorPublishErrors:
@@ -174,11 +179,11 @@ prometheusRules:
       description: "Averaging {{ $value | humanizePercentage }} error rate publishing '{{ $labels.scenario }}' scenario from {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Publish error rate exceeds 50%"
     enabled: true
-    expr: sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor",status!="SUCCESS"}[2m])) by (namespace, pod, scenario) / sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario) > 0.50
+    expr: sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor",status!="SUCCESS"}[2m])) by (namespace, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) by (namespace, pod, scenario) > 0.50
     for: 3m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
       mode: publish
 
   MonitorPublishLatency:
@@ -186,11 +191,11 @@ prometheusRules:
       description: "Averaging {{ $value | humanizeDuration }} publish latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Publish latency exceeds 7s"
     enabled: true
-    expr: sum(rate(hedera_mirror_monitor_publish_submit_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario) / sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario) > 7
+    expr: sum(rate(hiero_mirror_monitor_publish_submit_seconds_sum{application="monitor"}[2m])) by (namespace, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) by (namespace, pod, scenario) > 7
     for: 5m
     labels:
       severity: warning
-      application: hedera-mirror-monitor
+      application: monitor
       mode: publish
 
   MonitorPublishPlatformNotActive:
@@ -198,10 +203,10 @@ prometheusRules:
       description: "Averaging {{ $value | humanizePercentage }} PLATFORM_NOT_ACTIVE or UNAVAILABLE errors while attempting to publish in {{ $labels.namespace }}"
       summary: "Platform is not active"
     enabled: true
-    expr: sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor",status=~"(PLATFORM_NOT_ACTIVE|UNAVAILABLE)"}[2m])) by (namespace) / sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace) > 0.33
+    expr: sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor",status=~"(PLATFORM_NOT_ACTIVE|UNAVAILABLE)"}[2m])) by (namespace) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) by (namespace) > 0.33
     for: 1m
     labels:
-      application: hedera-mirror-monitor
+      application: monitor
       mode: publish
       severity: warning
 
@@ -210,11 +215,11 @@ prometheusRules:
       description: "Publish TPS dropped to {{ $value }} for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Publishing stopped"
     enabled: true
-    expr: (sum(rate(hedera_mirror_monitor_publish_submit_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario) / sum(rate(hedera_mirror_monitor_publish_submit_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario) > 0 or on() vector(0)) <= 0
+    expr: (sum(rate(hiero_mirror_monitor_publish_submit_seconds_sum{application="monitor"}[2m])) by (namespace, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_submit_seconds_count{application="monitor"}[2m])) by (namespace, pod, scenario) > 0 or on() vector(0)) <= 0
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
       mode: publish
 
   MonitorPublishToHandleLatency:
@@ -222,11 +227,11 @@ prometheusRules:
       description: "Averaging {{ $value | humanizeDuration }} transaction latency for '{{ $labels.scenario }}' scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Submit to transaction being handled latency exceeds 11s"
     enabled: true
-    expr: sum(rate(hedera_mirror_monitor_publish_handle_seconds_sum{application="hedera-mirror-monitor"}[5m])) by (namespace, pod, scenario) / sum(rate(hedera_mirror_monitor_publish_handle_seconds_count{application="hedera-mirror-monitor"}[5m])) by (namespace, pod, scenario) > 11
+    expr: sum(rate(hiero_mirror_monitor_publish_handle_seconds_sum{application="monitor"}[5m])) by (namespace, pod, scenario) / sum(rate(hiero_mirror_monitor_publish_handle_seconds_count{application="monitor"}[5m])) by (namespace, pod, scenario) > 11
     for: 5m
     labels:
       severity: warning
-      application: hedera-mirror-monitor
+      application: monitor
       mode: publish
 
   MonitorSubscribeLatency:
@@ -234,22 +239,22 @@ prometheusRules:
       description: "Latency averaging {{ $value | humanizeDuration }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "End to end latency exceeds 14s"
     enabled: true
-    expr: sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario, subscriber) / sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, scenario, subscriber) > 14
+    expr: sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application="monitor"}[2m])) by (namespace, pod, scenario, subscriber) / sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application="monitor"}[2m])) by (namespace, pod, scenario, subscriber) > 14
     for: 5m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
 
   MonitorSubscribeStopped:
     annotations:
       description: "TPS dropped to {{ $value }} for '{{ $labels.scenario }}' #{{ $labels.subscriber }} scenario for {{ $labels.namespace }}/{{ $labels.pod }}"
       summary: "Subscription stopped"
     enabled: true
-    expr: (sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_sum{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, subscriber, scenario) / sum(rate(hedera_mirror_monitor_subscribe_e2e_seconds_count{application="hedera-mirror-monitor"}[2m])) by (namespace, pod, subscriber, scenario) > 0 or on() vector(0)) <= 0
+    expr: (sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_sum{application="monitor"}[2m])) by (namespace, pod, subscriber, scenario) / sum(rate(hiero_mirror_monitor_subscribe_e2e_seconds_count{application="monitor"}[2m])) by (namespace, pod, subscriber, scenario) > 0 or on() vector(0)) <= 0
     for: 2m
     labels:
       severity: critical
-      application: hedera-mirror-monitor
+      application: monitor
 
 rbac:
   enabled: true
@@ -296,6 +301,20 @@ serviceMonitor:
 
 terminationGracePeriodSeconds: 60
 
+test:
+  annotations:
+    helm.sh/hook: test-success
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "30"
+  enabled: false
+  image:
+    pullPolicy: IfNotPresent
+    pullSecrets: []
+    repository: postman/newman
+    tag: 6.1.3-alpine
+  postman: ""  # Custom postman.json in base64 encoding
+  priorityClassName: ""
+
 tolerations: []
 
 updateStrategy:
@@ -307,7 +326,7 @@ updateStrategy:
 # Volumes to add to the container. The key is the volume name and the value is the volume mount definition. The same keys should also appear in volumes below.
 volumeMounts:
   config:
-    mountPath: /usr/etc/hedera
+    mountPath: /usr/etc/hiero
 
 # Volume mounts to add to the container. The key is the volume name and the value is the volume definition. Evaluated as a template.
 volumes:

@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.global.gateway.enabled .Values.global.gateway.http.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  labels: {{ include "hedera-mirror-rest-java.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-rest-java.fullname" . }}-http
+  namespace: {{ include "hedera-mirror-rest-java.namespace" . }}
+spec:
+  hostnames:
+  {{- range $hostname := .Values.global.gateway.hostnames }}
+    - {{ $hostname | quote }}
+  {{- end }}
+  parentRefs:
+    - name: {{ .Release.Name }}
+      port: {{ .Values.global.gateway.http.port }}
+  rules:
+    {{- if .Values.global.gateway.http.redirect }}
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301
+    {{- else }}
+    {{- tpl (toYaml .Values.gateway.rules) $ | nindent 4 }}
+    {{- end }}
+{{- end }}

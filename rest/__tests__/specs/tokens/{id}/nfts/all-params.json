@@ -1,0 +1,211 @@
+{
+  "description": "Token nfts api call using all params for a given token",
+  "setup": {
+    "entities": [
+      {
+        "num": 1001
+      },
+      {
+        "num": 2001
+      },
+      {
+        "num": 1500,
+        "type": "TOKEN"
+      },
+      {
+        "num": 2500,
+        "type": "TOKEN"
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1500",
+        "symbol": "FIRSTMOVERLPDJH",
+        "created_timestamp": "1234567890000000003",
+        "type": "NON_FUNGIBLE_UNIQUE"
+      },
+      {
+        "token_id": "0.0.2500",
+        "symbol": "ORIGINALRDKSE",
+        "created_timestamp": "1234567890000000004",
+        "type": "NON_FUNGIBLE_UNIQUE"
+      }
+    ],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": [],
+    "nfts": [
+      {
+        "account_id": "0.0.1001",
+        "created_timestamp": "1234567890000000005",
+        "metadata": "m1",
+        "serial_number": 1,
+        "token_id": "0.0.1500"
+      },
+      {
+        "account_id": "0.0.2001",
+        "created_timestamp": "1234567890000000006",
+        "metadata": "m2",
+        "serial_number": 2,
+        "token_id": "0.0.1500"
+      },
+      {
+        "account_id": "0.0.1001",
+        "created_timestamp": "1234567890000000007",
+        "metadata": "s1",
+        "serial_number": 1,
+        "token_id": "0.0.2500"
+      },
+      {
+        "account_id": "0.0.1001",
+        "created_timestamp": "1234567890000000008",
+        "metadata": "m3",
+        "serial_number": 3,
+        "token_id": "0.0.1500"
+      },
+      {
+        "account_id": "0.0.1001",
+        "created_timestamp": "1234567890000000009",
+        "metadata": "m4",
+        "serial_number": 4,
+        "token_id": "0.0.1500"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/tokens/1500/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/1500/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens/00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens/0.0.00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/0.0.00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    },
+    {
+      "url": "/api/v1/tokens/0x00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&account.id=1001&order=desc&limit=2",
+      "responseStatus": 200,
+      "responseJson": {
+        "nfts": [
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000009",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTQ=",
+            "modified_timestamp": "1234567890.000000009",
+            "serial_number": 4,
+            "spender": null,
+            "token_id": "0.0.1500"
+          },
+          {
+            "account_id": "0.0.1001",
+            "created_timestamp": "1234567890.000000008",
+            "delegating_spender": null,
+            "deleted": false,
+            "metadata": "bTM=",
+            "modified_timestamp": "1234567890.000000008",
+            "serial_number": 3,
+            "spender": null,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "links": {
+          "next": "/api/v1/tokens/0x00000000000000000000000000000000000005DC/nfts?serialnumber=gt:1&serialnumber=lt:3&account.id=1001&order=desc&limit=2"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "description": "Transaction api calls for transactions with unknown result type",
+  "matrix": "bindTimestampRangeMatrix.js",
+  "setup": {
+    "features": {
+      "fakeTime": "2019-08-14T10:50:00Z"
+    },
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 8
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "cryptotransfers": [
+      {
+        "consensus_timestamp": "1565779111711927001",
+        "payerAccountId": "0.0.10",
+        "recipientAccountId": "0.0.9",
+        "amount": 10,
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "result": 32767
+      }
+    ]
+  },
+  "url": "/api/v1/transactions",
+  "responseStatus": 200,
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1565779111.711927001",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "UNKNOWN",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.10-1565779111-711927000",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1565779111.711927000",
+        "transfers": [
+          {
+            "account": "0.0.9",
+            "amount": 10,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.10",
+            "amount": -11,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

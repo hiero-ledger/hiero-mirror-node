@@ -1,288 +1,272 @@
 {
-	"info": {
-		"_postman_id": "65d37cac-478e-40ca-bf7c-d981a4318140",
-		"name": "GraphQL API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "24928384"
-	},
-	"item": [
-		{
-			"name": "Negative Tests",
-			"item": [
-				{
-					"name": "Get Account Non Existing field",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Non Existing Field\", () => {",
-									"    pm.expect(pm.response.code).to.equal(200);",
-									"",
-									"    var response = pm.response.json();",
-									"",
-									"    pm.expect(response.errors.length).to.equal(1);",
-									"    pm.expect(response.errors[0].extensions.classification).to.equal(\"ValidationError\");",
-									"    pm.expect(response.errors[0].message).to.contain(\"Field 'alais' in type 'Account' is undefined\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "graphql",
-							"graphql": {
-								"query": "{\n  account(input: {\n    entityId: {\n    shard: 0, realm: 0, num: 12345}}) {\n    alais\n    autoRenewPeriod\n    autoRenewAccount {\n        alias\n        deleted\n        entityId {\n            shard\n            realm\n            num\n        }\n        createdTimestamp\n    }\n    \n  }\n}",
-								"variables": ""
-							}
-						},
-						"url": {
-							"raw": "{{baseUrl}}/graphql/alpha",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"graphql",
-								"alpha"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Get Account",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"const default_account = pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\");",
-							"if (default_account) {",
-							"    pm.test(\"Get By Entity Id (All Fields)\", () => {",
-							"    pm.expect(pm.response.code).to.equal(200);",
-							"        var response = pm.response.json();",
-							"        var account = response.data.account;",
-							"",
-							"        pm.expect(account).to.include.keys(",
-							"            'type', 'autoRenewAccount',",
-							"            'autoRenewPeriod', 'balance',",
-							"            'createdTimestamp', 'declineReward',",
-							"            'deleted', 'entityId',",
-							"            'expirationTimestamp', 'id',",
-							"            'key', 'maxAutomaticTokenAssociations',",
-							"            'memo', 'nonce',",
-							"            'obtainer', 'pendingReward',",
-							"            'receiverSigRequired', 'stakedAccount',",
-							"            'stakePeriodStart', 'timestamp',",
-							"            'type'",
-							"        );",
-							"        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
-							"        pm.expect(account.timestamp).to.have.keys('from', 'to');",
-							"",
-							"        pm.expect(account.type).to.equal('ACCOUNT');",
-							"        pm.expect(account.entityId.num).to.equal(parseInt(default_account));",
-							"});",
-							"}",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "graphql",
-					"graphql": {
-						"query": "{\n  account(input: {\n    entityId: {\n    shard: 0, realm: 0, num: {{default_account}}}}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
-						"variables": ""
-					}
-				},
-				"url": {
-					"raw": "{{baseUrl}}/graphql/alpha",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"graphql",
-						"alpha"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Get Account By EvmAddress",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"const default_evm_address = pm.variables.get(\"default_evm_address\") || pm.environment.get(\"default_evm_address\")",
-							"",
-							"if (default_evm_address) {",
-							"    pm.test(\"Get By Entity EvmAddress (All Fields)\", () => {",
-							"        pm.expect(pm.response.code).to.equal(200);",
-							"",
-							"        var response = pm.response.json();",
-							"        var account = response.data.account;",
-							"",
-							"        pm.expect(account).to.include.keys(",
-							"            'type', 'autoRenewAccount',",
-							"            'autoRenewPeriod', 'balance',",
-							"            'createdTimestamp', 'declineReward',",
-							"            'deleted', 'entityId',",
-							"            'expirationTimestamp', 'id',",
-							"            'key', 'maxAutomaticTokenAssociations',",
-							"            'memo', 'nonce',",
-							"            'obtainer', 'pendingReward',",
-							"            'receiverSigRequired', 'stakedAccount',",
-							"            'stakePeriodStart', 'timestamp',",
-							"            'type'",
-							"        );",
-							"        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
-							"        pm.expect(account.timestamp).to.have.keys('from', 'to');",
-							"",
-							"        pm.expect(account.type).to.equal('ACCOUNT');",
-							"        pm.expect(account.entityId.num).to.equal(parseInt(pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\")));",
-							"",
-							"    });",
-							"}"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "graphql",
-					"graphql": {
-						"query": "{\n  account(input: {evmAddress: \"{{default_evm_address}}\"}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
-						"variables": ""
-					}
-				},
-				"url": {
-					"raw": "{{baseUrl}}/graphql/alpha",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"graphql",
-						"alpha"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Get Account By Alias",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"const default_alias = pm.variables.get(\"default_alias\") || pm.environment.get(\"default_alias\")",
-							"if (default_alias) {",
-							"    pm.test(\"Get By Alias (All Fields)\", () => {",
-							"        pm.expect(pm.response.code).to.equal(200);",
-							"",
-							"        var response = pm.response.json();",
-							"        var account = response.data.account;",
-							"",
-							"        pm.expect(account).to.include.keys(",
-							"            'type', 'autoRenewAccount',",
-							"            'autoRenewPeriod', 'balance',",
-							"            'createdTimestamp', 'declineReward',",
-							"            'deleted', 'entityId',",
-							"            'expirationTimestamp', 'id',",
-							"            'key', 'maxAutomaticTokenAssociations',",
-							"            'memo', 'nonce',",
-							"            'obtainer', 'pendingReward',",
-							"            'receiverSigRequired', 'stakedAccount',",
-							"            'stakePeriodStart', 'timestamp',",
-							"            'type'",
-							"        );",
-							"        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
-							"        pm.expect(account.timestamp).to.have.keys('from', 'to');",
-							"",
-							"        pm.expect(account.type).to.equal('ACCOUNT');",
-							"        pm.expect(account.entityId.num).to.equal(parseInt(pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\")));",
-							"    });",
-							"}"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [],
-				"body": {
-					"mode": "graphql",
-					"graphql": {
-						"query": "{\n  account(input: {alias: \"{{default_alias}}\"}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
-						"variables": ""
-					}
-				},
-				"url": {
-					"raw": "{{baseUrl}}/graphql/alpha",
-					"host": [
-						"{{baseUrl}}"
-					],
-					"path": [
-						"graphql",
-						"alpha"
-					]
-				}
-			},
-			"response": []
-		}
-	],
-	"event": [
-		{
-			"listen": "prerequest",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		},
-		{
-			"listen": "test",
-			"script": {
-				"type": "text/javascript",
-				"exec": [
-					""
-				]
-			}
-		}
-	],
-	"variable": [
-		{
-			"key": "default_account",
-			"value": ""
-		},
-		{
-			"key": "baseUrl",
-			"value": "http://localhost:8083"
-		},
-		{
-			"key": "default_evm_address",
-			"value": ""
-		},
-		{
-			"key": "default_alias",
-			"value": ""
-		}
-	]
+  "info": {
+    "_postman_id": "65d37cac-478e-40ca-bf7c-d981a4318140",
+    "name": "GraphQL API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "24928384"
+  },
+  "item": [
+    {
+      "name": "Negative Tests",
+      "item": [
+        {
+          "name": "Get Account Non Existing field",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Non Existing Field\", () => {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "",
+                  "    var response = pm.response.json();",
+                  "",
+                  "    pm.expect(response.errors.length).to.equal(1);",
+                  "    pm.expect(response.errors[0].extensions.classification).to.equal(\"ValidationError\");",
+                  "    pm.expect(response.errors[0].message).to.contain(\"Field 'alais' in type 'Account' is undefined\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "{\n  account(input: {\n    entityId: {\n    shard: {{shard}}, realm: {{realm}}, num: 12345}}) {\n    alais\n    autoRenewPeriod\n    autoRenewAccount {\n        alias\n        deleted\n        entityId {\n            shard\n            realm\n            num\n        }\n        createdTimestamp\n    }\n    \n  }\n}",
+                "variables": ""
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql/alpha",
+              "host": ["{{baseUrl}}"],
+              "path": ["graphql", "alpha"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Get Account",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const default_account = pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\");",
+              "if (default_account) {",
+              "    pm.test(\"Get By Entity Id (All Fields)\", () => {",
+              "    pm.expect(pm.response.code).to.equal(200);",
+              "        var response = pm.response.json();",
+              "        var account = response.data.account;",
+              "",
+              "        pm.expect(account).to.include.keys(",
+              "            'type', 'autoRenewAccount',",
+              "            'autoRenewPeriod', 'balance',",
+              "            'createdTimestamp', 'declineReward',",
+              "            'deleted', 'entityId',",
+              "            'expirationTimestamp', 'id',",
+              "            'key', 'maxAutomaticTokenAssociations',",
+              "            'memo', 'nonce',",
+              "            'obtainer', 'pendingReward',",
+              "            'receiverSigRequired', 'stakedAccount',",
+              "            'stakePeriodStart', 'timestamp',",
+              "            'type'",
+              "        );",
+              "        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
+              "        pm.expect(account.timestamp).to.have.keys('from', 'to');",
+              "",
+              "        pm.expect(account.type).to.equal('ACCOUNT');",
+              "        pm.expect(account.entityId.num).to.equal(parseInt(default_account));",
+              "});",
+              "}",
+              ""
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "{\n  account(input: {\n    entityId: {\n    shard: {{shard}}, realm: {{realm}}, num: {{default_account}}}}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
+            "variables": ""
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql/alpha",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql", "alpha"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Account By EvmAddress",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const default_evm_address = pm.variables.get(\"default_evm_address\") || pm.environment.get(\"default_evm_address\")",
+              "",
+              "if (default_evm_address) {",
+              "    pm.test(\"Get By Entity EvmAddress (All Fields)\", () => {",
+              "        pm.expect(pm.response.code).to.equal(200);",
+              "",
+              "        var response = pm.response.json();",
+              "        var account = response.data.account;",
+              "",
+              "        pm.expect(account).to.include.keys(",
+              "            'type', 'autoRenewAccount',",
+              "            'autoRenewPeriod', 'balance',",
+              "            'createdTimestamp', 'declineReward',",
+              "            'deleted', 'entityId',",
+              "            'expirationTimestamp', 'id',",
+              "            'key', 'maxAutomaticTokenAssociations',",
+              "            'memo', 'nonce',",
+              "            'obtainer', 'pendingReward',",
+              "            'receiverSigRequired', 'stakedAccount',",
+              "            'stakePeriodStart', 'timestamp',",
+              "            'type'",
+              "        );",
+              "        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
+              "        pm.expect(account.timestamp).to.have.keys('from', 'to');",
+              "",
+              "        pm.expect(account.type).to.equal('ACCOUNT');",
+              "        pm.expect(account.entityId.num).to.equal(parseInt(pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\")));",
+              "",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "{\n  account(input: {evmAddress: \"{{default_evm_address}}\"}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
+            "variables": ""
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql/alpha",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql", "alpha"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Account By Alias",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const default_alias = pm.variables.get(\"default_alias\") || pm.environment.get(\"default_alias\")",
+              "if (default_alias) {",
+              "    pm.test(\"Get By Alias (All Fields)\", () => {",
+              "        pm.expect(pm.response.code).to.equal(200);",
+              "",
+              "        var response = pm.response.json();",
+              "        var account = response.data.account;",
+              "",
+              "        pm.expect(account).to.include.keys(",
+              "            'type', 'autoRenewAccount',",
+              "            'autoRenewPeriod', 'balance',",
+              "            'createdTimestamp', 'declineReward',",
+              "            'deleted', 'entityId',",
+              "            'expirationTimestamp', 'id',",
+              "            'key', 'maxAutomaticTokenAssociations',",
+              "            'memo', 'nonce',",
+              "            'obtainer', 'pendingReward',",
+              "            'receiverSigRequired', 'stakedAccount',",
+              "            'stakePeriodStart', 'timestamp',",
+              "            'type'",
+              "        );",
+              "        pm.expect(account.entityId).to.have.keys('shard', 'realm', 'num');",
+              "        pm.expect(account.timestamp).to.have.keys('from', 'to');",
+              "",
+              "        pm.expect(account.type).to.equal('ACCOUNT');",
+              "        pm.expect(account.entityId.num).to.equal(parseInt(pm.variables.get(\"default_account\") || pm.environment.get(\"default_account\")));",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "{\n  account(input: {alias: \"{{default_alias}}\"}) {\n    alias\n    autoRenewAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    autoRenewPeriod\n    balance\n    createdTimestamp\n    declineReward\n    deleted\n    entityId {\n            shard\n            realm\n            num\n        }\n    expirationTimestamp\n    id\n    key\n    maxAutomaticTokenAssociations\n    memo\n    nonce\n    obtainer {\n        entityId {\n                shard\n                realm\n                num\n        }\n    }\n    pendingReward\n    receiverSigRequired\n    stakedAccount {\n        entityId {\n            shard\n            realm\n            num\n        }\n    }\n    stakePeriodStart\n    timestamp {\n        from\n        to\n    }\n    type\n  }\n}",
+            "variables": ""
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/graphql/alpha",
+          "host": ["{{baseUrl}}"],
+          "path": ["graphql", "alpha"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [""]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "default_account",
+      "value": ""
+    },
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "default_evm_address",
+      "value": ""
+    },
+    {
+      "key": "default_alias",
+      "value": ""
+    },
+    {
+      "key": "shard",
+      "value": "0"
+    },
+    {
+      "key": "realm",
+      "value": "0"
+    }
+  ]
 }

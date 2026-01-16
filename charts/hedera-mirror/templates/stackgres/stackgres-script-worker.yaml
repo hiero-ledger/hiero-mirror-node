@@ -1,4 +1,6 @@
-{{- if .Values.stackgres.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.stackgres.enabled -}}
 apiVersion: stackgres.io/v1
 kind: SGScript
 metadata:
@@ -10,6 +12,7 @@ spec:
   managedVersions: true
   scripts:
     - database: postgres
+      id: 0
       name: all-postgres
       retryOnError: true
       scriptFrom:
@@ -19,6 +22,7 @@ spec:
       user: postgres
       wrapInTransaction: serializable
     - database: {{ .Values.db.name }}
+      id: 1
       name: all-db
       retryOnError: true
       scriptFrom:

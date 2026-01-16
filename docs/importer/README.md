@@ -21,10 +21,41 @@ table provides a compatibility matrix of the most recent changes:
 | v0.47.0+     | v0.98.0+            | False           | [HIP-844](https://hips.hedera.com/hip/hip-844): Handling and externalisation improvements for account nonce updates                                          |
 | v0.48.0+     | v0.101.0+           | False           | [HIP-646](https://hips.hedera.com/hip/hip-646)/[657](https://hips.hedera.com/hip/hip-657)/[765](https://hips.hedera.com/hip/hip-765): Mutable token metadata |
 
+## Synthetic Contract Logs
+
+Users writing dApps want to monitor for token approval and transfer events. HAPI transactions like `CryptoTransfer`,
+`CryptoApproveAllowance`, `CryptoDeleteAllowance`, `TokenMint`, `TokenWipe`, and `TokenBurn` do not emit events that
+could be captured by monitoring tools since they're executed outside the EVM. In order to not bloat the size of the
+blocks, the decision was made for the mirror node to generate synthetic events for these native HAPI transactions. It
+is assumed that any transfers that occur via the EVM on consensus nodes will emit events that will show up in the
+blocks.
+
+Whether or not to generate these synthetic contract logs is controlled by the property
+`hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogs`, which has a default of `true`. When
+enabled, the mirror node will persist synthetic contract logs from HAPI transactions to the database. This will
+generate synthetic logs for the following scenarios:
+
+- `CryptoApproveAllowanceTransaction`: Fungible and non-fungible allowances
+- `CryptoDeleteAllowanceTransaction`: Non-fungible allowances
+- `CryptoTransferTransaction`: Fungible and non-fungible only. For fungible, only if a single transfer pair.
+- `TokenAirdropTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
+- `TokenBurnTransaction`: Fungible and non-fungible
+- `TokenClaimAirdropTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
+- `TokenCreateTransaction`: Fungible
+- `TokenMintTransaction`: Fungible and non-fungible
+- `TokenRejectTransaction`: Fungible and non-fungible. For fungible, only if a single transfer pair.
+- `TokenWipeAccountTransaction`: Fungible and non-fungible
+- Any other current or future transaction that transfers fungible or non-fungible tokens.
+
+For now, the decision was made to omit Hbar transfers because they can be executed at 10,000 transactions per second
+and this could quickly generate a lot of logs and slow down the system. Also, we only support token transfers that
+have a single transfer pair due to the difficulty in splitting aggregated transfers in the `TransactionRecord` into
+separate transfer pairs for event emission. This could change in the future.
+
 ## Initialize Entity Balance
 
 The importer tracks up-to-date entity balance by applying balance changes from crypto transfers. This relies on the
-[InitializeEntityBalanceMigration](/hedera-mirror-importer/src/main/java/com/hedera/mirror/importer/migration/InitializeEntityBalanceMigration.java)
+[InitializeEntityBalanceMigration](/importer/src/main/java/org/hiero/mirror/importer/migration/InitializeEntityBalanceMigration.java)
 to set the correct initial entity balance from the latest account balance snapshot relative to the last record stream
 file the importer has ingested and balance changes from crypto transfers not accounted in the snapshot. If the importer
 is started with a database which doesn't meet the prerequisite (e.g., an empty database) or the entity balance is
@@ -42,7 +73,7 @@ inaccurate due to bugs, follow the steps below to re-run the migration to fix it
 3. Set a different checksum (e.g., 2) for the migration and start importer
 
    ```yaml
-   hedera:
+   hiero:
      mirror:
        importer:
          migration:
@@ -50,61 +81,54 @@ inaccurate due to bugs, follow the steps below to re-run the migration to fix it
              checksum: 2
    ```
 
-### Historical Data Ingestion
+## Historical Data Ingestion
 
 The following resource allocation and configuration is recommended to speed up historical data ingestion. The importer
 should be able to ingest one month's worth of mainnet data in less than 1.5 days.
 
-1. Importer
+### Importer
 
-- Resource allocation
+Run the importer with 4 vCPUs and 10 GB of heap. Configure the application.yml:
 
-  Run the importer with 4 vCPUs and 10 GB of heap.
+```yaml
+hiero:
+  mirror:
+    importer:
+      downloader:
+        batchSize: 600
+        record:
+          frequency: 1ms
+      parser:
+        record:
+          entity:
+            redis:
+              enabled: false
+          frequency: 10ms
+          queueCapacity: 40
+```
 
-- Configuration:
+Note once the importer has caught up all data, it's recommend to change the configuration back to the default.
 
-  ```yaml
-  hedera:
-    mirror:
-      importer:
-        downloader:
-          record:
-            batchSize: 600
-            frequency: 1
-        parser:
-          record:
-            entity:
-              redis:
-                enabled: false
-            frequency: 10
-            queueCapacity: 40
-  ```
+### Database
 
-  Note once the importer has caught up all data, please change the configuration to the default where applicable.
+Run a PostgreSQL 16 instance with at least 4 vCPUs and 16 GB memory. Set the following parameters (note the unit is
+kilobytes):
 
-2. PostgreSQL Database
-
-- Resource allocation
-
-  Run a PostgreSQL 16 instance with at least 4 vCPUs and 16 GB memory.
-
-- Configuration:
-
-  Set the following parameters. Note the unit is kilobytes.
-
-  - max_wal_size = 8388608
-  - work_mem = 262144
+```
+max_wal_size = 8388608
+work_mem = 262144
+```
 
 ## Performance Tests
 
 The `RecordFileParserPerformanceTest` can be used to declaratively generate a `RecordFile` with different performance
 characteristics and test how fast the importer can ingest them. To configure the performance test, populate the remote
-database information and the test scenarios in an `application.yml`. Use the standard `hedera.mirror.importer.db`
+database information and the test scenarios in an `application.yml`. Use the standard `hiero.mirror.importer.db`
 properties to target the remote database. The below config is generating a mix of crypto transfer and contract calls
 transactions at a combined 300 transactions per second (TPS) sustained for 60 seconds:
 
 ```yaml
-hedera.mirror.importer.parser.record:
+hiero.mirror.importer.parser.record:
   performance:
     duration: 60s
     transactions:

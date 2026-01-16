@@ -1,71 +1,69 @@
 {
-	"info": {
-		"_postman_id": "29c9dec1-e1ee-443b-a0be-b8be031f3001",
-		"name": "Java REST API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "28978590"
-	},
-	"item": [
-		{
-			"name": "Positive tests",
-			"item": [
-				{
-					"name": "Get NFT Allowances for Account ID",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"const expectedResponse = {",
-									"  \"allowances\": [],",
-									"  \"links\": {",
-									"    \"next\": null",
-									"  }",
-									"};",
-									"pm.test(\"Body is object\", function () {",
-									"    pm.response.to.have.jsonBody(expectedResponse);",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseUrl}}/api/v1/accounts/{{accountId}}/allowances/nfts",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"accounts",
-								"{{accountId}}",
-								"allowances",
-								"nfts"
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "baseUrl",
-			"value": "http://localhost:8084"
-		},
-		{
-			"key": "accountId",
-			"value": "0.0.2"
-		}
-	]
+  "info": {
+    "_postman_id": "29c9dec1-e1ee-443b-a0be-b8be031f3001",
+    "name": "Java REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "28978590"
+  },
+  "item": [
+    {
+      "name": "Positive tests",
+      "item": [
+        {
+          "name": "Get NFT Allowances for Account ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const expectedResponse = {",
+                  "  \"allowances\": [],",
+                  "  \"links\": {",
+                  "    \"next\": null",
+                  "  }",
+                  "};",
+                  "pm.test(\"Body is object\", function () {",
+                  "    pm.response.to.have.jsonBody(expectedResponse);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/accounts/{{accountId}}/allowances/nfts",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "accounts",
+                "{{accountId}}",
+                "allowances",
+                "nfts"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8084"
+    },
+    {
+      "key": "accountId",
+      "value": "2"
+    }
+  ]
 }

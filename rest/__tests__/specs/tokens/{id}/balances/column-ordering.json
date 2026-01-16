@@ -1,0 +1,66 @@
+{
+  "description": "Tests the fix for v2 ordering is incorrect if column names collide",
+  "extendedDescription": [
+    "This demonstrates the fix for issue 8359. If `snapshot_timestamp` is reverted to `consensus_timestamp` the bug ",
+    "from 8359 will be recreated when testing against v2"
+  ],
+  "setup": {
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "TOKEN1",
+        "created_timestamp": "1234567890000000001",
+        "decimals": 1,
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "balances": [
+      {
+        "timestamp": 1566560003000000000,
+        "id": 2,
+        "balance": 21
+      },
+      {
+        "timestamp": 1566560002000000999,
+        "id": 6,
+        "balance": 1,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 7
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560003000000000,
+        "id": 6,
+        "balance": 1,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 6
+          }
+        ]
+      }
+    ]
+  },
+  "tests": [
+    {
+      "url": "/api/v1/tokens/0.0.1/balances?account.id=6&timestamp=1566560003.000000000",
+      "responseStatus": 200,
+      "responseJson": {
+        "timestamp": "1566560003.000000000",
+        "balances": [
+          {
+            "account": "0.0.6",
+            "balance": 6,
+            "decimals": 1
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}

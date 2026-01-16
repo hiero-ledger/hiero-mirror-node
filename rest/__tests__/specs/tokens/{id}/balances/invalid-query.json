@@ -1,0 +1,20 @@
+{
+  "description": "Token balances api invalid query",
+  "setup": {
+    "accounts": [],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "url": "/api/v1/tokens/0.0.1/balances?consensus=hashgraph",
+  "responseStatus": 400,
+  "responseJson": {
+    "_status": {
+      "messages": [
+        {
+          "message": "Unknown query parameter: consensus"
+        }
+      ]
+    }
+  }
+}

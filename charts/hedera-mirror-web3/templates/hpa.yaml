@@ -1,4 +1,6 @@
-{{- if .Values.hpa.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.hpa.enabled -}}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -8,7 +10,7 @@ metadata:
 spec:
   behavior: {{ toYaml .Values.hpa.behavior | nindent 4 }}
   maxReplicas: {{ .Values.hpa.maxReplicas }}
-  metrics: {{ tpl (toYaml .Values.hpa.metrics) . | nindent 4 }}
+  metrics: {{ tpl .Values.hpa.metrics . | nindent 4 }}
   minReplicas: {{ .Values.hpa.minReplicas }}
   scaleTargetRef:
     apiVersion: apps/v1

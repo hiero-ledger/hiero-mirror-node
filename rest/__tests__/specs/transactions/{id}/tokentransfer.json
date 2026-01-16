@@ -1,0 +1,113 @@
+{
+  "description": "Transaction api calls for a specific transaction using transaction id",
+  "setup": {
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 9
+      },
+      {
+        "num": 10
+      },
+      {
+        "num": 98
+      }
+    ],
+    "balances": [],
+    "transactions": [],
+    "cryptotransfers": [
+      {
+        "consensus_timestamp": "1565779555711927001",
+        "payerAccountId": "0.0.300",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "token_transfer_list": [
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.300",
+            "amount": -1200,
+            "is_approval": true
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.200",
+            "amount": 200
+          },
+          {
+            "token_id": "0.0.90000",
+            "account": "0.0.400",
+            "amount": 1000,
+            "is_approval": true
+          }
+        ]
+      }
+    ]
+  },
+  "url": "/api/v1/transactions/0.0.300-1565779555-711927000",
+  "responseStatus": 200,
+  "responseJson": {
+    "transactions": [
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1565779555.711927001",
+        "entity_id": null,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.300-1565779555-711927000",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1565779555.711927000",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.300",
+            "amount": -3,
+            "is_approval": false
+          }
+        ],
+        "token_transfers": [
+          {
+            "account": "0.0.200",
+            "amount": 200,
+            "token_id": "0.0.90000",
+            "is_approval": false
+          },
+          {
+            "account": "0.0.300",
+            "amount": -1200,
+            "token_id": "0.0.90000",
+            "is_approval": true
+          },
+          {
+            "account": "0.0.400",
+            "amount": 1000,
+            "token_id": "0.0.90000",
+            "is_approval": true
+          }
+        ]
+      }
+    ]
+  }
+}

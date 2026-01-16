@@ -1,0 +1,7 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SignatureObject checksum mismatch 1`] = `"Error reading length and bytes, expect length 16777600 within [1, 384]"`;
+
+exports[`SignatureObject truncated buffer 1`] = `"Error reading byte array, expect 384-byte data got 380-byte"`;
+
+exports[`SignatureObject unknown signatureType 1`] = `"Error reading signature object, expect type 1 got 16777217"`;

@@ -1,20 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+
 changelog:
   contributors:
     exclude:
-      names: ["dependabot[bot]", "hedera-github-bot"]
+      names: ["hedera-github-bot"]
     title: "Contributors"
   issues:
     exclude:
       labels: ["wontfix", "question", "duplicate", "invalid"]
-  repository: hashgraph/hedera-mirror-node
+  milestoneReference: title
+  repository: hiero-ledger/hiero-mirror-node
   sections:
     - title: "Enhancements"
       labels: ["enhancement", "epic"]
+      type: PULL_REQUEST
     - title: "Bug Fixes"
       labels: ["bug"]
+      type: PULL_REQUEST
     - title: "Documentation"
       labels: ["documentation"]
+      type: PULL_REQUEST
     - title: "Dependency Upgrades"
       labels: ["dependencies"]
+      type: PULL_REQUEST
     - title: "Deployments"
       labels: ["deploy"]
+      type: PULL_REQUEST

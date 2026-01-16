@@ -3,9 +3,9 @@
 ## Purpose
 
 The Hedera Consensus Service (HCS) provides decentralized consensus on the validity and order of messages submitted to a
-topic on the network and transparency into the history of these events over time. Since the Hedera mainnet does not
-store history, the persistence and retrieval of these messages needs to be handled by the Mirror Node. This document
-attempts to design a scalable solution to provide such functionality.
+topic on the network and transparency into the history of these events over time. Since mainnet does not store history,
+the persistence and retrieval of these messages needs to be handled by the Mirror Node. This document attempts to design
+a scalable solution to provide such functionality.
 
 ## Goals
 
@@ -160,8 +160,8 @@ Modify `RecordFileLogger` to handle HCS transactions
 
 Provide the ability to filter transactions before persisting via configuration:
 
-- Add a new option `hedera.mirror.importer.parser.include`
-- Add a new option `hedera.mirror.importer.parser.exclude` with higher priority than includes
+- Add a new option `hiero.mirror.importer.parser.include`
+- Add a new option `hiero.mirror.importer.parser.exclude` with higher priority than includes
 - The structure of both will be a list of transaction filters and get turned into a single Predicate at runtime:
 
 ```yaml
@@ -176,7 +176,7 @@ include:
     entity: [0.0.1001]
 ```
 
-- Remove options `hedera.mirror.importer.parser.record.persist*` and convert defaults to newer format
+- Remove options `hiero.mirror.importer.parser.record.persist*` and convert defaults to newer format
 
 ### Notify
 
@@ -237,11 +237,11 @@ on topic_message (realm_num, topic_num, consensus_timestamp);
   - Alternative would be dynamically create trigger for each GRPC call, but deleting trigger would be racy and duplicate
     traffic for same topic
 - Implement a retention period for `topic_message` using a Java `@Scheduled` thread and a config
-  property `hedera.mirror.importer.parser.retention` of type `java.time.Duration`
+  property `hiero.mirror.importer.parser.retention` of type `java.time.Duration`
 
 ## Non-Functional Requirements
 
-See GitHub issue [374](https://github.com/hashgraph/hedera-mirror-node/issues/374)
+See GitHub issue [374](/../../issues/374)
 
 ## Open Questions
 

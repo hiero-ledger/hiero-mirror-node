@@ -39,14 +39,14 @@ SQL Database client is tightly coupled with transaction & record's processor whi
 ### StreamItemListener
 
 ```java
-package com.hedera.mirror.importer.parser.domain;
+package org.hiero.mirror.importer.parser.domain;
 
 public interface StreamItem {
 }
 ```
 
 ```java
-package com.hedera.mirror.importer.parser;
+package org.hiero.mirror.importer.parser;
 
 public interface StreamItemListener<T extends StreamItem> {
     void onItem(T item) throws ImporterException;
@@ -56,7 +56,7 @@ public interface StreamItemListener<T extends StreamItem> {
 ### RecordItemListener
 
 ```java
-package com.hedera.mirror.importer.parser.domain;
+package org.hiero.mirror.importer.parser.domain;
 
 @Value
 public class RecordItem implements StreamItem {
@@ -69,7 +69,7 @@ public class RecordItem implements StreamItem {
 ```
 
 ```java
-package com.hedera.mirror.importer.parser.record;
+package org.hiero.mirror.importer.parser.record;
 
 public interface RecordItemListener extends StreamItemListener<RecordItem> {
 }
@@ -80,7 +80,7 @@ public interface RecordItemListener extends StreamItemListener<RecordItem> {
 ### EntityRecordItemListener
 
 ```java
-package com.hedera.mirror.importer.parser.record;
+package org.hiero.mirror.importer.parser.record;
 
 public class EntityRecordItemListener implements RecordItemListener {
     private final EntityListener entityListener;  // injected dependency
@@ -97,7 +97,7 @@ public class EntityRecordItemListener implements RecordItemListener {
 ### EntityListener
 
 ```java
-package com.hedera.mirror.importer.parser.record;
+package org.hiero.mirror.importer.parser.record;
 
 public interface EntityListener {
     void onTransaction(c.h.m.i.d.Transaction transaction) throws ImporterException;
@@ -122,7 +122,7 @@ public interface EntityListener {
 ### RecordFileParser
 
 ```java
-package com.hedera.mirror.importer.parser.domain;
+package org.hiero.mirror.importer.parser.domain;
 
 @Value
 public class StreamFileData {
@@ -132,7 +132,7 @@ public class StreamFileData {
 ```
 
 ```java
-package com.hedera.mirror.importer.parser.record;
+package org.hiero.mirror.importer.parser.record;
 
 // Parses transactions in a *stream file*
 public class RecordFileParser {

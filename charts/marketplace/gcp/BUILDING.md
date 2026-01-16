@@ -43,7 +43,17 @@ the [Dockerfile](Dockerfile).
 
 Additionally, GCP Marketplace restricts applications to images pulled from the Marketplace registry. Since the Mirror
 Node uses some third party images like PostgreSQL, we need to re-publish these images to our staging registry and keep
-them up to date.
+them up to date. The image must be published as an OCI image for the required marketplace annotations to be attached.
+To republish postgresql-repmgr, run the following steps manually whenever it needs to change:
+
+```shell
+export PG_VERSION=17.6.0-debian-12-r2
+git clone https://github.com/bitnami/containers.git
+cd containers/bitnami/postgresql-repmgr/17/debian-12
+docker buildx build . -t gcr.io/mirror-node-public/hedera-mirror-node/postgresql-repmgr:${PG_VERSION} --push --provenance false --platform linux/amd64 --annotation "manifest,manifest-descriptor:com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
+docker manifest inspect gcr.io/mirror-node-public/hedera-mirror-node/postgresql-repmgr:${PG_VERSION} | grep "vnd.oci.image"
+sed "s/postgresql_tag=.*/postgresql_tag=\"${PG_VERSION}\"/" release.sh
+```
 
 Run the below commands to re-tag existing images and build the deployer image for testing with Marketplace:
 
@@ -77,9 +87,9 @@ file must be specified via the parameters flag.
 kubectl create namespace "${NAMESPACE}"
 mpdev install --deployer=gcr.io/mirror-node-public/hedera-mirror-node/deployer:${TAG} --parameters='{"name": "'${NAME}'",
     "namespace": "'${NAMESPACE}'",
-    "importer.config.hedera.mirror.importer.downloader.accessKey": "GOOG1...",
-    "importer.config.hedera.mirror.importer.downloader.secretKey": "...",
-    "importer.config.hedera.mirror.importer.network": "MAINNET"}'
+    "importer.config.hiero.mirror.importer.downloader.accessKey": "GOOG1...",
+    "importer.config.hiero.mirror.importer.downloader.secretKey": "...",
+    "importer.config.hiero.mirror.importer.network": "MAINNET"}'
 ```
 
 ## Uninstall

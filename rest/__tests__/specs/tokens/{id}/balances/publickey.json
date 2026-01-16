@@ -1,0 +1,65 @@
+{
+  "description": "Token balances api calls for specific account with a matching public key",
+  "setup": {
+    "accounts": [
+      {
+        "num": 7,
+        "public_key": "6ceecd8bb224da4914d53f292e5624f6f4cf8c134c920e1cac8d06f879df5819"
+      },
+      {
+        "num": 8,
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9"
+      },
+      {
+        "num": 9,
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be"
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "TOKEN1",
+        "created_timestamp": "1234567890000000001",
+        "decimals": 1,
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.2",
+        "symbol": "TOKEN2",
+        "created_timestamp": "1234567890000000002",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.3",
+        "symbol": "TOKEN3",
+        "created_timestamp": "1234567890000000003",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "tokenaccounts": [
+      {
+        "token_id": "0.0.1",
+        "account_id": "0.0.8",
+        "balance": 20,
+        "balance_timestamp": 5432
+      }
+    ],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "url": "/api/v1/tokens/0.0.1/balances?account.publickey=519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+  "responseStatus": 200,
+  "responseJson": {
+    "timestamp": "0.000005432",
+    "balances": [
+      {
+        "account": "0.0.8",
+        "balance": 20,
+        "decimals": 1
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

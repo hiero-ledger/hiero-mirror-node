@@ -1,5 +1,9 @@
+# SPDX-License-Identifier: Apache-2.0
+
 global:
   namespaceOverride: ""
+  security:
+    allowInsecureImages: true
 
 labels: {}
 
@@ -73,7 +77,7 @@ loki:
   ruler:
     replicas: 0
   rules:
-    - name: hedera-mirror-grpc
+    - name: grpc
       rules:
         - alert: GrpcLogErrors
           annotations:
@@ -104,7 +108,7 @@ loki:
           for: 3m
           labels:
             severity: critical
-    - name: hedera-mirror-importer
+    - name: importer
       rules:
         - alert: ImporterLogErrors
           annotations:
@@ -132,7 +136,7 @@ loki:
             [1m])) by (cluster, namespace, pod) > 0
           labels:
             severity: critical
-    - name: hedera-mirror-rest
+    - name: rest
       rules:
         - alert: RestLogErrors
           annotations:
@@ -147,7 +151,7 @@ loki:
           for: 1m
           labels:
             severity: critical
-    - name: hedera-mirror-rosetta
+    - name: rosetta
       rules:
         - alert: RosettaLogErrors
           annotations:
@@ -164,14 +168,6 @@ loki:
   serviceMonitor:
     enabled: true
   singleBinary:
-    extraVolumeMounts:
-      - mountPath: /rules
-        name: rules
-    extraVolumes:
-      - name: rules
-        configMap:
-          defaultMode: 420
-          name: mirror-log-alerts
     persistence:
       enableStatefulSetAutoDeletePVC: true
       size: 250Gi
@@ -189,7 +185,15 @@ loki:
     replicas: 0
 
 minio:
+  console:
+    enabled: false
+  defaultInitContainers:
+    volumePermissions:
+      image:
+        repository: bitnamilegacy/os-shell
   enabled: false
+  image:
+    repository: bitnamilegacy/minio
   persistence:
     enabled: true
     size: 500Gi
@@ -238,6 +242,14 @@ prometheus-adapter:
         name:
           as: "requests_per_second"
         metricsQuery: "sum(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)"
+      - seriesQuery: 'hiero_mirror_web3_evm_gas_used_total{application="web3",namespace!=""}'
+        resources:
+          overrides:
+            namespace:
+              resource: "namespace"
+        name:
+          as: "avg_evm_gas_used_per_second"
+        metricsQuery: 'avg(rate(<<.Series>>{<<.LabelMatchers>>}[3m])) by (<<.GroupBy>>)'
 
 prometheus:
   alertmanager:
@@ -362,9 +374,37 @@ prometheus:
         selector:
           matchLabels:
             app.kubernetes.io/name: traefik
+      - name: stackgres-collector
+        podMetricsEndpoints:
+          - honorLabels: true
+            honorTimestamps: true
+            interval: 30s
+            metricRelabelings:
+              - action: replace
+                regex: ^.*(postgres-exporter)$
+                replacement: $1
+                sourceLabels: [job]
+                targetLabel: job
+              - action: keep
+                regex: postgres-exporter;(mirror_node|);(mirror_node|)
+                sourceLabels: [job, database, datname]
+            scrapeTimeout: 30s
+            path: /metrics
+            port: prom-http
+            scheme: https
+            tlsConfig:
+              ca:
+                secret:
+                  key: tls.crt
+                  name: stackgres-collector
+              serverName: stackgres-collector
+        selector:
+          matchLabels:
+            app: StackGresConfig
+            stackgres.io/collector: "true"
     prometheusSpec:
       podMonitorSelectorNilUsesHelmValues: false
-      priorityClassName: low
+      priorityClassName: high
       resources:
         limits:
           cpu: 750m
@@ -417,6 +457,57 @@ promtail:
       operator: Exists
 
 stackgres:
+  cert:
+    collectorSecretName: stackgres-collector
+  collector:
+    config:
+      exporters:
+        prometheus:
+          metric_expiration: 2m
+      processors:
+        filter/drop_metrics:
+          metrics:
+            exclude:
+              match_type: regexp
+              metric_names:
+                - ^go_.*$
+                - ^node_file_system.*$
+                - ^pg_index.*$
+                - ^pg_long.*$
+                - ^pg_roles.*$
+                - ^pg_postmaster.*$
+                - ^pg_scrape_collector.*$
+                - ^pg_settings.*$
+                - ^pg_slow_queries.*$
+                - ^pg_stat_activity.*$
+                - ^pg_stat.*_user.*$
+                - ^pg_stat_progress.*$
+                - ^pg_statements.*$
+                - ^pg_table.*$
+                - ^pg_total_relation_size_bytes.*$
+                - ^pgbouncer_show_clients.*$
+                - ^pgbouncer_show_databases.*$
+                - ^process.*$
+                - ^promhttp.*$
+                - ^scrape.*$
+      service:
+        pipelines:
+          metrics:
+            processors:
+              - filter/drop_metrics
+            receivers:
+              - prometheus
+    name: stackgres-collector
+    prometheusOperator:
+      allowDiscovery: false
+      monitors: []  # Configured as part of the prometheus chart to enable finer control over scrape endpoints
+    resources:
+      limits:
+        cpu: "1500m"
+        memory: "3Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
   enabled: false
   operator:
     image:
@@ -434,6 +525,77 @@ stackgres:
         severity: critical
         application: hedera-mirror-common
         area: resource
+    DatabaseInstanceDown:
+      annotations:
+        summary: "Postgres server instance is down"
+        description: "Postgres has not been responding for the past minute on {{ $labels.pod }}"
+        title: "Postgres server instance {{ $labels.pod }} is down"
+      expr: sum(pg_up) by (namespace, pod) == 0
+      for: 5m
+      labels:
+        severity: critical
+        application: hedera-mirror-common
+        area: resource
+    DatabaseExporterErrors:
+      expr: sum(pg_exporter_last_scrape_error) by (namespace, pod) == 1
+      for: 10m
+      labels:
+        severity: warning
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "Postgres Exporter is down or is showing errors"
+        description: "postgres-exporter is not running or it is showing errors {{ $labels.pod }}"
+    DatabaseReplicationLagSizeTooLarge:
+      expr: sum(pg_replication_status_lag_size) by (namespace, pod) > 1e+09
+      for: 5m
+      labels:
+        severity: critical
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "Postgres replication lag size is too large"
+        description: "Replication lag size on {{$labels.pod}} is currently {{ $value | humanize1024 }}B behind the leader"
+    DatabaseInactiveReplicationSlots:
+      expr: sum(pg_replication_slots_active) by (namespace, pod) == 0
+      for: 30m
+      labels:
+        severity: warning
+        application: hedera-mirror-common
+        area: resource
+      annotations:
+        summary: "There are inactive replications slots"
+        description: "The are some inactive replication slots on {{$labels.pod}}"
+    DatabaseDemotedNode:
+      annotations:
+        summary: "Postgresql demoted node"
+        description: "Instance {{ $labels.pod }} has been demoted to a replica"
+      expr: sum(pg_replication_is_replica) by (namespace, pod) == 1 and sum(changes(pg_replication_is_replica[2m])) by (namespace, pod) > 0
+      for: 1m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: warning
+    DatabaseWaitingClients:
+      annotations:
+        summary: PgBouncer has waiting clients on instance {{ $labels.pod }}
+        description: "PgBouncer instance has {{ $value }} waiting clients"
+      expr: sum(pgbouncer_show_pools_cl_waiting) by (namespace, pod) > 0
+      for: 5m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: critical
+    DatabaseQueryTimeTooHigh:
+      annotations:
+        summary: PgBouncer average query duration more than 3 seconds on {{ $labels.pod }} in pool {{ $labels.pool_mode }} for user {{$labels.user}}
+        description: "PgBouncer average query duration {{ $value }} is more than 3 seconds"
+      expr: sum(pgbouncer_show_stats_avg_query_time) by (namespace, pod) > 3e+6
+      for: 5m
+      labels:
+        application: hedera-mirror-common
+        area: resource
+        severity: critical
 
 testkube:
   enabled: false
@@ -441,7 +603,7 @@ testkube:
     image:
       registry: docker.io
       repository: grafana/k6
-      tag: 0.53.0
+      tag: 0.58.0
   namespace: testkube
   test:
     config:
@@ -504,6 +666,13 @@ traefik:
     type: ClusterIP
 
 zfs:
+  alloy:
+    enabled: false
+  autoGrow:
+    growPercent: 10
+    intervalSeconds: 120
+    maxStepGb: 50
+    thresholdPercent: 80
   coordinator:
     initialDiskSize: 300GB
   enabled: false
@@ -529,6 +698,8 @@ zfs:
     serviceAccount:
       name: zfs-service-account
       iAmName: sa-name@project.iam.gserviceaccount.com
+  loki:
+    enabled: false
   lvm-localpv:
     enabled: false
   mayastor:
@@ -545,7 +716,7 @@ zfs:
     recordsize: 32k
   priorityClassName: critical
   worker:
-    initialDiskSize: 3200GB
+    initialDiskSize: 350GB
   zfs-localpv:
     analytics:
       enabled: false
@@ -559,7 +730,7 @@ zfs:
             path: /
         scripts:
           configMap:
-            name: "{{ .Release.Name }}-zfs-init"
+            name: "{{ .Release.Name }}-zfs-manager"
             defaultMode: 0744
       initContainers:
         label-wait:

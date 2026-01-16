@@ -1,4 +1,5 @@
-# CT generates release names that are too long for postgresql-ha, so we override it here
+# SPDX-License-Identifier: Apache-2.0
+
 graphql:
   enabled: true
   test:
@@ -21,6 +22,7 @@ rest:
   monitor:
     config:
       contract:
+        call: false  # Temporary until #12049
         logs: false
       freshness: false
       interval: 5
@@ -45,7 +47,7 @@ rosetta:
   enabled: true
 web3:
   env:
-    HEDERA_MIRROR_WEB3_EVM_NETWORK: OTHER
+    HIERO_MIRROR_WEB3_EVM_NETWORK: OTHER
   resources:
     requests:
       cpu: 100m

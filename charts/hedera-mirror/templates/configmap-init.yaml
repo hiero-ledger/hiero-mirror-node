@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 {{ if .Values.postgresql.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -19,25 +21,25 @@ data:
 
     psql -d "user=postgres connect_timeout=3" \
       --set ON_ERROR_STOP=1 \
-      --set "dbName=${HEDERA_MIRROR_IMPORTER_DB_NAME}" \
-      --set "dbSchema=${HEDERA_MIRROR_IMPORTER_DB_SCHEMA}" \
-      --set "graphQLPassword=${HEDERA_MIRROR_GRAPHQL_DB_PASSWORD}" \
-      --set "graphQLUsername=${HEDERA_MIRROR_GRAPHQL_DB_USERNAME}" \
-      --set "grpcPassword=${HEDERA_MIRROR_GRPC_DB_PASSWORD}" \
-      --set "grpcUsername=${HEDERA_MIRROR_GRPC_DB_USERNAME}" \
-      --set "importerPassword=${HEDERA_MIRROR_IMPORTER_DB_PASSWORD}" \
-      --set "importerUsername=${HEDERA_MIRROR_IMPORTER_DB_USERNAME}" \
-      --set "ownerUsername=${HEDERA_MIRROR_IMPORTER_DB_OWNER}" \
-      --set "ownerPassword=${HEDERA_MIRROR_IMPORTER_DB_OWNERPASSWORD}" \
-      --set "restPassword=${HEDERA_MIRROR_IMPORTER_DB_RESTPASSWORD}" \
-      --set "restUsername=${HEDERA_MIRROR_IMPORTER_DB_RESTUSERNAME}" \
-      --set "restJavaPassword=${HEDERA_MIRROR_RESTJAVA_DB_PASSWORD}" \
-      --set "restJavaUsername=${HEDERA_MIRROR_RESTJAVA_DB_USERNAME}" \
-      --set "rosettaPassword=${HEDERA_MIRROR_ROSETTA_DB_PASSWORD}" \
-      --set "rosettaUsername=${HEDERA_MIRROR_ROSETTA_DB_USERNAME}" \
-      --set "web3Password=${HEDERA_MIRROR_WEB3_DB_PASSWORD}" \
-      --set "web3Username=${HEDERA_MIRROR_WEB3_DB_USERNAME}" \
-      --set "tempSchema=${HEDERA_MIRROR_IMPORTER_DB_TEMPSCHEMA}" <<__SQL__
+      --set "dbName=${HIERO_MIRROR_IMPORTER_DB_NAME}" \
+      --set "dbSchema=${HIERO_MIRROR_IMPORTER_DB_SCHEMA}" \
+      --set "graphQLPassword=${HIERO_MIRROR_GRAPHQL_DB_PASSWORD}" \
+      --set "graphQLUsername=${HIERO_MIRROR_GRAPHQL_DB_USERNAME}" \
+      --set "grpcPassword=${HIERO_MIRROR_GRPC_DB_PASSWORD}" \
+      --set "grpcUsername=${HIERO_MIRROR_GRPC_DB_USERNAME}" \
+      --set "importerPassword=${HIERO_MIRROR_IMPORTER_DB_PASSWORD}" \
+      --set "importerUsername=${HIERO_MIRROR_IMPORTER_DB_USERNAME}" \
+      --set "ownerUsername=${HIERO_MIRROR_IMPORTER_DB_OWNER}" \
+      --set "ownerPassword=${HIERO_MIRROR_IMPORTER_DB_OWNERPASSWORD}" \
+      --set "restPassword=${HIERO_MIRROR_IMPORTER_DB_RESTPASSWORD}" \
+      --set "restUsername=${HIERO_MIRROR_IMPORTER_DB_RESTUSERNAME}" \
+      --set "restJavaPassword=${HIERO_MIRROR_RESTJAVA_DB_PASSWORD}" \
+      --set "restJavaUsername=${HIERO_MIRROR_RESTJAVA_DB_USERNAME}" \
+      --set "rosettaPassword=${HIERO_MIRROR_ROSETTA_DB_PASSWORD}" \
+      --set "rosettaUsername=${HIERO_MIRROR_ROSETTA_DB_USERNAME}" \
+      --set "web3Password=${HIERO_MIRROR_WEB3_DB_PASSWORD}" \
+      --set "web3Username=${HIERO_MIRROR_WEB3_DB_USERNAME}" \
+      --set "tempSchema=${HIERO_MIRROR_IMPORTER_DB_TEMPSCHEMA}" <<__SQL__
 
     -- Create database & owner
     create user :ownerUsername with login password :'ownerPassword';
@@ -56,7 +58,7 @@ data:
     create user :rosettaUsername with login password :'rosettaPassword' in role readonly;
     create user :web3Username with login password :'web3Password' in role readonly;
     alter user :ownerUsername with createrole;
-    
+
     -- Grant temp schema admin privileges
     grant temporary_admin to :ownerUsername;
     grant temporary_admin to :importerUsername;
@@ -72,7 +74,7 @@ data:
     create schema if not exists :dbSchema authorization :ownerUsername;
     grant usage on schema :dbSchema to public;
     revoke create on schema :dbSchema from public;
-    
+
     -- Create temp table schema
     create schema if not exists :tempSchema authorization temporary_admin;
     grant usage on schema :tempSchema to public;

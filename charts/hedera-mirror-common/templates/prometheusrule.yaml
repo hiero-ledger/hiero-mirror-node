@@ -1,4 +1,6 @@
-{{- if and .Values.prometheus.enabled .Values.stackgres.prometheusRules.enabled .Values.stackgres.enabled -}}
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if and .Values.prometheus.enabled .Values.stackgres.prometheusRules.enabled .Values.stackgres.enabled -}}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:

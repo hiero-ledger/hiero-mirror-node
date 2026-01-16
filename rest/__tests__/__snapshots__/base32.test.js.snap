@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`decode invalid 9 1`] = `"Invalid character 9"`;
+
+exports[`decode invalid A 1`] = `"Unexpected end of data"`;
+
+exports[`decode invalid AAA 1`] = `"Unexpected end of data"`;
+
+exports[`decode invalid AAAAAA 1`] = `"Unexpected end of data"`;

@@ -1,0 +1,88 @@
+{
+  "description": "Account api calls for specific account using query param",
+  "setup": {
+    "accounts": [
+      {
+        "balance": 70,
+        "decline_reward": true,
+        "num": 9
+      },
+      {
+        "balance": 80,
+        "balance_timestamp": "2345",
+        "num": 8,
+        "staked_account_id": 200,
+        "stake_period_start": 1100
+      },
+      {
+        "balance": 90,
+        "memo": "Mirror node created synthetic treasury account",
+        "num": 2,
+        "staked_node_id": 5
+      }
+    ],
+    "tokenaccounts": [
+      {
+        "token_id": "0.0.100001",
+        "account_id": "0.0.7",
+        "balance": 7,
+        "created_timestamp": "2200"
+      },
+      {
+        "token_id": "0.0.100002",
+        "account_id": "0.0.7",
+        "balance": 77,
+        "created_timestamp": "2200"
+      },
+      {
+        "token_id": "0.0.200001",
+        "account_id": "0.0.8",
+        "balance": 8,
+        "created_timestamp": "2200"
+      }
+    ]
+  },
+  "urls": [
+    "/api/v1/accounts?account.id=0.0.8",
+    "/api/v1/accounts?account.id=0.8",
+    "/api/v1/accounts?account.id=8",
+    "/api/v1/accounts?account.id=lte:8"
+  ],
+  "responseStatus": 200,
+  "responseJson": {
+    "accounts": [
+      {
+        "balance": {
+          "balance": 80,
+          "timestamp": "0.000002345",
+          "tokens": [
+            {
+              "token_id": "0.0.200001",
+              "balance": 8
+            }
+          ]
+        },
+        "account": "0.0.8",
+        "alias": null,
+        "created_timestamp": null,
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0x0000000000000000000000000000000000000008",
+        "expiry_timestamp": null,
+        "auto_renew_period": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "staked_account_id": "0.0.200",
+        "staked_node_id": null,
+        "stake_period_start": null
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

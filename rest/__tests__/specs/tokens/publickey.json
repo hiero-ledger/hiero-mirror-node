@@ -1,0 +1,94 @@
+{
+  "description": "Token api call for all tokens with a given admin public key",
+  "setup": {
+    "entities": [
+      {
+        "num": 1,
+        "type": "TOKEN",
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+        "key": [1, 1, 1]
+      },
+      {
+        "num": 1135,
+        "type": "TOKEN",
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+        "key": [2, 2, 2]
+      },
+      {
+        "num": 25301,
+        "type": "TOKEN",
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+        "key": [3, 3, 3]
+      },
+      {
+        "num": 45678,
+        "type": "TOKEN",
+        "public_key": "c7e81a0c1444c6e5b5c1bfb1a02ae5faae44c11e621f286d21242cc584280692",
+        "key": [4, 4, 4]
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "FIRSTMOVERLPDJH",
+        "created_timestamp": "1234567890000000001",
+        "decimals": 1,
+        "name": "First Mover",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.1135",
+        "symbol": "ORIGINALRDKSE",
+        "created_timestamp": "1234567890000000002",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.25301",
+        "symbol": "MIRRORTOKEN",
+        "created_timestamp": "1234567890000000003",
+        "decimals": 3,
+        "name": "Mirror",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.45678",
+        "symbol": "HEDERACOIN",
+        "created_timestamp": "1234567890000000004",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ]
+  },
+  "url": "/api/v1/tokens?publickey=3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+  "responseStatus": 200,
+  "responseJson": {
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "FIRSTMOVERLPDJH",
+        "admin_key": {
+          "_type": "ProtobufEncoded",
+          "key": "010101"
+        },
+        "decimals": 1,
+        "metadata": "",
+        "name": "First Mover",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.25301",
+        "symbol": "MIRRORTOKEN",
+        "admin_key": {
+          "_type": "ProtobufEncoded",
+          "key": "030303"
+        },
+        "decimals": 3,
+        "metadata": "",
+        "name": "Mirror",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

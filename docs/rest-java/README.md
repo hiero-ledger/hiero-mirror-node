@@ -1,7 +1,7 @@
 # REST Java API
 
 The REST Java API provides Java-based REST APIs for the mirror node. Originally, the mirror node REST API was written
-in JavaScript and contained within the `hedera-mirror-rest` module. This new module is intended to contain new APIs
+in JavaScript and contained within the `rest` module. This new module is intended to contain new APIs
 and any existing JavaScript APIs once converted to Java. Eventually, all JavaScript APIs will be converted to
 Java and the two modules can be merged.
 

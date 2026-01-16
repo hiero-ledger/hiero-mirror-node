@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+
+{{ if .Values.global.gateway.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  annotations: {{- toYaml .Values.global.gateway.annotations | nindent 4 }}
+  labels: {{ include "hedera-mirror.labels" . | nindent 4 }}
+  name: {{ .Release.Name }}
+  namespace: {{ include "hedera-mirror.namespace" . }}
+spec:
+  gatewayClassName: {{ .Values.global.gateway.className }}
+  listeners:
+  {{- if .Values.global.gateway.http.enabled }}
+  {{- range $hostname := .Values.global.gateway.hostnames }}
+    - hostname: {{ $hostname }}
+      name: http-{{ $hostname | replace "." "-" }}
+      protocol: HTTP
+      port: {{ $.Values.global.gateway.http.port }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.global.gateway.https.enabled }}
+  {{- range $hostname := .Values.global.gateway.hostnames }}
+    - hostname: {{ $hostname }}
+      name: https-{{ $hostname | replace "." "-" }}
+      port: {{ $.Values.global.gateway.https.port }}
+      protocol: HTTPS
+      tls: {{ tpl (toYaml $.Values.global.gateway.https.tls ) $ | nindent 8 }}
+  {{- end }}
+  {{- end }}
+{{- end }}

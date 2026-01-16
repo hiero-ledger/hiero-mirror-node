@@ -1,0 +1,145 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid  1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid -1 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid 0 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid 0 2`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid end 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid null 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`token validateSerialNumberParam tests Verify validateSerialNumberParam for invalid undefined 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`utils buildAndValidateFilters serialnumbers tests Verify buildAndValidateFilters for invalid {"serialnumber":"-1"} 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`utils buildAndValidateFilters serialnumbers tests Verify buildAndValidateFilters for invalid {"serialnumber":"0"} 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`utils buildAndValidateFilters serialnumbers tests Verify buildAndValidateFilters for invalid {"serialnumber":"deb"} 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"serialnumber":"123456"} 1`] = `
+[
+  "Invalid parameter: serialnumber",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"timestamp":""} 1`] = `
+[
+  "Invalid parameter: timestamp",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"timestamp":"abc"} 1`] = `
+[
+  "Invalid parameter: timestamp",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"timestamp":"gt:1234"} 1`] = `
+[
+  "Invalid parameter: timestamp",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"timestamp":"gte:1234"} 1`] = `
+[
+  "Invalid parameter: timestamp",
+]
+`;
+
+exports[`utils buildAndValidateFilters token info query timestamp filter tests Verify buildAndValidateFilters for invalid {"timestamp":"ne:1234"} 1`] = `
+[
+  "Invalid parameter: timestamp",
+]
+`;
+
+exports[`utils buildAndValidateFilters token type tests Verify buildAndValidateFilters for invalid {"type":"-1"} 1`] = `
+[
+  "Invalid parameter: type",
+]
+`;
+
+exports[`utils buildAndValidateFilters token type tests Verify buildAndValidateFilters for invalid {"type":"cred"} 1`] = `
+[
+  "Invalid parameter: type",
+]
+`;
+
+exports[`utils buildAndValidateFilters token type tests Verify buildAndValidateFilters for invalid {"type":"deb"} 1`] = `
+[
+  "Invalid parameter: type",
+]
+`;
+
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"@.#.$"} 1`] = `
+[
+  "Invalid parameter: account.id",
+]
+`;
+
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-1.-1.-1"} 1`] = `
+[
+  "Invalid parameter: account.id",
+]
+`;
+
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"-92233720368547758080"} 1`] = `
+[
+  "Invalid parameter: account.id",
+]
+`;
+
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"0.1.2.3"} 1`] = `
+[
+  "Invalid parameter: account.id",
+]
+`;
+
+exports[`utils validateAndParseFilters account.id tests Verify buildAndValidateFilters for invalid {"account.id":"L"} 1`] = `
+[
+  "Invalid parameter: account.id",
+]
+`;

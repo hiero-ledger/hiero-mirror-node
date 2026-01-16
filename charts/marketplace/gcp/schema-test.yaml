@@ -1,17 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+
 properties:
   grpc.service.type:
     default: ClusterIP
     type: string
-  importer.config.hedera.mirror.importer.downloader.accessKey:
+  importer.config.hiero.mirror.importer.downloader.accessKey:
     default: ""
     type: string
-  importer.config.hedera.mirror.importer.downloader.cloudProvider:
+  importer.config.hiero.mirror.importer.downloader.cloudProvider:
     type: string
     default: S3
-  importer.config.hedera.mirror.importer.downloader.secretKey:
+  importer.config.hiero.mirror.importer.downloader.secretKey:
     default: ""
     type: string
-  importer.config.hedera.mirror.importer.network:
+  importer.config.hiero.mirror.importer.network:
     default: "DEMO"
     type: string
   rest.service.type:

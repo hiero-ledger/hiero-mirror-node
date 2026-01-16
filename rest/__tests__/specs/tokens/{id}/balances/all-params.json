@@ -1,0 +1,214 @@
+{
+  "description": "Token balances api call using all params",
+  "setup": {
+    "accounts": [
+      {
+        "num": 17,
+        "public_key": "6ceecd8bb224da4914d53f292e5624f6f4cf8c134c920e1cac8d06f879df5819",
+        "expiration_timestamp": 123456781,
+        "auto_renew_period": 11111,
+        "key": [1, 1, 1]
+      },
+      {
+        "num": 18,
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+        "expiration_timestamp": 123456782,
+        "auto_renew_period": 22222,
+        "key": [2, 2, 2]
+      },
+      {
+        "num": 19,
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+        "expiration_timestamp": 123456783,
+        "auto_renew_period": 33333,
+        "key": [3, 3, 3]
+      },
+      {
+        "num": 20,
+        "public_key": "3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be",
+        "expiration_timestamp": 123456784,
+        "auto_renew_period": 44444,
+        "key": [4, 4, 4]
+      },
+      {
+        "num": 21,
+        "public_key": "5f58f33c65992676de86ac8f5b4b8b4b45c636f12cec8a274d820a3fe1778a3e",
+        "expiration_timestamp": 123456785,
+        "auto_renew_period": 55555,
+        "key": [5, 5, 5]
+      }
+    ],
+    "tokens": [
+      {
+        "token_id": "0.0.1",
+        "symbol": "TOKEN1",
+        "created_timestamp": "1234567890000000001",
+        "decimals": 1,
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.2",
+        "symbol": "TOKEN2",
+        "created_timestamp": "1234567890000000002",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.3",
+        "symbol": "TOKEN3",
+        "created_timestamp": "1234567890000000003",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.4",
+        "symbol": "TOKEN4",
+        "created_timestamp": "1234567890000000004",
+        "type": "FUNGIBLE_COMMON"
+      },
+      {
+        "token_id": "0.0.5",
+        "symbol": "TOKEN5",
+        "created_timestamp": "1234567890000000005",
+        "type": "FUNGIBLE_COMMON"
+      }
+    ],
+    "balances": [
+      {
+        "timestamp": 1566560001000000000,
+        "id": 2,
+        "balance": 180
+      },
+      {
+        "timestamp": 1566560003000000000,
+        "id": 2,
+        "balance": 200
+      },
+      {
+        "timestamp": 1566560001000000000,
+        "id": 17,
+        "balance": 70,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 17
+          },
+          {
+            "token_num": 2,
+            "balance": 1717
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560001000000000,
+        "id": 18,
+        "balance": 80,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 18
+          },
+          {
+            "token_num": 2,
+            "balance": 1818
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560001000000000,
+        "id": 19,
+        "balance": 90,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 19
+          },
+          {
+            "token_num": 2,
+            "balance": 1919
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560001000000000,
+        "id": 20,
+        "balance": 100,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 46
+          },
+          {
+            "token_num": 2,
+            "balance": 2020
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560001000000000,
+        "id": 21,
+        "balance": 110,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 21
+          },
+          {
+            "token_num": 2,
+            "balance": 2121
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560003000000000,
+        "id": 18,
+        "balance": 800,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 180
+          },
+          {
+            "token_num": 2,
+            "balance": 180180
+          }
+        ]
+      },
+      {
+        "timestamp": 1566560003000000000,
+        "id": 19,
+        "balance": 900,
+        "tokens": [
+          {
+            "token_num": 1,
+            "balance": 190
+          },
+          {
+            "token_num": 2,
+            "balance": 190190
+          }
+        ]
+      }
+    ],
+    "transactions": [],
+    "cryptotransfers": []
+  },
+  "url": "/api/v1/tokens/0.0.1/balances?account.id=gte:0.0.18&account.id=lt:0.0.21&account.balance=gt:45&account.publicKey=3c3d546321ff6f63d701d2ec5c277095874e19f4a235bee1e6bb19258bf362be&timestamp=1566560003.000000000&order=asc",
+  "responseStatus": 200,
+  "responseJson": {
+    "timestamp": "1566560003.000000000",
+    "balances": [
+      {
+        "account": "0.0.19",
+        "balance": 190,
+        "decimals": 1
+      },
+      {
+        "account": "0.0.20",
+        "balance": 46,
+        "decimals": 1
+      }
+    ],
+    "links": {
+      "next": null
+    }
+  }
+}

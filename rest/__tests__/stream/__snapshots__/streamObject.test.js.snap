@@ -1,0 +1,5 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`StreamObject create from empty buffer 1`] = `"Attempt to access memory outside buffer bounds"`;
+
+exports[`StreamObject create from truncated buffer 1`] = `"Attempt to access memory outside buffer bounds"`;

@@ -1,19 +1,6 @@
-/*
- * Copyright (C) 2022-2024 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
+import net.ltgt.gradle.errorprone.errorprone
 import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
@@ -22,20 +9,20 @@ plugins {
     id("io.spring.dependency-management")
     id("jacoco")
     id("java-library")
+    id("net.ltgt.errorprone")
     id("org.gradle.test-retry")
 }
 
 configurations.all {
+    exclude(group = "com.nimbusds") // Unused and has a vulnerability
     exclude(group = "com.github.jnr") // Unused and has licensing issues
     exclude(group = "commons-logging", "commons-logging")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-core")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
 }
 
-repositories {
-    maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") }
-    maven { url = uri("https://artifacts.consensys.net/public/maven/maven/") }
-}
+repositories { maven { url = uri("https://hyperledger.jfrog.io/artifactory/besu-maven/") } }
 
 dependencyManagement {
     imports {
@@ -45,34 +32,51 @@ dependencyManagement {
     }
 }
 
+val mockitoAgent = configurations.register("mockitoAgent")
+
 dependencies {
     annotationProcessor(platform(project(":")))
+    // Versions for errorprone don't seem to work when only specified in root build.gradle.kts
+    errorprone("com.google.errorprone:error_prone_core:2.42.0")
+    errorprone("com.uber.nullaway:nullaway:0.12.10")
     implementation(platform(project(":")))
+    mockitoAgent("org.mockito:mockito-core") { isTransitive = false }
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 
-tasks.compileJava {
-    // Disable deprecation, serial, and this-escape warnings due to errors in generated code
+tasks.withType<JavaCompile>().configureEach {
+    // Disable serial and this-escape warnings due to errors in generated code
+    // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
-        listOf("-Werror", "-Xlint:all", "-Xlint:-deprecation,-serial,-this-escape,-preview")
+        listOf(
+            "-parameters",
+            "-Werror",
+            "-Xlint:all",
+            "-Xlint:-this-escape,-preview,-rawtypes,-unchecked",
+        )
     )
     options.encoding = "UTF-8"
+    options.errorprone {
+        disableAllChecks = true
+        check("NullAway", net.ltgt.gradle.errorprone.CheckSeverity.ERROR)
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
+    }
     sourceCompatibility = "21"
     targetCompatibility = "21"
 }
 
-tasks.compileTestJava {
-    options.compilerArgs.addAll(listOf("-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview"))
-    options.encoding = "UTF-8"
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
-}
+tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }
 
 tasks.javadoc { options.encoding = "UTF-8" }
 
-tasks.withType<Test> {
+tasks.withType<Test>().configureEach {
     finalizedBy(tasks.jacocoTestReport)
-    jvmArgs = listOf("-XX:+EnableDynamicAgentLoading") // Allow byte buddy for Mockito
+    jvmArgs =
+        listOf(
+            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21 restricts libs attaching agents
+            "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
+        )
     maxHeapSize = "4096m"
     minHeapSize = "1024m"
     systemProperty("user.timezone", "UTC")
@@ -91,5 +95,3 @@ tasks.jacocoTestReport {
         xml.required = true
     }
 }
-
-rootProject.tasks.named("sonarqube") { dependsOn(tasks.jacocoTestReport) }

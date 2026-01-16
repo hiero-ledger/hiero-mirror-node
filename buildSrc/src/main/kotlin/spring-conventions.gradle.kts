@@ -1,25 +1,14 @@
-/*
- * Copyright (C) 2022-2024 Hedera Hashgraph, LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// SPDX-License-Identifier: Apache-2.0
 
 plugins {
     id("com.gorylenko.gradle-git-properties")
     id("docker-conventions")
     id("java-conventions")
+    id("org.cyclonedx.bom")
     id("org.springframework.boot")
 }
+
+gitProperties { dotGitDirectory = rootDir.resolve(".git") }
 
 springBoot {
     // Creates META-INF/build-info.properties for Spring Boot Actuator
@@ -30,9 +19,38 @@ tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 
 tasks.register("run") { dependsOn(tasks.bootRun) }
 
+val imagePlatform: String by project
+val platform = imagePlatform.ifBlank { null }
+
 tasks.bootBuildImage {
-    // The default builder does not support arm64
-    if (System.getProperty("os.arch").lowercase().startsWith("aarch")) {
-        builder = "dashaun/builder:tiny"
+    val env = System.getenv()
+    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
+    val image = "ghcr.io/${repo}/${project.name}"
+
+    buildpacks =
+        listOf(
+            "urn:cnb:builder:paketo-buildpacks/java",
+            "paketobuildpacks/health-checker",
+            "paketo-buildpacks/native-image",
+        )
+    docker {
+        imageName = image
+        imagePlatform = platform
+        publishRegistry {
+            password = env.getOrDefault("GITHUB_TOKEN", "")
+            username = env.getOrDefault("GITHUB_ACTOR", "")
+        }
+        tags = listOf("${image}:${project.version}")
     }
+    environment =
+        mapOf(
+            "BP_HEALTH_CHECKER_ENABLED" to "true",
+            "BP_OCI_AUTHORS" to "mirrornode@hedera.com",
+            "BP_OCI_DESCRIPTION" to (project.description ?: ""),
+            "BP_OCI_LICENSES" to "Apache-2.0",
+            "BP_OCI_REF_NAME" to env.getOrDefault("GITHUB_REF_NAME", "main"),
+            "BP_OCI_REVISION" to env.getOrDefault("GITHUB_SHA", ""),
+            "BP_OCI_SOURCE" to "https://github.com/${repo}",
+            "BP_OCI_VENDOR" to "Hiero",
+        )
 }

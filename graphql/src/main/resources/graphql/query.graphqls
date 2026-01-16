@@ -1,0 +1,6 @@
+"""
+The query root of the GraphQL API
+"""
+type Query {
+    account(input: AccountInput!): Account
+}
