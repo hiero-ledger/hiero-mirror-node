@@ -160,27 +160,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         assertGasUsedIsPositive(gasUsedBeforeExecution, ETH_CALL);
     }
 
-    // This test will be removed in the future. Needed only for test coverage right now.
-    @Test
-    void pureCallModularizedServices() throws Exception {
-        // Given
-        final var backupProperties = mirrorNodeEvmProperties.getProperties();
-
-        try {
-            initializeState();
-
-            final var contract = testWeb3jService.deploy(EthCall::deploy);
-            meterRegistry.clear(); // Clear it as the contract deploy increases the gas limit metric
-
-            // When
-            contract.call_multiplySimpleNumbers().send();
-        } finally {
-            // Then
-            // Restore changed property values.
-            mirrorNodeEvmProperties.setProperties(backupProperties);
-        }
-    }
-
     @ParameterizedTest
     @MethodSource("provideBlockTypes")
     void pureCallWithBlock(BlockType blockType) throws Exception {
@@ -442,27 +421,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // Then
         verifyEthCallAndEstimateGas(functionCall, contract);
         assertGasLimit(ETH_ESTIMATE_GAS, TRANSACTION_GAS_LIMIT);
-    }
-
-    // This test will be removed in the future. Needed only for test coverage right now.
-    @Test
-    void estimateGasForBalanceCallToContractModularizedServices() throws Exception {
-        // Given
-        final var backupProperties = mirrorNodeEvmProperties.getProperties();
-
-        try {
-            initializeState();
-            final var contract = testWeb3jService.deploy(EthCall::deploy);
-            meterRegistry.clear();
-
-            // When
-            final var functionCall = contract.send_getAccountBalance(contract.getContractAddress());
-
-            // Then
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } finally {
-            mirrorNodeEvmProperties.setProperties(backupProperties);
-        }
     }
 
     @Test

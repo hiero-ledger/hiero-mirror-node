@@ -8,6 +8,7 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
@@ -34,7 +35,6 @@ import org.jspecify.annotations.NonNull;
 @Named
 public class AccountReadableKVState extends AbstractAliasedAccountReadableKVState<AccountID, Account> {
 
-    public static final String KEY = "ACCOUNTS";
     public static final int STATE_ID = ACCOUNTS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;
@@ -109,5 +109,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     : Optional.empty();
         }
         return Optional.empty();
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

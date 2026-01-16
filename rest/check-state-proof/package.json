@@ -3,7 +3,7 @@
   "version": "0.147.0-SNAPSHOT",
   "description": "An example implementation of a state proof flow for a transaction utilizing the mirror node.",
   "engines": {
-    "node": ">= 22"
+    "node": ">= 24"
   },
   "type": "module",
   "main": "index.js",
@@ -31,7 +31,6 @@
   },
   "dependencies": {
     "@hashgraph/proto": "2.25.0",
-    "abort-controller": "3.0.0",
     "boxen": "8.0.1",
     "chalk": "5.6.2",
     "extensionless": "2.0.6",

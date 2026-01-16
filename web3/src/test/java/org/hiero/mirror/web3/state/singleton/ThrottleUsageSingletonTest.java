@@ -19,6 +19,6 @@ class ThrottleUsageSingletonTest {
 
     @Test
     void key() {
-        assertThat(throttleUsageSingleton.getId()).isEqualTo(THROTTLE_USAGE_SNAPSHOTS_STATE_ID);
+        assertThat(throttleUsageSingleton.getStateId()).isEqualTo(THROTTLE_USAGE_SNAPSHOTS_STATE_ID);
     }
 }
