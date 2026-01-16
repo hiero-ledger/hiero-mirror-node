@@ -6,7 +6,7 @@
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 22"
+    "node": ">= 24"
   },
   "scripts": {
     "dev": "cross-env HIERO_MIRROR_REST_LOG_LEVEL=trace nodemon --import=extensionless/register server.js",

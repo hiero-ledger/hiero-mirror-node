@@ -98,7 +98,8 @@ function setConfigValue(propertyPath, value) {
           break;
         } else {
           current[k] = convertType(value);
-          const cleanedValue = property.includes('password') || property.includes('key') ? '******' : value;
+          const cleanedValue =
+            property.includes('password') || property.includes('key') || property.includes('uri') ? '******' : value;
           logger.info(`Override config with environment variable ${propertyPath}=${cleanedValue}`);
           return;
         }

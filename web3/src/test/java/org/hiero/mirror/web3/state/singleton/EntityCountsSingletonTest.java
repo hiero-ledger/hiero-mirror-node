@@ -19,6 +19,6 @@ class EntityCountsSingletonTest {
 
     @Test
     void testGetKeyReturnsExpectedKey() {
-        assertThat(entityCountsSingleton.getId()).isEqualTo(ENTITY_COUNTS_STATE_ID);
+        assertThat(entityCountsSingleton.getStateId()).isEqualTo(ENTITY_COUNTS_STATE_ID);
     }
 }

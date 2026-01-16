@@ -8,11 +8,7 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddre
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import jakarta.annotation.PostConstruct;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +20,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
-import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls;
 import org.hiero.mirror.web3.web3j.generated.DynamicEthCalls.AccountAmount;
@@ -276,21 +271,13 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     }
 
     @Test
-    void associateTokenTransferEthCallFails() throws InvocationTargetException, IllegalAccessException {
+    void associateTokenTransferEthCallFails() throws IllegalAccessException {
         // Given
         final var backupProperties = mirrorNodeEvmProperties.getProperties();
 
         try {
             // Re-init the captors, because the flag was changed.
             super.setUpArgumentCaptors();
-            Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                    .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-            postConstructMethod.setAccessible(true); // Make the method accessible
-            postConstructMethod.invoke(state);
-
             final Map<String, String> propertiesMap = new HashMap<>();
             propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
             propertiesMap.put("contracts.maxGasPerSec", "15000000");

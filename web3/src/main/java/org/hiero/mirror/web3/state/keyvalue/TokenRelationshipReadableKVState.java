@@ -29,7 +29,7 @@ import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
 @Named
-public class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
+final class TokenRelationshipReadableKVState extends AbstractReadableKVState<EntityIDPair, TokenRelation> {
 
     public static final int STATE_ID = TOKEN_RELS_STATE_ID;
 
@@ -128,5 +128,10 @@ public class TokenRelationshipReadableKVState extends AbstractReadableKVState<En
 
     private Optional<TokenTypeEnum> findTokenType(final long tokenId) {
         return tokenRepository.findTypeByTokenId(tokenId);
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }
