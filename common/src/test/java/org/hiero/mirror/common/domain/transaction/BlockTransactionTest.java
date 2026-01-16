@@ -612,7 +612,7 @@ final class BlockTransactionTest {
         ContractSlotKey contractSlotKey3 = convert(lambdaSlotKey3);
         assertThat(parent.getValueWritten(contractSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
 
-        // Create batch transactions with lambda storage reads
+        // Create child transactions (e.g., hook executions) with lambda storage reads
         var inner1 = defaultBuilder()
                 .previous(parent)
                 .transactionResult(TransactionResult.newBuilder()
@@ -635,7 +635,7 @@ final class BlockTransactionTest {
                         .build())
                 .build();
         inner2.setContractStorageReads(Map.of(contractSlotKey1, lambdaSlot1IntermediateValue));
-        inner1.setNextInBatch(inner2);
+        inner1.setNextSibling(inner2);
 
         var inner3 = defaultBuilder()
                 .previous(inner2)
@@ -648,7 +648,7 @@ final class BlockTransactionTest {
                         .build())
                 .build();
         inner3.setContractStorageReads(Map.of(contractSlotKey3, lambdaSlot3IntermediateValue));
-        inner2.setNextInBatch(inner3);
+        inner2.setNextSibling(inner3);
 
         // Test intermediate value resolution and key normalization
         assertThat(inner1.getValueWritten(contractSlotKey1))
