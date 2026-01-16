@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import java.util.ArrayList;
@@ -39,9 +40,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.util.Version;
 
 @ExtendWith(MockitoExtension.class)
 class SyntheticContractLogServiceImplTest {
@@ -94,7 +97,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should be able to create valid synthetic contract log")
     void createValid() {
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount, false));
         verify(entityListener, times(1)).onContractLog(any());
     }
 
@@ -111,7 +114,7 @@ class SyntheticContractLogServiceImplTest {
     void createWithContract() {
         recordItem = recordItemBuilder.contractCall().build();
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount, false));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
@@ -120,20 +123,24 @@ class SyntheticContractLogServiceImplTest {
     void createTurnedOff() {
         entityProperties.getPersist().setSyntheticContractLogs(false);
         syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount, false));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
     @ParameterizedTest
     @EnumSource(MultiPartyTransferType.class)
     @DisplayName(
-            "Should create synthetic contract logs for multi-party fungible token transfers with correct sorting and zero-sum")
-    void createSyntheticLogsForVariableTokenTransfers(MultiPartyTransferType transferType) {
+            "Should create synthetic contract logs for multi-party fungible token transfers from HAPI with correct sorting and zero-sum")
+    void createSyntheticLogsForVariableTokenTransfersFromHapiTransactions(final MultiPartyTransferType transferType) {
         entityProperties.getPersist().setSyntheticContractLogsMulti(true);
         entityProperties.getPersist().setSyntheticContractLogs(true);
 
         recordItem = recordItemBuilder
                 .cryptoTransferWithMultiPartyTokenTransfers(transferType)
+                // Setting hapi version below disableSyntheticEventsForMultiPartyTransfersVersion property
+                .recordItem(r -> r.hapiVersion(new Version(0, 60, 0)))
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().build()))
                 .build();
 
         when(transactionHandler.getEntity(any(RecordItem.class))).thenReturn(EntityId.EMPTY);
@@ -194,6 +201,95 @@ class SyntheticContractLogServiceImplTest {
                 .isEqualTo(positiveOriginalSum);
 
         validateAccountsAreSorted(logEntries);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName(
+            "Should create synthetic contract logs for multi-party fungible token transfers with correct sorting and zero-sum")
+    void createSyntheticLogsForVariableTokenTransfersFromContractCallTransactions(
+            boolean beforeConsensusNodeSyntheticEventsSupport) {
+        entityProperties.getPersist().setSyntheticContractLogsMulti(true);
+        entityProperties.getPersist().setSyntheticContractLogs(true);
+
+        recordItem = recordItemBuilder
+                .cryptoTransferWithMultiPartyTokenTransfers(MultiPartyTransferType.ONE_RECEIVER_FOUR_SENDERS)
+                // Setting hapi version below disableSyntheticEventsForMultiPartyTransfersVersion property
+                .recordItem(r -> r.hapiVersion(
+                        beforeConsensusNodeSyntheticEventsSupport ? new Version(0, 60, 0) : new Version(0, 72, 0)))
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().build()))
+                .build();
+
+        when(transactionHandler.getEntity(any(RecordItem.class))).thenReturn(EntityId.EMPTY);
+        when(transactionHandlerFactory.get(any())).thenReturn(transactionHandler);
+
+        var entityRecordItemListener = new EntityRecordItemListener(
+                commonParserProperties,
+                contractResultService,
+                entityIdService,
+                entityListener,
+                entityProperties,
+                transactionHandlerFactory,
+                syntheticContractLogService,
+                syntheticContractResultService);
+
+        entityRecordItemListener.onItem(recordItem);
+
+        var contractLogCaptor = ArgumentCaptor.forClass(ContractLog.class);
+        if (beforeConsensusNodeSyntheticEventsSupport) {
+            verify(entityListener, atLeast(1)).onContractLog(contractLogCaptor.capture());
+            var syntheticLogs = contractLogCaptor.getAllValues().stream()
+                    .filter(ContractLog::isSyntheticTransfer)
+                    .toList();
+
+            var tokenTransferList = recordItem.getTransactionRecord().getTokenTransferListsList().stream()
+                    .findFirst()
+                    .orElseThrow();
+
+            var expectedLogCount = getExpectedLogCount(MultiPartyTransferType.ONE_RECEIVER_FOUR_SENDERS);
+
+            assertThat(syntheticLogs)
+                    .as(
+                            "Should create %d synthetic logs for %s",
+                            expectedLogCount, MultiPartyTransferType.ONE_RECEIVER_FOUR_SENDERS)
+                    .hasSize(expectedLogCount);
+
+            var logEntries = new ArrayList<LogEntry>();
+            for (var log : syntheticLogs) {
+                var senderIdFromLog = fromTrimmedEvmAddress(log.getTopic1());
+                var receiverIdFromLog = fromTrimmedEvmAddress(log.getTopic2());
+                var dataBytes = log.getData();
+                var amountFromLog = dataBytes != null && dataBytes.length > 0
+                        ? Bytes.wrap(trim(dataBytes)).toLong()
+                        : 0L;
+                logEntries.add(new LogEntry(senderIdFromLog, receiverIdFromLog, amountFromLog));
+            }
+
+            var originalTransferSum = tokenTransferList.getTransfersList().stream()
+                    .mapToLong(AccountAmount::getAmount)
+                    .sum();
+            assertThat(originalTransferSum)
+                    .as("Original transfers should zero-sum")
+                    .isZero();
+
+            var syntheticLogSum = logEntries.stream().mapToLong(e -> e.amount).sum();
+            var positiveOriginalSum = tokenTransferList.getTransfersList().stream()
+                    .mapToLong(AccountAmount::getAmount)
+                    .filter(a -> a > 0)
+                    .sum();
+            assertThat(syntheticLogSum)
+                    .as("Sum of synthetic log amounts should equal sum of positive original amounts")
+                    .isEqualTo(positiveOriginalSum);
+
+            validateAccountsAreSorted(logEntries);
+        } else {
+            verify(entityListener, atLeast(0)).onContractLog(contractLogCaptor.capture());
+            var syntheticLogs = contractLogCaptor.getAllValues().stream()
+                    .filter(ContractLog::isSyntheticTransfer)
+                    .toList();
+            assertThat(syntheticLogs).isEmpty();
+        }
     }
 
     /**

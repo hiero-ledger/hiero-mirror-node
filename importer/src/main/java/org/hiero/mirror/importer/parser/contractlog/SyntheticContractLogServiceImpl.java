@@ -19,7 +19,16 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
     @Override
     public void create(SyntheticContractLog log) {
-        if (isContract(log.getRecordItem()) || !entityProperties.getPersist().isSyntheticContractLogs()) {
+        final boolean isFromMultiTransferAndShouldCreateSyntheticLog =
+                log instanceof TransferContractLog transferContractLog
+                        && transferContractLog.hasMultiPartyOrigin()
+                        && entityProperties
+                                .getPersist()
+                                .getDisableSyntheticEventsForMultiPartyTransfersVersion()
+                                .isGreaterThan(log.getRecordItem().getHapiVersion());
+
+        if ((isContract(log.getRecordItem()) && !isFromMultiTransferAndShouldCreateSyntheticLog)
+                || !entityProperties.getPersist().isSyntheticContractLogs()) {
             return;
         }
 
