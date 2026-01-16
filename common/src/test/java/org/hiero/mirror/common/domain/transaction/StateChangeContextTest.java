@@ -16,11 +16,15 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPT
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.convert;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getAccountId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getFileId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTokenId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTopicId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapDeleteChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
@@ -44,7 +48,6 @@ import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.Topic;
 import java.util.List;
@@ -229,25 +232,25 @@ final class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        var contractASlotKeyBuilder = SlotKey.newBuilder().setContractID(contractIdA);
+        var contractASlotKeyBuilder = ContractSlotKey.builder().contractId(contractIdA);
         assertThat(context.getContractStorageValueWritten(
-                        contractASlotKeyBuilder.setKey(contractASlot1).build()))
+                        contractASlotKeyBuilder.key(contractASlot1).build()))
                 .isEqualTo(BytesValue.of(contractASlot1Value));
         assertThat(context.getContractStorageValueWritten(
-                        contractASlotKeyBuilder.setKey(contractASlot1Padded).build()))
+                        contractASlotKeyBuilder.key(contractASlot1Padded).build()))
                 .isEqualTo(BytesValue.of(contractASlot1Value));
         assertThat(context.getContractStorageValueWritten(
-                        contractASlotKeyBuilder.setKey(contractASlot2).build()))
+                        contractASlotKeyBuilder.key(contractASlot2).build()))
                 .isEqualTo(BytesValue.getDefaultInstance());
         assertThat(context.getContractStorageValueWritten(
-                        contractASlotKeyBuilder.setKey(bytes(32)).build()))
+                        contractASlotKeyBuilder.key(bytes(32)).build()))
                 .isNull();
-        var contractBSlotKeyBuilder = SlotKey.newBuilder().setContractID(contractIdB);
+        var contractBSlotKeyBuilder = ContractSlotKey.builder().contractId(contractIdB);
         assertThat(context.getContractStorageValueWritten(
-                        contractBSlotKeyBuilder.setKey(contractBSlot1).build()))
+                        contractBSlotKeyBuilder.key(contractBSlot1).build()))
                 .isEqualTo(BytesValue.of(contractBSlot1Value));
         assertThat(context.getContractStorageValueWritten(
-                        contractBSlotKeyBuilder.setKey(contractBSlot2).build()))
+                        contractBSlotKeyBuilder.key(contractBSlot2).build()))
                 .isNull();
     }
 
@@ -514,5 +517,82 @@ final class StateChangeContextTest {
                 .setStateId(STATE_ID_ROSTER_STATE_VALUE)
                 .setStateAdd(NewStateChange.newBuilder().build())
                 .build();
+    }
+
+    @Test
+    void getLambdaStorageValueWritten() {
+        // given
+        var lambdaSlot1 = bytes(24);
+        var lambdaSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(lambdaSlot1)));
+        var lambdaSlot1Value = bytes(8);
+        var lambdaSlot2 = bytes(32);
+        var lambdaSlot2Value = bytes(12);
+        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1Padded);
+        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        // Test retrieval with normalized key
+        var normalizedSlotKey1 =
+                convert(lambdaSlotKey1.toBuilder().setKey(lambdaSlot1).build());
+        assertThat(context.getContractStorageValueWritten(normalizedSlotKey1))
+                .isEqualTo(BytesValue.of(lambdaSlot1Value));
+        // Test retrieval with padded key (should normalize and find the value)
+        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey2)))
+                .isEqualTo(BytesValue.of(lambdaSlot2Value));
+        // Test non-existent key
+        var nonExistentKey = getLambdaSlotKey(3L, bytes(32));
+        assertThat(context.getContractStorageValueWritten(convert(nonExistentKey)))
+                .isNull();
+    }
+
+    @Test
+    void getLambdaStorageValueWrittenWithEmptyContext() {
+        // given
+        var lambdaSlotKey = getLambdaSlotKey(1L, bytes(32));
+
+        // when, then
+        assertThat(EMPTY_CONTEXT.getContractStorageValueWritten(convert(lambdaSlotKey)))
+                .isNull();
+    }
+
+    @Test
+    void getLambdaStorageValueWrittenWithMapDelete() {
+        // given
+        var lambdaSlot1 = bytes(32);
+        var lambdaSlot1Value = bytes(8);
+        var lambdaSlot2 = bytes(32);
+        var lambdaSlot2Value = bytes(12);
+        var lambdaSlot3 = bytes(32);
+        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
+        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var lambdaSlotKey3 = getLambdaSlotKey(3L, lambdaSlot3);
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
+                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .addStateChanges(lambdaStorageMapDeleteChange(lambdaSlotKey2))
+                .addStateChanges(otherMapUpdateChange())
+                .build();
+
+        // when
+        var context = new StateChangeContext(List.of(stateChanges));
+
+        // then
+        // Test that updated value is present
+        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey1)))
+                .isEqualTo(BytesValue.of(lambdaSlot1Value));
+        // Test that deleted slot has default BytesValue (empty)
+        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey2)))
+                .isEqualTo(BytesValue.getDefaultInstance());
+        // Test non-existent key
+        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey3)))
+                .isNull();
     }
 }

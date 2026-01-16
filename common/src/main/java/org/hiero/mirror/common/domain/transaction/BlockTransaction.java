@@ -58,10 +58,6 @@ public class BlockTransaction implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
-    @NonFinal
-    @Setter
-    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
-
     private final EvmTraceData evmTraceData;
 
     @NonFinal
@@ -94,6 +90,10 @@ public class BlockTransaction implements StreamItem {
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
 
     private final TransactionResult transactionResult;
+
+    @NonFinal
+    @Setter
+    private Map<ContractSlotKey, ByteString> contractStorageReads = Collections.emptyMap();
 
     @Builder(toBuilder = true)
     public BlockTransaction(
@@ -169,7 +169,7 @@ public class BlockTransaction implements StreamItem {
      * @param slotKey - The contract storage's slot key
      * @return The value written
      */
-    public BytesValue getValueWritten(final SlotKey slotKey) {
+    public BytesValue getValueWritten(final ContractSlotKey slotKey) {
         final var normalizedSlotKey = normalize(slotKey);
         for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
             final var valueRead = nextInner.getValueRead(normalizedSlotKey);
@@ -210,7 +210,7 @@ public class BlockTransaction implements StreamItem {
                 : StateChangeContext.EMPTY_CONTEXT;
     }
 
-    private ByteString getValueRead(final SlotKey slotKey) {
+    private ByteString getValueRead(final ContractSlotKey slotKey) {
         return contractStorageReads.get(slotKey);
     }
 

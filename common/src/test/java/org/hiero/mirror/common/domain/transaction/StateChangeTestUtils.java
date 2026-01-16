@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_LAMBDA_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 
 import com.google.protobuf.ByteString;
@@ -10,6 +11,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
+import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
@@ -80,6 +82,42 @@ public final class StateChangeTestUtils {
         var builder = stateChange.toBuilder();
         builder.getMapUpdateBuilder().setIdentical(true);
         return builder.build();
+    }
+
+    public static StateChange lambdaStorageMapUpdateChange(LambdaSlotKey lambdaSlotKey, ByteString value) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_LAMBDA_STORAGE_VALUE)
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setLambdaSlotKey(lambdaSlotKey))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setSlotValueValue(com.hederahashgraph.api.proto.java.SlotValue.newBuilder()
+                                        .setValue(value))))
+                .build();
+    }
+
+    public static StateChange lambdaStorageMapDeleteChange(LambdaSlotKey lambdaSlotKey) {
+        return StateChange.newBuilder()
+                .setStateId(STATE_ID_LAMBDA_STORAGE_VALUE)
+                .setMapDelete(MapDeleteChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder().setLambdaSlotKey(lambdaSlotKey)))
+                .build();
+    }
+
+    public static LambdaSlotKey getLambdaSlotKey(long hookId, ByteString key) {
+        return LambdaSlotKey.newBuilder()
+                .setHookId(com.hederahashgraph.api.proto.java.HookId.newBuilder()
+                        .setHookId(hookId)
+                        .setEntityId(com.hederahashgraph.api.proto.java.HookEntityId.newBuilder()
+                                .setAccountId(getAccountId())))
+                .setKey(key)
+                .build();
+    }
+
+    public static ContractSlotKey convert(LambdaSlotKey lambdaSlotKey) {
+        return ContractSlotKey.builder()
+                .hookId(lambdaSlotKey.getHookId())
+                .key(lambdaSlotKey.getKey())
+                .build();
     }
 
     private static long nextId() {
