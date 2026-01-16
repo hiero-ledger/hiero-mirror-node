@@ -70,6 +70,10 @@ spring:
       validation-timeout: 3000
   grpc:
     server:
+      health:
+        actuator:
+          health-indicator-paths:
+            - readiness
       keep-alive:
         max-idle: 10m
         permit-time: 90s
