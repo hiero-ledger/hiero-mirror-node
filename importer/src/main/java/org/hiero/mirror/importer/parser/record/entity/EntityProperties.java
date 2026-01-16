@@ -16,6 +16,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.data.util.Version;
 import org.springframework.validation.annotation.Validated;
 
 @Data
@@ -35,6 +36,9 @@ public class EntityProperties {
     @Data
     @Validated
     public static class PersistProperties {
+
+        @NotNull
+        private Version disableSyntheticEventsForMultiPartyTransfersVersion = Version.parse("0.71.0");
 
         private boolean claims = false;
 

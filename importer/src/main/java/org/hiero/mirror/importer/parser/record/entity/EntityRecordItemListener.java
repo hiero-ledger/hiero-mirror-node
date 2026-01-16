@@ -481,7 +481,11 @@ public class EntityRecordItemListener implements RecordItemListener {
                     : EntityId.of(tokenTransfers.get(0).getAccountID());
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
-        } else if (entityProperties.getPersist().isSyntheticContractLogsMulti() && recordItem.isSuccessful()) {
+        } else if (entityProperties.getPersist().isSyntheticContractLogsMulti()
+                && entityProperties
+                        .getPersist()
+                        .getDisableSyntheticEventsForMultiPartyTransfersVersion()
+                        .isLessThanOrEqualTo(recordItem.getHapiVersion())) {
             final var sortedTransfers = new ArrayList<>(tokenTransfers);
             sortedTransfers.sort(Comparator.comparing(aa -> EntityId.of(aa.getAccountID()), EntityId::compareTo));
 
