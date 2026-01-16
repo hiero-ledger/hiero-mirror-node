@@ -27,7 +27,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.assertj.core.api.AssertionsForClassTypes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
@@ -49,8 +48,6 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
 
     private static final String EMPTY_BLOCK_HASH = "0000000000000000000000000000000000000000000000000000000000000000";
     private static final Long EVM_46_BLOCK_INDEX = 150L;
-
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Test
     void recoverAddressPrecompiledContract() throws Exception {
@@ -285,8 +282,8 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
     }
 
     /**
-     * Verifies that the STATICCALL EVM operation is called successfully since the
-     * precompiled contract at address 0x0A exists in the latest EVM version.
+     * Verifies that the STATICCALL EVM operation is called successfully since the precompiled contract at address 0x0A
+     * exists in the latest EVM version.
      */
     @Test
     void testKZGCall() {

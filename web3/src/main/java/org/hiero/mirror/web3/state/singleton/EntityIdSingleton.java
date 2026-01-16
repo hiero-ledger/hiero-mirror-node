@@ -11,7 +11,7 @@ import jakarta.inject.Named;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 
 @Named
@@ -19,7 +19,7 @@ import org.hiero.mirror.web3.repository.EntityRepository;
 @SuppressWarnings("deprecation")
 final class EntityIdSingleton implements SingletonState<EntityNumber> {
     private final EntityRepository entityRepository;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
 
     @Override
     public int getStateId() {
@@ -38,7 +38,7 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
         if (cachedNumber != null) {
             return cachedNumber;
         }
-        final long firstUserEntity = mirrorNodeEvmProperties
+        final long firstUserEntity = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(HederaConfig.class)
                 .firstUserEntity();
@@ -49,7 +49,7 @@ final class EntityIdSingleton implements SingletonState<EntityNumber> {
             return new EntityNumber(EntityId.of(firstUserEntity).getNum());
         }
 
-        final long entityIdReservationHeadroom = mirrorNodeEvmProperties.getEntityNumBuffer();
+        final long entityIdReservationHeadroom = evmProperties.getEntityNumBuffer();
         final var maxEntityId = EntityId.of(maxId);
         final var nextId = Math.max(maxEntityId.getNum() + entityIdReservationHeadroom + 1, firstUserEntity);
         final var entityNumber = new EntityNumber(nextId);

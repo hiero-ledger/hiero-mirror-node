@@ -20,32 +20,32 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests system contact functions for custom token fees(fixed, fractional, royalty) modification.
- * HTS functions are exposed to smart contract calls via IHederaTokenService.sol
- * Target functions are updateFungibleTokenCustomFees and updateNonFungibleTokenCustomFees
- * Fixed fee - a flat fee charged regardless of the transferred amount
- * Fractional fee - a percentage of the transferred amount
- * Royalty fee - a custom fee you can attach to a nft, allowing the original creator to earn from future
- *      transfers. Each time a nft is transferred a royalty fee is payed to the creator. The royalty fee is a
- *      fraction of the value exchanged for the nft or fixed amount in case the nft is exchanged for free.
- *      The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is
- *      transferred from or to the treasury account.
+ * Tests system contact functions for custom token fees(fixed, fractional, royalty) modification. HTS functions are
+ * exposed to smart contract calls via IHederaTokenService.sol Target functions are updateFungibleTokenCustomFees and
+ * updateNonFungibleTokenCustomFees Fixed fee - a flat fee charged regardless of the transferred amount Fractional fee -
+ * a percentage of the transferred amount Royalty fee - a custom fee you can attach to a nft, allowing the original
+ * creator to earn from future transfers. Each time a nft is transferred a royalty fee is payed to the creator. The
+ * royalty fee is a fraction of the value exchanged for the nft or fixed amount in case the nft is exchanged for free.
+ * The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is transferred
+ * from or to the treasury account.
  */
 class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-    private Map<String, String> evmProperties;
+
+    private Map<String, String> customProperties;
 
     @BeforeEach
     void beforeEach() {
-        evmProperties = mirrorNodeEvmProperties.getProperties();
+        customProperties = evmProperties.getProperties();
     }
 
     @AfterEach
     void afterEach() {
-        mirrorNodeEvmProperties.setProperties(evmProperties);
+        evmProperties.setProperties(customProperties);
     }
 
     /**
      * Verifies already existing fixed fee of a fungible token can be updated
+     *
      * @throws Exception
      */
     @Test
@@ -80,6 +80,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a fungible token that does not have a previously set fixed fee
+     *
      * @throws Exception
      */
     @Test
@@ -205,6 +206,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a nft that has fixed fee already set
+     *
      * @throws Exception
      */
     @Test
@@ -240,6 +242,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a nft that does not have a previously set fixed fee
+     *
      * @throws Exception
      */
     @Test
@@ -408,6 +411,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * When the royalty fee is set to be payed in HBARs, the ZERO address should be set for the denominating token.
+     *
      * @param collectorAccount
      * @return
      */
