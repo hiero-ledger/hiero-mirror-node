@@ -5,7 +5,6 @@ package org.hiero.mirror.grpc.config;
 import io.grpc.ServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -39,9 +38,7 @@ class GrpcConfiguration {
     private void customizeServerBuilder(ServerBuilder<?> serverBuilder, NettyProperties nettyProperties) {
         if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
 
-            nettyServerBuilder
-                    .maxConnectionIdle(nettyProperties.getMaxConnectionIdle().toSeconds(), TimeUnit.SECONDS)
-                    .maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
+            nettyServerBuilder.maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
         }
     }
 }

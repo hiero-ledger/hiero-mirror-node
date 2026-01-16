@@ -21,10 +21,6 @@ public class NettyProperties {
     @Max(10000)
     private int executorMaxThreadCount = 1000;
 
-    @DurationMin(minutes = 1L)
-    @NotNull
-    private Duration maxConnectionIdle = Duration.ofMinutes(10L);
-
     @Min(1)
     private int maxConcurrentCallsPerConnection = 5;
 

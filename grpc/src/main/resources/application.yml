@@ -70,10 +70,12 @@ spring:
       validation-timeout: 3000
   grpc:
     server:
-      keep-alive-time: 5m
+      keep-alive:
+        max-idle: 10m
+        permit-time: 90s
+        time: 5m
       max-inbound-message-size: 1024B
       max-inbound-metadata-size: 2048B
-      permit-keep-alive-time: 90s
       port: ${hiero.mirror.grpc.port}
   jpa:
     database: PostgreSQL
