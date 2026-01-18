@@ -24,7 +24,7 @@ extra.apply {
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.33.3")
+    set("protobufVersion", "4.33.4")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.1")
