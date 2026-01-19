@@ -352,6 +352,8 @@ class SyntheticContractLogServiceImplTest {
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 5;
             case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 6;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 7;
+            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 8;
         };
     }
 

@@ -753,6 +753,31 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(5), -600))
                         .addTransfers(accountAmount(accounts.get(6), 1000));
                 break;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM:
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-101] => [[A=400, B=-400], [A=600, C=-600],
+                // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1000))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), -600))
+                        .addTransfers(accountAmount(accounts.get(3), 500))
+                        .addTransfers(accountAmount(accounts.get(4), 400))
+                        .addTransfers(accountAmount(accounts.get(5), -800))
+                        .addTransfers(accountAmount(accounts.get(6), -101));
+                break;
+            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT:
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=0, G=-900, H=0] => [[A=400, B=-400], [A=600, C=-600],
+                // [D=500, G=-500], [E=300, G=-400]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 1000))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), -600))
+                        .addTransfers(accountAmount(accounts.get(3), 500))
+                        .addTransfers(accountAmount(accounts.get(4), 400))
+                        .addTransfers(accountAmount(accounts.get(5), 0))
+                        .addTransfers(accountAmount(accounts.get(6), -900))
+                        .addTransfers(accountAmount(accounts.get(7), 0));
+                break;
             default:
                 throw new IllegalArgumentException("Unsupported transfer type: " + transferType);
         }
@@ -779,6 +804,8 @@ public class RecordItemBuilder {
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
             case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 8;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 7;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 7;
+            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 8;
         };
     }
 
@@ -790,7 +817,9 @@ public class RecordItemBuilder {
         PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS,
         TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT,
         THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT,
-        THREE_RECEIVERS_WITH_THE_SAME_AMOUNT
+        THREE_RECEIVERS_WITH_THE_SAME_AMOUNT,
+        TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM,
+        THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT
     }
 
     @SuppressWarnings("deprecation")

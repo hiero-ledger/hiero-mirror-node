@@ -487,52 +487,60 @@ public class EntityRecordItemListener implements RecordItemListener {
                     .thenComparingLong(EntityId::getRealm)
                     .thenComparingLong(EntityId::getNum);
 
-            var senderIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
-            var receiverIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
+            final var senderIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
+            final var receiverIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
 
             for (final var transfer : tokenTransfers) {
-                long amountForSyntheticEvent = transfer.getAmount();
-                if (amountForSyntheticEvent < 0) {
+                final var amountFromTransfer = transfer.getAmount();
+                if (amountFromTransfer <= 0) {
                     var senderId = EntityId.of(transfer.getAccountID());
-                    senderIdToAmount.put(senderId, -amountForSyntheticEvent);
-                } else if (amountForSyntheticEvent > 0) {
+                    senderIdToAmount.put(senderId, Math.abs(amountFromTransfer));
+                } else {
                     var receiverId = EntityId.of(transfer.getAccountID());
-                    receiverIdToAmount.put(receiverId, amountForSyntheticEvent);
+                    receiverIdToAmount.put(receiverId, amountFromTransfer);
                 }
             }
 
-            var senderIterator = senderIdToAmount.entrySet().iterator();
-            var receiverIterator = receiverIdToAmount.entrySet().iterator();
-
-            var senderEntry = senderIterator.next();
-            var senderRemainingAmount = senderEntry.getValue();
-
-            var receiverEntry = receiverIterator.next();
-            var receiverRemainingAmount = receiverEntry.getValue();
-
-            do {
-                if (senderRemainingAmount == 0) {
-                    senderEntry = senderIterator.next();
-                    senderRemainingAmount = senderEntry.getValue();
-                }
-
-                if (receiverRemainingAmount == 0) {
-                    receiverEntry = receiverIterator.next();
-                    receiverRemainingAmount = receiverEntry.getValue();
-                }
-
-                final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
-                syntheticContractLogService.create(new TransferContractLog(
-                        recordItem,
-                        tokenId,
-                        senderEntry.getKey(),
-                        receiverEntry.getKey(),
-                        amountForSyntheticContractLog,
-                        true));
-                senderRemainingAmount -= amountForSyntheticContractLog;
-                receiverRemainingAmount -= amountForSyntheticContractLog;
-            } while (senderIterator.hasNext() || senderRemainingAmount > 0);
+            createSyntheticEventsForMultiPartyTransfer(senderIdToAmount, receiverIdToAmount, recordItem, tokenId);
         }
+    }
+
+    private void createSyntheticEventsForMultiPartyTransfer(
+            Map<EntityId, Long> senderIdToAmount,
+            Map<EntityId, Long> receiverIdToAmount,
+            RecordItem recordItem,
+            EntityId tokenId) {
+        final var senderIterator = senderIdToAmount.entrySet().iterator();
+        final var receiverIterator = receiverIdToAmount.entrySet().iterator();
+
+        var senderEntry = senderIterator.next();
+        var senderRemainingAmount = senderEntry.getValue();
+
+        var receiverEntry = receiverIterator.next();
+        var receiverRemainingAmount = receiverEntry.getValue();
+
+        do {
+            if (senderRemainingAmount == 0) {
+                senderEntry = senderIterator.next();
+                senderRemainingAmount = senderEntry.getValue();
+            }
+
+            if (receiverRemainingAmount == 0) {
+                receiverEntry = receiverIterator.next();
+                receiverRemainingAmount = receiverEntry.getValue();
+            }
+
+            final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
+            syntheticContractLogService.create(new TransferContractLog(
+                    recordItem,
+                    tokenId,
+                    senderEntry.getKey(),
+                    receiverEntry.getKey(),
+                    amountForSyntheticContractLog,
+                    true));
+            senderRemainingAmount -= amountForSyntheticContractLog;
+            receiverRemainingAmount -= amountForSyntheticContractLog;
+        } while (senderIterator.hasNext() || senderRemainingAmount > 0);
     }
 
     private void handleNegativeAccountAmounts(
