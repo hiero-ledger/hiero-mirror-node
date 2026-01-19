@@ -23,11 +23,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import lombok.CustomLog;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
@@ -469,19 +468,6 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
     }
 
-    @Getter
-    @Setter
-    private static class AccountChange {
-
-        public final EntityId entityId;
-        public long amount; // not using final because it will be updated during the conversion algorithm
-
-        public AccountChange(final EntityId entityId, final long amount) {
-            this.entityId = entityId;
-            this.amount = amount;
-        }
-    }
-
     private void logTokenTransfers(
             RecordItem recordItem,
             EntityId tokenId,
@@ -497,46 +483,55 @@ public class EntityRecordItemListener implements RecordItemListener {
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, accountId, amount, false));
         } else if (entityProperties.getPersist().isSyntheticContractLogsMulti()) {
-            final var sortedTransfers = new ArrayList<>(tokenTransfers);
-            sortedTransfers.sort(Comparator.comparing(aa -> EntityId.of(aa.getAccountID()), EntityId::compareTo));
+            final var entityIdComparator = Comparator.comparingLong(EntityId::getShard)
+                    .thenComparingLong(EntityId::getRealm)
+                    .thenComparingLong(EntityId::getNum);
 
-            // Separate senders (negative amounts) and receivers (positive amounts)
-            final var senders = new ArrayList<AccountChange>();
-            final var receivers = new ArrayList<AccountChange>();
-            for (final var transfer : sortedTransfers) {
-                if (transfer.getAmount() < 0) {
-                    senders.add(
-                            new AccountChange(EntityId.of(transfer.getAccountID()), Math.abs(transfer.getAmount())));
-                } else if (transfer.getAmount() > 0) {
-                    receivers.add(new AccountChange(EntityId.of(transfer.getAccountID()), transfer.getAmount()));
+            var senderIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
+            var receiverIdToAmount = new TreeMap<EntityId, Long>(entityIdComparator);
+
+            for (final var transfer : tokenTransfers) {
+                long amountForSyntheticEvent = transfer.getAmount();
+                if (amountForSyntheticEvent < 0) {
+                    var senderId = EntityId.of(transfer.getAccountID());
+                    senderIdToAmount.put(senderId, -amountForSyntheticEvent);
+                } else if (amountForSyntheticEvent > 0) {
+                    var receiverId = EntityId.of(transfer.getAccountID());
+                    receiverIdToAmount.put(receiverId, amountForSyntheticEvent);
                 }
             }
 
-            int sIdx = 0;
-            int rIdx = 0;
-            while (sIdx < senders.size() && rIdx < receivers.size()) {
-                final var senderTransferChange = senders.get(sIdx);
-                final var receiverTransferChange = receivers.get(rIdx);
-                final var amountForSyntheticContractLog =
-                        Math.min(senderTransferChange.getAmount(), receiverTransferChange.getAmount());
+            var senderIterator = senderIdToAmount.entrySet().iterator();
+            var receiverIterator = receiverIdToAmount.entrySet().iterator();
 
+            var senderEntry = senderIterator.next();
+            var senderRemainingAmount = senderEntry.getValue();
+
+            var receiverEntry = receiverIterator.next();
+            var receiverRemainingAmount = receiverEntry.getValue();
+
+            do {
+                if (senderRemainingAmount == 0) {
+                    senderEntry = senderIterator.next();
+                    senderRemainingAmount = senderEntry.getValue();
+                }
+
+                if (receiverRemainingAmount == 0) {
+                    receiverEntry = receiverIterator.next();
+                    receiverRemainingAmount = receiverEntry.getValue();
+                }
+
+                final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
                 syntheticContractLogService.create(new TransferContractLog(
                         recordItem,
                         tokenId,
-                        senderTransferChange.getEntityId(),
-                        receiverTransferChange.getEntityId(),
+                        senderEntry.getKey(),
+                        receiverEntry.getKey(),
                         amountForSyntheticContractLog,
                         true));
-
-                senderTransferChange.setAmount(senderTransferChange.getAmount() - amountForSyntheticContractLog);
-                receiverTransferChange.setAmount(receiverTransferChange.getAmount() - amountForSyntheticContractLog);
-                if (senderTransferChange.getAmount() == 0) {
-                    sIdx++;
-                }
-                if (receiverTransferChange.getAmount() == 0) {
-                    rIdx++;
-                }
-            }
+                senderRemainingAmount -= amountForSyntheticContractLog;
+                receiverRemainingAmount -= amountForSyntheticContractLog;
+            } while (senderIterator.hasNext() || senderRemainingAmount > 0);
         }
     }
 
