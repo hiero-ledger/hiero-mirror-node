@@ -23,6 +23,7 @@ import transactions from './transactions';
 import {isTestEnv} from './utils';
 
 import {
+  authHandler,
   handleError,
   metricsHandler,
   openApiValidator,
@@ -83,6 +84,9 @@ if (config.response.compression) {
 // logging middleware
 app.use(httpContext.middleware);
 app.useExt(requestLogger);
+
+// authentication middleware - must come after httpContext and requestLogger
+app.useExt(authHandler);
 
 // metrics middleware
 if (config.metrics.enabled) {

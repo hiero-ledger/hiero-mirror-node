@@ -19,12 +19,12 @@ extra.apply {
     set("besuVersion", "24.3.3")
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.69.1")
+    set("consensusNodeVersion", "0.69.2")
     set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.33.3")
+    set("protobufVersion", "4.33.4")
     set("reactorGrpcVersion", "1.2.4")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.1")
@@ -63,7 +63,7 @@ dependencies {
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.23.0")
-        api("io.fabric8:kubernetes-client-bom:7.5.0")
+        api("io.fabric8:kubernetes-client-bom:7.5.1")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
@@ -92,7 +92,7 @@ dependencies {
         api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
         api("org.mockito:mockito-inline:5.2.0")
         api("org.web3j:core:$web3jVersion")
-        api("software.amazon.awssdk:bom:2.41.5")
+        api("software.amazon.awssdk:bom:2.41.10")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
@@ -122,14 +122,20 @@ repositories {
 
 spotless {
     val licenseHeader = "// SPDX-License-Identifier: Apache-2.0\n\n"
-
+    val nodeExec =
+        when (System.getProperty("os.name").lowercase().contains("windows")) {
+            true -> Paths.get("node.exe")
+            else -> Paths.get("bin", "node")
+        }
     val npmExec =
         when (System.getProperty("os.name").lowercase().contains("windows")) {
             true -> Paths.get("npm.cmd")
             else -> Paths.get("bin", "npm")
         }
     val npmSetup = tasks.named("npmSetup").get() as NpmSetupTask
-    val npmExecutable = npmSetup.npmDir.get().asFile.toPath().resolve(npmExec)
+    val nodeDir = npmSetup.npmDir.get().asFile.toPath()
+    val npmExecutable = nodeDir.resolve(npmExec)
+    val nodeExecutable = nodeDir.resolve(nodeExec)
 
     isEnforceCheck = false
 
@@ -156,6 +162,7 @@ spotless {
         leadingTabsToSpaces(2)
         licenseHeader(licenseHeader, "$")
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
             .config(mapOf("bracketSpacing" to false, "printWidth" to 120, "singleQuote" to true))
@@ -203,6 +210,7 @@ spotless {
         endWithNewline()
         leadingTabsToSpaces(2)
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
         target("**/*.json", "**/*.md")
@@ -246,6 +254,7 @@ spotless {
         endWithNewline()
         leadingTabsToSpaces(2)
         prettier()
+            .nodeExecutable(nodeExecutable)
             .npmExecutable(npmExecutable)
             .npmInstallCache(Paths.get("${rootProject.rootDir}", ".gradle", "spotless"))
         licenseHeader(licenseHeader.replaceFirst("//", "#"), "^[a-zA-Z0-9{]+")

@@ -220,6 +220,36 @@ const parseCommon = () => {
   }
 };
 
+const parseUsersConfig = () => {
+  const users = getConfig().users || [];
+
+  if (!Array.isArray(users)) {
+    throw new InvalidConfigError('users configuration must be an array');
+  }
+
+  users.forEach((user, index) => {
+    if (!user.username || typeof user.username !== 'string') {
+      throw new InvalidConfigError(`users[${index}] must have a username string`);
+    }
+    if (!user.password || typeof user.password !== 'string') {
+      throw new InvalidConfigError(`users[${index}] must have a password string`);
+    }
+    if (user.limit !== undefined) {
+      const limit = parseInt(user.limit, 10);
+      if (Number.isNaN(limit) || limit <= 0) {
+        throw new InvalidConfigError(`users[${index}].limit must be a positive integer`);
+      }
+      user.limit = limit;
+    }
+  });
+
+  const usernames = users.map((u) => u.username);
+  const duplicates = usernames.filter((name, index) => usernames.indexOf(name) !== index);
+  if (duplicates.length > 0) {
+    throw new InvalidConfigError(`Duplicate usernames in users configuration: ${duplicates.join(', ')}`);
+  }
+};
+
 if (!loaded) {
   const configName = process.env.CONFIG_NAME || defaultConfigName;
   // always load the default configuration
@@ -232,6 +262,7 @@ if (!loaded) {
   parseNetworkConfig();
   parseQueryConfig();
   parseStateProofStreamsConfig();
+  parseUsersConfig();
   parseCommon();
   loaded = true;
   configureLogger(getConfig().log.level);

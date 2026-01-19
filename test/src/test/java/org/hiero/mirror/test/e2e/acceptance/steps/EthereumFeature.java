@@ -13,12 +13,12 @@ import static org.web3j.crypto.transaction.type.TransactionType.EIP2930;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.ContractFunctionParameters;
 import com.hedera.hashgraph.sdk.ContractId;
-import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.PrivateKey;
 import io.cucumber.java.en.And;
 import io.cucumber.java.en.Given;
 import io.cucumber.java.en.Then;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Objects;
 import lombok.CustomLog;
@@ -53,19 +53,17 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
     private byte[] childContractBytecodeFromParent;
 
-    private static final Long HBAR_AMOUNT_IN_TINYBARS = 800_000_000L;
+    private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(0.4); // usd
 
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
         // Create new signer account with EVM address and ECDSA key
-        var signerAccount = accountClient.createNewAccount(HBAR_AMOUNT_IN_TINYBARS, AccountNameEnum.BOB);
+        var signerAccount = accountClient.createNewAccount(INITIAL_BALANCE, AccountNameEnum.BOB);
         ethereumSignerAccount = signerAccount.getAccountId();
         ethereumSignerPrivateKey = signerAccount.getPrivateKey();
 
         var accountInfo = mirrorClient.getAccountDetailsByAccountId(ethereumSignerAccount);
         account = accountInfo.getAccount();
-        assertThat(accountInfo.getBalance().getBalance())
-                .isEqualTo(Hbar.fromTinybars(HBAR_AMOUNT_IN_TINYBARS).toTinybars());
     }
 
     @Given("I successfully create contract by Legacy ethereum transaction")

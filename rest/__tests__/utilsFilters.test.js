@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import {jest} from '@jest/globals';
+import httpContext from 'express-http-context';
 import sinon from 'sinon';
 
 import config, {getMirrorConfig} from '../config';
@@ -343,6 +345,22 @@ describe('utils formatComparator tests', () => {
     const filter = utils.buildComparatorFilter(constants.filterKeys.LIMIT, '10');
     utils.formatComparator(filter);
     verifyFilter(filter, constants.filterKeys.LIMIT, ' = ', 10);
+  });
+
+  test('Verify formatComparator caps limit at default max', () => {
+    jest.spyOn(httpContext, 'get').mockReturnValue(undefined);
+    const filter = utils.buildComparatorFilter(constants.filterKeys.LIMIT, '150');
+    utils.formatComparator(filter);
+    verifyFilter(filter, constants.filterKeys.LIMIT, ' = ', 100);
+    jest.restoreAllMocks();
+  });
+
+  test('Verify formatComparator caps limit at custom max for authenticated user', () => {
+    jest.spyOn(httpContext, 'get').mockReturnValue(200);
+    const filter = utils.buildComparatorFilter(constants.filterKeys.LIMIT, '300');
+    utils.formatComparator(filter);
+    verifyFilter(filter, constants.filterKeys.LIMIT, ' = ', 200);
+    jest.restoreAllMocks();
   });
 });
 

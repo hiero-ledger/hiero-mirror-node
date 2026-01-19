@@ -61,7 +61,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 24
 
@@ -79,8 +79,8 @@ jobs:
       - name: Install JDK
         uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
         with:
-          distribution: "temurin"
-          java-version: 21
+          distribution: temurin
+          java-version: 25
 
       - name: Install Solo CLI via npm
         run: npm install -g @hashgraph/solo@${SOLO_VERSION}
