@@ -513,6 +513,10 @@ public class EntityRecordItemListener implements RecordItemListener {
         final var senderIterator = senderIdToAmount.entrySet().iterator();
         final var receiverIterator = receiverIdToAmount.entrySet().iterator();
 
+        if (!senderIterator.hasNext() || !receiverIterator.hasNext()) {
+            return;
+        }
+
         var senderEntry = senderIterator.next();
         var senderRemainingAmount = senderEntry.getValue();
 
@@ -525,7 +529,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                 senderRemainingAmount = senderEntry.getValue();
             }
 
-            if (receiverRemainingAmount == 0) {
+            if (receiverRemainingAmount == 0 && receiverIterator.hasNext()) {
                 receiverEntry = receiverIterator.next();
                 receiverRemainingAmount = receiverEntry.getValue();
             }
@@ -540,7 +544,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                     true));
             senderRemainingAmount -= amountForSyntheticContractLog;
             receiverRemainingAmount -= amountForSyntheticContractLog;
-        } while (senderIterator.hasNext() || senderRemainingAmount > 0);
+        } while (senderIterator.hasNext() || receiverIterator.hasNext());
     }
 
     private void handleNegativeAccountAmounts(

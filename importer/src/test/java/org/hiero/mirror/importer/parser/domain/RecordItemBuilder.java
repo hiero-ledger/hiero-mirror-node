@@ -767,7 +767,7 @@ public class RecordItemBuilder {
                 break;
             case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT:
                 // [A=1000, B=-400, C=-600, D=500, E=400, F=0, G=-900, H=0] => [[A=400, B=-400], [A=600, C=-600],
-                // [D=500, G=-500], [E=300, G=-400]]
+                // [D=500, G=-500], [E=400, G=-400], [E=0, F=0], [E=0, H=0]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -400))
