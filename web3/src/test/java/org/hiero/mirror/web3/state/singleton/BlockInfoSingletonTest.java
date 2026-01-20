@@ -38,7 +38,7 @@ class BlockInfoSingletonTest {
 
     @Test
     void key() {
-        assertThat(blockInfoSingleton.getId()).isEqualTo(BLOCKS_STATE_ID);
+        assertThat(blockInfoSingleton.getStateId()).isEqualTo(BLOCKS_STATE_ID);
     }
 
     @Test

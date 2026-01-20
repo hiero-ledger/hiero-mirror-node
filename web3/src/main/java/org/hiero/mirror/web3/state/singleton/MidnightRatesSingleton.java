@@ -5,13 +5,14 @@ package org.hiero.mirror.web3.state.singleton;
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
+import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
 import lombok.SneakyThrows;
 import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 
 @Named
-public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
+final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
     private final ExchangeRateSet cachedExchangeRateSet;
 
@@ -23,8 +24,13 @@ public class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     }
 
     @Override
-    public Integer getId() {
+    public int getStateId() {
         return MIDNIGHT_RATES_STATE_ID;
+    }
+
+    @Override
+    public String getServiceName() {
+        return FeeService.NAME;
     }
 
     @SneakyThrows

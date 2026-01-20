@@ -59,13 +59,14 @@ public class SDKClient implements Cleanable {
     private static final String RESET_IP = "1.0.0.0";
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final Client client;
-    private final Map<String, AccountId> validateNetworkMap;
     private final AcceptanceTestProperties acceptanceTestProperties;
-    private final SdkProperties sdkProperties;
+    private final Client client;
+    private final BigDecimal exchangeRate; // dollar / tinybar
     private final MirrorNodeClient mirrorNodeClient;
     private final RetryTemplate retryTemplate;
+    private final SdkProperties sdkProperties;
     private final TopicId topicId;
+    private final Map<String, AccountId> validateNetworkMap;
 
     @Getter
     private final ExpandedAccountId defaultOperator;
@@ -91,7 +92,8 @@ public class SDKClient implements Cleanable {
             var receipt = startupProbe.validateEnvironment(client);
             this.topicId = receipt != null ? receipt.topicId : null;
             validateClient();
-            expandedOperatorAccountId = getOperatorAccount(receipt);
+            exchangeRate = getExchangeRate(receipt);
+            expandedOperatorAccountId = getOperatorAccount();
             this.client.setOperator(
                     expandedOperatorAccountId.getAccountId(), expandedOperatorAccountId.getPrivateKey());
             validateNetworkMap = this.client.getNetwork();
@@ -99,11 +101,6 @@ public class SDKClient implements Cleanable {
             clean();
             throw t;
         }
-    }
-
-    public AccountId getRandomNodeAccountId() {
-        int randIndex = RANDOM.nextInt(0, validateNetworkMap.size() - 1);
-        return new ArrayList<>(validateNetworkMap.values()).get(randIndex);
     }
 
     @Override
@@ -130,9 +127,20 @@ public class SDKClient implements Cleanable {
         }
     }
 
+    public Hbar convert(final BigDecimal usd) {
+        return Hbar.fromTinybars(usd.divide(exchangeRate, RoundingMode.UP)
+                .setScale(0, RoundingMode.UP)
+                .longValue());
+    }
+
     @Override
     public int getOrder() {
         return LOWEST_PRECEDENCE;
+    }
+
+    public AccountId getRandomNodeAccountId() {
+        int randIndex = RANDOM.nextInt(0, validateNetworkMap.size() - 1);
+        return new ArrayList<>(validateNetworkMap.values()).get(randIndex);
     }
 
     private Client createClient() {
@@ -170,18 +178,22 @@ public class SDKClient implements Cleanable {
         return NodeAddressBook.newBuilder().addAllNodeAddress(nodeAddresses).build();
     }
 
-    private double getExchangeRate(TransactionReceipt receipt) {
+    private BigDecimal getExchangeRate(TransactionReceipt receipt) {
+        // round the rate down so the converted tinybar will be slightly more
+        final var context = new MathContext(20, RoundingMode.DOWN);
+        // dollar to cent * hbar to tinybar
+        final var scale = BigDecimal.valueOf(100 * 100_000_000L);
         if (receipt == null || receipt.exchangeRate == null) {
             var currentRate = mirrorNodeClient.getExchangeRates().getCurrentRate();
             int cents = currentRate.getCentEquivalent();
             int hbars = currentRate.getHbarEquivalent();
-            return (double) cents / (double) hbars;
+            return BigDecimal.valueOf(cents).divide(BigDecimal.valueOf(hbars).multiply(scale), context);
         } else {
-            return receipt.exchangeRate.exchangeRateInCents;
+            return BigDecimal.valueOf(receipt.exchangeRate.exchangeRateInCents).divide(scale, context);
         }
     }
 
-    private ExpandedAccountId getOperatorAccount(TransactionReceipt receipt) {
+    private ExpandedAccountId getOperatorAccount() {
         try {
             if (acceptanceTestProperties.isCreateOperatorAccount()) {
                 // Use the same operator key in case we need to later manually update/delete any created entities.
@@ -189,14 +201,7 @@ public class SDKClient implements Cleanable {
                 var publicKey = privateKey.getPublicKey();
                 var alias = privateKey.isECDSA() ? publicKey.toEvmAddress() : null;
 
-                // Convert USD balance property to hbars using exchange rate from probe
-                double exchangeRate = getExchangeRate(receipt);
-                var exchangeRateUsd =
-                        BigDecimal.valueOf(exchangeRate).divide(BigDecimal.valueOf(100), MathContext.DECIMAL128);
-                var balance = Hbar.from(acceptanceTestProperties
-                        .getOperatorBalance()
-                        .divide(exchangeRateUsd, 8, RoundingMode.HALF_EVEN));
-
+                var balance = convert(acceptanceTestProperties.getOperatorBalance());
                 var response = new AccountCreateTransaction()
                         .setAlias(alias)
                         .setInitialBalance(balance)

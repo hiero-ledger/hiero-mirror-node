@@ -7,33 +7,17 @@ required software, environment setup, IDE configurations, project compilation, a
 
 To contribute to the mirror node project, you need to install the following software and tools:
 
-### Java 21
+### Java
 
-Requires **Java 21** or a later version for development.
+Requires **Java 25** for development. On Ubuntu and macOS we recommend using [SDKMAN!](https://sdkman.io/) to manage JVM
+versions:
 
-- **Install Java 21**:
-
-  On Ubuntu and macOS we recommend using [SDKMAN!](https://sdkman.io/) to manage JVM versions:
-
-  ```bash
-  curl -s "https://get.sdkman.io" | bash
-  sdk install java 21-tem
-  ```
-
-- **Verify Installation**:
-
-  ```bash
-  java -version
-  ```
-
-- **You should see output similar to:**
-  ```
-  openjdk version "21.0.4" 2024-XX-XX
-  ```
-  If you are managing multiple Java versions, you can use the sdk tool to switch to Java 21:
-  ```bash
-  sdk use java 21-tem
-  ```
+```bash
+curl -s "https://get.sdkman.io" | bash
+sdk install java 25-tem
+sdk use java 25-tem
+java -version
+```
 
 ### Docker
 
@@ -63,22 +47,22 @@ We recommend using **IntelliJ IDEA** for development.
 
 1. **Install IntelliJ IDEA**:
 
-   - Download from [IntelliJ IDEA website](https://www.jetbrains.com/idea/).
+   - [Download](https://www.jetbrains.com/idea/) IntelliJ IDEA from JetBrains.
 
 2. **Set up Project SDK**:
 
    - Go to `File > Project Structure > Project`.
-   - Set **Project SDK** to `Java 21` (or higher).
-   - Set **Project language level** to `21 - Record patterns, pattern matching for switch`.
+   - Set **Project SDK** to the version of Java installed previously.
+   - Set **Project language level** to `SDK Default`.
 
 3. **Gradle Configuration**:
 
-   - Ensure **Gradle JVM** is set to **Java 21**: Go to
-     `File > Settings > Build, Execution, Deployment > Build Tools > Gradle` and set the **Gradle JVM** to Java 21.
+   - Go to `IntelliJ IDEA > Settings > Build, Execution, Deployment > Build Tools > Gradle`
+   - Ensure **Gradle JVM** is set to `Project SDK`.
 
 4. **Enable Save Actions**:
 
-   - Go to `File > Settings > Tools > Actions on Save`
+   - Go to `IntelliJ IDEA > Settings > Tools > Actions on Save`
    - Enable the following save actions:
      - `Reformat code`: Ensures consistent code style by reformatting code on save.
      - `Optimize imports`: Automatically removes unused imports and arranges them.
@@ -88,17 +72,10 @@ We recommend using **IntelliJ IDEA** for development.
 
 5. **Import Java Code Style**:
 
-   - `Download`
-     the Java code file located in the repository at [docs/palantir-style.xml](docs/palantir-style.xml)
-   - In IntelliJ, go to `File > Settings > Editor > Code Style`.
-   - Click on `Java` under `Code Style`.
-   - In the Code Style section for Java, look for an option to import the downloaded code style file. This can
-     typically be found by clicking on the `gear icon (⚙️)` or the `Scheme dropdown`.
-   - Choose `Import Scheme > IntelliJ IDEA code style XML` or a similar option.
-   - `Import` the downloaded Java code style file to ensure consistent formatting across the project.
-
-6. **Enable Docker Integration**:
-   - Enable Docker integration in IntelliJ if you are running containerized services directly from the IDE.
+   - Download the Java code file located in the repository at [docs/palantir-style.xml](docs/palantir-style.xml)
+   - Go to `IntelliJ IDEA > Settings > Editor > Code Style > Java`.
+   - Choose `⚙️ (gear icon) > Import Scheme > IntelliJ IDEA code style XML`.
+   - Import the downloaded Java code style file to ensure consistent formatting across the project.
 
 ## Compiling the Project
 

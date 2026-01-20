@@ -45,6 +45,7 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    // Disable dangling-doc-comments due to graphql-gradle-plugin-project #25
     // Disable serial and this-escape warnings due to errors in generated code
     // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
@@ -52,7 +53,7 @@ tasks.withType<JavaCompile>().configureEach {
             "-parameters",
             "-Werror",
             "-Xlint:all",
-            "-Xlint:-this-escape,-preview,-rawtypes,-unchecked",
+            "-Xlint:-dangling-doc-comments,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
     options.encoding = "UTF-8"
@@ -62,8 +63,8 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
     }
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
+    sourceCompatibility = "25"
+    targetCompatibility = "25"
 }
 
 tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }
@@ -74,7 +75,7 @@ tasks.withType<Test>().configureEach {
     finalizedBy(tasks.jacocoTestReport)
     jvmArgs =
         listOf(
-            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21 restricts libs attaching agents
+            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21+ restricts libs attaching agents
             "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
         )
     maxHeapSize = "4096m"

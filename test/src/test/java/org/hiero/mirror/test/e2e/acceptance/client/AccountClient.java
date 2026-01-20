@@ -23,6 +23,7 @@ import com.hedera.hashgraph.sdk.TransferTransaction;
 import com.hedera.hashgraph.sdk.proto.Key;
 import com.hedera.hashgraph.sdk.proto.Key.KeyCase;
 import jakarta.inject.Named;
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -39,8 +40,6 @@ import org.springframework.retry.support.RetryTemplate;
 @CustomLog
 @Named
 public class AccountClient extends AbstractNetworkClient {
-
-    private static final long DEFAULT_INITIAL_BALANCE = 100_000_000L; // 1 ℏ
 
     private final Map<AccountNameEnum, ExpandedAccountId> accountMap = new ConcurrentHashMap<>();
     private final Collection<ExpandedAccountId> accountIds = new CopyOnWriteArrayList<>();
@@ -138,7 +137,7 @@ public class AccountClient extends AbstractNetworkClient {
 
         ExpandedAccountId accountId = accountMap.computeIfAbsent(accountNameEnum, x -> {
             try {
-                return createNewAccount(DEFAULT_INITIAL_BALANCE, accountNameEnum);
+                return createNewAccount(acceptanceTestProperties.getChildAccountBalance(), accountNameEnum);
             } catch (Exception e) {
                 log.warn("Issue creating additional account: {}, ex: {}", accountNameEnum, e);
                 return null;
@@ -207,11 +206,11 @@ public class AccountClient extends AbstractNetworkClient {
         return createCryptoAccount(Hbar.fromTinybars(initialBalance), false, null, null, keyType);
     }
 
-    public ExpandedAccountId createNewAccount(long initialBalance, AccountNameEnum accountNameEnum) {
+    public ExpandedAccountId createNewAccount(final BigDecimal initialBalance, final AccountNameEnum accountNameEnum) {
         // Get the keyType from the enum
         Key.KeyCase keyType = accountNameEnum.keyType;
         return createCryptoAccount(
-                Hbar.fromTinybars(initialBalance),
+                sdkClient.convert(initialBalance),
                 accountNameEnum.receiverSigRequired,
                 null,
                 accountNameEnum.name(),

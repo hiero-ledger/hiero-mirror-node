@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+export {authHandler} from './authHandler.js';
 export {handleError} from './httpErrorHandler';
 export * from './metricsHandler';
 export {openApiValidator, serveSwaggerDocs} from './openapiHandler';

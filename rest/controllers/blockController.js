@@ -9,9 +9,10 @@ import {InvalidArgumentError, NotFoundError} from '../errors';
 import {RecordFile} from '../model';
 import {RecordFileService} from '../service';
 import * as utils from '../utils';
+import {getEffectiveMaxLimit} from '../utils';
 import {BlockViewModel} from '../viewmodel';
 
-const {default: defaultLimit, max: maxLimit} = getResponseLimit();
+const {default: defaultLimit} = getResponseLimit();
 
 const blockWhereFilters = [filterKeys.BLOCK_NUMBER, filterKeys.TIMESTAMP];
 
@@ -53,6 +54,7 @@ class BlockController extends BaseController {
 
   extractLimitFromFilters = (filters) => {
     const limit = _.findLast(filters, {key: filterKeys.LIMIT});
+    const maxLimit = getEffectiveMaxLimit();
     return limit ? (limit.value > maxLimit ? defaultLimit : limit.value) : defaultLimit;
   };
 

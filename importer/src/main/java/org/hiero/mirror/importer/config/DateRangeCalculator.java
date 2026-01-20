@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.config;
 
 import static org.apache.commons.lang3.ObjectUtils.max;
+import static org.hiero.mirror.importer.ImporterProperties.HederaNetwork.DEMO;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.DATA;
 
 import jakarta.inject.Named;
@@ -18,6 +19,7 @@ import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.domain.StreamFilename;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -27,12 +29,13 @@ import org.hiero.mirror.importer.util.Utility;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class DateRangeCalculator {
+public final class DateRangeCalculator {
 
     static final Instant STARTUP_TIME = Instant.now();
 
-    private final ImporterProperties importerProperties;
     private final AccountBalanceFileRepository accountBalanceFileRepository;
+    private final BlockProperties blockProperties;
+    private final ImporterProperties importerProperties;
     private final RecordFileRepository recordFileRepository;
 
     private final Map<StreamType, DateRangeFilter> filters = new ConcurrentHashMap<>();
@@ -68,11 +71,10 @@ public class DateRangeCalculator {
 
         if (startDate != null) {
             filterStartDate = max(startDate, lastFileInstant);
-        } else {
-            if (!ImporterProperties.HederaNetwork.DEMO.equalsIgnoreCase(importerProperties.getNetwork())
-                    && lastFileInstant == null) {
-                filterStartDate = STARTUP_TIME;
-            }
+        } else if (!blockProperties.isEnabled()
+                && !DEMO.equalsIgnoreCase(importerProperties.getNetwork())
+                && lastFileInstant == null) {
+            filterStartDate = STARTUP_TIME;
         }
 
         DateRangeFilter filter = new DateRangeFilter(filterStartDate, endDate);
@@ -104,8 +106,11 @@ public class DateRangeCalculator {
             effectiveStartDate = max(startDate, hasStreamFile ? lastFileInstant : Instant.EPOCH);
         } else if (hasStreamFile) {
             effectiveStartDate = lastFileInstant;
-        } else if (ImporterProperties.HederaNetwork.DEMO.equalsIgnoreCase(importerProperties.getNetwork())) {
-            effectiveStartDate = Instant.EPOCH; // Demo network contains only data in the past, so don't default to now
+        } else if (blockProperties.isEnabled() || DEMO.equalsIgnoreCase(importerProperties.getNetwork())) {
+            // set effective start date to epoch for blockstream or demo network
+            // - blockstream file name doesn't include timestamp
+            // - demo network only contains data in the past
+            effectiveStartDate = Instant.EPOCH;
         }
 
         Instant endDate = importerProperties.getEndDate();

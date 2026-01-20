@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.retry.support.RetryTemplate;
 
 @Data
-public abstract class AbstractNetworkClient implements Cleanable {
+abstract class AbstractNetworkClient implements Cleanable {
 
     private static final int MEMO_BYTES_MAX_LENGTH = 100;
 
