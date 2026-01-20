@@ -308,7 +308,7 @@ public class DomainUtils {
     }
 
     public static ContractSlotKey normalize(ContractSlotKey slotKey) {
-        var key = slotKey.getKey();
+        var key = slotKey.key();
         var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
         if (normalizedBytes.length == key.size()) {
             return slotKey;

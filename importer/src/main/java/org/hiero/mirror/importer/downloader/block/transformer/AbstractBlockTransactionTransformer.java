@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.ContractSlotId;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
@@ -110,22 +111,25 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             return null;
         }
 
+        var isLambdaStorage = contractId.getContractNum() == 365L && hookId != null;
+        final var slotId = ContractSlotId.builder()
+                .contractId(isLambdaStorage ? null : contractId)
+                .hookId(isLambdaStorage ? hookId : null)
+                .build();
+
         if (!writtenSlotKeys.isEmpty()) {
             // key is explicitly stored in the writtenSlotKeys list
             if (index >= writtenSlotKeys.size()) {
                 return null;
             }
-
-            var isLambdaStorage = contractId.getContractNum() == 365L && hookId != null;
-            var contractSlotKeyBuilder = ContractSlotKey.builder().key(writtenSlotKeys.get(index));
-            final var contractSlotKey = normalize(
-                    isLambdaStorage
-                            ? contractSlotKeyBuilder.hookId(hookId).build()
-                            : contractSlotKeyBuilder.contractId(contractId).build());
-            return new SlotValue(contractSlotKey.getKey(), blockTransaction.getValueWritten(contractSlotKey));
+            final var contractSlotKey = normalize(ContractSlotKey.builder()
+                    .slotId(slotId)
+                    .key(writtenSlotKeys.get(index))
+                    .build());
+            return new SlotValue(contractSlotKey.key(), blockTransaction.getValueWritten(contractSlotKey));
         } else {
             // implicit, get it from statechanges
-            return blockTransaction.getStateChangeContext().getContractStorageChange(contractId, index);
+            return blockTransaction.getStateChangeContext().getContractStorageChange(slotId, index);
         }
     }
 
@@ -314,16 +318,13 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             }
 
             if (slot != null) {
-                var contractSlotKeyBuilder = ContractSlotKey.builder().key(slot);
-                if (isLambdaStorage) {
-                    // For lambda/hook storage, use LambdaSlotKey
-                    contractStorageReads.put(
-                            contractSlotKeyBuilder.hookId(hookId).build(), valueRead);
-                } else {
-                    // For regular contract storage, use SlotKey
-                    contractStorageReads.put(
-                            contractSlotKeyBuilder.contractId(contractId).build(), valueRead);
-                }
+                final var slotId = ContractSlotId.builder()
+                        .contractId(isLambdaStorage ? null : contractId)
+                        .hookId(isLambdaStorage ? hookId : null)
+                        .build();
+                final var contractSlotKey =
+                        ContractSlotKey.builder().slotId(slotId).key(slot).build();
+                contractStorageReads.put(contractSlotKey, valueRead);
             }
         }
 

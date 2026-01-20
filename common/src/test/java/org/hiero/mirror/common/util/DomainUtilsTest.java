@@ -33,6 +33,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.ContractSlotId;
 import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.junit.jupiter.api.DisplayName;
@@ -277,12 +278,14 @@ final class DomainUtilsTest {
             """)
     void normalize(String input, String trimmed) {
         var contractId = ContractID.newBuilder().setContractNum(1000).build();
+        var slotId =
+                ContractSlotId.builder().contractId(contractId).hookId(null).build();
         var slotKey = ContractSlotKey.builder()
-                .contractId(contractId)
+                .slotId(slotId)
                 .key(ByteString.fromHex(input))
                 .build();
         var expected = ContractSlotKey.builder()
-                .contractId(contractId)
+                .slotId(slotId)
                 .key(ByteString.fromHex(trimmed))
                 .build();
         assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
@@ -301,12 +304,13 @@ final class DomainUtilsTest {
                 .setEntityId(HookEntityId.newBuilder()
                         .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
                 .build();
+        var slotId = ContractSlotId.builder().contractId(null).hookId(hookId).build();
         var lambdaSlotKey = ContractSlotKey.builder()
-                .hookId(hookId)
+                .slotId(slotId)
                 .key(ByteString.fromHex(input))
                 .build();
         var expected = ContractSlotKey.builder()
-                .hookId(hookId)
+                .slotId(slotId)
                 .key(ByteString.fromHex(trimmed))
                 .build();
         assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);

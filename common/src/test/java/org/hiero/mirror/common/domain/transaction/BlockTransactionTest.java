@@ -453,12 +453,10 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
+        var slotIdA =
+                ContractSlotId.builder().contractId(contractIdA).hookId(null).build();
         var contractStorageReads = Map.of(
-                ContractSlotKey.builder()
-                        .contractId(contractIdA)
-                        .key(contractASlot1)
-                        .build(),
-                contractASlot1IntermediateValue);
+                ContractSlotKey.builder().slotId(slotIdA).key(contractASlot1).build(), contractASlot1IntermediateValue);
         inner2.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner2);
 
@@ -472,20 +470,16 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
+        var slotIdB =
+                ContractSlotId.builder().contractId(contractIdB).hookId(null).build();
         contractStorageReads = Map.of(
-                ContractSlotKey.builder()
-                        .contractId(contractIdB)
-                        .key(contractBSlot2)
-                        .build(),
-                contractBSlot2IntermediateValue);
+                ContractSlotKey.builder().slotId(slotIdB).key(contractBSlot2).build(), contractBSlot2IntermediateValue);
         inner3.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner3);
 
         // then
-        var slotKey = ContractSlotKey.builder()
-                .contractId(contractIdA)
-                .key(contractASlot1)
-                .build();
+        var slotKey =
+                ContractSlotKey.builder().slotId(slotIdA).key(contractASlot1).build();
         assertThat(inner1.getValueWritten(slotKey)).returns(contractASlot1IntermediateValue, BytesValue::getValue);
         assertThat(inner1.getValueWritten(
                         slotKey.toBuilder().key(contractASlot1Padded).build()))
@@ -493,28 +487,18 @@ final class BlockTransactionTest {
         assertThat(inner2.getValueWritten(slotKey)).returns(contractASlot1Value, BytesValue::getValue);
 
         // a deleted slot
-        slotKey = ContractSlotKey.builder()
-                .contractId(contractIdB)
-                .key(contractBSlot1)
-                .build();
+        slotKey = ContractSlotKey.builder().slotId(slotIdB).key(contractBSlot1).build();
         assertThat(inner1.getValueWritten(slotKey)).isEqualTo(BytesValue.getDefaultInstance());
 
         // a slot not changed
-        slotKey = ContractSlotKey.builder()
-                .contractId(contractIdA)
-                .key(contractASlot2)
-                .build();
+        slotKey = ContractSlotKey.builder().slotId(slotIdA).key(contractASlot2).build();
         assertThat(inner1.getValueWritten(slotKey)).isNull();
 
         // a non-existent slot
-        slotKey =
-                ContractSlotKey.builder().contractId(contractIdA).key(bytes(32)).build();
+        slotKey = ContractSlotKey.builder().slotId(slotIdA).key(bytes(32)).build();
         assertThat(inner2.getValueWritten(slotKey)).isNull();
 
-        slotKey = ContractSlotKey.builder()
-                .contractId(contractIdB)
-                .key(contractBSlot2)
-                .build();
+        slotKey = ContractSlotKey.builder().slotId(slotIdB).key(contractBSlot2).build();
         assertThat(inner2.getValueWritten(slotKey)).returns(contractBSlot2IntermediateValue, BytesValue::getValue);
         assertThat(inner3.getValueWritten(slotKey)).returns(contractBSlot2Value, BytesValue::getValue);
     }
