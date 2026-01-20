@@ -71,6 +71,7 @@
         },
         "created_timestamp": null,
         "decline_reward": false,
+        "delegation_indicator": null,
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000008",
