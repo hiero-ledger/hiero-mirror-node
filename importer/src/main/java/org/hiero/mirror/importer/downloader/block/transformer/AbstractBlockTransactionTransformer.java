@@ -137,9 +137,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             BlockTransaction blockTransaction,
             ContractFunctionResult.Builder contractResultBuilder,
             RecordItem.RecordItemBuilder recordItemBuilder,
-            HookId hookId) {
+            EvmTransactionResult evmTransactionResult) {
         transformEvmTransactionLogs(contractResultBuilder, blockTransaction.getEvmTraceData());
-        transformSidecarRecords(blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder, hookId);
+        transformSidecarRecords(
+                blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder, evmTransactionResult);
     }
 
     private void transformSmartContractResult(BlockTransactionTransformation transformation) {
@@ -150,7 +151,6 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         }
 
         var evmTransactionResult = evmTransactionInfo.evmTransactionResult();
-        final var hookId = evmTransactionResult.getExecutedHookId();
         var transactionRecordBuilder = transformation.recordItemBuilder().transactionRecordBuilder();
         var contractResultbuilder = evmTransactionInfo.isContractCreate()
                 ? transactionRecordBuilder.getContractCreateResultBuilder()
@@ -201,7 +201,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setGas(internalCallContext.getGas());
         }
 
-        transformEvmTraceData(blockTransaction, contractResultbuilder, transformation.recordItemBuilder(), hookId);
+        transformEvmTraceData(
+                blockTransaction, contractResultbuilder, transformation.recordItemBuilder(), evmTransactionResult);
     }
 
     private void transformEvmTransactionLogs(
@@ -284,13 +285,13 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             ContractSlotUsage contractSlotUsage,
             List<ContractStateChange> contractStateChanges,
             Map<ContractSlotKey, ByteString> contractStorageReads,
-            HookId hookId) {
+            EvmTransactionResult evmTransactionResult) {
         var contractId = contractSlotUsage.getContractId();
         var missingIndices = new ArrayList<Integer>();
         boolean missingValueWritten = false;
         var storageChanges = new ArrayList<StorageChange>();
         var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
-        var isLambdaStorage = contractId.getContractNum() == 365L && hookId != null;
+        final var hookId = evmTransactionResult.hasExecutedHookId() ? evmTransactionResult.getExecutedHookId() : null;
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;
@@ -319,8 +320,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
             if (slot != null) {
                 final var slotId = ContractSlotId.builder()
-                        .contractId(isLambdaStorage ? null : contractId)
-                        .hookId(isLambdaStorage ? hookId : null)
+                        .contractId(evmTransactionResult.hasExecutedHookId() ? null : contractId)
+                        .hookId(hookId)
                         .build();
                 final var contractSlotKey =
                         ContractSlotKey.builder().slotId(slotId).key(slot).build();
@@ -355,7 +356,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             BlockTransaction blockTransaction,
             EvmTraceData evmTraceData,
             List<TransactionSidecarRecord> sidecarRecords,
-            HookId hookId) {
+            EvmTransactionResult evmTransactionResult) {
         if (evmTraceData == null || evmTraceData.getContractSlotUsagesList().isEmpty()) {
             return;
         }
@@ -369,7 +370,11 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
         for (var contractSlotUsage : evmTraceData.getContractSlotUsagesList()) {
             transformContractSlotUsage(
-                    blockTransaction, contractSlotUsage, contractStateChanges, contractStorageReads, hookId);
+                    blockTransaction,
+                    contractSlotUsage,
+                    contractStateChanges,
+                    contractStorageReads,
+                    evmTransactionResult);
         }
 
         if (!contractStateChanges.isEmpty()) {
@@ -389,14 +394,14 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             BlockTransaction blockTransaction,
             ContractID contractId,
             RecordItem.RecordItemBuilder recordItemBuilder,
-            HookId hookId) {
+            EvmTransactionResult evmTransactionResult) {
         var consensusTimestamp = blockTransaction.getTransactionResult().getConsensusTimestamp();
         var evmTraceData = blockTransaction.getEvmTraceData();
         var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
 
         transformContractActions(consensusTimestamp, evmTraceData, sidecarRecords);
         transformContractBytecode(blockTransaction, consensusTimestamp, contractId, evmTraceData, sidecarRecords);
-        transformContractStateChanges(blockTransaction, evmTraceData, sidecarRecords, hookId);
+        transformContractStateChanges(blockTransaction, evmTraceData, sidecarRecords, evmTransactionResult);
 
         recordItemBuilder.sidecarRecords(sidecarRecords);
     }
