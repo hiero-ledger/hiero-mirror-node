@@ -15,7 +15,7 @@ import org.hiero.mirror.web3.repository.TokenAirdropRepository;
 import org.jspecify.annotations.NonNull;
 
 @Named
-public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
+final class AirdropsReadableKVState extends AbstractReadableKVState<PendingAirdropId, AccountPendingAirdrop> {
 
     public static final int STATE_ID = AIRDROPS_STATE_ID;
 
@@ -54,5 +54,10 @@ public class AirdropsReadableKVState extends AbstractReadableKVState<PendingAird
 
     private PendingAirdropValue mapToPendingAirdropValue(final long amount) {
         return PendingAirdropValue.newBuilder().amount(amount).build();
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

@@ -376,16 +376,7 @@ public class MirrorNodeClient {
 
     public NetworkSupplyResponse getNetworkSupply() {
         String supplyEndpoint = "/network/supply";
-        return callConvertedRestEndpoint(
-                supplyEndpoint, NetworkSupplyResponse.class, (restJavaResponse, restResponse) -> {
-                    assertThat(restJavaResponse)
-                            .returns(restResponse.getReleasedSupply(), NetworkSupplyResponse::getReleasedSupply)
-                            .returns(restResponse.getTotalSupply(), NetworkSupplyResponse::getTotalSupply)
-                            // restJava endpoint is queried after rest endpoint so the timestamp should be the same or
-                            // later
-                            .satisfies(s ->
-                                    assertThat(s.getTimestamp()).isGreaterThanOrEqualTo(restResponse.getTimestamp()));
-                });
+        return callRestJavaEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {

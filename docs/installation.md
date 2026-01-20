@@ -4,7 +4,7 @@ The Mirror Node can be run [locally](#running-locally) or via [Docker](#running-
 
 ## Building
 
-To run locally, first build the project using Java. Ensure you have Java 21 installed, then run the following command
+To run locally, first build the project using Java. Ensure you have Java 25 installed, then run the following command
 from the top level directory. This will compile a runnable mirror node JAR file in the `target` directory.
 
 ```console
@@ -15,7 +15,7 @@ from the top level directory. This will compile a runnable mirror node JAR file 
 
 ### Database Setup
 
-In addition to Java 21, you will need to install a [PostgreSQL](https://postgresql.org) database and initialize it.
+In addition to Java, you will need to install a [PostgreSQL](https://postgresql.org) database and initialize it.
 
 Since [Flyway](https://flywaydb.org) will manage the database schema, the only required step is to run the database
 initialization script. Locate the SQL script at `importer/src/main/resources/db/scripts/init.sh` and edit
@@ -43,7 +43,7 @@ volumes:
 
 - `./db` on your local machine maps to `/var/lib/postgresql/data` in the db container. This contains the files for the
   PostgreSQL database. If the database container fails to initialise properly and the database fails to run, you will
-  have to delete this folder prior to attempting a restart otherwise the database initialisation scripts will not be
+  have to delete this folder before attempting a restart, otherwise the database initialization scripts will not be
   run.
 
 ### Configuration

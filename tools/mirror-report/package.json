@@ -15,6 +15,9 @@
     "@fetch-mock/jest": "0.2.20",
     "jest": "30.2.0"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "homepage": "https://github.com/hiero-ledger/hiero-mirror-node/tree/main/tools/mirror-report",
   "jest": {
     "transform": {}
