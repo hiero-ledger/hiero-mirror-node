@@ -13,7 +13,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -21,11 +20,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class ContractCallNativePrecompileTest extends Web3IntegrationTest {
+final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
     private final ContractExecutionService contractCallService;
-
-    private final EvmProperties evmProperties;
 
     @BeforeEach
     void setup() {

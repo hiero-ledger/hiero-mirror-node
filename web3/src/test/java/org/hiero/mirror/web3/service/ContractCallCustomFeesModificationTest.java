@@ -7,7 +7,6 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Map;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
@@ -15,8 +14,6 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.RoyaltyFee;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -29,19 +26,7 @@ import org.junit.jupiter.api.Test;
  * The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is transferred
  * from or to the treasury account.
  */
-class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-
-    private Map<String, String> customProperties;
-
-    @BeforeEach
-    void beforeEach() {
-        customProperties = evmProperties.getProperties();
-    }
-
-    @AfterEach
-    void afterEach() {
-        evmProperties.setProperties(customProperties);
-    }
+final class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     /**
      * Verifies already existing fixed fee of a fungible token can be updated
