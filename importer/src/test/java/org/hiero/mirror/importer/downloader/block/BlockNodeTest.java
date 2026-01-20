@@ -358,7 +358,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(node.toString()).isEqualTo(expected);
 
         blockNodeProperties.setHost("localhost");
-        blockNodeProperties.setPort(50000);
+        blockNodeProperties.setStatusPort(50000);
         expected = "BlockNode(localhost:50000)";
         assertThat(node.toString()).isEqualTo(expected);
     }
@@ -443,7 +443,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
         var properties = new BlockNodeProperties();
         properties.setHost(host);
-        properties.setPort(port);
+        properties.setStatusPort(port);
+        properties.setStreamingPort(port);
         properties.setPriority(priority);
         return properties;
     }

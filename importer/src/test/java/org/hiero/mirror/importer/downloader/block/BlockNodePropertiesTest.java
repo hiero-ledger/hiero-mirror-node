@@ -12,7 +12,15 @@ class BlockNodePropertiesTest {
     void getEndpoint() {
         var properties = new BlockNodeProperties();
         properties.setHost("localhost");
-        properties.setPort(12345);
+        properties.setStatusPort(12345);
         assertThat(properties.getEndpoint()).isEqualTo("localhost:12345");
+    }
+
+    @Test
+    void getStreamingEndpoint() {
+        var properties = new BlockNodeProperties();
+        properties.setHost("localhost");
+        properties.setStreamingPort(12346);
+        assertThat(properties.getStreamingEndpoint()).isEqualTo("localhost:12346");
     }
 }

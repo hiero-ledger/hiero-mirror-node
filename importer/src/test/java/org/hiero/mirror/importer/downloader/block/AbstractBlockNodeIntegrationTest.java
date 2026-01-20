@@ -43,7 +43,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     protected final BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
         var blockProperties = new BlockProperties();
         blockProperties.setNodes(nodes);
-        boolean isInProcess = nodes.getFirst().getPort() == -1;
+        boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
         var blockStreamVerifier =
                 new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
         var channelBuilderProvider =
