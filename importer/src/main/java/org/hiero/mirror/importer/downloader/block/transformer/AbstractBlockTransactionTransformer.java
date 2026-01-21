@@ -276,11 +276,21 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             Map<ContractSlotKey, ByteString> contractStorageReads,
             EvmTransactionResult evmTransactionResult) {
         var contractId = contractSlotUsage.getContractId();
+        var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
+        final var slotId = ContractSlotId.of(contractId, evmTransactionResult);
+
+        // Invalid state: hook system contract without executed hook
+        if (slotId == null) {
+            Utility.handleRecoverableError(
+                    "Hook system contract {} storage referenced without executed hook at {}",
+                    contractId,
+                    blockTransaction.getConsensusTimestamp());
+            return;
+        }
+
         var missingIndices = new ArrayList<Integer>();
         boolean missingValueWritten = false;
         var storageChanges = new ArrayList<StorageChange>();
-        var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
-        final var slotId = ContractSlotId.of(contractId, evmTransactionResult);
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;

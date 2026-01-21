@@ -30,14 +30,22 @@ public record ContractSlotId(
      *
      * @param contractId           the contract ID
      * @param evmTransactionResult the EVM transaction result (may be null)
-     * @return ContractSlotId for either contract or hook storage
+     * @return ContractSlotId for either contract or hook storage, or null if the state is invalid (hook system contract
+     *         without executed hook)
      */
-    public static ContractSlotId of(
+    public static @Nullable ContractSlotId of(
             @Nullable ContractID contractId, @Nullable EvmTransactionResult evmTransactionResult) {
+        // Invalid state: hook system contract without executed hook
+        if (contractId != null
+                && contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM
+                && (evmTransactionResult == null || !evmTransactionResult.hasExecutedHookId())) {
+            return null;
+        }
+
         HookId hookId = null;
         if (evmTransactionResult != null && evmTransactionResult.hasExecutedHookId()) {
             hookId = evmTransactionResult.getExecutedHookId();
-            if (contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM) {
+            if (contractId != null && contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM) {
                 contractId = null;
             }
         }
