@@ -1,7 +1,7 @@
 @hooks @fullsuite
 Feature: Hooks Transaction Coverage Feature
 
-  @hooks @acceptance
+  @hooks
   Scenario Outline: Complete hooks transaction lifecycle
     # Setup: Attach hook to account
     When I attach a hook using existing contract to account <accountName>
