@@ -3831,6 +3831,10 @@ components:
           example: true
           nullable: true
         expiry_timestamp:
+          description: >-
+            The token's expiration time in nanoseconds since the Unix epoch. Note that this encoding
+            differs from other entity expiry timestamps (e.g., accounts) which use a seconds.nanoseconds
+            string format. This inconsistency is a known issue retained for backwards compatibility.
           example: 1234567890100000
           format: int64
           nullable: true
