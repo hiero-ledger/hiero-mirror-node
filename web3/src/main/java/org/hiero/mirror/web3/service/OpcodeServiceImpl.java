@@ -228,7 +228,10 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private Bytes getEthereumData(Optional<EthereumTransaction> transaction) {
         return transaction
-                .map(ethereumTransaction -> Bytes.wrap(ethereumTransaction.getData()))
+                .map(ethereumTransaction -> {
+                    final var data = ethereumTransaction.getData();
+                    return data != null ? Bytes.wrap(data) : null;
+                })
                 .orElse(null);
     }
 

@@ -78,7 +78,8 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         HederaEvmTransactionProcessingResult result;
-        if (!params.getEthereumData().isEmpty()) {
+        final var ethereumData = params.getEthereumData();
+        if (ethereumData != null && !ethereumData.isEmpty()) {
             transactionBody = buildEthereumTransactionBody(params);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
@@ -212,11 +213,11 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
+                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        params.getEthereumData().toArray()));
         return defaultTransactionBodyBuilder(params)
-                .ethereumTransaction(EthereumTransactionBody.newBuilder()
-                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getEthereumData().toArray()))
-                        .build())
+                .ethereumTransaction(ethereumTransactionBuilder.build())
                 .transactionFee(ETHEREUM_TX_FEE)
                 .build();
     }
