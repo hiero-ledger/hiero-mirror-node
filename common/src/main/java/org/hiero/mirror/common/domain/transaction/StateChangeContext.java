@@ -89,7 +89,6 @@ public final class StateChangeContext {
                         SlotKey slotKey = key.getSlotKeyKey();
                         final var slotId = ContractSlotId.builder()
                                 .contractId(slotKey.getContractID())
-                                .hookId(null)
                                 .build();
                         final var contractSlotKey = ContractSlotKey.builder()
                                 .slotId(slotId)
@@ -101,7 +100,6 @@ public final class StateChangeContext {
                     if (key.hasLambdaSlotKey()) {
                         LambdaSlotKey lambdaSlotKey = key.getLambdaSlotKey();
                         final var slotId = ContractSlotId.builder()
-                                .contractId(null)
                                 .hookId(lambdaSlotKey.getHookId())
                                 .build();
                         final var contractSlotKey = ContractSlotKey.builder()

@@ -26,7 +26,6 @@ import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.EvmTransactionResult;
-import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.ArrayList;
@@ -102,20 +101,10 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
     }
 
     private SlotValue resolveIndexedSlotValue(
-            BlockTransaction blockTransaction,
-            ContractID contractId,
-            HookId hookId,
-            int index,
-            List<ByteString> writtenSlotKeys) {
+            BlockTransaction blockTransaction, ContractSlotId slotId, int index, List<ByteString> writtenSlotKeys) {
         if (index < 0) {
             return null;
         }
-
-        var isLambdaStorage = contractId.getContractNum() == 365L && hookId != null;
-        final var slotId = ContractSlotId.builder()
-                .contractId(isLambdaStorage ? null : contractId)
-                .hookId(isLambdaStorage ? hookId : null)
-                .build();
 
         if (!writtenSlotKeys.isEmpty()) {
             // key is explicitly stored in the writtenSlotKeys list
@@ -291,7 +280,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         boolean missingValueWritten = false;
         var storageChanges = new ArrayList<StorageChange>();
         var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
-        final var hookId = evmTransactionResult.hasExecutedHookId() ? evmTransactionResult.getExecutedHookId() : null;
+        final var slotId = ContractSlotId.of(contractId, evmTransactionResult);
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;
@@ -299,7 +288,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
                 int index = slotRead.getIndex();
-                var slotValue = resolveIndexedSlotValue(blockTransaction, contractId, hookId, index, writtenSlotKeys);
+                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, index, writtenSlotKeys);
                 if (slotValue != null) {
                     slot = slotValue.slot();
                     if (slotValue.valueWritten() != null) {
@@ -319,10 +308,6 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             }
 
             if (slot != null) {
-                final var slotId = ContractSlotId.builder()
-                        .contractId(evmTransactionResult.hasExecutedHookId() ? null : contractId)
-                        .hookId(hookId)
-                        .build();
                 final var contractSlotKey =
                         ContractSlotKey.builder().slotId(slotId).key(slot).build();
                 contractStorageReads.put(contractSlotKey, valueRead);
