@@ -5,10 +5,8 @@ package org.hiero.mirror.web3.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ZERO_VALUE;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Map;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.token.Token;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract;
@@ -16,41 +14,23 @@ import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.FractionalFee;
 import org.hiero.mirror.web3.web3j.generated.ModificationPrecompileTestContract.RoyaltyFee;
 import org.hyperledger.besu.datatypes.Address;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Tests system contact functions for custom token fees(fixed, fractional, royalty) modification.
- * HTS functions are exposed to smart contract calls via IHederaTokenService.sol
- * Target functions are updateFungibleTokenCustomFees and updateNonFungibleTokenCustomFees
- * Fixed fee - a flat fee charged regardless of the transferred amount
- * Fractional fee - a percentage of the transferred amount
- * Royalty fee - a custom fee you can attach to a nft, allowing the original creator to earn from future
- *      transfers. Each time a nft is transferred a royalty fee is payed to the creator. The royalty fee is a
- *      fraction of the value exchanged for the nft or fixed amount in case the nft is exchanged for free.
- *      The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is
- *      transferred from or to the treasury account.
+ * Tests system contact functions for custom token fees(fixed, fractional, royalty) modification. HTS functions are
+ * exposed to smart contract calls via IHederaTokenService.sol Target functions are updateFungibleTokenCustomFees and
+ * updateNonFungibleTokenCustomFees Fixed fee - a flat fee charged regardless of the transferred amount Fractional fee -
+ * a percentage of the transferred amount Royalty fee - a custom fee you can attach to a nft, allowing the original
+ * creator to earn from future transfers. Each time a nft is transferred a royalty fee is payed to the creator. The
+ * royalty fee is a fraction of the value exchanged for the nft or fixed amount in case the nft is exchanged for free.
+ * The fee is payed in HBARs or in a custom fungible token.The royalty fee is not applied when the nft is transferred
+ * from or to the treasury account.
  */
-class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
-    private boolean isModularized;
-    private Map<String, String> evmProperties;
-
-    @BeforeEach
-    void beforeEach() throws InvocationTargetException, IllegalAccessException {
-        isModularized = mirrorNodeEvmProperties.isModularizedServices();
-        evmProperties = mirrorNodeEvmProperties.getProperties();
-        activateModularizedFlagAndInitializeState();
-    }
-
-    @AfterEach
-    void afterEach() {
-        mirrorNodeEvmProperties.setModularizedServices(isModularized);
-        mirrorNodeEvmProperties.setProperties(evmProperties);
-    }
+final class ContractCallCustomFeesModificationTest extends AbstractContractCallServiceOpcodeTracerTest {
 
     /**
      * Verifies already existing fixed fee of a fungible token can be updated
+     *
      * @throws Exception
      */
     @Test
@@ -85,6 +65,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a fungible token that does not have a previously set fixed fee
+     *
      * @throws Exception
      */
     @Test
@@ -210,6 +191,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a nft that has fixed fee already set
+     *
      * @throws Exception
      */
     @Test
@@ -245,6 +227,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * Verifies fixed fee can be applied to a nft that does not have a previously set fixed fee
+     *
      * @throws Exception
      */
     @Test
@@ -413,6 +396,7 @@ class ContractCallCustomFeesModificationTest extends AbstractContractCallService
 
     /**
      * When the royalty fee is set to be payed in HBARs, the ZERO address should be set for the denominating token.
+     *
      * @param collectorAccount
      * @return
      */

@@ -65,9 +65,7 @@ class TokenAirdropRepositoryTest extends Web3IntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             FUNGIBLE_COMMON, CLAIMED
             FUNGIBLE_COMMON, CANCELLED
             NON_FUNGIBLE_UNIQUE, CLAIMED
@@ -151,9 +149,7 @@ class TokenAirdropRepositoryTest extends Web3IntegrationTest {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             FUNGIBLE_COMMON, CLAIMED
             FUNGIBLE_COMMON, CANCELLED
             NON_FUNGIBLE_UNIQUE, CLAIMED

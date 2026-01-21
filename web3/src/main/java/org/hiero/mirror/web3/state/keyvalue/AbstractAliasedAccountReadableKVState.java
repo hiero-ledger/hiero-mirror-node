@@ -30,7 +30,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -43,14 +43,14 @@ import org.jspecify.annotations.NonNull;
 
 public abstract class AbstractAliasedAccountReadableKVState<K, V> extends AbstractReadableKVState<K, V> {
 
+    protected final SystemEntity systemEntity;
     private final AccountBalanceRepository accountBalanceRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
     private final TokenAllowanceRepository tokenAllowanceRepository;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
-    protected final SystemEntity systemEntity;
+    private final EvmProperties evmProperties;
 
     protected AbstractAliasedAccountReadableKVState(
             int stateId,
@@ -61,7 +61,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
             @NonNull SystemEntity systemEntity,
             @NonNull TokenAccountRepository tokenAccountRepository,
             @NonNull TokenAllowanceRepository tokenAllowanceRepository,
-            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties) {
+            @NonNull EvmProperties evmProperties) {
         super(TokenService.NAME, stateId);
         this.accountBalanceRepository = accountBalanceRepository;
         this.cryptoAllowanceRepository = cryptoAllowanceRepository;
@@ -70,7 +70,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         this.systemEntity = systemEntity;
         this.tokenAccountRepository = tokenAccountRepository;
         this.tokenAllowanceRepository = tokenAllowanceRepository;
-        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
+        this.evmProperties = evmProperties;
     }
 
     protected Account accountFromEntity(Entity entity, final Optional<Long> timestamp) {
@@ -109,10 +109,9 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     }
 
     /**
-     * Returns the default key for accounts that don't have a key set.
-     * In hedera.app there isn't a case in which an account does not have a key set in the state - it is
-     * either valid, or it is an empty KeyList. This key is added in the account state in the mirror node
-     * for consistency as well as to prevent potential NullPointerException.
+     * Returns the default key for accounts that don't have a key set. In hedera.app there isn't a case in which an
+     * account does not have a key set in the state - it is either valid, or it is an empty KeyList. This key is added
+     * in the account state in the mirror node for consistency as well as to prevent potential NullPointerException.
      *
      * @return EMPTY_KEY_LIST as the default key for accounts without keys
      */
@@ -146,12 +145,10 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
 
     /**
      * Determines account balance based on block context.
-     *
-     * Non-historical Call:
-     * Get the balance from entity.getBalance()
-     * Historical Call:
-     * If the entity creation is after the passed timestamp - return 0L (the entity was not created)
-     * Else get the balance from the historical query `findHistoricalAccountBalanceUpToTimestamp`
+     * <p>
+     * Non-historical Call: Get the balance from entity.getBalance() Historical Call: If the entity creation is after
+     * the passed timestamp - return 0L (the entity was not created) Else get the balance from the historical query
+     * `findHistoricalAccountBalanceUpToTimestamp`
      */
     private Supplier<Long> getAccountBalance(final Entity entity, final Optional<Long> timestamp) {
         return Suppliers.memoize(() -> timestamp
@@ -176,12 +173,12 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
     private Long getBalanceOrDefaultToMinimum(final Entity entity, final Long balance) {
         final ContractCallContext context = ContractCallContext.get();
 
-        if (mirrorNodeEvmProperties.isValidatePayerBalance() && context.validatePayerBalance()) {
+        if (evmProperties.isValidatePayerBalance() && context.validatePayerBalance()) {
             return Objects.requireNonNullElse(balance, 0L);
         }
 
-        final var isBalanceCall = context.isBalanceCallSafe();
-        final var minimumBalance = mirrorNodeEvmProperties.getMinimumAccountBalance();
+        final var isBalanceCall = ContractCallContext.isBalanceCallSafe();
+        final var minimumBalance = evmProperties.getMinimumAccountBalance();
 
         try {
             // Return DB balance for balance calls or contract entities (e.g., address(this).balance)
@@ -273,7 +270,7 @@ public abstract class AbstractAliasedAccountReadableKVState<K, V> extends Abstra
         if (!CONTRACT.equals(entity.getType())) {
             return 0;
         }
-        final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
+        final var configuration = evmProperties.getVersionedConfiguration();
         return configuration.getConfigData(ContractsConfig.class).maxKvPairsIndividual() / 2;
     }
 

@@ -11,19 +11,18 @@ import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.config.data.BootstrapConfig;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     private final MidnightRatesSingleton midnightRatesSingleton;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
 
     @Test
     void get() {
-        final var bootstrapConfig =
-                mirrorNodeEvmProperties.getVersionedConfiguration().getConfigData(BootstrapConfig.class);
+        final var bootstrapConfig = evmProperties.getVersionedConfiguration().getConfigData(BootstrapConfig.class);
 
         final var expected = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
@@ -42,6 +41,6 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     @Test
     void key() {
-        assertThat(midnightRatesSingleton.getId()).isEqualTo(MIDNIGHT_RATES_STATE_ID);
+        assertThat(midnightRatesSingleton.getStateId()).isEqualTo(MIDNIGHT_RATES_STATE_ID);
     }
 }

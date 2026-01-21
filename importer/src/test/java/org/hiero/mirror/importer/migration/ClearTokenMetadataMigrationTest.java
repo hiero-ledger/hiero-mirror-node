@@ -66,9 +66,7 @@ class ClearTokenMetadataMigrationTest extends RecordFileMigrationTest {
         assertThat(findHistory(Token.class)).isEmpty();
     }
 
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             -1, true
             0, true
             1, true
@@ -206,42 +204,38 @@ class ClearTokenMetadataMigrationTest extends RecordFileMigrationTest {
 
         tokenRepository.saveAll(current);
         if (!history.isEmpty()) {
-            jdbcOperations.batchUpdate(
-                    """
+            jdbcOperations.batchUpdate("""
                 insert into token_history (created_timestamp, decimals, fee_schedule_key, freeze_default, freeze_key,
                   freeze_status, initial_supply, kyc_key, kyc_status, max_supply, metadata, metadata_key, name,
                   pause_key, pause_status, supply_key, supply_type, symbol, timestamp_range, token_id, total_supply,
                   treasury_account_id, type, wipe_key)
                 values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?::token_pause_status,?,?::token_supply_type,?,?::int8range,?,?,?,?::token_type,?)
-                """,
-                    history,
-                    history.size(),
-                    (ps, token) -> {
-                        ps.setLong(1, token.getCreatedTimestamp());
-                        ps.setInt(2, token.getDecimals());
-                        ps.setBytes(3, token.getFeeScheduleKey());
-                        ps.setBoolean(4, token.getFreezeDefault());
-                        ps.setBytes(5, token.getFreezeKey());
-                        ps.setInt(6, token.getFreezeStatus().ordinal());
-                        ps.setLong(7, token.getInitialSupply());
-                        ps.setBytes(8, token.getKycKey());
-                        ps.setInt(9, token.getKycStatus().ordinal());
-                        ps.setLong(10, token.getMaxSupply());
-                        ps.setBytes(11, token.getMetadata());
-                        ps.setBytes(12, token.getMetadataKey());
-                        ps.setString(13, token.getName());
-                        ps.setBytes(14, token.getPauseKey());
-                        ps.setString(15, token.getPauseStatus().name());
-                        ps.setBytes(16, token.getSupplyKey());
-                        ps.setString(17, token.getSupplyType().name());
-                        ps.setString(18, token.getSymbol());
-                        ps.setString(19, PostgreSQLGuavaRangeType.INSTANCE.asString(token.getTimestampRange()));
-                        ps.setLong(20, token.getTokenId());
-                        ps.setLong(21, token.getTotalSupply());
-                        ps.setLong(22, token.getTreasuryAccountId().getId());
-                        ps.setString(23, token.getType().name());
-                        ps.setBytes(24, token.getWipeKey());
-                    });
+                """, history, history.size(), (ps, token) -> {
+                ps.setLong(1, token.getCreatedTimestamp());
+                ps.setInt(2, token.getDecimals());
+                ps.setBytes(3, token.getFeeScheduleKey());
+                ps.setBoolean(4, token.getFreezeDefault());
+                ps.setBytes(5, token.getFreezeKey());
+                ps.setInt(6, token.getFreezeStatus().ordinal());
+                ps.setLong(7, token.getInitialSupply());
+                ps.setBytes(8, token.getKycKey());
+                ps.setInt(9, token.getKycStatus().ordinal());
+                ps.setLong(10, token.getMaxSupply());
+                ps.setBytes(11, token.getMetadata());
+                ps.setBytes(12, token.getMetadataKey());
+                ps.setString(13, token.getName());
+                ps.setBytes(14, token.getPauseKey());
+                ps.setString(15, token.getPauseStatus().name());
+                ps.setBytes(16, token.getSupplyKey());
+                ps.setString(17, token.getSupplyType().name());
+                ps.setString(18, token.getSymbol());
+                ps.setString(19, PostgreSQLGuavaRangeType.INSTANCE.asString(token.getTimestampRange()));
+                ps.setLong(20, token.getTokenId());
+                ps.setLong(21, token.getTotalSupply());
+                ps.setLong(22, token.getTreasuryAccountId().getId());
+                ps.setString(23, token.getType().name());
+                ps.setBytes(24, token.getWipeKey());
+            });
         }
     }
 

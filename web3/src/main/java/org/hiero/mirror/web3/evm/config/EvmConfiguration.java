@@ -5,9 +5,12 @@ package org.hiero.mirror.web3.evm.config;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
+import com.hedera.node.app.service.entityid.EntityIdFactory;
+import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
@@ -46,7 +49,6 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_NFT = "nft";
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
-    public static final String CACHE_NAME_RECORD_FILE_LATEST_INDEX = "latestIndex";
     public static final String CACHE_NAME_TOKEN = "token";
     public static final String CACHE_NAME_TOKEN_ACCOUNT = "tokenAccount";
     public static final String CACHE_NAME_TOKEN_ACCOUNT_COUNT = "tokenAccountCount";
@@ -58,8 +60,12 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_46 = new SemanticVersion(0, 46, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_50 = new SemanticVersion(0, 50, 0, "", "");
     public static final SemanticVersion EVM_VERSION_0_51 = new SemanticVersion(0, 51, 0, "", "");
-    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_51;
+    public static final SemanticVersion EVM_VERSION_0_65 = new SemanticVersion(0, 65, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_66 = new SemanticVersion(0, 66, 0, "", "");
+    public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
+    public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
     private final CacheProperties cacheProperties;
+    private final EvmProperties evmProperties;
 
     @Bean(CACHE_MANAGER_CONTRACT)
     CacheManager cacheManagerContract() {
@@ -179,7 +185,7 @@ public class EvmConfiguration {
                 .maximumSize(1)
                 .recordStats();
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_RECORD_FILE_LATEST, CACHE_NAME_RECORD_FILE_LATEST_INDEX));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_RECORD_FILE_LATEST));
         caffeineCacheManager.setCaffeine(caffeine);
         return caffeineCacheManager;
     }
@@ -196,5 +202,10 @@ public class EvmConfiguration {
     @Bean
     public GasCalculator provideGasCalculator() {
         return new CustomGasCalculator();
+    }
+
+    @Bean
+    public EntityIdFactory entityIdFactory() {
+        return new AppEntityIdFactory(evmProperties.getVersionedConfiguration());
     }
 }

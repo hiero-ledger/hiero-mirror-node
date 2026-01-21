@@ -39,8 +39,7 @@ class TopicMessageLookupMigrationTest extends AbstractTopicMessageLookupIntegrat
     private static final String PARTITION_SKIPPED_TEMPLATE = "Partition %s doesn't need migration";
     private static final String RESET_CHECKSUM_SQL =
             "update flyway_schema_history set checksum = -1 where description = ?";
-    private static final String SELECT_LAST_CHECKSUM_SQL =
-            """
+    private static final String SELECT_LAST_CHECKSUM_SQL = """
             select (
               select checksum from flyway_schema_history
               where description = ?

@@ -2,27 +2,23 @@
 
 package org.hiero.mirror.web3.service.utils;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import jakarta.inject.Named;
 import java.util.function.LongFunction;
 import java.util.function.ObjIntConsumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 
 @CustomLog
 @RequiredArgsConstructor
 @Named
 public class BinaryGasEstimator {
-    private final MirrorNodeEvmProperties properties;
+    private final EvmProperties properties;
 
     public long search(
-            final ObjIntConsumer<Long> metricUpdater,
-            final LongFunction<HederaEvmTransactionProcessingResult> call,
-            long lo,
-            long hi,
-            final boolean isModularized) {
+            final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {
         long prevGasLimit = lo;
         int iterationsMade = 0;
         long totalGasUsed = 0;
@@ -42,15 +38,13 @@ public class BinaryGasEstimator {
             long mid = (hi + lo) / 2;
 
             // If modularizedServices is true - we call the safeCall function that handles if an exception is thrown
-            HederaEvmTransactionProcessingResult transactionResult =
-                    isModularized ? safeCall(mid, call) : call.apply(mid);
+            final var transactionResult = safeCall(mid, call);
 
             iterationsMade++;
 
-            boolean err = transactionResult == null
-                    || !transactionResult.isSuccessful()
-                    || transactionResult.getGasUsed() < 0;
-            long gasUsed = err ? prevGasLimit : transactionResult.getGasUsed();
+            boolean err =
+                    transactionResult == null || !transactionResult.isSuccessful() || transactionResult.gasUsed() < 0;
+            long gasUsed = err ? prevGasLimit : transactionResult.gasUsed();
             totalGasUsed += gasUsed;
             if (err || gasUsed == 0) {
                 lo = mid;
@@ -70,8 +64,7 @@ public class BinaryGasEstimator {
     // This method is needed because within the modularized services if the contract call fails an exception is thrown
     // instead of transaction result with 'failed' status which will result in a failing test. This way we handle the
     // exception and return estimated gas
-    private HederaEvmTransactionProcessingResult safeCall(
-            long mid, LongFunction<HederaEvmTransactionProcessingResult> call) {
+    private EvmTransactionResult safeCall(long mid, LongFunction<EvmTransactionResult> call) {
         try {
             return call.apply(mid);
         } catch (Exception ignored) {

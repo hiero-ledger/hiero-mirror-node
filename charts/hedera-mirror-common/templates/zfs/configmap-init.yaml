@@ -5,8 +5,8 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   labels: {{ include "hedera-mirror-common.selectorLabels" . | nindent 4 }}
-    app: zfs-init
-  name: {{ .Release.Name }}-zfs-init
+    app: zfs-manager
+  name: {{ .Release.Name }}-zfs-manager
   namespace: {{ include "hedera-mirror-common.namespace" . }}
 data:
   label-wait.sh: |
@@ -15,17 +15,16 @@ data:
 
     ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/node}"
     ZFS_INITIALIZED="${ZFS_INITIALIZED:-}"
-    until [ "${ZFS_INITIALIZED}" != "" ]; do echo "Waiting for label "; sleep 10; source "${ROOT_MOUNT_DIR}/etc/environment"; done
+    until [ "${ZFS_INITIALIZED}" != "" ]; do
+      echo "Waiting for label"
+      sleep 10
+      source "${ROOT_MOUNT_DIR}/etc/environment"
+    done
 
   entrypoint.sh: |
     #!/usr/bin/env bash
 
-    set -euxo pipefail
-
-    # Constants
-    NODE_ID_LABEL="openebs.io/nodeid"
-    ROLE_LABEL="citus-role"
-    ENV_FILE="${ROOT_MOUNT_DIR}/etc/environment"
+    set -euo pipefail
 
     # Configurable environment variables
     CONFIG_MAP_NAME="{{ include "hedera-mirror-common.fullname" . }}-zfs-node-status"
@@ -34,233 +33,797 @@ data:
     DEFAULT_DISK_SIZE_COORDINATOR="${DEFAULT_DISK_SIZE_COORDINATOR:-75GB}"
     DEFAULT_DISK_SIZE_WORKER="${DEFAULT_DISK_SIZE_WORKER:-152GB}"
     K8S_NAMESPACE="${K8S_NAMESPACE:-common}"
+    POOL="{{ .Values.zfs.parameters.poolname }}"
     ROOT_MOUNT_DIR="${ROOT_MOUNT_DIR:-/node}"
 
-    echo "Installing dependencies"
-    apt-get update
-    apt-get install -y kubectl jq
-    echo "Getting node metadata"
-    NODE_NAME="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/hostname -H 'Metadata-Flavor: Google' | awk -F'.' '{print $1}')"
-    ZONE="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google' | awk -F  "/" '{print $NF}')"
-    NODE_LABELS="$(kubectl get node ${NODE_NAME} -o jsonpath='{.metadata.labels}')"
-    CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
+    # Constants
+    NODE_ID_LABEL="openebs.io/nodeid"
+    ROLE_LABEL="citus-role"
+    ENV_FILE="${ROOT_MOUNT_DIR}/etc/environment"
 
-    if [[ "$CITUS_ROLE" == *"worker"* ]]; then
-      DISK_SIZE="${DEFAULT_DISK_SIZE_WORKER}"
-    else
-      DISK_SIZE="${DEFAULT_DISK_SIZE_COORDINATOR}"
-    fi
+    # Auto-grow configuration
+    #  - DISK_AUTOGROW_INTERVAL_SECONDS: how often to check (0 = disable loop)
+    #  - DISK_AUTOGROW_MAX_STEP_GB: maximum GB to grow in a single operation (also caps PVC increase)
+    #  - DISK_AUTOGROW_PERCENT: percentage of current PVC size to grow (we use the smaller of percent vs max step)
+    #  - DISK_AUTOGROW_THRESHOLD_PERCENT: dataset usage % to trigger grow
+    DISK_AUTOGROW_INTERVAL_SECONDS="${DISK_AUTOGROW_INTERVAL_SECONDS:-120}"
+    DISK_AUTOGROW_MAX_STEP_GB="${DISK_AUTOGROW_MAX_STEP_GB:-50}"
+    DISK_AUTOGROW_PERCENT="${DISK_AUTOGROW_PERCENT:-10}"
+    DISK_AUTOGROW_THRESHOLD_PERCENT="${DISK_AUTOGROW_THRESHOLD_PERCENT:-80}"
+    SHARDED_CLUSTER_LABEL_KEY="${SHARDED_CLUSTER_LABEL_KEY:-stackgres.io/shardedcluster-name}"
+    CLUSTER_LABEL_KEY="${CLUSTER_LABEL_KEY:-stackgres.io/cluster-name}"
 
-    ATTEMPT_COUNT=1
-    while [[ "${CITUS_ROLE}" == "null" ]]
-    do
-      if [[ ${ATTEMPT_COUNT} -ge 13 ]]
-      then
-        echo "Timed out waiting for labels please set ${ROLE_LABEL}"
-        exit 1
+    function log() {
+      echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ") ${1}" >&2
+    }
+
+    function forceSizeScan() {
+      log "Expanding pool to disk size"
+
+      # Only the zpool expand is "required" for success; the others are best-effort.
+      if ! chroot "${ROOT_MOUNT_DIR}" /bin/bash -c "
+        zfs list || true
+        partprobe || true
+
+        zpool online -e \"${POOL}\" /dev/sdb
+        rc=\$?
+
+        zfs list || true
+        exit \$rc
+      "; then
+        log "Failed to expand zpool ${POOL} on ${NODE_NAME}"
+        return 1
       fi
-      sleep 10
-      ATTEMPT_COUNT=$((ATTEMPT_COUNT+1))
-      echo "Retrying label GET attempt: ${ATTEMPT_COUNT}"
-      NODE_LABELS="$(kubectl get node ${NODE_NAME} -o jsonpath='{.metadata.labels}')"
+    }
+
+    function forceSizeScanWithRetry() {
+      local maxAttempts=10
+      local sleepSeconds=30
+      local attempt=1
+
+      until forceSizeScan; do
+        if (( attempt >= maxAttempts )); then
+          log "forceSizeScan failed after ${maxAttempts} attempts"
+          return 1
+        fi
+
+        log "forceSizeScan failed (attempt ${attempt}/${maxAttempts}); retrying in ${sleepSeconds}s..."
+        attempt=$((attempt + 1))
+        sleep "${sleepSeconds}"
+      done
+
+      return 0
+    }
+
+    # Echos current disk size in GB
+    function getDiskSizeGb() {
+      if [[ -z "${DISK_NAME:-}" || -z "${ZONE:-}" ]]; then
+        echo ""
+        return 0
+      fi
+
+      gcloud compute disks describe "${DISK_NAME}" --zone "${ZONE}" --format="value(sizeGb)" 2>/dev/null || true
+    }
+
+    function growDiskToSizeGb() {
+      local targetGb="${1:-}"
+      targetGb="${targetGb%GB}"
+
+      if [[ -z "${DISK_NAME:-}" ]]; then
+        log "DISK_NAME is not set (bootstrap may not have run yet)"
+        return 1
+      fi
+
+      if ! [[ "${targetGb}" =~ ^[0-9]+$ ]] || (( targetGb <= 0 )); then
+        log "Invalid targetGb='${targetGb}'"
+        return 1
+      fi
+
+      local currentGb
+      currentGb="$(getDiskSizeGb)"
+      if ! [[ "${currentGb}" =~ ^[0-9]+$ ]] || (( currentGb <= 0 )); then
+        log "Disk ${DISK_NAME} not found or size unreadable; cannot resize"
+        return 1
+      fi
+
+      if (( currentGb >= targetGb )); then
+        log "Disk ${DISK_NAME} already >= target (${currentGb}GB >= ${targetGb}GB); skipping disk resize"
+        return 0
+      fi
+
+      log "Resizing disk ${DISK_NAME} in ${ZONE}: ${currentGb}GB -> ${targetGb}GB"
+      if ! gcloud compute disks resize "${DISK_NAME}" --size="${targetGb}" --zone="${ZONE}" --quiet; then
+        log "Failed to resize disk ${DISK_NAME}"
+        return 1
+      fi
+
+      if ! forceSizeScanWithRetry; then
+        log "Disk resize succeeded but pool did not expand; refusing to continue"
+        return 1
+      fi
+
+      return 0
+    }
+
+    function waitForRoleLabel() {
+      local attempts=1
+
+      while [[ "${CITUS_ROLE}" == "null" ]]; do
+        if [[ ${attempts} -ge 13 ]]; then
+          log "Timed out waiting for labels; please set ${ROLE_LABEL}"
+          exit 1
+        fi
+
+        sleep 10
+        attempts=$((attempts + 1))
+        log "Retrying label GET attempt: ${attempts}"
+
+        NODE_LABELS="$(kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels}')"
+        CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
+      done
+    }
+
+    function setGlobals() {
+      log "Getting node metadata"
+      NODE_NAME="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/hostname -H 'Metadata-Flavor: Google' | awk -F'.' '{print $1}')"
+      ZONE="$(curl -sS http://metadata.google.internal/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google' | awk -F  "/" '{print $NF}')"
+      NODE_LABELS="$(kubectl get node "${NODE_NAME}" -o jsonpath='{.metadata.labels}')"
       CITUS_ROLE="$(echo "${NODE_LABELS}" | jq --arg ROLE_LABEL "${ROLE_LABEL}" -r '.[$ROLE_LABEL]')"
-    done
-    # Ensure node status config map is created
-    until (kubectl get configmap -o json -n "${K8S_NAMESPACE}" "${CONFIG_MAP_NAME}" &> /dev/null)
-    do
-      echo "Creating config map ${CONFIG_MAP_NAME}"
-      kubectl create configmap "${CONFIG_MAP_NAME}" -n "${K8S_NAMESPACE}" --from-literal="${CONFIG_MAP_KEY}={}" || true
-      sleep 1
-    done
-    COMMAND_STATUS=1
-    until [[ ${COMMAND_STATUS} -eq 0 ]]; do
-      CONFIG_MAP="$(kubectl get configmap -o json -n ${K8S_NAMESPACE} ${CONFIG_MAP_NAME})"
-      MODIFIED_CONFIG_MAP="$(echo "${CONFIG_MAP}" |jq --arg KEY "${CONFIG_MAP_KEY}" '{metadata: {resourceVersion: (.metadata.resourceVersion)}, data: {($KEY): (.data[$KEY]|fromjson)}}')"
-      ZONE_CONFIG="$(echo "${MODIFIED_CONFIG_MAP}" |jq --arg KEY "${CONFIG_MAP_KEY}"  --arg ZONE "${ZONE}" --arg CITUS_ROLE "${CITUS_ROLE}" '.data[$KEY][$CITUS_ROLE][$ZONE] // []')"
-      NODE_LIST="$(kubectl get nodes -o jsonpath='{.items[*].metadata.labels}' -lcsi-type=zfs,topology.kubernetes.io/zone=${ZONE},${ROLE_LABEL}=${CITUS_ROLE} | jq -s)"
-      NODE_NAMES="$(echo "${NODE_LIST}" | jq '. | map({(.["kubernetes.io/hostname"]): {isUpgrade: (.["operation.gke.io/type"] == "drain")}}) | add')"
 
-      ## This will find all nodes that have been initialized by this script in the past
-      ## and generate its own version of the config map configuration to
-      ZFS_ZONE_NODES=$(echo "${NODE_LIST}" | jq \
-                      --arg NODE_ID_LABEL "${NODE_ID_LABEL}" \
-                      '. | map(select(.["generated-node-id"] == "true")) |
-                           map({
-                                 "nodeName": (.["kubernetes.io/hostname"]),
-                                 "nodeId": (.[$NODE_ID_LABEL]),
-                                 "index": (.[$NODE_ID_LABEL] | match("\\d*$").string | tonumber)
-                               }) |
-                            sort_by(.index) |
-                              [
-                                range(0; ( .| max_by(.index)|.index ) + 1) as $node_index_range |
-                                  . as $nodes | $node_index_range |
-                                  . as $i |
-                                  if ([$nodes[]|contains( { index: $i })]|any )
-                                     then
-                                     ($nodes|map(select( .index  == $i )))|map(. | {nodeName, nodeId, diskSize})|.[0]
-                                  else
-                                     null
-                                  end
-                              ]')
-      # Check if the config map matches the view from the nodes. If it finds entries
-      # in the config map for nodes that don't exist or are currently being drained, they are set to null to become
-      # available slots for future nodes that may replace it
-      MERGED_ZONE_CONFIG=$(echo -e "${NODE_NAMES}\n${ZFS_ZONE_NODES}\n${ZONE_CONFIG}" | jq -s \
-                      '.[0] as $node_names|
-                        .[1] as $node_config|
-                        .[2] as $config_map|
-                        [
-                          range(0; [(.[2] |length), (.[1] |length)]|max) as $index_range|
-                          $index_range |
-                            . as $i|
-                            if ($config_map[$i] != $node_config[$i])
-                              then
-                                  if($config_map[$i] != null and $node_names[$config_map[$i].nodeName] != null)
-                                    then
-                                      $config_map[$i]
-                                  else
-                                      $node_config[$i]
-                                  end
-                            else
-                              $node_config[$i]
-                            end |
-                            if (. != null and $node_names[.nodeName].isUpgrade) then null else . end
-                        ]')
-      THIS_NODE_CONFIG="$(echo "${MERGED_ZONE_CONFIG}" |jq  --arg NODE_NAME "${NODE_NAME}" --arg ZONE "${ZONE}" '.[]?|select(.nodeName == $NODE_NAME)')"
-      # If there is no entry in the config map, and the node wasn't previously labeled, it is a new node. Create the config.
-      if [[ ! $THIS_NODE_CONFIG ]]
-      then
-        INDEX="$(echo "${MERGED_ZONE_CONFIG}" | jq '. | map(. == null) |index(true) // . | length')"
-        NODE_ID="${CITUS_ROLE}-${ZONE}-${INDEX}"
-        THIS_NODE_CONFIG="{\"nodeName\": \"$NODE_NAME\", \"nodeId\": \"$NODE_ID\"}"
-        MERGED_ZONE_CONFIG="$(echo "${MERGED_ZONE_CONFIG}" | jq --arg INDEX $INDEX --arg THIS_NODE_CONFIG "${THIS_NODE_CONFIG}"  '.[$INDEX |tonumber] = ($THIS_NODE_CONFIG|fromjson)')"
-      fi
+      waitForRoleLabel
 
-      MODIFIED_CONFIG_MAP="$(echo "${MODIFIED_CONFIG_MAP}" | jq --arg KEY "${CONFIG_MAP_KEY}" --arg CITUS_ROLE "${CITUS_ROLE}"  --arg ZONE "${ZONE}" --arg ZONE_CONFIG "${MERGED_ZONE_CONFIG}" '.data[$KEY][$CITUS_ROLE][$ZONE]=($ZONE_CONFIG|fromjson)')"
-      MODIFIED_CONFIG_MAP="$(echo "${MODIFIED_CONFIG_MAP}" | jq --arg KEY "${CONFIG_MAP_KEY}" '.data[$KEY]=(.data[$KEY]|tojson)')"
-
-      echo "patching $CONFIG_MAP_NAME with $MODIFIED_CONFIG_MAP"
-      if (kubectl patch configmap $CONFIG_MAP_NAME -n $K8S_NAMESPACE --type merge -p "${MODIFIED_CONFIG_MAP}")
-      then
-        echo "Successfully patched config map"
-        COMMAND_STATUS=0
+      if [[ "${CITUS_ROLE}" == *"worker"* ]]; then
+        DISK_SIZE="${DEFAULT_DISK_SIZE_WORKER}"
       else
-        COMMAND_STATUS=$?
-        echo "Conflict patching config map. Retrying ..."
+        DISK_SIZE="${DEFAULT_DISK_SIZE_COORDINATOR}"
       fi
-    done
+    }
 
-    NODE_ID="$(echo "${THIS_NODE_CONFIG}" | jq -r '.nodeId')"
-    if [[ "${NODE_ID}" == "null" ]]
-    then
-      echo "Unable to determine correct node id. Exiting ..."
-      exit 1
-    fi
+    function ensureNodeStatusConfigMap() {
+      until (kubectl get configmap -o json -n "${K8S_NAMESPACE}" "${CONFIG_MAP_NAME}" &> /dev/null); do
+        log "Creating config map ${CONFIG_MAP_NAME}"
+        kubectl create configmap "${CONFIG_MAP_NAME}" -n "${K8S_NAMESPACE}" --from-literal="${CONFIG_MAP_KEY}={}" || true
+        sleep 1
+      done
+    }
 
-    DISK_NAME="${DISK_PREFIX}-${NODE_ID}-zfs"
-    ACTUAL_SIZE=$(gcloud compute disks list --filter="name:${DISK_NAME}" --format="value(sizeGb)")
-    if [[ -z "${ACTUAL_SIZE}" ]]; then
-        echo "Creating ${DISK_NAME} for ${CITUS_ROLE} with size ${DISK_SIZE}"
+    function patchNodeStatusConfigMapWithThisNode() {
+      local status=1
+
+      while [[ ${status} -ne 0 ]]; do
+        local configMap parsedCm zoneConfig nodeList nodeNames zfsZoneNodes mergedZoneConfig thisNodeConfig
+
+        configMap="$(kubectl get configmap -o json -n "${K8S_NAMESPACE}" "${CONFIG_MAP_NAME}")"
+
+        parsedCm="$(
+          echo "${configMap}" | jq --arg KEY "${CONFIG_MAP_KEY}" '
+            {
+              metadata: {resourceVersion: .metadata.resourceVersion},
+              data: {($KEY): (.data[$KEY] | fromjson)}
+            }
+          '
+        )"
+
+        zoneConfig="$(
+          echo "${parsedCm}" | jq \
+            --arg KEY "${CONFIG_MAP_KEY}" \
+            --arg ZONE "${ZONE}" \
+            --arg CITUS_ROLE "${CITUS_ROLE}" \
+            '.data[$KEY][$CITUS_ROLE][$ZONE] // []'
+        )"
+
+        # All nodes in this zone/role that are ZFS-capable
+        nodeList="$(
+          kubectl get nodes \
+            -o jsonpath='{.items[*].metadata.labels}' \
+            -lcsi-type=zfs,topology.kubernetes.io/zone="${ZONE}",${ROLE_LABEL}="${CITUS_ROLE}" | jq -s
+        )"
+
+        nodeNames="$(
+          echo "${nodeList}" | jq '
+            . | map({(.["kubernetes.io/hostname"]): {isUpgrade: (.["operation.gke.io/type"] == "drain")}}) | add
+          '
+        )"
+
+        # Nodes previously initialized by this script (generated-node-id=true) in this zone/role.
+        # Build a list by numeric suffix and insert null holes where indices are missing.
+        zfsZoneNodes="$(
+          echo "${nodeList}" | jq --arg NODE_ID_LABEL "${NODE_ID_LABEL}" '
+            (map(select(.["generated-node-id"] == "true"))
+              | map({
+                  nodeName: (.["kubernetes.io/hostname"]),
+                  nodeId: (.[$NODE_ID_LABEL]),
+                  index: (.[$NODE_ID_LABEL] | match("\\d*$").string | tonumber)
+                })
+              | sort_by(.index)
+            ) as $nodes
+            | if ($nodes | length) == 0 then
+                []
+              else
+                [
+                  range(0; (($nodes | max_by(.index) | .index) + 1)) as $i
+                  | if ([$nodes[] | select(.index == $i)] | length) > 0 then
+                      ($nodes[] | select(.index == $i) | {nodeName, nodeId})
+                    else
+                      null
+                    end
+                ]
+              end
+          '
+        )"
+
+        # Merge:
+        # - If config-map entry points at a nodeName that still exists, keep it
+        # - Otherwise use the live-generated list
+        # - Drop nodes currently draining for upgrade
+        mergedZoneConfig="$(
+          echo -e "${nodeNames}\n${zfsZoneNodes}\n${zoneConfig}" | jq -s '
+            .[0] as $node_names |
+            .[1] as $node_config |
+            .[2] as $config_map |
+            [
+              range(0; [($config_map|length), ($node_config|length)] | max) as $i |
+              (
+                if ($config_map[$i] != $node_config[$i]) then
+                  if ($config_map[$i] != null and $node_names[$config_map[$i].nodeName] != null) then
+                    $config_map[$i]
+                  else
+                    $node_config[$i]
+                  end
+                else
+                  $node_config[$i]
+                end
+              )
+              | if (. != null and ($node_names[.nodeName].isUpgrade // false)) then null else . end
+            ]
+          '
+        )"
+
+        # Find this node's entry, if present
+        thisNodeConfig="$(
+          echo "${mergedZoneConfig}" | jq \
+            --arg NODE_NAME "${NODE_NAME}" \
+            '.[]? | select(.nodeName == $NODE_NAME)'
+        )"
+
+        # If missing, assign the first available null slot (or append)
+        if [[ -z "${thisNodeConfig}" ]]; then
+          local index nodeId
+          index="$(echo "${mergedZoneConfig}" | jq 'map(. == null) | index(true) // length')"
+          nodeId="${CITUS_ROLE}-${ZONE}-${index}"
+          thisNodeConfig="$(jq -n --arg nodeName "${NODE_NAME}" --arg nodeId "${nodeId}" '{nodeName:$nodeName, nodeId:$nodeId}')"
+
+          mergedZoneConfig="$(
+            echo "${mergedZoneConfig}" | jq \
+              --argjson INDEX "${index}" \
+              --argjson THIS_NODE_CONFIG "${thisNodeConfig}" \
+              '.[$INDEX] = $THIS_NODE_CONFIG'
+          )"
+        fi
+
+        # Write mergedZoneConfig back into the parsed JSON structure
+        parsedCm="$(
+          echo "${parsedCm}" | jq \
+            --arg KEY "${CONFIG_MAP_KEY}" \
+            --arg CITUS_ROLE "${CITUS_ROLE}" \
+            --arg ZONE "${ZONE}" \
+            --argjson MERGED_ZONE_CONFIG "${mergedZoneConfig}" '
+              .data[$KEY][$CITUS_ROLE][$ZONE] = $MERGED_ZONE_CONFIG
+            '
+        )"
+
+        parsedCm="$(
+          echo "${parsedCm}" | jq --arg KEY "${CONFIG_MAP_KEY}" '
+            .data[$KEY] = (.data[$KEY] | tojson)
+          '
+        )"
+
+        log "Patching ${CONFIG_MAP_NAME} with merged ZFS node config"
+        if kubectl patch configmap "${CONFIG_MAP_NAME}" -n "${K8S_NAMESPACE}" --type merge -p "${parsedCm}"; then
+          log "Successfully patched config map"
+          status=0
+          THIS_NODE_CONFIG="${thisNodeConfig}"
+        else
+          status=$?
+          log "Conflict patching config map. Retrying ..."
+        fi
+      done
+    }
+
+    function ensureDiskAttached() {
+      if gcloud compute instances describe "${NODE_NAME}" --zone "${ZONE}" --format '(disks[].source)' | grep "${DISK_NAME}" > /dev/null; then
+        log "${DISK_NAME} is already attached to ${NODE_NAME}"
+        return 0
+      fi
+
+      log "Attaching ${DISK_NAME} to ${NODE_NAME}"
+      local attempts=0
+
+      until gcloud compute instances attach-disk "${NODE_NAME}" --device-name=sdb --disk "${DISK_NAME}" --zone "${ZONE}"; do
+        attempts=$((attempts + 1))
+        if [[ ${attempts} -ge 15 ]]; then
+          log "Unable to attach ${DISK_NAME} to ${NODE_NAME} in ${ZONE} after ${attempts} attempts. Exiting ..."
+          exit 1
+        fi
+        log "Unable to attach ${DISK_NAME} attempt ${attempts}. Waiting ..."
+        sleep 30
+      done
+
+      return 0
+    }
+
+    function bootstrapZFSDisk() {
+      DISK_NAME="${DISK_PREFIX}-${NODE_ID}-zfs"
+
+      local actual
+      actual="$(gcloud compute disks list --filter="name:${DISK_NAME}" --format="value(sizeGb)" 2>/dev/null || true)"
+
+      if [[ -z "${actual}" ]]; then
+        log "Creating ${DISK_NAME} for ${CITUS_ROLE} with size ${DISK_SIZE}"
         gcloud compute disks create "${DISK_NAME}" --size="${DISK_SIZE}" --zone="${ZONE}" --type=pd-balanced --quiet
-    else
-        echo "${DISK_NAME} already exists for ${CITUS_ROLE}"
-    fi
-
-    if [[ -n $ACTUAL_SIZE && "${ACTUAL_SIZE}" -lt "${DISK_SIZE%GB}" ]]; then
-        echo "Increasing disk size from ${ACTUAL_SIZE} to ${DISK_SIZE}"
-        gcloud compute disks resize "${DISK_NAME}" --size="${DISK_SIZE}" --zone="${ZONE}" --quiet
-    fi
-
-    if (! gcloud compute instances describe "${NODE_NAME}" --zone "${ZONE}" --format '(disks[].source)' | grep "${DISK_NAME}" > /dev/null); then
-        echo "Attaching ${DISK_NAME} to ${NODE_NAME}"
-        ATTACH_ATTEMPTS=0
-        until (gcloud compute instances attach-disk "${NODE_NAME}" --device-name=sdb --disk "${DISK_NAME}" --zone "${ZONE}"); do
-          ATTACH_ATTEMPTS=$((ATTACH_ATTEMPTS+1))
-          if [[ $ATTACH_ATTEMPTS -ge 15 ]]; then
-              echo "Unable to attach ${DISK_NAME} to ${NODE_NAME} in ${ZONE} ater ${ATTACH_ATTEMPTS} attempts. Exiting ..."
-              exit 1
-          fi
-          echo "Unable to attach ${DISK_NAME} to ${NODE_NAME} attempts ${ATTACH_ATTEMPTS}. waiting ..."
-          sleep 30
-        done
-    else
-        echo "${DISK_NAME} is already attached to ${NODE_NAME}"
-    fi
-
-    chroot "${ROOT_MOUNT_DIR}" /bin/bash -x <<'EOF'
-
-      echo "Installing zfs"
-      apt-get update
-      apt-get install -y zfsutils-linux
-      export POOL="{{ .Values.zfs.parameters.poolname }}"
-      echo "Configuring zpool ${POOL}"
-      partprobe
-
-      ARC_SIZE_GB="${ARC_SIZE_GB:-2}"
-      echo "Configuring arc max to ${ARC_SIZE_GB}GB and arc min to 1/4 of max"
-      ARC_MAX="$((ARC_SIZE_GB*1073741824))"
-      ARC_MIN="$((ARC_MAX/4))"
-      echo $ARC_MIN >> /sys/module/zfs/parameters/zfs_arc_min
-      echo $ARC_MAX >> /sys/module/zfs/parameters/zfs_arc_max
-
-      if (zfs list | grep -q "${POOL}"); then
-          echo "Found existing pool. Skipping creation"
-      elif (zpool create -o autoexpand=on "${POOL}" /dev/sdb); then
-          echo "Successfully created pool"
-      elif (zpool import -f "${POOL}"); then
-          echo "Successfully imported pool"
       else
+        log "${DISK_NAME} already exists for ${CITUS_ROLE}"
+        growDiskToSizeGb "${DISK_SIZE}"
+      fi
+
+      ensureDiskAttached
+    }
+
+    function setupZFSPool() {
+      chroot "${ROOT_MOUNT_DIR}" /bin/bash -x <<'EOF'
+        echo "Installing zfs"
+        apt-get update
+        apt-get install -y zfsutils-linux
+        export POOL="{{ .Values.zfs.parameters.poolname }}"
+        echo "Configuring zpool ${POOL}"
+        partprobe
+
+        ARC_SIZE_GB="${ARC_SIZE_GB:-2}"
+        echo "Configuring ARC max to ${ARC_SIZE_GB}GB and ARC min to 1/4 of max"
+        ARC_MAX="$((ARC_SIZE_GB*1073741824))"
+        ARC_MIN="$((ARC_MAX/4))"
+        echo "${ARC_MIN}" >> /sys/module/zfs/parameters/zfs_arc_min
+        echo "${ARC_MAX}" >> /sys/module/zfs/parameters/zfs_arc_max
+
+        if zfs list | grep -q "${POOL}"; then
+          echo "Found existing pool. Skipping creation"
+        elif zpool create -o autoexpand=on "${POOL}" /dev/sdb; then
+          echo "Successfully created pool"
+        elif zpool import -f "${POOL}"; then
+          echo "Successfully imported pool"
+        else
           echo "Unable to create pool. Manual intervention necessary"
           exit 1
-      fi
+        fi
 
-      ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" |grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
-      if [[ -n "${L2_ARC_NVME_DEVICE_ID}" ]]; then
-        NVME_DEVICE_PATH="$(readlink -f /dev/disk/by-id/google-local-ssd-block${L2_ARC_NVME_DEVICE_ID})"
-        if [[ -z "${ATTACHED_CACHE_DEVICE}" ]]; then
-          echo "Setting up NVME device $NVME_DEVICE_PATH as L2 ARC"
-          zpool add "${POOL}" cache "$NVME_DEVICE_PATH"
-          ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" |grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
+        ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" | grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
+        if [[ -n "${L2_ARC_NVME_DEVICE_ID}" ]]; then
+          NVME_DEVICE_PATH="$(readlink -f /dev/disk/by-id/google-local-ssd-block${L2_ARC_NVME_DEVICE_ID})"
           if [[ -z "${ATTACHED_CACHE_DEVICE}" ]]; then
-            echo "Unable to attach NVME device ${NVME_DEVICE_PATH} as L2 ARC"
+            echo "Setting up NVME device ${NVME_DEVICE_PATH} as L2 ARC"
+            zpool add "${POOL}" cache "${NVME_DEVICE_PATH}"
+            ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" | grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
+            if [[ -z "${ATTACHED_CACHE_DEVICE}" ]]; then
+              echo "Unable to attach NVME device ${NVME_DEVICE_PATH} as L2 ARC"
+              exit 1
+            else
+              echo "Successfully attached L2 ARC device ${NVME_DEVICE_PATH}"
+            fi
+          else
+            echo "NVME device ${NVME_DEVICE_PATH} already attached as L2 ARC"
+          fi
+        elif [[ -n "${ATTACHED_CACHE_DEVICE}" ]]; then
+          echo "Previously configured L2 ARC device ${ATTACHED_CACHE_DEVICE} is being removed as cache"
+          zpool remove "${POOL}" "${ATTACHED_CACHE_DEVICE}"
+          ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" | grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
+          if [[ -n "${ATTACHED_CACHE_DEVICE}" ]]; then
+            echo "Unable to remove L2 ARC device ${ATTACHED_CACHE_DEVICE}"
             exit 1
           else
-            echo "Successfully attached L2 ARC device ${NVME_DEVICE_PATH} as L2 ARC"
+            echo "Successfully removed L2 ARC device ${ATTACHED_CACHE_DEVICE}"
           fi
         else
-            echo "NVME device ${NVME_DEVICE_PATH} already attached as L2 ARC"
+          echo "No L2 cache device specified. Skipping ..."
         fi
-      elif [[ -n "${ATTACHED_CACHE_DEVICE}" ]]; then
-        echo "Previously configured L2 ARC device ${ATTACHED_CACHE_DEVICE}. Is being removed as cache"
-        zpool remove "${POOL}" "${ATTACHED_CACHE_DEVICE}"
-        ATTACHED_CACHE_DEVICE="$(zpool status "${POOL}" |grep -A1 -E '^\s*cache\s*$' | grep -v cache | awk '{print $1;}')"
-        if [[ -n "${ATTACHED_CACHE_DEVICE}" ]]; then
-          echo "Unable to remove L2 ARC device ${ATTACHED_CACHE_DEVICE}"
-          exit 1
-        else
-          echo "Successfully removed L2 ARC device ${ATTACHED_CACHE_DEVICE}"
-        fi
-      else
-        echo "No L2 cache device specified. Skipping ..."
+
+        zfs set primarycache=metadata xattr=sa "${POOL}"
+        zpool set autoexpand=on "${POOL}"
+        zpool online -e "${POOL}" /dev/sdb
+        zfs list
+    EOF
+    }
+
+    function finalizeNodeState() {
+      local currentNodeId
+      currentNodeId="$(echo "${NODE_LABELS}" | jq --arg NODE_ID_LABEL "${NODE_ID_LABEL}" -r '.[$NODE_ID_LABEL]')"
+
+      if [[ "${currentNodeId}" != "${NODE_ID}" ]]; then
+        log "Labeling node ${NODE_NAME} with ${NODE_ID_LABEL}=${NODE_ID}"
+        kubectl label node "${NODE_NAME}" "${NODE_ID_LABEL}=${NODE_ID}" generated-node-id=true --overwrite
       fi
 
-      zfs set primarycache=metadata xattr=sa "${POOL}"
-      zpool set autoexpand=on "${POOL}"
-      zpool online -e "${POOL}" /dev/sdb
-      zfs list
-    EOF
+      source "${ENV_FILE}" || true
+      ZFS_INITIALIZED="${ZFS_INITIALIZED:-}"
+      if [[ -z "${ZFS_INITIALIZED}" ]]; then
+        echo 'ZFS_INITIALIZED="true"' > "${ENV_FILE}"
+      fi
+    }
 
-    CURRENT_NODE_ID="$(echo "${NODE_LABELS}" | jq --arg NODE_ID_LABEL "${NODE_ID_LABEL}" -r '.[$NODE_ID_LABEL]')"
-    if [[ "${CURRENT_NODE_ID}" != "${NODE_ID}" ]]
-    then
-      echo "Labeling node ${NODE_NAME} with ${NODE_ID_LABEL}=${NODE_ID}"
-      kubectl label node "${NODE_NAME}" "${NODE_ID_LABEL}=${NODE_ID}" generated-node-id=true --overwrite
+    function bootstrap() {
+      ensureNodeStatusConfigMap
+      patchNodeStatusConfigMapWithThisNode
+
+      NODE_ID="$(echo "${THIS_NODE_CONFIG}" | jq -r '.nodeId')"
+      if [[ -z "${NODE_ID}" || "${NODE_ID}" == "null" ]]; then
+        log "Unable to determine correct node id. Exiting ..."
+        exit 1
+      fi
+
+      bootstrapZFSDisk
+      setupZFSPool
+      finalizeNodeState
+    }
+
+    # Reads the shardedClusterName + citusGroupInt from an SGCluster JSON.
+    # Echoes: "<shardedClusterName>\t<citusGroupInt>"
+    function getShardContextFromSgClusterJson() {
+      local sgClusterJson="$1"
+      local shardedClusterName
+      local citusGroup
+
+      shardedClusterName="$(echo "${sgClusterJson}" | jq -r --arg KEY "${SHARDED_CLUSTER_LABEL_KEY}" '.metadata.labels[$KEY] // ""')"
+      citusGroup="$(echo "${sgClusterJson}" | jq -r '.spec.configurations.patroni.initialConfig.citus.group // ""')"
+
+      if [[ -z "${shardedClusterName}" ]]; then
+        echo -e "\t"
+        return 0
+      fi
+
+      if [[ -z "${citusGroup}" ]]; then
+        echo -e "${shardedClusterName}\t"
+        return 0
+      fi
+
+      if ! [[ "${citusGroup}" =~ ^[0-9]+$ ]]; then
+        echo -e "${shardedClusterName}\t"
+        return 0
+      fi
+
+      echo -e "${shardedClusterName}\t$((citusGroup))"
+      return 0
+    }
+
+    # Reads the current PV size for a group from an SGShardedCluster JSON.
+    # Echoes: "<currentIntGi>\t<currentStr>"
+    function getCurrentClusterSizeForGroup() {
+      local shardedClusterJson="$1"
+      local citusGroupInt="$2"
+      local currentStr=""
+
+      if (( citusGroupInt == 0 )); then
+        currentStr="$(echo "${shardedClusterJson}" | jq -r '.spec.coordinator.pods.persistentVolume.size // ""')"
+      else
+        currentStr="$(
+          echo "${shardedClusterJson}" | jq -r --argjson idx "$((citusGroupInt - 1))" '
+            . as $root
+            | (
+                $root.spec.shards.overrides // []
+                | map(select(.index == $idx))
+                | .[0].pods.persistentVolume.size
+              )
+              // $root.spec.shards.pods.persistentVolume.size
+              // ""
+          '
+        )"
+      fi
+
+      if [[ "${currentStr}" != *Gi ]]; then
+        echo -e "\t${currentStr}"
+        return 0
+      fi
+
+      local currentGi="${currentStr%Gi}"
+      if ! [[ "${currentGi}" =~ ^[0-9]+$ ]]; then
+        echo -e "\t${currentStr}"
+        return 0
+      fi
+
+      echo -e "${currentGi}\t${currentStr}"
+      return 0
+    }
+
+    # Builds a JSON Patch with a resourceVersion precondition so concurrent updates fail cleanly.
+    # Echoes a JSON array of patch operations
+    function buildShardedClusterSizePatchJson() {
+      local shardedClusterJson="$1"
+      local citusGroupInt="$2"
+      local targetSizeGiStr="$3"
+
+      local rv
+      rv="$(echo "${shardedClusterJson}" | jq -r '.metadata.resourceVersion // ""')"
+      if [[ -z "${rv}" ]]; then
+        echo "[]"
+        return 0
+      fi
+
+      # Coordinator
+      if (( citusGroupInt == 0 )); then
+        jq -n --arg rv "${rv}" --arg size "${targetSizeGiStr}" '
+          [
+            {"op":"test","path":"/metadata/resourceVersion","value":$rv},
+            {"op":"replace","path":"/spec/coordinator/pods/persistentVolume/size","value":$size}
+          ]
+        '
+        return 0
+      fi
+      local idx=$((citusGroupInt - 1))
+
+      # Find the position in overrides[] where .index == idx (empty if missing)
+      local pos
+      pos="$(echo "${shardedClusterJson}" | jq -r --argjson idx "${idx}" '
+        (.spec.shards.overrides // [])
+        | to_entries
+        | map(select(.value.index == $idx))
+        | .[0].key // ""
+      ')"
+
+      local overridesExists
+      overridesExists="$(echo "${shardedClusterJson}" | jq -r '(.spec.shards.overrides? != null)')"
+
+      if [[ -z "${pos}" ]]; then
+        if [[ "${overridesExists}" == "true" ]]; then
+          # overrides exists, but no entry for idx: add new entry
+          jq -n --arg rv "${rv}" --arg size "${targetSizeGiStr}" --argjson idx "${idx}" '
+            [
+              {"op":"test","path":"/metadata/resourceVersion","value":$rv},
+              {"op":"add","path":"/spec/shards/overrides/-","value":{"index":$idx,"pods":{"persistentVolume":{"size":$size}}}}
+            ]
+          '
+        else
+          # overrides missing: add empty array and then add new entry
+          jq -n --arg rv "${rv}" --arg size "${targetSizeGiStr}" --argjson idx "${idx}" '
+            [
+              {"op":"test","path":"/metadata/resourceVersion","value":$rv},
+              {"op":"add","path":"/spec/shards/overrides","value":[]},
+              {"op":"add","path":"/spec/shards/overrides/-","value":{"index":$idx,"pods":{"persistentVolume":{"size":$size}}}}
+            ]
+          '
+        fi
+        return 0
+      fi
+
+      # Entry exists at position pos: replace the size at that position
+      jq -n --arg rv "${rv}" --arg size "${targetSizeGiStr}" --arg pos "${pos}" '
+        [
+          {"op":"test","path":"/metadata/resourceVersion","value":$rv},
+          {"op":"replace","path":("/spec/shards/overrides/" + $pos + "/pods/persistentVolume/size"),"value":$size}
+        ]
+      '
+    }
+
+    # Configures SGCluster with new PVC size
+    function patchShardedClusterVolumeSize() {
+      local sgCluster="$1"
+      local clusterNamespace="$2"
+      local targetGi="${3:-0}"
+
+      if ! [[ "${targetGi}" =~ ^[0-9]+$ ]] || (( targetGi <= 0 )); then
+        log "Invalid targetGi='${targetGi}', skipping sgshardedcluster patch"
+        return 0
+      fi
+
+      local sgClusterJson shardCtx shardedClusterName citusGroupInt
+      sgClusterJson="$(kubectl get sgcluster "${sgCluster}" -n "${clusterNamespace}" -o json 2>/dev/null || true)"
+      if [[ -z "${sgClusterJson}" ]]; then
+        log "Unable to find sgcluster ${clusterNamespace}/${sgCluster}, skipping"
+        return 0
+      fi
+
+      shardCtx="$(getShardContextFromSgClusterJson "${sgClusterJson}")"
+      IFS=$'\t' read -r shardedClusterName citusGroupInt <<<"${shardCtx}"
+
+      if [[ -z "${shardedClusterName}" ]]; then
+        log "sgcluster ${clusterNamespace}/${sgCluster} has no ${SHARDED_CLUSTER_LABEL_KEY} label, skipping"
+        return 0
+      fi
+
+      if ! [[ "${citusGroupInt:-}" =~ ^[0-9]+$ ]]; then
+        log "sgcluster ${clusterNamespace}/${sgCluster} has invalid or missing citus group (${citusGroupInt:-}), skipping"
+        return 0
+      fi
+
+      local targetStr="${targetGi}Gi"
+      local sleepSeconds=1
+      local maxSleepSeconds=60
+
+      while true; do
+        local shardedClusterJson currentCtx currentIntGi currentStr patchJson
+        shardedClusterJson="$(kubectl get sgshardedcluster "${shardedClusterName}" -n "${clusterNamespace}" -o json 2>/dev/null || true)"
+        if [[ -z "${shardedClusterJson}" ]]; then
+          log "Unable to fetch sgshardedcluster ${clusterNamespace}/${shardedClusterName}; retrying in ${sleepSeconds}s"
+          sleep "${sleepSeconds}"
+          sleepSeconds=$(( sleepSeconds < maxSleepSeconds ? sleepSeconds + 1 : maxSleepSeconds ))
+          continue
+        fi
+
+        currentCtx="$(getCurrentClusterSizeForGroup "${shardedClusterJson}" "${citusGroupInt}")"
+        IFS=$'\t' read -r currentIntGi currentStr <<<"${currentCtx}"
+
+        if ! [[ "${currentIntGi:-}" =~ ^[0-9]+$ ]]; then
+          log "Current size '${currentStr}' is not a valid Gi value; skipping patch"
+          return 0
+        fi
+
+        if (( targetGi <= currentIntGi )); then
+          log "Patch not needed: target=${targetGi}Gi <= current=${currentIntGi}Gi"
+          return 0
+        fi
+
+        patchJson="$(buildShardedClusterSizePatchJson "${shardedClusterJson}" "${citusGroupInt}" "${targetStr}")"
+
+        if kubectl patch sgshardedcluster "${shardedClusterName}" -n "${clusterNamespace}" --type json -p "${patchJson}" >/dev/null 2>&1; then
+          log "Successfully patched sgshardedcluster ${clusterNamespace}/${shardedClusterName} group ${citusGroupInt} to ${targetStr}"
+          return 0
+        fi
+
+        log "Patch failed (likely conflict/resourceVersion changed). Retrying in ${sleepSeconds}s..."
+        sleep "${sleepSeconds}"
+        sleepSeconds=$(( sleepSeconds < maxSleepSeconds ? sleepSeconds + 1 : maxSleepSeconds ))
+      done
+    }
+
+    # Converts a GB value to GiB (floor).
+    # Echoes GiB value
+    function gbToGiFloor() {
+      local gb="$1"
+      if ! [[ "${gb}" =~ ^[0-9]+$ ]] || (( gb <= 0 )); then
+        echo ""
+        return 0
+      fi
+      echo $(( (gb * 1000000000) / 1073741824 ))
+    }
+
+    # Iterate ZFS datasets on this node and resize them if necessary
+    function checkAndGrowDatasets() {
+      log "Checking ZFS datasets in pool ${POOL} on node ${NODE_NAME} (${NODE_ID})"
+
+      mapfile -t datasets < <(
+        chroot "${ROOT_MOUNT_DIR}" /bin/bash -c \
+          "zfs list -Hp -o name,used,available -r \"${POOL}\"" 2>/dev/null || true
+      )
+
+      if [[ ${#datasets[@]} -eq 0 ]]; then
+        log "No datasets found in pool ${POOL}"
+        return 0
+      fi
+
+      for line in "${datasets[@]}"; do
+        local dataset usedBytes availBytes
+        read -r dataset usedBytes availBytes <<<"${line}"
+
+        if [[ "${dataset}" == "${POOL}" ]]; then
+          continue
+        fi
+
+        if [[ "${dataset}" != "${POOL}/pvc-"* ]]; then
+          continue
+        fi
+
+        if ! [[ "${usedBytes}" =~ ^[0-9]+$ ]] || ! [[ "${availBytes}" =~ ^[0-9]+$ ]]; then
+          log "Dataset ${dataset} has invalid used/avail values (used='${usedBytes}', avail='${availBytes}'); skipping"
+          continue
+        fi
+
+        local totalBytes=$((usedBytes + availBytes))
+        if (( totalBytes <= 0 )); then
+          log "Dataset ${dataset} has invalid totalBytes=${totalBytes}, skipping"
+          continue
+        fi
+
+        local percentUsed=$((usedBytes * 100 / totalBytes))
+        log "Dataset ${dataset} usage: ${percentUsed}%"
+
+        if (( percentUsed < DISK_AUTOGROW_THRESHOLD_PERCENT )); then
+          continue
+        fi
+
+        local pvName="${dataset#${POOL}/}"
+        log "Dataset ${dataset} exceeds threshold"
+
+        local pvItemJson
+        pvItemJson="$(kubectl get pv "${pvName}" -o json --ignore-not-found 2>/dev/null || true)"
+        if [[ -z "${pvItemJson}" ]]; then
+          log "No PV named ${pvName} found, skipping"
+          continue
+        fi
+
+        local pvcNamespace pvcName
+        read -r pvcNamespace pvcName <<<"$(
+          echo "${pvItemJson}" | jq -r '
+            [
+              (.spec.claimRef.namespace // ""),
+              (.spec.claimRef.name // "")
+            ] | @tsv
+          ' 2>/dev/null || true
+        )"
+
+        if [[ -z "${pvcNamespace}" || -z "${pvcName}" ]]; then
+          log "PV ${pvName} is not bound to a PVC, skipping"
+          continue
+        fi
+
+        log "Dataset ${dataset} belongs to PVC ${pvcNamespace}/${pvcName}"
+
+        local pvcJson
+        pvcJson="$(kubectl get pvc "${pvcName}" -n "${pvcNamespace}" -o json 2>/dev/null || true)"
+        if [[ -z "${pvcJson}" ]]; then
+          log "Unable to fetch PVC ${pvcNamespace}/${pvcName}, skipping"
+          continue
+        fi
+
+        local currentDiskSizeGb
+        currentDiskSizeGb="$(getDiskSizeGb)"
+        if ! [[ "${currentDiskSizeGb}" =~ ^[0-9]+$ ]] || (( currentDiskSizeGb <= 0 )); then
+          log "Unable to read current disk size for ${DISK_NAME}; skipping"
+          continue
+        fi
+
+        local growByPctGi=$(( (currentDiskSizeGb * DISK_AUTOGROW_PERCENT + 99) / 100 ))
+        local incrementGi="${growByPctGi}"
+
+        if (( incrementGi > DISK_AUTOGROW_MAX_STEP_GB )); then
+          incrementGi="${DISK_AUTOGROW_MAX_STEP_GB}"
+        fi
+
+        if (( incrementGi <= 0 )); then
+          log "Calculated increment <= 0Gi, skipping"
+          continue
+        fi
+
+        local newSizeGb=$(( currentDiskSizeGb + incrementGi ))
+        log "Autogrow: ${currentDiskSizeGb}GB -> ${newSizeGb}GB (+${incrementGi}Gi)"
+
+        if growDiskToSizeGb "${newSizeGb}"; then
+        local sgClusterName
+          sgClusterName="$(echo "${pvcJson}" | jq -r '.metadata.labels["stackgres.io/cluster-name"] // ""' 2>/dev/null || true)"
+        if [[ -z "${sgClusterName}" ]]; then
+            log "PVC ${pvcNamespace}/${pvcName} has no stackgres.io/cluster-name label; skipping sgshardedcluster patch"
+          continue
+        fi
+
+          local targetGi
+          targetGi="$(gbToGiFloor "${newSizeGb}")"
+          if [[ -z "${targetGi}" || "${targetGi}" -le 0 ]]; then
+            log "Unable to convert newSizeGb=${newSizeGb} to Gi; skipping sgshardedcluster patch"
+          else
+            patchShardedClusterVolumeSize "${sgClusterName}" "${pvcNamespace}" "${targetGi}" || \
+          log "Failed to patch sgshardedcluster for sgcluster ${pvcNamespace}/${sgClusterName}"
+          fi
+        else
+          log "Local disk resize failed; skipping sgshardedcluster patch"
+        fi
+      done
+
+      return 0
+    }
+
+    log "Installing dependencies"
+    apt-get update
+    apt-get install -y kubectl jq
+
+    setGlobals
+    bootstrap
+
+    if (( DISK_AUTOGROW_INTERVAL_SECONDS <= 0 )); then
+      log "DISK_AUTOGROW_INTERVAL_SECONDS <= 0; disk autogrow loop disabled. Sleeping indefinitely."
+      sleep infinity
     fi
 
-    source "${ENV_FILE}"
-    ZFS_INITIALIZED="${ZFS_INITIALIZED:-}"
-    if [[ "${ZFS_INITIALIZED}" == "" ]]; then
-      echo "ZFS_INITIALIZED=\"true\"" > "${ENV_FILE}"
-    fi
+    log "Starting disk autogrow loop: interval=${DISK_AUTOGROW_INTERVAL_SECONDS}s, threshold=${DISK_AUTOGROW_THRESHOLD_PERCENT}%, maxStepGb=${DISK_AUTOGROW_MAX_STEP_GB}GB, percentStep=${DISK_AUTOGROW_PERCENT}%"
 
-    {{- end -}}
+    while true; do
+      checkAndGrowDatasets || log "checkAndGrowDatasets failed. Will retry after ${DISK_AUTOGROW_INTERVAL_SECONDS}s"
+      sleep "${DISK_AUTOGROW_INTERVAL_SECONDS}"
+    done
+
+{{- end -}}

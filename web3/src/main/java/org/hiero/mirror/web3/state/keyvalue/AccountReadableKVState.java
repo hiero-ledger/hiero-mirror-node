@@ -8,13 +8,14 @@ import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
+import com.hedera.node.app.service.token.TokenService;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.Set;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -27,14 +28,16 @@ import org.hiero.mirror.web3.utils.AccountDetector;
 import org.jspecify.annotations.NonNull;
 
 /**
- * This class serves as a repository layer between hedera app services read only state and the Postgres database in mirror-node
+ * This class serves as a repository layer between hedera app services read only state and the Postgres database in
+ * mirror-node
+ * <p>
+ * The object, which is read from DB is converted to the PBJ generated format, so that it can properly be utilized by
+ * the hedera app components
  *
- * The object, which is read from DB is converted to the PBJ generated format, so that it can properly be utilized by the hedera app components
- * */
+ */
 @Named
 public class AccountReadableKVState extends AbstractAliasedAccountReadableKVState<AccountID, Account> {
 
-    public static final String KEY = "ACCOUNTS";
     public static final int STATE_ID = ACCOUNTS_STATE_ID;
 
     private final CommonEntityAccessor commonEntityAccessor;
@@ -50,7 +53,7 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
             @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
             @NonNull TokenAccountRepository tokenAccountRepository,
             @NonNull AccountBalanceRepository accountBalanceRepository,
-            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            @NonNull EvmProperties evmProperties,
             @NonNull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
                 STATE_ID,
@@ -61,18 +64,19 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                 systemEntity,
                 tokenAccountRepository,
                 tokenAllowanceRepository,
-                mirrorNodeEvmProperties);
+                evmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
         this.systemAccounts = Set.of(
-                EntityIdUtils.toAccountId(systemEntity.feeCollectorAccount()),
-                EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()),
-                EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()));
+                EntityIdUtils.toAccountId(systemEntity.feeCollectionAccount()),
+                EntityIdUtils.toAccountId(systemEntity.networkAdminFeeAccount()),
+                EntityIdUtils.toAccountId(systemEntity.nodeRewardAccount()),
+                EntityIdUtils.toAccountId(systemEntity.stakingRewardAccount()));
     }
 
     @Override
     protected Account readFromDataSource(@NonNull AccountID key) {
-        if (!ContractCallContext.get().isBalanceCallSafe() && systemAccounts.contains(key)) {
+        if (!ContractCallContext.isBalanceCallSafe() && systemAccounts.contains(key)) {
             return getDummySystemAccountIfApplicable(key).orElse(null);
         }
 
@@ -93,9 +97,8 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
     }
 
     /**
-     * In case a system account doesn't exist, in a historical contract
-     * call for example, return a dummy account to avoid errors like
-     * "Non-zero net hbar change when handling body"
+     * In case a system account doesn't exist, in a historical contract call for example, return a dummy account to
+     * avoid errors like "Non-zero net hbar change when handling body"
      */
     private Optional<Account> getDummySystemAccountIfApplicable(AccountID accountID) {
         if (accountID != null && accountID.hasAccountNum()) {
@@ -108,5 +111,10 @@ public class AccountReadableKVState extends AbstractAliasedAccountReadableKVStat
                     : Optional.empty();
         }
         return Optional.empty();
+    }
+
+    @Override
+    public String getServiceName() {
+        return TokenService.NAME;
     }
 }

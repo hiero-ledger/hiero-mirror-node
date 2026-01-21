@@ -32,9 +32,8 @@ The HIP-1340 implementation follows the established mirror node architecture pat
 
 ## Background
 
-[HIP-1340](https://hips.hedera.com/hip/hip-1340) introduces one of the key features of the Ethereum's Pectra upgrade,
-the facility of EOA (Externally Owner Account) Code Delegation in the Hiero network. Code delegations can be created and
-updated in:
+[HIP-1340](https://hips.hedera.com/hip/hip-1340) introduces one of the key features of the Ethereum's Pectra upgrade, the facility of EOA (Externally Owner
+Account) Code Delegation in the Hiero network. Code delegations can be created and updated in:
 
 - `CryptoCreateTransactionBody`
 - `CryptoUpdateTransactionBody`
@@ -42,72 +41,6 @@ updated in:
 
 Code delegation execution will be identified through `ContractCallTransactionBody` transactions to the address of the EOA
 and the transaction will be executed in the context of the EOA. For more detailed explanation, please check HIP-1340.
-
-## API Changes
-
-- `GET /api/v1/accounts`
-- `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
-
-In both API endpoints the returned account model will contain an additional parameter, named `delegation_indicator`. Its value will be
-the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set or
-if it was deleted (set to address 0x0000000000000000000000000000000000000000), the `delegation_indicator` field will be empty.
-
-> All `GET /api/v1/contracts/*` endpoints will be modified so that they work with an EOA account the same way as the
-> existing queries with contract id.
-
-In order to do this the existing DB queries need to be enhanced.
-
-- `GET api/v1/contracts`
-
-The existing query needs to be changed so that the filter query matches the entity type of 'ACCOUNT' as well
-if the entity's `delegation_identifier` is non-null.
-
-```sql
-`select ${contractSelectFields}`,
-`from ${Entity.tableName} ${Entity.tableAlias}`,
-`left join ${Contract.tableName} ${Contract.tableAlias}`,
-`on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}`,
-`where ${Entity.getFullName(Entity.TYPE)} = 'CONTRACT'
-        or (${Entity.getFullName(Entity.TYPE)} = 'ACCOUNT'
-                and ${Entity.getFullName(Entity.DELEGATION_IDENTIFIER) is not null)`,
-<the_rest_of_filter_clauses>
-`order by ${Entity.getFullName(Entity.ID)} ${order}`,
-limitQuery,
-```
-
-- `GET api/v1/contracts/{contractIdOrAddress}`
-
-The existing query needs to be changed so that the filter query matches the entity type of 'ACCOUNT' as well if the
-entity's `delegation_identifier` is non-null.
-
-```sql
-`select <needed_entity_and_contract_fields>,
-    coalesce(${Contract.getFullName(Contract.RUNTIME_BYTECODE)},
-        ${Entity.getFullName(Entity.CODE_DELEGATION)}) as runtime_bytecode`,
-`from ${table} ${Entity.tableAlias}`,
-`left join ${Contract.tableName} ${Contract.tableAlias}`,
-`on ${Entity.getFullName(Entity.ID)} = ${Contract.getFullName(Contract.ID)}`,
-where e.type = 'CONTRACT'
-    or (e.type = 'ACCOUNT' and ${Entity.getFullName(Entity.DELEGATION_IDENTIFIER) is not null))
-    and ${conditions.join(' and ')}
-```
-
-- `GET /api/v1/contracts/{contractIdOrAddress}/results`
-- `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
-- `GET /api/v1/contracts/results`
-- `GET /api/v1/contracts/results/{transactionIdOrHash}`
-
-The returned response will contain the new `authorization_list` bytes field that comes from the ethereum table.
-
-- `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
-- `GET /api/v1/contracts/{contractIdOrAddress}/state`
-- `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`
-- `GET /api/v1/contracts/results/{transactionIdOrHash}/opcodes`
-- `GET /api/v1/contracts/results/logs`
-
-No changes in the response format of these endpoints. The results will be fetched directly by contract id with the existing
-DB queries as during import there will be no difference between the contract result of a regular contract call and a contract
-result from an EOA code delegation call.
 
 ## Database Schema Design
 
@@ -118,29 +51,48 @@ The code delegations will be fetched by contract ID for latest blocks and by (co
 ### 1. Entity Table
 
 The existing `entity` and `entity_history` tables need to be altered to store code delegation information in a new column
-called `delegation_identifier`.
+called `delegation_indicator`.
 
 ```sql
 -- add_code_delegations_support.sql
 
 alter table if exists entity
-add column if not exists delegation_identifier bytea null;
+add column if not exists delegation_indicator bytea null;
 
 alter table if exists entity_history
-add column if not exists delegation_identifier bytea null;
+add column if not exists delegation_indicator bytea null;
 ```
 
-Each EOA can have only one `delegation_identifier` set. To delete it, the address part of the identifier is set to the empty
+Each EOA can have only one `delegation_indicator` set. To delete it, the address part of the identifier is set to the empty
 address - 0x0000000000000000000000000000000000000000.
 
 ### 2. Ethereum Table
 
-The existing `ethereum_transaction` table needs to be altered and a new column needs to be added - `authorization_list`
-of type bytea.
+The existing `ethereum_transaction` table will be altered and a new column will be added - `authorization_list`
+of type `jsonb`. It will preserve the `authorization_list` from the Ethereum transaction as a json array:
+
+Example:
+
+```
+"authorization_list": [
+    {
+      "chain_id": "0x01",
+      "address": "0x1111111111111111111111111111111111111111",
+      "nonce": 5,
+      "y_parity": 1,
+      "r": "0x2222222222222222222222222222222222222222222222222222222222222222",
+      "s": "0x3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    ...
+  ]
+```
+
+The `authorization_list` will always be needed as an atomic value and it needs to be returned in its raw form in all REST API
+endpoints as described in section "API Changes".
 
 ```sql
 alter table if exists ethereum_transaction
-add column if not exists authorization_list bytea null;
+add column if not exists authorization_list jsonb null default null;
 ```
 
 ## Importer Module Changes
@@ -150,24 +102,40 @@ add column if not exists authorization_list bytea null;
 #### EthereumTransaction.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/transaction/EthereumTransaction.java
 public class EthereumTransaction implements Persistable<Long> {
 
     // This field needs to be added to the existing class.
-    @ToString.Exclude
-    private byte[] authorizationList;
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Authorization> authorizationList;
+}
+```
+
+where `Authorization` needs to be created as follows:
+
+```java
+@Data
+@NoArgsConstructor
+@SuperBuilder(toBuilder = true)
+public class Authorization {
+
+    private String address;  // Example: "0x1111111111111111111111111111111111111111"
+    private String chainId;  // Example: "0x01"
+    private Long nonce;      // Example: 5
+    private String r;        // Example: "0x2222222222222222222222222222222222222222222222222222222222222222"
+    private String s;        // Example: "0x3333333333333333333333333333333333333333333333333333333333333333"
+    private Integer yParity; // Example: 1
 }
 ```
 
 #### AbstractEntity.java
 
 ```java
-// common/src/main/java/org/hiero/mirror/common/domain/entity/AbstractEntity.java
 public class AbstractEntity implements History {
 
     // This field needs to be added to the existing class.
     @ToString.Exclude
-    private byte[] delegationIdentifier;
+    private byte[] delegationIndicator;
 }
 ```
 
@@ -175,8 +143,9 @@ public class AbstractEntity implements History {
 
 The following transaction handlers will be modified:
 
-- `EthereumTransactionHandler.java` - the `authorization_list` field from the `EthereumTransactionBody` needs to be saved
-  similarly to the other byte array fields.
+- `EthereumTransactionHandler.java` - the `authorization_list` field from the `EthereumTransactionBody` needs to be saved.
+  For this purpose the RLP encoded field needs to be parsed and an `Authorization` model needs to be built for each entry
+  so it can be properly persisted as a `jsonb` filed in the DB.
 
 A child transaction of the parent Ethereum transaction will be a `CryptoCreateTransaction` or a `CryptoUpdateTransaction`
 (depending on whether the affected EOA already exists or not). Their protobufs will be changed to have an additional
@@ -204,8 +173,52 @@ public final class Eip7702EthereumTransactionParser extends AbstractEthereumTran
 }
 ```
 
-It will parse the rlp encoded transaction similarly to the existing `Eip2930EthereumTransactionParser`. The only difference
+It will parse the RLP encoded transaction similarly to the existing `Eip2930EthereumTransactionParser`. The only difference
 will be that the new transaction type will need to decode the authorizationList field as well.
+
+## API Changes
+
+- `GET /api/v1/accounts`
+- `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
+
+In both API endpoints the returned account model will contain an additional parameter, named `delegation_indicator`. Its value will be
+the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set (equal to `null`
+in the DB) or if it was deleted (persisted as address 0x0000000000000000000000000000000000000000 in the DB), the
+`delegation_indicator` field will be returned as `0x` from the REST endpoints above.
+
+- `GET /api/v1/contracts`
+- `GET /api/v1/contracts/{contractIdOrAddress}`
+
+These endpoints will not be changed and will continue to work only for contracts.
+
+> The listed below `GET /api/v1/contracts/*` endpoints will be modified so that they work with an EOA account the same way as the
+> existing queries with contract id.
+
+In order to do this the existing DB queries need to be enhanced.
+
+- `GET /api/v1/contracts/{contractIdOrAddress}/results/{timestamp}`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}`
+
+The returned response will contain the new `authorization_list` json field that comes from the `ethereum_transaction` table.
+Only the select part of the existing queries against the `ethereum_transaction` table need to be changed to include the
+new column.
+
+- `GET /api/v1/contracts/{contractIdOrAddress}/results`
+- `GET /api/v1/contracts/results`
+
+The existing query that is used by both endpoints needs to be left joined with the `ethereum_transaction` table on:
+`ContractResult.consensus_timestamp = EthereumTransaction.consensus_timestamp`
+and select the `authorization_list` json field as well.
+
+- `GET /api/v1/contracts/{contractIdOrAddress}/results/logs`
+- `GET /api/v1/contracts/{contractIdOrAddress}/state`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}/actions`
+- `GET /api/v1/contracts/results/{transactionIdOrHash}/opcodes`
+- `GET /api/v1/contracts/results/logs`
+
+No changes in the response format of these endpoints. The results will be fetched directly by contract id with the existing
+DB queries as during import there will be no difference between the contract result of a regular contract call and a contract
+result from an EOA code delegation call.
 
 ## Web3 Module Changes
 
@@ -279,18 +292,18 @@ When `ContractDebugParameters` are built, we need to pass the new `ethereumData`
 
 ### 6. Enhance Account
 
-The `Account` model needs to have a new field `delegation_identifier` (or however it is named in hedera-app) that will
+The `Account` model needs to have a new field `delegation_indicator` (or however it is named in hedera-app) that will
 keep the code delegation in the state as part of the account model.
 
 ### 7. Update ContractBytecodeReadableKVState
 
 `protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
 This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
-search by contract id in the `entityRepository` and if an account is found return the `delegation_identifier`.
+search by contract id in the `entityRepository` and if an account is found return the `delegation_indicator`.
 
 ### 8. Enhance AbstractAliasedAccountReadableKVState
 
-The `AbstractAliasedAccountReadableKVState` needs to be changed to set the new field `delegation_identifier` (or however
+The `AbstractAliasedAccountReadableKVState` needs to be changed to set the new field `delegation_indicator` (or however
 it is named in hedera-app) that will set the code delegation from the entity to the built account model.
 
 ## Testing Strategy

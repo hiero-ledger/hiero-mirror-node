@@ -24,7 +24,7 @@ class BlockInfoSingletonTest {
 
     @Test
     void get() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         assertThat(blockInfoSingleton.get())
                 .isEqualTo(BlockInfo.newBuilder()
                         .blockHashes(Bytes.EMPTY)
@@ -38,12 +38,12 @@ class BlockInfoSingletonTest {
 
     @Test
     void key() {
-        assertThat(blockInfoSingleton.getId()).isEqualTo(BLOCKS_STATE_ID);
+        assertThat(blockInfoSingleton.getStateId()).isEqualTo(BLOCKS_STATE_ID);
     }
 
     @Test
     void set() {
-        ContractCallContext.get().setRecordFile(recordFile);
+        ContractCallContext.get().setBlockSupplier(() -> recordFile);
         blockInfoSingleton.set(BlockInfo.DEFAULT);
         assertThat(blockInfoSingleton.get()).isNotEqualTo(BlockInfo.DEFAULT);
     }

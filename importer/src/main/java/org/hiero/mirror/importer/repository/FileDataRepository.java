@@ -10,47 +10,35 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
 public interface FileDataRepository extends CrudRepository<FileData, Long> {
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select *
             from file_data
             where consensus_timestamp between ?1 and ?2 and entity_id = ?3 and transaction_type = ?4
             order by consensus_timestamp
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     List<FileData> findFilesInRange(long start, long end, long encodedEntityId, int transactionType);
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select *
             from file_data
             where consensus_timestamp < ?1 and entity_id = ?2 and transaction_type in (?3)
             order by consensus_timestamp desc
             limit 1
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     Optional<FileData> findLatestMatchingFile(
             long consensusTimestamp, long encodedEntityId, List<Integer> transactionTypes);
 
-    @Query(
-            value =
-                    """
+    @Query(value = """
             select *
             from file_data
             where consensus_timestamp > ?1 and consensus_timestamp < ?2 and entity_id in (?3)
             order by consensus_timestamp
             limit ?4
-            """,
-            nativeQuery = true)
+            """, nativeQuery = true)
     List<FileData> findAddressBooksBetween(
             long startConsensusTimestamp, long endConsensusTimestamp, Collection<Long> entityIds, long limit);
 
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
             select
               max(consensus_timestamp) as consensus_timestamp,
               ?1 as entity_id,

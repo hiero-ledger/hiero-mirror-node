@@ -45,7 +45,7 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.entity.NftAllowance;
 import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -141,7 +141,7 @@ class AccountReadableKVStateTest {
     private TokenAccountRepository tokenAccountRepository;
 
     @Mock
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private EvmProperties evmProperties;
 
     @Spy
     private AliasedAccountCacheManager aliasedAccountCacheManager;
@@ -163,7 +163,7 @@ class AccountReadableKVStateTest {
                 cryptoAllowanceRepository,
                 tokenAccountRepository,
                 accountBalanceRepository,
-                mirrorNodeEvmProperties,
+                evmProperties,
                 aliasedAccountCacheManager);
 
         treasuryAccountId = systemEntity.treasuryAccount();
@@ -234,7 +234,7 @@ class AccountReadableKVStateTest {
         when(commonEntityAccessor.get(ACCOUNT_ID, Optional.empty())).thenReturn(Optional.ofNullable(contractEntity));
         final var mockedConfiguration = mock(VersionedConfiguration.class);
         final var mockedContractsConfig = mock(ContractsConfig.class);
-        when(mirrorNodeEvmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);
+        when(evmProperties.getVersionedConfiguration()).thenReturn(mockedConfiguration);
         when(mockedConfiguration.getConfigData(ContractsConfig.class)).thenReturn(mockedContractsConfig);
         when(mockedContractsConfig.maxKvPairsIndividual()).thenReturn(1);
         assertThat(accountReadableKVState.get(ACCOUNT_ID)).satisfies(account -> assertThat(account)

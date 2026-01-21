@@ -1169,7 +1169,7 @@ describe('getStakingRewardTimestamps', () => {
         consensus_timestamp: 1565779602000000002,
         crypto_transfer_list: [
           {
-            entity_id: EntityId.systemEntity.feeCollector.getEncodedId(),
+            entity_id: EntityId.systemEntity.networkAdminFeeAccount.getEncodedId(),
           },
         ],
       },

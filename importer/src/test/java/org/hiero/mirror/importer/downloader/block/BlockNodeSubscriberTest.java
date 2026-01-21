@@ -82,13 +82,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockProperties);
+                blockProperties,
+                meterRegistry);
     }
 
     @ParameterizedTest(name = "last block number {0}")
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             5, '1,0,0', '1,0,0'
                             6, '1,1,0', '0,1,0'
                             7, '1,1,1', '0,0,1'

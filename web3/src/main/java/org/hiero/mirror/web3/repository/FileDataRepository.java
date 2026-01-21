@@ -11,10 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface FileDataRepository extends CrudRepository<FileData, Long> {
 
-    @Query(
-            nativeQuery = true,
-            value =
-                    """
+    @Query(nativeQuery = true, value = """
             select
               max(consensus_timestamp) as consensus_timestamp,
               ?1 as entity_id,

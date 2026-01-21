@@ -17,6 +17,7 @@ configurations.all {
     exclude(group = "com.nimbusds") // Unused and has a vulnerability
     exclude(group = "com.github.jnr") // Unused and has licensing issues
     exclude(group = "commons-logging", "commons-logging")
+    exclude(group = "org.apache.logging.log4j", module = "log4j-core")
     exclude(group = "org.jetbrains", module = "annotations")
     exclude(group = "org.slf4j", module = "slf4j-nop")
 }
@@ -44,9 +45,16 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    // Disable dangling-doc-comments due to graphql-gradle-plugin-project #25
     // Disable serial and this-escape warnings due to errors in generated code
+    // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
-        listOf("-parameters", "-Werror", "-Xlint:all", "-Xlint:-this-escape,-preview")
+        listOf(
+            "-parameters",
+            "-Werror",
+            "-Xlint:all",
+            "-Xlint:-dangling-doc-comments,-preview,-rawtypes,-this-escape,-unchecked",
+        )
     )
     options.encoding = "UTF-8"
     options.errorprone {
@@ -55,8 +63,8 @@ tasks.withType<JavaCompile>().configureEach {
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
     }
-    sourceCompatibility = "21"
-    targetCompatibility = "21"
+    sourceCompatibility = "25"
+    targetCompatibility = "25"
 }
 
 tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }
@@ -67,7 +75,7 @@ tasks.withType<Test>().configureEach {
     finalizedBy(tasks.jacocoTestReport)
     jvmArgs =
         listOf(
-            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21 restricts libs attaching agents
+            "-javaagent:${mockitoAgent.get().asPath}", // JDK 21+ restricts libs attaching agents
             "-XX:+EnableDynamicAgentLoading", // Allow byte buddy for Mockito
         )
     maxHeapSize = "4096m"

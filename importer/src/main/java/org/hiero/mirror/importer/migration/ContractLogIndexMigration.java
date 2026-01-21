@@ -31,15 +31,13 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
 
     static final long INTERVAL = Duration.ofDays(7).toNanos();
 
-    private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE =
-            """
+    private static final String CREATE_TEMPORARY_PROCESSED_RECORD_FILE_TABLE = """
                     create table if not exists processed_record_file_temp(
                         consensus_end bigint not null
                     );
             """;
 
-    private static final String SELECT_LAST_PROCESSED_TIMESTAMP =
-            """
+    private static final String SELECT_LAST_PROCESSED_TIMESTAMP = """
                     select coalesce(
                        (select consensus_end from processed_record_file_temp order by consensus_end asc limit 1),
                        (select consensus_end from record_file order by consensus_end desc limit 1),
@@ -47,13 +45,11 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     );
             """;
 
-    private static final String DROP_TEMPORARY_RECORD_FILE_TABLE =
-            """
+    private static final String DROP_TEMPORARY_RECORD_FILE_TABLE = """
                     drop table if exists processed_record_file_temp;
             """;
 
-    private static final String SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP =
-            """
+    private static final String SELECT_RECORD_FILES_MIN_AND_MAX_TIMESTAMP = """
                     select consensus_start as min_consensus_timestamp, max_consensus_timestamp
                     from record_file
                     join (
@@ -68,8 +64,7 @@ final class ContractLogIndexMigration extends AsyncJavaMigration<Long> {
                     limit 1;
             """;
 
-    private static final String UPDATE_CONTRACT_LOG_INDEXES =
-            """
+    private static final String UPDATE_CONTRACT_LOG_INDEXES = """
                     begin;
 
                     -- set v2 specific property conditionally on the environment

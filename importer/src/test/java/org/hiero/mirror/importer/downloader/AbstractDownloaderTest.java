@@ -370,9 +370,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             ACCOUNT_ID, true
             ACCOUNT_ID, false
             AUTO, true

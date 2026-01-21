@@ -42,14 +42,8 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
         final var functionCall = contract.call_hbarAllowanceCall(ownerAddress, spenderAddress);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var result = functionCall.send();
-            assertThat(result.component2()).isEqualTo(BigInteger.valueOf(DEFAULT_ALLOWANCE_AMOUNT));
-        } else {
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(CONTRACT_REVERT_EXECUTED.name());
-        }
+        final var result = functionCall.send();
+        assertThat(result.component2()).isEqualTo(BigInteger.valueOf(DEFAULT_ALLOWANCE_AMOUNT));
     }
 
     @Test
@@ -89,13 +83,7 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
         final var functionCall = contract.send_hbarApproveCall(ownerAddress, spenderAddress, APPROVE_AMOUNT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(CONTRACT_REVERT_EXECUTED.name());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -116,13 +104,7 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
         final var functionCall = contract.send_hbarApproveCall(contractOwnerAddress, spenderAddress, APPROVE_AMOUNT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(CONTRACT_REVERT_EXECUTED.name());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -180,13 +162,9 @@ class ContractCallHASSystemContractTest extends AbstractContractCallServiceTest 
                 contract.send_hbarApproveDelegateCall(contractOwnerAddress, spenderAddress, APPROVE_AMOUNT);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(CONTRACT_REVERT_EXECUTED.name());
-        } else {
-            assertThat(functionCall.send().getContractAddress()).isEqualTo("0x");
-        }
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessage(CONTRACT_REVERT_EXECUTED.name());
     }
 
     private Entity persistContract(final byte[] runtimeBytecode, final Address contractAddress) {

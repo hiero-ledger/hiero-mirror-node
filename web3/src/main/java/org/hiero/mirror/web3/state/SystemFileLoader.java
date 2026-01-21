@@ -33,9 +33,10 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.jspecify.annotations.NonNull;
@@ -48,7 +49,7 @@ import org.springframework.retry.support.RetryTemplate;
 @RequiredArgsConstructor
 public class SystemFileLoader {
 
-    private final MirrorNodeEvmProperties properties;
+    private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
 
@@ -58,11 +59,11 @@ public class SystemFileLoader {
             .retryOn(InvalidFileException.class)
             .build();
 
-    @Getter(lazy = true)
-    private final Map<FileID, SystemFile> systemFiles = loadAll();
-
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final byte[] mockAddressBook = createMockAddressBook();
+
+    @Getter(lazy = true)
+    private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
@@ -83,12 +84,12 @@ public class SystemFileLoader {
     }
 
     /**
-     * Load file data with retry logic and parsing. This method will attempt to load and parse file data,
-     * retrying with earlier versions if parsing fails.
+     * Load file data with retry logic and parsing. This method will attempt to load and parse file data, retrying with
+     * earlier versions if parsing fails.
      *
-     * @param key The FileID object representing the file
+     * @param key              The FileID object representing the file
      * @param currentTimestamp The current timestamp to start loading from
-     * @param systemFile The system file containing the file data and codec for parsing
+     * @param systemFile       The system file containing the file data and codec for parsing
      * @return The parsed file data, or the default value if no valid data is found
      */
     private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
@@ -182,8 +183,8 @@ public class SystemFileLoader {
                 .setNodeId(nodeId)
                 .setNodeAccountId(AccountID.newBuilder()
                         // setting the shard and realm just to be safe
-                        .setShardNum(properties.getCommonProperties().getShard())
-                        .setRealmNum(properties.getCommonProperties().getRealm())
+                        .setShardNum(CommonProperties.getInstance().getShard())
+                        .setRealmNum(CommonProperties.getInstance().getRealm())
                         .setAccountNum(nodeId));
         builder.addNodeAddress(nodeAddressBuilder.build());
         return builder.build().toByteArray();

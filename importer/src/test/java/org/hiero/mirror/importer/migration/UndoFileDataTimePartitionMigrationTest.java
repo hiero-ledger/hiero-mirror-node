@@ -27,8 +27,7 @@ import org.springframework.util.StreamUtils;
 @TestPropertySource(properties = "spring.flyway.target=2.1.0")
 class UndoFileDataTimePartitionMigrationTest extends ImporterIntegrationTest {
 
-    private static final String REVERT_DDL_TEMPLATE =
-            """
+    private static final String REVERT_DDL_TEMPLATE = """
             drop table if exists file_data;
             create table if not exists file_data
             (

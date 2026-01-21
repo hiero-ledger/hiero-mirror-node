@@ -45,6 +45,11 @@ public final class AcceptanceTestProperties {
     @NotNull
     private Duration backOffPeriod = Duration.ofMillis(5000);
 
+    @NotNull
+    @DecimalMax("1000000")
+    @DecimalMin("0.1")
+    private BigDecimal childAccountBalance = BigDecimal.valueOf(0.1); // Amount in USD
+
     // A new account is usually necessary since shared accounts like 0.0.2 might reach maxTokensPerAccount, etc
     private boolean createOperatorAccount = true;
 
@@ -76,7 +81,7 @@ public final class AcceptanceTestProperties {
     @NotNull
     @DecimalMax("1000000")
     @DecimalMin("1.0")
-    private BigDecimal operatorBalance = BigDecimal.valueOf(70); // Amount in USD
+    private BigDecimal operatorBalance = BigDecimal.valueOf(72); // Amount in USD
 
     @NotBlank
     private String operatorId;

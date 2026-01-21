@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hedera.node.config.data.JumboTransactionsConfig;
 import org.hiero.mirror.common.exception.MirrorNodeException;
-import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.JumboTransaction;
 import org.junit.jupiter.api.Test;
 
@@ -46,17 +45,13 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     void testJumboContractCreateOverMaxSize() {
         // Given
         testWeb3jService.setUseContractCallDeploy(true);
-        final int maxDataSize = mirrorNodeEvmProperties
+        final int maxDataSize = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(JumboTransactionsConfig.class)
                 .ethereumMaxCallDataSize();
         byte[] jumboPayload;
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            // mono requires a little bit larger call data for deploy to fail
-            jumboPayload = new byte[maxDataSize + JUMBO_PAYLOAD];
-        } else {
-            jumboPayload = new byte[maxDataSize];
-        }
+
+        jumboPayload = new byte[maxDataSize];
         // Then
         assertThatThrownBy(() -> testWeb3jService.deployWithInput(JumboTransaction::deploy, jumboPayload))
                 .isInstanceOf(Exception.class);
@@ -65,7 +60,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     @Test
     void testJumboTransactionOverMaxSize() {
         // Given
-        final int maxDataSize = mirrorNodeEvmProperties
+        final int maxDataSize = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(JumboTransactionsConfig.class)
                 .ethereumMaxCallDataSize();
@@ -74,11 +69,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
         // When
         final var functionCall = contract.call_consumeLargeCalldata(jumboPayload);
         // Тhen
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            var exception = assertThrows(MirrorNodeException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(TRANSACTION_OVERSIZE.protoName());
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        var exception = assertThrows(MirrorNodeException.class, functionCall::send);
+        assertThat(exception.getMessage()).isEqualTo(TRANSACTION_OVERSIZE.protoName());
     }
 }

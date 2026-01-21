@@ -11,7 +11,6 @@ import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -25,7 +24,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableSortedMap;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.Key;
 import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -45,11 +45,8 @@ import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
-import org.assertj.core.api.AssertionsForClassTypes;
 import org.hamcrest.core.StringContains;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.rest.model.OpcodesResponse;
@@ -60,7 +57,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
@@ -73,13 +70,12 @@ import org.hiero.mirror.web3.service.OpcodeServiceImpl;
 import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.RecordFileServiceImpl;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.frame.ExceptionalHaltReason;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -109,9 +105,6 @@ class OpcodesControllerTest {
     private static final DomainBuilder DOMAIN_BUILDER = new DomainBuilder();
     private final AtomicReference<OpcodesProcessingResult> opcodesResultCaptor = new AtomicReference<>();
     private final AtomicReference<ContractDebugParameters> expectedCallServiceParameters = new AtomicReference<>();
-
-    @Resource
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @Resource
     private MockMvc mockMvc;
@@ -151,8 +144,6 @@ class OpcodesControllerTest {
 
     @Captor
     private ArgumentCaptor<OpcodeTracerOptions> tracerOptionsCaptor;
-
-    private double modularizedTrafficPercent;
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeTracerOptions> tracerOptions = List.of(
@@ -254,16 +245,7 @@ class OpcodesControllerTest {
 
     @BeforeEach
     void setUp() {
-        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-        } else {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-        }
-
         when(rateLimitBucket.tryConsume(anyLong())).thenReturn(true);
-
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
@@ -273,11 +255,6 @@ class OpcodesControllerTest {
                     opcodesResultCaptor.set(result);
                     return result;
                 });
-    }
-
-    @AfterEach
-    void after() {
-        mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
     }
 
     TransactionIdOrHashParameter setUp(final TransactionProviderEnum provider) {
@@ -306,7 +283,6 @@ class OpcodesControllerTest {
                 .sender(senderAddress)
                 .receiver(contractAddress)
                 .gas(provider.hasEthTransaction() ? ethTransaction.getGasLimit() : contractResult.getGasLimit())
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .value(
                         provider.hasEthTransaction()
                                 ? new BigInteger(ethTransaction.getValue()).longValue()
@@ -374,7 +350,9 @@ class OpcodesControllerTest {
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(context -> {
                     final OpcodeTracerOptions options = context.getArgument(1);
-                    opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(options));
+                    opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(
+                            options,
+                            entityAddress(providerEnum.getContractEntity().get())));
                     return opcodesResultCaptor.get();
                 });
 
@@ -382,9 +360,8 @@ class OpcodesControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
 
-        expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
-                .build());
+        expectedCallServiceParameters.set(
+                expectedCallServiceParameters.get().toBuilder().build());
 
         assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
     }
@@ -394,7 +371,6 @@ class OpcodesControllerTest {
     void callWithDifferentCombinationsOfTracerOptions(
             final TransactionProviderEnum providerEnum, OpcodeTracerOptions options) throws Exception {
 
-        options.setModularized(mirrorNodeEvmProperties.isModularizedServices());
         final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash, options))
@@ -452,35 +428,29 @@ class OpcodesControllerTest {
     @MethodSource("transactionsWithDifferentSenderAddresses")
     void callWithDifferentSenderAddressShouldUseEvmAddressWhenPossible(final TransactionProviderEnum providerEnum)
             throws Exception {
-        double modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        try {
-            final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
-            if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
-                mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                        .andExpect(status().isBadRequest())
-                        .andExpect(responseBody(new GenericErrorResponse(
-                                BAD_REQUEST.getReasonPhrase(),
-                                "Unsupported ID format: 'null-%d-%d'"
-                                        .formatted(
-                                                id.validStart().getEpochSecond(),
-                                                id.validStart().getNano()))));
-                return;
-            }
-
-            expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
-                    .sender(entityAddress(providerEnum.getSenderEntity().get()))
-                    .isModularized(mirrorNodeEvmProperties.isModularizedServices())
-                    .build());
-
+        if (transactionIdOrHash instanceof TransactionIdParameter id && id.payerAccountId() == null) {
             mockMvc.perform(opcodesRequest(transactionIdOrHash))
-                    .andExpect(status().isOk())
-                    .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
-
-            assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
-        } finally {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
+                    .andExpect(status().isBadRequest())
+                    .andExpect(responseBody(new GenericErrorResponse(
+                            BAD_REQUEST.getReasonPhrase(),
+                            "Unsupported ID format: 'null-%d-%d'"
+                                    .formatted(
+                                            id.validStart().getEpochSecond(),
+                                            id.validStart().getNano()))));
+            return;
         }
+
+        expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
+                .sender(entityAddress(providerEnum.getSenderEntity().get()))
+                .build());
+
+        mockMvc.perform(opcodesRequest(transactionIdOrHash))
+                .andExpect(status().isOk())
+                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
+
+        assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
     }
 
     @ParameterizedTest
@@ -492,7 +462,6 @@ class OpcodesControllerTest {
 
         expectedCallServiceParameters.set(expectedCallServiceParameters.get().toBuilder()
                 .receiver(entityAddress(providerEnum.getContractEntity().get()))
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .build());
 
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
@@ -578,67 +547,6 @@ class OpcodesControllerTest {
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));
     }
 
-    @ParameterizedTest
-    @EnumSource(TransactionProviderEnum.class)
-    void testModularizedRequestIsTrueButModularizedNotEnabled(final TransactionProviderEnum providerEnum)
-            throws Exception {
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
-
-        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
-                .andExpect(status().isOk())
-                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
-
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isFalse();
-    }
-
-    @ParameterizedTest
-    @EnumSource(TransactionProviderEnum.class)
-    void testModularizedRequestIsTrue(final TransactionProviderEnum providerEnum) throws Exception {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
-
-        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "true"))
-                .andExpect(status().isOk())
-                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
-
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
-    }
-
-    @ParameterizedTest
-    @EnumSource(TransactionProviderEnum.class)
-    void testModularizedRequestIsFalse(final TransactionProviderEnum providerEnum) throws Exception {
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            return;
-        }
-
-        final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
-
-        mockMvc.perform(opcodesRequest(transactionIdOrHash).header("Is-Modularized", "false"))
-                .andExpect(status().isOk())
-                .andExpect(responseBody(Builder.opcodesResponse(opcodesResultCaptor.get(), commonEntityAccessor)));
-
-        final var paramsCaptor = ArgumentCaptor.forClass(ContractDebugParameters.class);
-        verify(contractDebugService).processOpcodeCall(paramsCaptor.capture(), tracerOptionsCaptor.capture());
-        final var capturedParams = paramsCaptor.getValue();
-
-        AssertionsForClassTypes.assertThat(capturedParams.isModularized()).isTrue();
-    }
-
     /**
      * Utility class with helper methods for building different objects in the tests
      */
@@ -652,20 +560,24 @@ class OpcodesControllerTest {
         private static OpcodesResponse opcodesResponse(
                 final OpcodesProcessingResult result, final CommonEntityAccessor commonEntityAccessor) {
             return new OpcodesResponse()
-                    .address(result.transactionProcessingResult()
-                            .getRecipient()
-                            .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
-                            .map(TransactionProviderEnum::entityAddress)
-                            .map(Address::toHexString)
-                            .orElse(Address.ZERO.toHexString()))
-                    .contractId(result.transactionProcessingResult()
-                            .getRecipient()
-                            .flatMap(address -> commonEntityAccessor.get(address, Optional.empty()))
-                            .map(Entity::toEntityId)
-                            .map(EntityId::toString)
-                            .orElse(null))
+                    .address(
+                            result.recipient().equals(Address.ZERO)
+                                    ? Address.ZERO.toHexString()
+                                    : commonEntityAccessor
+                                            .get(result.recipient(), Optional.empty())
+                                            .map(TransactionProviderEnum::entityAddress)
+                                            .map(Address::toHexString)
+                                            .orElse(null))
+                    .contractId(
+                            result.recipient().equals(Address.ZERO)
+                                    ? null
+                                    : commonEntityAccessor
+                                            .get(result.recipient(), Optional.empty())
+                                            .map(Entity::toEntityId)
+                                            .map(EntityId::toString)
+                                            .orElse(null))
                     .failed(!result.transactionProcessingResult().isSuccessful())
-                    .gas(result.transactionProcessingResult().getGasUsed())
+                    .gas(result.transactionProcessingResult().gasUsed())
                     .opcodes(result.opcodes().stream()
                             .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
                                     .depth(opcode.depth())
@@ -685,8 +597,10 @@ class OpcodesControllerTest {
                                                     entry -> entry.getKey().toHexString(),
                                                     entry -> entry.getValue().toHexString()))))
                             .toList())
-                    .returnValue(Optional.ofNullable(
-                                    result.transactionProcessingResult().getOutput())
+                    .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
+                                    .functionResult()
+                                    .contractCallResult()
+                                    .toByteArray()))
                             .map(Bytes::toHexString)
                             .orElse(Bytes.EMPTY.toHexString()));
         }
@@ -697,27 +611,24 @@ class OpcodesControllerTest {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
-            final long gasCost =
-                    opcodes.stream().map(Opcode::gasCost).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
-                    HederaEvmTransactionProcessingResult.successful(
-                            List.of(), gasUsed, 0, gasCost, Bytes.EMPTY, recipient),
+                    new EvmTransactionResult(
+                            ResponseCodeEnum.SUCCESS,
+                            ContractFunctionResult.newBuilder().gasUsed(gasUsed).build()),
+                    Address.ZERO,
                     opcodes);
         }
 
-        private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(final OpcodeTracerOptions options) {
+        private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(
+                final OpcodeTracerOptions options, final Address recipient) {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
-            final long gasCost =
-                    opcodes.stream().map(Opcode::gasCost).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
-                    HederaEvmTransactionProcessingResult.failed(
-                            gasUsed,
-                            0,
-                            gasCost,
-                            Optional.of(Bytes.EMPTY),
-                            Optional.of(ExceptionalHaltReason.PRECOMPILE_ERROR)),
+                    new EvmTransactionResult(
+                            ResponseCodeEnum.CONTRACT_REVERT_EXECUTED,
+                            ContractFunctionResult.newBuilder().gasUsed(gasUsed).build()),
+                    recipient,
                     opcodes);
         }
 
@@ -802,10 +713,8 @@ class OpcodesControllerTest {
     public static class TestConfig {
 
         @Bean
-        MirrorNodeEvmProperties evmProperties() {
-            var commonProperties = new CommonProperties();
-            var systemEntity = new SystemEntity(commonProperties);
-            return new MirrorNodeEvmProperties(commonProperties, systemEntity);
+        EvmProperties evmProperties() {
+            return new EvmProperties();
         }
 
         @Bean

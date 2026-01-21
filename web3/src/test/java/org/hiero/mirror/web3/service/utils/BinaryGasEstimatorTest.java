@@ -4,14 +4,14 @@ package org.hiero.mirror.web3.service.utils;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
-import java.util.Optional;
+import com.hedera.hapi.node.base.ResponseCodeEnum;
+import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.assertj.core.data.Percentage;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.hyperledger.besu.datatypes.Address;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -20,7 +20,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 @RequiredArgsConstructor
 class BinaryGasEstimatorTest extends Web3IntegrationTest {
     private final BinaryGasEstimator binaryGasEstimator;
-    private final MirrorNodeEvmProperties properties;
+    private final EvmProperties properties;
     private final AtomicInteger iterations = new AtomicInteger(0);
 
     /**
@@ -45,11 +45,7 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     void binarySearch(final long low, final long high, final int iterationLimit) {
         // First call with no failing contract calls for gasUsed reference
         final var regularCall = binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b),
-                unused -> createTxnResult(low, true),
-                low,
-                high,
-                properties.isModularizedServices());
+                (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, true), low, high);
 
         assertThat(regularCall).as("result must not go out of bounds").isBetween(low, high);
 
@@ -73,11 +69,7 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
     void binarySearchWithFailingCalls(final long low, final long high, final int regularCallGasUsage) {
         // Call where every second contract call fails
         final var callResult = binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b),
-                unused -> createTxnResult(low, failEverySecondCall()),
-                low,
-                high,
-                properties.isModularizedServices());
+                (a, b) -> iterations.addAndGet(b), unused -> createTxnResult(low, failEverySecondCall()), low, high);
 
         assertThat(callResult).as("result must not go out of bounds").isBetween(low, high);
         assertThat(iterations.get())
@@ -99,23 +91,22 @@ class BinaryGasEstimatorTest extends Web3IntegrationTest {
          */
         final var low = 0;
         final var high = Long.MAX_VALUE;
-        binaryGasEstimator.search(
-                (a, b) -> iterations.addAndGet(b),
-                unused -> createTxnResult(0, false),
-                low,
-                high,
-                properties.isModularizedServices());
+        binaryGasEstimator.search((a, b) -> iterations.addAndGet(b), unused -> createTxnResult(0, false), low, high);
 
         assertThat(iterations.get())
                 .as("iteration limit")
                 .isLessThanOrEqualTo(properties.getMaxGasEstimateRetriesCount());
     }
 
-    private HederaEvmTransactionProcessingResult createTxnResult(final long gasUsed, final boolean isSuccessful) {
+    private EvmTransactionResult createTxnResult(final long gasUsed, final boolean isSuccessful) {
         if (!isSuccessful) {
-            return HederaEvmTransactionProcessingResult.failed(gasUsed, 0, 0, Optional.empty(), Optional.empty());
+            return new EvmTransactionResult(
+                    ResponseCodeEnum.FAIL_INVALID,
+                    ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
         }
-        return HederaEvmTransactionProcessingResult.successful(null, gasUsed, 0, 0, null, Address.ZERO);
+        return new EvmTransactionResult(
+                ResponseCodeEnum.SUCCESS,
+                ContractFunctionResult.newBuilder().gasUsed(gasUsed).build());
     }
 
     private boolean failEverySecondCall() {

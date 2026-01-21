@@ -76,20 +76,13 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallScheduleTest {
         final var entityId = EntityId.of(schedule.getScheduleId());
         final var functionCall = contract.call_getFungibleCreateTokenInfo(getAddressFromEntityId(entityId));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var functionCallResult = functionCall.send();
-            assertThat(functionCallResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
-            assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
-            assertThat(functionCallResult.component2().tokenInfo.token.treasury)
-                    .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
-            assertThat(functionCallResult.component2().tokenInfo.token.maxSupply)
-                    .isEqualTo(BigInteger.valueOf(maxSupply));
-
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var functionCallResult = functionCall.send();
+        assertThat(functionCallResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
+        assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
+        assertThat(functionCallResult.component2().tokenInfo.token.treasury)
+                .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
+        assertThat(functionCallResult.component2().tokenInfo.token.maxSupply).isEqualTo(BigInteger.valueOf(maxSupply));
     }
 
     @Test
@@ -120,19 +113,13 @@ class ContractCallGetScheduleInfoTest extends AbstractContractCallScheduleTest {
         final var entityId = EntityId.of(schedule.getScheduleId());
         final var functionCall = contract.call_getNonFungibleCreateTokenInfo(getAddressFromEntityId(entityId));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            final var functionCallResult = functionCall.send();
-            assertThat(functionCallResult.component1())
-                    .isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
-            assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
-            assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
-            assertThat(functionCallResult.component2().tokenInfo.token.treasury)
-                    .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
-            assertThat(functionCallResult.component2().tokenInfo.token.maxSupply)
-                    .isEqualTo(BigInteger.valueOf(maxSupply));
-        } else {
-            assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-        }
+        final var functionCallResult = functionCall.send();
+        assertThat(functionCallResult.component1()).isEqualTo(BigInteger.valueOf(ResponseCodeEnum.SUCCESS.getNumber()));
+        assertThat(functionCallResult.component2().tokenInfo.token.name).isEqualTo(tokenName);
+        assertThat(functionCallResult.component2().tokenInfo.token.symbol).isEqualTo(tokenSymbol);
+        assertThat(functionCallResult.component2().tokenInfo.token.treasury)
+                .isEqualTo(getAddressFromEntityId(treasuryAccount.toEntityId()));
+        assertThat(functionCallResult.component2().tokenInfo.token.maxSupply).isEqualTo(BigInteger.valueOf(maxSupply));
     }
 
     /**

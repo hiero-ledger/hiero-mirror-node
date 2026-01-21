@@ -33,11 +33,14 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public NetworkSupply getSupply(Bound timestamp) {
-        final var unreleasedSupplyAccountIds = networkProperties.getUnreleasedSupplyAccountIds();
         final NetworkSupply networkSupply;
 
+        final var bounds = networkProperties.getUnreleasedSupplyRangeBounds();
+        final var lowerBounds = bounds.lowerBounds();
+        final var upperBounds = bounds.upperBounds();
+
         if (timestamp.isEmpty()) {
-            networkSupply = entityRepository.getSupply(unreleasedSupplyAccountIds);
+            networkSupply = entityRepository.getSupply(lowerBounds, upperBounds);
         } else {
             var minTimestamp = timestamp.getAdjustedLowerRangeValue();
             final var maxTimestamp = timestamp.adjustUpperBound();
@@ -51,7 +54,7 @@ final class NetworkServiceImpl implements NetworkService {
             minTimestamp = Math.max(minTimestamp, optimalLowerBound);
 
             networkSupply =
-                    accountBalanceRepository.getSupplyHistory(unreleasedSupplyAccountIds, minTimestamp, maxTimestamp);
+                    accountBalanceRepository.getSupplyHistory(lowerBounds, upperBounds, minTimestamp, maxTimestamp);
         }
 
         if (networkSupply.consensusTimestamp() == 0L) {

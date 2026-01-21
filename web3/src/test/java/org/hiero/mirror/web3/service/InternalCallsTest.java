@@ -9,7 +9,6 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.TRANSACTION_GAS_LIMIT;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -67,12 +66,9 @@ public class InternalCallsTest extends AbstractContractCallServiceTest {
         meterRegistry.clear();
         final var result = contract.call_sendTo(nonExistingAddress).send();
 
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            assertThat(result).isEqualTo(Boolean.TRUE);
-        } else {
-            // In the mod code, there is a check if the address is an alias and in this case it is not.
-            assertThat(result).isEqualTo(Boolean.FALSE);
-        }
+        // In the mod code, there is a check if the address is an alias and in this case it is not.
+        assertThat(result).isEqualTo(Boolean.FALSE);
+
         assertGasLimit(TRANSACTION_GAS_LIMIT);
     }
 
@@ -81,15 +77,12 @@ public class InternalCallsTest extends AbstractContractCallServiceTest {
         final var contract = testWeb3jService.deploy(InternalCaller::deploy);
         meterRegistry.clear();
         final var functionCall = contract.send_transferTo(nonExistingAddress);
-        if (!mirrorNodeEvmProperties.isModularizedServices()) {
-            functionCall.send();
-            assertThat(testWeb3jService.getTransactionResult()).isEqualTo(HEX_PREFIX);
-        } else {
-            // In the mod code, there is a check if the address is an alias and in this case it is not.
-            assertThatThrownBy(functionCall::send)
-                    .isInstanceOf(MirrorEvmTransactionException.class)
-                    .hasMessage(CONTRACT_REVERT_EXECUTED.name());
-        }
+
+        // In the mod code, there is a check if the address is an alias and in this case it is not.
+        assertThatThrownBy(functionCall::send)
+                .isInstanceOf(MirrorEvmTransactionException.class)
+                .hasMessage(CONTRACT_REVERT_EXECUTED.name());
+
         assertGasLimit(TRANSACTION_GAS_LIMIT);
     }
 

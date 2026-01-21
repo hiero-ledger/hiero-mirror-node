@@ -24,10 +24,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.sun.jna.ptr.IntByReference;
 import com.swirlds.state.State;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
@@ -36,10 +33,7 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
@@ -62,13 +56,12 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
-import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
@@ -109,7 +102,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected TestWeb3jService testWeb3jService;
 
     @Resource
-    protected MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected EvmProperties evmProperties;
 
     @Resource
     protected State state;
@@ -119,7 +112,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected RecordFile genesisRecordFile;
     protected Entity treasuryEntity;
-    protected double modularizedTrafficPercent;
     protected String treasuryAddress;
 
     public static Key getKeyWithDelegatableContractId(final Contract contract) {
@@ -189,12 +181,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @BeforeEach
     protected void setup() {
-        modularizedTrafficPercent = mirrorNodeEvmProperties.getModularizedTrafficPercent();
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(1.0);
-        } else {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(0.0);
-        }
         treasuryAddress = toAddress(systemEntity.treasuryAccount().getId()).toHexString();
         genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
@@ -208,7 +194,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
         domainBuilder
-                .entity(systemEntity.feeCollectorAccount())
+                .entity(systemEntity.networkAdminFeeAccount())
                 .customize(e -> e.createdTimestamp(genesisRecordFile.getConsensusStart())
                         .timestampRange(Range.atLeast(genesisRecordFile.getConsensusStart())))
                 .persist();
@@ -225,28 +211,19 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     @AfterEach
     void cleanup() {
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            mirrorNodeEvmProperties.setModularizedTrafficPercent(modularizedTrafficPercent);
-        }
-
         testWeb3jService.reset();
         EndpointContext.clearCurrentEndpoint();
     }
 
     protected long gasUsedAfterExecution(final ContractExecutionParameters serviceParameters) {
         try {
-            return contractExecutionService.callContract(serviceParameters).getGasUsed();
+            return contractExecutionService
+                    .callContract(serviceParameters)
+                    .functionResult()
+                    .gasUsed();
         } catch (MirrorEvmTransactionException e) {
             // Some tests expect to fail but still want to capture the gas used
-            if (mirrorNodeEvmProperties.isModularizedServices()) {
-                return e.getResult().getGasUsed();
-            } else {
-                var result = e.getResult();
-                if (result != null) {
-                    return result.getGasUsed();
-                }
-            }
-            throw e;
+            return e.getResult().gasUsed();
         }
     }
 
@@ -281,8 +258,8 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Contract contract,
             final Address payerAddress,
             final long value) {
-        final var actualGasUsed = gasUsedAfterExecution(getContractExecutionParameters(
-                functionCall, contract, payerAddress, value, mirrorNodeEvmProperties.isModularizedServices()));
+        final var actualGasUsed =
+                gasUsedAfterExecution(getContractExecutionParameters(functionCall, contract, payerAddress, value));
 
         testWeb3jService.setEstimateGas(true);
         final AtomicLong estimateGasUsedResult = new AtomicLong();
@@ -298,14 +275,12 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract) {
-        return getContractExecutionParameters(
-                functionCall, contract, Address.ZERO, 0L, mirrorNodeEvmProperties.isModularizedServices());
+        return getContractExecutionParameters(functionCall, contract, Address.ZERO, 0L);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
             final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(
-                data, receiver, payerAddress, value, ETH_CALL, mirrorNodeEvmProperties.isModularizedServices());
+        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
@@ -313,8 +288,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
-            final CallType callType,
-            final boolean isModularized) {
+            final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
                 .callData(data)
@@ -322,7 +296,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isEstimate(callType == ETH_ESTIMATE_GAS)
-                .isModularized(isModularized)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
@@ -334,8 +307,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final RemoteFunctionCall<?> functionCall,
             final Contract contract,
             final Address payerAddress,
-            final long value,
-            final boolean isModularized) {
+            final long value) {
         return getContractExecutionParameters(
                 Bytes.fromHexString(functionCall.encodeFunctionCall()),
                 Address.fromHexString(contract.getContractAddress()),
@@ -584,9 +556,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers.
-     * This ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations.
-     * Use this when testing scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
+     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers. This
+     * ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations. Use this when testing
+     * scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
      *
      * @return Entity that is persisted in the database with evmAddress and sufficient balance
      */
@@ -791,7 +763,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
                 .callData(callDataBytes)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .receiver(functionProvider.contractAddress())
                 .sender(functionProvider.sender())
                 .value(functionProvider.value())
@@ -823,24 +794,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected String getAddressFromEvmAddress(final byte[] evmAddress) {
         return Address.wrap(Bytes.wrap(evmAddress)).toHexString();
-    }
-
-    protected void activateModularizedFlagAndInitializeState()
-            throws InvocationTargetException, IllegalAccessException {
-        mirrorNodeEvmProperties.setModularizedServices(true);
-
-        Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-        postConstructMethod.setAccessible(true);
-        postConstructMethod.invoke(state);
-
-        final Map<String, String> propertiesMap = new ConcurrentHashMap<>();
-        propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-        propertiesMap.put("contracts.maxGasPerSec", "15000000");
-        mirrorNodeEvmProperties.setProperties(propertiesMap);
     }
 
     protected void persistRewardAccounts() {
@@ -910,9 +863,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isValidatePayerBalance()
-                ? DEFAULT_ACCOUNT_BALANCE
-                : DEFAULT_SMALL_ACCOUNT_BALANCE;
+        return evmProperties.isValidatePayerBalance() ? DEFAULT_ACCOUNT_BALANCE : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {

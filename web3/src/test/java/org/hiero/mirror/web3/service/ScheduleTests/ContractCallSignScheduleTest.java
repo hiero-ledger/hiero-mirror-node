@@ -55,12 +55,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
         final var functionCall = contract.send_signScheduleCall(
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -79,12 +74,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
         final var functionCall =
                 contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -104,12 +94,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
         final var functionCall =
                 contract.send_authorizeScheduleCall((getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))));
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -196,12 +181,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))), signatureMapBytes);
 
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test
@@ -281,12 +261,7 @@ class ContractCallSignScheduleTest extends AbstractContractCallScheduleTest {
                 (getAddressFromEntityId(EntityId.of(schedule.getScheduleId()))),
                 SignatureMap.PROTOBUF.toBytes(signatureMap).toByteArray());
         // Then
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            verifyEthCallAndEstimateGas(functionCall, contract);
-        } else {
-            final var exception = assertThrows(MirrorEvmTransactionException.class, functionCall::send);
-            assertThat(exception.getMessage()).isEqualTo(CONTRACT_REVERT_EXECUTED.protoName());
-        }
+        verifyEthCallAndEstimateGas(functionCall, contract);
     }
 
     @Test

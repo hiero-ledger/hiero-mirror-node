@@ -5,7 +5,6 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.hiero.mirror.test.e2e.acceptance.config.RestProperties.URL_PREFIX;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.IS_MODULARIZED_HEADER;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Suppliers;
@@ -21,7 +20,6 @@ import com.hedera.hashgraph.sdk.TopicMessageQuery;
 import jakarta.inject.Named;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +49,8 @@ import org.hiero.mirror.rest.model.ContractResultsResponse;
 import org.hiero.mirror.rest.model.ContractStateResponse;
 import org.hiero.mirror.rest.model.ContractsResponse;
 import org.hiero.mirror.rest.model.CryptoAllowancesResponse;
+import org.hiero.mirror.rest.model.HooksResponse;
+import org.hiero.mirror.rest.model.HooksStorageResponse;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
@@ -324,10 +324,7 @@ public class MirrorNodeClient {
 
     public OpcodesResponse getContractResultsOpcodes(String transactionId) {
         log.debug("Verify contract result opcodes '{}' is returned by Mirror Node", transactionId);
-        final var headers =
-                Collections.singletonMap(IS_MODULARIZED_HEADER, String.valueOf(web3Properties.isModularizedServices()));
-        return callWeb3GetRestEndpoint(
-                "/contracts/results/{id}/opcodes", OpcodesResponse.class, headers, transactionId);
+        return callWeb3GetRestEndpoint("/contracts/results/{id}/opcodes", OpcodesResponse.class, transactionId);
     }
 
     public NetworkExchangeRateSetResponse getExchangeRates() {
@@ -336,9 +333,7 @@ public class MirrorNodeClient {
     }
 
     public ContractCallResponse contractsCall(ContractCallRequest request) {
-        final var headers =
-                Collections.singletonMap(IS_MODULARIZED_HEADER, String.valueOf(web3Properties.isModularizedServices()));
-        return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request, headers);
+        return callPostRestEndpoint("/contracts/call", ContractCallResponse.class, request);
     }
 
     public BlocksResponse getBlocks(Order order, long limit) {
@@ -381,16 +376,7 @@ public class MirrorNodeClient {
 
     public NetworkSupplyResponse getNetworkSupply() {
         String supplyEndpoint = "/network/supply";
-        return callConvertedRestEndpoint(
-                supplyEndpoint, NetworkSupplyResponse.class, (restJavaResponse, restResponse) -> {
-                    assertThat(restJavaResponse)
-                            .returns(restResponse.getReleasedSupply(), NetworkSupplyResponse::getReleasedSupply)
-                            .returns(restResponse.getTotalSupply(), NetworkSupplyResponse::getTotalSupply)
-                            // restJava endpoint is queried after rest endpoint so the timestamp should be the same or
-                            // later
-                            .satisfies(s ->
-                                    assertThat(s.getTimestamp()).isGreaterThanOrEqualTo(restResponse.getTimestamp()));
-                });
+        return callRestJavaEndpoint(supplyEndpoint, NetworkSupplyResponse.class);
     }
 
     public Nft getNftInfo(String tokenId, long serialNumber) {
@@ -544,6 +530,15 @@ public class MirrorNodeClient {
         return callRestEndpoint("/balances?account.id={accountId}", BalancesResponse.class, accountId);
     }
 
+    public HooksResponse getAccountHooks(String accountId) {
+        return callRestJavaEndpoint("/accounts/{accountId}/hooks", HooksResponse.class, accountId);
+    }
+
+    public HooksStorageResponse getHookStorage(String accountId, long hookId) {
+        var path = "/accounts/{accountId}/hooks/{hookId}/storage";
+        return callRestJavaEndpoint(path, HooksStorageResponse.class, accountId, hookId);
+    }
+
     private <T> T callConvertedRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         return callConvertedRestEndpoint(
                 uri,
@@ -588,10 +583,9 @@ public class MirrorNodeClient {
         return restClient.get().uri(normalizeUri(uri), uriVariables).retrieve().body(classType);
     }
 
-    private <T, R> T callPostRestEndpoint(String uri, Class<T> classType, R request, Map<String, String> headers) {
+    private <T, R> T callPostRestEndpoint(String uri, Class<T> classType, R request) {
         return retryTemplate.execute(x -> {
             final var requestSpec = web3Client.post().uri(uri);
-            headers.forEach(requestSpec::header);
             return requestSpec.body(request).retrieve().body(classType);
         });
     }
@@ -701,12 +695,10 @@ public class MirrorNodeClient {
         return Math.round(actualGas * (1 + (percentage / 100.0)));
     }
 
-    private <T> T callWeb3GetRestEndpoint(
-            String uri, Class<T> classType, Map<String, String> headers, Object... uriVariables) {
+    private <T> T callWeb3GetRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         final var normalizedUri = normalizeUri(uri);
         return retryTemplate.execute(x -> {
             final var requestSpec = web3Client.get().uri(normalizedUri, uriVariables);
-            headers.forEach(requestSpec::header);
             return requestSpec.retrieve().body(classType);
         });
     }

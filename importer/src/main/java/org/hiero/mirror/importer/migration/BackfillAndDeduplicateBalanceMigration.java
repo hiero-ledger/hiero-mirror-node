@@ -40,8 +40,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
 
     // Can't use spring data repositories because the migration runs with a different role, so it can drop the resources
     // at the end
-    private static final String CLEANUP_SQL =
-            """
+    private static final String CLEANUP_SQL = """
             drop function if exists create_full_account_balance_snapshot(bigint, bigint);
             drop function if exists create_deduped_account_balance_snapshot(bigint, bigint);
             drop function if exists create_full_token_balance_snapshot(bigint, bigint);
@@ -65,16 +64,14 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
     private static final String CREATE_DEDUPED_TOKEN_BALANCE_SNAPSHOT_SQL =
             "select create_deduped_token_balance_snapshot(:balanceTimestamp, :prevBalanceTimestamp)";
 
-    private static final String IS_ACCOUNT_BALANCE_PARTITION_EMPTY_SQL =
-            """
+    private static final String IS_ACCOUNT_BALANCE_PARTITION_EMPTY_SQL = """
             select not exists(
               select * from account_balance
               where consensus_timestamp >= :lowerBound and consensus_timestamp < :upperBound
             )
             """;
 
-    private static final String PATCH_ORIGINAL_FIRST_ACCOUNT_BALANCE_SNAPSHOT_SQL =
-            """
+    private static final String PATCH_ORIGINAL_FIRST_ACCOUNT_BALANCE_SNAPSHOT_SQL = """
             with previous as (
               select *
               from account_balance_old
@@ -91,8 +88,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             where c.account_id is null
             """;
 
-    private static final String PATCH_ORIGINAL_FIRST_TOKEN_BALANCE_SNAPSHOT_SQL =
-            """
+    private static final String PATCH_ORIGINAL_FIRST_TOKEN_BALANCE_SNAPSHOT_SQL = """
             with previous as (
               select *
               from token_balance_old
@@ -109,8 +105,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             where c.account_id is null
             """;
 
-    private static final String SELECT_NEXT_CONSENSUS_TIMESTAMP_SQL =
-            """
+    private static final String SELECT_NEXT_CONSENSUS_TIMESTAMP_SQL = """
             select consensus_timestamp
             from account_balance_file
             where consensus_timestamp >= :lowerBound and consensus_timestamp < :upperBound
@@ -118,8 +113,7 @@ public class BackfillAndDeduplicateBalanceMigration extends AsyncJavaMigration<L
             limit 1
             """;
 
-    private static final String SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL =
-            """
+    private static final String SELECT_INITIAL_CONSENSUS_TIMESTAMP_SQL = """
             select coalesce(max(consensus_timestamp), 0)
             from account_balance
             where account_id = 2 and consensus_timestamp < ?

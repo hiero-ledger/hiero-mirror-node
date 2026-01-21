@@ -39,9 +39,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     private static final String EXPECTED_RESULT_NEGATIVE_TESTS = "hardcodedResult";
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -98,9 +96,7 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
                             CONTRACT_ID,                ADMIN_KEY,
                             CONTRACT_ID,                KYC_KEY,
                             CONTRACT_ID,                FREEZE_KEY,
@@ -299,12 +295,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+    @CsvSource(textBlock = """
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -313,10 +307,6 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);
@@ -349,12 +339,10 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
     }
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
-                            true, false, true, true
-                            false, false, false, false
-                            true, true, true, true
+    @CsvSource(textBlock = """
+                            true, false, false, true
+                            false, false, true, false
+                            true, true, false, true
                             """)
     void createNFTAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
             final boolean withKeys,
@@ -363,10 +351,6 @@ class ContractCallNestedCallsTest extends AbstractContractCallServiceOpcodeTrace
             final boolean defaultFreezeStatus)
             throws Exception {
         // Given
-        // Modularized code now returns false if the token has no kyc and true when it's created with kyc key
-        if (mirrorNodeEvmProperties.isModularizedServices()) {
-            defaultKycStatus = !defaultKycStatus;
-        }
         final var sender = accountEntityWithSufficientBalancePersist();
         final var treasury = accountEntityWithSufficientBalancePersist();
         final var contract = testWeb3jService.deploy(NestedCalls::deploy);

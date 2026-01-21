@@ -9,9 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
@@ -47,13 +49,6 @@ public class ContractCallContext {
     @Setter
     private CallServiceParameters callServiceParameters;
 
-    /**
-     * Record file which stores the block timestamp and other historical block details used for filtering of historical
-     * data.
-     */
-    @Setter
-    private RecordFile recordFile;
-
     @Setter
     private EntityNumber entityNumber;
 
@@ -69,24 +64,10 @@ public class ContractCallContext {
     @Setter
     private long gasRequirement;
 
+    @Setter
+    private Supplier<RecordFile> blockSupplier = () -> null;
+
     private ContractCallContext() {}
-
-    /**
-     * Determines if payer balance validation should be performed.
-     * Balance validation is enabled when either gasPrice or value is greater than zero,
-     * and a valid sender is provided.
-     *
-     * @return true if balance validation should be performed, false otherwise
-     */
-    public boolean validatePayerBalance() {
-        if (callServiceParameters == null
-                || callServiceParameters.getSender() == null
-                || callServiceParameters.getSender().isZero()) {
-            return false;
-        }
-
-        return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
-    }
 
     public static ContractCallContext get() {
         return SCOPED_VALUE.get();
@@ -103,8 +84,26 @@ public class ContractCallContext {
         return SCOPED_VALUE.isBound() && SCOPED_VALUE.get().isBalanceCall();
     }
 
+    @SneakyThrows
     public static <T> T run(Function<ContractCallContext, T> function) {
-        return ScopedValue.getWhere(SCOPED_VALUE, new ContractCallContext(), () -> function.apply(SCOPED_VALUE.get()));
+        return ScopedValue.where(SCOPED_VALUE, new ContractCallContext())
+                .call(() -> function.apply(SCOPED_VALUE.get()));
+    }
+
+    /**
+     * Determines if payer balance validation should be performed. Balance validation is enabled when either gasPrice or
+     * value is greater than zero, and a valid sender is provided.
+     *
+     * @return true if balance validation should be performed, false otherwise
+     */
+    public boolean validatePayerBalance() {
+        if (callServiceParameters == null
+                || callServiceParameters.getSender() == null
+                || callServiceParameters.getSender().isZero()) {
+            return false;
+        }
+
+        return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
     }
 
     public void reset() {
@@ -116,10 +115,7 @@ public class ContractCallContext {
     }
 
     public boolean useHistorical() {
-        if (callServiceParameters != null) {
-            return callServiceParameters.getBlock() != BlockType.LATEST;
-        }
-        return recordFile != null; // Remove recordFile comparison after mono code deletion
+        return callServiceParameters != null && callServiceParameters.getBlock() != BlockType.LATEST;
     }
 
     /**
@@ -134,7 +130,7 @@ public class ContractCallContext {
     }
 
     private Optional<Long> getTimestampOrDefaultFromRecordFile() {
-        return timestamp.or(() -> Optional.ofNullable(recordFile).map(RecordFile::getConsensusEnd));
+        return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
@@ -143,5 +139,9 @@ public class ContractCallContext {
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
         return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+    }
+
+    public RecordFile getRecordFile() {
+        return blockSupplier.get();
     }
 }

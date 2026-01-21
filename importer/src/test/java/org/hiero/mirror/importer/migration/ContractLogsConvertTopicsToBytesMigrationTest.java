@@ -121,8 +121,7 @@ class ContractLogsConvertTopicsToBytesMigrationTest extends ImporterIntegrationT
     }
 
     private void revertMigration() {
-        ownerJdbcTemplate.execute(
-                """
+        ownerJdbcTemplate.execute("""
             alter table contract_log alter column topic0 type varchar(64) using encode(topic0, 'hex');
             alter table contract_log alter column topic1 type varchar(64) using encode(topic1, 'hex');
             alter table contract_log alter column topic2 type varchar(64) using encode(topic2, 'hex');

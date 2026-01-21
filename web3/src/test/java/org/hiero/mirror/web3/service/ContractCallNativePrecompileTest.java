@@ -13,7 +13,6 @@ import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -21,16 +20,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-class ContractCallNativePrecompileTest extends Web3IntegrationTest {
+final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
 
     private final ContractExecutionService contractCallService;
-
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
 
     @BeforeEach
     void setup() {
         domainBuilder.recordFile().customize(f -> f.index(0L)).persist();
-        domainBuilder.entity(systemEntity.feeCollectorAccount()).persist();
+        domainBuilder.entity(systemEntity.networkAdminFeeAccount()).persist();
         persistRewardAccounts();
     }
 
@@ -237,7 +234,6 @@ class ContractCallNativePrecompileTest extends Web3IntegrationTest {
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isStatic(false)
-                .isModularized(mirrorNodeEvmProperties.isModularizedServices())
                 .isEstimate(false)
                 .callType(ETH_CALL)
                 .value(0L)

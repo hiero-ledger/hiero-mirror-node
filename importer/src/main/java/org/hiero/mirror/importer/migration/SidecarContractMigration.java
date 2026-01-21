@@ -23,8 +23,7 @@ public class SidecarContractMigration {
 
     private static final int BATCH_SIZE = 100;
     private static final int IN_CLAUSE_LIMIT = 32767;
-    private static final String UPDATE_RUNTIME_BYTECODE_SQL =
-            """
+    private static final String UPDATE_RUNTIME_BYTECODE_SQL = """
             insert into contract (id, runtime_bytecode)
             values (?, ?)
             on conflict (id)

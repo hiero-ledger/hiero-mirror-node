@@ -8,6 +8,7 @@ import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REV
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INSUFFICIENT_GAS;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INVALID_OPERATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
@@ -58,7 +59,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -123,7 +124,7 @@ class OpcodeActionTracerTest {
     private MutableAccount recipientAccount;
 
     @Mock
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private EvmProperties evmProperties;
 
     // Transient test data
     private OpcodeActionTracer tracer;
@@ -146,12 +147,39 @@ class OpcodeActionTracerTest {
         contextMockedStatic.close();
     }
 
+    private static ContractAction contractAction(
+            final int index,
+            final int depth,
+            final CallOperationType callOperationType,
+            final int resultDataType,
+            final Address recipientAddress) {
+        return ContractAction.builder()
+                .callDepth(depth)
+                .caller(EntityId.of("0.0.1"))
+                .callerType(EntityType.ACCOUNT)
+                .callOperationType(callOperationType.getNumber())
+                .callType(ContractActionType.PRECOMPILE.getNumber())
+                .consensusTimestamp(new SecureRandom().nextLong())
+                .gas(REMAINING_GAS.get())
+                .gasUsed(GAS_PRICE)
+                .index(index)
+                .input(new byte[0])
+                .payerAccountId(EntityId.of("0.0.2"))
+                .recipientAccount(EntityId.of("0.0.3"))
+                .recipientAddress(recipientAddress.toArray())
+                .recipientContract(EntityId.of("0.0.4"))
+                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
+                .resultDataType(resultDataType)
+                .value(1L)
+                .build();
+    }
+
     @BeforeEach
     void setUp() {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        tracerOptions = new OpcodeTracerOptions(false, false, false, true);
+        tracerOptions = new OpcodeTracerOptions(false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
 
@@ -169,20 +197,11 @@ class OpcodeActionTracerTest {
                 MutableAccount account = worldUpdater.getAccount(frame.getRecipientAddress());
                 if (account != null) {
                     assertThat(account).isEqualTo(recipientAccount);
-                    if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                        verify(recipientAccount, times(1)).getUpdatedStorage();
-                    }
                 }
             } catch (final ModificationNotAllowedException e) {
-                if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                    verify(recipientAccount, never()).getUpdatedStorage();
-                }
             }
         } else {
             verify(worldUpdater, never()).getAccount(any());
-            if (!mirrorNodeEvmProperties.isModularizedServices()) {
-                verify(recipientAccount, never()).getUpdatedStorage();
-            }
         }
     }
 
@@ -263,7 +282,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is enabled in tracer options, should record stack")
     void shouldRecordStackWhenEnabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().stack(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().stack(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -278,7 +297,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given stack is disabled in tracer options, should not record stack")
     void shouldNotRecordStackWhenDisabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().stack(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().stack(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -292,7 +311,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is enabled in tracer options, should record memory")
     void shouldRecordMemoryWhenEnabled() {
         // Given
-        tracerOptions = tracerOptions.toBuilder().memory(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().memory(true).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -307,8 +326,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given memory is disabled in tracer options, should not record memory")
     void shouldNotRecordMemoryWhenDisabled() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().memory(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().memory(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -319,11 +337,10 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName("given storage is enabled in tracer options, should record storage for modularized services")
-    void shouldRecordStorageWhenEnabledModularized() {
+    @DisplayName("given storage is enabled in tracer options, should record storage")
+    void shouldRecordStorage() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
@@ -340,8 +357,7 @@ class OpcodeActionTracerTest {
             "given storage is enabled in tracer options, should return empty storage when there are no updates for modularized services")
     void shouldReturnEmptyStorageWhenThereAreNoUpdates() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -357,8 +373,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given account is missing in the world updater, should only log a warning and return empty storage")
     void shouldNotThrowExceptionWhenAccountIsMissingInWorldUpdater() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(true).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(new TxStorageUsage(List.of(), Set.of()));
@@ -374,8 +389,7 @@ class OpcodeActionTracerTest {
     @DisplayName("given storage is disabled in tracer options, should not record storage")
     void shouldNotRecordStorageWhenDisabled() {
         // Given
-        tracerOptions =
-                tracerOptions.toBuilder().storage(false).modularized(true).build();
+        tracerOptions = tracerOptions.toBuilder().storage(false).build();
         frame = setupInitialFrame(tracerOptions);
 
         // When
@@ -389,12 +403,8 @@ class OpcodeActionTracerTest {
     @DisplayName("given exceptional halt occurs, should capture frame data and halt reason")
     void shouldCaptureFrameWhenExceptionalHaltOccurs() {
         // Given
-        tracerOptions = tracerOptions.toBuilder()
-                .stack(true)
-                .memory(true)
-                .storage(true)
-                .modularized(true)
-                .build();
+        tracerOptions =
+                tracerOptions.toBuilder().stack(true).memory(true).storage(true).build();
         frame = setupInitialFrame(tracerOptions);
         when(rootProxyWorldUpdater.getEvmFrameState()).thenReturn(evmFrameState);
         when(evmFrameState.getTxStorageUsage(anyBoolean())).thenReturn(txStorageUsage);
@@ -584,6 +594,54 @@ class OpcodeActionTracerTest {
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
     }
 
+    @Test
+    @DisplayName("should set balance call flag when BALANCE opcode is executed")
+    void shouldSetBalanceCallFlagForBalanceOperation() {
+        // Given
+        final var balanceOperation = new AbstractOperation(0x31, BALANCE_OPERATION_NAME, 1, 1, null) {
+            @Override
+            public OperationResult execute(final MessageFrame frame, final EVM evm) {
+                return new OperationResult(GAS_COST, null);
+            }
+        };
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(balanceOperation);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, times(1)).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not set balance call flag when non-BALANCE opcode is executed")
+    void shouldNotSetBalanceCallFlagForNonBalanceOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(OPERATION);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not throw exception when current operation is null")
+    void shouldHandleNullCurrentOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(null);
+
+        // When & Then
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
     private Opcode executeOperation(final MessageFrame frame) {
         return executeOperation(frame, null);
     }
@@ -767,32 +825,5 @@ class OpcodeActionTracerTest {
 
     private ContractAction getContractActionWithRevert() {
         return contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-    }
-
-    private static ContractAction contractAction(
-            final int index,
-            final int depth,
-            final CallOperationType callOperationType,
-            final int resultDataType,
-            final Address recipientAddress) {
-        return ContractAction.builder()
-                .callDepth(depth)
-                .caller(EntityId.of("0.0.1"))
-                .callerType(EntityType.ACCOUNT)
-                .callOperationType(callOperationType.getNumber())
-                .callType(ContractActionType.PRECOMPILE.getNumber())
-                .consensusTimestamp(new SecureRandom().nextLong())
-                .gas(REMAINING_GAS.get())
-                .gasUsed(GAS_PRICE)
-                .index(index)
-                .input(new byte[0])
-                .payerAccountId(EntityId.of("0.0.2"))
-                .recipientAccount(EntityId.of("0.0.3"))
-                .recipientAddress(recipientAddress.toArray())
-                .recipientContract(EntityId.of("0.0.4"))
-                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
-                .resultDataType(resultDataType)
-                .value(1L)
-                .build();
     }
 }

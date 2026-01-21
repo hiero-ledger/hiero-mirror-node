@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hiero.mirror.importer.downloader.block.BlockNode.ERROR_METRIC_NAME;
 
 import com.asarkar.grpc.test.GrpcCleanupExtension;
 import com.asarkar.grpc.test.Resources;
@@ -79,7 +80,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties,
-                streamProperties);
+                streamProperties,
+                meterRegistry);
     }
 
     @AfterEach
@@ -93,22 +95,26 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 100, 0),
-                streamProperties);
+                streamProperties,
+                meterRegistry);
         var second = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 101, 0),
-                streamProperties);
+                streamProperties,
+                meterRegistry);
         var third = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("peer", 99, 0),
-                streamProperties);
+                streamProperties,
+                meterRegistry);
         var forth = new BlockNode(
                 InProcessManagedChannelBuilderProvider.INSTANCE,
                 NOOP_GRPC_BUFFER_DISPOSER,
                 blockNodeProperties("localhost", 50, 1),
-                streamProperties);
+                streamProperties,
+                meterRegistry);
         var all = Stream.of(forth, third, second, first).sorted().toList();
         assertThat(all).containsExactly(first, second, third, forth);
     }
@@ -390,6 +396,39 @@ final class BlockNodeTest extends BlockNodeTestBase {
             assertThat(node.isActive()).isFalse();
             assertThat(node.tryReadmit(false).isActive()).isTrue();
         }
+    }
+
+    @Test
+    void streamBlocksSuccessDoesNotIncreaseErrorMetric(Resources resources) {
+        // given
+        var responses = List.of(
+                subscribeStreamResponse(blockItemSet(blockHead(0))),
+                subscribeStreamResponse(blockItemSet()),
+                subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())),
+                subscribeStreamResponse(0),
+                subscribeStreamResponse(blockItemSet(blockHead(1), eventHeader(), blockProof())),
+                subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, commonDownloaderProperties, IGNORE);
+
+        // then
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(0);
+    }
+
+    @Test
+    void streamBlocksIncrementErrorMetricOnException(Resources resources) {
+        // given
+        var responses = List.of(subscribeStreamResponse(blockItemSet(recordFileItem(), blockHead(0))));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when, then
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
+                .isInstanceOf(BlockStreamException.class);
+        assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
+                .isInstanceOf(BlockStreamException.class);
+        assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
     }
 
     private void assertRecordItem(BlockStream blockStream) {

@@ -17,14 +17,6 @@ class RecordFileRepositoryTest extends Web3IntegrationTest {
     private RecordFileRepository recordFileRepository;
 
     @Test
-    void findLatestIndex() {
-        domainBuilder.recordFile().persist();
-        var latest = domainBuilder.recordFile().persist();
-
-        assertThat(recordFileRepository.findLatestIndex()).get().isEqualTo(latest.getIndex());
-    }
-
-    @Test
     void findEarliest() {
         final var genesisRecordFile =
                 domainBuilder.recordFile().customize(f -> f.index(0L)).persist();

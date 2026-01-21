@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.exception;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 
 import com.hedera.hapi.node.base.ResponseCodeEnum;
-import com.hedera.node.app.service.evm.contracts.execution.HederaEvmTransactionProcessingResult;
 import java.io.Serial;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -15,6 +14,7 @@ import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.exception.EvmException;
+import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 
 @Getter
 @SuppressWarnings("java:S110")
@@ -26,41 +26,26 @@ public class MirrorEvmTransactionException extends EvmException {
     private ResponseCodeEnum responseCode;
     private final String detail;
     private final String data;
-    private final Boolean isCallModularized;
-    private final transient HederaEvmTransactionProcessingResult result;
+    private final transient EvmTransactionResult result;
     // needs to be initialized since some tests fail, opted for List.of() instead of LinkedList because
     // in one of the constructors we reassign it
     private SequencedCollection<String> childTransactionErrors = List.of();
 
     public MirrorEvmTransactionException(
             final ResponseCodeEnum responseCode, final String detail, final String hexData) {
-        this(responseCode.name(), detail, hexData, null, null);
+        this(responseCode.name(), detail, hexData, null);
         this.responseCode = responseCode;
     }
 
-    public MirrorEvmTransactionException(
-            final ResponseCodeEnum responseCode,
-            final String detail,
-            final String hexData,
-            final Boolean isCallModularized) {
-        this(responseCode.name(), detail, hexData, null, isCallModularized);
-        this.responseCode = responseCode;
-    }
-
-    public MirrorEvmTransactionException(final String detail, final String hexData, final Boolean isCallModularized) {
-        this(null, detail, hexData, null, isCallModularized);
+    public MirrorEvmTransactionException(final String detail, final String hexData) {
+        this(null, detail, hexData, null);
     }
 
     public MirrorEvmTransactionException(
-            final String message,
-            final String detail,
-            final String hexData,
-            final HederaEvmTransactionProcessingResult result,
-            final Boolean isCallModularized) {
+            final String message, final String detail, final String hexData, final EvmTransactionResult result) {
         super(message);
         this.detail = detail;
         this.data = hexData;
-        this.isCallModularized = isCallModularized;
         this.result = result;
     }
 
@@ -68,10 +53,9 @@ public class MirrorEvmTransactionException extends EvmException {
             final ResponseCodeEnum responseCode,
             final String detail,
             final String hexData,
-            final HederaEvmTransactionProcessingResult result,
-            final Boolean isCallModularized,
+            final EvmTransactionResult result,
             final SequencedCollection<String> childTransactionErrors) {
-        this(responseCode.name(), detail, hexData, result, isCallModularized);
+        this(responseCode.name(), detail, hexData, result);
         this.childTransactionErrors = childTransactionErrors;
     }
 

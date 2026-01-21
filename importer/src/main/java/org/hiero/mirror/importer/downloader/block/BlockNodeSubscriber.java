@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import io.grpc.stub.BlockingClientCall;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,12 +27,17 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             final BlockStreamVerifier blockStreamVerifier,
             final CommonDownloaderProperties commonDownloaderProperties,
             final ManagedChannelBuilderProvider channelBuilderProvider,
-            final BlockProperties properties) {
+            final BlockProperties properties,
+            final MeterRegistry meterRegistry) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
         executor = Executors.newSingleThreadExecutor();
         nodes = properties.getNodes().stream()
                 .map(blockNodeProperties -> new BlockNode(
-                        channelBuilderProvider, this::drainGrpcBuffer, blockNodeProperties, properties.getStream()))
+                        channelBuilderProvider,
+                        this::drainGrpcBuffer,
+                        blockNodeProperties,
+                        properties.getStream(),
+                        meterRegistry))
                 .sorted()
                 .toList();
     }
@@ -51,7 +57,10 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         }
 
         log.info("Start streaming block {} from {}", nextBlockNumber.get(), node);
-        node.streamBlocks(nextBlockNumber.get(), commonDownloaderProperties, this::onBlockStream);
+        node.streamBlocks(
+                nextBlockNumber.get(),
+                commonDownloaderProperties,
+                (stream) -> onBlockStream(stream, node.getProperties().getEndpoint()));
     }
 
     private void drainGrpcBuffer(final BlockingClientCall<?, ?> grpcCall) {

@@ -32,9 +32,7 @@ import org.springframework.test.context.ContextConfiguration;
 class FixAsyncJavaMigrationHistoryMigrationTest extends AsyncJavaMigrationBaseTest {
 
     @ParameterizedTest
-    @CsvSource(
-            textBlock =
-                    """
+    @CsvSource(textBlock = """
             '', ''
             '', '-1,-2'
             '', '-1,-2,1',
