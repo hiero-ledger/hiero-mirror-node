@@ -57,6 +57,11 @@ const processRow = (row) => {
     }
   }
 
+  let delegationAddress = row.delegation_address && utils.toHexString(row.delegation_address, true);
+  if (!delegationAddress || delegationAddress === '0x0000000000000000000000000000000000000000') {
+    delegationAddress = '0x';
+  }
+
   const stakedToNode = row.staked_node_id !== null && row.staked_node_id !== -1;
   return {
     account: entityId.toString(),
@@ -65,7 +70,7 @@ const processRow = (row) => {
     balance,
     created_timestamp: utils.nsToSecNs(row.created_timestamp),
     decline_reward: row.decline_reward,
-    delegation_indicator: row.delegation_indicator,
+    delegation_address: delegationAddress,
     deleted: row.deleted,
     ethereum_nonce: row.ethereum_nonce,
     evm_address: evmAddress,
@@ -92,7 +97,7 @@ const entityFields = [
   'e.auto_renew_period',
   'e.created_timestamp',
   'e.decline_reward',
-  'e.delegation_indicator',
+  'e.delegation_address',
   'e.deleted',
   'e.ethereum_nonce',
   'e.evm_address',

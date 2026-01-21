@@ -8,6 +8,7 @@
       {
         "balance": 80,
         "balance_timestamp": "2344",
+        "delegation_address": null,
         "num": 18
       },
       {
@@ -18,6 +19,7 @@
       {
         "balance": 90,
         "balance_timestamp": "2343",
+        "delegation_address": "0x0000000000000000000000000000000000000000",
         "num": 19
       },
       {
@@ -100,7 +102,7 @@
             "alias": null,
             "created_timestamp": null,
             "decline_reward": false,
-            "delegation_indicator": "0x",
+            "delegation_address": "0x",
             "deleted": false,
             "ethereum_nonce": null,
             "evm_address": "0x0000000000000000000000000000000000000012",
@@ -125,7 +127,7 @@
             "alias": null,
             "created_timestamp": null,
             "decline_reward": false,
-            "delegation_indicator": "0x",
+            "delegation_address": "0x",
             "deleted": false,
             "ethereum_nonce": null,
             "evm_address": "0x0000000000000000000000000000000000000013",
@@ -173,7 +175,7 @@
             "alias": null,
             "created_timestamp": null,
             "decline_reward": false,
-            "delegation_indicator": "0x",
+            "delegation_address": "0x",
             "deleted": false,
             "ethereum_nonce": null,
             "evm_address": "0x0000000000000000000000000000000000000012",
@@ -198,7 +200,7 @@
             "alias": null,
             "created_timestamp": null,
             "decline_reward": false,
-            "delegation_indicator": "0x",
+            "delegation_address": "0x",
             "deleted": false,
             "ethereum_nonce": null,
             "evm_address": "0x0000000000000000000000000000000000000013",
@@ -232,7 +234,7 @@
             "alias": null,
             "created_timestamp": null,
             "decline_reward": false,
-            "delegation_indicator": "0x",
+            "delegation_address": "0x",
             "deleted": false,
             "ethereum_nonce": null,
             "evm_address": "0x4af4714503e4f85795962a89ec63d672b9f2bb9a",
