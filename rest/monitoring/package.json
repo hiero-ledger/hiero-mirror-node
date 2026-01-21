@@ -21,7 +21,7 @@
     "express": "5.2.1",
     "extend": "3.0.2",
     "extensionless": "2.0.6",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "log4js": "6.9.1",
     "mathjs": "15.1.0",
     "parse-duration": "2.1.5",
