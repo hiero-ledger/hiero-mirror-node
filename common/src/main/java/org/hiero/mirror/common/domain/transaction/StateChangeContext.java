@@ -88,20 +88,14 @@ public final class StateChangeContext {
                     if (key.hasSlotKeyKey()) {
                         SlotKey slotKey = key.getSlotKeyKey();
                         final var slotId = new ContractSlotId(slotKey.getContractID(), null);
-                        final var contractSlotKey = ContractSlotKey.builder()
-                                .slotId(slotId)
-                                .key(slotKey.getKey())
-                                .build();
+                        final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
                         // use the default BytesValue instance when the storage slot is deleted
                         processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
                     }
                     if (key.hasLambdaSlotKey()) {
                         LambdaSlotKey lambdaSlotKey = key.getLambdaSlotKey();
                         final var slotId = new ContractSlotId(null, lambdaSlotKey.getHookId());
-                        final var contractSlotKey = ContractSlotKey.builder()
-                                .slotId(slotId)
-                                .key(lambdaSlotKey.getKey())
-                                .build();
+                        final var contractSlotKey = new ContractSlotKey(slotId, lambdaSlotKey.getKey());
                         // use the default BytesValue instance when the storage slot is deleted
                         processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
                     }
@@ -259,12 +253,8 @@ public final class StateChangeContext {
         }
 
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
-        final var slotId = ContractSlotId.builder()
-                .contractId(slotKey.getContractID())
-                .hookId(null)
-                .build();
-        final var contractSlotKey =
-                ContractSlotKey.builder().slotId(slotId).key(slotKey.getKey()).build();
+        final var slotId = new ContractSlotId(slotKey.getContractID(), null);
+        final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
         processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
@@ -275,14 +265,8 @@ public final class StateChangeContext {
         }
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
         final var lambdaSlotKey = mapUpdate.getKey().getLambdaSlotKey();
-        final var slotId = ContractSlotId.builder()
-                .contractId(null)
-                .hookId(lambdaSlotKey.getHookId())
-                .build();
-        final var contractSlotKey = ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(lambdaSlotKey.getKey())
-                .build();
+        final var slotId = new ContractSlotId(null, lambdaSlotKey.getHookId());
+        final var contractSlotKey = new ContractSlotKey(slotId, lambdaSlotKey.getKey());
         processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 

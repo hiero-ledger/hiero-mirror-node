@@ -314,7 +314,7 @@ public class DomainUtils {
             return slotKey;
         }
 
-        return slotKey.toBuilder().key(DomainUtils.fromBytes(normalizedBytes)).build();
+        return new ContractSlotKey(slotKey.slotId(), DomainUtils.fromBytes(normalizedBytes));
     }
 
     public static byte[] trim(final byte[] data) {

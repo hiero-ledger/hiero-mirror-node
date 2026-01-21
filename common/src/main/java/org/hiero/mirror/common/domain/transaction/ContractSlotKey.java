@@ -5,15 +5,12 @@ package org.hiero.mirror.common.domain.transaction;
 import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HookId;
-import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Unified key for both contract storage and lambda (hook) storage.
- * For regular contract storage: contractId is set, hookId is null
- * For lambda/hook storage: contractId is null, hookId is set
+ * Unified key for both contract storage and lambda (hook) storage. For regular contract storage: contractId is set,
+ * hookId is null For lambda/hook storage: contractId is null, hookId is set
  */
-@Builder(toBuilder = true)
 public record ContractSlotKey(ContractSlotId slotId, ByteString key) {
 
     /**

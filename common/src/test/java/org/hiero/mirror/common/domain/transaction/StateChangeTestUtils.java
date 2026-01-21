@@ -114,14 +114,8 @@ public final class StateChangeTestUtils {
     }
 
     public static ContractSlotKey convert(LambdaSlotKey lambdaSlotKey) {
-        var slotId = ContractSlotId.builder()
-                .contractId(null)
-                .hookId(lambdaSlotKey.getHookId())
-                .build();
-        return ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(lambdaSlotKey.getKey())
-                .build();
+        var slotId = new ContractSlotId(null, lambdaSlotKey.getHookId());
+        return new ContractSlotKey(slotId, lambdaSlotKey.getKey());
     }
 
     private static long nextId() {

@@ -111,10 +111,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             if (index >= writtenSlotKeys.size()) {
                 return null;
             }
-            final var contractSlotKey = normalize(ContractSlotKey.builder()
-                    .slotId(slotId)
-                    .key(writtenSlotKeys.get(index))
-                    .build());
+            final var contractSlotKey = normalize(new ContractSlotKey(slotId, writtenSlotKeys.get(index)));
             return new SlotValue(contractSlotKey.key(), blockTransaction.getValueWritten(contractSlotKey));
         } else {
             // implicit, get it from statechanges
@@ -318,8 +315,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             }
 
             if (slot != null) {
-                final var contractSlotKey =
-                        ContractSlotKey.builder().slotId(slotId).key(slot).build();
+                final var contractSlotKey = new ContractSlotKey(slotId, slot);
                 contractStorageReads.put(contractSlotKey, valueRead);
             }
         }

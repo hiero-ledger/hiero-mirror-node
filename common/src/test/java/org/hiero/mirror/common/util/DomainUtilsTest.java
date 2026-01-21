@@ -278,16 +278,9 @@ final class DomainUtilsTest {
             """)
     void normalize(String input, String trimmed) {
         var contractId = ContractID.newBuilder().setContractNum(1000).build();
-        var slotId =
-                ContractSlotId.builder().contractId(contractId).hookId(null).build();
-        var slotKey = ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(ByteString.fromHex(input))
-                .build();
-        var expected = ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(ByteString.fromHex(trimmed))
-                .build();
+        var slotId = new ContractSlotId(contractId, null);
+        var slotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
+        var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
         assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
     }
 
@@ -304,15 +297,9 @@ final class DomainUtilsTest {
                 .setEntityId(HookEntityId.newBuilder()
                         .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
                 .build();
-        var slotId = ContractSlotId.builder().contractId(null).hookId(hookId).build();
-        var lambdaSlotKey = ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(ByteString.fromHex(input))
-                .build();
-        var expected = ContractSlotKey.builder()
-                .slotId(slotId)
-                .key(ByteString.fromHex(trimmed))
-                .build();
+        var slotId = new ContractSlotId(null, hookId);
+        var lambdaSlotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
+        var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
         assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);
     }
 
