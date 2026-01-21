@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.grpc.config;
 
-import io.grpc.ServerBuilder;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
 import org.hiero.mirror.grpc.GrpcProperties;
@@ -31,14 +30,7 @@ class GrpcConfiguration {
         final var nettyProperties = grpcProperties.getNetty();
         return serverBuilder -> {
             serverBuilder.executor(applicationTaskExecutor);
-            customizeServerBuilder(serverBuilder, nettyProperties);
+            serverBuilder.maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
         };
-    }
-
-    private void customizeServerBuilder(ServerBuilder<?> serverBuilder, NettyProperties nettyProperties) {
-        if (serverBuilder instanceof NettyServerBuilder nettyServerBuilder) {
-
-            nettyServerBuilder.maxConcurrentCallsPerConnection(nettyProperties.getMaxConcurrentCallsPerConnection());
-        }
     }
 }
