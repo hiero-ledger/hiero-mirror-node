@@ -73,7 +73,9 @@ spring:
       health:
         actuator:
           health-indicator-paths:
-            - readiness
+            - db
+            - ping
+            - redis
       keep-alive:
         max-idle: 10m
         permit-time: 90s
