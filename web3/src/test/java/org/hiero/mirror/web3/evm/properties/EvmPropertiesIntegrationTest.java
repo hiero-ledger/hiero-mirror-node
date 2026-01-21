@@ -8,21 +8,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.hedera.node.config.data.ContractsConfig;
 import com.swirlds.config.api.ConfigData;
 import java.lang.reflect.Field;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
-final class MirrorNodeEvmPropertiesIntegrationTest extends Web3IntegrationTest {
+final class EvmPropertiesIntegrationTest extends Web3IntegrationTest {
 
     private static final String DOT_SEPARATOR = ".";
     private static final String CONTRACTS_CONFIG = "contracts";
     private static final String MAX_GAS_REFUND_PERCENTAGE = "maxRefundPercentOfGasLimit";
     private static final String MAX_GAS_REFUND_PERCENTAGE_KEY_CONFIG =
             CONTRACTS_CONFIG + DOT_SEPARATOR + MAX_GAS_REFUND_PERCENTAGE;
-    private final MirrorNodeEvmProperties properties;
+    private final EvmProperties properties;
 
     private static String getConfigKey(final Class<?> configClass, final String fieldName) {
         try {
@@ -40,9 +39,8 @@ final class MirrorNodeEvmPropertiesIntegrationTest extends Web3IntegrationTest {
     }
 
     @Test
-    void getModularizedProperties() {
-        Map<String, String> modularizedProperties = properties.getProperties();
-        assertThat(modularizedProperties)
+    void getProperties() {
+        assertThat(properties.getProperties())
                 .isNotEmpty()
                 // override from yaml
                 .containsEntry(MAX_GAS_REFUND_PERCENTAGE_KEY_CONFIG, "100");

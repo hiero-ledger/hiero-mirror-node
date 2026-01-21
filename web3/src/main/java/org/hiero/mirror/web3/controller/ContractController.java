@@ -10,7 +10,7 @@ import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 class ContractController {
 
     private final ContractExecutionService contractExecutionService;
-    private final MirrorNodeEvmProperties evmProperties;
+    private final EvmProperties evmProperties;
     private final ThrottleManager throttleManager;
 
     @PostMapping(value = "/call")

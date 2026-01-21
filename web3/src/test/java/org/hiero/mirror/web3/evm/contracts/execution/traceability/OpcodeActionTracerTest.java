@@ -59,7 +59,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -124,7 +124,7 @@ class OpcodeActionTracerTest {
     private MutableAccount recipientAccount;
 
     @Mock
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private EvmProperties evmProperties;
 
     // Transient test data
     private OpcodeActionTracer tracer;
@@ -145,6 +145,33 @@ class OpcodeActionTracerTest {
     @AfterAll
     static void closeStaticMocks() {
         contextMockedStatic.close();
+    }
+
+    private static ContractAction contractAction(
+            final int index,
+            final int depth,
+            final CallOperationType callOperationType,
+            final int resultDataType,
+            final Address recipientAddress) {
+        return ContractAction.builder()
+                .callDepth(depth)
+                .caller(EntityId.of("0.0.1"))
+                .callerType(EntityType.ACCOUNT)
+                .callOperationType(callOperationType.getNumber())
+                .callType(ContractActionType.PRECOMPILE.getNumber())
+                .consensusTimestamp(new SecureRandom().nextLong())
+                .gas(REMAINING_GAS.get())
+                .gasUsed(GAS_PRICE)
+                .index(index)
+                .input(new byte[0])
+                .payerAccountId(EntityId.of("0.0.2"))
+                .recipientAccount(EntityId.of("0.0.3"))
+                .recipientAddress(recipientAddress.toArray())
+                .recipientContract(EntityId.of("0.0.4"))
+                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
+                .resultDataType(resultDataType)
+                .value(1L)
+                .build();
     }
 
     @BeforeEach
@@ -798,32 +825,5 @@ class OpcodeActionTracerTest {
 
     private ContractAction getContractActionWithRevert() {
         return contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-    }
-
-    private static ContractAction contractAction(
-            final int index,
-            final int depth,
-            final CallOperationType callOperationType,
-            final int resultDataType,
-            final Address recipientAddress) {
-        return ContractAction.builder()
-                .callDepth(depth)
-                .caller(EntityId.of("0.0.1"))
-                .callerType(EntityType.ACCOUNT)
-                .callOperationType(callOperationType.getNumber())
-                .callType(ContractActionType.PRECOMPILE.getNumber())
-                .consensusTimestamp(new SecureRandom().nextLong())
-                .gas(REMAINING_GAS.get())
-                .gasUsed(GAS_PRICE)
-                .index(index)
-                .input(new byte[0])
-                .payerAccountId(EntityId.of("0.0.2"))
-                .recipientAccount(EntityId.of("0.0.3"))
-                .recipientAddress(recipientAddress.toArray())
-                .recipientContract(EntityId.of("0.0.4"))
-                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
-                .resultDataType(resultDataType)
-                .value(1L)
-                .build();
     }
 }

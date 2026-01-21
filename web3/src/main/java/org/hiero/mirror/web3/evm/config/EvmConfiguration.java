@@ -10,7 +10,7 @@ import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
@@ -65,7 +65,7 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
     public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
     private final CacheProperties cacheProperties;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
 
     @Bean(CACHE_MANAGER_CONTRACT)
     CacheManager cacheManagerContract() {
@@ -206,6 +206,6 @@ public class EvmConfiguration {
 
     @Bean
     public EntityIdFactory entityIdFactory() {
-        return new AppEntityIdFactory(mirrorNodeEvmProperties.getVersionedConfiguration());
+        return new AppEntityIdFactory(evmProperties.getVersionedConfiguration());
     }
 }
