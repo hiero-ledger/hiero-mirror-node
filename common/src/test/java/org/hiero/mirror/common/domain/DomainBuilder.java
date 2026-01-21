@@ -592,7 +592,7 @@ public class DomainBuilder {
                 .hookId(number())
                 .ownerId(id())
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA);
+                .type(HookType.EVM);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -607,7 +607,7 @@ public class DomainBuilder {
                 .hookId(number())
                 .ownerId(id())
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
-                .type(HookType.LAMBDA);
+                .type(HookType.EVM);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

@@ -9,8 +9,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
+import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
 import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
 import com.hederahashgraph.api.proto.java.TransactionBody;
@@ -26,7 +26,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
+final class HookStoreTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
     private final EvmHookStorageHandler storageHandler = mock(EvmHookStorageHandler.class);
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
@@ -39,13 +39,13 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new LambdaSStoreTransactionHandler(storageHandler, entityIdService);
+        return new HookStoreTransactionHandler(storageHandler, entityIdService);
     }
 
     @Override
     protected TransactionBody.Builder getDefaultTransactionBody() {
         return TransactionBody.newBuilder()
-                .setLambdaSstore(LambdaSStoreTransactionBody.newBuilder()
+                .setHookStore(HookStoreTransactionBody.newBuilder()
                         .setHookId(HookId.newBuilder()
                                 .setEntityId(HookEntityId.newBuilder().setAccountId(defaultEntityId.toAccountID()))));
     }
@@ -58,15 +58,15 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
     @Test
     void getType() {
         final var type = transactionHandler.getType();
-        assertThat(type).isEqualTo(TransactionType.LAMBDA_SSTORE);
+        assertThat(type).isEqualTo(TransactionType.HOOKSTORE);
     }
 
     @Test
     void getEntityWithAccount() {
-        final var recordItem = recordItemBuilder.lambdaSStore().build();
+        final var recordItem = recordItemBuilder.hookStore().build();
         final var account = recordItem
                 .getTransactionBody()
-                .getLambdaSstore()
+                .getHookStore()
                 .getHookId()
                 .getEntityId()
                 .getAccountId();
@@ -82,7 +82,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
         final var contract = recordItemBuilder.contractId();
 
         final var recordItem = recordItemBuilder
-                .lambdaSStore()
+                .hookStore()
                 .transactionBody(b -> b.setHookId(HookId.newBuilder()
                         .setEntityId(HookEntityId.newBuilder().setContractId(contract))))
                 .build();
@@ -95,8 +95,8 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
 
     @Test
     void processSlotUpdates() {
-        final var recordItem = recordItemBuilder.lambdaSStore().build();
-        final var body = recordItem.getTransactionBody().getLambdaSstore();
+        final var recordItem = recordItemBuilder.hookStore().build();
+        final var body = recordItem.getTransactionBody().getHookStore();
         final var hookIdEntityId = body.getHookId();
 
         final var ownerEntityId = EntityId.of(hookIdEntityId.getEntityId().getAccountId());
@@ -110,7 +110,7 @@ final class LambdaSStoreTransactionHandlerTest extends AbstractTransactionHandle
         final var hookIdCaptor = ArgumentCaptor.forClass(Long.class);
         final var ownerIdCaptor = ArgumentCaptor.forClass(EntityId.class);
         @SuppressWarnings("unchecked")
-        final ArgumentCaptor<List<LambdaStorageUpdate>> updatesCaptor = ArgumentCaptor.forClass(List.class);
+        final ArgumentCaptor<List<EvmHookStorageUpdate>> updatesCaptor = ArgumentCaptor.forClass(List.class);
 
         verify(storageHandler, times(1))
                 .processStorageUpdates(

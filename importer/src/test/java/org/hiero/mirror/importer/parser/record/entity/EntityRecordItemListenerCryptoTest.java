@@ -1838,8 +1838,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // when
@@ -1858,7 +1857,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
@@ -1880,8 +1879,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // Assert after creation
@@ -1897,7 +1895,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(
                         createAccountWithHooksRecordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),

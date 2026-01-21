@@ -1686,8 +1686,8 @@ components:
           $ref: "#/components/schemas/TimestampRangeNullable"
         type:
           description: The type of the hook implementation
-          enum: [LAMBDA]
-          example: LAMBDA
+          enum: [EVM]
+          example: EVM
           type: string
     HookStorage:
       type: object
@@ -3973,7 +3973,7 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
-        - LAMBDASSTORE
+        - HOOKSTORE
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
