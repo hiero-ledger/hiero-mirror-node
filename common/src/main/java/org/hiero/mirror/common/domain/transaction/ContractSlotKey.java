@@ -17,13 +17,13 @@ public record ContractSlotKey(ContractSlotId slotId, ByteString key) {
      * Helper method to get contractId from slotId (may be null for hook storage)
      */
     public @Nullable ContractID contractId() {
-        return slotId != null ? slotId.contractId() : null;
+        return slotId != null ? slotId.getContractId() : null;
     }
 
     /**
      * Helper method to get hookId from slotId (may be null for contract storage)
      */
     public @Nullable HookId hookId() {
-        return slotId != null ? slotId.hookId() : null;
+        return slotId != null ? slotId.getHookId() : null;
     }
 }

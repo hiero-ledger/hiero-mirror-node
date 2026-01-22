@@ -39,8 +39,8 @@ class ContractSlotIdTest {
         var slotId = ContractSlotId.of(contractId, null);
 
         assertThat(slotId).isNotNull();
-        assertThat(slotId.contractId()).isEqualTo(contractId);
-        assertThat(slotId.hookId()).isNull();
+        assertThat(slotId.getContractId()).isEqualTo(contractId);
+        assertThat(slotId.getHookId()).isNull();
     }
 
     @Test
@@ -57,8 +57,8 @@ class ContractSlotIdTest {
 
         // Hook should be ignored for regular contracts
         assertThat(slotId).isNotNull();
-        assertThat(slotId.contractId()).isEqualTo(contractId);
-        assertThat(slotId.hookId()).isNull();
+        assertThat(slotId.getContractId()).isEqualTo(contractId);
+        assertThat(slotId.getHookId()).isNull();
     }
 
     @Test
@@ -75,8 +75,8 @@ class ContractSlotIdTest {
 
         // Should be hook storage
         assertThat(slotId).isNotNull();
-        assertThat(slotId.contractId()).isNull();
-        assertThat(slotId.hookId()).isEqualTo(hookId);
+        assertThat(slotId.getContractId()).isNull();
+        assertThat(slotId.getHookId()).isEqualTo(hookId);
     }
 
     @Test
@@ -110,7 +110,7 @@ class ContractSlotIdTest {
         var slotId = ContractSlotId.of(null, hookId);
 
         assertThat(slotId).isNotNull();
-        assertThat(slotId.contractId()).isNull();
-        assertThat(slotId.hookId()).isEqualTo(hookId);
+        assertThat(slotId.getContractId()).isNull();
+        assertThat(slotId.getHookId()).isEqualTo(hookId);
     }
 }

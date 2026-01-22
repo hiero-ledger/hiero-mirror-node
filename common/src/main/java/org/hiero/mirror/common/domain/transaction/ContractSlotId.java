@@ -4,6 +4,9 @@ package org.hiero.mirror.common.domain.transaction;
 
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HookId;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -11,12 +14,25 @@ import org.jspecify.annotations.Nullable;
  * hookId is null For lambda/hook storage: contractId is null, hookId is set
  *
  * <p><strong>Note:</strong> Use the static factory method {@link #of(ContractID, HookId)} to create instances.
- * Direct construction is not recommended as it bypasses validation logic.
+ * Direct construction is not allowed.
  */
-public record ContractSlotId(
-        @Nullable ContractID contractId, @Nullable HookId hookId) {
+@EqualsAndHashCode
+@Getter
+@ToString
+public final class ContractSlotId {
 
     private static final long HOOK_SYSTEM_CONTRACT_NUM = 365L;
+
+    @Nullable
+    private final ContractID contractId;
+
+    @Nullable
+    private final HookId hookId;
+
+    private ContractSlotId(@Nullable ContractID contractId, @Nullable HookId hookId) {
+        this.contractId = contractId;
+        this.hookId = hookId;
+    }
 
     /**
      * Creates a ContractSlotId based on the contract ID and executed hook ID. The logic determines whether this is
