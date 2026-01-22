@@ -18,7 +18,7 @@ class ContractCallScheduleCallTest extends AbstractContractCallScheduleTest {
     private static final BigInteger GAS_LIMIT = BigInteger.valueOf(2_000_000L);
 
     private boolean isSystemCallEnabled() {
-        return mirrorNodeEvmProperties
+        return evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(ContractsConfig.class)
                 .systemContractScheduleCallEnabled();

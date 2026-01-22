@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -27,7 +27,7 @@ public class TransactionExecutorFactory {
 
     private final BlockHashOperation mirrorBlockHashOperation;
     private final MirrorNodeState mirrorNodeState;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
     private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
     private final EntityIdFactory entityIdFactory;
 
@@ -37,19 +37,19 @@ public class TransactionExecutorFactory {
         // Create transaction executor for each EVM version, on startup, before the k8s
         // readiness probe elapses, so we avoid slowing down the initial contract calls.
         ContractCallContext.run(ctx -> {
-            mirrorNodeEvmProperties.getEvmVersions().values().forEach(this::create);
+            evmProperties.getEvmVersions().values().forEach(this::create);
             return ctx;
         });
     }
 
     // Reuse TransactionExecutor across requests for the same EVM version
     public TransactionExecutor get() {
-        var version = mirrorNodeEvmProperties.getSemanticEvmVersion();
+        var version = evmProperties.getSemanticEvmVersion();
         return transactionExecutors.computeIfAbsent(version, this::create);
     }
 
     private synchronized TransactionExecutor create(SemanticVersion evmVersion) {
-        var appProperties = new HashMap<>(mirrorNodeEvmProperties.getTransactionProperties());
+        var appProperties = new HashMap<>(evmProperties.getTransactionProperties());
         appProperties.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
 
         var executorConfig = Properties.newBuilder()

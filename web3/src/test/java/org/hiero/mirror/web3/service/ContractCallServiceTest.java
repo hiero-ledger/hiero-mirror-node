@@ -45,7 +45,7 @@ import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -570,7 +570,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
     @ValueSource(booleans = {true, false})
     void transferExceedsBalance(boolean validatePayerBalance) {
         // Given
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final var receiver = accountEntityWithEvmAddressPersist();
         final var receiverAddress = getAliasAddressFromEntity(receiver);
         final var senderEntity = accountEntityWithEvmAddressPersist();
@@ -587,14 +587,14 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         }
         assertGasLimit(serviceParameters);
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void transferExceedsBalanceHistorical(boolean validatePayerBalance) {
         // Given
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
 
         final var blockNumber = 150L;
         final var historicalRange = setUpHistoricalContext(blockNumber);
@@ -614,7 +614,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             assertDoesNotThrow(() -> contractExecutionService.processCall(serviceParameters));
         }
         assertGasLimit(serviceParameters);
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @Test
@@ -832,7 +832,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 recordFileService,
                 throttleProperties,
                 throttleManager,
-                mirrorNodeEvmProperties,
+                evmProperties,
                 transactionExecutionService);
 
         // When
@@ -868,7 +868,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 recordFileService,
                 throttleProperties,
                 throttleManager,
-                mirrorNodeEvmProperties,
+                evmProperties,
                 transactionExecutionService);
 
         // When
@@ -901,7 +901,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 recordFileService,
                 throttleProperties,
                 throttleManager,
-                mirrorNodeEvmProperties,
+                evmProperties,
                 transactionExecutionService);
 
         // When
@@ -1084,6 +1084,22 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 .persist();
     }
 
+    private ContractExecutionParameters getContractExecutionParametersWithGasAndValue(
+            final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
+        return ContractExecutionParameters.builder()
+                .block(BlockType.LATEST)
+                .callData(Bytes.EMPTY)
+                .callType(ETH_CALL)
+                .gas(TRANSACTION_GAS_LIMIT)
+                .gasPrice(gasPrice)
+                .isEstimate(false)
+                .isStatic(false)
+                .receiver(receiverAddress)
+                .sender(senderAddress)
+                .value(value)
+                .build();
+    }
+
     @Nested
     class EVM46Validation {
 
@@ -1124,7 +1140,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         @Test
         void shouldCallTransactionExecutionService() throws MirrorEvmTransactionException {
             final long estimatedGas = 1000L;
-            MirrorNodeEvmProperties spyEvmProperties = spy(mirrorNodeEvmProperties);
+            EvmProperties spyEvmProperties = spy(evmProperties);
             TransactionExecutionService txnExecutionService = mock(TransactionExecutionService.class);
 
             ContractCallService contractCallService =
@@ -1195,21 +1211,5 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             // Then
             assertDoesNotThrow(() -> contractExecutionService.processCall(params));
         }
-    }
-
-    private ContractExecutionParameters getContractExecutionParametersWithGasAndValue(
-            final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
-        return ContractExecutionParameters.builder()
-                .block(BlockType.LATEST)
-                .callData(Bytes.EMPTY)
-                .callType(ETH_CALL)
-                .gas(TRANSACTION_GAS_LIMIT)
-                .gasPrice(gasPrice)
-                .isEstimate(false)
-                .isStatic(false)
-                .receiver(receiverAddress)
-                .sender(senderAddress)
-                .value(value)
-                .build();
     }
 }

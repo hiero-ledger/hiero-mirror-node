@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.controller;
 
 import static org.hiero.mirror.restjava.common.Constants.ACCOUNT_ID;
+import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.MAX_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.RECEIVER_ID;
@@ -42,7 +43,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @CustomLog
-@RequestMapping("/api/v1/accounts/{id}/airdrops")
+@RequestMapping(value = "/api/v1/accounts/{id}/airdrops", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 public class TokenAirdropsController {

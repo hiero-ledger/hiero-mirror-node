@@ -45,7 +45,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     void testJumboContractCreateOverMaxSize() {
         // Given
         testWeb3jService.setUseContractCallDeploy(true);
-        final int maxDataSize = mirrorNodeEvmProperties
+        final int maxDataSize = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(JumboTransactionsConfig.class)
                 .ethereumMaxCallDataSize();
@@ -60,7 +60,7 @@ class ContractCallJumboTransactionTest extends AbstractContractCallServiceTest {
     @Test
     void testJumboTransactionOverMaxSize() {
         // Given
-        final int maxDataSize = mirrorNodeEvmProperties
+        final int maxDataSize = evmProperties
                 .getVersionedConfiguration()
                 .getConfigData(JumboTransactionsConfig.class)
                 .ethereumMaxCallDataSize();

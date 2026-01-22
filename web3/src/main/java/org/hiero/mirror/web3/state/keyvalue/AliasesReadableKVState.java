@@ -10,7 +10,7 @@ import com.hedera.node.app.service.token.TokenService;
 import jakarta.inject.Named;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.AccountBalanceRepository;
 import org.hiero.mirror.web3.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.web3.repository.NftAllowanceRepository;
@@ -37,7 +37,7 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
             @NonNull CryptoAllowanceRepository cryptoAllowanceRepository,
             @NonNull TokenAccountRepository tokenAccountRepository,
             @NonNull AccountBalanceRepository accountBalanceRepository,
-            @NonNull MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            @NonNull EvmProperties evmProperties,
             @NonNull AliasedAccountCacheManager aliasedAccountCacheManager) {
         super(
                 STATE_ID,
@@ -48,7 +48,7 @@ public class AliasesReadableKVState extends AbstractAliasedAccountReadableKVStat
                 systemEntity,
                 tokenAccountRepository,
                 tokenAllowanceRepository,
-                mirrorNodeEvmProperties);
+                evmProperties);
         this.commonEntityAccessor = commonEntityAccessor;
         this.aliasedAccountCacheManager = aliasedAccountCacheManager;
     }

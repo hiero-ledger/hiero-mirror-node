@@ -39,7 +39,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -61,7 +61,7 @@ public class TransactionExecutionService {
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
     private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
     private final SystemEntity systemEntity;
@@ -69,7 +69,7 @@ public class TransactionExecutionService {
 
     public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().isZero();
-        final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
+        final var configuration = evmProperties.getVersionedConfiguration();
         final var maxLifetime =
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
