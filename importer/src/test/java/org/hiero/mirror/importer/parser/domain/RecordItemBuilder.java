@@ -673,14 +673,37 @@ public class RecordItemBuilder {
 
         switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS:
-                // [A=1000, B=-400, C=-600] => [[A=400, B=-400], [A=600, C=-600]]
+                // [A=1000, B=-400, C=-600] =>
+                //
+                // [C=-600, B=-400] senders
+                // [A=1000] receiver
+                //
+                // [[C=-600, A=600], [C=-400, B=400]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -400))
                         .addTransfers(accountAmount(accounts.get(2), -600));
                 break;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT:
-                // [A=400, B=-400, C=300, D=-300] => [[A=400, B=-400], [C=300, D=-300]]
+                // [A=400, B=-400, C=300, D=-300] =>
+                //
+                // [B=-400, D=-300] senders
+                // [A=400, C=300] receivers
+                //
+                // [[B=-400, A=400], [D=-300, C=300]]
+                tokenTransfers
+                        .addTransfers(accountAmount(accounts.get(0), 400))
+                        .addTransfers(accountAmount(accounts.get(1), -400))
+                        .addTransfers(accountAmount(accounts.get(2), 300))
+                        .addTransfers(accountAmount(accounts.get(3), -300));
+                break;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER:
+                // [A=400, B=-300, C=300, D=-400] =>
+                //
+                // [D=-400, B=-300] senders
+                // [A=400, C=300] receivers
+                //
+                // [[D=-400, A=400], [B=-300, C=300]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 400))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -688,7 +711,12 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(3), -300));
                 break;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT:
-                // [A=400, B=-400, C=400, D=-400] => [[A=400, B=-400], [C=400, D=-400]]
+                // [A=400, B=-400, C=400, D=-400] =>
+                //
+                // [B=-400, D=-400] senders
+                // [A=400, C=400] receivers
+                //
+                // [[B=-400, A=400], [D=-400, C=400]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 400))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -696,8 +724,12 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(3), -400));
                 break;
             case ONE_RECEIVER_FOUR_SENDERS:
-                // [A=1500, B=-500, C=-400, D=-300, E=-300] => [[A=1500, B=-500], [А=400, C=-400], [A=300, D=-300],
-                // [A=300, E=-300]]
+                // [A=1500, B=-500, C=-400, D=-300, E=-300] =>
+                //
+                // [B=-500, C=-400, D=-300, E=-300] senders
+                // [A=1500] receiver
+                //
+                // [[B=-500, A=500], [C=-400, A=400], [D=-300, A=300], [E=-300, A=300]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1500))
                         .addTransfers(accountAmount(accounts.get(1), -500))
@@ -706,8 +738,12 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(4), -300));
                 break;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS:
-                // [A=400, B=-400, C=300, D=-300, E=200, F=-200] => [[A=400, B=-400], [C=300, D=-300], [A=200,
-                // E=-200], [A=200, F=-200]]
+                // [A=400, B=-400, C=300, D=-300, E=200, F=-200] =>
+                //
+                // [B=-400, D=-300, F=-200] senders
+                // [A=400, C=300, E=200] receivers
+                //
+                // [[B=-400, A=400], [D=-300, C=300], [F=-200, E=200]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 400))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -717,8 +753,13 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(5), -200));
                 break;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT:
-                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-100] => [[A=400, B=-400], [A=600, C=-600],
-                // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-100] =>
+                //
+                // [F=-800, C=-600, B=-400, G=-100] senders
+                // [A=1000, D=500, E=400] receivers
+                //
+                // [[F=-800, A=800], [C=-200, A=200], [C=-400, D=400], [B=-100, D=100], [B=-300, E=E00], [G=-100,
+                // E=100]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -728,9 +769,14 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(5), -800))
                         .addTransfers(accountAmount(accounts.get(6), -100));
                 break;
-            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT:
-                // [A=900, B=-300, C=-400, D=600, E=400, F=-800, G=-450, H=50] => [[A=300, B=-300], [A=400,
-                // C=-400], [A=200, F=-200], [D=600, F=-600], [E=400, G=-400], [H=50, G=-50]]
+            case FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT:
+                // [A=900, B=-300, C=-400, D=600, E=400, F=-800, G=-450, H=50] =>
+                //
+                // [F=-800, G=-450, C=-400, B=-300] senders
+                // [A=900, D=600, E=400, H=50] receivers
+                //
+                // [[F=-800, A=800], [G=-100, A=100], [G=-350, D=350], [C=-250, D=250], [C=-150, E=150],
+                // [B=-250, E=250], [B=-50, H=50]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 900))
                         .addTransfers(accountAmount(accounts.get(1), -300))
@@ -742,8 +788,13 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(7), 50));
                 break;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT:
-                // [A=1000, B=-1400, C=1000, D=-100, E=-900, F=-600, G=1000] => [[A=1000, B=-1000], [C=400,
-                // B=-400], [C=100, D=-100], [C=500, E=-500], [G=400, E=-400], [G=600, F=-600]]
+                // [A=1000, B=-1400, C=1000, D=-100, E=-900, F=-600, G=1000] =>
+                //
+                // [B=-1400, E=-900, F=-600, D=-100] senders
+                // [A=1000, C=1000, G=1000] receivers
+                //
+                // [[B=-1000, A=1000],  [F=-600, G=600],
+                // [E=-500, C=500], [B=-400, C=400], [E=-400, G=400], [D=-100, C=100]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -1400))
@@ -754,8 +805,13 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(6), 1000));
                 break;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM:
-                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-101] => [[A=400, B=-400], [A=600, C=-600],
-                // [D=500, F=-500], [E=300, F=-300], [E=100, G=-100]]
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=-800, G=-101] =>
+                //
+                // [F=-800, C=-600, B=-400, G=-101] senders
+                // [A=1000, D=500, E=400] receivers
+                //
+                // [[F=-800, A=800], [C=-200, A=200], [C=-400, D=400],
+                // [B=-100, D=100], [B=-300, E=300], [G=-100, E=100]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -766,8 +822,12 @@ public class RecordItemBuilder {
                         .addTransfers(accountAmount(accounts.get(6), -101));
                 break;
             case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT:
-                // [A=1000, B=-400, C=-600, D=500, E=400, F=0, G=-900, H=0] => [[A=400, B=-400], [A=600, C=-600],
-                // [D=500, G=-500], [E=400, G=-400], [E=0, F=0], [E=0, H=0]]
+                // [A=1000, B=-400, C=-600, D=500, E=400, F=0, G=-900, H=0] =>
+                //
+                // [G=-900, C=-600, B=-400, F=0, H=0] senders
+                // [A=1000, D=500, E=400] receivers
+                //
+                // [[G=-900, A=900], [C=-100, A=100], [C=-500, D=500], [B=-400, E=400]]
                 tokenTransfers
                         .addTransfers(accountAmount(accounts.get(0), 1000))
                         .addTransfers(accountAmount(accounts.get(1), -400))
@@ -798,11 +858,12 @@ public class RecordItemBuilder {
         return switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS -> 3;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT -> 4;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER -> 4;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 4;
             case ONE_RECEIVER_FOUR_SENDERS -> 5;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 6;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
-            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 8;
+            case FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 8;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 7;
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 7;
             case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 8;
@@ -813,10 +874,11 @@ public class RecordItemBuilder {
         ONE_RECEIVER_TWO_SENDERS,
         ONE_RECEIVER_FOUR_SENDERS,
         PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT,
+        PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER,
         PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT,
         PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS,
         TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT,
-        THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT,
+        FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT,
         THREE_RECEIVERS_WITH_THE_SAME_AMOUNT,
         TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM,
         THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT

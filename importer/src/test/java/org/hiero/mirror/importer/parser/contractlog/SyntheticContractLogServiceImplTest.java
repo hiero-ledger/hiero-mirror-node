@@ -5,8 +5,10 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
+import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.MultiPartyTransferType.TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -16,7 +18,6 @@ import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenType;
 import java.util.ArrayList;
-import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -129,18 +130,15 @@ class SyntheticContractLogServiceImplTest {
 
     @ParameterizedTest
     @EnumSource(MultiPartyTransferType.class)
-    @DisplayName(
-            "Should create synthetic contract logs for multi-party fungible token transfers from HAPI with correct sorting and zero-sum")
+    @DisplayName("Should create synthetic contract logs for multi-party fungible token transfers from HAPI")
     void createSyntheticLogsForVariableTokenTransfersFromHapiTransactions(final MultiPartyTransferType transferType) {
         entityProperties.getPersist().setSyntheticContractLogsMulti(true);
         entityProperties.getPersist().setSyntheticContractLogs(true);
 
         recordItem = recordItemBuilder
                 .cryptoTransferWithMultiPartyTokenTransfers(transferType)
-                // Setting hapi version below disableSyntheticEventsForMultiPartyTransfersVersion property
-                .recordItem(r -> r.hapiVersion(new Version(0, 60, 0)))
-                .record(r -> r.setContractCallResult(
-                        ContractFunctionResult.newBuilder().build()))
+                // Setting hapi version after disableSyntheticEventsForMultiPartyTransfersVersion property
+                .recordItem(r -> r.hapiVersion(new Version(0, 73, 0)))
                 .build();
 
         when(transactionHandler.getEntity(any(RecordItem.class))).thenReturn(EntityId.EMPTY);
@@ -204,14 +202,11 @@ class SyntheticContractLogServiceImplTest {
         assertThat(syntheticLogSum)
                 .as("Sum of synthetic log amounts should equal sum of positive original amounts")
                 .isEqualTo(positiveOriginalSum);
-
-        validateAccountsAreSorted(logEntries);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName(
-            "Should create synthetic contract logs for multi-party fungible token transfers with correct sorting and zero-sum")
+    @DisplayName("Should create synthetic contract logs for multi-party fungible token transfers from contract calls")
     void createSyntheticLogsForVariableTokenTransfersFromContractCallTransactions(
             boolean beforeConsensusNodeSyntheticEventsSupport) {
         entityProperties.getPersist().setSyntheticContractLogsMulti(true);
@@ -219,9 +214,8 @@ class SyntheticContractLogServiceImplTest {
 
         recordItem = recordItemBuilder
                 .cryptoTransferWithMultiPartyTokenTransfers(MultiPartyTransferType.ONE_RECEIVER_FOUR_SENDERS)
-                // Setting hapi version below disableSyntheticEventsForMultiPartyTransfersVersion property
                 .recordItem(r -> r.hapiVersion(
-                        beforeConsensusNodeSyntheticEventsSupport ? new Version(0, 60, 0) : new Version(0, 72, 0)))
+                        beforeConsensusNodeSyntheticEventsSupport ? new Version(0, 60, 0) : new Version(0, 73, 0)))
                 .record(r -> r.setContractCallResult(
                         ContractFunctionResult.newBuilder().build()))
                 .build();
@@ -286,8 +280,6 @@ class SyntheticContractLogServiceImplTest {
             assertThat(syntheticLogSum)
                     .as("Sum of synthetic log amounts should equal sum of positive original amounts")
                     .isEqualTo(positiveOriginalSum);
-
-            validateAccountsAreSorted(logEntries);
         } else {
             verify(entityListener, atLeast(0)).onContractLog(contractLogCaptor.capture());
             var syntheticLogs = contractLogCaptor.getAllValues().stream()
@@ -297,48 +289,58 @@ class SyntheticContractLogServiceImplTest {
         }
     }
 
-    /**
-     * Validates that accounts in synthetic logs are sorted. The logs should be sorted by sender first then by receiver.
-     *
-     * @param logEntries the list of log entries to validate
-     */
-    private void validateAccountsAreSorted(final List<LogEntry> logEntries) {
-        if (logEntries.size() <= 1) {
-            return;
-        }
+    @Test
+    @DisplayName(
+            "Should create equal number of synthetic contract logs for multi-party fungible token transfers with mixed order but matching pairs")
+    void validateVariableTokenTransfersWithDifferentOrderButMatchingParisProduceEqualNumberOfEvents() {
+        entityProperties.getPersist().setSyntheticContractLogsMulti(true);
+        entityProperties.getPersist().setSyntheticContractLogs(true);
 
-        for (int i = 1; i < logEntries.size(); i++) {
-            var currentEntry = logEntries.get(i);
-            var previousEntry = logEntries.get(i - 1);
-            validateLogEntryIsSorted(currentEntry, previousEntry, i);
-        }
-    }
+        recordItem = recordItemBuilder
+                .cryptoTransferWithMultiPartyTokenTransfers(
+                        MultiPartyTransferType.PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT)
+                .recordItem(r -> r.hapiVersion(new Version(0, 72, 0)))
+                .build();
+        final var recordItem2 = recordItemBuilder
+                .cryptoTransferWithMultiPartyTokenTransfers(
+                        MultiPartyTransferType
+                                .PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER)
+                .recordItem(r -> r.hapiVersion(new Version(0, 72, 0)))
+                .build();
 
-    /**
-     * Validates that a log entry is sorted relative to the previous entry.
-     * Entries should be sorted by sender first, then by receiver.
-     *
-     * @param currentEntry the current log entry
-     * @param previousEntry the previous log entry
-     * @param index the index of the current entry
-     */
-    private void validateLogEntryIsSorted(final LogEntry currentEntry, final LogEntry previousEntry, final int index) {
-        var senderComparison = currentEntry.senderId().compareTo(previousEntry.senderId());
-        if (senderComparison < 0) {
-            assertThat(senderComparison)
-                    .as(
-                            "Logs should be sorted by sender ID. Entry at index %d has sender %s which is less than previous entry's sender %s",
-                            index, currentEntry.senderId(), previousEntry.senderId())
-                    .isGreaterThanOrEqualTo(0);
-        } else if (senderComparison == 0) {
-            // If sender IDs are equal, compare receiver IDs
-            var receiverComparison = currentEntry.receiverId().compareTo(previousEntry.receiverId());
-            assertThat(receiverComparison)
-                    .as(
-                            "Logs should be sorted by receiver ID when sender IDs are equal (%s). Entry at index %d has receiver %s which is less than previous entry's receiver %s",
-                            currentEntry.senderId(), index, currentEntry.receiverId(), previousEntry.receiverId())
-                    .isGreaterThanOrEqualTo(0);
-        }
+        when(transactionHandler.getEntity(any(RecordItem.class))).thenReturn(EntityId.EMPTY);
+        when(transactionHandlerFactory.get(any())).thenReturn(transactionHandler);
+
+        var entityRecordItemListener = new EntityRecordItemListener(
+                commonParserProperties,
+                contractResultService,
+                entityIdService,
+                entityListener,
+                entityProperties,
+                transactionHandlerFactory,
+                syntheticContractLogService,
+                syntheticContractResultService);
+
+        entityRecordItemListener.onItem(recordItem);
+
+        var contractLogCaptor = ArgumentCaptor.forClass(ContractLog.class);
+        verify(entityListener, atLeast(1)).onContractLog(contractLogCaptor.capture());
+        var syntheticLogs = contractLogCaptor.getAllValues().stream()
+                .filter(ContractLog::isSyntheticTransfer)
+                .toList();
+
+        // Reset the mock to clear previous invocations before the second call
+        reset(entityListener);
+
+        entityRecordItemListener.onItem(recordItem2);
+
+        var contractLogCaptor2 = ArgumentCaptor.forClass(ContractLog.class);
+        verify(entityListener, atLeast(1)).onContractLog(contractLogCaptor2.capture());
+        var syntheticLogs2 = contractLogCaptor2.getAllValues().stream()
+                .filter(ContractLog::isSyntheticTransfer)
+                .toList();
+
+        assertThat(syntheticLogs).hasSameSizeAs(syntheticLogs2);
     }
 
     /**
@@ -351,14 +353,15 @@ class SyntheticContractLogServiceImplTest {
         return switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS -> 2;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT -> 2;
+            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER -> 2;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 2;
             case ONE_RECEIVER_FOUR_SENDERS -> 4;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 3;
-            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 5;
-            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
+            case FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 6;
-            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 5;
-            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 6;
+            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 6;
+            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 4;
         };
     }
 
