@@ -29,7 +29,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
@@ -90,6 +90,10 @@ class ContractControllerTest {
 
     @MockitoBean
     private ThrottleManager throttleManager;
+
+    private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
+        return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
+    }
 
     @BeforeEach
     void setUp() {
@@ -403,10 +407,6 @@ class ContractControllerTest {
                 .andExpect(content().string(convert(new GenericErrorResponse(responseCode.name(), null, null))));
     }
 
-    private static java.util.stream.Stream<ResponseCodeEnum> serverResponseCodes() {
-        return GenericControllerAdvice.SERVER_RESPONSE_CODES.stream();
-    }
-
     @Test
     void callSuccess() throws Exception {
         final var request = request();
@@ -517,8 +517,8 @@ class ContractControllerTest {
     public static class TestConfig {
 
         @Bean
-        MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties();
+        EvmProperties evmProperties() {
+            return new EvmProperties();
         }
 
         @Bean

@@ -20,7 +20,7 @@ import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.jspecify.annotations.NonNull;
 
 @Named
-public class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
+final class ContractBytecodeReadableKVState extends AbstractReadableKVState<ContractID, Bytecode> {
 
     public static final int STATE_ID = BYTECODE_STATE_ID;
 
@@ -61,5 +61,10 @@ public class ContractBytecodeReadableKVState extends AbstractReadableKVState<Con
             }
         }
         return EntityId.EMPTY;
+    }
+
+    @Override
+    public String getServiceName() {
+        return ContractService.NAME;
     }
 }

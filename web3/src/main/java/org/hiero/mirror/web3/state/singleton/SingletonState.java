@@ -3,10 +3,9 @@
 package org.hiero.mirror.web3.state.singleton;
 
 import java.util.function.Supplier;
+import org.hiero.mirror.web3.state.RegisterableState;
 
-public interface SingletonState<T> extends Supplier<T> {
-
-    Integer getId();
+public interface SingletonState<T> extends Supplier<T>, RegisterableState {
 
     default void set(T value) {
         // Do nothing since our singletons are either immutable static data or dynamically retrieved from the db.

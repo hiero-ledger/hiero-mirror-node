@@ -34,8 +34,9 @@ import org.hiero.mirror.web3.utils.Suppliers;
 import org.jspecify.annotations.NonNull;
 
 @Named
-class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
+final class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedule> {
 
+    public static final int STATE_ID = SCHEDULES_BY_ID_STATE_ID;
     private final ScheduleRepository scheduleRepository;
 
     private final CommonEntityAccessor commonEntityAccessor;
@@ -46,7 +47,7 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
             ScheduleRepository scheduleRepository,
             CommonEntityAccessor commonEntityAccessor,
             TransactionSignatureRepository transactionSignatureRepository) {
-        super(ScheduleService.NAME, SCHEDULES_BY_ID_STATE_ID);
+        super(ScheduleService.NAME, STATE_ID);
         this.scheduleRepository = scheduleRepository;
         this.commonEntityAccessor = commonEntityAccessor;
         this.transactionSignatureRepository = transactionSignatureRepository;
@@ -123,5 +124,10 @@ class ScheduleReadableKVState extends AbstractReadableKVState<ScheduleID, Schedu
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
         });
+    }
+
+    @Override
+    public String getServiceName() {
+        return ScheduleService.NAME;
     }
 }

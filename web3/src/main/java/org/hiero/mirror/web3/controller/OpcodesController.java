@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -34,7 +34,7 @@ class OpcodesController {
     @Qualifier(RATE_LIMIT_BUCKET)
     private final Bucket rateLimitBucket;
 
-    private final MirrorNodeEvmProperties evmProperties;
+    private final EvmProperties evmProperties;
 
     /**
      * <p>

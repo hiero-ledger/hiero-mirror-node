@@ -4,17 +4,14 @@ package org.hiero.mirror.web3.evm.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.hapi.node.base.SemanticVersion;
-import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.metrics.StoreMetricsServiceImpl;
 import com.hedera.node.app.service.contract.impl.exec.gas.CustomGasCalculator;
 import com.hedera.node.app.service.entityid.EntityIdFactory;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.properties.CacheProperties;
-import org.hiero.mirror.web3.state.components.NoOpMetrics;
 import org.hyperledger.besu.evm.gascalculator.GasCalculator;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
@@ -68,7 +65,7 @@ public class EvmConfiguration {
     public static final SemanticVersion EVM_VERSION_0_67 = new SemanticVersion(0, 67, 0, "", "");
     public static final SemanticVersion EVM_VERSION = EVM_VERSION_0_67;
     private final CacheProperties cacheProperties;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
 
     @Bean(CACHE_MANAGER_CONTRACT)
     CacheManager cacheManagerContract() {
@@ -208,17 +205,7 @@ public class EvmConfiguration {
     }
 
     @Bean
-    public StoreMetricsServiceImpl storeMetricsService() {
-        return new StoreMetricsServiceImpl(new NoOpMetrics());
-    }
-
-    @Bean
-    public ConfigProviderImpl configProvider() {
-        return new ConfigProviderImpl(false, null, mirrorNodeEvmProperties.getProperties());
-    }
-
-    @Bean
     public EntityIdFactory entityIdFactory() {
-        return new AppEntityIdFactory(mirrorNodeEvmProperties.getVersionedConfiguration());
+        return new AppEntityIdFactory(evmProperties.getVersionedConfiguration());
     }
 }

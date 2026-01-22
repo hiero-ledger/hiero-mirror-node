@@ -503,6 +503,62 @@ describe('getResponseLimit', () => {
   });
 });
 
+describe('users config validation', () => {
+  test('valid users configuration', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [
+              {username: 'user1', password: 'pass1', limit: 100},
+              {username: 'user2', password: 'pass2', limit: 200},
+            ],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([
+      {username: 'user1', password: 'pass1', limit: 100},
+      {username: 'user2', password: 'pass2', limit: 200},
+    ]);
+  });
+
+  test('empty users array is valid', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([]);
+  });
+
+  test('users without limit is valid', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [{username: 'user1', password: 'pass1'}],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([{username: 'user1', password: 'pass1'}]);
+  });
+});
+
 function unlink(file) {
   if (fs.existsSync(file)) {
     fs.unlinkSync(file);

@@ -24,6 +24,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
 import org.hiero.mirror.importer.downloader.balance.BalanceDownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.InvalidConfigurationException;
 import org.hiero.mirror.importer.repository.AccountBalanceFileRepository;
@@ -31,7 +32,6 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -40,30 +40,32 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class DateRangeCalculatorTest {
+final class DateRangeCalculatorTest {
 
     private final Map<StreamType, StreamFileRepository<?, ?>> streamFileRepositories = new EnumMap<>(StreamType.class);
 
     @Mock
     private AccountBalanceFileRepository accountBalanceFileRepository;
 
-    @Mock
-    private RecordFileRepository recordFileRepository;
-
+    private BlockProperties blockProperties;
     private ImporterProperties importerProperties;
     private List<DownloaderProperties> downloaderPropertiesList;
     private DateRangeCalculator dateRangeCalculator;
 
+    @Mock
+    private RecordFileRepository recordFileRepository;
+
     @BeforeEach
     void setUp() {
+        blockProperties = new BlockProperties();
         importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
         var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         var balanceDownloaderProperties = new BalanceDownloaderProperties(commonDownloaderProperties);
         var recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);
         downloaderPropertiesList = List.of(balanceDownloaderProperties, recordDownloaderProperties);
-        dateRangeCalculator =
-                new DateRangeCalculator(importerProperties, accountBalanceFileRepository, recordFileRepository);
+        dateRangeCalculator = new DateRangeCalculator(
+                accountBalanceFileRepository, blockProperties, importerProperties, recordFileRepository);
 
         balanceDownloaderProperties.setEnabled(true);
         recordDownloaderProperties.setEnabled(true);
@@ -72,10 +74,12 @@ class DateRangeCalculatorTest {
         streamFileRepositories.putIfAbsent(StreamType.RECORD, recordFileRepository);
     }
 
-    @Test
-    void notSetAndDatabaseEmpty() {
-        var expectedDate = STARTUP_TIME;
-        var expectedFilter = new DateRangeFilter(expectedDate, null);
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void notSetAndDatabaseEmpty(final boolean blockstream) {
+        blockProperties.setEnabled(blockstream);
+        final var expectedDate = blockstream ? Instant.EPOCH : STARTUP_TIME;
+        final var expectedFilter = new DateRangeFilter(expectedDate, null);
         for (var downloaderProperties : downloaderPropertiesList) {
             var streamType = downloaderProperties.getStreamType();
             assertThat(dateRangeCalculator.getLastStreamFile(streamType))
@@ -84,16 +88,20 @@ class DateRangeCalculatorTest {
         }
     }
 
-    @Test
-    void notSetAndDatabaseNotEmpty() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void notSetAndDatabaseNotEmpty(final boolean blockstream) {
+        blockProperties.setEnabled(blockstream);
         var past = STARTUP_TIME.minusSeconds(100);
         streamFileRepositories.forEach((streamType, repository) ->
                 doReturn(streamFile(streamType, past, false)).when(repository).findLatest());
         verifyWhenLastStreamFileFromDatabase(past);
     }
 
-    @Test
-    void startDateNotSetAndEndDateAfterLongMaxAndDatabaseNotEmpty() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void startDateNotSetAndEndDateAfterLongMaxAndDatabaseNotEmpty(final boolean blockstream) {
+        blockProperties.setEnabled(blockstream);
         var past = STARTUP_TIME.minusSeconds(100);
         importerProperties.setEndDate(Utility.MAX_INSTANT_LONG.plusNanos(1));
         streamFileRepositories.forEach((streamType, repository) ->
@@ -101,8 +109,10 @@ class DateRangeCalculatorTest {
         verifyWhenLastStreamFileFromDatabase(past);
     }
 
-    @Test
-    void startDateSetAndDatabaseEmpty() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void startDateSetAndDatabaseEmpty(final boolean blockstream) {
+        blockProperties.setEnabled(blockstream);
         var startDate = STARTUP_TIME.plusSeconds(10L);
         importerProperties.setStartDate(startDate);
         var expectedFilter = new DateRangeFilter(importerProperties.getStartDate(), null);
@@ -115,9 +125,10 @@ class DateRangeCalculatorTest {
         }
     }
 
-    @ParameterizedTest(name = "startDate {0}ns before application status, endDate")
-    @ValueSource(longs = {0, 1})
-    void startDateNotAfterDatabase(long nanos) {
+    @ParameterizedTest(name = "blockstream({0}) startDate {1}ns before application status, endDate")
+    @CsvSource(value = {"true,0", "true,1", "false,0", "false,1"})
+    void startDateNotAfterDatabase(final boolean blockstream, final long nanos) {
+        blockProperties.setEnabled(blockstream);
         var past = STARTUP_TIME.minusSeconds(100);
         importerProperties.setStartDate(past.minusNanos(nanos));
         streamFileRepositories.forEach((streamType, repository) ->
@@ -125,9 +136,17 @@ class DateRangeCalculatorTest {
         verifyWhenLastStreamFileFromDatabase(past);
     }
 
-    @ParameterizedTest(name = "startDate is {0}ns after application status")
-    @ValueSource(longs = {1, 2_000_000_000L, 200_000_000_000L})
-    void startDateAfterDatabase(long diffNanos) {
+    @ParameterizedTest(name = "blockstream({0}) startDate is {1}ns after application status")
+    @CsvSource(textBlock = """
+            true, 1
+            true, 2_000_000_000
+            true, 200_000_000_000
+            false, 1
+            false, 2_000_000_000
+            false, 200_000_000_000
+            """)
+    void startDateAfterDatabase(final boolean blockstream, final long diffNanos) {
+        blockProperties.setEnabled(blockstream);
         var lastFileInstant = Instant.now().minusSeconds(200);
         streamFileRepositories.forEach(
                 (streamType, repository) -> doReturn(streamFile(streamType, lastFileInstant, false))

@@ -14,7 +14,7 @@ const template = fs.readFileSync(path.join(dirname, 'template.js')).toString();
 // Remove any generated spec tests
 fs.readdirSync(dirname, {withFileTypes: true})
   .filter((f) => f.isFile() && f.name.endsWith('.spec.test.js'))
-  .forEach((f) => fs.rmSync(path.join(f.path, f.name)));
+  .forEach((f) => fs.rmSync(path.join(f.parentPath, f.name)));
 
 fs.readdirSync(specsPath, {withFileTypes: true})
   .filter((dirent) => dirent.isDirectory())

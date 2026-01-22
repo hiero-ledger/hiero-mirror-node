@@ -8,14 +8,14 @@ import java.util.function.ObjIntConsumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 
 @CustomLog
 @RequiredArgsConstructor
 @Named
 public class BinaryGasEstimator {
-    private final MirrorNodeEvmProperties properties;
+    private final EvmProperties properties;
 
     public long search(
             final ObjIntConsumer<Long> metricUpdater, final LongFunction<EvmTransactionResult> call, long lo, long hi) {

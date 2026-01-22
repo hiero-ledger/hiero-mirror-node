@@ -24,7 +24,7 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties.HederaNetwork;
+import org.hiero.mirror.web3.evm.properties.EvmProperties.HederaNetwork;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,10 +37,10 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class MirrorNodeEvmPropertiesTest {
+class EvmPropertiesTest {
     private static final int MAX_REFUND_PERCENT = 100;
 
-    private final MirrorNodeEvmProperties properties = new MirrorNodeEvmProperties();
+    private final EvmProperties properties = new EvmProperties();
 
     @AutoClose
     private final MockedStatic<ContractCallContext> staticMock = mockStatic(ContractCallContext.class);

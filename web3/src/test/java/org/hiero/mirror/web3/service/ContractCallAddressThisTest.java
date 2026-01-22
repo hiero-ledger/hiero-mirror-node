@@ -149,32 +149,32 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getBalance(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var entity1 = accountEntityPersist();
         final var functionCall = contract.call_getBalance(getAddressFromEntity(entity1));
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(entity1.getBalance()));
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getAddressThisBalance(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
         final var contract =
                 testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
         final var functionCall = contract.call_getAddressThisBalance();
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getAddressThisBalanceWithLowBalancePayer(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
 
         final var lowBalancePayer = accountEntityPersistCustomizable(e -> e.balance(500_000L));
 
@@ -191,7 +191,7 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
         assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
 
         testWeb3jService.reset();
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {

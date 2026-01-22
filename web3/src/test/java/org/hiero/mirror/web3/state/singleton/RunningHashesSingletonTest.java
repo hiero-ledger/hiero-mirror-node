@@ -32,7 +32,7 @@ class RunningHashesSingletonTest {
 
     @Test
     void key() {
-        assertThat(runningHashesSingleton.getId()).isEqualTo(RUNNING_HASHES_STATE_ID);
+        assertThat(runningHashesSingleton.getStateId()).isEqualTo(RUNNING_HASHES_STATE_ID);
     }
 
     @Test

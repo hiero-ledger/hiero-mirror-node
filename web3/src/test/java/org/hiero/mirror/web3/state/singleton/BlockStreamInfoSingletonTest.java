@@ -20,7 +20,7 @@ class BlockStreamInfoSingletonTest {
     @DisplayName("should return the correct state key")
     void key() {
         // when
-        final var key = blockStreamInfoSingleton.getId();
+        final var key = blockStreamInfoSingleton.getStateId();
 
         // then
         assertThat(key).isEqualTo(BLOCK_STREAM_INFO_STATE_ID);

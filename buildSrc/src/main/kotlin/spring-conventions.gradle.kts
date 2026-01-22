@@ -45,8 +45,6 @@ tasks.bootBuildImage {
     environment =
         mapOf(
             "BP_HEALTH_CHECKER_ENABLED" to "true",
-            "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to
-                "--initialize-at-build-time=org.slf4j.helpers.Reporter,org.slf4j.LoggerFactory,ch.qos.logback",
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",
             "BP_OCI_DESCRIPTION" to (project.description ?: ""),
             "BP_OCI_LICENSES" to "Apache-2.0",

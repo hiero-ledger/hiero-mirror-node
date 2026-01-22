@@ -8,7 +8,7 @@ require (
 	github.com/coinbase/rosetta-sdk-go/types v1.7.1
 	github.com/cucumber/godog v0.15.1
 	github.com/go-playground/validator/v10 v10.30.1
-	github.com/go-viper/mapstructure/v2 v2.4.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/hellofresh/health-go/v4 v4.7.0
 	github.com/hiero-ledger/hiero-sdk-go/v2 v2.74.0
 	github.com/jackc/pgtype v1.14.4
@@ -17,7 +17,7 @@ require (
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.23.2
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
