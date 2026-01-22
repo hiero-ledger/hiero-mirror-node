@@ -17,7 +17,7 @@ final class ContractSlotIdTest {
     private static final long HOOK_SYSTEM_CONTRACT_NUM = 365L;
 
     private ContractID contractId(long num) {
-        CommonProperties commonProperties = CommonProperties.getInstance();
+        final var commonProperties = CommonProperties.getInstance();
         return ContractID.newBuilder()
                 .setShardNum(commonProperties.getShard())
                 .setRealmNum(commonProperties.getRealm())
