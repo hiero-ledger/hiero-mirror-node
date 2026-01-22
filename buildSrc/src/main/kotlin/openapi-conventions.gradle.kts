@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.springframework.boot.gradle.tasks.aot.ProcessAot
+
 plugins {
     id("java-conventions")
     id("org.openapi.generator")
@@ -37,5 +39,7 @@ openApiGenerate {
 }
 
 tasks.withType<JavaCompile>().configureEach { dependsOn("openApiGenerate") }
+
+tasks.withType<ProcessAot>().configureEach { dependsOn("openApiGenerate") }
 
 java.sourceSets["main"].java { srcDir(openApiGenerate.outputDir) }

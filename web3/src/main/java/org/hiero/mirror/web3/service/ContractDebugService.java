@@ -10,7 +10,7 @@ import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -33,14 +33,14 @@ public class ContractDebugService extends ContractCallService {
             ThrottleManager throttleManager,
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
-            MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService) {
         super(
                 throttleManager,
                 throttleProperties,
                 meterRegistry,
                 recordFileService,
-                mirrorNodeEvmProperties,
+                evmProperties,
                 transactionExecutionService);
         this.contractActionRepository = contractActionRepository;
     }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.controller;
 
 import static java.lang.Long.MAX_VALUE;
+import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.DEFAULT_LIMIT;
 import static org.hiero.mirror.restjava.common.Constants.HOOK_ID;
 import static org.hiero.mirror.restjava.common.Constants.KEY;
@@ -51,7 +52,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @NullMarked
-@RequestMapping("/api/v1/accounts/{ownerId}/hooks")
+@RequestMapping(value = "/api/v1/accounts/{ownerId}/hooks", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 final class HooksController {
