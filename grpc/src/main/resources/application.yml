@@ -71,11 +71,7 @@ spring:
   grpc:
     server:
       health:
-        actuator:
-          health-indicator-paths:
-            - db
-            - ping
-            - redis
+        enabled: false
       keep-alive:
         max-idle: 10m
         permit-time: 90s

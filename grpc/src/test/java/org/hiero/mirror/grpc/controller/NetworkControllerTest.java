@@ -17,9 +17,8 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.common.domain.DomainBuilder;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -27,22 +26,15 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.GrpcIntegrationTest;
 import org.hiero.mirror.grpc.util.ProtoUtil;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.grpc.client.ImportGrpcClients;
 
-@ImportGrpcClients(types = {NetworkServiceGrpc.NetworkServiceBlockingStub.class})
+@ImportGrpcClients(types = NetworkServiceGrpc.NetworkServiceBlockingStub.class)
+@RequiredArgsConstructor
 final class NetworkControllerTest extends GrpcIntegrationTest {
 
     private static final long CONSENSUS_TIMESTAMP = 1L;
 
-    @Autowired
-    private DomainBuilder domainBuilder;
-
-    @Autowired
-    private SystemEntity systemEntity;
-
-    @Autowired
-    private NetworkServiceGrpc.NetworkServiceBlockingStub blockingService;
+    private final NetworkServiceGrpc.NetworkServiceBlockingStub blockingService;
 
     @Test
     void getNodesMissingFileId() {

@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -40,12 +41,12 @@ import org.springframework.grpc.client.ImportGrpcClients;
 @CustomLog
 @ExtendWith(OutputCaptureExtension.class)
 @ImportGrpcClients(types = {ConsensusServiceGrpc.ConsensusServiceBlockingStub.class})
+@RequiredArgsConstructor
 class ConsensusControllerTest extends GrpcIntegrationTest {
 
     private final long future = DomainUtils.convertToNanosMax(Instant.now().plusSeconds(10L));
 
-    @Autowired
-    private ConsensusServiceGrpc.ConsensusServiceBlockingStub blockingService;
+    private final ConsensusServiceGrpc.ConsensusServiceBlockingStub blockingService;
 
     @Autowired
     private ReactiveDomainBuilder domainBuilder;
