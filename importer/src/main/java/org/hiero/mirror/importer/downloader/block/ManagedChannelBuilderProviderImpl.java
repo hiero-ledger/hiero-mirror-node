@@ -10,8 +10,17 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
 
     @Override
     public ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties) {
-        var builder = ManagedChannelBuilder.forTarget(blockNodeProperties.getEndpoint());
-        if (blockNodeProperties.getStatusPort() != 443) {
+        return createBuilder(blockNodeProperties.getStatusEndpoint(), blockNodeProperties.getStatusPort());
+    }
+
+    @Override
+    public ManagedChannelBuilder<?> getForStreaming(BlockNodeProperties blockNodeProperties) {
+        return createBuilder(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties.getStreamingPort());
+    }
+
+    private ManagedChannelBuilder<?> createBuilder(String endpoint, int port) {
+        var builder = ManagedChannelBuilder.forTarget(endpoint);
+        if (port != 443) {
             builder.usePlaintext();
         } else {
             builder.useTransportSecurity();

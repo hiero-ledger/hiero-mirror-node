@@ -354,13 +354,49 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @Test
     void stringify() {
-        var expected = String.format("BlockNode(%s)", blockNodeProperties.getEndpoint());
+        var expected = String.format("BlockNode(%s)", blockNodeProperties.getStatusEndpoint());
         assertThat(node.toString()).isEqualTo(expected);
 
         blockNodeProperties.setHost("localhost");
         blockNodeProperties.setStatusPort(50000);
         expected = "BlockNode(localhost:50000)";
         assertThat(node.toString()).isEqualTo(expected);
+    }
+
+    @Test
+    void differentPortsCreatesSeparateChannels() {
+        // given
+        var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
+        var properties = new BlockNodeProperties();
+        properties.setHost(SERVER);
+        properties.setStatusPort(40840);
+        properties.setStreamingPort(40841);
+
+        // when
+        var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, properties, streamProperties, meterRegistry);
+
+        // then
+        Mockito.verify(provider, Mockito.times(1)).get(properties);
+        Mockito.verify(provider, Mockito.times(1)).getForStreaming(properties);
+        blockNode.close();
+    }
+
+    @Test
+    void samePortsReusesSingleChannel() {
+        // given
+        var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
+        var properties = new BlockNodeProperties();
+        properties.setHost(SERVER);
+        properties.setStatusPort(40840);
+        properties.setStreamingPort(40840);
+
+        // when
+        var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, properties, streamProperties, meterRegistry);
+
+        // then
+        Mockito.verify(provider, Mockito.times(1)).get(properties);
+        Mockito.verify(provider, Mockito.never()).getForStreaming(properties);
+        blockNode.close();
     }
 
     @Test

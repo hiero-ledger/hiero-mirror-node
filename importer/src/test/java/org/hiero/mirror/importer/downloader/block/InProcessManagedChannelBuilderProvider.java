@@ -13,4 +13,9 @@ class InProcessManagedChannelBuilderProvider implements ManagedChannelBuilderPro
     public ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties) {
         return InProcessChannelBuilder.forName(blockNodeProperties.getHost()).usePlaintext();
     }
+
+    @Override
+    public ManagedChannelBuilder<?> getForStreaming(BlockNodeProperties blockNodeProperties) {
+        return InProcessChannelBuilder.forName(blockNodeProperties.getHost()).usePlaintext();
+    }
 }
