@@ -8,8 +8,8 @@ import com.hederahashgraph.api.proto.java.HookId;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Unified key for both contract storage and lambda (hook) storage. For regular contract storage: contractId is set,
- * hookId is null For lambda/hook storage: contractId is null, hookId is set
+ * Unified key for both contract storage and hook storage. For regular contract storage: contractId is set, hookId is
+ * null. For hook storage: contractId is null, hookId is set
  */
 public record ContractSlotKey(ContractSlotId slotId, ByteString key) {
 

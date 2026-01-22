@@ -19,12 +19,12 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.co
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.convert;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getAccountId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getEvmHookSlotKey;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getFileId;
-import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTokenId;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getTopicId;
-import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapDeleteChange;
-import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.hookStorageMapDeleteChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.hookStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
@@ -518,18 +518,18 @@ final class StateChangeContextTest {
     }
 
     @Test
-    void getLambdaStorageValueWritten() {
+    void getHookStorageValueWritten() {
         // given
-        var lambdaSlot1 = bytes(24);
-        var lambdaSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(lambdaSlot1)));
-        var lambdaSlot1Value = bytes(8);
-        var lambdaSlot2 = bytes(32);
-        var lambdaSlot2Value = bytes(12);
-        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1Padded);
-        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
+        var hookSlot1 = bytes(24);
+        var hookSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(hookSlot1)));
+        var hookSlot1Value = bytes(8);
+        var hookSlot2 = bytes(32);
+        var hookSlot2Value = bytes(12);
+        var hookSlotKey1 = getEvmHookSlotKey(1L, hookSlot1Padded);
+        var hookSlotKey2 = getEvmHookSlotKey(2L, hookSlot2);
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey1, hookSlot1Value))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey2, hookSlot2Value))
                 .addStateChanges(otherMapUpdateChange())
                 .build();
 
@@ -539,43 +539,42 @@ final class StateChangeContextTest {
         // then
         // Test retrieval with normalized key
         var normalizedSlotKey1 =
-                convert(lambdaSlotKey1.toBuilder().setKey(lambdaSlot1).build());
-        assertThat(context.getContractStorageValueWritten(normalizedSlotKey1))
-                .isEqualTo(BytesValue.of(lambdaSlot1Value));
+                convert(hookSlotKey1.toBuilder().setKey(hookSlot1).build());
+        assertThat(context.getContractStorageValueWritten(normalizedSlotKey1)).isEqualTo(BytesValue.of(hookSlot1Value));
         // Test retrieval with padded key (should normalize and find the value)
-        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey2)))
-                .isEqualTo(BytesValue.of(lambdaSlot2Value));
+        assertThat(context.getContractStorageValueWritten(convert(hookSlotKey2)))
+                .isEqualTo(BytesValue.of(hookSlot2Value));
         // Test non-existent key
-        var nonExistentKey = getLambdaSlotKey(3L, bytes(32));
+        var nonExistentKey = getEvmHookSlotKey(3L, bytes(32));
         assertThat(context.getContractStorageValueWritten(convert(nonExistentKey)))
                 .isNull();
     }
 
     @Test
-    void getLambdaStorageValueWrittenWithEmptyContext() {
+    void getHookStorageValueWrittenWithEmptyContext() {
         // given
-        var lambdaSlotKey = getLambdaSlotKey(1L, bytes(32));
+        var hookSlotKey = getEvmHookSlotKey(1L, bytes(32));
 
         // when, then
-        assertThat(EMPTY_CONTEXT.getContractStorageValueWritten(convert(lambdaSlotKey)))
+        assertThat(EMPTY_CONTEXT.getContractStorageValueWritten(convert(hookSlotKey)))
                 .isNull();
     }
 
     @Test
-    void getLambdaStorageValueWrittenWithMapDelete() {
+    void getHookStorageValueWrittenWithMapDelete() {
         // given
-        var lambdaSlot1 = bytes(32);
-        var lambdaSlot1Value = bytes(8);
-        var lambdaSlot2 = bytes(32);
-        var lambdaSlot2Value = bytes(12);
-        var lambdaSlot3 = bytes(32);
-        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
-        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
-        var lambdaSlotKey3 = getLambdaSlotKey(3L, lambdaSlot3);
+        var hookSlot1 = bytes(32);
+        var hookSlot1Value = bytes(8);
+        var hookSlot2 = bytes(32);
+        var hookSlot2Value = bytes(12);
+        var hookSlot3 = bytes(32);
+        var hookSlotKey1 = getEvmHookSlotKey(1L, hookSlot1);
+        var hookSlotKey2 = getEvmHookSlotKey(2L, hookSlot2);
+        var hookSlotKey3 = getEvmHookSlotKey(3L, hookSlot3);
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1, lambdaSlot1Value))
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey2, lambdaSlot2Value))
-                .addStateChanges(lambdaStorageMapDeleteChange(lambdaSlotKey2))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey1, hookSlot1Value))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey2, hookSlot2Value))
+                .addStateChanges(hookStorageMapDeleteChange(hookSlotKey2))
                 .addStateChanges(otherMapUpdateChange())
                 .build();
 
@@ -584,13 +583,13 @@ final class StateChangeContextTest {
 
         // then
         // Test that updated value is present
-        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey1)))
-                .isEqualTo(BytesValue.of(lambdaSlot1Value));
+        assertThat(context.getContractStorageValueWritten(convert(hookSlotKey1)))
+                .isEqualTo(BytesValue.of(hookSlot1Value));
         // Test that deleted slot has default BytesValue (empty)
-        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey2)))
+        assertThat(context.getContractStorageValueWritten(convert(hookSlotKey2)))
                 .isEqualTo(BytesValue.getDefaultInstance());
         // Test non-existent key
-        assertThat(context.getContractStorageValueWritten(convert(lambdaSlotKey3)))
+        assertThat(context.getContractStorageValueWritten(convert(hookSlotKey3)))
                 .isNull();
     }
 }

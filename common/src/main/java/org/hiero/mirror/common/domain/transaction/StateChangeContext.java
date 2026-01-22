@@ -6,11 +6,10 @@ import static org.hiero.mirror.common.util.DomainUtils.normalize;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
-import com.hedera.hapi.block.stream.output.protoc.MapChangeKey;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
-import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
+import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -70,34 +69,27 @@ public final class StateChangeContext {
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
-                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
                         case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE ->
                             processPendingAirdropStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
-                        case StateIdentifier.STATE_ID_LAMBDA_STORAGE_VALUE -> processLambdaStorageChange(mapUpdate);
                         default -> {
                             // do nothing
                         }
                     }
                 } else if (stateChange.hasMapDelete()) {
-                    MapChangeKey key = stateChange.getMapDelete().getKey();
-                    if (key.hasSlotKeyKey()) {
-                        SlotKey slotKey = key.getSlotKeyKey();
-                        final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
-                        final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
-                        // use the default BytesValue instance when the storage slot is deleted
-                        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
-                    }
-                    if (key.hasLambdaSlotKey()) {
-                        LambdaSlotKey lambdaSlotKey = key.getLambdaSlotKey();
-                        final var slotId = ContractSlotId.of(null, lambdaSlotKey.getHookId());
-                        final var contractSlotKey = new ContractSlotKey(slotId, lambdaSlotKey.getKey());
-                        // use the default BytesValue instance when the storage slot is deleted
-                        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
+                    final var key = stateChange.getMapDelete().getKey();
+                    switch (key.getKeyChoiceCase()) {
+                        case EVM_HOOK_SLOT_KEY -> processContractStorageDelete(key.getEvmHookSlotKey());
+                        case SLOT_KEY_KEY -> processContractStorageDelete(key.getSlotKeyKey());
+                        default -> {
+                            // do nothing
+                        }
                     }
                 }
             }
@@ -259,14 +251,15 @@ public final class StateChangeContext {
         processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 
-    private void processLambdaStorageChange(MapUpdateChange mapUpdate) {
-        if (!mapUpdate.getKey().hasLambdaSlotKey()) {
+    private void processHookStorageChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasEvmHookSlotKey()) {
             return;
         }
+
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        final var lambdaSlotKey = mapUpdate.getKey().getLambdaSlotKey();
-        final var slotId = ContractSlotId.of(null, lambdaSlotKey.getHookId());
-        final var contractSlotKey = new ContractSlotKey(slotId, lambdaSlotKey.getKey());
+        final var evmHookSlotKey = mapUpdate.getKey().getEvmHookSlotKey();
+        final var slotId = ContractSlotId.of(null, evmHookSlotKey.getHookId());
+        final var contractSlotKey = new ContractSlotKey(slotId, evmHookSlotKey.getKey());
         processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 
@@ -276,8 +269,23 @@ public final class StateChangeContext {
         contractStorageChanges.put(slotKey, trimmed);
 
         contractStorageChangesIndexed
-                .computeIfAbsent(slotKey.slotId(), id -> new ArrayList<>())
+                .computeIfAbsent(slotKey.slotId(), _ -> new ArrayList<>())
                 .add(new SlotValue(slotKey.key(), trimmed));
+    }
+
+    private void processContractStorageDelete(final ContractSlotKey contractSlotKey) {
+        // use the default BytesValue instance when the storage slot is deleted
+        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
+    }
+
+    private void processContractStorageDelete(final EvmHookSlotKey evmHookStorageSlot) {
+        final var slotId = ContractSlotId.of(null, evmHookStorageSlot.getHookId());
+        processContractStorageDelete(new ContractSlotKey(slotId, evmHookStorageSlot.getKey()));
+    }
+
+    private void processContractStorageDelete(final SlotKey slotKey) {
+        final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
+        processContractStorageDelete(new ContractSlotKey(slotId, slotKey.getKey()));
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

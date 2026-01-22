@@ -291,16 +291,16 @@ final class DomainUtilsTest {
             00001234, 1234
             1234567890000000000000000000000000, 1234567890000000000000000000000000
             """)
-    void normalizeLambdaSlotKey(String input, String trimmed) {
+    void normalizeEvmHookSlotKey(String input, String trimmed) {
         var hookId = HookId.newBuilder()
                 .setHookId(1L)
                 .setEntityId(HookEntityId.newBuilder()
                         .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
                 .build();
         var slotId = ContractSlotId.of(null, hookId);
-        var lambdaSlotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
+        var hookSlotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
         var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
-        assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);
+        assertThat(DomainUtils.normalize(hookSlotKey)).isEqualTo(expected);
     }
 
     @Test

@@ -10,8 +10,8 @@ import lombok.ToString;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Identifier for either contract storage or lambda (hook) storage. For regular contract storage: contractId is set,
- * hookId is null For lambda/hook storage: contractId is null, hookId is set
+ * Identifier for either contract storage or hook storage. For regular contract storage: contractId is set, hookId is
+ * null. For hook storage: contractId is null, hookId is set
  *
  * <p><strong>Note:</strong> Use the static factory method {@link #of(ContractID, HookId)} to create instances.
  * Direct construction is not allowed.

@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.common.domain.transaction;
 
-import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_LAMBDA_STORAGE_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_STORAGE_VALUE;
 
 import com.google.protobuf.ByteString;
@@ -11,7 +11,7 @@ import com.hedera.hapi.block.stream.output.protoc.MapChangeValue;
 import com.hedera.hapi.block.stream.output.protoc.MapDeleteChange;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
-import com.hedera.hapi.node.state.hooks.legacy.LambdaSlotKey;
+import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.FileID;
@@ -84,27 +84,27 @@ public final class StateChangeTestUtils {
         return builder.build();
     }
 
-    public static StateChange lambdaStorageMapUpdateChange(LambdaSlotKey lambdaSlotKey, ByteString value) {
+    public static StateChange hookStorageMapUpdateChange(EvmHookSlotKey evmHookSlotKey, ByteString value) {
         return StateChange.newBuilder()
-                .setStateId(STATE_ID_LAMBDA_STORAGE_VALUE)
+                .setStateId(STATE_ID_EVM_HOOK_STORAGE_VALUE)
                 .setMapUpdate(MapUpdateChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setLambdaSlotKey(lambdaSlotKey))
+                        .setKey(MapChangeKey.newBuilder().setEvmHookSlotKey(evmHookSlotKey))
                         .setValue(MapChangeValue.newBuilder()
                                 .setSlotValueValue(com.hederahashgraph.api.proto.java.SlotValue.newBuilder()
                                         .setValue(value))))
                 .build();
     }
 
-    public static StateChange lambdaStorageMapDeleteChange(LambdaSlotKey lambdaSlotKey) {
+    public static StateChange hookStorageMapDeleteChange(EvmHookSlotKey evmHookSlotKey) {
         return StateChange.newBuilder()
-                .setStateId(STATE_ID_LAMBDA_STORAGE_VALUE)
+                .setStateId(STATE_ID_EVM_HOOK_STORAGE_VALUE)
                 .setMapDelete(MapDeleteChange.newBuilder()
-                        .setKey(MapChangeKey.newBuilder().setLambdaSlotKey(lambdaSlotKey)))
+                        .setKey(MapChangeKey.newBuilder().setEvmHookSlotKey(evmHookSlotKey)))
                 .build();
     }
 
-    public static LambdaSlotKey getLambdaSlotKey(long hookId, ByteString key) {
-        return LambdaSlotKey.newBuilder()
+    public static EvmHookSlotKey getEvmHookSlotKey(long hookId, ByteString key) {
+        return EvmHookSlotKey.newBuilder()
                 .setHookId(com.hederahashgraph.api.proto.java.HookId.newBuilder()
                         .setHookId(hookId)
                         .setEntityId(com.hederahashgraph.api.proto.java.HookEntityId.newBuilder()
@@ -113,9 +113,9 @@ public final class StateChangeTestUtils {
                 .build();
     }
 
-    public static ContractSlotKey convert(LambdaSlotKey lambdaSlotKey) {
-        var slotId = ContractSlotId.of(null, lambdaSlotKey.getHookId());
-        return new ContractSlotKey(slotId, lambdaSlotKey.getKey());
+    public static ContractSlotKey convert(EvmHookSlotKey evmHookSlotKey) {
+        var slotId = ContractSlotId.of(null, evmHookSlotKey.getHookId());
+        return new ContractSlotKey(slotId, evmHookSlotKey.getKey());
     }
 
     private static long nextId() {

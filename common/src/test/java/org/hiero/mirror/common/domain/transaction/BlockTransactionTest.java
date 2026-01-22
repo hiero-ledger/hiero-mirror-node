@@ -9,8 +9,8 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.co
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.convert;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
-import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getLambdaSlotKey;
-import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.lambdaStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getEvmHookSlotKey;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.hookStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
@@ -552,27 +552,27 @@ final class BlockTransactionTest {
     }
 
     @Test
-    void getValueWrittenForLambdaStorage() {
+    void getValueWrittenForHookStorage() {
         // given
-        var lambdaSlot1 = bytes(24);
-        var lambdaSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(lambdaSlot1)));
-        var lambdaSlot1Value = bytes(8);
-        var lambdaSlot1IntermediateValue = bytes(10);
-        var lambdaSlot2 = bytes(32);
-        var lambdaSlot3 = bytes(32);
-        var lambdaSlot3Value = bytes(6);
-        var lambdaSlot3IntermediateValue = bytes(12);
+        var hookSlot1 = bytes(24);
+        var hookSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(hookSlot1)));
+        var hookSlot1Value = bytes(8);
+        var hookSlot1IntermediateValue = bytes(10);
+        var hookSlot2 = bytes(32);
+        var hookSlot3 = bytes(32);
+        var hookSlot3Value = bytes(6);
+        var hookSlot3IntermediateValue = bytes(12);
 
-        var lambdaSlotKey1 = getLambdaSlotKey(1L, lambdaSlot1);
-        var lambdaSlotKey1Padded =
-                lambdaSlotKey1.toBuilder().setKey(lambdaSlot1Padded).build();
-        var lambdaSlotKey2 = getLambdaSlotKey(2L, lambdaSlot2);
-        var lambdaSlotKey3 = getLambdaSlotKey(3L, lambdaSlot3);
+        var hookSlotKey1 = getEvmHookSlotKey(1L, hookSlot1);
+        var hookSlotKey1Padded =
+                hookSlotKey1.toBuilder().setKey(hookSlot1Padded).build();
+        var hookSlotKey2 = getEvmHookSlotKey(2L, hookSlot2);
+        var hookSlotKey3 = getEvmHookSlotKey(3L, hookSlot3);
 
         var stateChanges = StateChanges.newBuilder()
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey1Padded, lambdaSlot1Value))
-                .addStateChanges(StateChangeTestUtils.lambdaStorageMapDeleteChange(lambdaSlotKey2))
-                .addStateChanges(lambdaStorageMapUpdateChange(lambdaSlotKey3, lambdaSlot3Value))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey1Padded, hookSlot1Value))
+                .addStateChanges(StateChangeTestUtils.hookStorageMapDeleteChange(hookSlotKey2))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey3, hookSlot3Value))
                 .build();
 
         var parent = defaultBuilder()
@@ -584,14 +584,14 @@ final class BlockTransactionTest {
                 .build();
 
         // Test parent transaction retrieves values from state changes
-        var contractSlotKey1 = convert(lambdaSlotKey1);
-        assertThat(parent.getValueWritten(contractSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
-        ContractSlotKey contractSlotKey2 = convert(lambdaSlotKey2);
+        var contractSlotKey1 = convert(hookSlotKey1);
+        assertThat(parent.getValueWritten(contractSlotKey1)).returns(hookSlot1Value, BytesValue::getValue);
+        ContractSlotKey contractSlotKey2 = convert(hookSlotKey2);
         assertThat(parent.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
-        ContractSlotKey contractSlotKey3 = convert(lambdaSlotKey3);
-        assertThat(parent.getValueWritten(contractSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+        ContractSlotKey contractSlotKey3 = convert(hookSlotKey3);
+        assertThat(parent.getValueWritten(contractSlotKey3)).returns(hookSlot3Value, BytesValue::getValue);
 
-        // Create child transactions (e.g., hook executions) with lambda storage reads
+        // Create child transactions (e.g., hook executions) with hook storage reads
         var inner1 = defaultBuilder()
                 .previous(parent)
                 .transactionResult(TransactionResult.newBuilder()
@@ -613,7 +613,7 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        inner2.setContractStorageReads(Map.of(contractSlotKey1, lambdaSlot1IntermediateValue));
+        inner2.setContractStorageReads(Map.of(contractSlotKey1, hookSlot1IntermediateValue));
         inner1.setNextSibling(inner2);
 
         var inner3 = defaultBuilder()
@@ -626,26 +626,24 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        inner3.setContractStorageReads(Map.of(contractSlotKey3, lambdaSlot3IntermediateValue));
+        inner3.setContractStorageReads(Map.of(contractSlotKey3, hookSlot3IntermediateValue));
         inner2.setNextSibling(inner3);
 
         // Test intermediate value resolution and key normalization
-        assertThat(inner1.getValueWritten(contractSlotKey1))
-                .returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
-        assertThat(inner1.getValueWritten(convert(lambdaSlotKey1Padded)))
-                .returns(lambdaSlot1IntermediateValue, BytesValue::getValue);
-        assertThat(inner2.getValueWritten(contractSlotKey1)).returns(lambdaSlot1Value, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(contractSlotKey1)).returns(hookSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(convert(hookSlotKey1Padded)))
+                .returns(hookSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(contractSlotKey1)).returns(hookSlot1Value, BytesValue::getValue);
 
         // Test deleted slot returns default BytesValue
         assertThat(inner1.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
 
         // Test slot3 intermediate value resolution
-        assertThat(inner2.getValueWritten(contractSlotKey3))
-                .returns(lambdaSlot3IntermediateValue, BytesValue::getValue);
-        assertThat(inner3.getValueWritten(contractSlotKey3)).returns(lambdaSlot3Value, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(contractSlotKey3)).returns(hookSlot3IntermediateValue, BytesValue::getValue);
+        assertThat(inner3.getValueWritten(contractSlotKey3)).returns(hookSlot3Value, BytesValue::getValue);
 
         // Test non-existent slot
-        assertThat(parent.getValueWritten(convert(getLambdaSlotKey(4L, bytes(32)))))
+        assertThat(parent.getValueWritten(convert(getEvmHookSlotKey(4L, bytes(32)))))
                 .isNull();
     }
 }
