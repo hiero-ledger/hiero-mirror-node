@@ -3,6 +3,7 @@ set local citus.multi_shard_modify_mode to 'sequential';
 
 alter table if exists hook drop column if exists type;
 alter table if exists hook_history drop column if exists type;
+drop table if exists hook_temp;
 drop type if exists hook_type;
 
 create type hook_type as enum ('EVM');
