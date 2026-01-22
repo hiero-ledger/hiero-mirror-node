@@ -193,8 +193,8 @@ final class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        var slotIdA = new ContractSlotId(contractIdA, null);
-        var slotIdB = new ContractSlotId(contractIdB, null);
+        var slotIdA = ContractSlotId.of(contractIdA, null);
+        var slotIdB = ContractSlotId.of(contractIdB, null);
         assertThat(context.getContractStorageChange(slotIdA, 0))
                 .isEqualTo(new StateChangeContext.SlotValue(contractASlot1, BytesValue.of(contractASlot1Value)));
         assertThat(context.getContractStorageChange(slotIdA, 1))
@@ -203,7 +203,7 @@ final class StateChangeContextTest {
                 .isEqualTo(new StateChangeContext.SlotValue(contractBSlot1, BytesValue.of(contractBSlot1Value)));
         assertThat(context.getContractStorageChange(slotIdA, -1)).isNull();
         assertThat(context.getContractStorageChange(slotIdB, 1)).isNull();
-        var otherSlotId = new ContractSlotId(getContractId(), null);
+        var otherSlotId = ContractSlotId.of(getContractId(), null);
         assertThat(context.getContractStorageChange(otherSlotId, 0)).isNull();
     }
 
@@ -235,7 +235,7 @@ final class StateChangeContextTest {
         var context = new StateChangeContext(List.of(stateChanges));
 
         // then
-        var slotIdA = new ContractSlotId(contractIdA, null);
+        var slotIdA = ContractSlotId.of(contractIdA, null);
         var contractASlotKeyBuilder = new ContractSlotKey(slotIdA, null);
         assertThat(context.getContractStorageValueWritten(new ContractSlotKey(slotIdA, contractASlot1)))
                 .isEqualTo(BytesValue.of(contractASlot1Value));
@@ -245,7 +245,7 @@ final class StateChangeContextTest {
                 .isEqualTo(BytesValue.getDefaultInstance());
         assertThat(context.getContractStorageValueWritten(new ContractSlotKey(slotIdA, bytes(32))))
                 .isNull();
-        var slotIdB = new ContractSlotId(contractIdB, null);
+        var slotIdB = ContractSlotId.of(contractIdB, null);
         assertThat(context.getContractStorageValueWritten(new ContractSlotKey(slotIdB, contractBSlot1)))
                 .isEqualTo(BytesValue.of(contractBSlot1Value));
         assertThat(context.getContractStorageValueWritten(new ContractSlotKey(slotIdB, contractBSlot2)))

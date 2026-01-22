@@ -9,38 +9,32 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
+import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
+@RequiredArgsConstructor(onConstructor = @__(@Autowired))
+@SpringBootTest(classes = CommonProperties.class)
 class ContractSlotIdTest {
 
     private static final long HOOK_SYSTEM_CONTRACT_NUM = 365L;
 
-    @Test
-    void constructorValidatesExactlyOneFieldSet() {
-        var contractId = ContractID.newBuilder().setContractNum(100).build();
-        var hookId = HookId.newBuilder().setHookId(1).build();
+    private final CommonProperties commonProperties;
 
-        // Valid: contractId set, hookId null
-        assertThat(new ContractSlotId(contractId, null)).isNotNull();
-
-        // Valid: hookId set, contractId null
-        assertThat(new ContractSlotId(null, hookId)).isNotNull();
-
-        // Invalid: both null
-        assertThatThrownBy(() -> new ContractSlotId(null, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Exactly one of contractId or hookId must be set");
-
-        // Invalid: both set
-        assertThatThrownBy(() -> new ContractSlotId(contractId, hookId))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Exactly one of contractId or hookId must be set");
+    private ContractID contractId(long num) {
+        return ContractID.newBuilder()
+                .setShardNum(commonProperties.getShard())
+                .setRealmNum(commonProperties.getRealm())
+                .setContractNum(num)
+                .build();
     }
 
     @Test
     void ofRegularContractWithoutHook() {
         // Regular contract (not 365) without executed hook
-        var contractId = ContractID.newBuilder().setContractNum(100).build();
+        var contractId = contractId(100);
 
         var slotId = ContractSlotId.of(contractId, null);
 
@@ -52,7 +46,7 @@ class ContractSlotIdTest {
     @Test
     void ofRegularContractWithHook() {
         // Regular contract (not 365) WITH executed hook - hook should be IGNORED
-        var contractId = ContractID.newBuilder().setContractNum(100).build();
+        var contractId = contractId(100);
         var hookId = HookId.newBuilder()
                 .setHookId(1)
                 .setEntityId(HookEntityId.newBuilder()
@@ -70,8 +64,7 @@ class ContractSlotIdTest {
     @Test
     void ofHookSystemContractWithHook() {
         // Hook system contract (365) with executed hook
-        var contractId =
-                ContractID.newBuilder().setContractNum(HOOK_SYSTEM_CONTRACT_NUM).build();
+        var contractId = contractId(HOOK_SYSTEM_CONTRACT_NUM);
         var hookId = HookId.newBuilder()
                 .setHookId(1)
                 .setEntityId(HookEntityId.newBuilder()
@@ -89,25 +82,12 @@ class ContractSlotIdTest {
     @Test
     void ofHookSystemContractWithoutHook_ReturnsNull() {
         // Hook system contract (365) WITHOUT executed hook - INVALID STATE
-        var contractId =
-                ContractID.newBuilder().setContractNum(HOOK_SYSTEM_CONTRACT_NUM).build();
+        var contractId = contractId(HOOK_SYSTEM_CONTRACT_NUM);
 
         var slotId = ContractSlotId.of(contractId, null);
 
         // Should return null for invalid state
         assertThat(slotId).isNull();
-    }
-
-    @Test
-    void ofRegularContractWithNullHookId() {
-        // Regular contract with null hookId - should work fine
-        var contractId = ContractID.newBuilder().setContractNum(100).build();
-
-        var slotId = ContractSlotId.of(contractId, null);
-
-        assertThat(slotId).isNotNull();
-        assertThat(slotId.contractId()).isEqualTo(contractId);
-        assertThat(slotId.hookId()).isNull();
     }
 
     @Test

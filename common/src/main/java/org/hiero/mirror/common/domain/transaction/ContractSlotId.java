@@ -9,21 +9,18 @@ import org.jspecify.annotations.Nullable;
 /**
  * Identifier for either contract storage or lambda (hook) storage. For regular contract storage: contractId is set,
  * hookId is null For lambda/hook storage: contractId is null, hookId is set
+ *
+ * <p><strong>Note:</strong> Use the static factory method {@link #of(ContractID, HookId)} to create instances.
+ * Direct construction is not recommended as it bypasses validation logic.
  */
 public record ContractSlotId(
         @Nullable ContractID contractId, @Nullable HookId hookId) {
 
     private static final long HOOK_SYSTEM_CONTRACT_NUM = 365L;
 
-    public ContractSlotId {
-        if ((contractId == null) == (hookId == null)) {
-            throw new IllegalArgumentException("Exactly one of contractId or hookId must be set");
-        }
-    }
-
     /**
-     * Creates a ContractSlotId based on the contract ID and executed hook ID.
-     * The logic determines whether this is contract storage or hook storage:
+     * Creates a ContractSlotId based on the contract ID and executed hook ID. The logic determines whether this is
+     * contract storage or hook storage:
      * <ul>
      *   <li>If contractId is the hook system contract (365) AND executedHookId is non-null: hook storage</li>
      *   <li>If contractId is NOT the hook system contract: contract storage (hook is ignored)</li>
@@ -33,7 +30,7 @@ public record ContractSlotId(
      * @param contractId     the contract ID
      * @param executedHookId the executed hook ID (may be null)
      * @return ContractSlotId for either contract or hook storage, or null if the state is invalid (hook system contract
-     *         without executed hook)
+     * without executed hook)
      */
     public static @Nullable ContractSlotId of(@Nullable ContractID contractId, @Nullable HookId executedHookId) {
         // If contractId is null but hookId is provided, create hook storage
@@ -41,9 +38,9 @@ public record ContractSlotId(
             return new ContractSlotId(null, executedHookId);
         }
 
-        // If contractId is null and hookId is null, return contract storage with null (will fail validation)
+        // Invalid: contractId is null and executedHookId is also null (since we didn't return above)
         if (contractId == null) {
-            return new ContractSlotId(contractId, null);
+            throw new IllegalArgumentException("Exactly one of contractId or hookId must be set");
         }
 
         // Invalid state: hook system contract without executed hook

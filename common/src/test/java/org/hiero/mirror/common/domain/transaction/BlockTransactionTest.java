@@ -453,7 +453,7 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        var slotIdA = new ContractSlotId(contractIdA, null);
+        var slotIdA = ContractSlotId.of(contractIdA, null);
         var contractStorageReads =
                 Map.of(new ContractSlotKey(slotIdA, contractASlot1), contractASlot1IntermediateValue);
         inner2.setContractStorageReads(contractStorageReads);
@@ -469,7 +469,7 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        var slotIdB = new ContractSlotId(contractIdB, null);
+        var slotIdB = ContractSlotId.of(contractIdB, null);
         contractStorageReads = Map.of(new ContractSlotKey(slotIdB, contractBSlot2), contractBSlot2IntermediateValue);
         inner3.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner3);

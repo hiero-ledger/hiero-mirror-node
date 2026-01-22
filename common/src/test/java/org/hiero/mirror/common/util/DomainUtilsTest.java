@@ -278,7 +278,7 @@ final class DomainUtilsTest {
             """)
     void normalize(String input, String trimmed) {
         var contractId = ContractID.newBuilder().setContractNum(1000).build();
-        var slotId = new ContractSlotId(contractId, null);
+        var slotId = ContractSlotId.of(contractId, null);
         var slotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
         var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
         assertThat(DomainUtils.normalize(slotKey)).isEqualTo(expected);
@@ -297,7 +297,7 @@ final class DomainUtilsTest {
                 .setEntityId(HookEntityId.newBuilder()
                         .setAccountId(AccountID.newBuilder().setAccountNum(1000)))
                 .build();
-        var slotId = new ContractSlotId(null, hookId);
+        var slotId = ContractSlotId.of(null, hookId);
         var lambdaSlotKey = new ContractSlotKey(slotId, ByteString.fromHex(input));
         var expected = new ContractSlotKey(slotId, ByteString.fromHex(trimmed));
         assertThat(DomainUtils.normalize(lambdaSlotKey)).isEqualTo(expected);
