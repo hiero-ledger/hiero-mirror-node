@@ -9,21 +9,15 @@ import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.HookEntityId;
 import com.hederahashgraph.api.proto.java.HookId;
-import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
-@SpringBootTest(classes = CommonProperties.class)
-class ContractSlotIdTest {
+final class ContractSlotIdTest {
 
     private static final long HOOK_SYSTEM_CONTRACT_NUM = 365L;
 
-    private final CommonProperties commonProperties;
-
     private ContractID contractId(long num) {
+        CommonProperties commonProperties = CommonProperties.getInstance();
         return ContractID.newBuilder()
                 .setShardNum(commonProperties.getShard())
                 .setRealmNum(commonProperties.getRealm())
