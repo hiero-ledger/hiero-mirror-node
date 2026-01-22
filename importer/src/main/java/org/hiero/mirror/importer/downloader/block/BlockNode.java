@@ -76,7 +76,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
         this.statusChannel = channelBuilderProvider
-                .get(properties)
+                .get(properties.getHost(), properties.getStatusPort())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
 
@@ -84,7 +84,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             this.streamingChannel = this.statusChannel;
         } else {
             this.streamingChannel = channelBuilderProvider
-                    .getForStreaming(properties)
+                    .get(properties.getHost(), properties.getStreamingPort())
                     .maxInboundMessageSize(maxInboundMessageSize)
                     .build();
         }

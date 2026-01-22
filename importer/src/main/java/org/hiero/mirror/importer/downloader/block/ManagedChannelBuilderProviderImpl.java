@@ -9,17 +9,8 @@ import jakarta.inject.Named;
 final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderProvider {
 
     @Override
-    public ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties) {
-        return createBuilder(blockNodeProperties.getStatusEndpoint(), blockNodeProperties.getStatusPort());
-    }
-
-    @Override
-    public ManagedChannelBuilder<?> getForStreaming(BlockNodeProperties blockNodeProperties) {
-        return createBuilder(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties.getStreamingPort());
-    }
-
-    private ManagedChannelBuilder<?> createBuilder(String endpoint, int port) {
-        var builder = ManagedChannelBuilder.forTarget(endpoint);
+    public ManagedChannelBuilder<?> get(String host, int port) {
+        var builder = ManagedChannelBuilder.forAddress(host, port);
         if (port != 443) {
             builder.usePlaintext();
         } else {

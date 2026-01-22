@@ -376,8 +376,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
         var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, properties, streamProperties, meterRegistry);
 
         // then
-        Mockito.verify(provider, Mockito.times(1)).get(properties);
-        Mockito.verify(provider, Mockito.times(1)).getForStreaming(properties);
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40840);
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40841);
         blockNode.close();
     }
 
@@ -394,8 +394,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, properties, streamProperties, meterRegistry);
 
         // then
-        Mockito.verify(provider, Mockito.times(1)).get(properties);
-        Mockito.verify(provider, Mockito.never()).getForStreaming(properties);
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40840);
         blockNode.close();
     }
 
