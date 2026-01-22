@@ -10,9 +10,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.Status;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.grpc.autoconfigure.server.GrpcServerProperties;
+import org.springframework.grpc.server.lifecycle.GrpcServerStartedEvent;
 
 @CustomLog
 @Named
@@ -27,7 +27,7 @@ public class GrpcHealthIndicator implements HealthIndicator {
         return Health.status(status.get()).build();
     }
 
-    @EventListener(ApplicationReadyEvent.class)
+    @EventListener(GrpcServerStartedEvent.class)
     public void onStart() {
         log.info("Started gRPC server on {}", grpcServerProperties.getAddress());
         status.set(Status.UP);

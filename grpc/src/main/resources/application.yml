@@ -30,7 +30,7 @@ management:
         liveness:
           include: ping
         readiness:
-          include: db, ping, redis
+          include: db, grpc, ping, redis
   endpoints:
     web:
       exposure:
