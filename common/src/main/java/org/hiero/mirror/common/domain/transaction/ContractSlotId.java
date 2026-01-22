@@ -3,7 +3,6 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.hederahashgraph.api.proto.java.ContractID;
-import com.hederahashgraph.api.proto.java.EvmTransactionResult;
 import com.hederahashgraph.api.proto.java.HookId;
 import org.jspecify.annotations.Nullable;
 
@@ -23,30 +22,41 @@ public record ContractSlotId(
     }
 
     /**
-     * Creates a ContractSlotId based on the contract ID and EVM transaction result. This method extracts the hook ID
-     * from the EVM transaction result if present.
+     * Creates a ContractSlotId based on the contract ID and executed hook ID.
+     * The logic determines whether this is contract storage or hook storage:
+     * <ul>
+     *   <li>If contractId is the hook system contract (365) AND executedHookId is non-null: hook storage</li>
+     *   <li>If contractId is NOT the hook system contract: contract storage (hook is ignored)</li>
+     *   <li>If contractId is the hook system contract (365) but executedHookId is null: returns null (invalid state)</li>
+     * </ul>
      *
-     * @param contractId           the contract ID
-     * @param evmTransactionResult the EVM transaction result (may be null)
+     * @param contractId     the contract ID
+     * @param executedHookId the executed hook ID (may be null)
      * @return ContractSlotId for either contract or hook storage, or null if the state is invalid (hook system contract
-     * without executed hook)
+     *         without executed hook)
      */
-    public static @Nullable ContractSlotId of(
-            @Nullable ContractID contractId, @Nullable EvmTransactionResult evmTransactionResult) {
+    public static @Nullable ContractSlotId of(@Nullable ContractID contractId, @Nullable HookId executedHookId) {
+        // If contractId is null but hookId is provided, create hook storage
+        if (contractId == null && executedHookId != null) {
+            return new ContractSlotId(null, executedHookId);
+        }
+
+        // If contractId is null and hookId is null, return contract storage with null (will fail validation)
+        if (contractId == null) {
+            return new ContractSlotId(contractId, null);
+        }
+
         // Invalid state: hook system contract without executed hook
-        if (contractId != null
-                && contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM
-                && (evmTransactionResult == null || !evmTransactionResult.hasExecutedHookId())) {
+        if (contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM && executedHookId == null) {
             return null;
         }
 
-        HookId hookId = null;
-        if (evmTransactionResult != null && evmTransactionResult.hasExecutedHookId()) {
-            hookId = evmTransactionResult.getExecutedHookId();
-            if (contractId != null && contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM) {
-                contractId = null;
-            }
+        // Hook system contract with executed hook: create hook storage
+        if (contractId.getContractNum() == HOOK_SYSTEM_CONTRACT_NUM && executedHookId != null) {
+            return new ContractSlotId(null, executedHookId);
         }
-        return new ContractSlotId(contractId, hookId);
+
+        // Regular contract (not 365): create contract storage, ignore hook
+        return new ContractSlotId(contractId, null);
     }
 }

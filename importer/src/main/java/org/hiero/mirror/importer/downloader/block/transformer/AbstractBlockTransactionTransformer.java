@@ -274,7 +274,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             EvmTransactionResult evmTransactionResult) {
         var contractId = contractSlotUsage.getContractId();
         var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
-        final var slotId = ContractSlotId.of(contractId, evmTransactionResult);
+        final var slotId = ContractSlotId.of(
+                contractId, evmTransactionResult != null ? evmTransactionResult.getExecutedHookId() : null);
 
         // Invalid state: hook system contract without executed hook
         if (slotId == null) {
