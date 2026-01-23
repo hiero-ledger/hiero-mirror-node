@@ -134,6 +134,11 @@ public class TopicMessageServiceImpl implements TopicMessageService {
                         .fixedBackoff(grpcProperties.getEndTimeInterval()));
     }
 
+    /**
+     * A flow can have missing messages if the importer is down for a long time when the client subscribes. When the
+     * incoming flow catches up and receives the next message for the topic, it will fill in any missing messages from
+     * when it was down.
+     */
     private Flux<TopicMessage> missingMessages(TopicContext topicContext, TopicMessage current) {
         TopicMessage last = topicContext.getLast();
 
