@@ -536,7 +536,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         int s = 0;
         int r = 0;
 
-        var senderRemainingAmount = Math.abs(senders.get(s).getAmount());
+        var senderRemainingAmount = senders.get(s).getAmount();
         var receiverRemainingAmount = receivers.get(r).getAmount();
 
         while (s < senders.size() && r < receivers.size()) {
@@ -554,7 +554,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             if (senderRemainingAmount == 0) {
                 s++;
                 if (s < senders.size()) {
-                    senderRemainingAmount = Math.abs(senders.get(s).getAmount());
+                    senderRemainingAmount = senders.get(s).getAmount();
                 }
             }
 

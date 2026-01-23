@@ -5,7 +5,6 @@ package org.hiero.mirror.importer.parser.contractlog;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.fromTrimmedEvmAddress;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
-import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.MultiPartyTransferType.TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.reset;
@@ -188,7 +187,7 @@ class SyntheticContractLogServiceImplTest {
                 .mapToLong(AccountAmount::getAmount)
                 .sum();
 
-        if (transferType != MultiPartyTransferType.TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM) {
+        if (transferType != MultiPartyTransferType.THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM) {
             assertThat(originalTransferSum)
                     .as("Original transfers should zero-sum")
                     .isZero();
@@ -360,7 +359,7 @@ class SyntheticContractLogServiceImplTest {
             case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
             case FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
             case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 6;
-            case TWO_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 6;
+            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 6;
             case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 4;
         };
     }
