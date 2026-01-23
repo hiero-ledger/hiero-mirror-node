@@ -197,7 +197,7 @@ jobs:
           driver-opts: network=host
           buildkitd-config-inline: |
             [registry."docker.io"]
-              mirrors = ["https://hub.mirror.docker.lat.ope.eng.hashgraph.io"]
+              mirrors = ["hub.mirror.docker.lat.ope.eng.hashgraph.io"]
 
       - name: Build images
         run: ./release.sh "${TAG}"
