@@ -59,10 +59,14 @@ Note: The diagram amends the block streams data flow with block node support
 ```java
 public class BlockNodeProperties {
     private String host;
-    private int port;
+    private int statusPort;
+    private int streamingPort;
     private int priority;
 }
 ```
+
+The `statusPort` is used for the block node status API, while the `streamingPort` is used for the streaming API.
+Both ports default to 40840 initially.
 
 When picking a block node to stream block items from, a block node with higher `priority` is always tried first. Block
 nodes with the same `priority` are tried with the order in the configuration. `priority` can't be negative and 0 is the

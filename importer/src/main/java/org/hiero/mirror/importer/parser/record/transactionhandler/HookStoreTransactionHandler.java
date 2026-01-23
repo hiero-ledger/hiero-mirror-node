@@ -16,20 +16,20 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 @RequiredArgsConstructor
 @CustomLog
-final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
+final class HookStoreTransactionHandler extends AbstractTransactionHandler {
 
     private final EvmHookStorageHandler hookHandler;
     private final EntityIdService entityIdService;
 
     @Override
     public TransactionType getType() {
-        return TransactionType.LAMBDA_SSTORE;
+        return TransactionType.HOOKSTORE;
     }
 
     @Override
     public EntityId getEntity(RecordItem recordItem) {
         final var hookEntityId =
-                recordItem.getTransactionBody().getLambdaSstore().getHookId().getEntityId();
+                recordItem.getTransactionBody().getHookStore().getHookId().getEntityId();
 
         if (hookEntityId.hasAccountId()) {
             return entityIdService.lookup(hookEntityId.getAccountId()).orElse(EntityId.EMPTY);
@@ -44,7 +44,7 @@ final class LambdaSStoreTransactionHandler extends AbstractTransactionHandler {
             return;
         }
 
-        final var transactionBody = recordItem.getTransactionBody().getLambdaSstore();
+        final var transactionBody = recordItem.getTransactionBody().getHookStore();
         final var ownerEntityId = transaction.getEntityId();
         final var hookId = transactionBody.getHookId().getHookId();
         final var consensusTimestamp = recordItem.getConsensusTimestamp();

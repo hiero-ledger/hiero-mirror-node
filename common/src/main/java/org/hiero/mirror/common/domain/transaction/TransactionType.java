@@ -68,7 +68,7 @@ public enum TransactionType {
     TOKENCANCELAIRDROP(59, EntityOperation.NONE),
     TOKENCLAIMAIRDROP(60, EntityOperation.NONE),
     ATOMIC_BATCH(74, EntityOperation.NONE),
-    LAMBDA_SSTORE(75, EntityOperation.NONE);
+    HOOKSTORE(75, EntityOperation.NONE);
 
     private static final Map<Integer, TransactionType> idMap =
             Arrays.stream(values()).collect(Collectors.toMap(TransactionType::getProtoId, Function.identity()));

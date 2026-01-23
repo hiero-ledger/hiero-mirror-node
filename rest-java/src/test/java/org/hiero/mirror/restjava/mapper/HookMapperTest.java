@@ -17,13 +17,11 @@ import org.junit.jupiter.api.Test;
 
 final class HookMapperTest {
 
-    private CommonMapper commonMapper;
     private HookMapper mapper;
 
     @BeforeEach
     void setup() {
-        commonMapper = new CommonMapperImpl();
-        mapper = new HookMapperImpl(commonMapper);
+        mapper = new HookMapperImpl(new CommonMapperImpl());
     }
 
     @Test
@@ -36,7 +34,7 @@ final class HookMapperTest {
         source.setOwnerId(200L);
         source.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
         source.setTimestampRange(Range.closed(1L, 100000L));
-        source.setType(HookType.LAMBDA);
+        source.setType(HookType.EVM);
         source.setDeleted(false);
 
         final var ed25519Hex = "1220" + "a".repeat(64);
@@ -55,7 +53,7 @@ final class HookMapperTest {
         assertThat(result.getExtensionPoint()).isEqualTo(Hook.ExtensionPointEnum.ACCOUNT_ALLOWANCE_HOOK);
         assertThat(result.getTimestampRange())
                 .isEqualTo(new TimestampRangeNullable().from("0.000000001").to("0.000100000"));
-        assertThat(result.getType()).isEqualTo(Hook.TypeEnum.LAMBDA);
+        assertThat(result.getType()).isEqualTo(Hook.TypeEnum.EVM);
         assertThat(result.getAdminKey().getType()).isEqualTo(Key.TypeEnum.ED25519);
         assertThat(result.getAdminKey().getKey()).hasSize(64);
         assertThat(result.getAdminKey().getKey())

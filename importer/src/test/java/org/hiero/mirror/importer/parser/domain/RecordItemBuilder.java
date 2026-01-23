@@ -21,13 +21,13 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.node.hooks.legacy.EvmHook;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
-import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
-import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -550,7 +550,7 @@ public class RecordItemBuilder {
         return HookCreationDetails.newBuilder()
                 .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .setHookId(1L)
-                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                .setEvmHook(EvmHook.newBuilder()
                         .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
                         .build())
                 .setAdminKey(key());
@@ -1515,20 +1515,20 @@ public class RecordItemBuilder {
         };
     }
 
-    public Builder<LambdaSStoreTransactionBody.Builder> lambdaSStore() {
-        var slotUpdate = LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+    public Builder<HookStoreTransactionBody.Builder> hookStore() {
+        var slotUpdate = EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(slot())
                         .setValue(bytes(32))
                         .build());
 
-        var slotUpdate2 = LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+        var slotUpdate2 = EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(slot())
                         .setValue(bytes(32))
                         .build());
 
-        var body = LambdaSStoreTransactionBody.newBuilder()
+        var body = HookStoreTransactionBody.newBuilder()
                 .setHookId(HookId.newBuilder()
                         .setHookId(id())
                         .setEntityId(HookEntityId.newBuilder()
@@ -1538,7 +1538,7 @@ public class RecordItemBuilder {
                 .addStorageUpdates(slotUpdate)
                 .addStorageUpdates(slotUpdate2);
 
-        return new Builder<>(TransactionType.LAMBDA_SSTORE, body);
+        return new Builder<>(TransactionType.HOOKSTORE, body);
     }
 
     public ByteString bytes(int length) {
