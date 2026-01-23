@@ -11,6 +11,7 @@ const errorMap = {
   FileDownloadError: httpStatusCodes.BAD_GATEWAY,
   InvalidArgumentError: httpStatusCodes.BAD_REQUEST,
   NotFoundError: httpStatusCodes.NOT_FOUND,
+  RangeError: httpStatusCodes.BAD_REQUEST,
 };
 
 const simpleErrors = /statement timeout/;
