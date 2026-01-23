@@ -16,7 +16,6 @@ import java.util.stream.LongStream;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.scheduler.SchedulerType;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
-import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -126,7 +125,6 @@ final class MultipleBlockNodeLatencyTest extends AbstractBlockNodeIntegrationTes
         // - switch to node3
         // Note the last two subscriptions are both with node3, because the scheduler is triggered for a rescheduling
         // and find out lower latency nodes simply don't have the next block
-        var ports = simulators.stream().map(BlockNodeSimulator::getPort).toList();
         assertThat(findAllMatches(output.getAll(), "from BlockNode\\(.+:-1\\)"))
                 .containsExactly(
                         String.format("from BlockNode(%s)", endpoint(0)),

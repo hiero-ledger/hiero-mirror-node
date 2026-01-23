@@ -44,29 +44,34 @@ public final class BlockNodeSimulator implements AutoCloseable {
     private final AtomicInteger latency = new AtomicInteger();
     private boolean missingBlock;
     private boolean outOfOrder;
-
-    @Getter
-    private int port;
+    private boolean useDifferentPorts = true;
 
     private int priority;
-    private Server server;
+    private Server statusServer;
+    private Server streamingServer;
     private boolean started;
 
+    @Getter
+    private int statusPort;
+
+    @Getter
+    private int streamingPort;
+
     @Override
-    @SneakyThrows
     public void close() {
         if (!started) {
             return;
         }
 
-        server.shutdown();
-        server.awaitTermination();
+        shutdown(statusServer);
+        shutdown(streamingServer);
+
         started = false;
     }
 
     public String getEndpoint() {
         validateState(started, "BlockNodeSimulator has not been started");
-        return String.format("%s:%d", host, port);
+        return String.format("%s:%d", host, statusPort);
     }
 
     @SneakyThrows
@@ -82,22 +87,28 @@ public final class BlockNodeSimulator implements AutoCloseable {
             blocks.remove(blocks.size() - 2);
         }
 
-        ForwardingServerBuilder<?> serverBuilder;
+        ForwardingServerBuilder<?> statusServerBuilder;
+        ForwardingServerBuilder<?> streamingServerBuilder;
         if (inProcessChannel) {
             host = Objects.requireNonNullElse(hostPrefix, "")
                     + RandomStringUtils.secure().nextAlphabetic(8);
-            serverBuilder = InProcessServerBuilder.forName(host);
+            statusServerBuilder = InProcessServerBuilder.forName(host);
+            streamingServerBuilder = statusServerBuilder;
         } else {
             host = "localhost";
-            serverBuilder = NettyServerBuilder.forPort(0);
+            statusServerBuilder = NettyServerBuilder.forPort(0);
+            streamingServerBuilder = useDifferentPorts ? NettyServerBuilder.forPort(0) : statusServerBuilder;
         }
 
-        server = serverBuilder
-                .addService(new StatusService())
-                .addService(new StreamSubscribeService())
-                .build()
-                .start();
-        port = server.getPort();
+        statusServerBuilder.addService(new StatusService());
+        streamingServerBuilder.addService(new StreamSubscribeService());
+
+        statusServer = statusServerBuilder.build().start();
+        streamingServer = streamingServerBuilder != statusServerBuilder ? streamingServerBuilder.build().start() : statusServer;
+
+        statusPort = statusServer.getPort();
+        streamingPort = streamingServer.getPort();
+
         started = true;
         return this;
     }
@@ -115,8 +126,8 @@ public final class BlockNodeSimulator implements AutoCloseable {
         var properties = new BlockNodeProperties();
         properties.setHost(host);
         properties.setPriority(priority);
-        properties.setStatusPort(port);
-        properties.setStreamingPort(port);
+        properties.setStatusPort(statusPort);
+        properties.setStreamingPort(streamingPort);
         return properties;
     }
 
@@ -161,6 +172,11 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
+    public BlockNodeSimulator withMissingBlock() {
+        this.missingBlock = true;
+        return this;
+    }
+
     public BlockNodeSimulator withOutOfOrder() {
         this.outOfOrder = true;
         return this;
@@ -171,8 +187,8 @@ public final class BlockNodeSimulator implements AutoCloseable {
         return this;
     }
 
-    public BlockNodeSimulator withMissingBlock() {
-        this.missingBlock = true;
+    public BlockNodeSimulator withSamePort() {
+        this.useDifferentPorts = false;
         return this;
     }
 
@@ -180,6 +196,12 @@ public final class BlockNodeSimulator implements AutoCloseable {
         if (!condition) {
             throw new IllegalArgumentException(message);
         }
+    }
+
+    @SneakyThrows
+    private void shutdown(final Server server) {
+        server.shutdown();
+        server.awaitTermination();
     }
 
     private static void validateState(boolean condition, String message) {
