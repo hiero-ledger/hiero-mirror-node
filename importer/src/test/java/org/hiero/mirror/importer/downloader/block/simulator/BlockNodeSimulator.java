@@ -104,7 +104,9 @@ public final class BlockNodeSimulator implements AutoCloseable {
         streamingServerBuilder.addService(new StreamSubscribeService());
 
         statusServer = statusServerBuilder.build().start();
-        streamingServer = streamingServerBuilder != statusServerBuilder ? streamingServerBuilder.build().start() : statusServer;
+        streamingServer = streamingServerBuilder != statusServerBuilder
+                ? streamingServerBuilder.build().start()
+                : statusServer;
 
         statusPort = statusServer.getPort();
         streamingPort = streamingServer.getPort();
