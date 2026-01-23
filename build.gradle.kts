@@ -19,7 +19,7 @@ extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.70.0-rc.1")
+    set("consensusNodeVersion", "0.70.0-rc.2")
     set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
