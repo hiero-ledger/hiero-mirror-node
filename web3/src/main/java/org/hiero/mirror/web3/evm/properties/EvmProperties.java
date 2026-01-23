@@ -28,9 +28,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.TreeMap;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import org.apache.tuweni.bytes.Bytes;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.CommonProperties;
@@ -39,32 +40,40 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 import org.springframework.validation.annotation.Validated;
 
-@Getter
-@Setter
-@Validated
 @ConfigurationProperties(prefix = "hiero.mirror.web3.evm")
-public class MirrorNodeEvmProperties {
+@Data
+@Validated
+public class EvmProperties {
 
     private static final NavigableMap<Long, SemanticVersion> DEFAULT_EVM_VERSION_MAP =
             ImmutableSortedMap.of(0L, EVM_VERSION);
 
     @Positive
+    private long entityNumBuffer = 1000L;
+
+    @Positive
     private double estimateGasIterationThresholdPercent = 0.10d;
 
+    @NotNull
     private SemanticVersion evmVersion = EVM_VERSION;
 
+    @NotNull
     private NavigableMap<Long, SemanticVersion> evmVersions = new TreeMap<>();
 
     @Min(21_000L)
     private long maxGasLimit = 15_000_000L;
 
-    // maximum iteration count for estimate gas' search algorithm
+    // Maximum iteration count for estimate gas' search algorithm
+    @Positive
     private int maxGasEstimateRetriesCount = 20;
 
     // used by eth_estimateGas only
-    @Min(1)
     @Max(100)
+    @Positive
     private int maxGasRefundPercentage = 100;
+
+    @Positive
+    private long minimumAccountBalance = 100_000_000_000_000_000L;
 
     @NotNull
     private HederaNetwork network = HederaNetwork.TESTNET;
@@ -74,16 +83,14 @@ public class MirrorNodeEvmProperties {
     private Map<String, String> properties = new HashMap<>();
 
     // Contains the default properties merged with the user defined properties to pass to the consensus node library
+    @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     private final Map<String, String> transactionProperties = buildTransactionProperties();
 
+    @EqualsAndHashCode.Exclude
     @Getter(lazy = true)
     private final VersionedConfiguration versionedConfiguration =
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
-
-    private long entityNumBuffer = 1000L;
-
-    private long minimumAccountBalance = 100_000_000_000_000_000L;
 
     private boolean validatePayerBalance = false;
 
@@ -132,7 +139,7 @@ public class MirrorNodeEvmProperties {
         if (evmEntry != null) {
             return evmEntry.getValue();
         } else {
-            return EVM_VERSION; // Return default version if no entry matches the block number
+            return EVM_VERSION;
         }
     }
 

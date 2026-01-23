@@ -407,8 +407,6 @@ public abstract class AbstractContractCallServiceHistoricalTest extends Abstract
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isValidatePayerBalance()
-                ? DEFAULT_ACCOUNT_BALANCE
-                : DEFAULT_SMALL_ACCOUNT_BALANCE;
+        return evmProperties.isValidatePayerBalance() ? DEFAULT_ACCOUNT_BALANCE : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 }

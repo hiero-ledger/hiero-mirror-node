@@ -28,12 +28,16 @@ import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
 import {JSONParse} from '../../utils';
-import {slowStepTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import {
+  slowStepTimeoutMillis,
+  setupIntegrationTest,
+  transformResponseHeaders,
+  transformShardRealmValues,
+} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
 import {writeTableUsage} from '../tableUsage';
-import {transformShardRealmValues} from '../integrationUtils';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -390,7 +394,9 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
                   spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ??
                   spec.responseHeaders ??
                   {};
-                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(expectedHeaders));
+                expect(lowercaseKeys(response.headers)).toMatchObject(
+                  transformResponseHeaders(lowercaseKeys(expectedHeaders))
+                );
               }
             });
           });

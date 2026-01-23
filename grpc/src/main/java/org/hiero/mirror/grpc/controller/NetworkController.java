@@ -4,36 +4,37 @@ package org.hiero.mirror.grpc.controller;
 
 import com.google.protobuf.ByteString;
 import com.hedera.mirror.api.proto.AddressBookQuery;
-import com.hedera.mirror.api.proto.ReactorNetworkServiceGrpc;
+import com.hedera.mirror.api.proto.NetworkServiceGrpc;
 import com.hederahashgraph.api.proto.java.NodeAddress;
 import com.hederahashgraph.api.proto.java.ServiceEndpoint;
+import io.grpc.stub.StreamObserver;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import net.devh.boot.grpc.server.service.GrpcService;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.grpc.domain.AddressBookFilter;
 import org.hiero.mirror.grpc.service.NetworkService;
 import org.hiero.mirror.grpc.util.ProtoUtil;
-import reactor.core.publisher.Flux;
+import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
 
 @GrpcService
 @CustomLog
 @RequiredArgsConstructor
-public class NetworkController extends ReactorNetworkServiceGrpc.NetworkServiceImplBase {
+public class NetworkController extends NetworkServiceGrpc.NetworkServiceImplBase {
 
     private final NetworkService networkService;
 
     @Override
-    public Flux<NodeAddress> getNodes(Mono<AddressBookQuery> request) {
-        return request.map(this::toFilter)
+    public void getNodes(AddressBookQuery request, StreamObserver<NodeAddress> responseObserver) {
+        Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(networkService::getNodes)
                 .map(this::toNodeAddress)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException);
+                .onErrorMap(ProtoUtil::toStatusRuntimeException)
+                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
     }
 
     private AddressBookFilter toFilter(AddressBookQuery query) {

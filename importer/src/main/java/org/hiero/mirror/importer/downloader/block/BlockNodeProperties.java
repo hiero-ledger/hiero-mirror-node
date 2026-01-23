@@ -15,14 +15,18 @@ public class BlockNodeProperties {
     @NotBlank
     private String host;
 
-    @Max(65535)
-    @Min(0)
-    private int port = 40840;
-
     @Min(0)
     private int priority = 0;
 
-    public String getEndpoint() {
-        return host + ":" + port;
+    @Max(65535)
+    @Min(0)
+    private int statusPort = 40840;
+
+    @Max(65535)
+    @Min(0)
+    private int streamingPort = 40840;
+
+    public String getStatusEndpoint() {
+        return host + ":" + statusPort;
     }
 }

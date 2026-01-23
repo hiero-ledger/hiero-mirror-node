@@ -16,16 +16,16 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("besuVersion", "24.3.3")
+    set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
     set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
-    set("consensusNodeVersion", "0.69.2")
+    set("consensusNodeVersion", "0.70.0-rc.1")
     set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.33.4")
-    set("reactorGrpcVersion", "1.2.4")
+    set("springGrpcVersion", "0.12.0")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.1")
 }
@@ -40,7 +40,7 @@ dependencies {
         val grpcVersion: String by rootProject.extra
         val mapStructVersion: String by rootProject.extra
         val protobufVersion: String by rootProject.extra
-        val reactorGrpcVersion: String by rootProject.extra
+        val springGrpcVersion: String by rootProject.extra
         val tuweniVersion: String by rootProject.extra
         val web3jVersion: String by rootProject.extra
 
@@ -57,9 +57,8 @@ dependencies {
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.65.0")
+        api("com.hedera.hashgraph:sdk:2.66.0")
         api("com.ongres.scram:client:2.1")
-        api("com.salesforce.servicelibs:reactor-grpc-stub:$reactorGrpcVersion")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
         api("io.cucumber:cucumber-bom:7.23.0")
@@ -68,11 +67,8 @@ dependencies {
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
-        api("io.swagger:swagger-annotations:1.6.16")
         api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
-        api("javax.inject:javax.inject:1")
-        api("net.devh:grpc-spring-boot-starter:3.1.0.RELEASE")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
         api("org.apache.commons:commons-compress:1.28.0")
@@ -80,7 +76,6 @@ dependencies {
         api("org.apache.tuweni:tuweni-bytes:$tuweniVersion")
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
-        api("org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api:5.0.2")
         api("org.gaul:s3proxy:3.0.0")
         api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
@@ -89,8 +84,8 @@ dependencies {
         api("org.mapstruct:mapstruct:$mapStructVersion")
         api("org.mapstruct:mapstruct-processor:$mapStructVersion")
         api("org.msgpack:jackson-dataformat-msgpack:0.9.11")
-        api("org.springdoc:springdoc-openapi-webflux-ui:1.8.0")
-        api("org.mockito:mockito-inline:5.2.0")
+        api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
+        api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:$web3jVersion")
         api("software.amazon.awssdk:bom:2.41.10")
         api("tech.pegasys:jc-kzg-4844:1.0.0")

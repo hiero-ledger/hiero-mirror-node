@@ -6,13 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-class BlockNodePropertiesTest {
+final class BlockNodePropertiesTest {
 
     @Test
-    void getEndpoint() {
+    void getStatusEndpoint() {
         var properties = new BlockNodeProperties();
         properties.setHost("localhost");
-        properties.setPort(12345);
-        assertThat(properties.getEndpoint()).isEqualTo("localhost:12345");
+        properties.setStatusPort(12345);
+        assertThat(properties.getStatusEndpoint()).isEqualTo("localhost:12345");
     }
 }

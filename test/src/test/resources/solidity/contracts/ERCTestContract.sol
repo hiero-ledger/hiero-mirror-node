@@ -82,11 +82,11 @@ interface IHieroAccountAllowanceHook {
 contract ERCTestContract is IHieroAccountAllowanceHook {
     // Hook functions
 
-    // Lambda storage for hook operations
-    mapping(bytes32 => bytes32) public lambdaStorage;
+    // Storage for hook operations
+    mapping(bytes32 => bytes32) public hookStorage;
 
-    // Event for lambda storage operations
-    event LambdaStorageUpdate(bytes32 indexed key, bytes32 value);
+    // Event for hook storage operations
+    event HookStorageUpdate(bytes32 indexed key, bytes32 value);
 
     constructor() payable {}
 
@@ -98,27 +98,27 @@ contract ERCTestContract is IHieroAccountAllowanceHook {
         // Store hook execution data for testing
         bytes32 testKey = keccak256(abi.encodePacked("hook_executed_", context.owner));
         bytes32 testValue = bytes32(block.timestamp);
-        lambdaStorage[testKey] = testValue;
-        emit LambdaStorageUpdate(testKey, testValue);
+        hookStorage[testKey] = testValue;
+        emit HookStorageUpdate(testKey, testValue);
 
         return true;
     }
 
-    /// Lambda storage function for setting key-value pairs
+    /// Storage function for setting key-value pairs
     function setStorage(bytes32 key, bytes32 value) external {
-        lambdaStorage[key] = value;
-        emit LambdaStorageUpdate(key, value);
+        hookStorage[key] = value;
+        emit HookStorageUpdate(key, value);
     }
 
-    /// Lambda storage function for getting values by key
+    /// Storage function for getting values by key
     function getStorage(bytes32 key) external view returns (bytes32) {
-        return lambdaStorage[key];
+        return hookStorage[key];
     }
 
-    /// Lambda storage function for removing entries (set to zero)
+    /// Storage function for removing entries (set to zero)
     function removeStorage(bytes32 key) external {
-        delete lambdaStorage[key];
-        emit LambdaStorageUpdate(key, 0);
+        delete hookStorage[key];
+        emit HookStorageUpdate(key, 0);
     }
 
     // ERC functions

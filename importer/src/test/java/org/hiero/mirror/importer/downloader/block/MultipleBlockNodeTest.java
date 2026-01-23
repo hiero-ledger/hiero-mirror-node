@@ -104,9 +104,11 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
         // then
         // Verify that the logs the high-priority node's port
-        final var nodeAPort = simulators.getFirst().getPort();
+        final int nodeAPort = simulators.getFirst().getPort();
+        final int nodeBPort = simulators.get(1).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
-                .containsExactly(String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort));
+                .containsExactly(String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort))
+                .doesNotContain(String.valueOf(nodeBPort));
     }
 
     @Test
@@ -131,8 +133,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(0L);
         clearInvocations(streamFileNotifier);
 
-        final var nodeAPort = simulators.get(0).getPort();
-        final var nodeCPort = simulators.get(2).getPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
 
         // Attempt 2: next block is 1 - Nodes A and B don't have it so Node C must be chosen
         subscriber.get();
@@ -141,7 +144,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
-                        String.format("Start streaming block 1 from BlockNode(localhost:%d)", nodeCPort));
+                        String.format("Start streaming block 1 from BlockNode(localhost:%d)", nodeCPort))
+                .doesNotContain(String.valueOf(nodeBPort));
 
         // Verify that blocks 1 and 2 are verified exactly once
         captor = ArgumentCaptor.forClass(RecordFile.class);
@@ -166,7 +170,7 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(5L, 6L, 7L);
 
         // Verify that logs explicitly show that it starts processing from block 5
-        final var port = simulators.getFirst().getPort();
+        final int port = simulators.getFirst().getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(String.format("Start streaming block 5 from BlockNode(localhost:%d)", port));
     }
@@ -198,9 +202,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber.get();
         verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 2));
 
-        final var nodeAPort = simulators.get(0).getPort();
-        final var nodeBPort = simulators.get(1).getPort();
-        final var nodeCPort = simulators.get(2).getPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
@@ -235,9 +239,9 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber.get();
         verify(streamFileNotifier).verified(argThat(rf -> rf.getIndex() == 2));
 
-        final var nodeAPort = simulators.get(0).getPort();
-        final var nodeBPort = simulators.get(1).getPort();
-        final var nodeCPort = simulators.get(2).getPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
+        final int nodeCPort = simulators.get(2).getPort();
         assertThat(findAllMatches(output.getAll(), "Start streaming block \\d+ from BlockNode\\(localhost:\\d+\\)"))
                 .containsExactly(
                         String.format("Start streaming block 0 from BlockNode(localhost:%d)", nodeAPort),
@@ -287,8 +291,8 @@ final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         assertThat(captor.getAllValues()).extracting(RecordFile::getIndex).containsExactly(1L, 2L);
 
         String logs = output.getAll();
-        final var nodeAPort = simulators.get(0).getPort();
-        final var nodeBPort = simulators.get(1).getPort();
+        final int nodeAPort = simulators.get(0).getPort();
+        final int nodeBPort = simulators.get(1).getPort();
         assertThat(findAllMatches(
                         logs, "Marking connection to BlockNode\\(localhost:\\d+\\) as inactive after 3 attempts"))
                 .containsExactly(String.format(

@@ -17,12 +17,12 @@ final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderPr
     private final MeterRegistry meterRegistry;
 
     @Override
-    public ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties) {
-        var endpoint = blockNodeProperties.getEndpoint();
-        var interceptor = new MetricCollectingClientInterceptor(
+    public ManagedChannelBuilder<?> get(String host, int port) {
+        final var endpoint = "%s:%d".formatted(host, port);
+        final var interceptor = new MetricCollectingClientInterceptor(
                 meterRegistry, counter -> counter.tag(TAG_SERVER, endpoint), timer -> timer.tag(TAG_SERVER, endpoint));
-        var builder = ManagedChannelBuilder.forTarget(endpoint).intercept(interceptor);
-        if (blockNodeProperties.getPort() != 443) {
+        final var builder = ManagedChannelBuilder.forTarget(endpoint).intercept(interceptor);
+        if (port != 443) {
             builder.usePlaintext();
         } else {
             builder.useTransportSecurity();

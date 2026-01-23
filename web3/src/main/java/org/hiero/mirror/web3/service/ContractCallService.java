@@ -15,7 +15,7 @@ import jakarta.inject.Named;
 import lombok.CustomLog;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -32,7 +32,7 @@ public abstract class ContractCallService {
     static final String GAS_LIMIT_METRIC = "hiero.mirror.web3.evm.gas.limit";
     static final String GAS_USED_METRIC = "hiero.mirror.web3.evm.gas.used";
 
-    protected final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected final EvmProperties evmProperties;
 
     private final MeterProvider<Counter> invocationCounter;
     private final MeterProvider<Counter> gasLimitCounter;
@@ -48,7 +48,7 @@ public abstract class ContractCallService {
             ThrottleProperties throttleProperties,
             MeterRegistry meterRegistry,
             RecordFileService recordFileService,
-            MirrorNodeEvmProperties mirrorNodeEvmProperties,
+            EvmProperties evmProperties,
             TransactionExecutionService transactionExecutionService) {
         this.invocationCounter = Counter.builder(EVM_INVOCATION_METRIC)
                 .description("The number of EVM invocations")
@@ -62,7 +62,7 @@ public abstract class ContractCallService {
         this.recordFileService = recordFileService;
         this.throttleProperties = throttleProperties;
         this.throttleManager = throttleManager;
-        this.mirrorNodeEvmProperties = mirrorNodeEvmProperties;
+        this.evmProperties = evmProperties;
         this.transactionExecutionService = transactionExecutionService;
     }
 

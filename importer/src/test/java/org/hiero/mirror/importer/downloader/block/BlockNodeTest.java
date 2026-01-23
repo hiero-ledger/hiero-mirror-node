@@ -367,8 +367,43 @@ final class BlockNodeTest extends BlockNodeTestBase {
 
     @Test
     void stringify() {
-        var expected = String.format("BlockNode(%s)", blockNodeProperties.getEndpoint());
+        var expected = String.format("BlockNode(%s)", blockNodeProperties.getStatusEndpoint());
         assertThat(node.toString()).isEqualTo(expected);
+    }
+
+    @Test
+    void differentPortsCreatesSeparateChannels() {
+        // given
+        var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
+        var properties = new BlockNodeProperties();
+        properties.setHost(SERVER);
+        properties.setStatusPort(40840);
+        properties.setStreamingPort(40841);
+
+        // when
+        var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, meterRegistry, properties, streamProperties);
+
+        // then
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40840);
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40841);
+        blockNode.close();
+    }
+
+    @Test
+    void samePortsReusesSingleChannel() {
+        // given
+        var provider = Mockito.spy(InProcessManagedChannelBuilderProvider.INSTANCE);
+        var properties = new BlockNodeProperties();
+        properties.setHost(SERVER);
+        properties.setStatusPort(40840);
+        properties.setStreamingPort(40840);
+
+        // when
+        var blockNode = new BlockNode(provider, NOOP_GRPC_BUFFER_DISPOSER, meterRegistry, properties, streamProperties);
+
+        // then
+        Mockito.verify(provider, Mockito.times(1)).get(SERVER, 40840);
+        blockNode.close();
     }
 
     @Test
@@ -475,8 +510,9 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
         var properties = new BlockNodeProperties();
         properties.setHost(host);
-        properties.setPort(port);
         properties.setPriority(priority);
+        properties.setStatusPort(port);
+        properties.setStreamingPort(port);
         return properties;
     }
 

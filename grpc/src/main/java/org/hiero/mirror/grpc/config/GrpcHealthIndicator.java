@@ -6,13 +6,13 @@ import jakarta.inject.Named;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import net.devh.boot.grpc.server.event.GrpcServerShutdownEvent;
-import net.devh.boot.grpc.server.event.GrpcServerStartedEvent;
-import net.devh.boot.grpc.server.event.GrpcServerTerminatedEvent;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.boot.actuate.health.Status;
 import org.springframework.context.event.EventListener;
+import org.springframework.grpc.server.lifecycle.GrpcServerShutdownEvent;
+import org.springframework.grpc.server.lifecycle.GrpcServerStartedEvent;
+import org.springframework.grpc.server.lifecycle.GrpcServerTerminatedEvent;
 
 @CustomLog
 @Named

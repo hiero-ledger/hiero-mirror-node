@@ -20,6 +20,7 @@ import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
 import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -266,6 +267,118 @@ public final class BlockStreamReaderTest {
         List<BlockTransaction> expected =
                 Lists.newArrayList(null, null, null, items.get(5), null, items.get(6), null, null);
         assertThat(batchInnerLinks).containsExactlyElementsOf(expected);
+    }
+
+    @Test
+    void readHookExecutionChildTransactions() {
+        // given - Create timestamps for parent and child transactions
+        var parentTransactionTimestamp = recordItemBuilder.timestamp();
+        var hookExecution1Timestamp = recordItemBuilder.timestamp();
+        var hookExecution2Timestamp = recordItemBuilder.timestamp();
+        var hookExecution3Timestamp = recordItemBuilder.timestamp();
+        var postParentTransactionTimestamp = recordItemBuilder.timestamp();
+
+        // Parent transaction (e.g., CryptoTransfer that triggers hooks)
+        var parentTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+        var parentStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(parentTransactionTimestamp)
+                .build();
+
+        // Hook execution child transactions with same parent
+        var hookExecution1Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution1Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        var hookExecution2Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution2Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        var hookExecution3Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution3Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        // Unrelated transaction after hook executions
+        var postParentTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(postParentTransactionTimestamp)
+                .build();
+        var postParentStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(postParentTransactionTimestamp)
+                .build();
+
+        // Build block with parent and hook execution children
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction()) // parent transaction
+                .addItems(transactionResult(parentTransactionResult))
+                .addItems(stateChanges(parentStateChanges))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 1 - contract call
+                .addItems(transactionResult(hookExecution1Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 2 - contract call
+                .addItems(transactionResult(hookExecution2Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 3 - contract call
+                .addItems(transactionResult(hookExecution3Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction()) // post-parent transaction
+                .addItems(transactionResult(postParentTransactionResult))
+                .addItems(stateChanges(postParentStateChanges))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+
+        // when
+        var blockFile = reader.read(blockStream);
+        var items = blockFile.getItems();
+
+        // then
+        assertThat(items).hasSize(5);
+        var parent = items.get(0);
+        var hookExec1 = items.get(1);
+        var hookExec2 = items.get(2);
+        var hookExec3 = items.get(3);
+        var postParent = items.get(4);
+
+        // Verify parent relationships
+        assertThat(items).extracting(BlockTransaction::getParent).containsExactly(null, parent, parent, parent, null);
+
+        // Verify all hook executions share the same state change context from parent
+        assertThat(parent.getStateChangeContext())
+                .isEqualTo(hookExec1.getStateChangeContext())
+                .isEqualTo(hookExec2.getStateChangeContext())
+                .isEqualTo(hookExec3.getStateChangeContext())
+                .isNotEqualTo(postParent.getStateChangeContext());
+
+        // Verify hook execution children are linked via nextSibling
+        assertThat(hookExec1.getNextSibling()).isEqualTo(hookExec2);
+        assertThat(hookExec2.getNextSibling()).isEqualTo(hookExec3);
+        assertThat(hookExec3.getNextSibling()).isNull();
+
+        // Verify parent and unrelated transaction have no nextSibling
+        assertThat(parent.getNextSibling()).isNull();
+        assertThat(postParent.getNextSibling()).isNull();
+
+        // Verify nextInBatch is not used for hook executions
+        assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnly((BlockTransaction) null);
     }
 
     @Test

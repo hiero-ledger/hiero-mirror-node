@@ -57,7 +57,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
@@ -712,8 +712,8 @@ class OpcodesControllerTest {
     public static class TestConfig {
 
         @Bean
-        MirrorNodeEvmProperties evmProperties() {
-            return new MirrorNodeEvmProperties();
+        EvmProperties evmProperties() {
+            return new EvmProperties();
         }
 
         @Bean
