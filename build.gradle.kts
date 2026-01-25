@@ -27,7 +27,7 @@ extra.apply {
     set("protobufVersion", "4.33.4")
     set("springGrpcVersion", "0.12.0")
     set("tuweniVersion", "2.3.1")
-    set("web3jVersion", "5.0.1")
+    set("web3jVersion", "5.0.2")
 }
 
 // Creates a platform/BOM with specific versions so subprojects don't need to specify a version when
