@@ -17,7 +17,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "compression": "1.8.1",
-    "cors": "2.8.5",
+    "cors": "2.8.6",
     "express": "5.2.1",
     "extend": "3.0.2",
     "extensionless": "2.0.6",
