@@ -17,7 +17,7 @@ dependencies {
     implementation("com.github.docker-java:docker-java-api:$dockerJavaVersion")
     implementation("com.github.docker-java:docker-java-core:$dockerJavaVersion")
     implementation("com.bmuschko:gradle-docker-plugin:9.4.0")
-    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.1.0")
+    implementation("com.diffplug.spotless:spotless-plugin-gradle:8.2.0")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.3.1")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
