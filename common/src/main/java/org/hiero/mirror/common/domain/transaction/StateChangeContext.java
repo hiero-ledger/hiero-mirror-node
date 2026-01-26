@@ -9,6 +9,7 @@ import com.google.protobuf.BytesValue;
 import com.hedera.hapi.block.stream.output.protoc.MapUpdateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
 import com.hedera.hapi.block.stream.output.protoc.StateIdentifier;
+import com.hedera.hapi.node.state.hooks.legacy.EvmHookSlotKey;
 import com.hederahashgraph.api.proto.java.Account;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
@@ -42,8 +43,8 @@ public final class StateChangeContext {
     private final Map<ByteString, AccountID> accountIds = new HashMap<>();
     private final Map<ContractID, ByteString> contractBytecodes = new HashMap<>();
     private final Map<ByteString, ContractID> contractIds = new HashMap<>();
-    private final Map<SlotKey, BytesValue> contractStorageChanges = new HashMap<>();
-    private final Map<ContractID, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
+    private final Map<ContractSlotKey, BytesValue> contractStorageChanges = new HashMap<>();
+    private final Map<ContractSlotId, List<SlotValue>> contractStorageChangesIndexed = new HashMap<>();
     private final List<Long> nodeIds = new ArrayList<>();
     private final List<FileID> fileIds = new ArrayList<>();
     private final Map<PendingAirdropId, Long> pendingFungibleAirdrops = new HashMap<>();
@@ -55,9 +56,8 @@ public final class StateChangeContext {
     private StateChangeContext() {}
 
     /**
-     * Create a context from the state changes. Note the contract is for an entity id, there should be at most
-     * one state change of a certain key type and value type combination. This guarantees the entity ids in a list
-     * are unique.
+     * Create a context from the state changes. Note the contract is for an entity id, there should be at most one state
+     * change of a certain key type and value type combination. This guarantees the entity ids in a list are unique.
      *
      * @param stateChangesList - A list of state changes
      */
@@ -69,23 +69,28 @@ public final class StateChangeContext {
                     switch (stateChange.getStateId()) {
                         case StateIdentifier.STATE_ID_ACCOUNTS_VALUE -> processAccountStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_BYTECODE_VALUE -> processContractBytecode(mapUpdate);
-                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_EVM_HOOK_STORAGE_VALUE -> processHookStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_FILES_VALUE ->
                             fileIds.add(mapUpdate.getKey().getFileIdKey());
                         case StateIdentifier.STATE_ID_NODES_VALUE -> processNodeStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE ->
                             processPendingAirdropStateChange(mapUpdate);
+                        case StateIdentifier.STATE_ID_STORAGE_VALUE -> processContractStorageChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOKENS_VALUE -> processTokenStateChange(mapUpdate);
                         case StateIdentifier.STATE_ID_TOPICS_VALUE -> processTopicStateChange(mapUpdate);
                         default -> {
                             // do nothing
                         }
                     }
-                } else if (stateChange.hasMapDelete()
-                        && stateChange.getMapDelete().getKey().hasSlotKeyKey()) {
-                    var slotKey = stateChange.getMapDelete().getKey().getSlotKeyKey();
-                    // use the default BytesValue instance when the storage slot is deleted
-                    processContractStorageChange(slotKey, BytesValue.getDefaultInstance());
+                } else if (stateChange.hasMapDelete()) {
+                    final var key = stateChange.getMapDelete().getKey();
+                    switch (key.getKeyChoiceCase()) {
+                        case EVM_HOOK_SLOT_KEY -> processContractStorageDelete(key.getEvmHookSlotKey());
+                        case SLOT_KEY_KEY -> processContractStorageDelete(key.getSlotKeyKey());
+                        default -> {
+                            // do nothing
+                        }
+                    }
                 }
             }
         }
@@ -112,12 +117,12 @@ public final class StateChangeContext {
         return Optional.ofNullable(contractIds.get(evmAddress));
     }
 
-    public @Nullable SlotValue getContractStorageChange(ContractID contractId, int index) {
+    public @Nullable SlotValue getContractStorageChange(ContractSlotId slotId, int index) {
         if (index < 0) {
             return null;
         }
 
-        var indexed = contractStorageChangesIndexed.get(contractId);
+        var indexed = contractStorageChangesIndexed.get(slotId);
         if (indexed == null || index >= indexed.size()) {
             return null;
         }
@@ -125,7 +130,7 @@ public final class StateChangeContext {
         return indexed.get(index);
     }
 
-    public @Nullable BytesValue getContractStorageValueWritten(SlotKey slotKey) {
+    public @Nullable BytesValue getContractStorageValueWritten(ContractSlotKey slotKey) {
         return contractStorageChanges.get(normalize(slotKey));
     }
 
@@ -169,7 +174,7 @@ public final class StateChangeContext {
      * Get the current amount of a pending fungible airdrop and track its renaming amount.
      *
      * @param pendingAirdropId - The pending fungible airdrop id
-     * @param change - The amount of change to track
+     * @param change           - The amount of change to track
      * @return An optional of the pending airdrop's amount
      */
     public Optional<Long> trackPendingFungibleAirdrop(PendingAirdropId pendingAirdropId, long change) {
@@ -187,8 +192,8 @@ public final class StateChangeContext {
      * Get the current token total supply and track its change.
      *
      * @param tokenId - The token id
-     * @param change - The amount of change to track. Note for transactions which increased the total supply, the value
-     *               should be negative; for transactions which reduced the total supply, the value should be positive
+     * @param change  - The amount of change to track. Note for transactions which increased the total supply, the value
+     *                should be negative; for transactions which reduced the total supply, the value should be positive
      * @return An optional of the token total supply
      */
     public Optional<Long> trackTokenTotalSupply(TokenID tokenId, long change) {
@@ -240,17 +245,47 @@ public final class StateChangeContext {
         }
 
         var slotKey = mapUpdate.getKey().getSlotKeyKey();
+        final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
+        final var contractSlotKey = new ContractSlotKey(slotId, slotKey.getKey());
         var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
-        processContractStorageChange(slotKey, BytesValue.of(valueWritten));
+        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
     }
 
-    private void processContractStorageChange(SlotKey slotKey, BytesValue valueWritten) {
+    private void processHookStorageChange(MapUpdateChange mapUpdate) {
+        if (!mapUpdate.getKey().hasEvmHookSlotKey()) {
+            return;
+        }
+
+        var valueWritten = mapUpdate.getValue().getSlotValueValue().getValue();
+        final var evmHookSlotKey = mapUpdate.getKey().getEvmHookSlotKey();
+        final var slotId = ContractSlotId.of(null, evmHookSlotKey.getHookId());
+        final var contractSlotKey = new ContractSlotKey(slotId, evmHookSlotKey.getKey());
+        processContractStorageChange(contractSlotKey, BytesValue.of(valueWritten));
+    }
+
+    private void processContractStorageChange(ContractSlotKey slotKey, BytesValue valueWritten) {
         slotKey = normalize(slotKey);
         final var trimmed = DomainUtils.trim(valueWritten);
         contractStorageChanges.put(slotKey, trimmed);
+
         contractStorageChangesIndexed
-                .computeIfAbsent(slotKey.getContractID(), c -> new ArrayList<>())
-                .add(new SlotValue(slotKey.getKey(), trimmed));
+                .computeIfAbsent(slotKey.slotId(), _ -> new ArrayList<>())
+                .add(new SlotValue(slotKey.key(), trimmed));
+    }
+
+    private void processContractStorageDelete(final ContractSlotKey contractSlotKey) {
+        // use the default BytesValue instance when the storage slot is deleted
+        processContractStorageChange(contractSlotKey, BytesValue.getDefaultInstance());
+    }
+
+    private void processContractStorageDelete(final EvmHookSlotKey evmHookStorageSlot) {
+        final var slotId = ContractSlotId.of(null, evmHookStorageSlot.getHookId());
+        processContractStorageDelete(new ContractSlotKey(slotId, evmHookStorageSlot.getKey()));
+    }
+
+    private void processContractStorageDelete(final SlotKey slotKey) {
+        final var slotId = ContractSlotId.of(slotKey.getContractID(), null);
+        processContractStorageDelete(new ContractSlotKey(slotId, slotKey.getKey()));
     }
 
     private void processNodeStateChange(MapUpdateChange mapUpdate) {

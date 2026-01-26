@@ -3,5 +3,5 @@
 package org.hiero.mirror.common.domain.hook;
 
 public enum HookType {
-    LAMBDA
+    EVM
 }

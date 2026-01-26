@@ -6,10 +6,10 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import net.devh.boot.grpc.server.interceptor.GrpcGlobalServerInterceptor;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.springframework.grpc.server.GlobalServerInterceptor;
 
-@GrpcGlobalServerInterceptor
+@GlobalServerInterceptor
 public class GrpcInterceptor implements ServerInterceptor {
 
     @Override

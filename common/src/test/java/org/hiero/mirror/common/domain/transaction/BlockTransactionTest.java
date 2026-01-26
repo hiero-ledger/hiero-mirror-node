@@ -7,7 +7,10 @@ import static org.hiero.mirror.common.domain.transaction.StateChangeContext.EMPT
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.bytes;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapDeleteChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.contractStorageMapUpdateChange;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.convert;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getContractId;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.getEvmHookSlotKey;
+import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.hookStorageMapUpdateChange;
 import static org.hiero.mirror.common.domain.transaction.StateChangeTestUtils.makeIdentical;
 
 import com.google.common.primitives.Bytes;
@@ -28,7 +31,6 @@ import com.hedera.hapi.block.stream.trace.protoc.TraceData;
 import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.TokenID;
@@ -50,6 +52,37 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 final class BlockTransactionTest {
+
+    @SneakyThrows
+    private static Stream<Arguments> provideTransactionHashTestArguments() {
+        var signedTransactionHex = """
+                0a440a0f0a0908b9c1e4c00610aa07120218021202180318988c0522020878320766756e642d3536721c0a1a0a0b0a02183810\
+                80d0dbc3f4020a0b0a02180210ffcfdbc3f40212470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b2\
+                01ecc51581126d8efd29db0ebed54cae5130eff35013d1f219ce3bd33459488e164427b5cbb21f6707\
+                """;
+        var signedTransactionHash =
+                "364747682d512bf8cdd4323a277b8bdb81734b96fcdacfccef3e213de7f29db07e8465c8d9ed05d5276108b5f2f2d1a7";
+        // fields serialized in the reverse order, sigMap first then bodyBytes
+        var invertedSignedTransactionHex = """
+                12470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b201ecc51581126d8efd29db0ebed54cae5130ef\
+                f35013d1f219ce3bd33459488e164427b5cbb21f67070a440a0f0a0908b9c1e4c00610aa07120218021202180318988c052202\
+                0878320766756e642d3536721c0a1a0a0b0a0218381080d0dbc3f4020a0b0a02180210ffcfdbc3f402\
+                """;
+        var invertedSignedTransactionHash =
+                "3a61a1a809da09aa49c44dd290fcb687243b593a34cd62c0be15b65a6424e8d49e6985afa83dc4cb0f56f5a383657f6b";
+        var signedTransaction = SignedTransaction.parseFrom(Hex.decodeHex(signedTransactionHex));
+        var legacySignedTransactionHex = Hex.encodeHexString(signedTransaction.toBuilder()
+                .setUseSerializedTxMessageHashAlgorithm(true)
+                .build()
+                .toByteArray());
+        var legacySignedTransactionHash =
+                "89e787e62ac5cbe42245bb427cb91e458ad001f3baeed2e464a4e8ca8c73a7e7b13825b72cfbbaf1127dd6a988d179c7";
+        return Stream.of(
+                Arguments.of("signed transaction", signedTransactionHex, signedTransactionHash),
+                Arguments.of(
+                        "inverted signed transaction", invertedSignedTransactionHex, invertedSignedTransactionHash),
+                Arguments.of("legacy signed transaction", legacySignedTransactionHex, legacySignedTransactionHash));
+    }
 
     @ParameterizedTest
     @EnumSource(
@@ -420,12 +453,9 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        var contractStorageReads = Map.of(
-                SlotKey.newBuilder()
-                        .setContractID(contractIdA)
-                        .setKey(contractASlot1)
-                        .build(),
-                contractASlot1IntermediateValue);
+        var slotIdA = ContractSlotId.of(contractIdA, null);
+        var contractStorageReads =
+                Map.of(new ContractSlotKey(slotIdA, contractASlot1), contractASlot1IntermediateValue);
         inner2.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner2);
 
@@ -439,51 +469,31 @@ final class BlockTransactionTest {
                         .setStatus(ResponseCodeEnum.SUCCESS)
                         .build())
                 .build();
-        contractStorageReads = Map.of(
-                SlotKey.newBuilder()
-                        .setContractID(contractIdB)
-                        .setKey(contractBSlot2)
-                        .build(),
-                contractBSlot2IntermediateValue);
+        var slotIdB = ContractSlotId.of(contractIdB, null);
+        contractStorageReads = Map.of(new ContractSlotKey(slotIdB, contractBSlot2), contractBSlot2IntermediateValue);
         inner3.setContractStorageReads(contractStorageReads);
         previous.setNextInBatch(inner3);
 
         // then
-        var slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(contractASlot1)
-                .build();
+        var slotKey = new ContractSlotKey(slotIdA, contractASlot1);
         assertThat(inner1.getValueWritten(slotKey)).returns(contractASlot1IntermediateValue, BytesValue::getValue);
-        assertThat(inner1.getValueWritten(
-                        slotKey.toBuilder().setKey(contractASlot1Padded).build()))
+        assertThat(inner1.getValueWritten(new ContractSlotKey(slotIdA, contractASlot1Padded)))
                 .returns(contractASlot1IntermediateValue, BytesValue::getValue);
         assertThat(inner2.getValueWritten(slotKey)).returns(contractASlot1Value, BytesValue::getValue);
 
         // a deleted slot
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdB)
-                .setKey(contractBSlot1)
-                .build();
+        slotKey = new ContractSlotKey(slotIdB, contractBSlot1);
         assertThat(inner1.getValueWritten(slotKey)).isEqualTo(BytesValue.getDefaultInstance());
 
         // a slot not changed
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(contractASlot2)
-                .build();
+        slotKey = new ContractSlotKey(slotIdA, contractASlot2);
         assertThat(inner1.getValueWritten(slotKey)).isNull();
 
         // a non-existent slot
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdA)
-                .setKey(bytes(32))
-                .build();
+        slotKey = new ContractSlotKey(slotIdA, bytes(32));
         assertThat(inner2.getValueWritten(slotKey)).isNull();
 
-        slotKey = SlotKey.newBuilder()
-                .setContractID(contractIdB)
-                .setKey(contractBSlot2)
-                .build();
+        slotKey = new ContractSlotKey(slotIdB, contractBSlot2);
         assertThat(inner2.getValueWritten(slotKey)).returns(contractBSlot2IntermediateValue, BytesValue::getValue);
         assertThat(inner3.getValueWritten(slotKey)).returns(contractBSlot2Value, BytesValue::getValue);
     }
@@ -541,34 +551,99 @@ final class BlockTransactionTest {
         return Timestamp.newBuilder().setSeconds(previous.getSeconds() + 1).build();
     }
 
-    @SneakyThrows
-    private static Stream<Arguments> provideTransactionHashTestArguments() {
-        var signedTransactionHex = """
-                0a440a0f0a0908b9c1e4c00610aa07120218021202180318988c0522020878320766756e642d3536721c0a1a0a0b0a02183810\
-                80d0dbc3f4020a0b0a02180210ffcfdbc3f40212470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b2\
-                01ecc51581126d8efd29db0ebed54cae5130eff35013d1f219ce3bd33459488e164427b5cbb21f6707\
-                """;
-        var signedTransactionHash =
-                "364747682d512bf8cdd4323a277b8bdb81734b96fcdacfccef3e213de7f29db07e8465c8d9ed05d5276108b5f2f2d1a7";
-        // fields serialized in the reverse order, sigMap first then bodyBytes
-        var invertedSignedTransactionHex = """
-                12470a450a010a1a40bc3c1881027d632801f12558b9d432803ba5f3854d42b201ecc51581126d8efd29db0ebed54cae5130ef\
-                f35013d1f219ce3bd33459488e164427b5cbb21f67070a440a0f0a0908b9c1e4c00610aa07120218021202180318988c052202\
-                0878320766756e642d3536721c0a1a0a0b0a0218381080d0dbc3f4020a0b0a02180210ffcfdbc3f402\
-                """;
-        var invertedSignedTransactionHash =
-                "3a61a1a809da09aa49c44dd290fcb687243b593a34cd62c0be15b65a6424e8d49e6985afa83dc4cb0f56f5a383657f6b";
-        var signedTransaction = SignedTransaction.parseFrom(Hex.decodeHex(signedTransactionHex));
-        var legacySignedTransactionHex = Hex.encodeHexString(signedTransaction.toBuilder()
-                .setUseSerializedTxMessageHashAlgorithm(true)
-                .build()
-                .toByteArray());
-        var legacySignedTransactionHash =
-                "89e787e62ac5cbe42245bb427cb91e458ad001f3baeed2e464a4e8ca8c73a7e7b13825b72cfbbaf1127dd6a988d179c7";
-        return Stream.of(
-                Arguments.of("signed transaction", signedTransactionHex, signedTransactionHash),
-                Arguments.of(
-                        "inverted signed transaction", invertedSignedTransactionHex, invertedSignedTransactionHash),
-                Arguments.of("legacy signed transaction", legacySignedTransactionHex, legacySignedTransactionHash));
+    @Test
+    void getValueWrittenForHookStorage() {
+        // given
+        var hookSlot1 = bytes(24);
+        var hookSlot1Padded = DomainUtils.fromBytes(Bytes.concat(new byte[8], DomainUtils.toBytes(hookSlot1)));
+        var hookSlot1Value = bytes(8);
+        var hookSlot1IntermediateValue = bytes(10);
+        var hookSlot2 = bytes(32);
+        var hookSlot3 = bytes(32);
+        var hookSlot3Value = bytes(6);
+        var hookSlot3IntermediateValue = bytes(12);
+
+        var hookSlotKey1 = getEvmHookSlotKey(1L, hookSlot1);
+        var hookSlotKey1Padded =
+                hookSlotKey1.toBuilder().setKey(hookSlot1Padded).build();
+        var hookSlotKey2 = getEvmHookSlotKey(2L, hookSlot2);
+        var hookSlotKey3 = getEvmHookSlotKey(3L, hookSlot3);
+
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey1Padded, hookSlot1Value))
+                .addStateChanges(StateChangeTestUtils.hookStorageMapDeleteChange(hookSlotKey2))
+                .addStateChanges(hookStorageMapUpdateChange(hookSlotKey3, hookSlot3Value))
+                .build();
+
+        var parent = defaultBuilder()
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(Timestamp.newBuilder().setSeconds(12345L))
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .stateChanges(List.of(stateChanges))
+                .build();
+
+        // Test parent transaction retrieves values from state changes
+        var contractSlotKey1 = convert(hookSlotKey1);
+        assertThat(parent.getValueWritten(contractSlotKey1)).returns(hookSlot1Value, BytesValue::getValue);
+        ContractSlotKey contractSlotKey2 = convert(hookSlotKey2);
+        assertThat(parent.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+        ContractSlotKey contractSlotKey3 = convert(hookSlotKey3);
+        assertThat(parent.getValueWritten(contractSlotKey3)).returns(hookSlot3Value, BytesValue::getValue);
+
+        // Create child transactions (e.g., hook executions) with hook storage reads
+        var inner1 = defaultBuilder()
+                .previous(parent)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(parent.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+
+        var inner2 = defaultBuilder()
+                .previous(inner1)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(inner1.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        inner2.setContractStorageReads(Map.of(contractSlotKey1, hookSlot1IntermediateValue));
+        inner1.setNextSibling(inner2);
+
+        var inner3 = defaultBuilder()
+                .previous(inner2)
+                .transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(
+                                nextTick(inner2.getTransactionResult().getConsensusTimestamp()))
+                        .setParentConsensusTimestamp(
+                                parent.getTransactionResult().getConsensusTimestamp())
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build())
+                .build();
+        inner3.setContractStorageReads(Map.of(contractSlotKey3, hookSlot3IntermediateValue));
+        inner2.setNextSibling(inner3);
+
+        // Test intermediate value resolution and key normalization
+        assertThat(inner1.getValueWritten(contractSlotKey1)).returns(hookSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner1.getValueWritten(convert(hookSlotKey1Padded)))
+                .returns(hookSlot1IntermediateValue, BytesValue::getValue);
+        assertThat(inner2.getValueWritten(contractSlotKey1)).returns(hookSlot1Value, BytesValue::getValue);
+
+        // Test deleted slot returns default BytesValue
+        assertThat(inner1.getValueWritten(contractSlotKey2)).isEqualTo(BytesValue.getDefaultInstance());
+
+        // Test slot3 intermediate value resolution
+        assertThat(inner2.getValueWritten(contractSlotKey3)).returns(hookSlot3IntermediateValue, BytesValue::getValue);
+        assertThat(inner3.getValueWritten(contractSlotKey3)).returns(hookSlot3Value, BytesValue::getValue);
+
+        // Test non-existent slot
+        assertThat(parent.getValueWritten(convert(getEvmHookSlotKey(4L, bytes(32)))))
+                .isNull();
     }
 }

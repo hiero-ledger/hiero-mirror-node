@@ -58,10 +58,6 @@ public class BlockTransaction implements StreamItem {
     @ToString.Include
     private final long consensusTimestamp;
 
-    @NonFinal
-    @Setter
-    private Map<SlotKey, ByteString> contractStorageReads = Collections.emptyMap();
-
     private final EvmTraceData evmTraceData;
 
     @NonFinal
@@ -94,6 +90,14 @@ public class BlockTransaction implements StreamItem {
     private final Map<TransactionCase, TransactionOutput> transactionOutputs;
 
     private final TransactionResult transactionResult;
+
+    @NonFinal
+    @Setter
+    private BlockTransaction nextSibling;
+
+    @NonFinal
+    @Setter
+    private Map<ContractSlotKey, ByteString> contractStorageReads = Collections.emptyMap();
 
     @Builder(toBuilder = true)
     public BlockTransaction(
@@ -166,13 +170,29 @@ public class BlockTransaction implements StreamItem {
      * Get value written to the storage slot at {@link SlotKey} by the transaction. Returns the first read value in
      * subsequent transactions, or the value in statechanges.
      *
+     * <p>This method checks two possible chains of related transactions:
+     * <ul>
+     *   <li>nextInBatch - for user transactions within an atomic batch</li>
+     *   <li>nextSibling - for child transactions (e.g., hook executions) that share the same parent</li>
+     * </ul>
+     *
      * @param slotKey - The contract storage's slot key
      * @return The value written
      */
-    public BytesValue getValueWritten(final SlotKey slotKey) {
+    public BytesValue getValueWritten(final ContractSlotKey slotKey) {
         final var normalizedSlotKey = normalize(slotKey);
+
+        // Check nextInBatch chain (for atomic batch transactions)
         for (var nextInner = nextInBatch; nextInner != null; nextInner = nextInner.getNextInBatch()) {
             final var valueRead = nextInner.getValueRead(normalizedSlotKey);
+            if (valueRead != null) {
+                return BytesValue.of(valueRead);
+            }
+        }
+
+        // Check nextSibling chain (for child transactions like hook executions with same parent)
+        for (var next = nextSibling; next != null; next = next.getNextSibling()) {
+            final var valueRead = next.getValueRead(normalizedSlotKey);
             if (valueRead != null) {
                 return BytesValue.of(valueRead);
             }
@@ -210,7 +230,7 @@ public class BlockTransaction implements StreamItem {
                 : StateChangeContext.EMPTY_CONTEXT;
     }
 
-    private ByteString getValueRead(final SlotKey slotKey) {
+    private ByteString getValueRead(final ContractSlotKey slotKey) {
         return contractStorageReads.get(slotKey);
     }
 
