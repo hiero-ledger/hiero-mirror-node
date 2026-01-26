@@ -67,7 +67,6 @@ dependencies {
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
-        api("io.vertx:vertx-web:4.5.22") // Temporary until next Fabric8 version
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
