@@ -96,6 +96,7 @@ spring:
     placeholders:
       api-password: ${hiero.mirror.importer.db.restPassword}
       api-user: ${hiero.mirror.importer.db.restUsername}
+      balancePartitionTimeInterval: "'6 months'"
       db-name: ${hiero.mirror.importer.db.name}
       db-user: ${hiero.mirror.importer.db.username}
       hashShardCount: 6 # Higher shard count here causes a performance issue due to the nature of how hash indexes work

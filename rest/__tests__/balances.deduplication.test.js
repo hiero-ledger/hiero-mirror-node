@@ -12,38 +12,36 @@ setupIntegrationTest();
 
 describe('Balances deduplicate tests', () => {
   const nanoSecondsPerSecond = 10n ** 9n;
-  const fifteenDaysInNs = constants.ONE_DAY_IN_NS * 15n;
   const tenDaysInNs = constants.ONE_DAY_IN_NS * 10n;
+  const ONE_YEAR_IN_NS = constants.ONE_DAY_IN_NS * 365n;
+
   const currentNs = BigInt(Date.now()) * constants.NANOSECONDS_PER_MILLISECOND;
 
-  const beginningOfCurrentMonth = utils.getFirstDayOfMonth(currentNs);
-  const beginningOfCurrentMonthSeconds = utils.nsToSecNs(beginningOfCurrentMonth);
+  const SIX_MONTHS_IN_NS = constants.ONE_DAY_IN_NS * 30n * 6n;
+  const HALF_WINDOW_IN_NS = SIX_MONTHS_IN_NS / 2n; // ~3 months
 
-  const middleOfCurrentMonth = beginningOfCurrentMonth + fifteenDaysInNs;
-  const middleOfCurrentMonthSeconds = utils.nsToSecNs(middleOfCurrentMonth);
+  // Start of our logical 6-month lookback window
+  const windowStart = utils.getFirstDayOfMonth(currentNs, -6);
+  const windowStartSeconds = utils.nsToSecNs(windowStart);
 
-  const beginningOfNextMonth = utils.getFirstDayOfMonth(beginningOfCurrentMonth + 3n * fifteenDaysInNs);
-  const beginningOfNextMonthSeconds = utils.nsToSecNs(beginningOfNextMonth);
+  // Early point in the window to exercise dedup behavior
+  const tenDaysIntoWindow = windowStart + tenDaysInNs;
+  const tenDaysIntoWindowSeconds = utils.nsToSecNs(tenDaysIntoWindow);
 
-  // About a year in the future
-  const yearFutureSeconds = utils.nsToSecNs(beginningOfNextMonth + 24n * fifteenDaysInNs);
+  // Midpoint of the logical 6-month window (~3 months after windowStart)
+  const middleOfWindow = windowStart + HALF_WINDOW_IN_NS;
+  const middleOfWindowSeconds = utils.nsToSecNs(middleOfWindow);
+  const middleOfWindowSecondsMinusOne = utils.nsToSecNs(middleOfWindow - 1n);
 
-  const endOfPreviousMonth = beginningOfCurrentMonth - 1n;
-  const endOfPreviousMonthSeconds = utils.nsToSecNs(endOfPreviousMonth);
-  const endOfPreviousMonthSecondsMinusOne = utils.nsToSecNs(beginningOfCurrentMonth - 2n);
+  // End of our 6-month test window
+  const windowEnd = windowStart + SIX_MONTHS_IN_NS - 1n;
+  const windowEndSeconds = utils.nsToSecNs(windowEnd);
+  const windowEndSecondsMinusOne = utils.nsToSecNs(windowEnd - 1n);
+  const windowEndPlusOneSeconds = utils.nsToSecNs(windowEnd + 1n);
 
-  const beginningOfPreviousMonth = utils.getFirstDayOfMonth(endOfPreviousMonth);
-  const beginningOfPreviousMonthSeconds = utils.nsToSecNs(beginningOfPreviousMonth);
-
-  // About a year in the past
-  const yearPreviousSeconds = utils.nsToSecNs(beginningOfNextMonth - 24n * fifteenDaysInNs);
-
-  const tenDaysInToPreviousMonth = beginningOfPreviousMonth + tenDaysInNs;
-  const tenDaysInToPreviousMonthSeconds = utils.nsToSecNs(tenDaysInToPreviousMonth);
-
-  const middleOfPreviousMonth = beginningOfPreviousMonth + fifteenDaysInNs;
-  const middleOfPreviousMonthSeconds = utils.nsToSecNs(middleOfPreviousMonth);
-  const middleOfPreviousMonthSecondsMinusOne = utils.nsToSecNs(middleOfPreviousMonth - 1n);
+  // “Far future” / “far past” bounds to exercise clamping / empty results
+  const yearFutureSeconds = utils.nsToSecNs(currentNs + ONE_YEAR_IN_NS);
+  const yearPreviousSeconds = utils.nsToSecNs(currentNs - ONE_YEAR_IN_NS);
 
   const entityId2 = EntityId.parseString('2').toString();
   const entityId16 = EntityId.parseString('16').toString();
@@ -58,23 +56,26 @@ describe('Balances deduplicate tests', () => {
 
   beforeEach(async () => {
     await integrationDomainOps.loadBalances([
+      // Just before the 6-month window, used to ensure lower bound behavior
       {
-        timestamp: beginningOfPreviousMonth - nanoSecondsPerSecond,
+        timestamp: windowStart - nanoSecondsPerSecond,
         id: entityId2,
         balance: 1,
       },
       {
-        timestamp: beginningOfPreviousMonth - nanoSecondsPerSecond,
+        timestamp: windowStart - ONE_YEAR_IN_NS,
         id: entityId16,
         balance: 16,
       },
+
+      // Snapshot at the beginning of the window
       {
-        timestamp: beginningOfPreviousMonth,
+        timestamp: windowStart,
         id: entityId2,
         balance: 2,
       },
       {
-        timestamp: beginningOfPreviousMonth,
+        timestamp: windowStart,
         id: entityId17,
         balance: 70,
         tokens: [
@@ -88,18 +89,20 @@ describe('Balances deduplicate tests', () => {
           },
         ],
       },
+
+      // Snapshot 10 days into the window
       {
-        timestamp: tenDaysInToPreviousMonth,
+        timestamp: tenDaysIntoWindow,
         id: entityId2,
         balance: 222,
       },
       {
-        timestamp: tenDaysInToPreviousMonth,
+        timestamp: tenDaysIntoWindow,
         id: entityId18,
         balance: 80,
       },
       {
-        timestamp: tenDaysInToPreviousMonth,
+        timestamp: tenDaysIntoWindow,
         id: entityId20,
         balance: 19,
         tokens: [
@@ -109,18 +112,22 @@ describe('Balances deduplicate tests', () => {
           },
         ],
       },
+
+      // Snapshot at the middle of the 6-month window (~3 months in)
       {
-        timestamp: middleOfPreviousMonth,
+        timestamp: middleOfWindow,
         id: entityId2,
         balance: 223,
       },
       {
-        timestamp: middleOfPreviousMonth,
+        timestamp: middleOfWindow,
         id: entityId19,
         balance: 90,
       },
+
+      // Final snapshot at the end of the 6-month window
       {
-        timestamp: endOfPreviousMonth,
+        timestamp: windowEnd,
         id: entityId20,
         balance: 20,
         tokens: [
@@ -131,12 +138,12 @@ describe('Balances deduplicate tests', () => {
         ],
       },
       {
-        timestamp: endOfPreviousMonth,
+        timestamp: windowEnd,
         id: entityId2,
         balance: 22,
       },
       {
-        timestamp: endOfPreviousMonth,
+        timestamp: windowEnd,
         id: entityId21,
         realm_num: 1,
         balance: 21,
@@ -148,10 +155,10 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Accounts with upper and lower bounds and ne',
       urls: [
-        `/api/v1/balances?timestamp=lt:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&timestamp=ne:${tenDaysInToPreviousMonthSeconds}&order=asc`,
+        `/api/v1/balances?timestamp=lt:${windowEndSeconds}&timestamp=gte:${windowStartSeconds}&timestamp=ne:${tenDaysIntoWindowSeconds}&order=asc`,
       ],
       expected: {
-        timestamp: `${middleOfPreviousMonthSeconds}`,
+        timestamp: `${middleOfWindowSeconds}`,
         balances: [
           {
             account: entityId2,
@@ -172,7 +179,7 @@ describe('Balances deduplicate tests', () => {
               },
             ],
           },
-          // Though 0.1.18's balance is at NE timestamp, its results are expected
+          // Though 0.0.18's balance is at NE timestamp, its results are expected
           {
             account: entityId18,
             balance: 80,
@@ -183,7 +190,7 @@ describe('Balances deduplicate tests', () => {
             balance: 90,
             tokens: [],
           },
-          // Though 0.1.20's balance is at NE timestamp, its results are expected
+          // Though 0.0.20's balance is at NE timestamp, its results are expected
           {
             account: entityId20,
             balance: 19,
@@ -203,10 +210,10 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Accounts with upper and lower bounds lt',
       urls: [
-        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lt:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lt:${windowEndSeconds}&timestamp=gte:${windowStartSeconds}&order=asc`,
       ],
       expected: {
-        timestamp: `${middleOfPreviousMonthSeconds}`,
+        timestamp: `${middleOfWindowSeconds}`,
         balances: [
           {
             account: entityId17,
@@ -251,10 +258,10 @@ describe('Balances deduplicate tests', () => {
     {
       name: 'Accounts with upper and lower bounds lte',
       urls: [
-        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lte:${endOfPreviousMonthSeconds}&timestamp=gte:${beginningOfPreviousMonthSeconds}&order=asc`,
+        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=lte:${windowEndSeconds}&timestamp=gte:${windowStartSeconds}&order=asc`,
       ],
       expected: {
-        timestamp: `${endOfPreviousMonthSeconds}`,
+        timestamp: `${windowEndSeconds}`,
         balances: [
           {
             account: entityId17,
@@ -298,11 +305,9 @@ describe('Balances deduplicate tests', () => {
     },
     {
       name: 'Account and timestamp equals',
-      urls: [
-        `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=${endOfPreviousMonthSeconds}`,
-      ],
+      urls: [`/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=${windowEndSeconds}`],
       expected: {
-        timestamp: `${endOfPreviousMonthSeconds}`,
+        timestamp: `${windowEndSeconds}`,
         balances: [
           {
             account: entityId20,
@@ -345,13 +350,13 @@ describe('Balances deduplicate tests', () => {
       },
     },
     {
-      name: 'Lower bound less than beginning of previous month',
+      name: 'Lower bound less than window start',
       urls: [
-        `/api/v1/balances?timestamp=gte:${beginningOfPreviousMonthSeconds}`,
+        `/api/v1/balances?timestamp=gte:${windowStartSeconds}`,
         `/api/v1/balances?timestamp=gte:${yearPreviousSeconds}`,
       ],
       expected: {
-        timestamp: `${endOfPreviousMonthSeconds}`,
+        timestamp: `${windowEndSeconds}`,
         balances: [
           {
             account: entityId21,
@@ -404,13 +409,13 @@ describe('Balances deduplicate tests', () => {
       },
     },
     {
-      name: 'Lower bound greater than beginning of previous month',
+      name: 'Lower bound greater than window start',
       urls: [
-        `/api/v1/balances?timestamp=gt:${beginningOfPreviousMonthSeconds}`,
-        `/api/v1/balances?timestamp=gte:${tenDaysInToPreviousMonthSeconds}`,
+        `/api/v1/balances?timestamp=gt:${windowStartSeconds}`,
+        `/api/v1/balances?timestamp=gte:${tenDaysIntoWindowSeconds}`,
       ],
       expected: {
-        timestamp: `${endOfPreviousMonthSeconds}`,
+        timestamp: `${windowEndSeconds}`,
         balances: [
           {
             account: entityId21,
@@ -462,24 +467,24 @@ describe('Balances deduplicate tests', () => {
         },
       },
     },
+
+    //
+    // Upper bound at or after the last snapshot -> clamp to windowEnd snapshot
+    //
     {
-      name: 'Upper bound within current month or later',
+      name: 'Upper bound within 6 months window or later',
       urls: [
-        `/api/v1/balances?timestamp=${beginningOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=${middleOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=${beginningOfNextMonthSeconds}`,
+        // Directly at and beyond windowEnd
+        `/api/v1/balances?timestamp=${windowEndSeconds}`,
+        `/api/v1/balances?timestamp=${windowEndPlusOneSeconds}`,
         `/api/v1/balances?timestamp=${yearFutureSeconds}`,
-        `/api/v1/balances?timestamp=lte:${beginningOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=lte:${middleOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=lte:${beginningOfNextMonthSeconds}`,
+        `/api/v1/balances?timestamp=lte:${windowEndPlusOneSeconds}`,
         `/api/v1/balances?timestamp=lte:${yearFutureSeconds}`,
-        `/api/v1/balances?timestamp=lt:${beginningOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=lt:${middleOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=lt:${beginningOfNextMonthSeconds}`,
+        `/api/v1/balances?timestamp=lt:${windowEndPlusOneSeconds}`,
         `/api/v1/balances?timestamp=lt:${yearFutureSeconds}`,
       ],
       expected: {
-        timestamp: `${endOfPreviousMonthSeconds}`,
+        timestamp: `${windowEndSeconds}`,
         balances: [
           {
             account: entityId21,
@@ -531,14 +536,15 @@ describe('Balances deduplicate tests', () => {
         },
       },
     },
+
     {
-      name: 'Upper bound in middle and near end of previous month',
+      name: 'Upper bound in middle and near end of window',
       urls: [
-        `/api/v1/balances?timestamp=${middleOfPreviousMonthSeconds}`,
-        `/api/v1/balances?timestamp=${endOfPreviousMonthSecondsMinusOne}`,
+        `/api/v1/balances?timestamp=${middleOfWindowSeconds}`,
+        `/api/v1/balances?timestamp=${windowEndSecondsMinusOne}`,
       ],
       expected: {
-        timestamp: `${middleOfPreviousMonthSeconds}`,
+        timestamp: `${middleOfWindowSeconds}`,
         balances: [
           {
             account: entityId20,
@@ -586,10 +592,10 @@ describe('Balances deduplicate tests', () => {
       },
     },
     {
-      name: 'Upper bound in middle of previous month minus one',
-      urls: [`/api/v1/balances?timestamp=${middleOfPreviousMonthSecondsMinusOne}`],
+      name: 'Upper bound in middle of window minus one',
+      urls: [`/api/v1/balances?timestamp=${middleOfWindowSecondsMinusOne}`],
       expected: {
-        timestamp: `${tenDaysInToPreviousMonthSeconds}`,
+        timestamp: `${tenDaysIntoWindowSeconds}`,
         balances: [
           {
             account: entityId20,
@@ -631,15 +637,21 @@ describe('Balances deduplicate tests', () => {
         },
       },
     },
+
+    //
+    // No results when the requested time range is completely
+    // beyond our last snapshot (or way in the past).
+    //
     {
-      name: 'Upper bound in the past and lower bound greater than end of previous month',
+      name: 'Upper bound in the past and lower bound greater than end of window',
       urls: [
+        // Way in the past, outside the data + 6-month lookback
         `/api/v1/balances?account.id=gte:${entityId16}&account.id=lt:${entityId21}&timestamp=1567296000.000000000`,
         `/api/v1/balances?timestamp=1567296000.000000000`,
         `/api/v1/balances?timestamp=lte:1567296000.000000000`,
         `/api/v1/balances?timestamp=lt:1567296000.000000000`,
-        `/api/v1/balances?timestamp=gte:${beginningOfCurrentMonthSeconds}`,
-        `/api/v1/balances?timestamp=gt:${endOfPreviousMonthSeconds}`,
+        // Lower bound strictly greater than our last snapshot -> expect empty
+        `/api/v1/balances?timestamp=gt:${windowEndSeconds}`,
         `/api/v1/balances?timestamp=gte:${yearFutureSeconds}`,
         `/api/v1/balances?timestamp=gte:${yearFutureSeconds}&timestamp=lt:${yearPreviousSeconds}`,
       ],
