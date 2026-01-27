@@ -3,13 +3,11 @@
 package org.hiero.mirror.monitor.health;
 
 import jakarta.inject.Named;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.DefaultUriBuilderFactory;
-import org.springframework.web.util.UriUtils;
 
 @Named
 final class PrometheusApiClient {
@@ -18,6 +16,7 @@ final class PrometheusApiClient {
 
     PrometheusApiClient(final ImporterLagHealthProperties lagProperties, final RestClient.Builder restClientBuilder) {
         final var factory = new DefaultUriBuilderFactory(lagProperties.getPrometheusBaseUrl());
+        // PromQL includes braces, quotes, etc. We want to pass it through as-is.
         factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
 
         final var requestFactory = new SimpleClientHttpRequestFactory();
@@ -39,16 +38,26 @@ final class PrometheusApiClient {
     }
 
     PrometheusQueryResponse query(final String query) {
-        final var encoded = UriUtils.encodeQueryParam(query, StandardCharsets.UTF_8);
-
         return prometheusClient
                 .get()
-                .uri(builder -> builder.queryParam("query", encoded).build())
+                .uri(builder -> builder.queryParam("query", query).build())
                 .retrieve()
                 .body(PrometheusQueryResponse.class);
     }
 
-    static record PrometheusQueryResponse(String status, PrometheusData data) {}
+    static record PrometheusQueryResponse(String status, PrometheusData data) {
+
+        private boolean isValid() {
+            return "success".equals(status) && data != null && data.result() != null;
+        }
+
+        List<PrometheusSeries> getSeries() {
+            if (!isValid()) {
+                return List.of();
+            }
+            return data.result();
+        }
+    }
 
     static record PrometheusData(String resultType, List<PrometheusSeries> result) {}
 

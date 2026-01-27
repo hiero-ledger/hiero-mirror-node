@@ -3,10 +3,13 @@
 package org.hiero.mirror.monitor.health;
 
 import jakarta.inject.Named;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalDouble;
+import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
@@ -55,63 +58,77 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
     }
 
     private Health evaluate(final PrometheusApiClient.PrometheusQueryResponse resp) {
-        final var localCluster = StringUtils.trimToNull(properties.getLocalCluster());
-
-        if (localCluster == null
-                || resp == null
-                || !"success".equals(resp.status())
-                || resp.data() == null
-                || resp.data().result() == null) {
+        if (resp == null) {
             return up();
         }
 
-        final var series = resp.data().result();
+        final var series = resp.getSeries();
         if (series.isEmpty()) {
             return up();
         }
 
+        final var localCluster = properties.getLocalCluster();
         final var lagByCluster = parseLagByCluster(series);
         final var localLag = lagByCluster.get(localCluster);
-        if (localLag == null || !Double.isFinite(localLag) || localLag <= properties.getThresholdSeconds()) {
+
+        if (!isLagAboveThreshold(localLag)) {
             return up();
         }
 
         lagByCluster.remove(localCluster);
-        final var bestOther =
-                lagByCluster.values().stream().filter(Double::isFinite).min(Comparator.naturalOrder());
+        final var bestOther = bestOtherLag(lagByCluster);
+        return isOtherClearlyBetter(bestOther, localLag) ? down() : up();
+    }
 
+    private boolean isLagAboveThreshold(final Double lagSeconds) {
+        return lagSeconds != null && Double.isFinite(lagSeconds) && lagSeconds > properties.getThresholdSeconds();
+    }
+
+    private OptionalDouble bestOtherLag(final Map<String, Double> lagByCluster) {
+        return lagByCluster.values().stream()
+                .filter(Objects::nonNull)
+                .filter(Double::isFinite)
+                .mapToDouble(Double::doubleValue)
+                .min();
+    }
+
+    private boolean isOtherClearlyBetter(final OptionalDouble bestOther, final double localLag) {
         final var margin = properties.getThresholdSeconds();
-        final var otherClearlyBetter = bestOther.isPresent() && (bestOther.get() + margin) < localLag;
-
-        return otherClearlyBetter ? down() : up();
+        return bestOther.isPresent() && (bestOther.getAsDouble() + margin) < localLag;
     }
 
     private Map<String, Double> parseLagByCluster(final List<PrometheusApiClient.PrometheusSeries> series) {
-        final var lagByCluster = new HashMap<String, Double>();
+        return series.stream()
+                .filter(Objects::nonNull)
+                .map(this::toClusterLagEntry)
+                .flatMap(Optional::stream)
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, HashMap::new));
+    }
 
-        for (final var s : series) {
-            if (s == null
-                    || s.metric() == null
-                    || s.value() == null
-                    || s.value().size() < 2) {
-                continue;
-            }
+    private Optional<Map.Entry<String, Double>> toClusterLagEntry(final PrometheusApiClient.PrometheusSeries s) {
+        final var metric = s.metric();
+        final var value = s.value();
 
-            final var cluster = StringUtils.trimToNull(s.metric().cluster());
-            if (cluster == null) {
-                continue;
-            }
-
-            final var raw = s.value().get(1);
-            try {
-                final var lagSeconds = Double.parseDouble(String.valueOf(raw));
-                lagByCluster.put(cluster, lagSeconds);
-            } catch (final NumberFormatException ignored) {
-                log.warn("Error parsing raw value {}", raw);
-            }
+        if (metric == null || value == null || value.size() < 2) {
+            return Optional.empty();
         }
 
-        return lagByCluster;
+        final var cluster = StringUtils.trimToNull(metric.cluster());
+        if (cluster == null) {
+            return Optional.empty();
+        }
+
+        final var raw = value.get(1);
+        return parseDouble(raw).map(lagSeconds -> Map.entry(cluster, lagSeconds));
+    }
+
+    private Optional<Double> parseDouble(final Object raw) {
+        try {
+            return Optional.of(Double.parseDouble(String.valueOf(raw)));
+        } catch (final NumberFormatException _) {
+            log.warn("Error parsing raw value {}", raw);
+            return Optional.empty();
+        }
     }
 
     private static Health up() {
