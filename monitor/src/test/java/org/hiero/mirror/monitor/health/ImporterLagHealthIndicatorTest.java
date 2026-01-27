@@ -4,7 +4,11 @@ package org.hiero.mirror.monitor.health;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -13,7 +17,6 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.health.Status;
-import reactor.core.publisher.Mono;
 
 class ImporterLagHealthIndicatorTest {
     private static final String THIS_CLUSTER = "mainnet-1";
@@ -25,7 +28,7 @@ class ImporterLagHealthIndicatorTest {
         final var client = mock(PrometheusApiClient.class);
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
         verifyNoInteractions(client);
@@ -37,7 +40,7 @@ class ImporterLagHealthIndicatorTest {
         final var client = mock(PrometheusApiClient.class);
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
         verifyNoInteractions(client);
@@ -49,7 +52,7 @@ class ImporterLagHealthIndicatorTest {
         final var client = mock(PrometheusApiClient.class);
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
         verifyNoInteractions(client);
@@ -59,11 +62,11 @@ class ImporterLagHealthIndicatorTest {
     void upOnClientError() {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
-        when(client.query(anyString())).thenReturn(Mono.error(new RuntimeException("boom")));
+        when(client.query(anyString())).thenThrow(new RuntimeException("boom"));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
         verify(client).query(anyString());
@@ -72,18 +75,17 @@ class ImporterLagHealthIndicatorTest {
     @Test
     void upWhenLocalBelowThreshold() {
         final var props = props(p -> {
-            p.setThresholdSeconds(10);
-            p.setFailoverMarginSeconds(20);
             p.setLocalCluster(THIS_CLUSTER);
         });
 
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString()))
-                .thenReturn(Mono.just(success(List.of(series(THIS_CLUSTER, 5.0), series(OTHER_CLUSTER, 1.0)))));
+                .thenReturn(success(
+                        List.of(series(THIS_CLUSTER, props.getThresholdSeconds() - 1), series(OTHER_CLUSTER, 1.0))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
     }
@@ -91,18 +93,18 @@ class ImporterLagHealthIndicatorTest {
     @Test
     void downWhenLocalAboveThresholdAndOtherClearlyBetter() {
         final var props = props(p -> {
-            p.setThresholdSeconds(10);
-            p.setFailoverMarginSeconds(20);
             p.setLocalCluster(THIS_CLUSTER);
         });
 
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString()))
-                .thenReturn(Mono.just(success(List.of(series(THIS_CLUSTER, 50.0), series(OTHER_CLUSTER, 5.0)))));
+                .thenReturn(success(List.of(
+                        series(THIS_CLUSTER, props.getThresholdSeconds() * 2),
+                        series(OTHER_CLUSTER, props.getThresholdSeconds() - 1))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.DOWN);
     }
@@ -110,18 +112,18 @@ class ImporterLagHealthIndicatorTest {
     @Test
     void upWhenLocalAboveThresholdButOtherNotBetterEnough() {
         final var props = props(p -> {
-            p.setThresholdSeconds(10);
-            p.setFailoverMarginSeconds(20);
             p.setLocalCluster(THIS_CLUSTER);
         });
 
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString()))
-                .thenReturn(Mono.just(success(List.of(series(THIS_CLUSTER, 25.0), series(OTHER_CLUSTER, 10.0)))));
+                .thenReturn(success(List.of(
+                        series(THIS_CLUSTER, props.getThresholdSeconds() + 1),
+                        series(OTHER_CLUSTER, props.getThresholdSeconds()))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
     }
@@ -130,12 +132,12 @@ class ImporterLagHealthIndicatorTest {
     void queriesPrometheusWithExpectedMetricName() {
         final var props = props(p -> p.setLocalCluster(THIS_CLUSTER));
         final var client = mock(PrometheusApiClient.class);
-        when(client.query(anyString())).thenReturn(Mono.just(success(List.of(series(THIS_CLUSTER, 1.0)))));
+        when(client.query(anyString())).thenReturn(success(List.of(series(THIS_CLUSTER, 1.0))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
-        indicator.health().block(Duration.ofSeconds(1));
+        indicator.health();
 
-        verify(client).query(argThat(q -> q.contains("hiero_mirror_importer_parse_latency_seconds_sum")));
+        verify(client).query(argThat(q -> q.contains("hiero_mirror_importer_stream_latency_seconds_sum")));
     }
 
     @Test
@@ -143,11 +145,11 @@ class ImporterLagHealthIndicatorTest {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
 
-        when(client.query(anyString())).thenReturn(Mono.just(success(List.of())));
+        when(client.query(anyString())).thenReturn(success(List.of()));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health).isNotNull();
         assertThat(health.getStatus()).isEqualTo(Status.UP);
@@ -165,11 +167,11 @@ class ImporterLagHealthIndicatorTest {
                 new PrometheusApiClient.PrometheusSeries(
                         new PrometheusApiClient.PrometheusMetric(THIS_CLUSTER), List.of("only-one")));
 
-        when(client.query(anyString())).thenReturn(Mono.just(success(invalid)));
+        when(client.query(anyString())).thenReturn(success(invalid));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health).isNotNull();
         assertThat(health.getStatus()).isEqualTo(Status.UP);
@@ -180,13 +182,14 @@ class ImporterLagHealthIndicatorTest {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
 
-        final var missingCluster = List.of(series(null, 50.0), series("   ", 50.0));
+        final var missingCluster =
+                List.of(series(null, props.getThresholdSeconds() * 2), series("   ", props.getThresholdSeconds() - 1));
 
-        when(client.query(anyString())).thenReturn(Mono.just(success(missingCluster)));
+        when(client.query(anyString())).thenReturn(success(missingCluster));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health).isNotNull();
         assertThat(health.getStatus()).isEqualTo(Status.UP);
@@ -196,20 +199,18 @@ class ImporterLagHealthIndicatorTest {
     void upWhenOtherClusterLagIsNotANumber() {
         final var props = props(p -> {
             p.setLocalCluster(THIS_CLUSTER);
-            p.setThresholdSeconds(10);
-            p.setFailoverMarginSeconds(20);
         });
 
         final var client = mock(PrometheusApiClient.class);
 
-        final var local = series(THIS_CLUSTER, 50.0); // above threshold
-        final var otherBad = rawSeries(THIS_CLUSTER, "not-a-number"); // triggers NumberFormatException
+        final var local = series(THIS_CLUSTER, props.getThresholdSeconds() * 2);
+        final var otherBad = rawSeries(THIS_CLUSTER, "not-a-number");
 
-        when(client.query(anyString())).thenReturn(Mono.just(success(List.of(local, otherBad))));
+        when(client.query(anyString())).thenReturn(success(List.of(local, otherBad)));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health).isNotNull();
         assertThat(health.getStatus()).isEqualTo(Status.UP);
@@ -219,12 +220,11 @@ class ImporterLagHealthIndicatorTest {
     void upWhenPrometheusStatusNotSuccess() {
         final var props = props(p -> {});
         final var client = mock(PrometheusApiClient.class);
-        when(client.query(anyString()))
-                .thenReturn(Mono.just(new PrometheusApiClient.PrometheusQueryResponse("error", null)));
+        when(client.query(anyString())).thenReturn(new PrometheusApiClient.PrometheusQueryResponse("error", null));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
-        final var health = indicator.health().block(Duration.ofSeconds(1));
+        final var health = indicator.health();
 
         assertThat(health.getStatus()).isEqualTo(Status.UP);
     }
@@ -237,7 +237,6 @@ class ImporterLagHealthIndicatorTest {
         p.setLocalCluster(THIS_CLUSTER);
         p.setClusters(List.of(OTHER_CLUSTER));
         p.setThresholdSeconds(10);
-        p.setFailoverMarginSeconds(20);
         customize.accept(p);
         return p;
     }

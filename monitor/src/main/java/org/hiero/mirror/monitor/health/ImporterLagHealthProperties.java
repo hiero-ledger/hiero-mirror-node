@@ -2,11 +2,16 @@
 
 package org.hiero.mirror.monitor.health;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import lombok.Data;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.common.domain.StreamType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 
@@ -14,19 +19,17 @@ import org.springframework.util.CollectionUtils;
 @ConfigurationProperties(prefix = "hiero.mirror.monitor.health.importer-lag")
 final class ImporterLagHealthProperties {
     /**
-     * Clusters to compare against
+     * Clusters to compare against.
      */
     private List<String> clusters = new ArrayList<>();
+
+    @Getter(lazy = true)
+    private final String clusterRegex = clusterRegexOrNull();
 
     /**
      * Enable the lag indicator.
      */
     private boolean enabled = true;
-
-    /**
-     * Another cluster must be better than local by at least this many seconds to mark DOWN.
-     */
-    private int failoverMarginSeconds = 20;
 
     /**
      * Cluster label value for THIS cluster.
@@ -44,18 +47,26 @@ final class ImporterLagHealthProperties {
     private String prometheusPassword;
 
     /**
-     * Basic auth username
+     * Basic auth username.
      */
     private String prometheusUsername;
 
     /**
+     * Stream type to monitor for lag.
+     * */
+    @NotNull
+    private StreamType streamType = StreamType.RECORD;
+
+    /**
      * If local lag is <= thresholdSeconds, report UP.
      */
+    @Positive
     private int thresholdSeconds = 20;
 
     /**
      * Timeout for the Prometheus query.
      */
+    @NotNull
     private Duration timeout = Duration.ofSeconds(5);
 
     boolean isEnabled() {
@@ -63,5 +74,18 @@ final class ImporterLagHealthProperties {
                 && StringUtils.isNotBlank(StringUtils.trimToNull(prometheusBaseUrl))
                 && StringUtils.isNotBlank(StringUtils.trimToNull(localCluster))
                 && !CollectionUtils.isEmpty(clusters);
+    }
+
+    private String clusterRegexOrNull() {
+        final var set = new LinkedHashSet<>(clusters);
+        set.add(localCluster);
+
+        final var joined = set.stream()
+                .filter(StringUtils::isNotBlank)
+                .map(String::trim)
+                .reduce((a, b) -> a + "|" + b)
+                .orElse("");
+
+        return joined.isBlank() ? null : "(" + joined + ")";
     }
 }

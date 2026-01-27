@@ -6,25 +6,28 @@ import jakarta.inject.Named;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.util.DefaultUriBuilderFactory;
 import org.springframework.web.util.UriUtils;
-import reactor.core.publisher.Mono;
 
 @Named
-class PrometheusApiClient {
-    private final ImporterLagHealthProperties lagProperties;
-    private final WebClient prometheusClient;
+final class PrometheusApiClient {
 
-    PrometheusApiClient(final ImporterLagHealthProperties lagProperties, final WebClient.Builder webClientBuilder) {
-        this.lagProperties = lagProperties;
+    private final RestClient prometheusClient;
+
+    PrometheusApiClient(final ImporterLagHealthProperties lagProperties, final RestClient.Builder restClientBuilder) {
         final var factory = new DefaultUriBuilderFactory(lagProperties.getPrometheusBaseUrl());
         factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
 
-        this.prometheusClient = webClientBuilder
+        final var requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(lagProperties.getTimeout());
+        requestFactory.setReadTimeout(lagProperties.getTimeout());
+
+        this.prometheusClient = restClientBuilder
                 .baseUrl(lagProperties.getPrometheusBaseUrl())
                 .uriBuilderFactory(factory)
+                .requestFactory(requestFactory)
                 .defaultHeaders(h -> {
                     final var username = StringUtils.trimToNull(lagProperties.getPrometheusUsername());
                     final var password = StringUtils.trimToNull(lagProperties.getPrometheusPassword());
@@ -35,23 +38,21 @@ class PrometheusApiClient {
                 .build();
     }
 
-    Mono<PrometheusQueryResponse> query(String query) {
+    PrometheusQueryResponse query(final String query) {
         final var encoded = UriUtils.encodeQueryParam(query, StandardCharsets.UTF_8);
+
         return prometheusClient
                 .get()
                 .uri(builder -> builder.queryParam("query", encoded).build())
                 .retrieve()
-                .onStatus(
-                        HttpStatusCode::isError, resp -> resp.createException().flatMap(Mono::error))
-                .bodyToMono(PrometheusQueryResponse.class)
-                .timeout(lagProperties.getTimeout());
+                .body(PrometheusQueryResponse.class);
     }
 
-    record PrometheusQueryResponse(String status, PrometheusData data) {}
+    static record PrometheusQueryResponse(String status, PrometheusData data) {}
 
-    record PrometheusData(String resultType, List<PrometheusSeries> result) {}
+    static record PrometheusData(String resultType, List<PrometheusSeries> result) {}
 
-    record PrometheusSeries(PrometheusMetric metric, List<Object> value) {}
+    static record PrometheusSeries(PrometheusMetric metric, List<Object> value) {}
 
-    record PrometheusMetric(String cluster) {}
+    static record PrometheusMetric(String cluster) {}
 }
