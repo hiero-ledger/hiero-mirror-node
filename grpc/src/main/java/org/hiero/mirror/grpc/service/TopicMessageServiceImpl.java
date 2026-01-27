@@ -65,12 +65,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         // Safety Check - Polls missing messages after 1s if we are stuck with no data
         Flux<TopicMessage> safetyCheck = Mono.delay(Duration.ofSeconds(1L))
                 .filter(_ -> !topicContext.isComplete())
-                .flatMapMany(tick -> {
-                    log.info(
-                            "Safety check triggering gap recovery query for subscriber id: {}",
-                            filter.getSubscriberId());
-                    return missingMessages(topicContext, null);
-                })
+                .flatMapMany(_ -> missingMessages(topicContext, null))
                 .subscribeOn(Schedulers.boundedElastic());
 
         Flux<TopicMessage> flux = historical
@@ -149,6 +144,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
                     : topicContext.getFilter().getStartTime();
             var gapFilter =
                     topicContext.getFilter().toBuilder().startTime(startTime).build();
+            log.info("Safety check triggering gap recovery query with filter {}", gapFilter);
             return topicMessageRetriever.retrieve(gapFilter, false);
         }
 

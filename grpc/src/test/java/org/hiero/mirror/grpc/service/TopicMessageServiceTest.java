@@ -634,6 +634,39 @@ class TopicMessageServiceTest extends GrpcIntegrationTest {
                 .verify();
     }
 
+    @Test
+    void receivedMessageBeforeSafetyCheckCompletion() {
+        var topicListener = Mockito.mock(TopicListener.class);
+        var entityRepository = Mockito.mock(EntityRepository.class);
+        var topicMessageRetriever = Mockito.mock(TopicMessageRetriever.class);
+        topicMessageService = new TopicMessageServiceImpl(
+                new GrpcProperties(),
+                topicListener,
+                entityRepository,
+                topicMessageRetriever,
+                new SimpleMeterRegistry());
+
+        var filter = TopicMessageFilter.builder().startTime(0).topicId(TOPIC_ID).build();
+        var newFilter = filter.toBuilder().startTime(2L).build();
+
+        var message1 = topicMessage(1);
+
+        Mockito.when(entityRepository.findById(filter.getTopicId().getId())).thenReturn(optionalEntity());
+        // No historical messages
+        Mockito.when(topicMessageRetriever.retrieve(filter, true)).thenReturn(Flux.empty());
+        // Gap message from the safety check
+        Mockito.when(topicMessageRetriever.retrieve(filter, false)).thenReturn(Flux.just(message1));
+        Mockito.when(topicListener.listen(Mockito.any())).thenReturn(Flux.empty());
+
+        StepVerifier.withVirtualTime(
+                        () -> topicMessageService.subscribeTopic(filter).map(TopicMessage::getSequenceNumber))
+                .expectSubscription()
+                .thenAwait(Duration.ofSeconds(2)) // Await the safety check to finish
+                .expectNext(1L)
+                .thenCancel()
+                .verify();
+    }
+
     private void missingMessagesFromListenerTest(TopicMessageFilter filter, Flux<TopicMessage> missingMessages) {
         var topicListener = Mockito.mock(TopicListener.class);
         var entityRepository = Mockito.mock(EntityRepository.class);
