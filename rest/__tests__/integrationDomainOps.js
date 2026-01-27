@@ -587,6 +587,7 @@ const entityDefaults = {
   balance_timestamp: null,
   created_timestamp: null,
   decline_reward: false,
+  delegation_address: null,
   deleted: false,
   ethereum_nonce: null,
   evm_address: null,
@@ -624,6 +625,7 @@ const addEntity = async (defaults, custom) => {
   ).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
+  entity.delegation_address = valueToBuffer(entity.delegation_address);
   entity.staked_account_id = encodedIdFromSpecValue(entity.staked_account_id);
   entity.obtainer_id = encodedIdFromSpecValue(entity.obtainer_id);
   entity.proxy_account_id = encodedIdFromSpecValue(entity.proxy_account_id);

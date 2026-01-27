@@ -10,6 +10,7 @@ class Entity {
   static AUTO_RENEW_ACCOUNT_ID = 'auto_renew_account_id';
   static AUTO_RENEW_PERIOD = 'auto_renew_period';
   static CREATED_TIMESTAMP = 'created_timestamp';
+  static DELEGATION_ADDRESS = 'delegation_address';
   static DELETED = 'deleted';
   static ETHEREUM_NONCE = 'ethereum_nonce';
   static EVM_ADDRESS = 'evm_address';
