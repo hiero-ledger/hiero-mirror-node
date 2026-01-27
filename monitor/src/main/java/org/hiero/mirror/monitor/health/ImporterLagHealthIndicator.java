@@ -102,7 +102,7 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
                 .filter(Objects::nonNull)
                 .map(this::toClusterLagEntry)
                 .flatMap(Optional::stream)
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b, HashMap::new));
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (_, b) -> b, HashMap::new));
     }
 
     private Optional<Map.Entry<String, Double>> toClusterLagEntry(final PrometheusApiClient.PrometheusSeries s) {
