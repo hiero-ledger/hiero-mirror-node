@@ -865,6 +865,7 @@ const defaultTransaction = {
   charged_tx_fee: NODE_FEE + NETWORK_FEE + SERVICE_FEE,
   consensus_timestamp: null,
   entity_id: null,
+  high_volume: false,
   inner_transactions: null,
   max_custom_fees: [],
   max_fee: 33,

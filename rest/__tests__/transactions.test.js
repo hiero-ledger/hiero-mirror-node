@@ -424,6 +424,7 @@ const getTransactionIdQuery = (extraConditions, entityKeys, isTransactionHash = 
       t.charged_tx_fee,
       t.consensus_timestamp,
       t.entity_id,
+      t.high_volume,
       t.inner_transactions,
       t.max_custom_fees,
       t.max_fee,

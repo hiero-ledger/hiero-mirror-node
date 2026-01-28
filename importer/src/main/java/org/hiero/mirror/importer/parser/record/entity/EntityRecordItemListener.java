@@ -206,6 +206,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             transaction.setBatchKey(body.getBatchKey().toByteArray());
         }
 
+        // TODO: Uncomment when consensusNodeVersion is updated to 0.71+ with HIP-1313 protobuf support
+        // transaction.setHighVolume(body.getHighVolume());
+
         return transaction;
     }
 
