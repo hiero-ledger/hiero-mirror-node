@@ -524,8 +524,10 @@ function runK6Test() {
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
     if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-      waitForHelmReleaseReady "${namespace}"
-      cleanupAcceptancePod "${namespace}"
+      if [[ "${NO_RESTORE}" != "true" ]]; then
+        waitForHelmReleaseReady "${namespace}"
+        cleanupAcceptancePod "${namespace}"
+      fi
       log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
       flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
     fi
