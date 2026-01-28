@@ -56,7 +56,6 @@ public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
-    private static final long ETHEREUM_TX_FEE = 200_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
     private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
@@ -207,7 +206,6 @@ public class TransactionExecutionService {
                         params.getEthereumData().toArray()));
         return defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(ethereumTransactionBuilder.build())
-                .transactionFee(ETHEREUM_TX_FEE)
                 .build();
     }
 
