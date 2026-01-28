@@ -7,6 +7,7 @@ import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.google.common.primitives.Longs;
 import jakarta.annotation.Resource;
 import java.nio.charset.StandardCharsets;
 import lombok.SneakyThrows;
@@ -23,7 +24,6 @@ import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Profiles;
 import org.springframework.test.context.ContextConfiguration;
-import org.testcontainers.shaded.com.google.common.primitives.Longs;
 
 @Tag("migration")
 @DisablePartitionMaintenance

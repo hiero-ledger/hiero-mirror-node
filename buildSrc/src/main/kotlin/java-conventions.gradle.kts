@@ -46,6 +46,7 @@ dependencies {
 
 tasks.withType<JavaCompile>().configureEach {
     // Disable dangling-doc-comments due to graphql-gradle-plugin-project #25
+    // Disable deprecation due to OpenAPI using deprecated Jackson2 in generated code
     // Disable serial and this-escape warnings due to errors in generated code
     // Disable rawtypes and unchecked due to Spring AOT generated configuration
     options.compilerArgs.addAll(
@@ -53,7 +54,7 @@ tasks.withType<JavaCompile>().configureEach {
             "-parameters",
             "-Werror",
             "-Xlint:all",
-            "-Xlint:-dangling-doc-comments,-preview,-rawtypes,-this-escape,-unchecked",
+            "-Xlint:-dangling-doc-comments,-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
     options.encoding = "UTF-8"
@@ -62,6 +63,7 @@ tasks.withType<JavaCompile>().configureEach {
         check("NullAway", net.ltgt.gradle.errorprone.CheckSeverity.ERROR)
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:CustomContractAnnotations", "org.springframework.lang.Contract")
+        excludedPaths = ".*/build/generated/.*"
     }
     sourceCompatibility = "25"
     targetCompatibility = "25"
