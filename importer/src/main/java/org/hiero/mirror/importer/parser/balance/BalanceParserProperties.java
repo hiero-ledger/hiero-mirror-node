@@ -27,7 +27,7 @@ public class BalanceParserProperties extends AbstractParserProperties {
         frequency = Duration.ofSeconds(1L);
         batch.setQueueCapacity(1);
         batch.setMaxItems(batchSize * 5L);
-        retry.setMaxAttempts(3);
+        retry.setMaxAttempts(2);
         transactionTimeout = Duration.ofMinutes(5L);
     }
 

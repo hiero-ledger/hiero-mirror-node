@@ -13,9 +13,7 @@ import com.hedera.hashgraph.sdk.CustomFixedFee;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.Key;
 import com.hedera.hashgraph.sdk.KeyList;
-import com.hedera.hashgraph.sdk.PrecheckStatusException;
 import com.hedera.hashgraph.sdk.PrivateKey;
-import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import com.hedera.hashgraph.sdk.TokenId;
 import com.hedera.hashgraph.sdk.TopicId;
 import com.hedera.hashgraph.sdk.TopicMessageQuery;
@@ -51,8 +49,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TopicClient;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.FeatureInputHandler;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -317,10 +313,7 @@ public class TopicFeature extends AbstractFeature {
     }
 
     @When("I publish {int} batches of {int} messages every {long} milliseconds")
-    @Retryable(
-            retryFor = {PrecheckStatusException.class, ReceiptStatusException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
+    @RetryAsserts
     @SuppressWarnings("java:S2925")
     public void publishTopicMessages(int numGroups, int messageCount, long milliSleep) throws InterruptedException {
         for (int i = 0; i < numGroups; i++) {
@@ -337,20 +330,14 @@ public class TopicFeature extends AbstractFeature {
         messageSubscribeCount = numGroups * messageCount;
     }
 
-    @Retryable(
-            retryFor = {PrecheckStatusException.class, ReceiptStatusException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
+    @RetryAsserts
     public void publishTopicMessages(int messageCount) {
         messageSubscribeCount = messageCount;
         topicClient.publishMessagesToTopic(consensusTopicId, TOPIC_MESSAGE, getKeys(), messageCount, false);
     }
 
     @When("I publish and verify {int} messages sent")
-    @Retryable(
-            retryFor = {AssertionError.class, PrecheckStatusException.class, ReceiptStatusException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
+    @RetryAsserts
     public void publishAndVerifyTopicMessages(int messageCount) {
         messageSubscribeCount = messageCount;
         publishedTransactionReceipts =

@@ -14,12 +14,12 @@ import lombok.Data;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.repository.TopicMessageRepository;
+import org.jspecify.annotations.Nullable;
 import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.retry.Jitter;
-import reactor.retry.Repeat;
+import reactor.util.repeat.RepeatSpec;
 import reactor.util.retry.Retry;
 
 @Named
@@ -49,10 +49,10 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
 
         PollingContext context = new PollingContext(filter, throttled);
         return Flux.defer(() -> poll(context))
-                .repeatWhen(Repeat.create(r -> !context.isComplete(), context.getNumRepeats())
-                        .fixedBackoff(context.getFrequency())
-                        .jitter(Jitter.random(0.1))
-                        .withBackoffScheduler(scheduler))
+                .repeatWhen(RepeatSpec.create(r -> !context.isComplete(), context.getNumRepeats())
+                        .jitter(0.1)
+                        .withFixedDelay(context.getFrequency())
+                        .withScheduler(scheduler))
                 .name(METRIC)
                 .tap(Micrometer.observation(observationRegistry))
                 .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(1)))
@@ -84,7 +84,7 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
         private final TopicMessageFilter filter;
         private final boolean throttled;
         private final Duration frequency;
-        private final AtomicReference<TopicMessage> last = new AtomicReference<>();
+        private final AtomicReference<@Nullable TopicMessage> last = new AtomicReference<>();
         private final int maxPageSize;
         private final long numRepeats;
         private final AtomicLong pageSize = new AtomicLong(0L);
@@ -107,7 +107,7 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
             }
         }
 
-        private TopicMessage getLast() {
+        private @Nullable TopicMessage getLast() {
             return last.get();
         }
 

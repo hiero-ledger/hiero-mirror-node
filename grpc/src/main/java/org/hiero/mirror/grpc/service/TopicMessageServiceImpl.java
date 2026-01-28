@@ -26,12 +26,13 @@ import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.listener.TopicListener;
 import org.hiero.mirror.grpc.repository.EntityRepository;
 import org.hiero.mirror.grpc.retriever.TopicMessageRetriever;
+import org.jspecify.annotations.Nullable;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
 import reactor.core.scheduler.Schedulers;
-import reactor.retry.Repeat;
+import reactor.util.repeat.RepeatSpec;
 
 @Named
 @CustomLog
@@ -125,8 +126,8 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         }
 
         return Flux.empty()
-                .repeatWhen(Repeat.create(r -> !topicContext.isComplete(), Long.MAX_VALUE)
-                        .fixedBackoff(grpcProperties.getEndTimeInterval()));
+                .repeatWhen(RepeatSpec.create(r -> !topicContext.isComplete(), Long.MAX_VALUE)
+                        .withFixedDelay(grpcProperties.getEndTimeInterval()));
     }
 
     /**
@@ -134,8 +135,8 @@ public class TopicMessageServiceImpl implements TopicMessageService {
      * incoming flow catches up and receives the next message for the topic, it will fill in any missing messages from
      * when it was down.
      */
-    private Flux<TopicMessage> missingMessages(TopicContext topicContext, TopicMessage current) {
-        TopicMessage last = topicContext.getLast();
+    private Flux<TopicMessage> missingMessages(TopicContext topicContext, @Nullable TopicMessage current) {
+        final var last = topicContext.getLast();
 
         // Safety check triggered
         if (current == null) {
@@ -148,7 +149,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
             return topicMessageRetriever.retrieve(gapFilter, false);
         }
 
-        if (topicContext.isNext(current)) {
+        if (last == null || topicContext.isNext(current)) {
             return Flux.just(current);
         }
 
@@ -181,7 +182,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
 
         private final AtomicLong count;
         private final TopicMessageFilter filter;
-        private final AtomicReference<TopicMessage> last;
+        private final AtomicReference<@Nullable TopicMessage> last;
         private final long startTime;
         private final Stopwatch stopwatch;
         private final EntityId topicId;
@@ -195,7 +196,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
             this.topicId = filter.getTopicId();
         }
 
-        private TopicMessage getLast() {
+        private @Nullable TopicMessage getLast() {
             return last.get();
         }
 

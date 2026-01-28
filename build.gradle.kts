@@ -18,14 +18,13 @@ plugins {
 extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
-    set("commons-lang3.version", "3.20.0") // Temporary until next Spring Boot
     set("consensusNodeVersion", "0.70.0-rc.2")
     set("grpcVersion", "1.78.0")
     set("jooq.version", "3.20.10") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.33.4")
-    set("springGrpcVersion", "0.12.0")
+    set("springGrpcVersion", "1.0.1")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.2")
 }
@@ -61,11 +60,11 @@ dependencies {
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
-        api("io.cucumber:cucumber-bom:7.23.0")
+        api("io.cucumber:cucumber-bom:7.34.1")
         api("io.fabric8:kubernetes-client-bom:7.5.2")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-63:3.14.1")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.0")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")

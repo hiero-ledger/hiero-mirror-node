@@ -65,6 +65,8 @@ final class CompositeTopicListener implements TopicListener {
 
     private void recordMetric(TopicMessage topicMessage) {
         long latency = System.currentTimeMillis() - (topicMessage.getConsensusTimestamp() / 1000000);
-        getConsensusLatencyTimer().record(latency, TimeUnit.MILLISECONDS);
+        if (latency > 0) {
+            getConsensusLatencyTimer().record(latency, TimeUnit.MILLISECONDS);
+        }
     }
 }

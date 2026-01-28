@@ -59,10 +59,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.MediaType;
@@ -71,7 +72,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
-@ExtendWith({SpringExtension.class, OutputCaptureExtension.class})
+@ExtendWith({MockitoExtension.class, SpringExtension.class, OutputCaptureExtension.class})
 @WebMvcTest(controllers = ContractController.class)
 class ContractControllerTest {
 
@@ -232,8 +233,8 @@ class ContractControllerTest {
                         .content(convert(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(content()
-                        .string(convert(
-                                new GenericErrorResponse(NOT_FOUND.getReasonPhrase(), "No static resource invalid."))));
+                        .string(convert(new GenericErrorResponse(
+                                NOT_FOUND.getReasonPhrase(), "No static resource invalid for request '/invalid'."))));
     }
 
     @EmptySource
@@ -279,7 +280,7 @@ class ContractControllerTest {
                 .andExpect(content()
                         .string(convert(new GenericErrorResponse(
                                 "Bad Request",
-                                "JSON parse error: Unexpected character ('f' (code 102)): was expecting double-quote to start field name",
+                                "JSON parse error: Unexpected character ('f' (code 102)): was expecting double-quote to start property name",
                                 StringUtils.EMPTY))));
     }
 

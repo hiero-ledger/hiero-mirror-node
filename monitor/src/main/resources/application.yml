@@ -33,7 +33,7 @@ management:
     health:
       group:
         cluster:
-          include: cluster
+          include: subscriber
         liveness:
           include: ping
         readiness:

@@ -21,17 +21,19 @@ import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.RetryContext;
-import org.springframework.retry.RetryListener;
-import org.springframework.retry.RetryOperations;
-import org.springframework.retry.policy.TimeoutRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.core.retry.RetryListener;
+import org.springframework.core.retry.RetryOperations;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
+import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -110,7 +112,7 @@ public class StartupProbe {
                 }
 
                 log.info("Subscribing to topic {}", topicId);
-                subscription = retry.execute(x -> new TopicMessageQuery()
+                subscription = retry.execute(() -> new TopicMessageQuery()
                         .setTopicId(topicId)
                         .setMaxAttempts(Integer.MAX_VALUE)
                         .setRetryHandler(t -> {
@@ -140,34 +142,32 @@ public class StartupProbe {
             Client client, Stopwatch stopwatch, Supplier<Transaction<?>> transaction) {
         var retry = retryOperations(stopwatch);
         return retry.execute(
-                r -> transaction.get().setMaxAttempts(Integer.MAX_VALUE).execute(client, WAIT));
+                () -> transaction.get().setMaxAttempts(Integer.MAX_VALUE).execute(client, WAIT));
     }
 
     @SneakyThrows
     private <T> T executeQuery(Client client, Stopwatch stopwatch, Supplier<Query<T, ?>> transaction) {
         var retry = retryOperations(stopwatch);
         return retry.execute(
-                r -> transaction.get().setMaxAttempts(Integer.MAX_VALUE).execute(client, WAIT));
+                () -> transaction.get().setMaxAttempts(Integer.MAX_VALUE).execute(client, WAIT));
     }
 
+    @SneakyThrows
     private void callRestEndpoint(Stopwatch stopwatch, TransactionId transactionId) {
         var startupTimeout = acceptanceTestProperties.getStartupTimeout();
         var properties = acceptanceTestProperties.getRestProperties();
-        long timeout = startupTimeout.minus(stopwatch.elapsed()).toMillis();
-        var retryTemplate = RetryTemplate.builder()
-                .customPolicy(new TimeoutRetryPolicy(timeout) {
-                    @Override
-                    public boolean canRetry(RetryContext context) {
-                        return super.canRetry(context) && properties.shouldRetry(context.getLastThrowable());
-                    }
-                })
-                .exponentialBackoff(properties.getMinBackoff(), 2.0, properties.getMaxBackoff())
-                .build();
+        var timeout = startupTimeout.minus(stopwatch.elapsed());
+        final var backoff = new ExponentialBackOff(properties.getMinBackoff().toMillis(), 2.0);
+        backoff.setMaxInterval(properties.getMaxBackoff().toMillis());
+        var retryTemplate = new RetryTemplate(RetryPolicy.builder()
+                .timeout(timeout)
+                .predicate(properties::shouldRetry)
+                .build());
 
         var restTransactionId = transactionId.accountId + "-" + transactionId.validStart.getEpochSecond() + "-"
                 + transactionId.validStart.getNano();
 
-        retryTemplate.execute(x -> restClient
+        retryTemplate.execute(() -> restClient
                 .build()
                 .get()
                 .uri("/transactions/{id}", restTransactionId)
@@ -176,16 +176,22 @@ public class StartupProbe {
     }
 
     private RetryOperations retryOperations(Stopwatch stopwatch) {
-        return RetryTemplate.builder()
-                .exponentialBackoff(1000, 2.0, 10000)
-                .withTimeout(acceptanceTestProperties.getStartupTimeout().minus(stopwatch.elapsed()))
-                .withListener(new RetryListener() {
-                    @Override
-                    public <T, E extends Throwable> void onError(RetryContext r, RetryCallback<T, E> c, Throwable t) {
-                        log.warn(
-                                "Retry attempt #{} with error: {} {}", r.getRetryCount(), t.getClass(), t.getMessage());
-                    }
-                })
-                .build();
+        final var backoff = new ExponentialBackOff(1000, 2.0);
+        backoff.setMaxInterval(10_000);
+        final var retryTemplate = new RetryTemplate(RetryPolicy.builder()
+                .backOff(backoff)
+                .timeout(acceptanceTestProperties.getStartupTimeout().minus(stopwatch.elapsed()))
+                .build());
+        retryTemplate.setRetryListener(new RetryListener() {
+            final AtomicLong counter = new AtomicLong(0L);
+
+            @NullMarked
+            @Override
+            public void onRetryFailure(RetryPolicy retryPolicy, Retryable<?> retryable, Throwable t) {
+                log.warn(
+                        "Retry attempt #{} with error: {} {}", counter.incrementAndGet(), t.getClass(), t.getMessage());
+            }
+        });
+        return retryTemplate;
     }
 }

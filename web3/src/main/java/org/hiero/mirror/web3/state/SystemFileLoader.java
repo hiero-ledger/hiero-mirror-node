@@ -25,6 +25,7 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -42,7 +43,9 @@ import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
 
 @Named
 @CustomLog
@@ -54,10 +57,10 @@ public class SystemFileLoader {
     private final SystemEntity systemEntity;
 
     private final V0490FileSchema fileSchema = new V0490FileSchema();
-    private final RetryTemplate retryTemplate = RetryTemplate.builder()
-            .maxAttempts(10)
-            .retryOn(InvalidFileException.class)
-            .build();
+    private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
+            .maxRetries(9)
+            .predicate(e -> e instanceof InvalidFileException)
+            .build());
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final byte[] mockAddressBook = createMockAddressBook();
@@ -95,34 +98,34 @@ public class SystemFileLoader {
     private File loadWithRetry(final FileID key, final long currentTimestamp, SystemFile systemFile) {
         AtomicLong nanoSeconds = new AtomicLong(currentTimestamp);
         final var fileId = toEntityId(key).getId();
+        final var attempt = new AtomicInteger(0);
 
-        return retryTemplate.execute(
-                context -> fileDataRepository
-                        .getFileAtTimestamp(fileId, nanoSeconds.get())
-                        .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
-                        .map(fileData -> {
-                            try {
-                                var bytes = Bytes.wrap(fileData.getFileData());
-                                if (systemFile.codec != null) {
-                                    systemFile.codec().parse(bytes.toReadableSequentialData());
-                                }
-                                return File.newBuilder()
-                                        .contents(bytes)
-                                        .fileId(key)
-                                        .build();
-                            } catch (ParseException e) {
-                                log.warn(
-                                        "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
-                                        fileId,
-                                        nanoSeconds.get(),
-                                        context.getRetryCount() + 1,
-                                        e);
-                                nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
-                                throw new InvalidFileException(e);
+        try {
+            return retryTemplate.execute(() -> fileDataRepository
+                    .getFileAtTimestamp(fileId, nanoSeconds.get())
+                    .filter(fileData -> ArrayUtils.isNotEmpty(fileData.getFileData()))
+                    .map(fileData -> {
+                        try {
+                            var bytes = Bytes.wrap(fileData.getFileData());
+                            if (systemFile.codec != null) {
+                                systemFile.codec().parse(bytes.toReadableSequentialData());
                             }
-                        })
-                        .orElse(systemFile.genesisFile()),
-                context -> systemFile.genesisFile());
+                            return File.newBuilder().contents(bytes).fileId(key).build();
+                        } catch (ParseException e) {
+                            log.warn(
+                                    "Failed to parse file data for fileId {} at {}, retry attempt {}. Exception: ",
+                                    fileId,
+                                    nanoSeconds.get(),
+                                    attempt.incrementAndGet(),
+                                    e);
+                            nanoSeconds.set(fileData.getConsensusTimestamp() - 1);
+                            throw new InvalidFileException(e);
+                        }
+                    })
+                    .orElse(systemFile.genesisFile()));
+        } catch (RetryException e) {
+            return systemFile.genesisFile();
+        }
     }
 
     private Map<FileID, SystemFile> loadAll() {

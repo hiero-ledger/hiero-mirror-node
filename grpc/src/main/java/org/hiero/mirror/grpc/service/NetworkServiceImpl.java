@@ -27,8 +27,7 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
-import reactor.retry.Jitter;
-import reactor.retry.Repeat;
+import reactor.util.repeat.RepeatSpec;
 
 @CustomLog
 @Named
@@ -67,10 +66,10 @@ public class NetworkServiceImpl implements NetworkService {
         var context = new AddressBookContext(addressBookTimestamp, nodeStakeMap);
 
         return Flux.defer(() -> page(context))
-                .repeatWhen(Repeat.onlyIf(c -> !context.isComplete())
-                        .randomBackoff(addressBookProperties.getMinPageDelay(), addressBookProperties.getMaxPageDelay())
-                        .jitter(Jitter.random())
-                        .withBackoffScheduler(Schedulers.boundedElastic()))
+                .repeatWhen(RepeatSpec.create(c -> !context.isComplete(), Long.MAX_VALUE)
+                        .jitter(0.5)
+                        .withFixedDelay(addressBookProperties.getPageDelay())
+                        .withScheduler(Schedulers.boundedElastic()))
                 .take(filter.getLimit() > 0 ? filter.getLimit() : Long.MAX_VALUE)
                 .doOnNext(context::onNext)
                 .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))
