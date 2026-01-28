@@ -632,6 +632,7 @@ function waitForK6PodExecution() {
   cat artifacts/report.md
   mkdir -p "${K6_TEST_REPORT_DIR}"
   cp artifacts/report.md "${K6_TEST_REPORT_DIR}/${testName}.md"
+  rm -fr artifacts
 
   scaleHpaMin "${targetNamespace}" "${hpaName}"
 }
