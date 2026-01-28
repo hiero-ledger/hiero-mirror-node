@@ -33,7 +33,7 @@ management:
     health:
       group:
         cluster:
-          include: cluster
+          include: cluster, importerLag
         liveness:
           include: ping
         readiness:
@@ -74,7 +74,7 @@ management:
     health:
       group:
         cluster:
-          include: cluster, release
+          include: cluster, release, importerLag
 spring:
   config:
     activate:
