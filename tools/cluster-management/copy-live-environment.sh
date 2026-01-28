@@ -12,21 +12,14 @@ CREATE_NEW_BACKUPS="${CREATE_NEW_BACKUPS:-true}"
 DEFAULT_POOL_MAX_PER_ZONE="${DEFAULT_POOL_MAX_PER_ZONE:-5}"
 DEFAULT_POOL_NAME="${DEFAULT_POOL_NAME:-default-pool}"
 K6_TEST_REPORT_DIR="${K6_TEST_REPORT_DIR:-/tmp/mirrornode-k6-test-report}"
+K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
 NO_RESTORE="${NO_RESTORE:-false}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
 TEARDOWN_TARGET="${TEARDOWN_TARGET:-true}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
-TEST_KUBE_TARGET_NAMESPACE=("mainnet-citus")
-
-function cleanupAcceptancePod() {
-  local namespace="$1"
-  kubectl -n "${namespace}" wait pod -l"app.kubernetes.io/component=hedera-mirror" \
-      --for=jsonpath='{.status.phase}'=Succeeded \
-      --timeout=30m || true
-  kubectl -n "${namespace}" delete pod -l"app.kubernetes.io/component=hedera-mirror" --ignore-not-found
-}
+TEST_KUBE_TARGET_NAMESPACE="${TEST_KUBE_TARGET_NAMESPACE:-mainnet-citus}"
 
 function deleteBackupsFromSource() {
   local lines
@@ -522,19 +515,19 @@ function runK6Test() {
 
   log "Awaiting k6 results"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
-  for namespace in "${TEST_KUBE_TARGET_NAMESPACE[@]}"; do
-    if kubectl get helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-      if [[ "${NO_RESTORE}" != "true" ]]; then
-        waitForHelmReleaseReady "${namespace}"
-        cleanupAcceptancePod "${namespace}"
-      fi
-      log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${namespace}"
-      flux suspend helmrelease -n "${namespace}" "${HELM_RELEASE_NAME}"
+  if kubectl get helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
+    if [[ "${NO_RESTORE}" != "true" ]]; then
+      waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
     fi
-    waitForK6PodExecution "rest" "${namespace}"
-    waitForK6PodExecution "rest-java" "${namespace}"
-    waitForK6PodExecution "web3" "${namespace}"
-  done
+
+    log "Suspending HelmRelease ${HELM_RELEASE_NAME} in namespace ${TEST_KUBE_TARGET_NAMESPACE}"
+    flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
+  fi
+
+  kubectl testkube run testsuite "${K6_TEST_SUITE_NAME}"
+  waitForK6PodExecution "rest" "${TEST_KUBE_TARGET_NAMESPACE}"
+  waitForK6PodExecution "rest-java" "${TEST_KUBE_TARGET_NAMESPACE}"
+  waitForK6PodExecution "web3" "${TEST_KUBE_TARGET_NAMESPACE}"
   log "K6 tests completed"
 }
 

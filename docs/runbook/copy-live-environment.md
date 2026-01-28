@@ -20,7 +20,7 @@ Need to copy live environment with zero downtime on source
 ## Steps
 
 1. Configure kubernetes context for source and target by setting `K8S_SOURCE_CLUSTER_CONTEXT` and `K8S_TARGET_CLUSTER_CONTEXT`
-2. By default the script will copy the environment, run k6 tests, and automatically tear down resources. Set the
+2. By default, the script will copy the environment, run k6 tests, and automatically tear down resources. Set the
    following environment variables to a non-default value if needed
    - `DEFAULT_POOL_NAME`
    - `TEST_KUBE_TARGET_NAMESPACE`
@@ -31,9 +31,10 @@ Need to copy live environment with zero downtime on source
    - `GCP_TARGET_PROJECT`
    - `GCP_K8S_TARGET_CLUSTER_REGION`
    - `GCP_K8S_TARGET_CLUSTER_NAME`
-5. Use different combinations of `NO_RESTORE`, `RUN_K6_TEST`, and `TEARDOWN_TARGET` for different tasks. Examples:
-   - `TEARDOWN_TARGET=false`: Copy the environment and run k6 tests. Useful to run k6 tests multiple times afterwards
-     because the target cluster will keep running
+5. Use different combinations of `NO_RESTORE` (default `false`), `RUN_K6_TEST` (default `true`), and `TEARDOWN_TARGET`
+   (default `true`) for different tasks. Examples:
+   - `TEARDOWN_TARGET=false`: Copy the environment and run k6 tests. The target cluster is left running
+   - `RUN_K6_TEST=false` and `TEARDOWN_TARGET=false`: Just copy the environment and leave it running
    - `NO_RESTORE=true` and `TEARDOWN_TARGET=false`: Re-run k6 tests given the target cluster is already restored
    - `NO_RESTORE=true` and `RUN_K6_TEST=false`: Tear down the target cluster
 
