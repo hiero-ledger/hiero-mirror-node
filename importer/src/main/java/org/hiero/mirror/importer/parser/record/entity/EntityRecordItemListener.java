@@ -8,6 +8,7 @@ import com.google.common.collect.Range;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnknownFieldSet;
 import com.hederahashgraph.api.proto.java.AccountAmount;
+import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.NftTransfer;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignaturePair;
@@ -18,12 +19,15 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import lombok.CustomLog;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.CryptoAllowance;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -393,6 +397,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
         boolean isSingleTransfer = tokenTransferCount == 2;
+        boolean isMultipleTransfer = tokenTransferCount > 2;
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);
@@ -421,7 +426,9 @@ public class EntityRecordItemListener implements RecordItemListener {
 
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
 
-            logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
+            if (isSingleTransfer || (isMultipleTransfer && i == 0)) {
+                logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
+            }
         }
     }
 
@@ -459,7 +466,32 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId senderId = amount < 0 ? accountId : EntityId.EMPTY;
             EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
+                    new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount), false));
+        }
+    }
+
+    @Getter
+    private static class AccountTransferChange implements Comparable<AccountTransferChange> {
+
+        private static final Comparator<AccountTransferChange> COMPARATOR =
+                Comparator.<AccountTransferChange>comparingLong(e -> e.amount)
+                        .reversed() // amount DESC
+                        .thenComparing(e -> e.accountId.getShardNum()) // shard ASC
+                        .thenComparing(e -> e.accountId.getRealmNum()) // realm ASC
+                        .thenComparing(
+                                e -> e.accountId.hasAccountNum() ? e.accountId.getAccountNum() : 0L); // accountNum ASC
+
+        private final AccountID accountId;
+        private final long amount;
+
+        public AccountTransferChange(final AccountAmount accountAmount) {
+            this.amount = Math.abs(accountAmount.getAmount());
+            this.accountId = accountAmount.getAccountID();
+        }
+
+        @Override
+        public int compareTo(AccountTransferChange o) {
+            return COMPARATOR.compare(this, o);
         }
     }
 
@@ -472,11 +504,66 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId accountId,
             long amount) {
         if (isSingleTransfer && amount > 0) {
-            EntityId senderId = i == 0
+            final var senderId = i == 0
                     ? EntityId.of(tokenTransfers.get(1).getAccountID())
                     : EntityId.of(tokenTransfers.get(0).getAccountID());
             syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
+                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount, false));
+        } else if (entityProperties.getPersist().isSyntheticContractLogsMulti()) {
+            final var senders = new ArrayList<AccountTransferChange>();
+            final var receivers = new ArrayList<AccountTransferChange>();
+
+            for (final var transfer : tokenTransfers) {
+                if (transfer.getAmount() <= 0) {
+                    senders.add(new AccountTransferChange(transfer));
+                } else {
+                    receivers.add(new AccountTransferChange(transfer));
+                }
+            }
+
+            Collections.sort(senders);
+            Collections.sort(receivers);
+
+            createSyntheticEventsForMultiPartyTransfer(senders, receivers, recordItem, tokenId);
+        }
+    }
+
+    private void createSyntheticEventsForMultiPartyTransfer(
+            List<AccountTransferChange> senders,
+            List<AccountTransferChange> receivers,
+            RecordItem recordItem,
+            EntityId tokenId) {
+        int s = 0;
+        int r = 0;
+
+        var senderRemainingAmount = senders.get(s).getAmount();
+        var receiverRemainingAmount = receivers.get(r).getAmount();
+
+        while (s < senders.size() && r < receivers.size()) {
+            final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
+            syntheticContractLogService.create(new TransferContractLog(
+                    recordItem,
+                    tokenId,
+                    EntityId.of(senders.get(s).getAccountId()),
+                    EntityId.of(receivers.get(r).getAccountId()),
+                    amountForSyntheticContractLog,
+                    true));
+            senderRemainingAmount -= amountForSyntheticContractLog;
+            receiverRemainingAmount -= amountForSyntheticContractLog;
+
+            if (senderRemainingAmount == 0) {
+                s++;
+                if (s < senders.size()) {
+                    senderRemainingAmount = senders.get(s).getAmount();
+                }
+            }
+
+            if (receiverRemainingAmount == 0) {
+                r++;
+                if (r < receivers.size()) {
+                    receiverRemainingAmount = receivers.get(r).getAmount();
+                }
+            }
         }
     }
 
