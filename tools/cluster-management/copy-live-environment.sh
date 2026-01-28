@@ -126,7 +126,7 @@ EOF
 
 function ensureContext() {
   local name="$1"
-  ensureEnvVar $name
+  ensureEnvVar "$name"
   if ! contextExists "${!name}"; then
     log "$name ${!name} doesn't exist"
     exit 1
