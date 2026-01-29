@@ -113,6 +113,7 @@ import org.hiero.mirror.common.domain.topic.TopicHistory;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
@@ -431,6 +432,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationIndicator(delegationIndicator())
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -476,6 +478,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationIndicator(delegationIndicator())
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -544,6 +547,7 @@ public class DomainBuilder {
             boolean hasInitCode) {
         var builder = EthereumTransaction.builder()
                 .accessList(bytes(100))
+                .authorizationList(authorizationList())
                 .chainId(bytes(1))
                 .consensusTimestamp(timestamp())
                 .data(bytes(100))
@@ -1204,6 +1208,27 @@ public class DomainBuilder {
 
     public byte[] evmAddress() {
         return bytes(20);
+    }
+
+    public byte[] delegationIndicator() {
+        // Format: 0xef0100 || 20-byte address
+        byte[] indicator = new byte[23];
+        indicator[0] = (byte) 0xef;
+        indicator[1] = 0x01;
+        indicator[2] = 0x00;
+        System.arraycopy(evmAddress(), 0, indicator, 3, 20);
+        return indicator;
+    }
+
+    public List<Authorization> authorizationList() {
+        return List.of(Authorization.builder()
+                .address("0x" + hash(40))
+                .chainId("0x1")
+                .nonce(number())
+                .r("0x" + hash(64))
+                .s("0x" + hash(64))
+                .yParity(0x01)
+                .build());
     }
 
     public FixedFee fixedFee() {
