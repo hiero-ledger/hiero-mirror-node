@@ -38,6 +38,7 @@
         "custom_fees": [
           {
             "entity_id": "0.0.1135",
+            "high_volume": false,
             "timestamp_range": "[1234567890000000002,)"
           }
         ],

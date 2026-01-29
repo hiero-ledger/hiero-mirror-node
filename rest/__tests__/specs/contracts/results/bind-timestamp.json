@@ -69,7 +69,8 @@
         "consensus_timestamp": "1720987654000123456",
         "name": "CONTRACTCALL",
         "type": "7",
-        "entity_id": "0.0.501"
+        "entity_id": "0.0.501",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -77,7 +78,8 @@
         "consensus_timestamp": "1",
         "name": "CRYPTOTRANSFER",
         "type": "7",
-        "entity_id": "0.0.401"
+        "entity_id": "0.0.401",
+        "high_volume": false
       }
     ]
   },

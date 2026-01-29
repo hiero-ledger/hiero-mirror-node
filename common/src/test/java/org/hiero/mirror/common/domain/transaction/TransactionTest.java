@@ -23,6 +23,7 @@ class TransactionTest {
                       "charged_tx_fee": 1,
                       "entity_id": 2,
                       "errata": "INSERT",
+                      "high_volume": true,
                       "index":4,
                       "inner_transactions": null,
                       "initial_balance": 5,
@@ -52,6 +53,18 @@ class TransactionTest {
     private static final String EXPECTED_NFT_TRANSFER_VALUE = """
                     "[{\\"is_approval\\":false,\\"receiver_account_id\\":10,\\"sender_account_id\\":11,\\"serial_number\\":12,\\"token_id\\":13},{\\"is_approval\\":true,\\"receiver_account_id\\":14,\\"sender_account_id\\":15,\\"serial_number\\":16,\\"token_id\\":17}]"
                     """;
+
+    @Test
+    void highVolume() {
+        var transaction = Transaction.builder().build();
+        assertThat(transaction.getHighVolume()).isNull();
+
+        transaction.setHighVolume(true);
+        assertThat(transaction.getHighVolume()).isTrue();
+
+        transaction.setHighVolume(false);
+        assertThat(transaction.getHighVolume()).isFalse();
+    }
 
     @Test
     void addItemizedTransfer() {
@@ -187,6 +200,7 @@ class TransactionTest {
         transaction.setChargedTxFee(1L);
         transaction.setEntityId(EntityId.of(2L));
         transaction.setErrata(ErrataType.INSERT);
+        transaction.setHighVolume(true);
         transaction.setIndex(4);
         transaction.setInitialBalance(5L);
         transaction.setMaxCustomFees(new byte[][] {{0x1, 0x2}, {0xa, 0xb}});

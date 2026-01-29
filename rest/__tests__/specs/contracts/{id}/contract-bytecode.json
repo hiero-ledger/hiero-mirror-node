@@ -28,6 +28,7 @@
         "file_data": [48, 120, 97, 98],
         "consensus_timestamp": "987654000123012",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 17
       }
     ]

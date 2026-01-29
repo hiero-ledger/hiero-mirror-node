@@ -35,7 +35,8 @@
             "amount": 1
           }
         ],
-        "entity_id": "0.0.1000"
+        "entity_id": "0.0.1000",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 7,
