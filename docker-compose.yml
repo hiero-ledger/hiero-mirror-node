@@ -229,6 +229,7 @@ configs:
         location = /com.hedera.mirror.api.proto.ConsensusService/subscribeTopic { grpc_read_timeout 600s; grpc_pass grpc://grpc_host; }
         location /com.hedera.mirror.api.proto. { grpc_pass grpc://grpc_host; }
         location /grpc.reflection.v1alpha.ServerReflection { grpc_pass grpc://grpc_host; }
+        location /grpc.reflection.v1.ServerReflection { grpc_pass grpc://grpc_host; }
 
         # graphql host
         location = /graphql/alpha { proxy_pass http://$$graphql_host$$request_uri; }

@@ -402,18 +402,11 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.grpc.listener.maxPageSize`                   | 5000             | The maximum number of messages the listener can return in a single call to the database                   |
 | `hiero.mirror.grpc.listener.prefetch`                      | 48               | The prefetch queue size for shared listeners                                                              |
 | `hiero.mirror.grpc.listener.type`                          | REDIS            | The type of listener to use for incoming messages. Accepts either POLL, REDIS or SHARED_POLL              |
-| `hiero.mirror.grpc.netty.executorCoreThreadCount`          | 10               | The number of core threads                                                                                |
-| `hiero.mirror.grpc.netty.executorMaxThreadCount`           | 1000             | The maximum allowed number of threads                                                                     |
-| `hiero.mirror.grpc.netty.maxConnectionIdle`                | 10m              | The max amount of time a connection can be idle before it will be gracefully terminated                   |
 | `hiero.mirror.grpc.netty.maxConcurrentCallsPerConnection`  | 5                | The maximum number of concurrent calls permitted for each incoming connection                             |
-| `hiero.mirror.grpc.netty.maxInboundMessageSize`            | 1024             | The maximum message size allowed to be received on the server                                             |
-| `hiero.mirror.grpc.netty.maxInboundMetadataSize`           | 1024             | The maximum size of metadata allowed to be received                                                       |
-| `hiero.mirror.grpc.netty.threadKeepAliveTime`              | 1m               | The amount of time for which threads may remain idle before being terminated                              |
 | `hiero.mirror.grpc.port`                                   | 5600             | The GRPC API port                                                                                         |
 | `hiero.mirror.grpc.retriever.enabled`                      | true             | Whether to retrieve historical massages or not                                                            |
 | `hiero.mirror.grpc.retriever.maxPageSize`                  | 1000             | The maximum number of messages the retriever can return in a single call to the database                  |
 | `hiero.mirror.grpc.retriever.pollingFrequency`             | 2s               | How often to poll for historical messages. Can accept duration units like `50ms`, `10s` etc               |
-| `hiero.mirror.grpc.retriever.threadMultiplier`             | 4                | Multiplied by the CPU count to calculate the number of retriever threads                                  |
 | `hiero.mirror.grpc.retriever.timeout`                      | 60s              | How long to wait between emission of messages before returning an error                                   |
 | `hiero.mirror.grpc.retriever.unthrottled.maxPageSize`      | 5000             | The maximum number of messages the retriever can return in a single call to the database when unthrottled |
 | `hiero.mirror.grpc.retriever.unthrottled.maxPolls`         | 12               | The max number of polls when unthrottled                                                                  |
