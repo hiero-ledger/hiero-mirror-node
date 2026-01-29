@@ -8,8 +8,8 @@ concurrency:
 on:
   workflow_call:
     inputs:
-      no_restore:
-        default: false
+      restore:
+        default: true
         type: boolean
       run_k6_test:
         default: true
@@ -57,9 +57,9 @@ on:
         required: true
   workflow_dispatch:
     inputs:
-      no_restore:
-        default: false
-        description: "Do not restore the target cluster from the source"
+      restore:
+        default: true
+        description: "Restore the target cluster from the source"
         type: boolean
       run_k6_test:
         default: true
@@ -125,7 +125,7 @@ jobs:
       GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
-      NO_RESTORE: ${{ inputs.no_restore }}
+      RESTORE: ${{ inputs.restore }}
       RUN_K6_TEST: ${{ inputs.run_k6_test }}
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       TEARDOWN_TARGET: ${{ inputs.teardown_target }}

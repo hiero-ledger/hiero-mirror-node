@@ -15,7 +15,7 @@ K6_TEST_REPORT_DIR="${K6_TEST_REPORT_DIR:-/tmp/mirrornode-k6-test-report}"
 K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
-NO_RESTORE="${NO_RESTORE:-false}"
+RESTORE="${RESTORE:-true}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
 TEARDOWN_TARGET="${TEARDOWN_TARGET:-false}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
@@ -498,7 +498,7 @@ function getHpaMaxReplicas() {
 }
 
 function restoreEnvironment() {
-  if [[ "${NO_RESTORE}" == "true" ]]; then
+  if [[ "${RESTORE}" != "true" ]]; then
     return 0
   fi
 
@@ -516,7 +516,7 @@ function runK6Test() {
   log "Awaiting k6 results"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   if kubectl get helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}" >/dev/null 2>&1; then
-    if [[ "${NO_RESTORE}" != "true" ]]; then
+    if [[ "${RESTORE}" == "true" ]]; then
       waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
     fi
 

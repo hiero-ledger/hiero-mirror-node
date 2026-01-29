@@ -31,12 +31,12 @@ Need to copy live environment with zero downtime on source
    - `GCP_TARGET_PROJECT`
    - `GCP_K8S_TARGET_CLUSTER_REGION`
    - `GCP_K8S_TARGET_CLUSTER_NAME`
-5. Use different combinations of `NO_RESTORE` (default `false`), `RUN_K6_TEST` (default `true`), and `TEARDOWN_TARGET`
+5. Use different combinations of `RESTORE` (default `true`), `RUN_K6_TEST` (default `true`), and `TEARDOWN_TARGET`
    (default `false`) for different tasks. Examples:
    - `TEARDOWN_TARGET=true`: Copy the environment, run k6 tests, and tear down the target cluster
    - `RUN_K6_TEST=false`: Just copy the environment and leave it running
-   - `NO_RESTORE=true`: Re-run k6 tests given the target cluster is already restored
-   - `NO_RESTORE=true`, `RUN_K6_TEST=false` and `TEARDOWN_TARGET=true`: Tear down the target cluster
+   - `RESTORE=false`: Re-run k6 tests given the target cluster is already restored
+   - `RESTORE=false`, `RUN_K6_TEST=false` and `TEARDOWN_TARGET=true`: Tear down the target cluster
 
 ```bash
 ./copy-live-environment.sh
