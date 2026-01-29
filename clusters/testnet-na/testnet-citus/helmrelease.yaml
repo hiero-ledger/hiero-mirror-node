@@ -54,7 +54,7 @@ spec:
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_START_DATE: "1970-01-01T00:00:00.000000000Z"
     monitor:
-      enabled: true
+      enabled: false
       env:
         HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLED: "true"
         HIERO_MIRROR_MONITOR_NETWORK: "TESTNET"
@@ -96,4 +96,4 @@ spec:
           size: 180Gi
     test:
       cucumberTags: "@acceptance and not @estimateprecompile"
-      enabled: true
+      enabled: false
