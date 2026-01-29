@@ -44,7 +44,7 @@ on:
         required: true
       teardown_target:
         type: boolean
-        default: true
+        default: false
         required: true
     secrets:
       GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID:
@@ -98,7 +98,7 @@ on:
         required: true
         type: choice
       teardown_target:
-        default: true
+        default: false
         description: "Tear down target cluster"
         required: true
         type: boolean
