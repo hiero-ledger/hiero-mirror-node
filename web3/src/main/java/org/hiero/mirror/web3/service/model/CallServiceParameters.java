@@ -12,6 +12,8 @@ public interface CallServiceParameters {
 
     Bytes getCallData();
 
+    Bytes getEthereumData();
+
     CallType getCallType();
 
     long getGas();

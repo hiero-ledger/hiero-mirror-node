@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.contract.ContractCallTransactionBody;
 import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
@@ -76,7 +77,10 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         EvmTransactionResult result;
-        if (isContractCreate) {
+        final var ethereumData = params.getEthereumData();
+        if (ethereumData != null && !ethereumData.isEmpty()) {
+            transactionBody = buildEthereumTransactionBody(params);
+        } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
@@ -193,6 +197,15 @@ public class TransactionExecutionService {
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
+                .build();
+    }
+
+    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
+                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        params.getEthereumData().toArray()));
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(ethereumTransactionBuilder.build())
                 .build();
     }
 
