@@ -713,7 +713,9 @@ public final class BlockStreamReaderTest {
             bytes = TestUtils.gzip(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id(), TestUtils.id());
+        long blockCompleteTime = System.currentTimeMillis();
+        return new BlockStream(
+                block.getItemsList(), blockCompleteTime, bytes, filename, blockCompleteTime - 1000, TestUtils.id());
     }
 
     @SneakyThrows

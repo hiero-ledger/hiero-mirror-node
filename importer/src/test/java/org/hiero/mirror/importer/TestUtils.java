@@ -39,6 +39,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
@@ -80,6 +81,10 @@ public class TestUtils {
         }
     };
 
+    public static Instant asStartOfEpochDay(long epochDay) {
+        return LocalDate.ofEpochDay(epochDay).atStartOfDay().toInstant(ZoneOffset.UTC);
+    }
+
     @SuppressWarnings("unchecked")
     public static <T> T clone(T object) {
         try {
@@ -89,8 +94,13 @@ public class TestUtils {
         }
     }
 
-    public Instant asStartOfEpochDay(long epochDay) {
-        return LocalDate.ofEpochDay(epochDay).atStartOfDay().toInstant(ZoneOffset.UTC);
+    public static Collection<String> findAllMatches(String message, String pattern) {
+        var matcher = Pattern.compile(pattern).matcher(message);
+        var result = new ArrayList<String>();
+        while (matcher.find()) {
+            result.add(matcher.group());
+        }
+        return result;
     }
 
     /**

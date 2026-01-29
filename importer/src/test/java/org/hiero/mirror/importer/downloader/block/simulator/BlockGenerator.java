@@ -12,35 +12,47 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
+import org.hiero.mirror.importer.util.Utility;
 
 public final class BlockGenerator {
 
     private static final byte[] ALL_ZERO_HASH = new byte[48];
 
+    private final Duration interval;
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     private long blockNumber;
     private byte[] previousBlockRootHash;
 
     public BlockGenerator(final long startBlockNumber) {
+        this(Duration.ofMillis(1), startBlockNumber, Instant.now());
+    }
+
+    public BlockGenerator(Duration interval, long startBlockNumber, Instant startTime) {
         blockNumber = startBlockNumber;
         if (blockNumber == 0) {
             previousBlockRootHash = ALL_ZERO_HASH;
         } else {
             previousBlockRootHash = recordItemBuilder.randomBytes(48);
         }
+
+        recordItemBuilder.setNow(startTime);
+        this.interval = interval;
     }
 
-    public List<BlockItemSet> next(final int count) {
-        var blocks = new ArrayList<BlockItemSet>();
+    public List<BlockRecord> next(final int count) {
+        var blocks = new ArrayList<BlockRecord>();
         for (int i = 0; i < count; i++) {
             blocks.add(next());
         }
@@ -54,12 +66,14 @@ public final class BlockGenerator {
         previousBlockRootHash = Hex.decodeHex(blockRootHashDigest.digest());
     }
 
-    private BlockItemSet next() {
-        var builder = BlockItemSet.newBuilder();
+    private BlockRecord next() {
+        final var builder = BlockItemSet.newBuilder();
+
         // block header
+        final var blockTimestamp = recordItemBuilder.timestamp(ChronoUnit.NANOS);
         builder.addBlockItems(BlockItem.newBuilder()
                 .setBlockHeader(BlockHeader.newBuilder()
-                        .setBlockTimestamp(recordItemBuilder.timestamp())
+                        .setBlockTimestamp(blockTimestamp)
                         .setNumber(blockNumber)
                         .build()));
         // round header
@@ -80,17 +94,17 @@ public final class BlockGenerator {
                 .build();
         calculateBlockRootHash(block);
         blockNumber++;
-        return block;
+        // set blocks roughly apart, so in latency related tests, streaming latency don't reduce drastically from
+        // one block to the next
+        recordItemBuilder.setNow(Utility.convertToInstant(blockTimestamp).plus(interval));
+
+        return new BlockRecord(block);
     }
 
     private List<BlockItem> transactionUnit() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
-        var signedTransaction = SignedTransaction.newBuilder()
-                .setBodyBytes(recordItem.getTransaction().getSignedTransactionBytes())
-                .setSigMap(recordItem.getSignatureMap())
-                .build();
-        var eventTransaction = BlockItem.newBuilder()
-                .setSignedTransaction(signedTransaction.toByteString())
+        var signedTransaction = BlockItem.newBuilder()
+                .setSignedTransaction(recordItem.getTransaction().getSignedTransactionBytes())
                 .build();
         var transactionResult = BlockItem.newBuilder()
                 .setTransactionResult(TransactionResult.newBuilder()
@@ -100,7 +114,13 @@ public final class BlockGenerator {
                         .build())
                 .build();
         // for simplicity, no state changes / trace data
-        return List.of(eventTransaction, transactionResult);
+        return List.of(signedTransaction, transactionResult);
+    }
+
+    public record BlockRecord(BlockItemSet block, AtomicLong latency, AtomicLong readyTime) {
+        public BlockRecord(BlockItemSet block) {
+            this(block, new AtomicLong(0), new AtomicLong(0));
+        }
     }
 
     private static BlockItem blockFooter(final byte[] previousBlockRootHash) {

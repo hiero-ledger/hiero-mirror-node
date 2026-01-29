@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,11 +17,14 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.Optional;
+import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
@@ -28,11 +32,15 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 final class BlockStreamVerifierTest {
+
+    private final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock(strictness = LENIENT)
     private BlockFileTransformer blockFileTransformer;
@@ -43,16 +51,55 @@ final class BlockStreamVerifierTest {
     @Mock
     private StreamFileNotifier streamFileNotifier;
 
+    private CommonDownloaderProperties commonDownloaderProperties;
     private RecordFile expectedRecordFile;
     private BlockStreamVerifier verifier;
 
     @BeforeEach
     void setup() {
+        commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
         var meterRegistry = new SimpleMeterRegistry();
-        verifier =
-                new BlockStreamVerifier(blockFileTransformer, recordFileRepository, streamFileNotifier, meterRegistry);
+        verifier = new BlockStreamVerifier(
+                blockFileTransformer,
+                commonDownloaderProperties,
+                recordFileRepository,
+                streamFileNotifier,
+                meterRegistry);
         expectedRecordFile = RecordFile.builder().build();
         when(blockFileTransformer.transform(any())).thenReturn(expectedRecordFile);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            ,,0
+            2,,2
+            ,1,2
+            4,1,2
+            """)
+    void getNextBlockNumber(Long startBlockNumber, Long latestBlockNumberInDb, long expected) {
+        if (startBlockNumber != null) {
+            commonDownloaderProperties.getImporterProperties().setStartBlockNumber(startBlockNumber);
+        }
+
+        if (latestBlockNumberInDb != null) {
+            doReturn(Optional.of(domainBuilder
+                            .recordFile()
+                            .customize(rf -> rf.index(latestBlockNumberInDb))
+                            .get()))
+                    .when(recordFileRepository)
+                    .findLatest();
+        } else {
+            doReturn(Optional.empty()).when(recordFileRepository).findLatest();
+        }
+
+        assertThat(verifier.getNextBlockNumber()).isEqualTo(expected);
+    }
+
+    @Test
+    void getNextBlockNumberAfterVerified() {
+        var blockFile = getBlockFile(null);
+        verifier.verify(blockFile);
+        assertThat(verifier.getNextBlockNumber()).isEqualTo(blockFile.getIndex() + 1);
     }
 
     @Test
