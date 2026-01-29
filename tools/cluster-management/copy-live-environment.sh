@@ -524,7 +524,7 @@ function runK6Test() {
     flux suspend helmrelease -n "${TEST_KUBE_TARGET_NAMESPACE}" "${HELM_RELEASE_NAME}"
   fi
 
-  kubectl testkube run testsuite "${K6_TEST_SUITE_NAME}"
+  testkube run testsuite "${K6_TEST_SUITE_NAME}"
   waitForK6PodExecution "rest" "${TEST_KUBE_TARGET_NAMESPACE}"
   waitForK6PodExecution "rest-java" "${TEST_KUBE_TARGET_NAMESPACE}"
   waitForK6PodExecution "web3" "${TEST_KUBE_TARGET_NAMESPACE}"
@@ -551,6 +551,7 @@ function teardownResources() {
 
   log "Tearing down resources"
   changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+  setCitusNamespaces
   for namespace in "${CITUS_NAMESPACES[@]}"; do
     unrouteTraffic "${namespace}"
     pauseCitus "${namespace}" "true"
@@ -622,7 +623,7 @@ function waitForK6PodExecution() {
   log "downloading artifacts for job ${job}"
   until {
     rm -f artifacts/report.md 2>/dev/null || true
-    kubectl testkube download artifacts "${job}"  >/dev/null 2>&1
+    testkube download artifacts "${job}"  >/dev/null 2>&1
     [[ -s artifacts/report.md ]]
   }; do
     log "Waiting for artifacts to be available"
