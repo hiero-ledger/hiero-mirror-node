@@ -20,7 +20,9 @@ import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.restjava.common.RequestParameter;
 import org.hiero.mirror.restjava.common.SupplyType;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
@@ -138,5 +140,12 @@ final class NetworkController {
         }
 
         return ResponseEntity.ok(networkSupplyMapper.map(networkSupply));
+    }
+
+    @GetMapping("/nodes")
+    ResponseEntity<?> getNodes(@RequestParameter NetworkNodeRequest request) {
+        return ResponseEntity.ok()
+                .contentType(new MediaType(MediaType.TEXT_PLAIN, UTF_8))
+                .body(request.toString());
     }
 }
