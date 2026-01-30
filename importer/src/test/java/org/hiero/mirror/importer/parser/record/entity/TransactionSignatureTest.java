@@ -105,6 +105,8 @@ class TransactionSignatureTest {
     void setup() {
         CommonParserProperties commonParserProperties = new CommonParserProperties();
         EntityProperties entityProperties = new EntityProperties(new SystemEntity(commonProperties));
+        MultiPartyTransferEventsGenerator multiPartyTransferEventsGenerator =
+                new MultiPartyTransferEventsGenerator(syntheticContractLogService);
         entityRecordItemListener = new EntityRecordItemListener(
                 commonParserProperties,
                 contractResultService,
@@ -113,7 +115,8 @@ class TransactionSignatureTest {
                 entityProperties,
                 transactionHandlerFactory,
                 syntheticContractLogService,
-                syntheticContractResultService);
+                syntheticContractResultService,
+                multiPartyTransferEventsGenerator);
         defaultSignatureMap = getDefaultSignatureMap();
         defaultTransactionSignatures = defaultSignatureMap.getSigPairList().stream()
                 .map(pair -> {
