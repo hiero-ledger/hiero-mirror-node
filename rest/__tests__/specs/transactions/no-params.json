@@ -47,7 +47,8 @@
         "nodeAccountId": "0.0.3",
         "consensus_timestamp": "1234567800000000011",
         "name": "CRYPTOTRANSFER",
-        "type": "14"
+        "type": "14",
+        "high_volume": null
       }
     ],
     "cryptotransfers": [

@@ -148,7 +148,8 @@
             "is_approval": false
           }
         ],
-        "entity_id": "0.0.1500"
+        "entity_id": "0.0.1500",
+        "high_volume": null
       },
       {
         "name": "TOKENDELETION",
