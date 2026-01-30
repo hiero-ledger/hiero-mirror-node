@@ -34,7 +34,7 @@ public class SharedPollingTopicListener extends SharedTopicListener {
         super(listenerProperties);
         this.topicMessageRepository = topicMessageRepository;
 
-        Scheduler scheduler = Schedulers.newSingle("shared-poll", true);
+        Scheduler scheduler = Schedulers.boundedElastic();
         Duration interval = listenerProperties.getInterval();
         PollingContext context = new PollingContext();
 

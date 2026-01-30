@@ -193,7 +193,7 @@ const formatTransactionRows = async (rows) => {
 
     return {
       assessed_custom_fees: createAssessedCustomFeeList(row.assessed_custom_fees),
-      batch_key: row.batch_key && utils.toHexString(row.batch_key, true),
+      batch_key: utils.encodeKey(row.batch_key),
       bytes: utils.encodeBase64(row.transaction_bytes),
       charged_tx_fee: row.charged_tx_fee,
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),

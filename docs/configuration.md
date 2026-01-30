@@ -406,7 +406,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.grpc.retriever.enabled`                      | true             | Whether to retrieve historical massages or not                                                            |
 | `hiero.mirror.grpc.retriever.maxPageSize`                  | 1000             | The maximum number of messages the retriever can return in a single call to the database                  |
 | `hiero.mirror.grpc.retriever.pollingFrequency`             | 2s               | How often to poll for historical messages. Can accept duration units like `50ms`, `10s` etc               |
-| `hiero.mirror.grpc.retriever.threadMultiplier`             | 4                | Multiplied by the CPU count to calculate the number of retriever threads                                  |
 | `hiero.mirror.grpc.retriever.timeout`                      | 60s              | How long to wait between emission of messages before returning an error                                   |
 | `hiero.mirror.grpc.retriever.unthrottled.maxPageSize`      | 5000             | The maximum number of messages the retriever can return in a single call to the database when unthrottled |
 | `hiero.mirror.grpc.retriever.unthrottled.maxPolls`         | 12               | The max number of polls when unthrottled                                                                  |

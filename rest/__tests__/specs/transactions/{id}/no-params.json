@@ -38,7 +38,7 @@
         ]
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+        "batch_key": "1220bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee",
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.3",
         "consensus_timestamp": "1234567890000000002",
@@ -84,7 +84,7 @@
         ]
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96e",
+        "batch_key": "32240a221220e06b22e0966108fa5d63fc6ae53f9824319b891cd4d6050dbf2b242be7e13344",
         "charged_tx_fee": 7,
         "payerAccountId": "0.0.10",
         "nodeAccountId": "0.0.4",
@@ -209,7 +209,10 @@
       "responseJson": {
         "transactions": [
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": null,
             "consensus_timestamp": "1234567890.000000002",
             "charged_tx_fee": 7,
@@ -302,7 +305,10 @@
             "valid_start_timestamp": "1234567890.000000001"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96e",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "e06b22e0966108fa5d63fc6ae53f9824319b891cd4d6050dbf2b242be7e13344"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567890.000000040",
@@ -350,7 +356,10 @@
       "responseJson": {
         "transactions": [
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": null,
             "consensus_timestamp": "1234567890.000000002",
             "charged_tx_fee": 7,

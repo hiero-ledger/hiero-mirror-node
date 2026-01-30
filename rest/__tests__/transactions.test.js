@@ -337,6 +337,7 @@ describe('formatTransactionRows', () => {
     const expectedFormat = [
       {
         assessed_custom_fees: undefined,
+        batch_key: null,
         bytes: 'bytes',
         consensus_timestamp: '0.000000001',
         charged_tx_fee: 5,
@@ -367,6 +368,7 @@ describe('formatTransactionRows', () => {
       },
       {
         assessed_custom_fees: undefined,
+        batch_key: null,
         bytes: 'bytes',
         consensus_timestamp: '0.000000002',
         charged_tx_fee: 5,

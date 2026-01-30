@@ -28,8 +28,7 @@ public class PollingTopicListener implements TopicListener {
     private final ListenerProperties listenerProperties;
     private final ObservationRegistry observationRegistry;
     private final TopicMessageRepository topicMessageRepository;
-    private final Scheduler scheduler =
-            Schedulers.newParallel("poll", 4 * Runtime.getRuntime().availableProcessors(), true);
+    private final Scheduler scheduler = Schedulers.boundedElastic();
 
     @Override
     public Flux<TopicMessage> listen(TopicMessageFilter filter) {

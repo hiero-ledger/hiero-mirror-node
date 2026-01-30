@@ -22,7 +22,7 @@
         "valid_start_timestamp": "1234567800000000001"
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+        "batch_key": "1220bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee",
         "consensus_timestamp": "1234567800000000003",
         "entity_id": "0.0.100",
         "high_volume": false,
@@ -69,7 +69,7 @@
         "valid_start_timestamp": "1234567800000000002"
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96e",
+        "batch_key": "32240a221220e06b22e0966108fa5d63fc6ae53f9824319b891cd4d6050dbf2b242be7e13344",
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567800000000004",
         "name": "CRYPTOCREATEACCOUNT",
@@ -92,7 +92,7 @@
         "valid_start_timestamp": "1234567800000000003"
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96d",
+        "batch_key": "32240a221220cac237fcee969524b8b917a5d9805c3d6f0cbd5283a452962765172ed7809b12",
         "consensus_timestamp": "1234567800000000005",
         "charged_tx_fee": 15,
         "name": "CRYPTOTRANSFER",
@@ -122,7 +122,7 @@
         "valid_start_timestamp": "1234567800000000003"
       },
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96c",
+        "batch_key": "1220a1f9f2d6a7d8806d4f029b78cf4258783b7dac213c6acec8e37609fe86b812cf",
         "consensus_timestamp": "1234567800000000006",
         "charged_tx_fee": 16,
         "name": "CRYPTOTRANSFER",
@@ -201,7 +201,10 @@
             "valid_start_timestamp": "1234567800.000000001"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": null,
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567800.000000003",
@@ -253,7 +256,10 @@
             "valid_start_timestamp": "1234567800.000000002"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96e",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "e06b22e0966108fa5d63fc6ae53f9824319b891cd4d6050dbf2b242be7e13344"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567800.000000004",
@@ -289,7 +295,10 @@
             "valid_start_timestamp": "1234567800.000000003"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96d",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "cac237fcee969524b8b917a5d9805c3d6f0cbd5283a452962765172ed7809b12"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 15,
             "consensus_timestamp": "1234567800.000000005",
@@ -335,7 +344,10 @@
             "valid_start_timestamp": "1234567800.000000003"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96c",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "a1f9f2d6a7d8806d4f029b78cf4258783b7dac213c6acec8e37609fe86b812cf"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 16,
             "consensus_timestamp": "1234567800.000000006",
@@ -430,7 +442,10 @@
             "valid_start_timestamp": "1234567800.000000001"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": null,
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567800.000000003",
@@ -482,7 +497,10 @@
             "valid_start_timestamp": "1234567800.000000002"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96d",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "cac237fcee969524b8b917a5d9805c3d6f0cbd5283a452962765172ed7809b12"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 15,
             "consensus_timestamp": "1234567800.000000005",
@@ -528,7 +546,10 @@
             "valid_start_timestamp": "1234567800.000000003"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96c",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "a1f9f2d6a7d8806d4f029b78cf4258783b7dac213c6acec8e37609fe86b812cf"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 16,
             "consensus_timestamp": "1234567800.000000006",
@@ -637,7 +658,10 @@
       "responseJson": {
         "transactions": [
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96e",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "e06b22e0966108fa5d63fc6ae53f9824319b891cd4d6050dbf2b242be7e13344"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1234567800.000000004",
@@ -673,7 +697,10 @@
             "valid_start_timestamp": "1234567800.000000003"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96d",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "cac237fcee969524b8b917a5d9805c3d6f0cbd5283a452962765172ed7809b12"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 15,
             "consensus_timestamp": "1234567800.000000005",
