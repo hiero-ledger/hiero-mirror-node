@@ -1136,6 +1136,7 @@ public class DomainBuilder {
                 .chargedTxFee(10000000L)
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
+                .highVolume(false)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()

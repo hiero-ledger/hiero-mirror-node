@@ -33,6 +33,21 @@
         "type": "15",
         "entity_id": "0.0.10",
         "high_volume": false
+      },
+      {
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "consensus_timestamp": "1234567800000000010",
+        "name": "CRYPTOTRANSFER",
+        "type": "14",
+        "high_volume": true
+      },
+      {
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "consensus_timestamp": "1234567800000000011",
+        "name": "CRYPTOTRANSFER",
+        "type": "14"
       }
     ],
     "cryptotransfers": [
@@ -306,6 +321,88 @@
           {
             "account": "0.0.10",
             "amount": -9223372036847275808,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567800.000000011",
+        "entity_id": null,
+        "high_volume": false,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.8-1234567800-000000010",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567800.000000010",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.8",
+            "amount": -3,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.98",
+            "amount": 1,
+            "is_approval": false
+          }
+        ]
+      },
+      {
+        "batch_key": null,
+        "bytes": "Ynl0ZXM=",
+        "charged_tx_fee": 7,
+        "consensus_timestamp": "1234567800.000000010",
+        "entity_id": null,
+        "high_volume": true,
+        "max_custom_fees": [],
+        "max_fee": "33",
+        "memo_base64": null,
+        "name": "CRYPTOTRANSFER",
+        "nft_transfers": [],
+        "node": "0.0.3",
+        "nonce": 0,
+        "parent_consensus_timestamp": null,
+        "result": "SUCCESS",
+        "scheduled": false,
+        "staking_reward_transfers": [],
+        "token_transfers": [],
+        "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+        "transaction_id": "0.0.8-1234567800-000000009",
+        "valid_duration_seconds": "11",
+        "valid_start_timestamp": "1234567800.000000009",
+        "transfers": [
+          {
+            "account": "0.0.3",
+            "amount": 2,
+            "is_approval": false
+          },
+          {
+            "account": "0.0.8",
+            "amount": -3,
             "is_approval": false
           },
           {

@@ -65,7 +65,7 @@
           }
         ],
         "entity_id": "0.0.1500",
-        "high_volume": false
+        "high_volume": true
       },
       {
         "name": "CRYPTOAPPROVEALLOWANCE",
@@ -148,8 +148,7 @@
             "is_approval": false
           }
         ],
-        "entity_id": "0.0.1500",
-        "high_volume": false
+        "entity_id": "0.0.1500"
       },
       {
         "name": "TOKENDELETION",

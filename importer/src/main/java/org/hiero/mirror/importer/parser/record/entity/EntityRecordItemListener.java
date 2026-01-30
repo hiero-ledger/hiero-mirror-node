@@ -174,6 +174,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         transaction.setChargedTxFee(txRecord.getTransactionFee());
         transaction.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         transaction.setEntityId(entityId);
+        transaction.setHighVolume(body.getHighVolume());
         transaction.setIndex(recordItem.getTransactionIndex());
         transaction.setInitialBalance(0L);
         transaction.setMaxCustomFees(getMaxCustomFees(body, recordItem));
@@ -205,9 +206,6 @@ public class EntityRecordItemListener implements RecordItemListener {
         if (body.hasBatchKey()) {
             transaction.setBatchKey(body.getBatchKey().toByteArray());
         }
-
-        // TODO: Uncomment when consensusNodeVersion is updated to 0.71+ with HIP-1313 protobuf support
-        // transaction.setHighVolume(body.getHighVolume());
 
         return transaction;
     }

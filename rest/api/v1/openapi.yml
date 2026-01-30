@@ -4131,7 +4131,6 @@ components:
           $ref: "#/components/schemas/EntityId"
         high_volume:
           description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
-          nullable: true
           type: boolean
         max_custom_fees:
           type: array
