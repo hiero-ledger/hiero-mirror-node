@@ -25,9 +25,6 @@ import org.hiero.mirror.common.domain.topic.Topic;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.repository.CustomFeeRepository;
-import org.hiero.mirror.importer.repository.EntityRepository;
-import org.hiero.mirror.importer.repository.TopicRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -36,6 +33,7 @@ import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.context.ContextConfiguration;
 
 @ContextConfiguration(initializers = TopicCustomFeesMigrationTest.Initializer.class)
@@ -55,10 +53,6 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             drop table if exists topic;
             """;
 
-    private final CustomFeeRepository customFeeRepository;
-    private final EntityRepository entityRepository;
-    private final TopicRepository topicRepository;
-
     private final List<CustomFee> expectedCustomFees = new ArrayList<>();
     private final List<Entity> expectedEntities = new ArrayList<>();
     private final List<Topic> expectedTopics = new ArrayList<>();
@@ -73,12 +67,12 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
     @Test
     void empty() {
         runMigration();
-        assertThat(customFeeRepository.findAll()).isEmpty();
-        assertThat(findHistory(CustomFee.class)).isEmpty();
-        assertThat(entityRepository.findAll()).isEmpty();
-        assertThat(findHistory(Entity.class)).isEmpty();
-        assertThat(topicRepository.findAll()).isEmpty();
-        assertThat(findHistory(Topic.class)).isEmpty();
+        assertThat(count("custom_fee")).isZero();
+        assertThat(count("custom_fee_history")).isZero();
+        assertThat(count("entity")).isZero();
+        assertThat(count("entity_history")).isZero();
+        assertThat(count("topic")).isZero();
+        assertThat(count("topic_history")).isZero();
     }
 
     @Test
@@ -107,16 +101,16 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
         runMigration();
 
         // then
-        assertThat(customFeeRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedCustomFees);
-        assertThat(findHistory(CustomFee.class)).isEmpty();
-        assertThat(entityRepository.findAll())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey")
+        assertThat(findAllCustomFees()).containsExactlyInAnyOrderElementsOf(expectedCustomFees);
+        assertThat(findAllCustomFeeHistory()).isEmpty();
+        assertThat(findAllEntities())
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationIndicator")
                 .containsExactlyInAnyOrderElementsOf(expectedEntities);
-        assertThat(findHistory(Entity.class))
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey")
+        assertThat(findAllEntityHistory())
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationIndicator")
                 .containsExactlyInAnyOrderElementsOf(expectedHistoricalEntities);
-        assertThat(topicRepository.findAll()).containsExactlyInAnyOrderElementsOf(expectedTopics);
-        assertThat(findHistory(Topic.class)).containsExactlyInAnyOrderElementsOf(expectedHistoricalTopics);
+        assertThat(findAllTopics()).containsExactlyInAnyOrderElementsOf(expectedTopics);
+        assertThat(findAllTopicHistory()).containsExactlyInAnyOrderElementsOf(expectedHistoricalTopics);
     }
 
     private PreMigrationEntity emptyAdminAndSubmitKey(PreMigrationEntity entity) {
@@ -170,6 +164,7 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
             var postMigrationEntity = Entity.builder()
                     .createdTimestamp(entity.getCreatedTimestamp())
                     .declineReward(false)
+                    .deleted(false)
                     .ethereumNonce(0L)
                     .id(entity.getId())
                     .key(entity.getKey())
@@ -177,8 +172,6 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
                     .num(entity.getNum())
                     .realm(entity.getRealm())
                     .shard(entity.getShard())
-                    .stakedNodeId(-1L)
-                    .stakePeriodStart(-1L)
                     .timestampRange(entity.getTimestampRange())
                     .type(entity.getType())
                     .build();
@@ -257,10 +250,68 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
 
     @SneakyThrows
     private void runMigration() {
-        String migrationFilepath = isV1() ? "v1/V1.103.2__topic_custom_fees.sql" : "v2/V2.8.2__topic_custom_fees.sql";
-        var file = TestUtils.getResource("db/migration/" + migrationFilepath);
+        final var migrationFilepath =
+                isV1() ? "v1/V1.103.2__topic_custom_fees.sql" : "v2/V2.8.2__topic_custom_fees.sql";
+        final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
+
+    private long count(String table) {
+        return jdbcOperations.queryForObject("select count(*) from " + table, Long.class);
+    }
+
+    private List<Entity> findAllEntities() {
+        return jdbcOperations.query("select * from entity", entityRowMapper);
+    }
+
+    private List<Entity> findAllEntityHistory() {
+        return jdbcOperations.query("select * from entity_history", entityRowMapper);
+    }
+
+    private List<Topic> findAllTopics() {
+        return jdbcOperations.query("select * from topic", topicRowMapper);
+    }
+
+    private List<Topic> findAllTopicHistory() {
+        return jdbcOperations.query("select * from topic_history", topicRowMapper);
+    }
+
+    private List<CustomFee> findAllCustomFees() {
+        return jdbcOperations.query("select * from custom_fee", customFeeRowMapper);
+    }
+
+    private List<CustomFee> findAllCustomFeeHistory() {
+        return jdbcOperations.query("select * from custom_fee_history", customFeeRowMapper);
+    }
+
+    private final RowMapper<Entity> entityRowMapper = (rs, rowNum) -> Entity.builder()
+            .id(rs.getLong("id"))
+            .num(rs.getLong("num"))
+            .realm(rs.getLong("realm"))
+            .shard(rs.getLong("shard"))
+            .createdTimestamp((Long) rs.getObject("created_timestamp"))
+            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .type(EntityType.valueOf(rs.getString("type")))
+            .key(rs.getBytes("key"))
+            .memo(rs.getString("memo"))
+            .deleted(rs.getBoolean("deleted"))
+            .declineReward(rs.getBoolean("decline_reward"))
+            .ethereumNonce((Long) rs.getObject("ethereum_nonce"))
+            .build();
+
+    private final RowMapper<Topic> topicRowMapper = (rs, rowNum) -> Topic.builder()
+            .id(rs.getLong("id"))
+            .createdTimestamp((Long) rs.getObject("created_timestamp"))
+            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .adminKey(rs.getBytes("admin_key"))
+            .submitKey(rs.getBytes("submit_key"))
+            .build();
+
+    private final RowMapper<CustomFee> customFeeRowMapper = (rs, rowNum) -> CustomFee.builder()
+            .entityId(rs.getLong("entity_id"))
+            .fixedFees(Collections.emptyList())
+            .timestampRange(PostgreSQLGuavaRangeType.longRange(rs.getString("timestamp_range")))
+            .build();
 
     @Builder(toBuilder = true)
     @Data
