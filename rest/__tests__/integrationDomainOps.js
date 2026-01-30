@@ -3,7 +3,7 @@
 import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 
 import base32 from '../base32';
 import {getMirrorConfig} from '../config';

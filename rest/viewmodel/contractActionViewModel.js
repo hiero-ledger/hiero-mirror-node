@@ -3,7 +3,7 @@
 import EntityId from '../entityId';
 import * as utils from '../utils';
 import {entityTypes} from '../constants';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 import _ from 'lodash';
 
 /**
