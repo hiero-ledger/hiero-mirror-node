@@ -25,7 +25,7 @@ extra.apply {
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.33.4")
-    set("springGrpcVersion", "0.12.0")
+    set("springGrpcVersion", "1.0.2")
     set("tuweniVersion", "2.3.1")
     set("web3jVersion", "5.0.2")
 }
