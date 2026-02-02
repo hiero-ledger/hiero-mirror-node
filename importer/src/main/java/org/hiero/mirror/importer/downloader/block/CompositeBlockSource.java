@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.springframework.context.annotation.Primary;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,26 +20,26 @@ final class CompositeBlockSource implements BlockSource {
 
     private final SourceHealth blockFileSourceHealth;
     private final SourceHealth blockNodeSubscriberSourceHealth;
-    private final BlockStreamVerifier blockStreamVerifier;
     private final AtomicReference<SourceHealth> current;
+    private final CutoverService cutoverService;
     private final BlockProperties properties;
 
     public CompositeBlockSource(
             BlockFileSource blockFileSource,
             BlockNodeSubscriber blockNodeSubscriber,
-            BlockStreamVerifier blockStreamVerifier,
+            CutoverService cutoverService,
             BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
-        this.blockStreamVerifier = blockStreamVerifier;
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
+        this.cutoverService = cutoverService;
         this.properties = properties;
     }
 
     @Override
     @Scheduled(fixedDelayString = "#{@blockProperties.getFrequency().toMillis()}")
     public void get() {
-        if (!properties.isEnabled()) {
+        if (!cutoverService.shouldGetStream(StreamType.BLOCK)) {
             return;
         }
 
@@ -56,14 +56,6 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
-                if (blockStreamVerifier
-                        .getLastBlockFile()
-                        .map(BlockFile::getSourceType)
-                        .filter(type -> type == BlockSourceType.BLOCK_NODE)
-                        .isPresent()) {
-                    yield blockNodeSubscriberSourceHealth;
-                }
-
                 if (properties.getNodes().isEmpty()) {
                     yield blockFileSourceHealth;
                 }

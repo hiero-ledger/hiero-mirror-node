@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -12,10 +12,14 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.downloader.BatchStreamFileNotifier;
+import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
+import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
+import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,16 +31,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class CompositeBlockSourceTest {
+final class CompositeBlockSourceTest {
 
     @Mock
     private BlockFileSource blockFileSource;
 
     @Mock
     private BlockNodeSubscriber blockNodeSubscriber;
-
-    @Mock
-    private BlockStreamVerifier blockStreamVerifier;
 
     private BlockProperties properties;
     private CompositeBlockSource source;
@@ -47,7 +48,14 @@ class CompositeBlockSourceTest {
         properties = new BlockProperties();
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, blockStreamVerifier, properties);
+        final var importerProperties = new ImporterProperties();
+        final var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
+        final var cutoverService = new CutoverServiceImpl(
+                mock(BatchStreamFileNotifier.class),
+                properties,
+                new RecordDownloaderProperties(commonDownloaderProperties),
+                mock(RecordFileRepository.class));
+        source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,
@@ -111,7 +119,6 @@ class CompositeBlockSourceTest {
     void getAutoNoBlockNodes() {
         // given
         properties.setNodes(Collections.emptyList());
-        doReturn(Optional.of(blockFile(2, true))).when(blockStreamVerifier).getLastBlockFile();
 
         // when
         source.get();
@@ -125,7 +132,6 @@ class CompositeBlockSourceTest {
     @MethodSource("provideAutoSwitchBlockFile")
     void getAutoSwitchOnError(String filename, BlockFile blockFile) {
         // given
-        doReturn(Optional.of(blockFile)).when(blockStreamVerifier).getLastBlockFile();
         doThrow(new RuntimeException()).when(blockFileSource).get();
         doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
 
@@ -186,22 +192,6 @@ class CompositeBlockSourceTest {
         verify(blockNodeSubscriber, times(8)).get();
     }
 
-    @Test
-    void getAutoWithLastBlockStreamed() {
-        // given
-        doReturn(Optional.of(blockFile(5, false))).when(blockStreamVerifier).getLastBlockFile();
-        doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
-
-        // when
-        for (int i = 0; i < 4; i++) {
-            source.get();
-        }
-
-        // then
-        verifyNoInteractions(blockFileSource);
-        verify(blockNodeSubscriber, times(4)).get();
-    }
-
     private static Stream<Arguments> provideAutoSwitchBlockFile() {
         return Stream.of(
                 Arguments.of(null, BlockStreamVerifier.EMPTY),
@@ -217,12 +207,5 @@ class CompositeBlockSourceTest {
                                 .index(77L)
                                 .name("000000000000000000000000000000000077.blk.gz")
                                 .build()));
-    }
-
-    private BlockFile blockFile(long blockNumber, boolean gzipped) {
-        return BlockFile.builder()
-                .name(BlockFile.getFilename(blockNumber, gzipped))
-                .index(blockNumber)
-                .build();
     }
 }

@@ -11,6 +11,7 @@ import jakarta.inject.Named;
 import java.util.Arrays;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.SidecarFile;
@@ -23,6 +24,7 @@ import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.NodeSignatureVerifier;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
@@ -45,12 +47,14 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
 
     private static final String HASH_TYPE_SIDECAR = "Sidecar";
 
+    private final CutoverService cutoverService;
     private final SidecarFileReader sidecarFileReader;
     private final SidecarProperties sidecarProperties;
 
     @SuppressWarnings("java:S107")
     public RecordFileDownloader(
             ConsensusNodeService consensusNodeService,
+            CutoverService cutoverService,
             RecordDownloaderProperties downloaderProperties,
             ImporterProperties importerProperties,
             MeterRegistry meterRegistry,
@@ -73,6 +77,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
                 streamFileNotifier,
                 streamFileProvider,
                 streamFileReader);
+        this.cutoverService = cutoverService;
         this.sidecarFileReader = sidecarFileReader;
         this.sidecarProperties = sidecarProperties;
     }
@@ -90,6 +95,11 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
     }
 
     @Override
+    protected boolean shouldDownload() {
+        return cutoverService.shouldGetStream(StreamType.RECORD);
+    }
+
+    @Override
     protected void setStreamFileIndex(RecordFile recordFile) {
         // Starting from the record stream file v6, the record file index is externalized as the block_number field of
         // the protobuf RecordStreamFile, so only set the record file index to be last + 1 if it's pre-v6.
@@ -100,7 +110,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
 
     private void downloadSidecars(StreamFilename recordFilename, RecordFile recordFile, ConsensusNode node) {
         // do nothing if both writing files and parsing sidecars options are disabled, or sidecars are empty
-        if (!((RecordDownloaderProperties) downloaderProperties).isWriteFiles() && !sidecarProperties.isEnabled()
+        if (!downloaderProperties.isWriteFiles() && !sidecarProperties.isEnabled()
                 || recordFile.getSidecars().isEmpty()) {
             return;
         }

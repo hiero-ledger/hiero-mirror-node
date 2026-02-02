@@ -28,7 +28,7 @@ import org.jspecify.annotations.NullMarked;
 @CustomLog
 @NullMarked
 @Named
-final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
+public final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
 
     private final StreamFileSubscriber balanceStreamFileSubscriber;
     private final StreamFileSubscriber recordStreamFileSubscriber;

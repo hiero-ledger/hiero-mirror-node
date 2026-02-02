@@ -50,6 +50,11 @@ public class CommonDownloaderProperties {
     @Min(0)
     private BigDecimal consensusRatio = BigDecimal.ONE.divide(BigDecimal.valueOf(3), MATH_CONTEXT);
 
+    private Boolean cutover;
+
+    @DurationMin(seconds = 8)
+    private Duration cutoverThreshold = Duration.ofSeconds(8);
+
     @Max(1)
     @Min(0)
     private BigDecimal downloadRatio = BigDecimal.ONE;
