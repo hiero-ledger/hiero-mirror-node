@@ -109,6 +109,7 @@
         "file_data": [48, 120, 97, 98, 100, 128],
         "consensus_timestamp": "167654000120456",
         "entity_id": 120,
+        "high_volume": false,
         "transaction_type": 17
       }
     ],

@@ -7,12 +7,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.DomainUtils.trim;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.hedera.hashgraph.sdk.EvmHook;
+import com.hedera.hashgraph.sdk.EvmHookMappingEntry;
+import com.hedera.hashgraph.sdk.EvmHookStorageUpdate;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookCreationDetails;
 import com.hedera.hashgraph.sdk.HookExtensionPoint;
-import com.hedera.hashgraph.sdk.LambdaEvmHook;
-import com.hedera.hashgraph.sdk.LambdaMappingEntry;
-import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import com.hedera.hashgraph.sdk.Status;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
@@ -74,9 +74,9 @@ public class HooksFeature extends AbstractFeature {
         // Get the ERC contract with hook functions
         final var hookContract = getContract(ContractResource.ERC);
 
-        final var lambdaEvmHook = new LambdaEvmHook(hookContract.contractId());
+        final var evmHook = new EvmHook(hookContract.contractId());
         final var hookCreationDetails =
-                new HookCreationDetails(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, HOOK_ID, lambdaEvmHook);
+                new HookCreationDetails(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, HOOK_ID, evmHook);
         networkTransactionResponse =
                 accountClient.updateAccount(account, updateTx -> updateTx.addHookToCreate(hookCreationDetails));
         assertThat(networkTransactionResponse)
@@ -112,11 +112,11 @@ public class HooksFeature extends AbstractFeature {
     @When("I create a HookStore transaction with both explicit and implicit storage slots")
     public void createHookStorageSlots() {
         // Create and add storage updates
-        final List<LambdaStorageUpdate> storageUpdates = new ArrayList<>();
-        final var mappingEntry = LambdaMappingEntry.ofKey(MAPPING_KEY, MAPPING_VALUE);
-        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
+        final List<EvmHookStorageUpdate> storageUpdates = new ArrayList<>();
+        final var mappingEntry = EvmHookMappingEntry.ofKey(MAPPING_KEY, MAPPING_VALUE);
+        final var mappingUpdate = new EvmHookStorageUpdate.EvmHookMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
         storageUpdates.add(mappingUpdate);
-        storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EXPLICIT_SLOT_VALUE));
+        storageUpdates.add(new EvmHookStorageUpdate.EvmHookStorageSlot(EXPLICIT_SLOT_KEY, EXPLICIT_SLOT_VALUE));
 
         networkTransactionResponse = hookClient.hookStore(account, HOOK_ID, storageUpdates);
         assertThat(networkTransactionResponse)
@@ -158,15 +158,15 @@ public class HooksFeature extends AbstractFeature {
     @When("I create a HookStore transaction to remove all storage slots")
     public void removeHookStorageSlots() {
         // Create and add storage updates
-        final List<LambdaStorageUpdate> storageUpdates = new ArrayList<>();
-        final var mappingEntry = LambdaMappingEntry.ofKey(MAPPING_KEY, EMPTY_BYTE_ARRAY);
-        final var mappingUpdate = new LambdaStorageUpdate.LambdaMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
+        final List<EvmHookStorageUpdate> storageUpdates = new ArrayList<>();
+        final var mappingEntry = EvmHookMappingEntry.ofKey(MAPPING_KEY, EMPTY_BYTE_ARRAY);
+        final var mappingUpdate = new EvmHookStorageUpdate.EvmHookMappingEntries(MAPPING_SLOT, List.of(mappingEntry));
         storageUpdates.add(mappingUpdate);
-        storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(EXPLICIT_SLOT_KEY, EMPTY_BYTE_ARRAY));
+        storageUpdates.add(new EvmHookStorageUpdate.EvmHookStorageSlot(EXPLICIT_SLOT_KEY, EMPTY_BYTE_ARRAY));
 
         // Remove the key created during crypto transfer
         if (transferKey != null) {
-            storageUpdates.add(new LambdaStorageUpdate.LambdaStorageSlot(transferKey, EMPTY_BYTE_ARRAY));
+            storageUpdates.add(new EvmHookStorageUpdate.EvmHookStorageSlot(transferKey, EMPTY_BYTE_ARRAY));
         }
 
         networkTransactionResponse = hookClient.hookStore(account, HOOK_ID, storageUpdates);

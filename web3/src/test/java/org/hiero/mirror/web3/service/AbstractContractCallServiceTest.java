@@ -56,7 +56,7 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
@@ -102,7 +102,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected TestWeb3jService testWeb3jService;
 
     @Resource
-    protected MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected EvmProperties evmProperties;
 
     @Resource
     protected State state;
@@ -556,9 +556,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers.
-     * This ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations.
-     * Use this when testing scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
+     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers. This
+     * ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations. Use this when testing
+     * scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
      *
      * @return Entity that is persisted in the database with evmAddress and sufficient balance
      */
@@ -863,9 +863,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isValidatePayerBalance()
-                ? DEFAULT_ACCOUNT_BALANCE
-                : DEFAULT_SMALL_ACCOUNT_BALANCE;
+        return evmProperties.isValidatePayerBalance() ? DEFAULT_ACCOUNT_BALANCE : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {

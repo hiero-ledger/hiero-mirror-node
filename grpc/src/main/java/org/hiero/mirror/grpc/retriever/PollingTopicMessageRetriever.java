@@ -38,9 +38,7 @@ public class PollingTopicMessageRetriever implements TopicMessageRetriever {
         this.observationRegistry = observationRegistry;
         this.retrieverProperties = retrieverProperties;
         this.topicMessageRepository = topicMessageRepository;
-        int threadCount =
-                retrieverProperties.getThreadMultiplier() * Runtime.getRuntime().availableProcessors();
-        scheduler = Schedulers.newParallel("retriever", threadCount, true);
+        scheduler = Schedulers.boundedElastic();
     }
 
     @Override

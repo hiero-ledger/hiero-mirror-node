@@ -70,7 +70,7 @@ public class NetworkServiceImpl implements NetworkService {
                 .repeatWhen(Repeat.onlyIf(c -> !context.isComplete())
                         .randomBackoff(addressBookProperties.getMinPageDelay(), addressBookProperties.getMaxPageDelay())
                         .jitter(Jitter.random())
-                        .withBackoffScheduler(Schedulers.parallel()))
+                        .withBackoffScheduler(Schedulers.boundedElastic()))
                 .take(filter.getLimit() > 0 ? filter.getLimit() : Long.MAX_VALUE)
                 .doOnNext(context::onNext)
                 .doOnSubscribe(s -> log.info("Querying for address book: {}", filter))

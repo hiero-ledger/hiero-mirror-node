@@ -273,7 +273,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
     @Test
     void associateTokenTransferEthCallFails() throws IllegalAccessException {
         // Given
-        final var backupProperties = mirrorNodeEvmProperties.getProperties();
+        final var backupProperties = evmProperties.getProperties();
 
         try {
             // Re-init the captors, because the flag was changed.
@@ -281,7 +281,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             final Map<String, String> propertiesMap = new HashMap<>();
             propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
             propertiesMap.put("contracts.maxGasPerSec", "15000000");
-            mirrorNodeEvmProperties.setProperties(propertiesMap);
+            evmProperties.setProperties(propertiesMap);
 
             final var treasuryAccount = accountEntityPersist();
             final var sender = accountEntityPersist();
@@ -312,7 +312,7 @@ class ContractCallDynamicCallsTest extends AbstractContractCallServiceOpcodeTrac
             verifyOpcodeTracerCall(functionCall.encodeFunctionCall(), contractFunctionProvider);
         } finally {
             // Restore changed property values.
-            mirrorNodeEvmProperties.setProperties(backupProperties);
+            evmProperties.setProperties(backupProperties);
         }
     }
 

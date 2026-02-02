@@ -68,12 +68,6 @@ spring:
     scheduling:
       pool:
         size: 4
-springdoc:
-  api-docs:
-    path: /api/v1/docs/openapi
-  swagger-ui:
-    path: /api/v1/docs
-    disable-swagger-default-url: true
 ---
 management:
   endpoint:
