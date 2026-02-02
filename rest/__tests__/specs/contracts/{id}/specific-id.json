@@ -25,25 +25,29 @@
       {
         "file_data": [12, 11, 10, 9, 8, 7, 255],
         "consensus_timestamp": "987654000123000",
-        "entity_id": "5001"
+        "entity_id": "5001",
+        "high_volume": false
       },
       {
         "_description": "another file, not used by any contracts",
         "file_data": [16, 28],
         "consensus_timestamp": "987654000123003",
-        "entity_id": "5002"
+        "entity_id": "5002",
+        "high_volume": false
       },
       {
         "_description": "FileAppend with empty file_data",
         "file_data": [],
         "consensus_timestamp": "987654000123005",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 16
       },
       {
         "file_data": [128],
         "consensus_timestamp": "987654000123010",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 16
       },
       {
@@ -51,6 +55,7 @@
         "file_data": "6080604052348015600f57600080fd5b5060405160c838038060c8833981016040819052602a91604e565b600080546001600160a01b0319166001600160a01b0392909216919091179055607c565b600060208284031215605f57600080fd5b815160016",
         "consensus_timestamp": "987654000123012",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 19
       },
       {
@@ -58,6 +63,7 @@
         "file_data": "00160a01b0381168114607557600080fd5b9392505050565b603f8060896000396000f3fe6080604052600080fdfea2646970667358221220cef90c1de1bfe76c35095b7f0d6a94d1ca71f144f8da70eb9816329ab76eda3564736f6c634300080a0033",
         "consensus_timestamp": "987654000123020",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 16
       },
       {
@@ -65,12 +71,14 @@
         "file_data": "[1]",
         "consensus_timestamp": "987654000124000",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 19
       },
       {
         "file_data": "[2]",
         "consensus_timestamp": "987654999123000",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 16
       }
     ]

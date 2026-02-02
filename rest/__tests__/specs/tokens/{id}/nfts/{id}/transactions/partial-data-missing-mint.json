@@ -107,7 +107,8 @@
             "is_approval": false
           }
         ],
-        "entity_id": "0.0.1500"
+        "entity_id": "0.0.1500",
+        "high_volume": false
       },
       {
         "name": "TOKENDELETION",
@@ -118,7 +119,8 @@
         "nodeAccountId": "0.0.3",
         "treasuryAccountId": "0.0.98",
         "nft_transfer": [],
-        "entity_id": "0.0.1500"
+        "entity_id": "0.0.1500",
+        "high_volume": false
       }
     ],
     "nfts": [

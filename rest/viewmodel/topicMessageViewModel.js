@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 
 import EntityId from '../entityId';
 import {TransactionId} from '../model/index';

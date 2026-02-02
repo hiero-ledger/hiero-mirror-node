@@ -9,7 +9,8 @@
         "name": "CONSENSUSSUBMITMESSAGE",
         "result": 10,
         "type": 27,
-        "entity_id": "0.0.7"
+        "entity_id": "0.0.7",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.10",
