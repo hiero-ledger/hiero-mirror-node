@@ -81,6 +81,7 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         var entity = toMigrationEntity(domainBuilder
                 .entity()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
+                        // must call after key() to override the side effect
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
                 .get());
@@ -88,6 +89,7 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         var entityHistory = toMigrationEntityHistory(domainBuilder
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
+                        // must call after key() to override the side effect
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
                 .get());

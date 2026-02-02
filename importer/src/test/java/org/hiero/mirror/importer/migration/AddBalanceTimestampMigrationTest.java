@@ -10,6 +10,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
+import org.assertj.core.api.IterableAssert;
 import org.assertj.core.api.ListAssert;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
@@ -155,7 +156,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
         ownerJdbcTemplate.update(FileUtils.readFileToString(migrationSql, "UTF-8"));
     }
 
-    private ListAssert<Entity> assertEntities() {
+    private IterableAssert<Entity> assertEntities() {
         return assertThat(findAllEntities())
                 .usingRecursiveFieldByFieldElementComparatorOnFields("id", "balance", "balanceTimestamp", "deleted");
     }
@@ -231,16 +232,6 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     PostgreSQLGuavaRangeType.INSTANCE.asString(tokenAccountHistory.getTimestampRange()),
                     tokenAccountHistory.getTokenId());
         }
-    }
-
-    protected List<Entity> findAllEntities() {
-        return jdbcOperations.query(
-                "select id, balance, balance_timestamp, deleted from entity", (rs, rowNum) -> Entity.builder()
-                        .id(rs.getLong("id"))
-                        .balance((Long) rs.getObject("balance"))
-                        .balanceTimestamp((Long) rs.getObject("balance_timestamp"))
-                        .deleted(rs.getBoolean("deleted"))
-                        .build());
     }
 
     private List<EntityHistory> findAllEntityHistories() {
