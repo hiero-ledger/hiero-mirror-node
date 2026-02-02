@@ -3,7 +3,7 @@
 import _ from 'lodash';
 import EntityId from '../entityId';
 import {nsToSecNs, toHexString} from '../utils';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 
 /**
  * Contract results view model

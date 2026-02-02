@@ -126,6 +126,24 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
         entityProperties.getPersist().setItemizedTransfers(false);
     }
 
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void cryptoTransferHighVolume(boolean highVolume) {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBodyWrapper(b -> b.setHighVolume(highVolume))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
+                .get()
+                .returns(highVolume, org.hiero.mirror.common.domain.transaction.Transaction::getHighVolume);
+    }
+
     @Test
     void cryptoApproveAllowance() {
         // given

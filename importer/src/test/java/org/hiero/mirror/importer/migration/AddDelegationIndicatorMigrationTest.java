@@ -218,7 +218,7 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
             var environment = configurableApplicationContext.getEnvironment();
-            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.20.0" : "1.115.0";
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.21.0" : "1.116.0";
             TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
         }
     }
