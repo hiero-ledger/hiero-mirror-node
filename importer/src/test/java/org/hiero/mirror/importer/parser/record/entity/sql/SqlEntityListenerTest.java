@@ -1075,7 +1075,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
-        entityUpdate.setDelegationIndicator(domainBuilder.delegationIndicator());
+        entityUpdate.setDelegationAddress(domainBuilder.bytes(20));
         entityUpdate.setExpirationTimestamp(500L);
         entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);

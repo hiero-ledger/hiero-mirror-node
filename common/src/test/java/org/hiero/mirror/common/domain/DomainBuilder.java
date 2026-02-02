@@ -432,7 +432,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
-                .delegationIndicator(delegationIndicator())
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -478,7 +478,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
-                .delegationIndicator(delegationIndicator())
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -1209,16 +1209,6 @@ public class DomainBuilder {
 
     public byte[] evmAddress() {
         return bytes(20);
-    }
-
-    public byte[] delegationIndicator() {
-        // Format: 0xef0100 || 20-byte address
-        byte[] indicator = new byte[23];
-        indicator[0] = (byte) 0xef;
-        indicator[1] = 0x01;
-        indicator[2] = 0x00;
-        System.arraycopy(evmAddress(), 0, indicator, 3, 20);
-        return indicator;
     }
 
     public List<Authorization> authorizationList() {

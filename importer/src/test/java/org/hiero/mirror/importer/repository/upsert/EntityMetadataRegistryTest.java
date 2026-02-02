@@ -30,18 +30,18 @@ class EntityMetadataRegistryTest extends ImporterIntegrationTest {
     @Test
     void lookup() {
         var all = "alias,auto_renew_account_id,auto_renew_period,balance,balance_timestamp,created_timestamp,"
-                + "decline_reward,delegation_indicator,deleted,ethereum_nonce,evm_address,expiration_timestamp,id,key,"
+                + "decline_reward,delegation_address,deleted,ethereum_nonce,evm_address,expiration_timestamp,id,key,"
                 + "max_automatic_token_associations,memo,num,obtainer_id,permanent_removal,proxy_account_id,public_key,"
                 + "realm,receiver_sig_required,shard,stake_period_start,staked_account_id,staked_node_id,"
                 + "timestamp_range,type";
 
         var nullable = "alias,auto_renew_account_id,auto_renew_period,balance,balance_timestamp,created_timestamp,"
-                + "delegation_indicator,deleted,ethereum_nonce,evm_address,expiration_timestamp,key,"
+                + "delegation_address,deleted,ethereum_nonce,evm_address,expiration_timestamp,key,"
                 + "max_automatic_token_associations,obtainer_id,permanent_removal,proxy_account_id,public_key,"
                 + "receiver_sig_required,stake_period_start,staked_account_id,staked_node_id";
 
         var updatable = "auto_renew_account_id,auto_renew_period,balance,balance_timestamp,decline_reward,"
-                + "delegation_indicator,deleted,ethereum_nonce,expiration_timestamp,key,"
+                + "delegation_address,deleted,ethereum_nonce,expiration_timestamp,key,"
                 + "max_automatic_token_associations,memo,obtainer_id,permanent_removal,proxy_account_id,public_key,"
                 + "receiver_sig_required,stake_period_start,staked_account_id,staked_node_id,timestamp_range,type";
 

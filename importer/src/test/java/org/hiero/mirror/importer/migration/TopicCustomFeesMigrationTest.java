@@ -104,10 +104,10 @@ class TopicCustomFeesMigrationTest extends ImporterIntegrationTest {
         assertThat(findAllCustomFees()).containsExactlyInAnyOrderElementsOf(expectedCustomFees);
         assertThat(findAllCustomFeeHistory()).isEmpty();
         assertThat(findAllEntities())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationIndicator")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationAddress")
                 .containsExactlyInAnyOrderElementsOf(expectedEntities);
         assertThat(findAllEntityHistory())
-                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationIndicator")
+                .usingRecursiveFieldByFieldElementComparatorIgnoringFields("publicKey", "delegationAddress")
                 .containsExactlyInAnyOrderElementsOf(expectedHistoricalEntities);
         assertThat(findAllTopics()).containsExactlyInAnyOrderElementsOf(expectedTopics);
         assertThat(findAllTopicHistory()).containsExactlyInAnyOrderElementsOf(expectedHistoricalTopics);

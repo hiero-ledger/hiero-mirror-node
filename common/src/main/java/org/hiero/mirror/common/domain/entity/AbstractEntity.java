@@ -62,7 +62,7 @@ public abstract class AbstractEntity implements History {
     private Boolean deleted;
 
     @ToString.Exclude
-    private byte[] delegationIndicator;
+    private byte[] delegationAddress;
 
     @UpsertColumn(coalesce = """
                             case when coalesce(e_type, type) = ''ACCOUNT'' then coalesce({0}, e_{0}, {1})

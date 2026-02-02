@@ -29,18 +29,18 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Profiles;
 import org.springframework.test.context.ContextConfiguration;
 
-@ContextConfiguration(initializers = AddDelegationIndicatorMigrationTest.Initializer.class)
+@ContextConfiguration(initializers = AddDelegationAddressMigrationTest.Initializer.class)
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
 @RequiredArgsConstructor
 @Tag("migration")
-class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
+class AddDelegationAddressMigrationTest extends ImporterIntegrationTest {
 
     private static final ObjectMapper OBJECT_MAPPER =
             new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
-    private static final String REVERT_ENTITY_DDL = "alter table entity drop column if exists delegation_indicator";
+    private static final String REVERT_ENTITY_DDL = "alter table entity drop column if exists delegation_address";
     private static final String REVERT_ENTITY_HISTORY_DDL =
-            "alter table entity_history drop column if exists delegation_indicator";
+            "alter table entity_history drop column if exists delegation_address";
     private static final String REVERT_ETHEREUM_TX_DDL =
             "alter table ethereum_transaction drop column if exists authorization_list";
 
@@ -66,7 +66,7 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
         runMigration();
 
         // when
-        final var delegationIndicator = new byte[] {
+        final var delegationAddress = new byte[] {
             (byte) 0xef,
             0x01,
             0x00,
@@ -97,13 +97,13 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
         };
         final var entity = domainBuilder
                 .entity()
-                .customize(e -> e.delegationIndicator(delegationIndicator))
+                .customize(e -> e.delegationAddress(delegationAddress))
                 .get();
         persistEntity(entity);
 
         final var entityHistory = domainBuilder
                 .entityHistory()
-                .customize(eh -> eh.delegationIndicator(delegationIndicator))
+                .customize(eh -> eh.delegationAddress(delegationAddress))
                 .get();
         persistEntityHistory(entityHistory);
 
@@ -123,13 +123,13 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
         persistEthereumTransaction(ethereumTxn);
 
         // then
-        final var actualDelegationIndicator = jdbcOperations.queryForObject(
-                "select delegation_indicator from entity where id = ?", byte[].class, entity.getId());
-        assertThat(actualDelegationIndicator).isEqualTo(delegationIndicator);
+        final var actualDelegationAddress = jdbcOperations.queryForObject(
+                "select delegation_address from entity where id = ?", byte[].class, entity.getId());
+        assertThat(actualDelegationAddress).isEqualTo(delegationAddress);
 
-        final var actualDelegationIndicatorHistory = jdbcOperations.queryForObject(
-                "select delegation_indicator from entity_history where id = ?", byte[].class, entityHistory.getId());
-        assertThat(actualDelegationIndicatorHistory).isEqualTo(delegationIndicator);
+        final var actualDelegationAddressHistory = jdbcOperations.queryForObject(
+                "select delegation_address from entity_history where id = ?", byte[].class, entityHistory.getId());
+        assertThat(actualDelegationAddressHistory).isEqualTo(delegationAddress);
 
         final var actualAuthList = jdbcOperations.queryForObject(
                 "select authorization_list::text from ethereum_transaction where consensus_timestamp = ?",
@@ -145,7 +145,7 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
     @SneakyThrows
     private void runMigration() {
         final var migrationFilepath =
-                isV1() ? "v1/V1.117.0__add_delegation_indicator.sql" : "v2/V2.22.0__add_delegation_indicator.sql";
+                isV1() ? "v1/V1.117.0__add_delegation_address.sql" : "v2/V2.22.0__add_delegation_address.sql";
         var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
@@ -156,7 +156,7 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
 
     private void persistEntity(Entity entity) {
         jdbcOperations.update(
-                "insert into entity (id, num, realm, shard, created_timestamp, timestamp_range, type, delegation_indicator) "
+                "insert into entity (id, num, realm, shard, created_timestamp, timestamp_range, type, delegation_address) "
                         + "values (?, ?, ?, ?, ?, ?::int8range, ?::entity_type, ?)",
                 entity.getId(),
                 entity.getNum(),
@@ -165,12 +165,12 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
                 entity.getCreatedTimestamp(),
                 PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
                 entity.getType().name(),
-                entity.getDelegationIndicator());
+                entity.getDelegationAddress());
     }
 
     private void persistEntityHistory(EntityHistory history) {
         jdbcOperations.update(
-                "insert into entity_history (id, num, realm, shard, created_timestamp, timestamp_range, type, delegation_indicator) "
+                "insert into entity_history (id, num, realm, shard, created_timestamp, timestamp_range, type, delegation_address) "
                         + "values (?, ?, ?, ?, ?, ?::int8range, ?::entity_type, ?)",
                 history.getId(),
                 history.getNum(),
@@ -179,7 +179,7 @@ class AddDelegationIndicatorMigrationTest extends ImporterIntegrationTest {
                 history.getCreatedTimestamp(),
                 PostgreSQLGuavaRangeType.INSTANCE.asString(history.getTimestampRange()),
                 history.getType().name(),
-                history.getDelegationIndicator());
+                history.getDelegationAddress());
     }
 
     @SneakyThrows
