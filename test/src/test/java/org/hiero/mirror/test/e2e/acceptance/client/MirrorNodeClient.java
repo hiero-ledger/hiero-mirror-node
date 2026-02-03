@@ -356,7 +356,7 @@ public class MirrorNodeClient {
         String next = "/network/nodes?limit=25";
 
         do {
-            var response = callRestEndpoint(next, NetworkNodesResponse.class);
+            var response = callRestJavaEndpoint(next, NetworkNodesResponse.class);
             nodes.addAll(response.getNodes());
             next = response.getLinks() != null ? response.getLinks().getNext() : null;
         } while (next != null);
