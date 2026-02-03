@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import com.github.jengelman.gradle.plugins.shadow.transformers.AppendingTransformer
 import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer.MergeStrategy
 
@@ -22,7 +23,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-configuration-processor")
     implementation("org.springframework.boot:spring-boot-starter-logging")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    testImplementation("io.grpc:grpc-inprocess")
     testImplementation("com.esaulpaugh:headlong")
     testImplementation("com.google.guava:guava")
     testImplementation("com.hedera.hashgraph:sdk")
@@ -32,19 +32,20 @@ dependencies {
         exclude("org.springframework.boot", "spring-boot-starter-data-jpa")
         exclude("org.web3j", "core")
     }
+    testImplementation("commons-codec:commons-codec")
     testImplementation("io.cucumber:cucumber-junit-platform-engine")
     testImplementation("io.cucumber:cucumber-spring")
     testImplementation("io.grpc:grpc-okhttp")
     testImplementation("jakarta.inject:jakarta.inject-api")
     testImplementation("net.java.dev.jna:jna")
     testImplementation("org.apache.commons:commons-lang3")
+    testImplementation("org.apache.tuweni:tuweni-bytes")
     testImplementation("org.awaitility:awaitility")
     testImplementation("org.junit.platform:junit-platform-suite")
+    testImplementation("org.springframework.boot:spring-boot-starter-actuator")
     testImplementation("org.springframework.boot:spring-boot-starter-restclient-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-starter-web")
-    testImplementation("org.apache.tuweni:tuweni-bytes")
-    testImplementation("commons-codec:commons-codec")
     testImplementation("org.web3j:core")
 }
 
@@ -90,10 +91,14 @@ tasks.shadowJar {
     append("META-INF/spring.handlers")
     append("META-INF/spring.schemas")
     append("META-INF/spring.tooling")
-    val transformer = PropertiesFileTransformer(project.objects)
-    transformer.mergeStrategy = MergeStrategy.from("append")
-    transformer.paths = listOf("META-INF/spring.factories")
-    transform(transformer)
+    val importsTransformer = AppendingTransformer(project.objects)
+    importsTransformer.resource =
+        "META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports"
+    transform(importsTransformer)
+    val factoriesTransformer = PropertiesFileTransformer(project.objects)
+    factoriesTransformer.mergeStrategy = MergeStrategy.from("append")
+    factoriesTransformer.paths = listOf("META-INF/spring.factories")
+    transform(factoriesTransformer)
 }
 
 tasks.dockerBuild { dependsOn(tasks.shadowJar) }
