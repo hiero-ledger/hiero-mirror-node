@@ -64,8 +64,8 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
         return getHealth().doOnNext(this::recordHealthMetric);
     }
 
-    private void recordHealthMetric(Health health) {
-        final var status = health != null ? health.getStatus() : Status.UNKNOWN;
+    private void recordHealthMetric(Health currentHealth) {
+        final var status = currentHealth != null ? currentHealth.getStatus() : Status.UNKNOWN;
         RELEASE_UP.set(Status.UP.equals(status) ? 1 : 0);
     }
 
