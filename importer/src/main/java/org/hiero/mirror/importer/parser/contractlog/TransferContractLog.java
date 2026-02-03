@@ -7,15 +7,8 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 
 public class TransferContractLog extends AbstractSyntheticContractLog {
 
-    boolean hasMultiPartyOrigin;
-
     public TransferContractLog(
-            RecordItem recordItem,
-            EntityId tokenId,
-            EntityId senderId,
-            EntityId receiverId,
-            long amount,
-            boolean hasMultiPartyOrigin) {
+            RecordItem recordItem, EntityId tokenId, EntityId senderId, EntityId receiverId, long amount) {
         super(
                 recordItem,
                 tokenId,
@@ -24,10 +17,5 @@ public class TransferContractLog extends AbstractSyntheticContractLog {
                 entityIdToBytes(receiverId),
                 null,
                 longToBytes(amount));
-        this.hasMultiPartyOrigin = hasMultiPartyOrigin;
-    }
-
-    public boolean hasMultiPartyOrigin() {
-        return hasMultiPartyOrigin;
     }
 }

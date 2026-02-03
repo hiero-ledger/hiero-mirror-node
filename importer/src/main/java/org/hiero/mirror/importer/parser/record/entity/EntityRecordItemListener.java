@@ -464,7 +464,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId senderId = amount < 0 ? accountId : EntityId.EMPTY;
             EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount), false));
+                    new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
         }
     }
 
@@ -481,7 +481,7 @@ public class EntityRecordItemListener implements RecordItemListener {
                     ? EntityId.of(tokenTransfers.get(1).getAccountID())
                     : EntityId.of(tokenTransfers.get(0).getAccountID());
             syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount, false));
+                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
         } else if (entityProperties.getPersist().isSyntheticContractLogsMulti()) {
             multiPartyTransferEventsGenerator.generate(recordItem, tokenId, tokenTransfers);
         }

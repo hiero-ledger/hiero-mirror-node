@@ -69,13 +69,13 @@ public class MultiPartyTransferEventsGenerator {
             }
 
             final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
+
             syntheticContractLogService.create(new TransferContractLog(
                     recordItem,
                     tokenId,
                     EntityId.of(sender.getAccountID()),
                     EntityId.of(receiver.getAccountID()),
-                    amountForSyntheticContractLog,
-                    true));
+                    amountForSyntheticContractLog));
             senderRemainingAmount -= amountForSyntheticContractLog;
             receiverRemainingAmount -= amountForSyntheticContractLog;
 

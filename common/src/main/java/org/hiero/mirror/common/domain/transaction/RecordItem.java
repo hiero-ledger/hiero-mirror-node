@@ -223,6 +223,15 @@ public class RecordItem implements StreamItem {
                         DomainUtils.toBytes(getTransactionRecord().getTransactionHash()), 0, 32));
     }
 
+    /**
+     * Check if the recordItem has a parent and the parent has existing contract logs already present in the incoming stream
+     * */
+    public boolean parentHasContractLogs() {
+        return parent != null
+                && parent.getLogIndex() != null
+                && parent.getLogIndex().get() > 0;
+    }
+
     private Map<Long, ContractTransaction> getContractTransactions() {
         if (contractTransactions == null) {
             contractTransactions = new HashMap<>();
