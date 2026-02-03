@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static java.util.function.Predicate.not;
 import static org.hiero.mirror.common.domain.StreamType.BLOCK;
 import static org.hiero.mirror.common.domain.StreamType.RECORD;
 
@@ -19,23 +20,20 @@ import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.BatchStreamFileNotifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 
 @CustomLog
 @Named
 @NullMarked
-@Primary
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 @RequiredArgsConstructor
 public final class CutoverServiceImpl implements CutoverService {
 
-    private static final RecordFile EMPTY = new RecordFile();
-
-    private final BatchStreamFileNotifier batchStreamFileNotifier;
     private final BlockProperties blockProperties;
     private final AtomicLong lastSwitchedOrVerified = new AtomicLong();
     private final AtomicReference<Optional<RecordFile>> lastRecordFile = new AtomicReference<>(Optional.empty());
@@ -47,6 +45,15 @@ public final class CutoverServiceImpl implements CutoverService {
 
     private boolean configWarningLogged = false;
     private StreamType currentType = RECORD;
+
+    @Override
+    public Optional<RecordFile> getLastRecordFile() {
+        return Objects.requireNonNull(lastRecordFile.get()).or(() -> {
+            final var last = recordFileRepository.findLatest().or(() -> Optional.of(RecordFile.EMPTY));
+            lastRecordFile.compareAndSet(Optional.empty(), last);
+            return last;
+        });
+    }
 
     @Override
     public synchronized boolean shouldGetStream(final StreamType streamType) {
@@ -109,11 +116,11 @@ public final class CutoverServiceImpl implements CutoverService {
     @Override
     public void verified(final StreamFile<?> streamFile) {
         if (streamFile instanceof RecordFile recordFile) {
-            lastRecordFile.set(Optional.of(recordFile));
+            final var copy = (RecordFile) recordFile.copy();
+            copy.clear();
+            lastRecordFile.set(Optional.of(copy));
             lastSwitchedOrVerified.set(System.currentTimeMillis());
         }
-
-        batchStreamFileNotifier.verified(streamFile);
     }
 
     private static boolean isBlockStream(final Optional<RecordFile> recordFile) {
@@ -127,7 +134,7 @@ public final class CutoverServiceImpl implements CutoverService {
     private static boolean recordFileMatch(
             final Optional<RecordFile> recordFile, final Predicate<Integer> versionMatcher) {
         return recordFile
-                .filter(r -> r != EMPTY)
+                .filter(not(RecordFile::isEmpty))
                 .map(RecordFile::getVersion)
                 .map(versionMatcher::test)
                 .orElse(false);
@@ -135,14 +142,6 @@ public final class CutoverServiceImpl implements CutoverService {
 
     private Optional<RecordFile> findFirst() {
         return recordFileRepository.findFirst();
-    }
-
-    private Optional<RecordFile> getLastRecordFile() {
-        return Objects.requireNonNull(lastRecordFile.get()).or(() -> {
-            final var last = recordFileRepository.findLatest().or(() -> Optional.of(EMPTY));
-            lastRecordFile.set(last);
-            return last;
-        });
     }
 
     private boolean hasCutover() {

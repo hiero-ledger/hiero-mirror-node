@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.downloader.block;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,7 +16,6 @@ import java.util.Optional;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.BatchStreamFileNotifier;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -39,7 +38,7 @@ final class CutoverServiceTest {
     private CutoverService cutoverService;
     private RecordDownloaderProperties recordDownloaderProperties;
 
-    @Mock(strictness = Mock.Strictness.LENIENT)
+    @Mock(strictness = LENIENT)
     private RecordFileRepository recordFileRepository;
 
     @BeforeEach
@@ -50,8 +49,27 @@ final class CutoverServiceTest {
         final var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         commonDownloaderProperties.setCutoverThreshold(CUTOVER_THRESHOLD);
         recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);
-        cutoverService = new CutoverServiceImpl(
-                mock(BatchStreamFileNotifier.class), blockProperties, recordDownloaderProperties, recordFileRepository);
+        cutoverService = new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
+    }
+
+    @Test
+    void getLastRecordFile() {
+        // given
+        doReturn(Optional.empty()).when(recordFileRepository).findLatest();
+
+        // when, then
+        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        verify(recordFileRepository).findLatest();
+
+        // when a record file is verified
+        var recordFile = recordFile(100, false);
+        cutoverService.verified(recordFile);
+
+        // then
+        assertThat(cutoverService.getLastRecordFile())
+                .get()
+                .isEqualTo(recordFile)
+                .isNotSameAs(recordFile);
     }
 
     @Test

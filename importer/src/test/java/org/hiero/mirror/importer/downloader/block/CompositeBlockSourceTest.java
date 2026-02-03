@@ -2,9 +2,10 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -12,21 +13,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Stream;
-import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
-import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.downloader.BatchStreamFileNotifier;
-import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
-import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
-import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -39,6 +32,9 @@ final class CompositeBlockSourceTest {
     @Mock
     private BlockNodeSubscriber blockNodeSubscriber;
 
+    @Mock(strictness = LENIENT)
+    private CutoverService cutoverService;
+
     private BlockProperties properties;
     private CompositeBlockSource source;
     private Map<BlockSourceType, BlockSource> sources;
@@ -48,13 +44,6 @@ final class CompositeBlockSourceTest {
         properties = new BlockProperties();
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        final var importerProperties = new ImporterProperties();
-        final var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
-        final var cutoverService = new CutoverServiceImpl(
-                mock(BatchStreamFileNotifier.class),
-                properties,
-                new RecordDownloaderProperties(commonDownloaderProperties),
-                mock(RecordFileRepository.class));
         source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
@@ -63,12 +52,13 @@ final class CompositeBlockSourceTest {
                 blockNodeSubscriber,
                 BlockSourceType.FILE,
                 blockFileSource);
+        doReturn(true).when(cutoverService).shouldGetStream(StreamType.BLOCK);
     }
 
     @Test
     void disabled() {
         // given
-        properties.setEnabled(false);
+        doReturn(false).when(cutoverService).shouldGetStream(StreamType.BLOCK);
 
         // when
         source.get();
@@ -128,9 +118,8 @@ final class CompositeBlockSourceTest {
         verifyNoInteractions(blockNodeSubscriber);
     }
 
-    @ParameterizedTest(name = "{0}")
-    @MethodSource("provideAutoSwitchBlockFile")
-    void getAutoSwitchOnError(String filename, BlockFile blockFile) {
+    @Test
+    void getAutoSwitchOnError() {
         // given
         doThrow(new RuntimeException()).when(blockFileSource).get();
         doThrow(new RuntimeException()).when(blockNodeSubscriber).get();
@@ -190,22 +179,5 @@ final class CompositeBlockSourceTest {
         // then
         verify(blockFileSource, times(5)).get();
         verify(blockNodeSubscriber, times(8)).get();
-    }
-
-    private static Stream<Arguments> provideAutoSwitchBlockFile() {
-        return Stream.of(
-                Arguments.of(null, BlockStreamVerifier.EMPTY),
-                Arguments.of(
-                        "2022-07-13T08_46_11.304284003Z.rcd.gz",
-                        BlockFile.builder()
-                                .index(100L)
-                                .name("2022-07-13T08_46_11.304284003Z.rcd.gz")
-                                .build()),
-                Arguments.of(
-                        "000000000000000000000000000000000077.blk.gz",
-                        BlockFile.builder()
-                                .index(77L)
-                                .name("000000000000000000000000000000000077.blk.gz")
-                                .build()));
     }
 }

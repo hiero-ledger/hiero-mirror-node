@@ -24,11 +24,14 @@ import org.hiero.mirror.importer.parser.StreamFileParser;
 import org.hiero.mirror.importer.parser.balance.AccountBalanceFileParser;
 import org.hiero.mirror.importer.parser.record.RecordFileParser;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 
 @CustomLog
 @NullMarked
 @Named
-public final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
+@Order(Ordered.HIGHEST_PRECEDENCE)
+final class BatchStreamFileNotifier implements StreamFileNotifier, Closeable {
 
     private final StreamFileSubscriber balanceStreamFileSubscriber;
     private final StreamFileSubscriber recordStreamFileSubscriber;
