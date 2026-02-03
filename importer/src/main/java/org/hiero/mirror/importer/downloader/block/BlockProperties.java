@@ -33,6 +33,10 @@ public class BlockProperties {
     private boolean persistBytes = false;
 
     @NotNull
+    @Valid
+    private SchedulerProperties scheduler = new SchedulerProperties();
+
+    @NotNull
     private BlockSourceType sourceType = BlockSourceType.AUTO;
 
     @NotNull
