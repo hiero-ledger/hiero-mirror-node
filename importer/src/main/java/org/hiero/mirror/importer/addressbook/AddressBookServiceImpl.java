@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -54,7 +55,6 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
@@ -553,7 +553,7 @@ public class AddressBookServiceImpl implements AddressBookService {
                 log.info("Loading bootstrap address book from classpath:/{}", resourcePath);
 
                 final var resource = new ClassPathResource(resourcePath);
-                try (final var in = resource.getInputStream()) {
+                try (var in = resource.getInputStream()) {
                     addressBookBytes = in.readAllBytes();
                 }
             }
@@ -568,56 +568,65 @@ public class AddressBookServiceImpl implements AddressBookService {
     }
 
     private String resolveBootstrapAddressBookResourcePath() throws IOException {
-        final var targetNanos = importerProperties.getStartDate() != null
-                ? DomainUtils.convertToNanosMax(importerProperties.getStartDate())
-                : DomainUtils.convertToNanosMax(Instant.now());
-
+        final var targetNanos = getTargetNanos();
         final var network = importerProperties.getNetwork();
         final var prefix = network + "-";
-        final var resolver = new PathMatchingResourcePatternResolver(getClass().getClassLoader());
+
+        final var resolver =
+                new PathMatchingResourcePatternResolver(Thread.currentThread().getContextClassLoader());
         final var resources = resolver.getResources("classpath:/addressbook/" + network + "*");
 
         long bestTs = -1L;
-        String bestTimestamped = null;
+        String bestPath = null;
 
-        for (Resource r : resources) {
-            final var filename = r.getFilename();
-            if (filename == null) {
-                continue;
-            }
+        for (var resource : resources) {
+            String filename = resource.getFilename();
+            long ts = parseTimestampedFilename(filename, prefix).orElse(-1L);
 
-            if (!filename.startsWith(prefix)) {
-                continue;
-            }
-
-            final var tsPart = filename.substring(prefix.length());
-            if (tsPart.isBlank() || !tsPart.chars().allMatch(Character::isDigit)) {
-                continue;
-            }
-
-            final var ts = Long.parseLong(tsPart);
             if (ts <= targetNanos && ts > bestTs) {
                 bestTs = ts;
-                bestTimestamped = "addressbook/" + filename;
+                bestPath = "addressbook/" + filename;
             }
         }
 
-        if (bestTimestamped != null) {
+        if (bestPath != null) {
             log.info(
                     "Selected timestamped bootstrap address book '{}' (chosenTs={} targetTs={})",
-                    bestTimestamped,
+                    bestPath,
                     bestTs,
                     targetNanos);
-            return bestTimestamped;
+            return bestPath;
         }
 
-        final var plain = "addressbook/" + network;
+        String plain = "addressbook/" + network;
         log.info(
                 "Selected default bootstrap address book '{}' (no timestamped file <= targetTs={})",
                 plain,
                 targetNanos);
 
         return plain;
+    }
+
+    private long getTargetNanos() {
+        var start = importerProperties.getStartDate();
+        return DomainUtils.convertToNanosMax(start != null ? start : Instant.now());
+    }
+
+    private static OptionalLong parseTimestampedFilename(String filename, String prefix) {
+        if (filename == null || !filename.startsWith(prefix)) {
+            return OptionalLong.empty();
+        }
+
+        String tsPart = filename.substring(prefix.length());
+        if (tsPart.isBlank() || !tsPart.chars().allMatch(Character::isDigit)) {
+            return OptionalLong.empty();
+        }
+
+        try {
+            return OptionalLong.of(Long.parseLong(tsPart));
+        } catch (NumberFormatException e) {
+            return OptionalLong.empty();
+        }
     }
 
     /**
