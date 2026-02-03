@@ -316,7 +316,7 @@ class SyntheticContractLogServiceImplTest {
         };
     }
 
-    private record LogEntry(EntityId senderId, EntityId receiverId, long amount) {}
+    private static record LogEntry(EntityId senderId, EntityId receiverId, long amount) {}
 
     /**
      * Creates a crypto transfer with multi-party token transfers based on transfer type.
@@ -351,7 +351,11 @@ class SyntheticContractLogServiceImplTest {
 
     /**
      * Populate the {@link TokenTransferList} with the necessary {@link AccountAmount} for senders and receivers
-     * based on the transfer type
+     * based on the transfer type.
+     *
+     * @param transferType the transfer type we want to construct
+     * @param tokenTransfers the list of {@link AccountAmount} entries forming the transfer
+     * @param accounts the generated list of accounts to use as senders and receivers
      * */
     private void populateTokenTransfersBasedOnType(
             final MultiPartyTransferType transferType,
@@ -498,7 +502,7 @@ class SyntheticContractLogServiceImplTest {
         };
     }
 
-    private enum MultiPartyTransferType {
+    private static enum MultiPartyTransferType {
         ONE_RECEIVER_TWO_SENDERS,
         ONE_RECEIVER_FOUR_SENDERS,
         PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT,
