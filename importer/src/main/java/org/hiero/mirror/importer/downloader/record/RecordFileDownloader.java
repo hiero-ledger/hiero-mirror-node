@@ -96,7 +96,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
 
     @Override
     protected boolean shouldDownload() {
-        return cutoverService.shouldGetStream(StreamType.RECORD);
+        return cutoverService.isActive(StreamType.RECORD);
     }
 
     @Override

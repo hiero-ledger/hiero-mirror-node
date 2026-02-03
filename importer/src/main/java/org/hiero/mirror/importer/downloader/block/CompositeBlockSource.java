@@ -39,7 +39,7 @@ final class CompositeBlockSource implements BlockSource {
     @Override
     @Scheduled(fixedDelayString = "#{@blockProperties.getFrequency().toMillis()}")
     public void get() {
-        if (!cutoverService.shouldGetStream(StreamType.BLOCK)) {
+        if (!cutoverService.isActive(StreamType.BLOCK)) {
             return;
         }
 

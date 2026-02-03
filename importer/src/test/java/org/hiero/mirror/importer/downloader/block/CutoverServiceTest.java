@@ -44,11 +44,10 @@ final class CutoverServiceTest {
     @BeforeEach
     void setup() {
         blockProperties = new BlockProperties();
+        blockProperties.setCutoverThreshold(CUTOVER_THRESHOLD);
         final var importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
-        final var commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
-        commonDownloaderProperties.setCutoverThreshold(CUTOVER_THRESHOLD);
-        recordDownloaderProperties = new RecordDownloaderProperties(commonDownloaderProperties);
+        recordDownloaderProperties = new RecordDownloaderProperties(new CommonDownloaderProperties(importerProperties));
         cutoverService = new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
     }
 
@@ -73,7 +72,7 @@ final class CutoverServiceTest {
     }
 
     @Test
-    void shouldGetStreamDuringCutover() {
+    void isActiveDuringCutover() {
         // given
         blockProperties.setEnabled(false);
         recordDownloaderProperties.setEnabled(true);
@@ -123,7 +122,7 @@ final class CutoverServiceTest {
             false, true
             true, false
             """)
-    void shouldGetStreamAfterCutover(final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
+    void isActiveAfterCutover(final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
         // given
         blockProperties.setEnabled(isBlockStreamEnabled);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
@@ -131,8 +130,8 @@ final class CutoverServiceTest {
         doReturn(Optional.of(recordFile(100, true))).when(recordFileRepository).findLatest();
 
         // when, then
-        assertThat(cutoverService.shouldGetStream(StreamType.BLOCK)).isTrue();
-        assertThat(cutoverService.shouldGetStream(StreamType.RECORD)).isFalse();
+        assertThat(cutoverService.isActive(StreamType.BLOCK)).isTrue();
+        assertThat(cutoverService.isActive(StreamType.RECORD)).isFalse();
         assertThat(blockProperties.isEnabled()).isTrue();
         assertThat(recordDownloaderProperties.isEnabled()).isFalse();
         verify(recordFileRepository).findFirst();
@@ -140,7 +139,7 @@ final class CutoverServiceTest {
     }
 
     @Test
-    void shouldGetStreamAfterCutoverWhenBothDisabled() {
+    void isActiveAfterCutoverWhenBothDisabled() {
         // given
         blockProperties.setEnabled(false);
         recordDownloaderProperties.setEnabled(false);
@@ -148,8 +147,8 @@ final class CutoverServiceTest {
         doReturn(Optional.of(recordFile(100, true))).when(recordFileRepository).findLatest();
 
         // when, then
-        assertThat(cutoverService.shouldGetStream(StreamType.BLOCK)).isFalse();
-        assertThat(cutoverService.shouldGetStream(StreamType.RECORD)).isFalse();
+        assertThat(cutoverService.isActive(StreamType.BLOCK)).isFalse();
+        assertThat(cutoverService.isActive(StreamType.RECORD)).isFalse();
         verifyNoInteractions(recordFileRepository);
     }
 
@@ -158,8 +157,7 @@ final class CutoverServiceTest {
             false, true
             true, false
             """)
-    void shouldGetStreamStartingWithBlockStream(
-            final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
+    void isActive(final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
         // given
         blockProperties.setEnabled(isBlockStreamEnabled);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
@@ -167,8 +165,8 @@ final class CutoverServiceTest {
         doReturn(Optional.of(recordFile(100, true))).when(recordFileRepository).findLatest();
 
         // when, then
-        assertThat(cutoverService.shouldGetStream(StreamType.BLOCK)).isEqualTo(isBlockStreamEnabled);
-        assertThat(cutoverService.shouldGetStream(StreamType.RECORD)).isEqualTo(isRecordStreamEnabled);
+        assertThat(cutoverService.isActive(StreamType.BLOCK)).isEqualTo(isBlockStreamEnabled);
+        assertThat(cutoverService.isActive(StreamType.RECORD)).isEqualTo(isRecordStreamEnabled);
         assertThat(blockProperties.isEnabled()).isEqualTo(isBlockStreamEnabled);
         assertThat(recordDownloaderProperties.isEnabled()).isEqualTo(isRecordStreamEnabled);
         verify(recordFileRepository).findFirst();
@@ -176,14 +174,14 @@ final class CutoverServiceTest {
     }
 
     @Test
-    void shouldGetStreamStartingWithBlockStreamWhenBothDisabled() {
+    void isActiveWhenBothDisabled() {
         // given
         blockProperties.setEnabled(false);
         recordDownloaderProperties.setEnabled(false);
 
         // when, then
-        assertThat(cutoverService.shouldGetStream(StreamType.BLOCK)).isFalse();
-        assertThat(cutoverService.shouldGetStream(StreamType.RECORD)).isFalse();
+        assertThat(cutoverService.isActive(StreamType.BLOCK)).isFalse();
+        assertThat(cutoverService.isActive(StreamType.RECORD)).isFalse();
         verifyNoInteractions(recordFileRepository);
     }
 
@@ -192,8 +190,7 @@ final class CutoverServiceTest {
             false, false
             true, false
             """)
-    void shouldGetStreamWhenRecordStreamDisabled(
-            final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
+    void isActiveDisabled(final boolean isBlockStreamEnabled, final boolean isRecordStreamEnabled) {
         // given
         blockProperties.setEnabled(isBlockStreamEnabled);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
@@ -202,16 +199,16 @@ final class CutoverServiceTest {
         // when
         await().during(CUTOVER_THRESHOLD.multipliedBy(2))
                 .pollInterval(Duration.ofMillis(10))
-                .until(() -> cutoverService.shouldGetStream(StreamType.BLOCK) == isBlockStreamEnabled
-                        && cutoverService.shouldGetStream(StreamType.RECORD) == isRecordStreamEnabled);
+                .until(() -> cutoverService.isActive(StreamType.BLOCK) == isBlockStreamEnabled
+                        && cutoverService.isActive(StreamType.RECORD) == isRecordStreamEnabled);
         assertThat(blockProperties.isEnabled()).isEqualTo(isBlockStreamEnabled);
         assertThat(recordDownloaderProperties.isEnabled()).isEqualTo(isRecordStreamEnabled);
     }
 
     @Test
-    void shouldGetStreamThrowsWithInvalidType() {
-        assertThatThrownBy(() -> cutoverService.shouldGetStream(null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> cutoverService.shouldGetStream(StreamType.BALANCE))
+    void isActiveThrowsWithInvalidType() {
+        assertThatThrownBy(() -> cutoverService.isActive(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> cutoverService.isActive(StreamType.BALANCE))
                 .isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(recordFileRepository);
     }
@@ -225,7 +222,7 @@ final class CutoverServiceTest {
             false, true, false, false, true, other
             true, false, false, true, false, other
             """)
-    void shouldGetStreamWithoutCutover(
+    void isActiveWithoutCutover(
             final boolean isBlockStreamEnabled,
             final boolean isRecordStreamEnabled,
             final Boolean cutoverOverride,
@@ -239,8 +236,8 @@ final class CutoverServiceTest {
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
 
         // when, then
-        assertThat(cutoverService.shouldGetStream(StreamType.BLOCK)).isEqualTo(expectedShouldGetBlockStream);
-        assertThat(cutoverService.shouldGetStream(StreamType.RECORD)).isEqualTo(expectedShouldGetRecordStream);
+        assertThat(cutoverService.isActive(StreamType.BLOCK)).isEqualTo(expectedShouldGetBlockStream);
+        assertThat(cutoverService.isActive(StreamType.RECORD)).isEqualTo(expectedShouldGetRecordStream);
         verifyNoInteractions(recordFileRepository);
     }
 
@@ -253,6 +250,6 @@ final class CutoverServiceTest {
 
     private boolean verifyActiveStream(final StreamType activeType) {
         final var inactiveType = activeType == StreamType.BLOCK ? StreamType.RECORD : StreamType.BLOCK;
-        return cutoverService.shouldGetStream(activeType) && !cutoverService.shouldGetStream(inactiveType);
+        return cutoverService.isActive(activeType) && !cutoverService.isActive(inactiveType);
     }
 }

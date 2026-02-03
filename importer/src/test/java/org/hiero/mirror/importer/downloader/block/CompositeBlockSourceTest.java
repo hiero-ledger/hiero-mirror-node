@@ -52,13 +52,13 @@ final class CompositeBlockSourceTest {
                 blockNodeSubscriber,
                 BlockSourceType.FILE,
                 blockFileSource);
-        doReturn(true).when(cutoverService).shouldGetStream(StreamType.BLOCK);
+        doReturn(true).when(cutoverService).isActive(StreamType.BLOCK);
     }
 
     @Test
     void disabled() {
         // given
-        doReturn(false).when(cutoverService).shouldGetStream(StreamType.BLOCK);
+        doReturn(false).when(cutoverService).isActive(StreamType.BLOCK);
 
         // when
         source.get();

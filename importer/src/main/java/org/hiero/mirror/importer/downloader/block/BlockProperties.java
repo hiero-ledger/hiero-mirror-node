@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,10 @@ import org.springframework.validation.annotation.Validated;
 @RequiredArgsConstructor
 @Validated
 public class BlockProperties {
+
+    @DurationMin(seconds = 8)
+    @NotNull
+    private Duration cutoverThreshold = Duration.ofSeconds(8);
 
     private boolean enabled = false;
 

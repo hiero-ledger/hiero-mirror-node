@@ -52,7 +52,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
     protected void beforeEach() {
         super.beforeEach();
         setupRecordFiles(getRecordFileMap());
-        doReturn(true).when(cutoverService).shouldGetStream(StreamType.RECORD);
+        doReturn(true).when(cutoverService).isActive(StreamType.RECORD);
     }
 
     protected abstract Map<String, RecordFile> getRecordFileMap();

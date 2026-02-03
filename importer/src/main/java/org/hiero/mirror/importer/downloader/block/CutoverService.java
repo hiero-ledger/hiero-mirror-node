@@ -11,5 +11,5 @@ public interface CutoverService extends StreamFileNotifier {
 
     Optional<RecordFile> getLastRecordFile();
 
-    boolean shouldGetStream(StreamType streamType);
+    boolean isActive(StreamType streamType);
 }

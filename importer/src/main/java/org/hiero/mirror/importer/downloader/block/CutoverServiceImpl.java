@@ -32,7 +32,7 @@ import org.springframework.core.annotation.Order;
 @NullMarked
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
 @RequiredArgsConstructor
-public final class CutoverServiceImpl implements CutoverService {
+final class CutoverServiceImpl implements CutoverService {
 
     private final BlockProperties blockProperties;
     private final AtomicLong lastSwitchedOrVerified = new AtomicLong();
@@ -43,7 +43,6 @@ public final class CutoverServiceImpl implements CutoverService {
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Optional<RecordFile> firstRecordFile = findFirst();
 
-    private boolean configWarningLogged = false;
     private StreamType currentType = RECORD;
 
     @Override
@@ -56,7 +55,7 @@ public final class CutoverServiceImpl implements CutoverService {
     }
 
     @Override
-    public synchronized boolean shouldGetStream(final StreamType streamType) {
+    public synchronized boolean isActive(final StreamType streamType) {
         if (streamType != BLOCK && streamType != RECORD) {
             throw new IllegalArgumentException("StreamType must be BLOCK or RECORD");
         }
@@ -74,7 +73,7 @@ public final class CutoverServiceImpl implements CutoverService {
         final boolean isLastBlockStream = isBlockStream(getLastRecordFile());
         if (isLastBlockStream) {
             final boolean isCutoverCompleted = isRecordStream(getFirstRecordFile());
-            if (!blockProperties.isEnabled() && !configWarningLogged && isCutoverCompleted) {
+            if (!blockProperties.isEnabled() && isCutoverCompleted) {
                 final var network = recordDownloaderProperties
                         .getCommon()
                         .getImporterProperties()
@@ -82,7 +81,6 @@ public final class CutoverServiceImpl implements CutoverService {
                 log.warn(
                         "Cutover has completed for network {}, please set hiero.mirror.importer.block.enabled=true and restart",
                         network);
-                configWarningLogged = true;
 
                 blockProperties.setEnabled(true);
                 recordDownloaderProperties.setEnabled(false);
@@ -98,11 +96,7 @@ public final class CutoverServiceImpl implements CutoverService {
 
             // When blockstream is disabled, recordstream is enabled, and the network expects a cutover
             final long elapsed = System.currentTimeMillis() - lastSwitchedOrVerified.get();
-            if (elapsed
-                    >= recordDownloaderProperties
-                            .getCommon()
-                            .getCutoverThreshold()
-                            .toMillis()) {
+            if (elapsed >= blockProperties.getCutoverThreshold().toMillis()) {
                 final var nextType = currentType == BLOCK ? RECORD : BLOCK;
                 log.info("Switching from {} to {}", currentType, nextType);
                 currentType = nextType;
