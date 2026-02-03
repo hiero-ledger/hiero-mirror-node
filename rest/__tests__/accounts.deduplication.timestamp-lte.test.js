@@ -365,6 +365,7 @@ describe('Accounts deduplicate timestamp lte tests', () => {
         alias: 'KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ',
         created_timestamp: null,
         decline_reward: false,
+        delegation_address: '0x',
         deleted: false,
         ethereum_nonce: null,
         evm_address: '0x0000000000000000000000000000000000000008',
