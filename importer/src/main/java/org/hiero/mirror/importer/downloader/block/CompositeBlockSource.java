@@ -24,11 +24,11 @@ final class CompositeBlockSource implements BlockSource {
     private final CutoverService cutoverService;
     private final BlockProperties properties;
 
-    public CompositeBlockSource(
-            BlockFileSource blockFileSource,
-            BlockNodeSubscriber blockNodeSubscriber,
-            CutoverService cutoverService,
-            BlockProperties properties) {
+    CompositeBlockSource(
+            final BlockFileSource blockFileSource,
+            final BlockNodeSubscriber blockNodeSubscriber,
+            final CutoverService cutoverService,
+            final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);

@@ -35,8 +35,8 @@ import org.springframework.core.annotation.Order;
 final class CutoverServiceImpl implements CutoverService {
 
     private final BlockProperties blockProperties;
-    private final AtomicLong lastSwitchedOrVerified = new AtomicLong();
     private final AtomicReference<Optional<RecordFile>> lastRecordFile = new AtomicReference<>(Optional.empty());
+    private final AtomicLong lastSwitchedOrVerified = new AtomicLong();
     private final RecordDownloaderProperties recordDownloaderProperties;
     private final RecordFileRepository recordFileRepository;
 
