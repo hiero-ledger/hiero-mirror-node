@@ -316,7 +316,7 @@ class SyntheticContractLogServiceImplTest {
         };
     }
 
-    private static record LogEntry(EntityId senderId, EntityId receiverId, long amount) {}
+    private record LogEntry(EntityId senderId, EntityId receiverId, long amount) {}
 
     /**
      * Creates a crypto transfer with multi-party token transfers based on transfer type.
@@ -502,7 +502,7 @@ class SyntheticContractLogServiceImplTest {
         };
     }
 
-    private static enum MultiPartyTransferType {
+    private enum MultiPartyTransferType {
         ONE_RECEIVER_TWO_SENDERS,
         ONE_RECEIVER_FOUR_SENDERS,
         PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT,
