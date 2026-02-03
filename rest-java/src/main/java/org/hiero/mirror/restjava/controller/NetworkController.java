@@ -30,8 +30,10 @@ import org.hiero.mirror.restjava.common.SupplyType;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
+import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
+import org.hiero.mirror.restjava.mapper.NetworkNodeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkSupplyMapper;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
@@ -92,8 +94,8 @@ final class NetworkController {
     private final NetworkService networkService;
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkSupplyMapper networkSupplyMapper;
-    private final org.hiero.mirror.restjava.mapper.NetworkNodeMapper networkNodeMapper;
-    private final org.hiero.mirror.restjava.mapper.CommonMapper commonMapper;
+    private final NetworkNodeMapper networkNodeMapper;
+    private final CommonMapper commonMapper;
 
     @GetMapping("/exchangerate")
     NetworkExchangeRateSetResponse getExchangeRate(

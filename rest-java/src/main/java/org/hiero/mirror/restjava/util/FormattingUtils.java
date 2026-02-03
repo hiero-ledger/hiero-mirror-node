@@ -67,21 +67,6 @@ public final class FormattingUtils {
     }
 
     /**
-     * Adds "0x" prefix to hex data from byte array.
-     *
-     * @param hexData byte array
-     * @return hex string with "0x" prefix
-     */
-    public static String addHexPrefix(byte[] hexData) {
-        if (hexData == null || hexData.length == 0) {
-            return HEX_PREFIX;
-        }
-
-        String hexString = bytesToHex(hexData);
-        return addHexPrefix(hexString);
-    }
-
-    /**
      * Converts byte array to hex string (without 0x prefix).
      *
      * @param bytes byte array

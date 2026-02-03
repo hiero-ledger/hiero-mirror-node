@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
@@ -17,7 +18,7 @@ import org.hiero.mirror.restjava.util.FormattingUtils;
  * Network node DTO representing network node API result.
  */
 @Data
-public class NetworkNodeDto {
+public final class NetworkNodeDto {
 
     private byte[] adminKey;
     private Boolean declineReward;
@@ -65,51 +66,49 @@ public class NetworkNodeDto {
             dto.setStakeRewarded(row.getStakeRewarded());
 
             // Format nodeAccountId as EntityId string (0.0.X format)
-            var nodeAccountId = row.getNodeAccountId();
+            final var nodeAccountId = row.getNodeAccountId();
             dto.setNodeAccountId(
                     nodeAccountId != null
                             ? EntityId.of(Long.parseLong(nodeAccountId)).toString()
                             : null);
 
             // Format publicKey with 0x prefix (database stores as hex string)
-            var publicKey = row.getPublicKey();
+            final var publicKey = row.getPublicKey();
             dto.setPublicKey(FormattingUtils.addHexPrefix(publicKey));
 
             // Convert nodeCertHash from byte[] to String and add 0x prefix
             // Database stores the hex string as bytes, so convert bytes to string first
-            var nodeCertHash = row.getNodeCertHash();
-            var nodeCertHashStr = nodeCertHash != null && nodeCertHash.length > 0
+            final var nodeCertHash = row.getNodeCertHash();
+            final var nodeCertHashStr = nodeCertHash != null && nodeCertHash.length > 0
                     ? new String(nodeCertHash, java.nio.charset.StandardCharsets.UTF_8)
                     : null;
             dto.setNodeCertHash(FormattingUtils.addHexPrefix(nodeCertHashStr));
 
             // Parse grpc_proxy_endpoint JSON (JSONB column stored as string)
-            var grpcProxyEndpointJson = row.getGrpcProxyEndpoint();
+            final var grpcProxyEndpointJson = row.getGrpcProxyEndpoint();
             if (grpcProxyEndpointJson != null && !grpcProxyEndpointJson.isEmpty()) {
-                var grpcProxyEndpoint = objectMapper.readValue(grpcProxyEndpointJson, ServiceEndpoint.class);
+                final var grpcProxyEndpoint = objectMapper.readValue(grpcProxyEndpointJson, ServiceEndpoint.class);
                 dto.setGrpcProxyEndpoint(grpcProxyEndpoint);
             } else {
                 dto.setGrpcProxyEndpoint(null);
             }
 
             // Parse service endpoints JSON
-            var serviceEndpointsJson = row.getServiceEndpoints();
-            var serviceEndpoints =
+            final var serviceEndpointsJson = row.getServiceEndpoints();
+            final var serviceEndpoints =
                     objectMapper.readValue(serviceEndpointsJson, new TypeReference<List<ServiceEndpoint>>() {});
             dto.setServiceEndpoints(serviceEndpoints);
 
             // Set staking period from staking period timestamp
+            final var stakingPeriod = new TimestampRangeNullable();
             dto.setStakingPeriod(FormattingUtils.getStakingPeriod(row.getStakingPeriod()));
 
             // Set timestamp range from address book start/end timestamps
-            if (row.getStartConsensusTimestamp() != null) {
-                var timestamp = new TimestampRange();
-                timestamp.setFrom(FormattingUtils.nsToSecNs(row.getStartConsensusTimestamp()));
-                if (row.getEndConsensusTimestamp() != null) {
-                    timestamp.setTo(FormattingUtils.nsToSecNs(row.getEndConsensusTimestamp()));
-                }
-                dto.setTimestamp(timestamp);
-            }
+            final var timestamp = new TimestampRange();
+            timestamp.setFrom(DomainUtils.toTimestamp(row.getStartConsensusTimestamp()));
+            row.getEndConsensusTimestamp();
+            timestamp.setTo(DomainUtils.toTimestamp(row.getEndConsensusTimestamp()));
+            dto.setTimestamp(timestamp);
 
             return dto;
         } catch (Exception e) {

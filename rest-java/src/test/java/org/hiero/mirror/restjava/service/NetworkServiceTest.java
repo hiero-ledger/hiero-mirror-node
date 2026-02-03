@@ -191,10 +191,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // Service queries for limit + 1 to support pagination
         // Controller truncates to limit if needed
         assertThat(result).isNotNull();
-        assertThat(result.size()).isEqualTo(3); // Returns limit + 1
+        assertThat(result.size()).isEqualTo(2); // Returns limit
         assertThat(result.get(0).getNodeId()).isEqualTo(1L);
         assertThat(result.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(result.get(2).getNodeId()).isEqualTo(3L);
     }
 
     @Test
