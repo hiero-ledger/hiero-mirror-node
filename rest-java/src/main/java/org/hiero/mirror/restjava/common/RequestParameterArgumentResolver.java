@@ -3,6 +3,7 @@
 package org.hiero.mirror.restjava.common;
 
 import java.lang.reflect.Field;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -161,8 +162,11 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             }
         }
 
-        // Add to property values - WebDataBinder will handle type conversion and arrays
-        Object valueToSet = field.getType().isArray() ? paramValues : paramValues[0];
+        // Add to property values - WebDataBinder will handle type conversion and arrays/collections
+        // For arrays or Collections (List, Set, etc.), pass all values; otherwise just the first
+        Object valueToSet = (field.getType().isArray() || Collection.class.isAssignableFrom(field.getType()))
+                ? paramValues
+                : paramValues[0];
         propertyValues.add(field.getName(), valueToSet);
     }
 

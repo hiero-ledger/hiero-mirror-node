@@ -64,7 +64,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     private final RestJavaProperties properties;
 
     @Bean
-    @SuppressWarnings("java:S5122") // Make sure that enabling CORS is safe here.
+    @SuppressWarnings("java:S5122")
+    // Make sure that enabling CORS is safe here.
     WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
@@ -87,6 +88,12 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         final var detail = "Failed to convert '%s'".formatted(e.getPropertyName());
         var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, detail);
         return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
+    }
+
+    @ExceptionHandler(org.springframework.validation.BindException.class)
+    private ResponseEntity<Object> bindException(
+            final org.springframework.validation.BindException e, final WebRequest request) {
+        return handleExceptionInternal(e, null, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({
@@ -167,7 +174,9 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         var detail = error.getDefaultMessage();
 
         if (error instanceof FieldError fieldError) {
-            detail = fieldError.getField() + " field " + fieldError.getDefaultMessage();
+            // Convert field name from camelCase to dot notation (e.g., nodeId -> node.id)
+            var paramName = camelCaseToParameterName(fieldError.getField());
+            detail = "Invalid parameter: " + paramName;
         } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
             detail = messageSource.getMessage(resolvable, Locale.getDefault());
         }
@@ -175,6 +184,11 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new ErrorStatusMessagesInner()
                 .message(BAD_REQUEST.getReasonPhrase())
                 .detail(detail);
+    }
+
+    private String camelCaseToParameterName(String fieldName) {
+        // Convert camelCase to dot notation: nodeId -> node.id, fileId -> file.id
+        return fieldName.replaceAll("([a-z])([A-Z])", "$1.$2").toLowerCase();
     }
 
     private static class ErrorMessageSource extends StaticMessageSource {

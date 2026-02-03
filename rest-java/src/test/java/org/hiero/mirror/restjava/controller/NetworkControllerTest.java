@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.restjava.controller;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -24,6 +24,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -687,6 +688,9 @@ final class NetworkControllerTest extends ControllerTest {
 
         private static final long BALANCE_PER_ACCOUNT = 1_000_000 * DomainUtils.TINYBARS_IN_ONE_HBAR;
 
+        @Getter(lazy = true)
+        private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
+
         @Override
         protected String getUrl() {
             return "network/supply";
@@ -975,9 +979,6 @@ final class NetworkControllerTest extends ControllerTest {
             }
         }
 
-        @Getter(lazy = true)
-        private final Set<Long> unreleasedSupplyAccountIds = createUnreleasedSupplyAccountIds();
-
         private Set<Long> createUnreleasedSupplyAccountIds() {
             final var commonProperties = CommonProperties.getInstance();
             final var shard = commonProperties.getShard();
@@ -991,6 +992,519 @@ final class NetworkControllerTest extends ControllerTest {
             }
 
             return accountIds;
+        }
+    }
+
+    @DisplayName("GET /api/v1/network/nodes")
+    @Nested
+    final class NodesEndpointTest extends EndpointTest {
+
+        @Override
+        protected String getUrl() {
+            return "network/nodes";
+        }
+
+        @Override
+        protected RequestHeadersSpec<?> defaultRequest(RequestHeadersUriSpec<?> uriSpec) {
+            setupNetworkNodeData();
+            return uriSpec.uri("");
+        }
+
+        @Test
+        void success() {
+            // given
+            var nodes = setupNetworkNodeData();
+
+            // when
+            final var actual =
+                    restClient.get().uri("").retrieve().body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(3);
+            assertThat(actual.getLinks()).isNotNull();
+            assertThat(actual.getLinks().getNext()).isNull(); // All results fit in one page
+        }
+
+        @Test
+        void withFileId() {
+            // given
+            var timestamp = domainBuilder.timestamp();
+            var addressBook = domainBuilder
+                    .addressBook()
+                    .customize(ab -> ab.startConsensusTimestamp(timestamp))
+                    .persist();
+            var fileId = addressBook.getFileId().getId();
+
+            // Create 3 network nodes linked to this address book
+            domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
+                    .persist();
+            domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(2L))
+                    .persist();
+            domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(3L))
+                    .persist();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?file.id=" + fileId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(3);
+        }
+
+        @Test
+        void withNodeIdEquality() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(1).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getNodes().get(0).getNodeId()).isEqualTo(nodeId);
+        }
+
+        @Test
+        void withNodeIdEqualityOperator() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(0).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=eq:" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getNodes().get(0).getNodeId()).isEqualTo(nodeId);
+        }
+
+        @Test
+        void withNodeIdGreaterThan() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(0).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=gt:" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .allSatisfy(node -> assertThat(node.getNodeId()).isGreaterThan(nodeId));
+        }
+
+        @Test
+        void withNodeIdGreaterThanOrEqual() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(1).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=gte:" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .allSatisfy(node -> assertThat(node.getNodeId()).isGreaterThanOrEqualTo(nodeId));
+        }
+
+        @Test
+        void withNodeIdLessThan() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(2).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=lt:" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .allSatisfy(node -> assertThat(node.getNodeId()).isLessThan(nodeId));
+        }
+
+        @Test
+        void withNodeIdLessThanOrEqual() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId = nodes.get(1).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=lte:" + nodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .allSatisfy(node -> assertThat(node.getNodeId()).isLessThanOrEqualTo(nodeId));
+        }
+
+        @Test
+        void withNodeIdRange() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var minNodeId = nodes.get(0).getNodeId();
+            var maxNodeId = nodes.get(1).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=gte:" + minNodeId + "&node.id=lte:" + maxNodeId)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes()).allSatisfy(node -> assertThat(node.getNodeId())
+                    .isGreaterThanOrEqualTo(minNodeId)
+                    .isLessThanOrEqualTo(maxNodeId));
+        }
+
+        @Test
+        void withNodeIdMultipleEquality() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId1 = nodes.get(0).getNodeId();
+            var nodeId2 = nodes.get(2).getNodeId();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=" + nodeId1 + "&node.id=" + nodeId2)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .extracting(org.hiero.mirror.rest.model.NetworkNode::getNodeId)
+                    .containsExactlyInAnyOrder(nodeId1, nodeId2);
+        }
+
+        @Test
+        void withNodeIdCombinedEqualityAndRange() {
+            // given
+            var nodes = setupNetworkNodeData();
+            var nodeId2 = nodes.get(1).getNodeId();
+            var nodeId3 = nodes.get(2).getNodeId();
+
+            // when - combining equality and range filters (AND logic)
+            // node.id=2&node.id=3&node.id=gte:2 should match nodes 2 and 3 (both in equality set AND >= 2)
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=" + nodeId2 + "&node.id=" + nodeId3 + "&node.id=gte:" + nodeId2)
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then - should return nodes matching equality AND range
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getNodes())
+                    .extracting(org.hiero.mirror.rest.model.NetworkNode::getNodeId)
+                    .containsExactlyInAnyOrder(nodeId2, nodeId3);
+        }
+
+        @Test
+        void withLimitParameter() {
+            // given
+            setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=2")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(2);
+            assertThat(actual.getLinks()).isNotNull();
+            assertThat(actual.getLinks().getNext()).isNotNull(); // More results available
+        }
+
+        @Test
+        void withOrderAsc() {
+            // given
+            var nodes = setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?order=asc")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(3);
+            assertThat(actual.getNodes().get(0).getNodeId())
+                    .isEqualTo(nodes.get(0).getNodeId());
+            assertThat(actual.getNodes().get(1).getNodeId())
+                    .isEqualTo(nodes.get(1).getNodeId());
+            assertThat(actual.getNodes().get(2).getNodeId())
+                    .isEqualTo(nodes.get(2).getNodeId());
+        }
+
+        @Test
+        void withOrderDesc() {
+            // given
+            var nodes = setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?order=desc")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(3);
+            assertThat(actual.getNodes().get(0).getNodeId())
+                    .isEqualTo(nodes.get(2).getNodeId());
+            assertThat(actual.getNodes().get(1).getNodeId())
+                    .isEqualTo(nodes.get(1).getNodeId());
+            assertThat(actual.getNodes().get(2).getNodeId())
+                    .isEqualTo(nodes.get(0).getNodeId());
+        }
+
+        @Test
+        void emptyResults() {
+            // given
+            setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=99999")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().isEmpty();
+            assertThat(actual.getLinks()).isNotNull();
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void singleResult() {
+            // given
+            var nodes = setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?node.id=" + nodes.get(0).getNodeId())
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getLinks().getNext()).isNull();
+        }
+
+        @Test
+        void exactlyLimitResults() {
+            // given
+            setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=3")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(3);
+            // Next link is present even when we got exactly the limit (standard pagination behavior)
+            // The next page will return empty results if there are no more items
+            assertThat(actual.getLinks().getNext()).isNotNull();
+        }
+
+        @Test
+        void invalidFileIdParameter() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?file.id=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: file.id");
+        }
+
+        @Test
+        void invalidNodeIdParameter() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?node.id=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: node.id");
+        }
+
+        @Test
+        void invalidOrderParameter() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?order=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: order");
+        }
+
+        @Test
+        void invalidLimitParameter() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?limit=invalid").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: limit");
+        }
+
+        @Test
+        void notFoundWithInvalidFileId() {
+            // given
+            setupNetworkNodeData();
+
+            // when
+            final var actual = restClient
+                    .get()
+                    .uri("?file.id=0.0.99999")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then - should return empty results
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().isEmpty();
+        }
+
+        @Test
+        void paginationNextLink() {
+            // given
+            var nodes = setupNetworkNodeData();
+
+            // when - request with limit smaller than total results
+            final var actual = restClient
+                    .get()
+                    .uri("?limit=1")
+                    .retrieve()
+                    .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().hasSize(1);
+            assertThat(actual.getLinks().getNext()).isNotNull().contains("node.id");
+        }
+
+        @Test
+        void allFieldsPopulated() {
+            // given
+            setupNetworkNodeData();
+
+            // when
+            final var actual =
+                    restClient.get().uri("").retrieve().body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
+
+            // then
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNodes()).isNotNull().isNotEmpty();
+            var firstNode = actual.getNodes().get(0);
+            assertThat(firstNode.getNodeId()).isNotNull();
+            assertThat(firstNode.getNodeAccountId()).isNotNull();
+            assertThat(firstNode.getFileId()).isNotNull();
+            assertThat(firstNode.getTimestamp()).isNotNull();
+            assertThat(firstNode.getPublicKey()).isNotNull();
+            assertThat(firstNode.getServiceEndpoints()).isNotNull();
+        }
+
+        private List<AddressBookEntry> setupNetworkNodeData() {
+            var timestamp = domainBuilder.timestamp();
+            var addressBook = domainBuilder
+                    .addressBook()
+                    .customize(ab -> ab.startConsensusTimestamp(timestamp))
+                    .persist();
+
+            // Create 3 network nodes with different node IDs
+            var entry1 = domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(1L))
+                    .persist();
+            var entry2 = domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(2L))
+                    .persist();
+            var entry3 = domainBuilder
+                    .addressBookEntry(2)
+                    .customize(e -> e.consensusTimestamp(timestamp).nodeId(3L))
+                    .persist();
+
+            // Add corresponding node stake data
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(2L)).persist();
+            domainBuilder.nodeStake().customize(ns -> ns.nodeId(3L)).persist();
+
+            // Add corresponding node data
+            domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
+            domainBuilder.node().customize(n -> n.nodeId(2L)).persist();
+            domainBuilder.node().customize(n -> n.nodeId(3L)).persist();
+
+            return List.of(entry1, entry2, entry3);
         }
     }
 }

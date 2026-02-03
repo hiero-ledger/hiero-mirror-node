@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.dto;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.restjava.common.RestJavaQueryParam;
+import org.hiero.mirror.restjava.parameter.EntityIdEqualParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -14,8 +15,8 @@ import org.springframework.data.domain.Sort.Direction;
 @Data
 public class NetworkNodeRequest {
 
-    @RestJavaQueryParam(name = "file.id", defaultValue = "102", required = false)
-    long fileId;
+    @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "0.0.102")
+    EntityIdEqualParameter fileId;
 
     @RestJavaQueryParam(name = "node.id", required = false)
     List<EntityIdRangeParameter> nodeId;
