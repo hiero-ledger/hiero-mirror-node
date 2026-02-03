@@ -23,7 +23,7 @@ jobs:
       target_cluster_name: "mainnet-staging-na"
       target_default_pool: "mainnet-staging-na"
       target_project: "nonprod"
-      teardown_target: true
+      teardown_target: false
     secrets:
       GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID: ${{ secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID }}
       GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
