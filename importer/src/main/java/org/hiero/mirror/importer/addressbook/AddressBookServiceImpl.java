@@ -55,6 +55,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
 
@@ -542,17 +543,19 @@ public class AddressBookServiceImpl implements AddressBookService {
     private FileData getInitialAddressBookFileData() {
         byte[] addressBookBytes;
 
-        // retrieve bootstrap address book from filesystem or classpath
         try {
             Path initialAddressBook = importerProperties.getInitialAddressBook();
             if (initialAddressBook != null) {
                 log.info("Loading bootstrap address book from {}", initialAddressBook);
                 addressBookBytes = Files.readAllBytes(initialAddressBook);
             } else {
-                var resourcePath = String.format("/addressbook/%s", importerProperties.getNetwork());
-                log.info("Loading bootstrap address book from {}", resourcePath);
-                Resource resource = new ClassPathResource(resourcePath, getClass());
-                addressBookBytes = resource.getInputStream().readAllBytes();
+                final var resourcePath = resolveBootstrapAddressBookResourcePath();
+                log.info("Loading bootstrap address book from classpath:/{}", resourcePath);
+
+                final var resource = new ClassPathResource(resourcePath);
+                try (final var in = resource.getInputStream()) {
+                    addressBookBytes = in.readAllBytes();
+                }
             }
 
             log.info("Loaded bootstrap address book of {} B", addressBookBytes.length);
@@ -562,6 +565,59 @@ public class AddressBookServiceImpl implements AddressBookService {
 
         return new FileData(
                 0L, addressBookBytes, systemEntity.addressBookFile102(), TransactionType.FILECREATE.getProtoId());
+    }
+
+    private String resolveBootstrapAddressBookResourcePath() throws IOException {
+        final var targetNanos = importerProperties.getStartDate() != null
+                ? DomainUtils.convertToNanosMax(importerProperties.getStartDate())
+                : DomainUtils.convertToNanosMax(Instant.now());
+
+        final var network = importerProperties.getNetwork();
+        final var prefix = network + "-";
+        final var resolver = new PathMatchingResourcePatternResolver(getClass().getClassLoader());
+        final var resources = resolver.getResources("classpath:/addressbook/" + network + "*");
+
+        long bestTs = -1L;
+        String bestTimestamped = null;
+
+        for (Resource r : resources) {
+            final var filename = r.getFilename();
+            if (filename == null) {
+                continue;
+            }
+
+            if (!filename.startsWith(prefix)) {
+                continue;
+            }
+
+            final var tsPart = filename.substring(prefix.length());
+            if (tsPart.isBlank() || !tsPart.chars().allMatch(Character::isDigit)) {
+                continue;
+            }
+
+            final var ts = Long.parseLong(tsPart);
+            if (ts <= targetNanos && ts > bestTs) {
+                bestTs = ts;
+                bestTimestamped = "addressbook/" + filename;
+            }
+        }
+
+        if (bestTimestamped != null) {
+            log.info(
+                    "Selected timestamped bootstrap address book '{}' (chosenTs={} targetTs={})",
+                    bestTimestamped,
+                    bestTs,
+                    targetNanos);
+            return bestTimestamped;
+        }
+
+        final var plain = "addressbook/" + network;
+        log.info(
+                "Selected default bootstrap address book '{}' (no timestamped file <= targetTs={})",
+                plain,
+                targetNanos);
+
+        return plain;
     }
 
     /**

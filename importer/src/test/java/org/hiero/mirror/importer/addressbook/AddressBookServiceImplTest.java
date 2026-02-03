@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -68,7 +69,9 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     private static final int TEST_INITIAL_ADDRESS_BOOK_NODE_COUNT = 4;
     private static final String BASE_ACCOUNT_ID = "0.0.";
     private static final int BASE_PORT = 50211;
+    private static final long T1 = 1767117600294393897L;
     private static byte[] initialAddressBookBytes;
+    private static byte[] initialAddressBookBytesT1;
 
     private final AddressBookEntryRepository addressBookEntryRepository;
     private final AddressBookRepository addressBookRepository;
@@ -86,6 +89,12 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
     @Value("classpath:addressbook")
     private Path testPath;
+
+    private static Instant instantFromNanos(long epochNanos) {
+        final var seconds = Math.floorDiv(epochNanos, 1_000_000_000L);
+        final var nanos = Math.floorMod(epochNanos, 1_000_000_000L);
+        return Instant.ofEpochSecond(seconds, nanos);
+    }
 
     @SuppressWarnings("deprecation")
     private static NodeAddressBook addressBook(int size, int endPointSize) {
@@ -124,6 +133,8 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
         Path addressBookPath =
                 ResourceUtils.getFile("classpath:addressbook/testnet").toPath();
         initialAddressBookBytes = Files.readAllBytes(addressBookPath);
+        initialAddressBookBytesT1 = Files.readAllBytes(
+                ResourceUtils.getFile("classpath:addressbook/testnet-" + T1).toPath());
     }
 
     @BeforeEach
@@ -1102,6 +1113,50 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
 
         addressBookService.refresh();
         assertNull(cacheManager.getCache(CACHE_NAME).get(SimpleKey.EMPTY));
+    }
+
+    @Test
+    void startupSelectsTimestampedAddressBookWhenAtOrAfterStartDate() {
+        // Given: a start date after T1
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setStartDate(instantFromNanos(T1 + 1));
+        importerProperties.setNetwork("TESTNET");
+
+        // When
+        final var addressBook = addressBookService.getCurrent();
+
+        // Then: fileData came from testnet-T1
+        assertThat(addressBook.getFileData()).isEqualTo(initialAddressBookBytesT1);
+        assertThat(addressBook.getStartConsensusTimestamp()).isEqualTo(1L);
+        assertEquals(1, addressBookRepository.count());
+    }
+
+    @Test
+    void startupFallsBackToPlainNetworkWhenNoTimestampedLessThanTarget() {
+        // Given: a start date before T1 so no timestamped file qualifies
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setStartDate(instantFromNanos(T1 - 1));
+        importerProperties.setNetwork("testnet");
+
+        // When
+        final var addressBook = addressBookService.getCurrent();
+
+        // Then: falls back to plain 'addressbook/testnet'
+        assertThat(addressBook.getFileData()).isEqualTo(initialAddressBookBytes);
+        assertThat(addressBook.getStartConsensusTimestamp()).isEqualTo(1L);
+        assertEquals(1, addressBookRepository.count());
+    }
+
+    @Test
+    void startupFailsWhenNoPlainOrTimestampedResourceExists() {
+        importerProperties.setInitialAddressBook(null);
+        importerProperties.setNetwork("does-not-exist");
+        importerProperties.setStartDate(instantFromNanos(T1));
+
+        assertThatThrownBy(addressBookService::getCurrent)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unable to load bootstrap address book")
+                .hasCauseInstanceOf(IOException.class);
     }
 
     private ServiceEndpoint getServiceEndpoint(String ip, Integer port) throws UnknownHostException {
