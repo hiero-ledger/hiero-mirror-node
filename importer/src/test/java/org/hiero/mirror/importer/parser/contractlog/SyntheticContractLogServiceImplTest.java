@@ -21,6 +21,7 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import java.util.ArrayList;
+import java.util.List;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -242,7 +243,8 @@ class SyntheticContractLogServiceImplTest {
 
     @Test
     @DisplayName(
-            "Should create equal number of synthetic contract logs for multi-party fungible token transfers with mixed order but matching pairs")
+            "Should create equal number of synthetic contract logs for multi-party fungible token transfers with mixed "
+                    + "order but matching pairs")
     void validateVariableTokenTransfersWithDifferentOrderButMatchingParisProduceEqualNumberOfEvents() {
         entityProperties.getPersist().setSyntheticContractLogsMulti(true);
         entityProperties.getPersist().setSyntheticContractLogs(true);
@@ -275,7 +277,7 @@ class SyntheticContractLogServiceImplTest {
 
         var contractLogCaptor = ArgumentCaptor.forClass(ContractLog.class);
         verify(entityListener, atLeast(1)).onContractLog(contractLogCaptor.capture());
-        var syntheticLogs = contractLogCaptor.getAllValues().stream()
+        final var syntheticLogs = contractLogCaptor.getAllValues().stream()
                 .filter(ContractLog::isSyntheticTransfer)
                 .toList();
 
@@ -286,7 +288,7 @@ class SyntheticContractLogServiceImplTest {
 
         var contractLogCaptor2 = ArgumentCaptor.forClass(ContractLog.class);
         verify(entityListener, atLeast(1)).onContractLog(contractLogCaptor2.capture());
-        var syntheticLogs2 = contractLogCaptor2.getAllValues().stream()
+        final var syntheticLogs2 = contractLogCaptor2.getAllValues().stream()
                 .filter(ContractLog::isSyntheticTransfer)
                 .toList();
 
@@ -301,17 +303,16 @@ class SyntheticContractLogServiceImplTest {
      */
     private int getExpectedLogCount(MultiPartyTransferType transferType) {
         return switch (transferType) {
-            case ONE_RECEIVER_TWO_SENDERS -> 2;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT -> 2;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER -> 2;
-            case PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 2;
-            case ONE_RECEIVER_FOUR_SENDERS -> 4;
+            case ONE_RECEIVER_TWO_SENDERS,
+                    PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT,
+                    PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_DIFFERENT_AMOUNT_MIXED_ORDER,
+                    PAIRED_SENDERS_AND_RECEIVERS_OF_TWO_PAIRS_WITH_THE_SAME_AMOUNT -> 2;
             case PAIRED_SENDERS_AND_RECEIVERS_OF_THREE_PAIRS -> 3;
-            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 6;
+            case ONE_RECEIVER_FOUR_SENDERS, THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 4;
+            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT,
+                    THREE_RECEIVERS_WITH_THE_SAME_AMOUNT,
+                    THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 6;
             case FOUR_RECEIVERS_WITH_DIFFERENT_AMOUNT -> 7;
-            case THREE_RECEIVERS_WITH_THE_SAME_AMOUNT -> 6;
-            case THREE_RECEIVERS_WITH_DIFFERENT_AMOUNT_DO_NOT_ZERO_SUM -> 6;
-            case THREE_RECEIVERS_INCLUDING_ZERO_SENT_AMOUNT -> 4;
         };
     }
 
@@ -341,6 +342,21 @@ class SyntheticContractLogServiceImplTest {
                     .build());
         }
 
+        populateTokenTransfersBasedOnType(transferType, tokenTransfers, accounts);
+
+        builder.record(r -> r.addTokenTransferLists(tokenTransfers));
+
+        return builder;
+    }
+
+    /**
+     * Populate the {@link TokenTransferList} with the necessary {@link AccountAmount} for senders and receivers
+     * based on the transfer type
+     * */
+    private void populateTokenTransfersBasedOnType(
+            final MultiPartyTransferType transferType,
+            final TokenTransferList.Builder tokenTransfers,
+            final List<AccountID> accounts) {
         switch (transferType) {
             case ONE_RECEIVER_TWO_SENDERS:
                 // [A=1000, B=-400, C=-600] => [[C=-600, A=600], [B=-400, A=400]]
@@ -458,10 +474,6 @@ class SyntheticContractLogServiceImplTest {
             default:
                 throw new IllegalArgumentException("Unsupported transfer type: " + transferType);
         }
-
-        builder.record(r -> r.addTokenTransferLists(tokenTransfers));
-
-        return builder;
     }
 
     /**

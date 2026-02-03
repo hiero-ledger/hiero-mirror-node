@@ -20,9 +20,9 @@ public class MultiPartyTransferEventsGenerator {
     private final SyntheticContractLogService syntheticContractLogService;
     private static final Comparator<AccountAmount> ACCOUNT_AMOUNT_COMPARATOR = Comparator.<AccountAmount>comparingLong(
                     e -> Math.abs(e.getAmount()))
-            .reversed() // amount DESC
-            .thenComparing(e -> e.getAccountID().getShardNum()) // shard ASC
-            .thenComparing(e -> e.getAccountID().getRealmNum()) // realm ASC
+            .reversed()
+            .thenComparing(e -> e.getAccountID().getShardNum())
+            .thenComparing(e -> e.getAccountID().getRealmNum())
             .thenComparing(
                     e -> e.getAccountID().hasAccountNum() ? e.getAccountID().getAccountNum() : 0L);
 
@@ -57,6 +57,7 @@ public class MultiPartyTransferEventsGenerator {
         AccountAmount receiver = null;
         var senderRemainingAmount = 0L;
         var receiverRemainingAmount = 0L;
+        var amountForSyntheticContractLog = 0L;
 
         while (s < senders.size() && r < receivers.size()) {
             if (sender == null) {
@@ -68,7 +69,7 @@ public class MultiPartyTransferEventsGenerator {
                 receiverRemainingAmount = receiver.getAmount();
             }
 
-            final var amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
+            amountForSyntheticContractLog = Math.min(senderRemainingAmount, receiverRemainingAmount);
 
             syntheticContractLogService.create(new TransferContractLog(
                     recordItem,

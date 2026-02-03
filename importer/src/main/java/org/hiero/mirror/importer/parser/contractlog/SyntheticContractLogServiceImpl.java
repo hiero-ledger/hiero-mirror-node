@@ -19,7 +19,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
     @Override
     public void create(SyntheticContractLog log) {
-        if ((isContract(log.getRecordItem()) && log.getRecordItem().parentHasContractLogs())
+        if (isContract(log.getRecordItem()) && log.getRecordItem().parentHasContractLogs()
                 || !entityProperties.getPersist().isSyntheticContractLogs()) {
             return;
         }

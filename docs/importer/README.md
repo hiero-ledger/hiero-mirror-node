@@ -55,10 +55,11 @@ is set to `true`. The logic for creating transfer pairs is deterministic and use
 1. The senders and receivers are split into 2 separate lists
 2. Each list is sorted by balance in DESC order and by AccountID in ASC order
 3. Senders and receivers are iterated. The minimum amount between sent amount and amount that should be received is taken.
-   It becomes the amount value for the synthetic contract log. It's deducted from sender's amount and the sender is being used
-   until they have enough sent amount. When the amount is exhausted, the sender is skipped and the next sender is used.
-   The receiver is being used until they have enough received amount. When the amount is exhausted, the receiver is skipped
-   and the next receiver is used. The process continues until there are no more senders or receivers left.
+   It becomes the amount value for the synthetic contract log. It's deducted from sender's amount and the sender is
+   being used until they have enough sent amount. When the amount is exhausted, the sender is skipped and the next
+   sender is used. The receiver is being used until they have enough received amount. When the amount is exhausted,
+   the receiver is skipped and the next receiver is used. The process continues until there are no more senders or
+   receivers left.
 
 ## Initialize Entity Balance
 

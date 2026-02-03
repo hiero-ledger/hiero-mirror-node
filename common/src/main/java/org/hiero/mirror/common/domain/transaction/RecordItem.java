@@ -224,7 +224,10 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Check if the recordItem has a parent and the parent has existing contract logs already present in the incoming stream
+     * Check if the recordItem has a parent and the parent has existing contract logs already present in the incoming
+     * stream
+     *
+     * @return whether the parent record item has contract logs
      * */
     public boolean parentHasContractLogs() {
         return parent != null
