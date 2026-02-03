@@ -4,11 +4,11 @@ package org.hiero.mirror.restjava.common;
 
 import java.lang.reflect.Field;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.hiero.mirror.restjava.exception.InvalidParameterCountException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
@@ -80,6 +80,9 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         // Validate - same as Spring's validation
         binder.validate();
 
+        // Check for unknown query parameters and add to binding result
+        addUnknownParameterErrors(metadata, webRequest, binder);
+
         // Throw BindException if there are validation errors (same as Spring)
         if (binder.getBindingResult().hasErrors()) {
             throw new BindException(binder.getBindingResult());
@@ -127,7 +130,7 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         String value = pathVariables != null ? pathVariables.get(variableName) : null;
 
         if (value == null && annotation.required()) {
-            throw new IllegalArgumentException("Missing required path variable: " + variableName);
+            throw new InvalidParameterCountException("Missing required path variable: " + variableName);
         }
 
         if (value != null) {
@@ -155,26 +158,53 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             if (!annotation.defaultValue().equals(ValueConstants.DEFAULT_NONE)) {
                 paramValues = new String[] {annotation.defaultValue()};
             } else if (annotation.required()) {
-                throw new IllegalArgumentException("Missing required request parameter: " + paramName);
+                throw new InvalidParameterCountException("Missing required request parameter: " + paramName);
             } else {
                 // No value, not required - skip (let @Builder.Default handle it)
                 return;
             }
         }
 
+        // Check if multiple values provided for single-value parameter
+        boolean isMultiValue = field.getType().isArray() || Collection.class.isAssignableFrom(field.getType());
+        if (!isMultiValue && paramValues != null && paramValues.length > 1) {
+            throw new InvalidParameterCountException("Only a single instance is supported for " + paramName);
+        }
+
         // Add to property values - WebDataBinder will handle type conversion and arrays/collections
         // For arrays or Collections (List, Set, etc.), pass all values; otherwise just the first
-        Object valueToSet = (field.getType().isArray() || Collection.class.isAssignableFrom(field.getType()))
-                ? paramValues
-                : paramValues[0];
+        Object valueToSet = isMultiValue ? paramValues : paramValues[0];
         propertyValues.add(field.getName(), valueToSet);
+    }
+
+    /**
+     * Validates that all query parameters in the request are known (defined in the DTO). Adds errors to the binding
+     * result for any unknown parameters.
+     */
+    private void addUnknownParameterErrors(
+            BindingMetadata metadata, NativeWebRequest webRequest, WebDataBinder binder) {
+        Map<String, String[]> allParams = webRequest.getParameterMap();
+
+        // Collect all known parameter names from annotations
+        var knownParams = metadata.queryParams.values().stream()
+                .map(annotation -> annotation.value().isEmpty() ? annotation.name() : annotation.value())
+                .filter(name -> !name.isEmpty())
+                .toList();
+
+        // Check for unknown parameters and add errors
+        for (String paramName : allParams.keySet()) {
+            if (!knownParams.contains(paramName)) {
+                binder.getBindingResult().reject("unknown.parameter", "Unknown query parameter: " + paramName);
+            }
+        }
     }
 
     /**
      * Metadata about parameter bindings for a DTO class. Cached to avoid reflection on every request.
      */
     private static class BindingMetadata {
-        final Map<Field, RestJavaQueryParam> queryParams = new HashMap<>();
-        final Map<Field, RestJavaPathParam> pathParams = new HashMap<>();
+        // Use LinkedHashMap to preserve field declaration order
+        final Map<Field, RestJavaQueryParam> queryParams = new java.util.LinkedHashMap<>();
+        final Map<Field, RestJavaPathParam> pathParams = new java.util.LinkedHashMap<>();
     }
 }

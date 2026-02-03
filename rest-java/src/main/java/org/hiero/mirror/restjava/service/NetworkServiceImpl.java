@@ -90,7 +90,8 @@ final class NetworkServiceImpl implements NetworkService {
         // fileId has a default value of 102, so it's always present
         final var fileId = request.getFileId().entityId().getId();
         final var order = request.getOrder().name();
-        final var limit = request.getLimit();
+        // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
+        final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeId();
 
         // Create two sets: equality operators and range operators
@@ -111,7 +112,8 @@ final class NetworkServiceImpl implements NetworkService {
         // Always calculate range bounds (defaults to 0L and Long.MAX_VALUE if no range parameters)
         var rangeBounds = combineOverlappingRanges(rangeSet);
 
-        // Call repository method with order direction
+        // Query for exact limit (not limit+1) to match Node.js behavior
+        // Pagination link is generated when results.size() == limit (optimistic pagination)
         var results = networkNodeRepository.findNetworkNodes(
                 fileId, equalitySet, rangeBounds.getLeft(), rangeBounds.getRight(), order, limit);
 

@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.InstanceOfAssertFactories.list;
 
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
@@ -66,23 +65,41 @@ abstract class ControllerTest extends RestJavaIntegrationTest {
     protected final void validateError(
             ThrowableAssert.ThrowingCallable callable,
             Class<? extends HttpClientErrorException> clazz,
-            String... detail) {
+            String... expectedMessages) {
         AtomicReference<HttpClientErrorException> e = new AtomicReference<>();
+        AtomicReference<java.util.List<ErrorStatusMessagesInner>> messagesRef = new AtomicReference<>();
+
         assertThatThrownBy(callable)
                 .isInstanceOf(clazz)
                 .asInstanceOf(InstanceOfAssertFactories.type(clazz))
                 .satisfies(e::set)
-                .extracting(
-                        r -> r.getResponseBodyAs(Error.class).getStatus().getMessages(),
-                        list(ErrorStatusMessagesInner.class))
-                .hasSize(detail.length)
-                .allSatisfy(error -> assertThat(error.getData()).isNull())
-                .allSatisfy(error -> assertThat(error.getMessage())
-                        .isEqualTo(HttpStatus.resolve(e.get().getStatusCode().value())
-                                .getReasonPhrase()))
-                .extracting(ErrorStatusMessagesInner::getDetail)
-                .asInstanceOf(InstanceOfAssertFactories.list(String.class))
-                .contains(detail);
+                .satisfies(ex -> {
+                    var errorResponse = ex.getResponseBodyAs(Error.class);
+                    messagesRef.set(errorResponse.getStatus().getMessages());
+                });
+
+        var messagesList = messagesRef.get();
+        assertThat(messagesList).hasSize(expectedMessages.length);
+        assertThat(messagesList).allSatisfy(error -> assertThat(error.getData()).isNull());
+
+        // Check if this is a validation error (detail is null, message contains actual error)
+        // or a non-validation error (message is HTTP reason phrase, detail contains actual error)
+        var firstMsg = messagesList.get(0);
+        if (firstMsg.getDetail() != null) {
+            // Non-validation error: check detail field and message is HTTP reason phrase
+            assertThat(messagesList)
+                    .allSatisfy(error -> assertThat(error.getMessage())
+                            .isEqualTo(
+                                    HttpStatus.resolve(e.get().getStatusCode().value())
+                                            .getReasonPhrase()))
+                    .extracting(ErrorStatusMessagesInner::getDetail)
+                    .contains(expectedMessages);
+        } else {
+            // Validation error: check message field only
+            assertThat(messagesList)
+                    .extracting(ErrorStatusMessagesInner::getMessage)
+                    .contains(expectedMessages);
+        }
     }
 
     protected abstract class RestTest {

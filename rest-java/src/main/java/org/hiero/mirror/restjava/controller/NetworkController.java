@@ -54,11 +54,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class NetworkController {
 
+    static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
     private static final String NODE_ID = "node.id";
     private static final Function<NetworkNode, Map<String, String>> NETWORK_NODE_EXTRACTOR =
             node -> ImmutableSortedMap.of(NODE_ID, node.getNodeId().toString());
-
-    static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
 
     static {
         final var feeExtra = new FeeExtra();
@@ -157,17 +156,21 @@ final class NetworkController {
 
     @GetMapping("/nodes")
     org.hiero.mirror.rest.model.NetworkNodesResponse getNodes(@RequestParameter NetworkNodeRequest request) {
-        var networkNodeDtos = networkService.getNetworkNodes(request);
+        final var networkNodeDtos = networkService.getNetworkNodes(request);
+        // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
+        final var limit = request.getEffectiveLimit();
 
         // Map DTOs to response model
-        var networkNodes = networkNodeDtos.stream()
+        final var networkNodes = networkNodeDtos.stream()
                 .map(dto -> networkNodeMapper.map(dto, commonMapper))
                 .toList();
 
         // Create pagination links using LinkFactory
-        var sort = Sort.by(request.getOrder(), NODE_ID);
-        var pageable = PageRequest.of(0, request.getLimit(), sort);
-        var links = linkFactory.create(networkNodes, pageable, NETWORK_NODE_EXTRACTOR);
+        // Matches Node.js behavior: generate next link when results.size() == limit (optimistic pagination)
+        // No link when results.size() < limit (definitively at the end)
+        final var sort = Sort.by(request.getOrder(), NODE_ID);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(networkNodes, pageable, NETWORK_NODE_EXTRACTOR);
 
         return networkNodeMapper.mapToResponse(networkNodes, links);
     }

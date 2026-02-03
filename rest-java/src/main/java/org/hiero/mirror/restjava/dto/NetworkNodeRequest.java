@@ -15,15 +15,26 @@ import org.springframework.data.domain.Sort.Direction;
 @Data
 public class NetworkNodeRequest {
 
+    public static final int MAX_LIMIT = 25;
+    public static final int DEFAULT_LIMIT = 10;
+
     @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "0.0.102")
     EntityIdEqualParameter fileId;
 
     @RestJavaQueryParam(name = "node.id", required = false)
     List<EntityIdRangeParameter> nodeId;
 
-    @RestJavaQueryParam(name = "limit", defaultValue = "25")
+    @RestJavaQueryParam(name = "limit", defaultValue = "10")
     int limit;
 
     @RestJavaQueryParam(name = "order", defaultValue = "ASC")
     Direction order;
+
+    /**
+     * Gets the effective limit, capped at MAX_LIMIT.
+     * Matches rest module behavior where limit is capped at 25 for network nodes.
+     */
+    public int getEffectiveLimit() {
+        return Math.min(limit, MAX_LIMIT);
+    }
 }

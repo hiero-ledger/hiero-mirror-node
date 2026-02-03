@@ -21,6 +21,7 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.exception.InvalidParameterCountException;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
@@ -96,6 +97,15 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, null, null, BAD_REQUEST, request);
     }
 
+    @ExceptionHandler(InvalidParameterCountException.class)
+    private ResponseEntity<Object> invalidParameter(final InvalidParameterCountException e, final WebRequest request) {
+        // For InvalidParameterException, use the exception message directly as the error message
+        // This exception is specifically thrown for parameter validation errors
+        var error = errorResponse(e.getMessage(), null);
+        request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
+        return new ResponseEntity<>(error, null, BAD_REQUEST);
+    }
+
     @ExceptionHandler({
         HttpMessageConversionException.class,
         IllegalArgumentException.class,
@@ -164,26 +174,28 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     private Error errorResponse(final String message, final String detail) {
         var errorMessage = new ErrorStatusMessagesInner();
-        errorMessage.setDetail(detail);
         errorMessage.setMessage(message);
+        if (StringUtils.isNotBlank(detail)) {
+            errorMessage.setDetail(detail);
+        }
         var errorStatus = new ErrorStatus().addMessagesItem(errorMessage);
         return new Error().status(errorStatus);
     }
 
     private ErrorStatusMessagesInner formatErrorMessage(MessageSourceResolvable error) {
-        var detail = error.getDefaultMessage();
+        var message = error.getDefaultMessage();
 
         if (error instanceof FieldError fieldError) {
             // Convert field name from camelCase to dot notation (e.g., nodeId -> node.id)
             var paramName = camelCaseToParameterName(fieldError.getField());
-            detail = "Invalid parameter: " + paramName;
+            message = "Invalid parameter: " + paramName;
         } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
-            detail = messageSource.getMessage(resolvable, Locale.getDefault());
+            message = messageSource.getMessage(resolvable, Locale.getDefault());
         }
 
-        return new ErrorStatusMessagesInner()
-                .message(BAD_REQUEST.getReasonPhrase())
-                .detail(detail);
+        // Return error in rest module format: { "message": "..." }
+        // Don't set detail or data fields to match Node.js behavior
+        return new ErrorStatusMessagesInner().message(message);
     }
 
     private String camelCaseToParameterName(String fieldName) {

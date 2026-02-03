@@ -83,6 +83,15 @@ public class NetworkNodeDto {
                     : null;
             dto.setNodeCertHash(FormattingUtils.addHexPrefix(nodeCertHashStr));
 
+            // Parse grpc_proxy_endpoint JSON (JSONB column stored as string)
+            var grpcProxyEndpointJson = row.getGrpcProxyEndpoint();
+            if (grpcProxyEndpointJson != null && !grpcProxyEndpointJson.isEmpty()) {
+                var grpcProxyEndpoint = objectMapper.readValue(grpcProxyEndpointJson, ServiceEndpoint.class);
+                dto.setGrpcProxyEndpoint(grpcProxyEndpoint);
+            } else {
+                dto.setGrpcProxyEndpoint(null);
+            }
+
             // Parse service endpoints JSON
             var serviceEndpointsJson = row.getServiceEndpoints();
             var serviceEndpoints =

@@ -1364,8 +1364,8 @@ final class NetworkControllerTest extends ControllerTest {
             // then
             assertThat(actual).isNotNull();
             assertThat(actual.getNodes()).isNotNull().hasSize(3);
-            // Next link is present even when we got exactly the limit (standard pagination behavior)
-            // The next page will return empty results if there are no more items
+            // Using optimistic pagination: when we get exactly limit results,
+            // a next link is generated even if no more data exists (matching rest module behavior)
             assertThat(actual.getLinks().getNext()).isNotNull();
         }
 
