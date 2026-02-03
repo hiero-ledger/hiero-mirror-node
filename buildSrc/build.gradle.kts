@@ -18,7 +18,7 @@ dependencies {
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
     implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.4")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.3.1")
-    implementation("com.graphql-java-generator:graphql-gradle-plugin3:3.1")
+    implementation("com.graphql-java-generator:graphql-gradle-plugin3:4.0")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
     implementation("io.freefair.gradle:lombok-plugin:9.2.0")
     implementation("io.spring.gradle:dependency-management-plugin:1.1.7")
