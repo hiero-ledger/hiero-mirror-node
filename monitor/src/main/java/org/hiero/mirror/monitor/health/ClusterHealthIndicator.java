@@ -2,12 +2,14 @@
 
 package org.hiero.mirror.monitor.health;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.net.ConnectException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.hiero.mirror.monitor.publish.generator.TransactionGenerator;
@@ -21,8 +23,9 @@ import reactor.core.publisher.Mono;
 
 @CustomLog
 @Named
-@RequiredArgsConstructor
 public class ClusterHealthIndicator implements ReactiveHealthIndicator {
+    private static final String METRIC_NAME = "hiero.mirror.monitor.cluster.health";
+    private static final AtomicInteger CLUSTER_UP = new AtomicInteger(0);
 
     private static final Mono<Health> UNKNOWN = health(Status.UNKNOWN, "Publishing is inactive");
     private static final Mono<Health> UP = health(Status.UP, "");
@@ -32,6 +35,19 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
+
+    public ClusterHealthIndicator(
+            ReleaseHealthProperties releaseHealthProperties,
+            MirrorSubscriber mirrorSubscriber,
+            RestApiClient restApiClient,
+            TransactionGenerator transactionGenerator,
+            MeterRegistry meterRegistry) {
+        this.releaseHealthProperties = releaseHealthProperties;
+        this.mirrorSubscriber = mirrorSubscriber;
+        this.restApiClient = restApiClient;
+        this.transactionGenerator = transactionGenerator;
+        Gauge.builder(METRIC_NAME, CLUSTER_UP, AtomicInteger::get).register(meterRegistry);
+    }
 
     private static Mono<Health> health(Status status, String reason) {
         Health.Builder health = Health.status(status);
@@ -44,9 +60,14 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
     @Override
     public Mono<Health> health() {
         return restNetworkStakeHealth()
-                .flatMap(health -> health.getStatus() == Status.UP
-                        ? publishing().switchIfEmpty(subscribing())
-                        : Mono.just(health));
+                .flatMap(health ->
+                        health.getStatus() == Status.UP ? publishing().switchIfEmpty(subscribing()) : Mono.just(health))
+                .doOnNext(this::recordHealthMetric);
+    }
+
+    private void recordHealthMetric(Health health) {
+        final var status = health != null ? health.getStatus() : Status.UP;
+        CLUSTER_UP.set(Status.UP.equals(status) ? 1 : 0);
     }
 
     // Returns down or unknown if all publish scenarios aggregated rate has dropped to zero, otherwise returns an empty

@@ -4,17 +4,20 @@ package org.hiero.mirror.monitor.health;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Strings;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
+import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatform;
 import org.springframework.boot.cloud.CloudPlatform;
 import reactor.core.publisher.Mono;
@@ -23,8 +26,9 @@ import reactor.core.scheduler.Schedulers;
 @ConditionalOnCloudPlatform(CloudPlatform.KUBERNETES)
 @CustomLog
 @Named
-@RequiredArgsConstructor
 public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
+    private static final String METRIC_NAME = "hiero.mirror.monitor.release.health";
+    private static final AtomicInteger RELEASE_UP = new AtomicInteger(0);
 
     static final String DEPENDENCY_NOT_READY = "DependencyNotReady";
     private static final Mono<Health> DOWN = Mono.just(Health.down().build());
@@ -41,12 +45,28 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
     private final KubernetesClient client;
     private final ReleaseHealthProperties properties;
 
+    public ReleaseHealthIndicator(
+            KubernetesClient client, ReleaseHealthProperties properties, MeterRegistry meterRegistry) {
+        this.client = client;
+        this.properties = properties;
+        Gauge.builder(METRIC_NAME, RELEASE_UP, AtomicInteger::get).register(meterRegistry);
+    }
+
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Mono<Health> health = createHelmReleaseHealth();
 
     @Override
     public Mono<Health> health() {
-        return properties.isEnabled() ? getHealth() : UP;
+        if (!properties.isEnabled()) {
+            return UP;
+        }
+
+        return getHealth().doOnNext(this::recordHealthMetric);
+    }
+
+    private void recordHealthMetric(Health health) {
+        final var status = health != null ? health.getStatus() : Status.UNKNOWN;
+        RELEASE_UP.set(Status.UP.equals(status) ? 1 : 0);
     }
 
     private Mono<Health> createHelmReleaseHealth() {

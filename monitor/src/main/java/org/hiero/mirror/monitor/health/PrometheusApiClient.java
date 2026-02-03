@@ -14,27 +14,31 @@ final class PrometheusApiClient {
 
     private final RestClient prometheusClient;
 
-    PrometheusApiClient(final ImporterLagHealthProperties lagProperties, final RestClient.Builder restClientBuilder) {
-        final var factory = new DefaultUriBuilderFactory(lagProperties.getPrometheusBaseUrl());
-        // PromQL includes braces, quotes, etc. We want to pass it through as-is.
-        factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
+    PrometheusApiClient(final ImporterLagHealthProperties lagProperties) {
+        if (lagProperties.isEnabled()) {
+            final var factory = new DefaultUriBuilderFactory(lagProperties.getPrometheusBaseUrl());
+            // PromQL includes braces, quotes, etc. We want to pass it through as-is.
+            factory.setEncodingMode(DefaultUriBuilderFactory.EncodingMode.NONE);
 
-        final var requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(lagProperties.getTimeout());
-        requestFactory.setReadTimeout(lagProperties.getTimeout());
+            final var requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(lagProperties.getTimeout());
+            requestFactory.setReadTimeout(lagProperties.getTimeout());
 
-        this.prometheusClient = restClientBuilder
-                .baseUrl(lagProperties.getPrometheusBaseUrl())
-                .uriBuilderFactory(factory)
-                .requestFactory(requestFactory)
-                .defaultHeaders(h -> {
-                    final var username = StringUtils.trimToNull(lagProperties.getPrometheusUsername());
-                    final var password = StringUtils.trimToNull(lagProperties.getPrometheusPassword());
-                    if (username != null && password != null) {
-                        h.setBasicAuth(username, password);
-                    }
-                })
-                .build();
+            this.prometheusClient = RestClient.builder()
+                    .baseUrl(lagProperties.getPrometheusBaseUrl())
+                    .uriBuilderFactory(factory)
+                    .requestFactory(requestFactory)
+                    .defaultHeaders(h -> {
+                        final var username = StringUtils.trimToNull(lagProperties.getPrometheusUsername());
+                        final var password = StringUtils.trimToNull(lagProperties.getPrometheusPassword());
+                        if (username != null && password != null) {
+                            h.setBasicAuth(username, password);
+                        }
+                    })
+                    .build();
+        } else {
+            this.prometheusClient = null;
+        }
     }
 
     PrometheusQueryResponse query(final String query) {
@@ -45,7 +49,7 @@ final class PrometheusApiClient {
                 .body(PrometheusQueryResponse.class);
     }
 
-    static record PrometheusQueryResponse(String status, PrometheusData data) {
+    record PrometheusQueryResponse(String status, PrometheusData data) {
 
         private boolean isValid() {
             return "success".equals(status) && data != null && data.result() != null;
@@ -59,9 +63,9 @@ final class PrometheusApiClient {
         }
     }
 
-    static record PrometheusData(String resultType, List<PrometheusSeries> result) {}
+    record PrometheusData(String resultType, List<PrometheusSeries> result) {}
 
-    static record PrometheusSeries(PrometheusMetric metric, List<Object> value) {}
+    record PrometheusSeries(PrometheusMetric metric, List<Object> value) {}
 
-    static record PrometheusMetric(String cluster) {}
+    record PrometheusMetric(String cluster) {}
 }

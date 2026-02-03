@@ -80,8 +80,26 @@ class ImporterLagHealthIndicatorTest {
 
         final var client = mock(PrometheusApiClient.class);
         when(client.query(anyString()))
-                .thenReturn(success(
-                        List.of(series(THIS_CLUSTER, props.getThresholdSeconds() - 1), series(OTHER_CLUSTER, 1.0))));
+                .thenReturn(success(List.of(
+                        series(THIS_CLUSTER, props.getThresholdSeconds() - 1),
+                        series(OTHER_CLUSTER, props.getThresholdSeconds() - 1))));
+
+        final var indicator = new ImporterLagHealthIndicator(props, client);
+
+        final var health = indicator.health();
+
+        assertThat(health.getStatus()).isEqualTo(Status.UP);
+    }
+
+    @Test
+    void upWhenLocalNotInPrometheusResult() {
+        final var props = props(p -> {
+            p.setLocalCluster(THIS_CLUSTER);
+        });
+
+        final var client = mock(PrometheusApiClient.class);
+        when(client.query(anyString()))
+                .thenReturn(success(List.of(series(OTHER_CLUSTER, props.getThresholdSeconds() - 1))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
 
@@ -132,12 +150,16 @@ class ImporterLagHealthIndicatorTest {
     void queriesPrometheusWithExpectedMetricName() {
         final var props = props(p -> p.setLocalCluster(THIS_CLUSTER));
         final var client = mock(PrometheusApiClient.class);
-        when(client.query(anyString())).thenReturn(success(List.of(series(THIS_CLUSTER, 1.0))));
+        when(client.query(anyString()))
+                .thenReturn(success(List.of(series(THIS_CLUSTER, props.getThresholdSeconds() - 1))));
 
         final var indicator = new ImporterLagHealthIndicator(props, client);
         indicator.health();
 
-        verify(client).query(argThat(q -> q.contains("hiero_mirror_importer_stream_latency_seconds_sum")));
+        verify(client)
+                .query(argThat(q -> q.contains("hiero_mirror_importer_stream_latency_seconds_sum")
+                        && q.contains("hiero_mirror_monitor_cluster_health")
+                        && q.contains("hiero_mirror_monitor_release_health")));
     }
 
     @Test

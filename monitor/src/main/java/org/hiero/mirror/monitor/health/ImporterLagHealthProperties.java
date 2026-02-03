@@ -11,7 +11,6 @@ import java.util.List;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.common.domain.StreamType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.CollectionUtils;
 
@@ -21,6 +20,7 @@ final class ImporterLagHealthProperties {
     /**
      * Clusters to compare against.
      */
+    @NotNull
     private List<String> clusters = new ArrayList<>();
 
     @Getter(lazy = true)
@@ -50,12 +50,6 @@ final class ImporterLagHealthProperties {
      * Basic auth username.
      */
     private String prometheusUsername;
-
-    /**
-     * Stream type to monitor for lag.
-     * */
-    @NotNull
-    private StreamType streamType = StreamType.RECORD;
 
     /**
      * If local lag is <= thresholdSeconds, report UP.

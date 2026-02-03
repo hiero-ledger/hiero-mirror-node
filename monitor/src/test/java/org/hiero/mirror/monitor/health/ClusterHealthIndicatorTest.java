@@ -5,6 +5,7 @@ package org.hiero.mirror.monitor.health;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.ConnectException;
 import java.net.URI;
 import java.time.Duration;
@@ -51,6 +52,9 @@ class ClusterHealthIndicatorTest {
 
     @Mock
     private ReleaseHealthProperties releaseHealthProperties;
+
+    @Mock
+    private MeterRegistry meterRegistry;
 
     @InjectMocks
     private ClusterHealthIndicator clusterHealthIndicator;

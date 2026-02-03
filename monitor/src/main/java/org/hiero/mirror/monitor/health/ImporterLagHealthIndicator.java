@@ -22,16 +22,24 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 final class ImporterLagHealthIndicator implements HealthIndicator {
 
     private static final String PROMETHEUS_LAG_QUERY = """
-            max by (cluster) (
-              sum(rate(hiero_mirror_importer_stream_latency_seconds_sum
-                  {application="importer",type="%1$s",cluster=~"%2$s"}[3m]))
-              by (cluster, namespace)
-              /
-              sum(rate(hiero_mirror_importer_stream_latency_seconds_count
-                  {application="importer",type="%1$s",cluster=~"%2$s"}[3m]))
-              by (cluster, namespace)
-            )
-            """;
+      (
+        max by (cluster) (
+          sum(rate(hiero_mirror_importer_stream_latency_seconds_sum
+              {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
+          by (cluster, namespace)
+          /
+          sum(rate(hiero_mirror_importer_stream_latency_seconds_count
+              {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
+          by (cluster, namespace)
+        )
+      )
+      and on (cluster)
+      (
+        (hiero_mirror_monitor_cluster_health{application="monitor",cluster=~"%1$s"} >= 1)
+        and on (cluster)
+        (hiero_mirror_monitor_release_health{application="monitor",cluster=~"%1$s"} >= 1)
+      )
+      """;
 
     private final ImporterLagHealthProperties properties;
     private final PrometheusApiClient prometheusClient;
@@ -54,7 +62,7 @@ final class ImporterLagHealthIndicator implements HealthIndicator {
     }
 
     private String buildLagQuery() {
-        return PROMETHEUS_LAG_QUERY.formatted(properties.getStreamType().name(), properties.getClusterRegex());
+        return PROMETHEUS_LAG_QUERY.formatted(properties.getClusterRegex());
     }
 
     private Health evaluate(final PrometheusApiClient.PrometheusQueryResponse resp) {
