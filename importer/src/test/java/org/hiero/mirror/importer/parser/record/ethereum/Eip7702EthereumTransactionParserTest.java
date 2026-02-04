@@ -22,31 +22,43 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 @ExtendWith(OutputCaptureExtension.class)
 class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionParserTest {
 
+    private static final String CHAIN_ID_HEX = "80";
+    private static final String FEE_HEX = "2f";
+    private static final String TO_ADDRESS_HEX = "7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181";
+    private static final String VALUE_HEX = "0de0b6b3a7640000";
+    private static final String CALL_DATA_HEX = "123456";
+    private static final String AUTH_CHAIN_ID_HEX = "0123";
+    private static final String SIGNATURE_R_HEX = "df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479";
+    private static final String SIGNATURE_S_HEX = "1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66";
+    private static final long GAS_LIMIT = 98_304L;
+    private static final long NONCE = 1L;
+    private static final long AUTH_NONCE = 2L;
+
     static final byte[] EIP7702_RAW_TX;
 
     static {
         EIP7702_RAW_TX = RLPEncoder.sequence(
                 Integers.toBytes(4),
                 List.of(
-                        Hex.decode("80"),
-                        Integers.toBytes(1L),
-                        Hex.decode("2f"),
-                        Hex.decode("2f"),
-                        Integers.toBytes(98304L),
-                        Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
-                        Hex.decode("0de0b6b3a7640000"),
-                        Hex.decode("123456"),
+                        Hex.decode(CHAIN_ID_HEX),
+                        Integers.toBytes(NONCE),
+                        Hex.decode(FEE_HEX),
+                        Hex.decode(FEE_HEX),
+                        Integers.toBytes(GAS_LIMIT),
+                        Hex.decode(TO_ADDRESS_HEX),
+                        Hex.decode(VALUE_HEX),
+                        Hex.decode(CALL_DATA_HEX),
                         List.of(),
                         List.of(List.of(
-                                Hex.decode("0123"),
-                                Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
-                                Integers.toBytes(2L),
+                                Hex.decode(AUTH_CHAIN_ID_HEX),
+                                Hex.decode(TO_ADDRESS_HEX),
+                                Integers.toBytes(AUTH_NONCE),
                                 Integers.toBytes(0),
-                                Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                                Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"))),
+                                Hex.decode(SIGNATURE_R_HEX),
+                                Hex.decode(SIGNATURE_S_HEX))),
                         Integers.toBytes(1),
-                        Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                        Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66")));
+                        Hex.decode(SIGNATURE_R_HEX),
+                        Hex.decode(SIGNATURE_S_HEX)));
     }
 
     public Eip7702EthereumTransactionParserTest(Eip7702EthereumTransactionParser ethereumTransactionParser) {
@@ -88,19 +100,19 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     @Test
     void decodeAuthorizationListNotAList() {
         var transactionData = List.of(
-                Hex.decode("80"),
-                Integers.toBytes(1L),
-                Hex.decode("2f"),
-                Hex.decode("2f"),
-                Integers.toBytes(98304L),
-                Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"),
-                Hex.decode("0de0b6b3a7640000"),
-                Hex.decode("123456"),
+                Hex.decode(CHAIN_ID_HEX),
+                Integers.toBytes(NONCE),
+                Hex.decode(FEE_HEX),
+                Hex.decode(FEE_HEX),
+                Integers.toBytes(GAS_LIMIT),
+                Hex.decode(TO_ADDRESS_HEX),
+                Hex.decode(VALUE_HEX),
+                Hex.decode(CALL_DATA_HEX),
                 List.of(),
                 Hex.decode("01"),
                 Integers.toBytes(1),
-                Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"));
+                Hex.decode(SIGNATURE_R_HEX),
+                Hex.decode(SIGNATURE_S_HEX));
         var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
 
         assertThatThrownBy(() -> ethereumTransactionParser.decode(ethereumTransactionBytes))
@@ -124,24 +136,20 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         assertThat(ethereumTransaction)
                 .isNotNull()
                 .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
-                .returns(Hex.decode("80"), EthereumTransaction::getChainId)
-                .returns(1L, EthereumTransaction::getNonce)
+                .returns(Hex.decode(CHAIN_ID_HEX), EthereumTransaction::getChainId)
+                .returns(NONCE, EthereumTransaction::getNonce)
                 .returns(null, EthereumTransaction::getGasPrice)
-                .returns(Hex.decode("2f"), EthereumTransaction::getMaxPriorityFeePerGas)
-                .returns(Hex.decode("2f"), EthereumTransaction::getMaxFeePerGas)
-                .returns(98_304L, EthereumTransaction::getGasLimit)
-                .returns(Hex.decode("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181"), EthereumTransaction::getToAddress)
-                .returns(Hex.decode("0de0b6b3a7640000"), EthereumTransaction::getValue)
-                .returns(Hex.decode("123456"), EthereumTransaction::getCallData)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
+                .returns(GAS_LIMIT, EthereumTransaction::getGasLimit)
+                .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
+                .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
+                .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
                 .returns(Hex.decode(""), EthereumTransaction::getAccessList)
                 .returns(1, EthereumTransaction::getRecoveryId)
                 .returns(null, EthereumTransaction::getSignatureV)
-                .returns(
-                        Hex.decode("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479"),
-                        EthereumTransaction::getSignatureR)
-                .returns(
-                        Hex.decode("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66"),
-                        EthereumTransaction::getSignatureS);
+                .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
+                .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
 
         // Validate authorization list
         assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);
@@ -149,11 +157,11 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         var authorization = ethereumTransaction.getAuthorizationList().get(0);
         assertThat(authorization)
                 .isNotNull()
-                .returns("0123", Authorization::getChainId)
-                .returns("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181", Authorization::getAddress)
-                .returns(2L, Authorization::getNonce)
+                .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
+                .returns(TO_ADDRESS_HEX, Authorization::getAddress)
+                .returns(AUTH_NONCE, Authorization::getNonce)
                 .returns(0, Authorization::getYParity)
-                .returns("df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479", Authorization::getR)
-                .returns("1aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66", Authorization::getS);
+                .returns(SIGNATURE_R_HEX, Authorization::getR)
+                .returns(SIGNATURE_S_HEX, Authorization::getS);
     }
 }
