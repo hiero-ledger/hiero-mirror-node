@@ -91,9 +91,7 @@ class AddressBookServiceImplTest extends ImporterIntegrationTest {
     private Path testPath;
 
     private static Instant instantFromNanos(long epochNanos) {
-        final var seconds = Math.floorDiv(epochNanos, 1_000_000_000L);
-        final var nanos = Math.floorMod(epochNanos, 1_000_000_000L);
-        return Instant.ofEpochSecond(seconds, nanos);
+        return Instant.ofEpochSecond(0, epochNanos);
     }
 
     @SuppressWarnings("deprecation")

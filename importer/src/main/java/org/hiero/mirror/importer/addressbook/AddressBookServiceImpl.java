@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.OptionalLong;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicLong;
@@ -574,17 +573,17 @@ public class AddressBookServiceImpl implements AddressBookService {
 
         final var resolver =
                 new PathMatchingResourcePatternResolver(Thread.currentThread().getContextClassLoader());
-        final var resources = resolver.getResources("classpath:/addressbook/" + network + "*");
+        final var resources = resolver.getResources("classpath*:/addressbook/" + prefix + "*");
 
         long bestTs = -1L;
         String bestPath = null;
 
         for (var resource : resources) {
-            String filename = resource.getFilename();
-            long ts = parseTimestampedFilename(filename, prefix).orElse(-1L);
+            final var filename = resource.getFilename();
+            final var timestamp = parseTimestampedFilename(filename, prefix);
 
-            if (ts <= targetNanos && ts > bestTs) {
-                bestTs = ts;
+            if (timestamp <= targetNanos && timestamp > bestTs) {
+                bestTs = timestamp;
                 bestPath = "addressbook/" + filename;
             }
         }
@@ -612,20 +611,16 @@ public class AddressBookServiceImpl implements AddressBookService {
         return DomainUtils.convertToNanosMax(start != null ? start : Instant.now());
     }
 
-    private static OptionalLong parseTimestampedFilename(String filename, String prefix) {
-        if (filename == null || !filename.startsWith(prefix)) {
-            return OptionalLong.empty();
-        }
-
-        String tsPart = filename.substring(prefix.length());
-        if (tsPart.isBlank() || !tsPart.chars().allMatch(Character::isDigit)) {
-            return OptionalLong.empty();
+    private static long parseTimestampedFilename(String filename, String prefix) {
+        final var timestampPart = filename.substring(prefix.length());
+        if (timestampPart.isBlank() || !timestampPart.chars().allMatch(Character::isDigit)) {
+            return -1;
         }
 
         try {
-            return OptionalLong.of(Long.parseLong(tsPart));
+            return Long.parseLong(timestampPart);
         } catch (NumberFormatException e) {
-            return OptionalLong.empty();
+            return -1;
         }
     }
 
