@@ -1,0 +1,619 @@
+{
+  "description": "Account api calls for specific account testing nft transactions visibility",
+  "extendedDescription": [
+    "account 2001 has transactions associated to it, related to nft changes - token mint, burn, wipe, token update",
+    "with treasury change - all of these transactions need to be returned"
+  ],
+  "matrix": "bindTimestampRangeMatrix.js",
+  "setup": {
+    "features": {
+      "fakeTime": "2009-02-13T23:40:00Z"
+    },
+    "accounts": [
+      {
+        "num": 3
+      },
+      {
+        "num": 7
+      },
+      {
+        "num": 98
+      },
+      {
+        "num": 1001
+      },
+      {
+        "balance": 80,
+        "balance_timestamp": "2345",
+        "created_timestamp": "9999123456789",
+        "num": 2001,
+        "alias": "KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ",
+        "evm_address": "ac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+        "public_key": "519a008fabde4d28d68293c71fcdcdcca38d8fae6102a832b31e802f257fd1d9",
+        "staked_node_id": 8,
+        "stake_period_start": 800
+      }
+    ],
+    "entityTransactions": [
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "14"
+      },
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "entity_id": "0.0.1001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "14"
+      },
+      {
+        "consensus_timestamp": "1234567890000000001",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "14"
+      },
+      {
+        "consensus_timestamp": "1234567890000000003",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "37"
+      },
+      {
+        "consensus_timestamp": "1234567890000000003",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "37"
+      },
+      {
+        "consensus_timestamp": "1234567890000000005",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "38"
+      },
+      {
+        "consensus_timestamp": "1234567890000000005",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "38"
+      },
+      {
+        "consensus_timestamp": "1234567890000000007",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "39"
+      },
+      {
+        "consensus_timestamp": "1234567890000000007",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "39"
+      },
+      {
+        "consensus_timestamp": "1234567890000000009",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "36"
+      },
+      {
+        "consensus_timestamp": "1234567890000000009",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.8",
+        "result": 22,
+        "type": "36"
+      },
+      {
+        "consensus_timestamp": "1234567890000000013",
+        "entity_id": "0.0.2001",
+        "payer_account_id": "0.0.2001",
+        "result": 22,
+        "type": "36"
+      },
+      {
+        "consensus_timestamp": "1234567890000000013",
+        "entity_id": "0.0.1500",
+        "payer_account_id": "0.0.2001",
+        "result": 22,
+        "type": "36"
+      }
+    ],
+    "transactions": [
+      {
+        "name": "CRYPTOTRANSFER",
+        "type": "14",
+        "valid_start_timestamp": "1234567890000000000",
+        "consensus_timestamp": "1234567890000000001",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "nonce": 0,
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": "0.0.1001",
+            "serial_number": 1,
+            "token_id": "0.0.1500",
+            "is_approval": true
+          },
+          {
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": "0.0.1001",
+            "serial_number": 2,
+            "token_id": "0.0.1500",
+            "is_approval": true
+          }
+        ]
+      },
+      {
+        "name": "TOKENMINT",
+        "type": "37",
+        "valid_start_timestamp": "1234567890000000002",
+        "consensus_timestamp": "1234567890000000003",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "is_approval": false,
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": null,
+            "serial_number": 1,
+            "token_id": "0.0.1500"
+          },
+          {
+            "is_approval": false,
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": null,
+            "serial_number": 2,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "entity_id": "0.0.1500"
+      },
+      {
+        "name": "TOKENBURN",
+        "type": "38",
+        "valid_start_timestamp": "1234567890000000004",
+        "consensus_timestamp": "1234567890000000005",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "is_approval": false,
+            "receiver_account_id": null,
+            "sender_account_id": "0.0.2001",
+            "serial_number": 1,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "entity_id": "0.0.1500"
+      },
+      {
+        "name": "TOKENWIPE",
+        "type": "39",
+        "valid_start_timestamp": "1234567890000000006",
+        "consensus_timestamp": "1234567890000000007",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "is_approval": false,
+            "receiver_account_id": null,
+            "sender_account_id": "0.0.2001",
+            "serial_number": 2,
+            "token_id": "0.0.1500"
+          }
+        ],
+        "entity_id": "0.0.1500"
+      },
+      {
+        "name": "TOKENUPDATE",
+        "type": "36",
+        "valid_start_timestamp": "1234567890000000008",
+        "consensus_timestamp": "1234567890000000009",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "nonce": 1,
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": "0.0.1001",
+            "serial_number": -1,
+            "token_id": "0.0.1500",
+            "is_approval": true
+          }
+        ]
+      },
+      {
+        "name": "TOKENFREEZE",
+        "type": "31",
+        "valid_start_timestamp": "1234567890000000010",
+        "consensus_timestamp": "1234567890000000011",
+        "payerAccountId": "0.0.8",
+        "nodeAccountId": "0.0.3",
+        "nonce": 1,
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": []
+      },
+      {
+        "name": "TOKENUPDATE",
+        "type": "36",
+        "valid_start_timestamp": "1234567890000000012",
+        "consensus_timestamp": "1234567890000000013",
+        "payerAccountId": "0.0.2001",
+        "nodeAccountId": "0.0.3",
+        "nonce": 1,
+        "treasuryAccountId": "0.0.98",
+        "nft_transfer": [
+          {
+            "receiver_account_id": "0.0.2001",
+            "sender_account_id": "0.0.1001",
+            "serial_number": -1,
+            "token_id": "0.0.1500",
+            "is_approval": true
+          }
+        ]
+      }
+    ]
+  },
+  "tests": [
+    {
+      "urls": [
+        "/api/v1/accounts/2001",
+        "/api/v1/accounts/0x00000000000000000000000000000000000007d1",
+        "/api/v1/accounts/0.KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ"
+      ],
+      "responseStatus": 200,
+      "responseJson": {
+        "balance": {
+          "timestamp": "0.000002345",
+          "balance": 80,
+          "tokens": []
+        },
+        "account": "0.0.2001",
+        "alias": "KGNABD5L3ZGSRVUCSPDR7TONZSRY3D5OMEBKQMVTD2AC6JL72HMQ",
+        "created_timestamp": "9999.123456789",
+        "decline_reward": false,
+        "deleted": false,
+        "ethereum_nonce": null,
+        "evm_address": "0xac384c53f03855fa1b3616052f8ba32c6c2a2fec",
+        "expiry_timestamp": null,
+        "auto_renew_period": null,
+        "key": null,
+        "max_automatic_token_associations": 0,
+        "memo": "entity memo",
+        "pending_reward": 0,
+        "receiver_sig_required": false,
+        "staked_account_id": null,
+        "staked_node_id": 8,
+        "stake_period_start": "69120000.000000000",
+        "transactions": [
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000013",
+            "entity_id": null,
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "TOKENUPDATE",
+            "nft_transfers": [
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": "0.0.1001",
+                "serial_number": -1,
+                "token_id": "0.0.1500",
+                "is_approval": true
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 1,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.2001-1234567890-000000012",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000012",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.2001",
+                "amount": -3,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000009",
+            "entity_id": null,
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "TOKENUPDATE",
+            "nft_transfers": [
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": "0.0.1001",
+                "serial_number": -1,
+                "token_id": "0.0.1500",
+                "is_approval": true
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 1,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1234567890-000000008",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000008",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000007",
+            "entity_id": "0.0.1500",
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "TOKENWIPE",
+            "nft_transfers": [
+              {
+                "receiver_account_id": null,
+                "sender_account_id": "0.0.2001",
+                "serial_number": 2,
+                "token_id": "0.0.1500",
+                "is_approval": false
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1234567890-000000006",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000006",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000005",
+            "entity_id": "0.0.1500",
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "TOKENBURN",
+            "nft_transfers": [
+              {
+                "receiver_account_id": null,
+                "sender_account_id": "0.0.2001",
+                "serial_number": 1,
+                "token_id": "0.0.1500",
+                "is_approval": false
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1234567890-000000004",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000004",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000003",
+            "entity_id": "0.0.1500",
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "TOKENMINT",
+            "nft_transfers": [
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": null,
+                "serial_number": 1,
+                "token_id": "0.0.1500",
+                "is_approval": false
+              },
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": null,
+                "serial_number": 2,
+                "token_id": "0.0.1500",
+                "is_approval": false
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1234567890-000000002",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000002",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          },
+          {
+            "batch_key": null,
+            "bytes": "Ynl0ZXM=",
+            "charged_tx_fee": 7,
+            "consensus_timestamp": "1234567890.000000001",
+            "entity_id": null,
+            "high_volume": false,
+            "max_custom_fees": [],
+            "max_fee": "33",
+            "memo_base64": null,
+            "name": "CRYPTOTRANSFER",
+            "nft_transfers": [
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": "0.0.1001",
+                "serial_number": 1,
+                "token_id": "0.0.1500",
+                "is_approval": true
+              },
+              {
+                "receiver_account_id": "0.0.2001",
+                "sender_account_id": "0.0.1001",
+                "serial_number": 2,
+                "token_id": "0.0.1500",
+                "is_approval": true
+              }
+            ],
+            "node": "0.0.3",
+            "nonce": 0,
+            "parent_consensus_timestamp": null,
+            "result": "SUCCESS",
+            "scheduled": false,
+            "staking_reward_transfers": [],
+            "transaction_hash": "AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8w",
+            "transaction_id": "0.0.8-1234567890-000000000",
+            "valid_duration_seconds": "11",
+            "valid_start_timestamp": "1234567890.000000000",
+            "transfers": [
+              {
+                "account": "0.0.3",
+                "amount": 2,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.8",
+                "amount": -3,
+                "is_approval": false
+              },
+              {
+                "account": "0.0.98",
+                "amount": 1,
+                "is_approval": false
+              }
+            ],
+            "token_transfers": []
+          }
+        ],
+        "links": {
+          "next": null
+        }
+      }
+    }
+  ]
+}
