@@ -4,7 +4,7 @@ import _ from 'lodash';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import {jest} from '@jest/globals';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 import * as utils from '../utils';
 import config from '../config';
 import * as constants from '../constants';

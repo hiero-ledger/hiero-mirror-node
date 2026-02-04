@@ -5,7 +5,7 @@
 This design document outlines the implementation plan for supporting HIP-1340 EOA code delegation in the Hiero mirror node.
 The implementation will enable extraction, storage, and querying of code delegation data from consensus node transactions,
 performing `eth_call`, `eth_estimateGas` and `debug_traceTransaction` transactions with code delegations and querying the
-persisted code delegations from the existing REST APIs. The code delegations will be kept as `delegation_indicator`
+persisted code delegations from the existing REST APIs. The code delegations will be kept as `delegation_address`
 in both DB and REST API.
 
 ## Goals
@@ -13,7 +13,7 @@ in both DB and REST API.
 - Enhance the database schema to store code delegations
 - Ingest code delegation creations via `CryptoCreateTransactionBody` transactions
 - Ingest code delegation updates and deletions via `CryptoUpdateTransactionBody` transactions
-- Expose code delegation information via the existing account REST APIs with the new `delegation_indicator` field
+- Expose code delegation information via the existing account REST APIs with the new `delegation_address` field
 - Support efficient querying and pagination of code delegations by account id and timestamp
 
 ## Non-Goals
@@ -27,7 +27,7 @@ The HIP-1340 implementation follows the established mirror node architecture pat
 
 1. **Transaction Processing**: Code delegation-related transactions are processed by dedicated transaction handlers
 2. **Database Storage**: Code delegation data is stored in existing tables with proper indexing for efficient queries
-3. **REST APIs**: The existing accounts endpoints expose the new code delegation field called `delegation_indicator`. The existing contract endpoints will be enhanced to work for EOAs with code delegations as if they are contracts.
+3. **REST APIs**: The existing accounts endpoints expose the new code delegation field called `delegation_address`. The existing contract endpoints will be enhanced to work for EOAs with code delegations as if they are contracts.
 4. **Web3 API**: Code delegation executions can be simulated with `eth_call`, `eth_estimateGas` and `debug_traceTransaction`.
 
 ## Background
@@ -51,19 +51,19 @@ The code delegations will be fetched by contract ID for latest blocks and by (co
 ### 1. Entity Table
 
 The existing `entity` and `entity_history` tables need to be altered to store code delegation information in a new column
-called `delegation_indicator`.
+called `delegation_address`.
 
 ```sql
 -- add_code_delegations_support.sql
 
 alter table if exists entity
-add column if not exists delegation_indicator bytea null;
+add column if not exists delegation_address bytea null;
 
 alter table if exists entity_history
-add column if not exists delegation_indicator bytea null;
+add column if not exists delegation_address bytea null;
 ```
 
-Each EOA can have only one `delegation_indicator` set. To delete it, the address part of the identifier is set to the empty
+Each EOA can have only one `delegation_address` set. To delete it, the address part of the identifier is set to the empty
 address - 0x0000000000000000000000000000000000000000.
 
 ### 2. Ethereum Table
@@ -135,7 +135,7 @@ public class AbstractEntity implements History {
 
     // This field needs to be added to the existing class.
     @ToString.Exclude
-    private byte[] delegationIndicator;
+    private byte[] delegationAddress;
 }
 ```
 
@@ -181,10 +181,10 @@ will be that the new transaction type will need to decode the authorizationList 
 - `GET /api/v1/accounts`
 - `GET /api/v1/accounts/{idOrAliasOrEvmAddress}`
 
-In both API endpoints the returned account model will contain an additional parameter, named `delegation_indicator`. Its value will be
-the persisted code delegation, if any. The format is: `0xef0100 || 20-byte address`. If a code delegation is not set (equal to `null`
+In both API endpoints the returned account model will contain an additional parameter, named `delegation_address`. Its value will be
+the persisted code delegation, if any. The format is: `20-byte address`. If a code delegation is not set (equal to `null`
 in the DB) or if it was deleted (persisted as address 0x0000000000000000000000000000000000000000 in the DB), the
-`delegation_indicator` field will be returned as `0x` from the REST endpoints above.
+`delegation_address` field will be returned as `0x` from the REST endpoints above.
 
 - `GET /api/v1/contracts`
 - `GET /api/v1/contracts/{contractIdOrAddress}`
@@ -292,18 +292,18 @@ When `ContractDebugParameters` are built, we need to pass the new `ethereumData`
 
 ### 6. Enhance Account
 
-The `Account` model needs to have a new field `delegation_indicator` (or however it is named in hedera-app) that will
+The `Account` model needs to have a new field `delegation_address` (or however it is named in hedera-app) that will
 keep the code delegation in the state as part of the account model.
 
 ### 7. Update ContractBytecodeReadableKVState
 
 `protected Bytecode readFromDataSource(@NonNull ContractID contractID);`
 This method needs to be updated to try to find a contract with the `contractRepository`. If it is not found,
-search by contract id in the `entityRepository` and if an account is found return the `delegation_indicator`.
+search by contract id in the `entityRepository` and if an account is found return the `delegation_address`.
 
 ### 8. Enhance AbstractAliasedAccountReadableKVState
 
-The `AbstractAliasedAccountReadableKVState` needs to be changed to set the new field `delegation_indicator` (or however
+The `AbstractAliasedAccountReadableKVState` needs to be changed to set the new field `delegation_address` (or however
 it is named in hedera-app) that will set the code delegation from the entity to the built account model.
 
 ## Testing Strategy
@@ -325,7 +325,7 @@ it is named in hedera-app) that will set the code delegation from the entity to 
     - with a delegation to a non-existing address - should result in a hollow account creation. The result is a no-op
     - with a delegation to a system contract - should result in a no-op
     - with `debug_traceTransaction` call to verify that the Ethereum calls are made successfully and that we can provide historical support
-  - REST spec tests that the `/accounts` endpoint returns the new `delegation_indicator` field as expected
+  - REST spec tests that the `/accounts` endpoint returns the new `delegation_address` field as expected
   - REST spec tests that the contract results endpoints return the new `authorization_list` field as expected
 - Database migration tests
 

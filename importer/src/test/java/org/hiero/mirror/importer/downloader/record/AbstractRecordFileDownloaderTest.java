@@ -5,6 +5,8 @@ package org.hiero.mirror.importer.downloader.record;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -16,11 +18,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.hiero.mirror.common.CommonProperties;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.importer.downloader.AbstractLinkedStreamDownloaderTest;
 import org.hiero.mirror.importer.downloader.Downloader;
 import org.hiero.mirror.importer.downloader.DownloaderProperties;
+import org.hiero.mirror.importer.downloader.block.CutoverService;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.parser.record.sidecar.SidecarProperties;
 import org.hiero.mirror.importer.reader.record.CompositeRecordFileReader;
@@ -31,13 +35,16 @@ import org.hiero.mirror.importer.reader.record.RecordFileReaderImplV5;
 import org.hiero.mirror.importer.reader.record.sidecar.SidecarFileReaderImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 
 abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDownloaderTest<RecordFile> {
 
-    protected Map<String, RecordFile> recordFileMap;
+    @Mock(strictness = LENIENT)
+    private CutoverService cutoverService;
 
+    protected Map<String, RecordFile> recordFileMap;
     protected SidecarProperties sidecarProperties;
 
     @Override
@@ -45,6 +52,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
     protected void beforeEach() {
         super.beforeEach();
         setupRecordFiles(getRecordFileMap());
+        doReturn(true).when(cutoverService).isActive(StreamType.RECORD);
     }
 
     protected abstract Map<String, RecordFile> getRecordFileMap();
@@ -72,6 +80,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
                 new S3StreamFileProvider(CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
         return new RecordFileDownloader(
                 consensusNodeService,
+                cutoverService,
                 (RecordDownloaderProperties) downloaderProperties,
                 importerProperties,
                 meterRegistry,

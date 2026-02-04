@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 import {CustomFeeLimitsViewModel} from '../../viewmodel';
 import {CustomFeeLimits} from '../../model';
 

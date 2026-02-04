@@ -10,7 +10,6 @@ const MAX_LONG = 2n ** 63n - 1n;
 const ONE_DAY_IN_NS = 86_400_000_000_000n;
 const ZERO_UINT256 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const AUTO_RENEW_PERIOD_MULTIPLE = BigInt(1e9);
-const DECIMALS_IN_HBARS = 8;
 const EMPTY_STRING = '';
 const EVM_ADDRESS_LENGTH = 20;
 const ETH_HASH_LENGTH = 32;
@@ -40,7 +39,6 @@ const filterKeys = {
   NODE_ID: 'node.id',
   NONCE: 'nonce',
   ORDER: 'order',
-  Q: 'q',
   RESULT: 'result',
   SCHEDULED: 'scheduled',
   SCHEDULEID: 'scheduleid',
@@ -111,17 +109,6 @@ const orderFilterValues = {
 const characterEncoding = {
   BASE64: 'base64',
   UTF8: 'utf-8',
-};
-
-const networkSupplyQuery = {
-  CIRCULATING: 'circulating',
-  TOTALCOINS: 'totalcoins',
-};
-
-const networkSupplyCurrencyFormatType = {
-  TINYBARS: 'TINYBARS', // output circulating or total coins in tinybars
-  HBARS: 'HBARS', // output circulating or total coins in hbars (rounded to nearest integer)
-  BOTH: 'BOTH', // default; output circulating or total coins in fractional hbars (with a decimal point between hbars and remaining tinybars)
 };
 
 const transactionResultFilter = {
@@ -210,7 +197,6 @@ const queryParamOperators = {
 
 export {
   AUTO_RENEW_PERIOD_MULTIPLE,
-  DECIMALS_IN_HBARS,
   EMPTY_STRING,
   EVM_ADDRESS_LENGTH,
   ETH_HASH_LENGTH,
@@ -235,8 +221,6 @@ export {
   httpStatusCodes,
   keyTypes,
   networks,
-  networkSupplyCurrencyFormatType,
-  networkSupplyQuery,
   orderFilterValues,
   queryParamOperators,
   recordStreamPrefix,

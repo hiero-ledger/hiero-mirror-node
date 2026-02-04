@@ -618,8 +618,6 @@ testkube:
     targets: []
     #  - namespace: ""
     #    release: mirror
-  trigger:
-    enabled: false
 
 traefik:
   affinity:

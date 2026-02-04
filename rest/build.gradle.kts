@@ -14,7 +14,7 @@ plugins {
 tasks.dockerBuild { dependsOn(":rest:monitoring:dockerBuild") }
 
 tasks.register<NpmTask>("testRestJava") {
-    val specPaths = listOf("network/nodes", "network/supply")
+    val specPaths = listOf("network/nodes")
     val testFiles = listOf("network.spec.test.js")
 
     dependsOn(":rest-java:dockerBuild")

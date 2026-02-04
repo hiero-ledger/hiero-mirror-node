@@ -40,7 +40,8 @@
             "is_approval": true
           }
         ],
-        "entity_id": "0.0.1000"
+        "entity_id": "0.0.1000",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 7,
@@ -62,7 +63,8 @@
             "is_approval": true
           }
         ],
-        "entity_id": "0.0.1000"
+        "entity_id": "0.0.1000",
+        "high_volume": false
       }
     ]
   },
@@ -78,6 +80,7 @@
         "bytes": "Ynl0ZXM=",
         "consensus_timestamp": "1234567890.000000002",
         "entity_id": "0.0.1000",
+        "high_volume": false,
         "charged_tx_fee": 7,
         "max_custom_fees": [],
         "max_fee": "33",
@@ -113,6 +116,7 @@
         "bytes": "Ynl0ZXM=",
         "consensus_timestamp": "1234567890.000000004",
         "entity_id": "0.0.1000",
+        "high_volume": false,
         "charged_tx_fee": 7,
         "max_custom_fees": [],
         "max_fee": "33",

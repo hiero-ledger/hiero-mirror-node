@@ -4129,6 +4129,9 @@ components:
           $ref: "#/components/schemas/Timestamp"
         entity_id:
           $ref: "#/components/schemas/EntityId"
+        high_volume:
+          description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
+          type: boolean
         max_custom_fees:
           type: array
           items:
@@ -4225,6 +4228,7 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4306,6 +4310,7 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER

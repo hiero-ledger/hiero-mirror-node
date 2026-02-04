@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import lombok.CustomLog;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.awaitility.Awaitility;
 import org.awaitility.Durations;
@@ -83,9 +84,10 @@ import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.ContractMethodInterface;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
 import org.jspecify.annotations.NonNull;
-import org.springframework.retry.RetryContext;
-import org.springframework.retry.policy.MaxAttemptsRetryPolicy;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryPolicy;
+import org.springframework.core.retry.RetryTemplate;
+import org.springframework.core.retry.Retryable;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestClient;
 
@@ -120,15 +122,13 @@ public class MirrorNodeClient {
                 ? restClient
                 : restClientBuilder.baseUrl(web3Properties.getBaseUrl()).build();
         var properties = acceptanceTestProperties.getRestProperties();
-        this.retryTemplate = RetryTemplate.builder()
-                .customPolicy(new MaxAttemptsRetryPolicy(properties.getMaxAttempts()) {
-                    @Override
-                    public boolean canRetry(RetryContext context) {
-                        return super.canRetry(context) && properties.shouldRetry(context.getLastThrowable());
-                    }
-                })
-                .exponentialBackoff(properties.getMinBackoff(), 2.0, properties.getMaxBackoff())
-                .build();
+        this.retryTemplate = new RetryTemplate(RetryPolicy.builder()
+                .delay(properties.getMinBackoff())
+                .maxDelay(properties.getMaxBackoff())
+                .maxRetries(properties.getMaxAttempts() - 1)
+                .multiplier(2.0)
+                .predicate(properties::shouldRetry)
+                .build());
         this.web3Properties = web3Properties;
         this.queryClient = createClient();
 
@@ -278,6 +278,11 @@ public class MirrorNodeClient {
     public ContractResponse getContractInfo(String contractId) {
         log.debug("Verify contract '{}' is returned by Mirror Node", contractId);
         return callRestEndpoint("/contracts/{contractId}", ContractResponse.class, contractId);
+    }
+
+    public ContractResponse getContractInfoWithNotFound(String contractId) {
+        log.debug("Verify contract '{}' is not found", contractId);
+        return callRestEndpointNoRetry("/contracts/{contractId}", ContractResponse.class, contractId);
     }
 
     public ContractResultsResponse getContractResults(String timestamp) {
@@ -553,7 +558,7 @@ public class MirrorNodeClient {
 
         if (restClient != restJavaClient) {
             // Retry since the db might've been updated right after calling REST
-            retryTemplate.execute(x -> {
+            retry(() -> {
                 final var restJavaResponse = callRestJavaEndpoint(uri, classType, uriVariables);
                 try {
                     asserter.accept(restJavaResponse, restResponse);
@@ -569,13 +574,13 @@ public class MirrorNodeClient {
 
     private <T> T callRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         String normalizedUri = normalizeUri(uri);
-        return retryTemplate.execute(x ->
+        return retry(() ->
                 restClient.get().uri(normalizedUri, uriVariables).retrieve().body(classType));
     }
 
     private <T> T callRestJavaEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         String normalizedUri = normalizeUri(uri);
-        return retryTemplate.execute(x ->
+        return retry(() ->
                 restJavaClient.get().uri(normalizedUri, uriVariables).retrieve().body(classType));
     }
 
@@ -584,10 +589,19 @@ public class MirrorNodeClient {
     }
 
     private <T, R> T callPostRestEndpoint(String uri, Class<T> classType, R request) {
-        return retryTemplate.execute(x -> {
+        return retry(() -> {
             final var requestSpec = web3Client.post().uri(uri);
             return requestSpec.body(request).retrieve().body(classType);
         });
+    }
+
+    @SneakyThrows
+    private <R> R retry(Retryable<R> retryable) {
+        try {
+            return retryTemplate.execute(retryable);
+        } catch (RetryException e) {
+            throw e.getCause();
+        }
     }
 
     public long estimateGasQueryTopLevelCall(
@@ -697,7 +711,7 @@ public class MirrorNodeClient {
 
     private <T> T callWeb3GetRestEndpoint(String uri, Class<T> classType, Object... uriVariables) {
         final var normalizedUri = normalizeUri(uri);
-        return retryTemplate.execute(x -> {
+        return retry(() -> {
             final var requestSpec = web3Client.get().uri(normalizedUri, uriVariables);
             return requestSpec.retrieve().body(classType);
         });
