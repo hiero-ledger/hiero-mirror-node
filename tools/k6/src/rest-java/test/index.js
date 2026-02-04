@@ -11,6 +11,7 @@ import * as hooks from './hooks.js';
 import * as hookStorage from './hookStorage.js';
 import * as networkExchangeRate from './networkExchangeRate.js';
 import * as networkFees from './networkFees.js';
+import * as networkNodes from './networkNodes.js';
 import * as networkStake from './networkStake.js';
 import * as networkSupply from './networkSupply.js';
 import * as topicsId from './topicsId.js';
@@ -26,6 +27,7 @@ const tests = {
   hookStorage,
   networkExchangeRate,
   networkFees,
+  networkNodes,
   networkStake,
   networkSupply,
   topicsId,
