@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.146.0'
+      version: '0.147.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -58,7 +58,7 @@ spec:
         HIERO_MIRROR_IMPORTER_RECONCILIATION_ENABLED: "false"
         HIERO_MIRROR_IMPORTER_START_DATE: "1970-01-01T00:00:00.000000000Z"
     monitor:
-      enabled: true
+      enabled: false
       env:
         HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLED: "true"
         HIERO_MIRROR_MONITOR_NETWORK: "MAINNET"
@@ -127,7 +127,7 @@ spec:
               acceptance:
                 network: MAINNET
       cucumberTags: "@critical"
-      enabled: true
+      enabled: false
     web3:
       ingress:
         enabled: true
