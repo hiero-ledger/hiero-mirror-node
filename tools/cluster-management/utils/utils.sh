@@ -12,6 +12,14 @@ function backgroundErrorHandler() {
   exit 1
 }
 
+function ensureEnvVar() {
+  local name="$1"
+  if [[ -z "${!name}" ]]; then
+    log "$name is required"
+    exit 1
+  fi
+}
+
 mask() {
   set +x
   if [[ "${GITHUB_ACTIONS:-}" == "true" && -n "${1:-}" ]]; then
@@ -321,6 +329,10 @@ function resumeCommonChart() {
   log "HelmRelease ${HELM_RELEASE_NAME} is Ready"
 }
 
+function resumeKustomization() {
+  log "Resuming kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
+  flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+}
 
 function unrouteTraffic() {
   local namespace="${1}"
@@ -876,6 +888,8 @@ CITUS_NAMESPACES=
 COMMON_NAMESPACE="${COMMON_NAMESPACE:-common}"
 DISK_PREFIX=
 HELM_RELEASE_NAME="${HELM_RELEASE_NAME:-mirror}"
+KUSTOMIZATION_NAME="${KUSTOMIZATION_NAME:-flux-system}"
+KUSTOMIZATION_NAMESPACE="${KUSTOMIZATION_NAMESPACE:-flux-system}"
 PATRONI_MASTER_ROLE="${PATRONI_MASTER_ROLE:-Leader}"
 PAUSE_CLUSTER="${PAUSE_CLUSTER:-true}"
 STACKGRES_MASTER_LABELS="${STACKGRES_MASTER_LABELS:-app=StackGresCluster,role=master}"

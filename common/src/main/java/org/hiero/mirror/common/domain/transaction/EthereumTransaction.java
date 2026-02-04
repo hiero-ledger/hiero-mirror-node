@@ -3,15 +3,20 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -24,6 +29,10 @@ public class EthereumTransaction implements Persistable<Long> {
 
     @ToString.Exclude
     private byte[] accessList;
+
+    @JsonSerialize(using = ObjectToStringSerializer.class)
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Authorization> authorizationList;
 
     @ToString.Exclude
     private byte[] callData;

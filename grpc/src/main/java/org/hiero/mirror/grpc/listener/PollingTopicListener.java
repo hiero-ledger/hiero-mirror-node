@@ -13,12 +13,12 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.repository.TopicMessageRepository;
+import org.jspecify.annotations.Nullable;
 import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.retry.Jitter;
-import reactor.retry.Repeat;
+import reactor.util.repeat.RepeatSpec;
 
 @Named
 @CustomLog
@@ -37,10 +37,10 @@ public class PollingTopicListener implements TopicListener {
 
         return Flux.defer(() -> poll(context))
                 .delaySubscription(interval, scheduler)
-                .repeatWhen(Repeat.times(Long.MAX_VALUE)
-                        .fixedBackoff(interval)
-                        .jitter(Jitter.random(0.1))
-                        .withBackoffScheduler(scheduler))
+                .repeatWhen(RepeatSpec.times(Long.MAX_VALUE)
+                        .jitter(0.1)
+                        .withFixedDelay(interval)
+                        .withScheduler(scheduler))
                 .name(METRIC)
                 .tag(METRIC_TAG, "poll")
                 .tap(Micrometer.observation(observationRegistry))
@@ -66,14 +66,14 @@ public class PollingTopicListener implements TopicListener {
 
         private final TopicMessageFilter filter;
         private final AtomicLong count = new AtomicLong(0L);
-        private final AtomicReference<TopicMessage> last = new AtomicReference<>();
+        private final AtomicReference<@Nullable TopicMessage> last = new AtomicReference<>();
 
         void onNext(TopicMessage topicMessage) {
             last.set(topicMessage);
             count.incrementAndGet();
         }
 
-        private TopicMessage getLast() {
+        private @Nullable TopicMessage getLast() {
             return last.get();
         }
     }

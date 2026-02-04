@@ -17,6 +17,9 @@ defaults:
   run:
     shell: bash
 
+env:
+  LC_ALL: C.UTF-8
+
 jobs:
   lint:
     runs-on: hiero-mirror-node-linux-large
