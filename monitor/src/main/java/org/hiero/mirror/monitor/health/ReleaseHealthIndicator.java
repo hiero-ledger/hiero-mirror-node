@@ -5,6 +5,7 @@ package org.hiero.mirror.monitor.health;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.base.ResourceDefinitionContext;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.List;
@@ -20,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnCloudPlatfo
 import org.springframework.boot.cloud.CloudPlatform;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -28,7 +30,7 @@ import reactor.core.scheduler.Schedulers;
 @Named
 @RequiredArgsConstructor
 public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
-    private static final String METRIC_NAME = "hiero.mirror.monitor.release.health";
+    private static final String METRIC_NAME = "hiero.mirror.monitor.health";
     private static final AtomicInteger RELEASE_UP = new AtomicInteger(0);
 
     static final String DEPENDENCY_NOT_READY = "DependencyNotReady";
@@ -45,22 +47,22 @@ public class ReleaseHealthIndicator implements ReactiveHealthIndicator {
             .build();
     private final KubernetesClient client;
     private final ReleaseHealthProperties properties;
+    private final MeterRegistry meterRegistry;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Mono<Health> health = createHelmReleaseHealth();
 
     @PostConstruct
     private void registerGauge() {
-        Gauge.builder(METRIC_NAME, RELEASE_UP, AtomicInteger::get).register(meterRegistry);
+        Gauge.builder(METRIC_NAME, RELEASE_UP, AtomicInteger::get)
+                .tag("type", "release")
+                .register(meterRegistry);
     }
 
     @Override
     public Mono<Health> health() {
-        if (!properties.isEnabled()) {
-            return UP;
-        }
-
-        return getHealth().doOnNext(this::recordHealthMetric);
+        final var health = properties.isEnabled() ? getHealth() : UP;
+        return health.doOnNext(this::recordHealthMetric);
     }
 
     private void recordHealthMetric(Health currentHealth) {

@@ -27,7 +27,7 @@ import reactor.core.publisher.Mono;
 @Named
 @RequiredArgsConstructor
 public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
-    private static final String METRIC_NAME = "hiero.mirror.monitor.cluster.health";
+    private static final String METRIC_NAME = "hiero.mirror.monitor.health";
     private static final AtomicInteger CLUSTER_UP = new AtomicInteger(0);
 
     private static final Mono<Health> UNKNOWN = health(Status.UNKNOWN, "Publishing is inactive");
@@ -42,7 +42,9 @@ public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
 
     @PostConstruct
     private void registerGauge() {
-        Gauge.builder(METRIC_NAME, CLUSTER_UP, AtomicInteger::get).register(meterRegistry);
+        Gauge.builder(METRIC_NAME, CLUSTER_UP, AtomicInteger::get)
+                .tag("type", "cluster")
+                .register(meterRegistry);
     }
 
     private static Mono<Health> health(Status status, String reason) {

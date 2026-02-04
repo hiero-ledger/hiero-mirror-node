@@ -13,8 +13,8 @@ import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
 
 @CustomLog
 @Named
@@ -22,22 +22,22 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 final class ImporterLagHealthIndicator implements HealthIndicator {
 
     private static final String PROMETHEUS_LAG_QUERY = """
-      (
-        max by (cluster) (
-          sum(rate(hiero_mirror_importer_stream_latency_seconds_sum
-              {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
-          by (cluster, namespace)
-          /
-          sum(rate(hiero_mirror_importer_stream_latency_seconds_count
-              {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
-          by (cluster, namespace)
-        )
+      max by (cluster) (
+        sum(rate(hiero_mirror_importer_stream_latency_seconds_sum
+            {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
+        by (cluster, namespace)
+        /
+        sum(rate(hiero_mirror_importer_stream_latency_seconds_count
+            {application="importer",type!="BALANCE",cluster=~"%1$s"}[3m]))
+        by (cluster, namespace)
       )
       and on (cluster)
       (
-        (hiero_mirror_monitor_cluster_health{application="monitor",cluster=~"%1$s"} >= 1)
-        and on (cluster)
-        (hiero_mirror_monitor_release_health{application="monitor",cluster=~"%1$s"} >= 1)
+        sum by (cluster) (
+          max by (cluster, type) (
+            hiero_mirror_monitor_health{application="monitor",cluster=~"%1$s"}
+          )
+        ) >= 2
       )
       """;
 

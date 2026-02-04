@@ -16,7 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Status;
 
 class ImporterLagHealthIndicatorTest {
     private static final String THIS_CLUSTER = "mainnet-1";
@@ -158,8 +158,7 @@ class ImporterLagHealthIndicatorTest {
 
         verify(client)
                 .query(argThat(q -> q.contains("hiero_mirror_importer_stream_latency_seconds_sum")
-                        && q.contains("hiero_mirror_monitor_cluster_health")
-                        && q.contains("hiero_mirror_monitor_release_health")));
+                        && q.contains("hiero_mirror_monitor_health")));
     }
 
     @Test
