@@ -47,24 +47,6 @@ hiero:
           username: metrics
           uriPath: "/swagger"
         ipMetrics: false
-      network:
-        unreleasedSupplyAccounts:
-          - from: 2
-            to: 2
-          - from: 42
-            to: 42
-          - from: 44
-            to: 71
-          - from: 73
-            to: 87
-          - from: 99
-            to: 100
-          - from: 200
-            to: 349
-          - from: 400
-            to: 750
-        # valid values for currencyFormat are 'BOTH', 'HBARS', and 'TINYBARS'
-        currencyFormat: "BOTH"
       openapi:
         specFileName: "openapi"
         swaggerUIPath: "docs"
@@ -128,7 +110,6 @@ hiero:
             /api/v1/contracts/results/:transactionIdOrHash/actions:
               { "cache-control": "public, max-age=600" }
             /api/v1/network/nodes: { "cache-control": "public, max-age=60" }
-            /api/v1/network/supply: { "cache-control": "public, max-age=60" }
             /api/v1/schedules: { "cache-control": "public, max-age=10" }
             /api/v1/tokens: { "cache-control": "public, max-age=10" }
             /api/v1/tokens/:tokenId: { "cache-control": "public, max-age=5" }

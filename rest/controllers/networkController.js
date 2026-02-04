@@ -2,31 +2,19 @@
 
 import _ from 'lodash';
 import BaseController from './baseController';
-import config from '../config';
-import {
-  contentTypeHeader,
-  DECIMALS_IN_HBARS,
-  filterKeys,
-  networkSupplyCurrencyFormatType,
-  networkSupplyQuery,
-  orderFilterValues,
-  responseDataLabel,
-  responseHeadersLabel,
-} from '../constants';
-import {InvalidArgumentError, NotFoundError} from '../errors';
+import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
+import {InvalidArgumentError} from '../errors';
 import {AddressBookEntry} from '../model';
 import {NetworkNodeService} from '../service';
 import * as utils from '../utils';
-import {NetworkNodeViewModel, NetworkSupplyViewModel} from '../viewmodel';
+import {NetworkNodeViewModel} from '../viewmodel';
 import EntityId from '../entityId';
 
 const networkNodesDefaultSize = 10;
 const networkNodesMaxSize = 25;
 
 class NetworkController extends BaseController {
-  static contentTypeTextPlain = 'text/plain; charset=utf-8';
   acceptedNodeParameters = new Set([filterKeys.FILE_ID, filterKeys.LIMIT, filterKeys.NODE_ID, filterKeys.ORDER]);
-  acceptedSupplyParameters = new Set([filterKeys.TIMESTAMP, filterKeys.Q]);
 
   /**
    * Extracts SQL where conditions, params, order, and limit
@@ -99,75 +87,6 @@ class NetworkController extends BaseController {
     };
   };
 
-  extractSupplyQuery = (filters) => {
-    const conditions = [];
-    const params = [];
-    let q;
-    let hasTimestamp = false;
-    let minTimestamp = 0n;
-    let maxTimestamp = utils.nowInNs();
-
-    for (const filter of filters) {
-      if (_.isNil(filter)) {
-        continue;
-      }
-
-      if (filter.key === filterKeys.TIMESTAMP) {
-        const op = filter.operator;
-        const value = BigInt(filter.value);
-        hasTimestamp = true;
-
-        if (op === utils.opsMap.ne) {
-          throw InvalidArgumentError.forParams(`Not equals (ne) operator is not supported for ${filterKeys.TIMESTAMP}`);
-        } else if (op === utils.opsMap.eq || utils.ltLte.includes(op)) {
-          const offset = op === utils.opsMap.lt ? -1n : 0n;
-          maxTimestamp = utils.bigIntMin(maxTimestamp, value + offset);
-        } else if (utils.gtGte.includes(op)) {
-          const offset = op === utils.opsMap.gt ? 1n : 0n;
-          minTimestamp = utils.bigIntMax(minTimestamp, value + offset);
-        }
-      } else if (filter.key === filterKeys.Q) {
-        q = filter.value;
-      }
-    }
-
-    if (hasTimestamp) {
-      maxTimestamp = utils.bigIntMax(maxTimestamp, 0n);
-
-      if (minTimestamp > maxTimestamp) {
-        throw new InvalidArgumentError('Lower timestamp cannot be higher than upper timestamp');
-      }
-
-      // Since a particular account's balance appears in each partition at least once, we limit the query to scan at
-      // most the two most recent partitions within the user provided bounds to improve performance.
-      const optimalLowerBound = utils.getFirstDayOfMonth(maxTimestamp, -1);
-      minTimestamp = utils.bigIntMax(minTimestamp, optimalLowerBound);
-
-      this.updateConditionsAndParamsWithInValues(
-        {operator: utils.opsMap.gte, value: minTimestamp},
-        null,
-        params,
-        conditions,
-        'ab.consensus_timestamp',
-        params.length + 1
-      );
-      this.updateConditionsAndParamsWithInValues(
-        {operator: utils.opsMap.lte, value: maxTimestamp},
-        null,
-        params,
-        conditions,
-        'ab.consensus_timestamp',
-        params.length + 1
-      );
-    }
-
-    return {
-      params,
-      conditions,
-      q,
-    };
-  };
-
   /**
    * Handler function for /network/nodes API
    * @param {Request} req HTTP request object
@@ -197,63 +116,6 @@ class NetworkController extends BaseController {
     }
 
     res.locals[responseDataLabel] = response;
-  };
-
-  /**
-   * Helper function for getSupply method.
-   * @param {string} valueInTinyCoins a number of tinycoin
-   * @param {networkSupplyCurrencyFormatType} currencyFormat desired output format
-   * @return {string}
-   * @throws {InvalidArgumentError}
-   */
-  convertToCurrencyFormat = (valueInTinyCoins = '0', currencyFormat = config.network.currencyFormat) => {
-    switch (currencyFormat) {
-      case networkSupplyCurrencyFormatType.TINYBARS:
-        return valueInTinyCoins;
-      case networkSupplyCurrencyFormatType.HBARS:
-        // emulate integer division via substring
-        if (valueInTinyCoins.length <= DECIMALS_IN_HBARS) {
-          return '0';
-        }
-        return valueInTinyCoins.substring(0, valueInTinyCoins.length - DECIMALS_IN_HBARS);
-      case networkSupplyCurrencyFormatType.BOTH:
-      default:
-        // emulate floating point division via adding leading zeroes or substring/slice
-        if (valueInTinyCoins.length <= DECIMALS_IN_HBARS) {
-          return '0.' + valueInTinyCoins.padStart(DECIMALS_IN_HBARS, '0');
-        }
-        return (
-          valueInTinyCoins.substring(0, valueInTinyCoins.length - DECIMALS_IN_HBARS) +
-          '.' +
-          valueInTinyCoins.slice(-DECIMALS_IN_HBARS)
-        );
-    }
-  };
-
-  /**
-   * Handler function for /network/supply API.
-   * @param {Request} req HTTP request object
-   * @param {Response} res HTTP response object
-   * @return {Promise<void>}
-   */
-  getSupply = async (req, res) => {
-    const filters = utils.buildAndValidateFilters(req.query, this.acceptedSupplyParameters);
-    const {conditions, params, q} = this.extractSupplyQuery(filters);
-    const networkSupply = await NetworkNodeService.getSupply(conditions, params);
-
-    if (networkSupply === null || !networkSupply.consensus_timestamp) {
-      throw new NotFoundError();
-    }
-
-    const viewModel = new NetworkSupplyViewModel(networkSupply);
-
-    if (q) {
-      const valueInTinyCoins = q === networkSupplyQuery.TOTALCOINS ? viewModel.total_supply : viewModel.released_supply;
-      res.locals[responseDataLabel] = this.convertToCurrencyFormat(valueInTinyCoins, config.network.currencyFormat);
-      res.locals[responseHeadersLabel] = {[contentTypeHeader]: NetworkController.contentTypeTextPlain};
-    } else {
-      res.locals[responseDataLabel] = viewModel;
-    }
   };
 }
 

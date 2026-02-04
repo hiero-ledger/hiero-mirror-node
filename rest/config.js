@@ -200,16 +200,6 @@ const parseQueryConfig = () => {
   durationQueryConfigKeys.forEach((key) => (query[`${key}Ns`] = parseDurationConfig(`query.${key}`, query[key])));
 };
 
-const parseNetworkConfig = () => {
-  const currencyFormat = getConfig().network.currencyFormat;
-  if (currencyFormat) {
-    const validValues = ['BOTH', 'HBARS', 'TINYBARS'];
-    if (!validValues.includes(currencyFormat)) {
-      throw new InvalidConfigError(`invalid currencyFormat ${currencyFormat}`);
-    }
-  }
-};
-
 const parseCommon = () => {
   const {common} = getMirrorConfig();
   if (common?.shard !== undefined) {
@@ -259,7 +249,6 @@ if (!loaded) {
   load(process.env.CONFIG_PATH, configName);
   loadEnvironment();
   parseDbPoolConfig();
-  parseNetworkConfig();
   parseQueryConfig();
   parseStateProofStreamsConfig();
   parseUsersConfig();
