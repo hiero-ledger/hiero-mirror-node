@@ -4,26 +4,19 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.LongStream;
 import org.hiero.block.api.protoc.BlockItemSet;
-import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockGenerator;
 import org.hiero.mirror.importer.downloader.block.simulator.BlockNodeSimulator;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
@@ -36,7 +29,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
     @Test
     void multipleBlocks() {
         // given
-        var generator = new BlockGenerator(0);
+        final var generator = new BlockGenerator(0);
         simulator = new BlockNodeSimulator()
                 .withChunksPerBlock(2)
                 .withBlocks(generator.next(10))
@@ -47,11 +40,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
         subscriber.get();
 
         // then
-        var captor = ArgumentCaptor.forClass(RecordFile.class);
-        verify(streamFileNotifier, times(10)).verified(captor.capture());
-        assertThat(captor.getAllValues())
-                .map(RecordFile::getIndex)
-                .containsExactlyElementsOf(LongStream.range(0, 10).boxed().toList());
+        assertVerifiedBlockFiles(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L);
     }
 
     @Test
@@ -117,7 +106,7 @@ final class SingleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
                 .hasMessageContaining("ROUND_HEADER");
 
         // nothing got verified since the first block failed
-        verify(streamFileNotifier, never()).verified(any(RecordFile.class));
+        assertThat(streamFileNotifier.getVerifiedStreamFiles()).isEmpty();
     }
 
     @Test

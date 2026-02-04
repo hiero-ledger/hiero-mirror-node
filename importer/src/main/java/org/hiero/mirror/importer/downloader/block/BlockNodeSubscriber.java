@@ -26,10 +26,11 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             final BlockStreamReader blockStreamReader,
             final BlockStreamVerifier blockStreamVerifier,
             final CommonDownloaderProperties commonDownloaderProperties,
+            final CutoverService cutoverService,
             final ManagedChannelBuilderProvider channelBuilderProvider,
             final BlockProperties properties,
             final MeterRegistry meterRegistry) {
-        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
+        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
         executor = Executors.newSingleThreadExecutor();
         nodes = properties.getNodes().stream()
                 .map(blockNodeProperties -> new BlockNode(
