@@ -150,7 +150,7 @@ public abstract class NetworkNodeMapper {
     protected TimestampRange mapTimestampRange(Long startTimestamp, Long endTimestamp) {
         var timestamp = new TimestampRange();
         timestamp.setFrom(DomainUtils.toTimestamp(startTimestamp));
-        timestamp.setTo(DomainUtils.toTimestamp(endTimestamp));
+        timestamp.setTo(endTimestamp != null ? DomainUtils.toTimestamp(endTimestamp) : null);
         return timestamp;
     }
 }

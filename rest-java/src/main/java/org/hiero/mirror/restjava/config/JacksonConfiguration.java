@@ -7,17 +7,12 @@ import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.StreamWriteConstraints;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 class JacksonConfiguration {
-
-    // MixIn to override JsonInclude for ErrorStatusMessagesInner to exclude null fields
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    abstract static class ErrorStatusMessagesInnerMixIn {}
 
     // Configure JSON parsing limits to reject malicious input
     @Bean
@@ -42,4 +37,8 @@ class JacksonConfiguration {
             builder.mixIn(ErrorStatusMessagesInner.class, ErrorStatusMessagesInnerMixIn.class);
         };
     }
+
+    // MixIn to override JsonInclude for ErrorStatusMessagesInner to exclude null fields
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    abstract static class ErrorStatusMessagesInnerMixIn {}
 }

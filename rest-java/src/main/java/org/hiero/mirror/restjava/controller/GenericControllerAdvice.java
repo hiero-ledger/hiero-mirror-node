@@ -99,11 +99,10 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(InvalidParameterCountException.class)
     private ResponseEntity<Object> invalidParameter(final InvalidParameterCountException e, final WebRequest request) {
-        // For InvalidParameterException, use the exception message directly as the error message
+        // For InvalidParameterException, use the exception message directly as the error detail
         // This exception is specifically thrown for parameter validation errors
-        var error = errorResponse(e.getMessage(), null);
-        request.setAttribute(WebUtils.ERROR_EXCEPTION_ATTRIBUTE, e, SCOPE_REQUEST);
-        return new ResponseEntity<>(error, null, BAD_REQUEST);
+        var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, e.getMessage());
+        return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({
