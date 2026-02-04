@@ -48,7 +48,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(0).getFileId()).isEqualTo(addressBook.getFileId().toString());
+        assertThat(results.get(0).getFileId()).isEqualTo(addressBook.getFileId().getId());
     }
 
     @Test

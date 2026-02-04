@@ -3,8 +3,8 @@
 package org.hiero.mirror.restjava.repository;
 
 /**
- * Interface-based projection representing a network node query result row from the database.
- * Spring Data JPA creates a proxy implementation that maps query column aliases to these getter methods.
+ * Interface-based projection representing a network node query result row from the database. Spring Data JPA creates a
+ * proxy implementation that maps query column aliases to these getter methods.
  */
 public interface NetworkNodeRow {
     String getDescription();
@@ -19,7 +19,7 @@ public interface NetworkNodeRow {
 
     String getPublicKey();
 
-    String getFileId();
+    Long getFileId();
 
     Long getStartConsensusTimestamp();
 

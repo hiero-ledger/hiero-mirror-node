@@ -17,8 +17,8 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
      * @param nodeIds        Optional array of node IDs for IN clause (use empty array to skip)
      * @param minNodeId      Minimum node ID for range filter (inclusive)
      * @param maxNodeId      Maximum node ID for range filter (inclusive)
-     * @param orderDirection Order direction: "ASC" or "DESC"
-     * @param limit          Maximum number of results
+     * @param orderDirection Sort direction ('ASC' or 'DESC')
+     * @param limit          Maximum number of results to return
      * @return List of network node query result rows
      */
     @Query(value = """
@@ -47,7 +47,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 coalesce(n.account_id, abe.node_account_id) as nodeAccountId,
                 abe.node_cert_hash as nodeCertHash,
                 abe.public_key as publicKey,
-                '0.0.' || ab.file_id as fileId,
+                ab.file_id as fileId,
                 ab.start_consensus_timestamp as startConsensusTimestamp,
                 ab.end_consensus_timestamp as endConsensusTimestamp,
                 n.admin_key as adminKey,
@@ -79,13 +79,9 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
               on abe.node_id = ns.node_id
             left join node_info n
               on abe.node_id = n.node_id
-            where 1=1
-              -- Apply equality filter (IN clause) if provided
-              AND (COALESCE(array_length(:nodeIds, 1), 0) = 0 OR abe.node_id = any(:nodeIds))
-              -- Apply lower bound range filter if provided
-              AND (:minNodeId = 0 OR abe.node_id >= :minNodeId)
-              -- Apply upper bound range filter if provided
-              AND (:maxNodeId = 9223372036854775807 OR abe.node_id <= :maxNodeId)
+            where (coalesce(array_length(:nodeIds, 1), 0) = 0 or abe.node_id = any(:nodeIds))
+              and abe.node_id >= :minNodeId
+              and abe.node_id <= :maxNodeId
             order by
               case when :orderDirection = 'ASC' then abe.node_id end asc,
               case when :orderDirection = 'DESC' then abe.node_id end desc

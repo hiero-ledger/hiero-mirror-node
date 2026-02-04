@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -17,13 +16,13 @@ import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
-import org.hiero.mirror.restjava.dto.NetworkNodeData;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
+import org.hiero.mirror.restjava.repository.NetworkNodeRow;
 import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 
 @Named
@@ -35,7 +34,6 @@ final class NetworkServiceImpl implements NetworkService {
     private final NetworkStakeRepository networkStakeRepository;
     private final NetworkProperties networkProperties;
     private final NetworkNodeRepository networkNodeRepository;
-    private final ObjectMapper objectMapper;
 
     @Override
     public NetworkStake getLatestNetworkStake() {
@@ -86,10 +84,9 @@ final class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public List<NetworkNodeData> getNetworkNodes(NetworkNodeRequest request) {
+    public List<NetworkNodeRow> getNetworkNodes(NetworkNodeRequest request) {
         // fileId has a default value of 102, so it's always present
         final var fileId = request.getFileId().entityId().getId();
-        final var order = request.getOrder().name();
         // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeId();
@@ -112,14 +109,13 @@ final class NetworkServiceImpl implements NetworkService {
         // Always calculate range bounds (defaults to 0L and Long.MAX_VALUE if no range parameters)
         var rangeBounds = combineOverlappingRanges(rangeSet);
 
+        // Extract order direction from request
         // Query for exact limit (not limit+1) to match Node.js behavior
         // Pagination link is generated when results.size() == limit (optimistic pagination)
-        var results = networkNodeRepository.findNetworkNodes(
-                fileId, equalitySet, rangeBounds.getLeft(), rangeBounds.getRight(), order, limit);
+        final var orderDirection = request.getOrder().name();
 
-        return results.stream()
-                .map(row -> NetworkNodeData.from(row, objectMapper))
-                .toList();
+        return networkNodeRepository.findNetworkNodes(
+                fileId, equalitySet, rangeBounds.getLeft(), rangeBounds.getRight(), orderDirection, limit);
     }
 
     private Pair<Long, Long> combineOverlappingRanges(Collection<EntityIdRangeParameter> rangeSet) {

@@ -159,14 +159,13 @@ final class NetworkController {
 
     @GetMapping("/nodes")
     ResponseEntity<NetworkNodesResponse> getNodes(@RequestParameter NetworkNodeRequest request) {
-        final var networkNodeDtos = networkService.getNetworkNodes(request);
+        final var networkNodeRows = networkService.getNetworkNodes(request);
         // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
 
-        // Map DTOs to response model
-        final var networkNodes = networkNodeDtos.stream()
-                .map(dto -> networkNodeMapper.map(dto, commonMapper))
-                .toList();
+        // Map database rows to response model
+        final var networkNodes =
+                networkNodeRows.stream().map(networkNodeMapper::map).toList();
 
         // Create pagination links using LinkFactory
         // Matches Node.js behavior: generate next link when results.size() == limit (optimistic pagination)
