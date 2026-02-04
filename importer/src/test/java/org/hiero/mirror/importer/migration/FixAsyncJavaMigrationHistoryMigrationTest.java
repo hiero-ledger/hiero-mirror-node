@@ -76,10 +76,10 @@ class FixAsyncJavaMigrationHistoryMigrationTest extends AsyncJavaMigrationBaseTe
 
     @SneakyThrows
     private void runMigration() {
-        String migrationFilepath = isV1()
+        final var migrationFilepath = isV1()
                 ? "v1/V1.109.0__fix_async_java_migration_history.sql"
                 : "v2/V2.14.0__fix_async_java_migration_history.sql";
-        var file = TestUtils.getResource("db/migration/" + migrationFilepath);
+        final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         ownerJdbcTemplate.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
     }
 

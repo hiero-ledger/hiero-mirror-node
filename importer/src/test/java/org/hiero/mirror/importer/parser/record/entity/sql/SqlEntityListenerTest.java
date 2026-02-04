@@ -1075,6 +1075,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
+        entityUpdate.setDelegationAddress(domainBuilder.bytes(20));
         entityUpdate.setExpirationTimestamp(500L);
         entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);
@@ -3753,7 +3754,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var expectedPrevious = hookDelete.toBuilder().build();
         expectedPrevious.setTimestampUpper(hookCreate.getTimestampLower() + 1);
         expectedPrevious.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
-        expectedPrevious.setType(HookType.LAMBDA);
+        expectedPrevious.setType(HookType.EVM);
         assertThat(hookRepository.findAll()).containsExactly(hookCreate);
         assertThat(findHistory(Hook.class)).containsExactly(expectedPrevious);
     }
@@ -3785,7 +3786,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3822,7 +3823,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             var expectedDelete = hookDelete.toBuilder()
                     .deleted(true)
                     .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                    .type(HookType.LAMBDA)
+                    .type(HookType.EVM)
                     .timestampRange(Range.atLeast(deletedTimestamp))
                     .build();
             // Merge Changes
@@ -3857,7 +3858,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookCreate2 = hookCreate.toBuilder()
@@ -3908,7 +3909,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3917,7 +3918,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedHookDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         if (commitIndex > 1) {
@@ -3953,7 +3954,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3979,7 +3980,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
         expectedDelete.setTimestampUpper(createdTimestamp + 101);
 
@@ -4010,7 +4011,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookDelete = Hook.builder()
@@ -4060,7 +4061,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then - hook should be persisted with default values for missing fields
         var expectedHook = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // database default
-                .type(HookType.LAMBDA) // database default
+                .type(HookType.EVM) // database default
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(expectedHook);

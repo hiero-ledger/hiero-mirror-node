@@ -33,7 +33,7 @@ management:
     health:
       group:
         cluster:
-          include: cluster
+          include: subscriber
         liveness:
           include: ping
         readiness:
@@ -74,7 +74,7 @@ management:
     health:
       group:
         cluster:
-          include: cluster, release
+          include: release, subscriber
 spring:
   config:
     activate:

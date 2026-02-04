@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import crypto from 'crypto';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 
 import {INT_SIZE} from './constants';
 import CompactRecordFile from './compactRecordFile';

@@ -5,8 +5,8 @@ package org.hiero.mirror.importer.parser.record.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.google.protobuf.BytesValue;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.services.stream.proto.ContractStateChange;
 import com.hedera.services.stream.proto.ContractStateChanges;
 import com.hedera.services.stream.proto.StorageChange;
@@ -240,20 +240,20 @@ final class EntityRecordItemListenerHooksTest extends AbstractEntityRecordItemLi
     }
 
     @Test
-    void lambdaSStore() {
+    void hookStore() {
         // given
         final var slot = recordItemBuilder.slot();
         final var value = recordItemBuilder.bytes(32);
-        final var slotUpdate = LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder().setKey(slot).setValue(value))
+        final var slotUpdate = EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder().setKey(slot).setValue(value))
                 .build();
         final var recordItem = recordItemBuilder
-                .lambdaSStore()
+                .hookStore()
                 .transactionBody(l -> l.clearStorageUpdates().addStorageUpdates(slotUpdate))
                 .build();
-        final var lambdaSStore = recordItem.getTransactionBody().getLambdaSstore();
+        final var hookStore = recordItem.getTransactionBody().getHookStore();
         final var expectedEntityId =
-                EntityId.of(lambdaSStore.getHookId().getEntityId().getAccountId());
+                EntityId.of(hookStore.getHookId().getEntityId().getAccountId());
 
         // when
         parseRecordItemAndCommit(recordItem);
@@ -266,10 +266,10 @@ final class EntityRecordItemListenerHooksTest extends AbstractEntityRecordItemLi
                 .returns(expectedEntityId, Transaction::getEntityId)
                 .returns(recordItem.getPayerAccountId(), Transaction::getPayerAccountId)
                 .returns(null, Transaction::getParentConsensusTimestamp)
-                .returns(TransactionType.LAMBDA_SSTORE.getProtoId(), Transaction::getType);
+                .returns(TransactionType.HOOKSTORE.getProtoId(), Transaction::getType);
         final var expectedHookStorageChange = HookStorageChange.builder()
                 .consensusTimestamp(recordItem.getConsensusTimestamp())
-                .hookId(lambdaSStore.getHookId().getHookId())
+                .hookId(hookStore.getHookId().getHookId())
                 .key(DomainUtils.toBytes(slot))
                 .ownerId(expectedEntityId.getId())
                 .valueRead(DomainUtils.toBytes(value))
@@ -278,7 +278,7 @@ final class EntityRecordItemListenerHooksTest extends AbstractEntityRecordItemLi
         assertThat(hookStorageChangeRepository.findAll()).containsExactly(expectedHookStorageChange);
         final var expectedHookStorage = HookStorage.builder()
                 .createdTimestamp(recordItem.getConsensusTimestamp())
-                .hookId(lambdaSStore.getHookId().getHookId())
+                .hookId(hookStore.getHookId().getHookId())
                 .key(DomainUtils.leftPadBytes(DomainUtils.toBytes(slot), 32))
                 .ownerId(expectedEntityId.getId())
                 .value(DomainUtils.toBytes(value))

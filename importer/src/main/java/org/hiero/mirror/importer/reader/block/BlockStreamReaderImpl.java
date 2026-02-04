@@ -238,6 +238,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         @NonFinal
         @Nullable
+        private BlockTransaction lastChildTransaction;
+
+        @NonFinal
+        @Nullable
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
@@ -308,6 +312,25 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     lastUserTransactionInBatch.setNextInBatch(lastBlockTransaction);
                 }
                 lastUserTransactionInBatch = lastBlockTransaction;
+            }
+
+            // Link child transactions (e.g., hook executions) that share the same parent for intermediate
+            // contract storage changes. This uses the nextSibling chain to enable storage resolution
+            // for hook execution child transactions triggered by a parent transaction (e.g., crypto transfer)
+            if (lastChildTransaction != null
+                    && lastBlockTransaction.getParentConsensusTimestamp() != null
+                    && lastBlockTransaction
+                            .getParentConsensusTimestamp()
+                            .equals(lastChildTransaction.getParentConsensusTimestamp())) {
+                lastChildTransaction.setNextSibling(lastBlockTransaction);
+            }
+
+            // Track the last child transaction for linking siblings with the same parent
+            if (lastBlockTransaction.getParentConsensusTimestamp() != null) {
+                lastChildTransaction = lastBlockTransaction;
+            } else {
+                // Reset when we encounter a non-child transaction
+                lastChildTransaction = null;
             }
 
             this.lastBlockTransaction = lastBlockTransaction;

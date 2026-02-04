@@ -28,6 +28,7 @@
         "consensus_timestamp": "1234567890000000001",
         "public_key_prefix": [1, 1, 1],
         "entity_id": "0.0.2000",
+        "high_volume": false,
         "signature": [2, 2, 2],
         "type": 3
       },
@@ -35,6 +36,7 @@
         "consensus_timestamp": "1234567890000000010",
         "public_key_prefix": [3, 3, 3],
         "entity_id": "0.0.2000",
+        "high_volume": false,
         "signature": [4, 4, 4],
         "type": 3
       }

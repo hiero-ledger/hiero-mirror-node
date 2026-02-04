@@ -14,15 +14,15 @@ import org.hiero.mirror.monitor.publish.generator.TransactionGenerator;
 import org.hiero.mirror.monitor.subscribe.MirrorSubscriber;
 import org.hiero.mirror.monitor.subscribe.Scenario;
 import org.hiero.mirror.monitor.subscribe.rest.RestApiClient;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Mono;
 
 @CustomLog
 @Named
 @RequiredArgsConstructor
-public class ClusterHealthIndicator implements ReactiveHealthIndicator {
+public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
 
     private static final Mono<Health> UNKNOWN = health(Status.UNKNOWN, "Publishing is inactive");
     private static final Mono<Health> UP = health(Status.UP, "");

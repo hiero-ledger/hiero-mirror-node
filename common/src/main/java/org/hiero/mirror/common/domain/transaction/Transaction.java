@@ -46,6 +46,8 @@ public class Transaction implements Persistable<Long> {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ErrataType errata;
 
+    private Boolean highVolume;
+
     private Integer index;
 
     // Repeated sequence of payer_account_id, valid_start_ns

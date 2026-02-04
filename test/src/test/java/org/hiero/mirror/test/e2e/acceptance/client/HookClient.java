@@ -4,24 +4,24 @@ package org.hiero.mirror.test.e2e.acceptance.client;
 
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.EvmHookCall;
+import com.hedera.hashgraph.sdk.EvmHookStorageUpdate;
 import com.hedera.hashgraph.sdk.FungibleHookCall;
 import com.hedera.hashgraph.sdk.FungibleHookType;
 import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.HookEntityId;
 import com.hedera.hashgraph.sdk.HookId;
+import com.hedera.hashgraph.sdk.HookStoreTransaction;
 import com.hedera.hashgraph.sdk.KeyList;
-import com.hedera.hashgraph.sdk.LambdaSStoreTransaction;
-import com.hedera.hashgraph.sdk.LambdaStorageUpdate;
 import com.hedera.hashgraph.sdk.TransferTransaction;
 import jakarta.inject.Named;
 import java.util.List;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryTemplate;
 
 /**
- * Client for creating and executing Hook-related transactions. This client handles hook attachment, LambdaStore
+ * Client for creating and executing Hook-related transactions. This client handles hook attachment, HookStore
  * transactions, and other hook storage operations.
  */
 @Named
@@ -33,8 +33,8 @@ public final class HookClient extends AbstractNetworkClient {
     }
 
     public NetworkTransactionResponse hookStore(
-            ExpandedAccountId account, long hookId, List<LambdaStorageUpdate> storageUpdates) {
-        final var transaction = new LambdaSStoreTransaction()
+            ExpandedAccountId account, long hookId, List<EvmHookStorageUpdate> storageUpdates) {
+        final var transaction = new HookStoreTransaction()
                 .setTransactionMemo(getMemo("HookStore operation"))
                 .setHookId(new HookId(new HookEntityId(account.getAccountId()), hookId))
                 .setMaxTransactionFee(Hbar.from(1));

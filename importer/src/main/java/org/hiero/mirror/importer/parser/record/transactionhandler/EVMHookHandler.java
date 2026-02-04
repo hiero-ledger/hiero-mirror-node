@@ -6,11 +6,11 @@ import static org.hiero.mirror.common.util.DomainUtils.leftPadBytes;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.google.common.collect.Range;
+import com.hedera.hapi.node.hooks.legacy.EvmHookMappingEntries;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails.HookCase;
-import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.StorageChange;
 import jakarta.inject.Named;
 import java.nio.ByteBuffer;
@@ -71,7 +71,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     @Override
     public void processStorageUpdates(
-            long consensusTimestamp, long hookId, EntityId ownerId, List<LambdaStorageUpdate> storageUpdates) {
+            long consensusTimestamp, long hookId, EntityId ownerId, List<EvmHookStorageUpdate> storageUpdates) {
         final var context = new StorageUpdateContext(consensusTimestamp, hookId, ownerId);
         context.process(storageUpdates);
     }
@@ -112,17 +112,17 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
     private void processHookCreationDetail(
             RecordItem recordItem, long entityId, HookCreationDetails hookCreationDetails) {
-        // Check if lambda_evm_hook oneof field is set
-        if (!hookCreationDetails.hasLambdaEvmHook()) {
+        // Check if evm_hook oneof field is set
+        if (!hookCreationDetails.hasEvmHook()) {
             Utility.handleRecoverableError(
-                    "Skipping hook creation for hookId {} - lambda_evm_hook not set in transaction at {}",
+                    "Skipping hook creation for hookId {} - evm_hook not set in transaction at {}",
                     hookCreationDetails.getHookId(),
                     recordItem.getConsensusTimestamp());
             return;
         }
 
-        final var lambdaEvmHook = hookCreationDetails.getLambdaEvmHook();
-        final var spec = lambdaEvmHook.getSpec();
+        final var evmHook = hookCreationDetails.getEvmHook();
+        final var spec = evmHook.getSpec();
 
         // Check if contract ID is set in spec
         if (!spec.hasContractId()) {
@@ -153,12 +153,12 @@ final class EVMHookHandler implements EvmHookStorageHandler {
         entityListener.onHook(hook);
 
         // Process storage updates if present
-        if (!CollectionUtils.isEmpty(lambdaEvmHook.getStorageUpdatesList())) {
+        if (!CollectionUtils.isEmpty(evmHook.getStorageUpdatesList())) {
             processStorageUpdates(
                     recordItem.getConsensusTimestamp(),
                     hookCreationDetails.getHookId(),
                     EntityId.of(entityId),
-                    lambdaEvmHook.getStorageUpdatesList());
+                    evmHook.getStorageUpdatesList());
         }
     }
 
@@ -209,11 +209,10 @@ final class EVMHookHandler implements EvmHookStorageHandler {
      */
     private HookType translateHookType(HookCase hookCase) {
         return switch (hookCase) {
-            case LAMBDA_EVM_HOOK -> HookType.LAMBDA;
+            case EVM_HOOK -> HookType.EVM;
             default -> {
-                Utility.handleRecoverableError(
-                        "Unrecognized HookCase: {}, defaulting to ACCOUNT_ALLOWANCE_HOOK", hookCase);
-                yield HookType.LAMBDA;
+                Utility.handleRecoverableError("Unrecognized HookCase: {}, defaulting to EVM", hookCase);
+                yield HookType.EVM;
             }
         };
     }
@@ -227,7 +226,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
 
         private final Set<ByteBuffer> processed = new HashSet<>();
 
-        void process(final List<LambdaStorageUpdate> storageUpdates) {
+        void process(final List<EvmHookStorageUpdate> storageUpdates) {
             for (int index = storageUpdates.size() - 1; index >= 0; index--) {
                 // process the storage updates in reversed order to honor the last value in case of duplicate slot keys
                 final var update = storageUpdates.get(index);
@@ -236,7 +235,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
                     case STORAGE_SLOT -> process(update.getStorageSlot());
                     default ->
                         Utility.handleRecoverableError(
-                                "Ignoring LambdaStorageUpdate={} at consensus_timestamp={}",
+                                "Ignoring EvmHookStorageUpdate={} at consensus_timestamp={}",
                                 update.getUpdateCase(),
                                 consensusTimestamp);
                 }
@@ -259,7 +258,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             entityListener.onHookStorageChange(change);
         }
 
-        private void process(final LambdaMappingEntries mappingEntries) {
+        private void process(final EvmHookMappingEntries mappingEntries) {
             final var mappingSlot = leftPadBytes(toBytes(mappingEntries.getMappingSlot()), 32);
             final var entries = mappingEntries.getEntriesList();
 
@@ -275,7 +274,7 @@ final class EVMHookHandler implements EvmHookStorageHandler {
             }
         }
 
-        private void process(final LambdaStorageSlot storageSlot) {
+        private void process(final EvmHookStorageSlot storageSlot) {
             final var slotKey = toBytes(storageSlot.getKey());
             final var valueWritten = toBytes(storageSlot.getValue());
             persistChange(slotKey, valueWritten);

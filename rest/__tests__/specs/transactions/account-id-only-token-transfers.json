@@ -68,6 +68,7 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000001",
         "entity_id": null,
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
