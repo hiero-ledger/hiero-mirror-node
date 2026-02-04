@@ -4,26 +4,29 @@ package org.hiero.mirror.monitor.health;
 
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.net.ConnectException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.hiero.mirror.monitor.publish.generator.TransactionGenerator;
 import org.hiero.mirror.monitor.subscribe.MirrorSubscriber;
 import org.hiero.mirror.monitor.subscribe.Scenario;
 import org.hiero.mirror.monitor.subscribe.rest.RestApiClient;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.ReactiveHealthIndicator;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.ReactiveHealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Mono;
 
 @CustomLog
 @Named
-public class ClusterHealthIndicator implements ReactiveHealthIndicator {
+@RequiredArgsConstructor
+public class SubscriberHealthIndicator implements ReactiveHealthIndicator {
     private static final String METRIC_NAME = "hiero.mirror.monitor.cluster.health";
     private static final AtomicInteger CLUSTER_UP = new AtomicInteger(0);
 
@@ -35,17 +38,10 @@ public class ClusterHealthIndicator implements ReactiveHealthIndicator {
     private final MirrorSubscriber mirrorSubscriber;
     private final RestApiClient restApiClient;
     private final TransactionGenerator transactionGenerator;
+    private final MeterRegistry meterRegistry;
 
-    public ClusterHealthIndicator(
-            ReleaseHealthProperties releaseHealthProperties,
-            MirrorSubscriber mirrorSubscriber,
-            RestApiClient restApiClient,
-            TransactionGenerator transactionGenerator,
-            MeterRegistry meterRegistry) {
-        this.releaseHealthProperties = releaseHealthProperties;
-        this.mirrorSubscriber = mirrorSubscriber;
-        this.restApiClient = restApiClient;
-        this.transactionGenerator = transactionGenerator;
+    @PostConstruct
+    private void registerGauge() {
         Gauge.builder(METRIC_NAME, CLUSTER_UP, AtomicInteger::get).register(meterRegistry);
     }
 

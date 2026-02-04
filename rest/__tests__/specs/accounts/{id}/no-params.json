@@ -115,7 +115,8 @@
         "parent_consensus_timestamp": "1234567890000000005",
         "type": "15",
         "valid_start_timestamp": "1234567890000000004",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 0,
@@ -126,7 +127,8 @@
         "nonce": 2,
         "type": 22,
         "valid_start_timestamp": "1234567890000000004",
-        "entity_id": "0.0.200"
+        "entity_id": "0.0.200",
+        "high_volume": false
       }
     ],
     "cryptotransfers": [
@@ -199,6 +201,7 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000016",
         "entity_id": null,
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -244,6 +247,7 @@
         "charged_tx_fee": 0,
         "consensus_timestamp": "1234567890.000000006",
         "entity_id": "0.0.9",
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -268,6 +272,7 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000005",
         "entity_id": null,
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,
@@ -308,6 +313,7 @@
         "charged_tx_fee": 7,
         "consensus_timestamp": "1234567890.000000001",
         "entity_id": null,
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,

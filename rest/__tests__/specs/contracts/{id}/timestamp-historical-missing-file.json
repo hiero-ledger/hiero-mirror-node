@@ -28,29 +28,34 @@
       {
         "file_data": [12, 11, 10, 9, 8, 7, 255],
         "consensus_timestamp": "987654000123000",
-        "entity_id": "5051"
+        "entity_id": "5051",
+        "high_volume": false
       },
       {
         "file_data": [16, 28],
         "consensus_timestamp": "987654000123005",
-        "entity_id": "5051"
+        "entity_id": "5051",
+        "high_volume": false
       },
       {
         "file_data": [128],
         "consensus_timestamp": "987654000123010",
         "entity_id": "5051",
+        "high_volume": false,
         "transaction_type": 16
       },
       {
         "file_data": "189a554c",
         "consensus_timestamp": "987654000124000",
         "entity_id": "5051",
+        "high_volume": false,
         "transaction_type": 19
       },
       {
         "file_data": "82bba493",
         "consensus_timestamp": "987654999123000",
         "entity_id": "5051",
+        "high_volume": false,
         "transaction_type": 16
       }
     ]

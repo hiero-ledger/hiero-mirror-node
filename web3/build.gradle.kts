@@ -13,10 +13,16 @@ plugins {
 }
 
 dependencies {
-    val web3jVersion: String by rootProject.extra
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
-    implementation("com.hedera.hashgraph:app") { exclude(group = "io.netty") }
+    implementation("com.hedera.hashgraph:app") {
+        exclude(group = "io.netty")
+        exclude(group = "io.opentelemetry")
+        exclude(group = "io.prometheus")
+        exclude(group = "io.vertx")
+        exclude(group = "org.assertj")
+        exclude("org.junit")
+    }
     implementation("com.hedera.hashgraph:app-service-entity-id-impl") {
         exclude(group = "io.netty")
     }
@@ -27,14 +33,15 @@ dependencies {
     implementation("org.springframework:spring-context-support")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
+    implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.retry:spring-retry")
-    implementation("org.web3j:core:$web3jVersion") // Temporary until next web3j
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("org.flywaydb:flyway-database-postgresql")
+    testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

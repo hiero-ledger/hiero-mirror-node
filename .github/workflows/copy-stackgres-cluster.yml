@@ -4,11 +4,16 @@ name: Copy StackGres Citus Cluster
 
 concurrency:
   group: ${{ github.workflow }}-${{ inputs.target_cluster_name }}
-  cancel-in-progress: true
 
 on:
   workflow_call:
     inputs:
+      restore:
+        default: true
+        type: boolean
+      run_k6_test:
+        default: true
+        type: boolean
       source_cluster_location:
         type: string
         default: "us-central1"
@@ -39,7 +44,7 @@ on:
         required: true
       teardown_target:
         type: boolean
-        default: true
+        default: false
         required: true
     secrets:
       GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID:
@@ -52,6 +57,14 @@ on:
         required: true
   workflow_dispatch:
     inputs:
+      restore:
+        default: true
+        description: "Restore the target cluster from the source"
+        type: boolean
+      run_k6_test:
+        default: true
+        description: "Run k6 test"
+        type: boolean
       source_cluster_location:
         default: "us-central1"
         description: "Source: GKE location (zone or region)"
@@ -85,14 +98,17 @@ on:
         required: true
         type: choice
       teardown_target:
-        default: true
-        description: "Tear down target cluster after k6 tests run"
+        default: false
+        description: "Tear down target cluster"
         required: true
         type: boolean
 
 defaults:
   run:
     shell: bash
+
+env:
+  LC_ALL: C.UTF-8
 
 permissions:
   id-token: write
@@ -112,12 +128,15 @@ jobs:
       GCP_TARGET_PROJECT: ${{ inputs.target_project == 'prod' && secrets.GH_ACTIONS_KUBECTL_MAIN_PROJECT_ID || secrets.GH_ACTIONS_KUBECTL_STAGING_PROJECT_ID }}
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
+      RESTORE: ${{ inputs.restore }}
+      RUN_K6_TEST: ${{ inputs.run_k6_test }}
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
+      TEARDOWN_TARGET: ${{ inputs.teardown_target }}
       WIF_PROVIDER: ${{ secrets.GH_ACTIONS_KUBECTL_WORKLOAD_ID_PROVIDER }}
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
         with:
           egress-policy: audit
 
@@ -204,6 +223,7 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
+        if: inputs.run_k6_test == 'true'
         uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
         with:
           version: v2.3.0
@@ -217,7 +237,6 @@ jobs:
         env:
           AUTO_CONFIRM: "true"
           DEFAULT_POOL_NAME: ${{ inputs.target_default_pool }}
-          WAIT_FOR_K6: ${{ inputs.teardown_target }}
         run: |
           set -Eeuo pipefail
           export PATH="${CLOUDSDK_BIN_DIR}:${PATH}"
@@ -242,3 +261,10 @@ jobs:
           trap 'kill "$REFRESH_PID" 2>/dev/null || true' EXIT INT TERM
           cd ./tools/cluster-management/
           ./copy-live-environment.sh
+
+      - name: Upload k6 test report
+        if: inputs.run_k6_test == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: k6-test-report
+          path: /tmp/mirrornode-k6-test-report/

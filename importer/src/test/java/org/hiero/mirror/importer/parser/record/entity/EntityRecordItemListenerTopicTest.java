@@ -388,7 +388,7 @@ class EntityRecordItemListenerTopicTest extends AbstractEntityRecordItemListener
             Long autoRenewPeriod) {
         var topicEntity = domainBuilder
                 .topicEntity()
-                .customize(t -> t.permanentRemoval(null).obtainerId(null))
+                .customize(t -> t.permanentRemoval(null).obtainerId(null).delegationAddress(null))
                 .persist();
         var topic = domainBuilder
                 .topic()

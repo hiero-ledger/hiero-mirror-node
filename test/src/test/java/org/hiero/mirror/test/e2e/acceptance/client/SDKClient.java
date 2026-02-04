@@ -48,7 +48,7 @@ import org.hiero.mirror.test.e2e.acceptance.config.SdkProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.props.NodeProperties;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryTemplate;
 import org.springframework.util.CollectionUtils;
 
 @CustomLog
@@ -211,7 +211,7 @@ public class SDKClient implements Cleanable {
                 // Verify all nodes have created the account since state is updated at different wall clocks
                 TransactionReceipt queryReceipt = null;
                 for (final var nodeAccountId : client.getNetwork().values()) {
-                    queryReceipt = retryTemplate.execute(x -> new TransactionReceiptQuery()
+                    queryReceipt = retryTemplate.execute(() -> new TransactionReceiptQuery()
                             .setNodeAccountIds(List.of(nodeAccountId))
                             .setTransactionId(response.transactionId)
                             .execute(client));

@@ -49,6 +49,7 @@ const transactionFields = [
   Transaction.CHARGED_TX_FEE,
   Transaction.CONSENSUS_TIMESTAMP,
   Transaction.ENTITY_ID,
+  Transaction.HIGH_VOLUME,
   Transaction.INNER_TRANSACTIONS,
   Transaction.MAX_CUSTOM_FEES,
   Transaction.MAX_FEE,
@@ -192,11 +193,12 @@ const formatTransactionRows = async (rows) => {
 
     return {
       assessed_custom_fees: createAssessedCustomFeeList(row.assessed_custom_fees),
-      batch_key: row.batch_key && utils.toHexString(row.batch_key, true),
+      batch_key: utils.encodeKey(row.batch_key),
       bytes: utils.encodeBase64(row.transaction_bytes),
       charged_tx_fee: row.charged_tx_fee,
       consensus_timestamp: utils.nsToSecNs(row.consensus_timestamp),
       entity_id: EntityId.parse(row.entity_id, {isNullable: true}).toString(),
+      high_volume: row.high_volume ?? false,
       max_fee: utils.getNullableNumber(row.max_fee),
       max_custom_fees: createMaxCustomFeesList(row.max_custom_fees),
       memo_base64: utils.encodeBase64(row.memo),

@@ -15,9 +15,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.parser.ParserProperties;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 
 @RequiredArgsConstructor
 public class StreamFileHealthIndicator implements HealthIndicator {

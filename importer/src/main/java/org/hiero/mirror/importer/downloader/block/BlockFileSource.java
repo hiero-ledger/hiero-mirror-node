@@ -44,10 +44,11 @@ final class BlockFileSource extends AbstractBlockSource {
             final BlockStreamVerifier blockStreamVerifier,
             final CommonDownloaderProperties commonDownloaderProperties,
             final ConsensusNodeService consensusNodeService,
+            final CutoverService cutoverService,
             final MeterRegistry meterRegistry,
             final BlockProperties properties,
             final StreamFileProvider streamFileProvider) {
-        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, properties);
+        super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
         this.consensusNodeService = consensusNodeService;
         this.streamFileProvider = streamFileProvider;
 
