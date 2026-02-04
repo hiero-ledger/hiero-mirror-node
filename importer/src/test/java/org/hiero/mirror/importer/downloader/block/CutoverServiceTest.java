@@ -230,9 +230,9 @@ final class CutoverServiceTest {
             final boolean expectedShouldGetRecordStream,
             final String network) {
         // given
+        blockProperties.setCutover(cutoverOverride);
         blockProperties.setEnabled(isBlockStreamEnabled);
         recordDownloaderProperties.getCommon().getImporterProperties().setNetwork(network);
-        recordDownloaderProperties.getCommon().setCutover(cutoverOverride);
         recordDownloaderProperties.setEnabled(isRecordStreamEnabled);
 
         // when, then

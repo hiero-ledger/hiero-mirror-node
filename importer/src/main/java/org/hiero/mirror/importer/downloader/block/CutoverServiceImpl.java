@@ -140,8 +140,10 @@ final class CutoverServiceImpl implements CutoverService {
     }
 
     private boolean hasCutover() {
-        final var common = recordDownloaderProperties.getCommon();
-        final var network = common.getImporterProperties().getNetwork();
-        return common.getCutover() != null ? common.getCutover() : ImporterProperties.HederaNetwork.hasCutover(network);
+        final var network =
+                recordDownloaderProperties.getCommon().getImporterProperties().getNetwork();
+        return blockProperties.getCutover() != null
+                ? blockProperties.getCutover()
+                : ImporterProperties.HederaNetwork.hasCutover(network);
     }
 }

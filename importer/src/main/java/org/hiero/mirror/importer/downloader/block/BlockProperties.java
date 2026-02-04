@@ -22,6 +22,8 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 public class BlockProperties {
 
+    private Boolean cutover;
+
     @DurationMin(seconds = 8)
     @NotNull
     private Duration cutoverThreshold = Duration.ofSeconds(8);
