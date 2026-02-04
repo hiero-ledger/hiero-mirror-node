@@ -6,7 +6,7 @@ import java.util.List;
 import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
-import org.hiero.mirror.restjava.dto.NetworkNodeDto;
+import org.hiero.mirror.restjava.dto.NetworkNodeData;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -34,9 +34,9 @@ public interface NetworkNodeMapper {
     @Mapping(target = "stakeRewarded", source = "stakeRewarded")
     @Mapping(target = "stakingPeriod", source = "stakingPeriod")
     @Mapping(target = "timestamp", source = "timestamp")
-    NetworkNode mapInternal(NetworkNodeDto source);
+    NetworkNode mapInternal(NetworkNodeData source);
 
-    default NetworkNode map(NetworkNodeDto source, CommonMapper commonMapper) {
+    default NetworkNode map(NetworkNodeData source, CommonMapper commonMapper) {
         var node = mapInternal(source);
         node.setAdminKey(commonMapper.mapKey(source.getAdminKey()));
         return node;

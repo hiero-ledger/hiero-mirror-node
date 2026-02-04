@@ -23,6 +23,7 @@ import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
+import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.common.RequestParameter;
@@ -157,7 +158,7 @@ final class NetworkController {
     }
 
     @GetMapping("/nodes")
-    org.hiero.mirror.rest.model.NetworkNodesResponse getNodes(@RequestParameter NetworkNodeRequest request) {
+    ResponseEntity<NetworkNodesResponse> getNodes(@RequestParameter NetworkNodeRequest request) {
         final var networkNodeDtos = networkService.getNetworkNodes(request);
         // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
@@ -174,6 +175,6 @@ final class NetworkController {
         final var pageable = PageRequest.of(0, limit, sort);
         final var links = linkFactory.create(networkNodes, pageable, NETWORK_NODE_EXTRACTOR);
 
-        return networkNodeMapper.mapToResponse(networkNodes, links);
+        return ResponseEntity.ok(networkNodeMapper.mapToResponse(networkNodes, links));
     }
 }

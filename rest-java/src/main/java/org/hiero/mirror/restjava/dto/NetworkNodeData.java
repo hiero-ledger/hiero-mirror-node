@@ -12,13 +12,12 @@ import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
 import org.hiero.mirror.restjava.repository.NetworkNodeRow;
-import org.hiero.mirror.restjava.util.FormattingUtils;
 
 /**
  * Network node DTO representing network node API result.
  */
 @Data
-public final class NetworkNodeDto {
+public final class NetworkNodeData {
 
     private byte[] adminKey;
     private Boolean declineReward;
@@ -47,9 +46,9 @@ public final class NetworkNodeDto {
      * @param objectMapper ObjectMapper for JSON deserialization
      * @return NetworkNodeDto instance
      */
-    public static NetworkNodeDto from(NetworkNodeRow row, ObjectMapper objectMapper) {
+    public static NetworkNodeData from(NetworkNodeRow row, ObjectMapper objectMapper) {
         try {
-            var dto = new NetworkNodeDto();
+            var dto = new NetworkNodeData();
 
             // Direct mappings
             dto.setAdminKey(row.getAdminKey());
@@ -74,7 +73,7 @@ public final class NetworkNodeDto {
 
             // Format publicKey with 0x prefix (database stores as hex string)
             final var publicKey = row.getPublicKey();
-            dto.setPublicKey(FormattingUtils.addHexPrefix(publicKey));
+            dto.setPublicKey(addHexPrefix(publicKey));
 
             // Convert nodeCertHash from byte[] to String and add 0x prefix
             // Database stores the hex string as bytes, so convert bytes to string first
@@ -82,7 +81,7 @@ public final class NetworkNodeDto {
             final var nodeCertHashStr = nodeCertHash != null && nodeCertHash.length > 0
                     ? new String(nodeCertHash, java.nio.charset.StandardCharsets.UTF_8)
                     : null;
-            dto.setNodeCertHash(FormattingUtils.addHexPrefix(nodeCertHashStr));
+            dto.setNodeCertHash(addHexPrefix(nodeCertHashStr));
 
             // Parse grpc_proxy_endpoint JSON (JSONB column stored as string)
             final var grpcProxyEndpointJson = row.getGrpcProxyEndpoint();
@@ -100,8 +99,7 @@ public final class NetworkNodeDto {
             dto.setServiceEndpoints(serviceEndpoints);
 
             // Set staking period from staking period timestamp
-            final var stakingPeriod = new TimestampRangeNullable();
-            dto.setStakingPeriod(FormattingUtils.getStakingPeriod(row.getStakingPeriod()));
+            dto.setStakingPeriod(getStakingPeriod(row.getStakingPeriod()));
 
             // Set timestamp range from address book start/end timestamps
             final var timestamp = new TimestampRange();
@@ -114,5 +112,39 @@ public final class NetworkNodeDto {
         } catch (Exception e) {
             throw new RuntimeException("Failed to create NetworkNodeDto from NetworkNodeRow", e);
         }
+    }
+
+    /**
+     * Adds "0x" prefix to hex string if not already present.
+     *
+     * @param hexData hex string
+     * @return hex string with "0x" prefix
+     */
+    private static String addHexPrefix(String hexData) {
+        if (hexData == null || hexData.isEmpty()) {
+            return "0x";
+        }
+        return hexData.startsWith("0x") ? hexData : "0x" + hexData;
+    }
+
+    /**
+     * Gets staking period object from staking period timestamp.
+     *
+     * @param stakingPeriod staking period start timestamp
+     * @return TimestampRangeNullable with from/to, or null if input is null
+     */
+    private static TimestampRangeNullable getStakingPeriod(Long stakingPeriod) {
+        if (stakingPeriod == null) {
+            return null;
+        }
+
+        // Add 1 nanosecond to staking period start
+        long stakingPeriodStart = stakingPeriod + 1L;
+
+        var period = new TimestampRangeNullable();
+        period.setFrom(DomainUtils.toTimestamp(stakingPeriodStart));
+        // Add one day (86400 seconds * 1_000_000_000 nanos/second)
+        period.setTo(DomainUtils.toTimestamp(stakingPeriodStart + (86400L * DomainUtils.NANOS_PER_SECOND)));
+        return period;
     }
 }

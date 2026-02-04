@@ -17,7 +17,7 @@ import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
-import org.hiero.mirror.restjava.dto.NetworkNodeDto;
+import org.hiero.mirror.restjava.dto.NetworkNodeData;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
@@ -86,7 +86,7 @@ final class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request) {
+    public List<NetworkNodeData> getNetworkNodes(NetworkNodeRequest request) {
         // fileId has a default value of 102, so it's always present
         final var fileId = request.getFileId().entityId().getId();
         final var order = request.getOrder().name();
@@ -118,7 +118,7 @@ final class NetworkServiceImpl implements NetworkService {
                 fileId, equalitySet, rangeBounds.getLeft(), rangeBounds.getRight(), order, limit);
 
         return results.stream()
-                .map(row -> NetworkNodeDto.from(row, objectMapper))
+                .map(row -> NetworkNodeData.from(row, objectMapper))
                 .toList();
     }
 
