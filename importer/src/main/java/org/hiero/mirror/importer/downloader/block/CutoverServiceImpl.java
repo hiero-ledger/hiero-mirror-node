@@ -79,7 +79,8 @@ final class CutoverServiceImpl implements CutoverService {
                         .getImporterProperties()
                         .getNetwork();
                 log.warn(
-                        "Cutover has completed for network {}, please set hiero.mirror.importer.block.enabled=true and restart",
+                        "Cutover has completed for network {}, please set hiero.mirror.importer.block.enabled=true "
+                                + "and restart",
                         network);
 
                 blockProperties.setEnabled(true);

@@ -171,7 +171,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(blockFileTransformer);
         verify(cutoverService, times(2)).getLastRecordFile();
         verify(cutoverService, never()).verified(any(RecordFile.class));
-        ;
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(previous.getIndex(), RecordFile::getIndex);
     }
