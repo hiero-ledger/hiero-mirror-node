@@ -47,6 +47,7 @@ const setup = async (testDataJson) => {
   await loadCustomFees(testDataJson.customfees);
   await loadEntities(testDataJson.entities);
   await loadEntityStakes(testDataJson.entityStakes);
+  await loadEntityTransactions(testDataJson.entityTransactions);
   await loadEthereumTransactions(testDataJson.ethereumtransactions);
   await loadFileData(testDataJson.filedata);
   await loadNfts(testDataJson.nfts);
@@ -323,6 +324,16 @@ const loadEntities = async (entities) => {
 
   for (const entity of entities) {
     await addEntity({}, entity);
+  }
+};
+
+const loadEntityTransactions = async (entityTransactions) => {
+  if (entityTransactions == null) {
+    return;
+  }
+
+  for (const entityTransaction of entityTransactions) {
+    await addEntityTransaction(entityTransaction);
   }
 };
 
@@ -638,6 +649,26 @@ const addEntity = async (defaults, custom) => {
   const table = getTableName('entity', entity);
   await insertDomainObject(table, insertFields, entity);
   return entity;
+};
+
+const entityTransactionDefaults = {
+  consensus_timestamp: 1234567890000000001,
+  entity_id: null,
+  payer_account_id: null,
+  result: null,
+  type: null,
+};
+
+const addEntityTransaction = async (entityTransaction) => {
+  entityTransaction = {
+    ...entityTransactionDefaults,
+    ...entityTransaction,
+  };
+
+  entityTransaction.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
+  entityTransaction.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
+
+  await insertDomainObject('entity_transaction', Object.keys(entityTransaction), entityTransaction);
 };
 
 const SECONDS_PER_DAY = 86400;
@@ -1757,6 +1788,7 @@ export default {
   loadCryptoAllowances,
   loadCryptoTransfers,
   loadEntities,
+  loadEntityTransactions,
   loadEthereumTransactions,
   loadFileData,
   loadNodes,
