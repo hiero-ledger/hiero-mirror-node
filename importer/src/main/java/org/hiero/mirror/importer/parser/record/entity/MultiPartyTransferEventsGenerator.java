@@ -15,7 +15,7 @@ import org.hiero.mirror.importer.parser.contractlog.TransferContractLog;
 
 @Named
 @RequiredArgsConstructor
-public class MultiPartyTransferEventsGenerator {
+final class MultiPartyTransferEventsGenerator {
 
     private final SyntheticContractLogService syntheticContractLogService;
     private static final Comparator<AccountAmount> ACCOUNT_AMOUNT_COMPARATOR = Comparator.<AccountAmount>comparingLong(
@@ -27,8 +27,9 @@ public class MultiPartyTransferEventsGenerator {
                     e -> e.getAccountID().hasAccountNum() ? e.getAccountID().getAccountNum() : 0L);
 
     public void generate(RecordItem recordItem, EntityId tokenId, List<AccountAmount> tokenTransfers) {
-        final var senders = new ArrayList<AccountAmount>(tokenTransfers.size() / 2);
-        final var receivers = new ArrayList<AccountAmount>(tokenTransfers.size() / 2);
+        final var expectedInitialCapacity = tokenTransfers.size() / 2;
+        final var senders = new ArrayList<AccountAmount>(expectedInitialCapacity);
+        final var receivers = new ArrayList<AccountAmount>(expectedInitialCapacity);
 
         for (final var transfer : tokenTransfers) {
             if (transfer.getAmount() <= 0) {
