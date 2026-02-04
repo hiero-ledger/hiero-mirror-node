@@ -16,6 +16,7 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
+    set("assertj.version", "3.27.7") // Temporary until next Spring Boot
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
     set("consensusNodeVersion", "0.70.0-rc.2")

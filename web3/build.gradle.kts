@@ -12,6 +12,10 @@ plugins {
     id("spring-conventions")
 }
 
+configurations.all {
+    exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
+}
+
 dependencies {
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
@@ -19,7 +23,6 @@ dependencies {
         exclude(group = "io.netty")
         exclude(group = "io.opentelemetry")
         exclude(group = "io.prometheus")
-        exclude(group = "io.vertx")
         exclude(group = "org.assertj")
         exclude("org.junit")
     }
