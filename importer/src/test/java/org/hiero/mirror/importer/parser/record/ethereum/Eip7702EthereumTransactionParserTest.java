@@ -121,6 +121,75 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     @Test
+    void decodeMultipleAuthorizationEntries() {
+        var transactionBytes = RLPEncoder.sequence(
+                Integers.toBytes(4),
+                List.of(
+                        Hex.decode(CHAIN_ID_HEX),
+                        Integers.toBytes(NONCE),
+                        Hex.decode(FEE_HEX),
+                        Hex.decode(FEE_HEX),
+                        Integers.toBytes(GAS_LIMIT),
+                        Hex.decode(TO_ADDRESS_HEX),
+                        Hex.decode(VALUE_HEX),
+                        Hex.decode(CALL_DATA_HEX),
+                        List.of(),
+                        List.of(
+                                List.of(
+                                        Hex.decode(AUTH_CHAIN_ID_HEX),
+                                        Hex.decode(TO_ADDRESS_HEX),
+                                        Integers.toBytes(AUTH_NONCE),
+                                        Integers.toBytes(0),
+                                        Hex.decode(SIGNATURE_R_HEX),
+                                        Hex.decode(SIGNATURE_S_HEX)),
+                                List.of(
+                                        Hex.decode("04a5"),
+                                        Hex.decode("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"),
+                                        Integers.toBytes(3L),
+                                        Integers.toBytes(1),
+                                        Hex.decode("abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"),
+                                        Hex.decode("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")),
+                                List.of(
+                                        Hex.decode("0789"),
+                                        Hex.decode("1234567890abcdef1234567890abcdef12345678"),
+                                        Integers.toBytes(5L),
+                                        Integers.toBytes(0),
+                                        Hex.decode("fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"),
+                                        Hex.decode(
+                                                "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210"))),
+                        Integers.toBytes(1),
+                        Hex.decode(SIGNATURE_R_HEX),
+                        Hex.decode(SIGNATURE_S_HEX)));
+
+        var ethereumTransaction = ethereumTransactionParser.decode(transactionBytes);
+
+        assertThat(ethereumTransaction).isNotNull();
+        assertThat(ethereumTransaction.getType()).isEqualTo(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE);
+        assertThat(ethereumTransaction.getAuthorizationList()).hasSize(3);
+
+        var auth1 = ethereumTransaction.getAuthorizationList().get(0);
+        assertThat(auth1)
+                .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)
+                .returns(TO_ADDRESS_HEX, Authorization::getAddress)
+                .returns(AUTH_NONCE, Authorization::getNonce)
+                .returns(0, Authorization::getYParity);
+
+        var auth2 = ethereumTransaction.getAuthorizationList().get(1);
+        assertThat(auth2)
+                .returns("04a5", Authorization::getChainId)
+                .returns("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0", Authorization::getAddress)
+                .returns(3L, Authorization::getNonce)
+                .returns(1, Authorization::getYParity);
+
+        var auth3 = ethereumTransaction.getAuthorizationList().get(2);
+        assertThat(auth3)
+                .returns("0789", Authorization::getChainId)
+                .returns("1234567890abcdef1234567890abcdef12345678", Authorization::getAddress)
+                .returns(5L, Authorization::getNonce)
+                .returns(0, Authorization::getYParity);
+    }
+
+    @Test
     void getHashIncorrectTransactionType(CapturedOutput capturedOutput) {
         // given, when
         var actual = ethereumTransactionParser.getHash(
@@ -154,7 +223,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
         // Validate authorization list
         assertThat(ethereumTransaction.getAuthorizationList()).isNotNull().hasSize(1);
 
-        var authorization = ethereumTransaction.getAuthorizationList().get(0);
+        var authorization = ethereumTransaction.getAuthorizationList().getFirst();
         assertThat(authorization)
                 .isNotNull()
                 .returns(AUTH_CHAIN_ID_HEX, Authorization::getChainId)

@@ -17,7 +17,7 @@ import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.service.ContractBytecodeService;
 
 @Named
-public final class Eip7702EthereumTransactionParser extends AbstractEthereumTransactionParser {
+final class Eip7702EthereumTransactionParser extends AbstractEthereumTransactionParser {
 
     public static final int EIP7702_TYPE_BYTE = 4;
     private static final byte[] EIP7702_TYPE_BYTES = Integers.toBytes(EIP7702_TYPE_BYTE);
@@ -25,7 +25,7 @@ public final class Eip7702EthereumTransactionParser extends AbstractEthereumTran
     private static final int EIP7702_TYPE_RLP_ITEM_COUNT = 13;
     private static final int AUTHORIZATION_TUPLE_SIZE = 6;
 
-    public Eip7702EthereumTransactionParser(
+    Eip7702EthereumTransactionParser(
             ContractBytecodeService contractBytecodeService, FileDataRepository fileDataRepository) {
         super(contractBytecodeService, fileDataRepository);
     }

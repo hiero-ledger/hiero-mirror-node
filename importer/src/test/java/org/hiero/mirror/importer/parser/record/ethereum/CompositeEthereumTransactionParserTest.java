@@ -96,6 +96,17 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
     }
 
     @Test
+    void getHashEip7702() {
+        var hash = ethereumTransactionParser.getHash(
+                EMPTY_BYTE_ARRAY,
+                null,
+                domainBuilder.timestamp(),
+                Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX,
+                true);
+        assertThat(hash).isNotEmpty();
+    }
+
+    @Test
     void decodeUnsupportedEthereumTransaction() {
         byte[] unsupportedTx = Hex.decode("33" + BERLIN_RAW_TX_1.substring(2));
         assertThrows(InvalidDatasetException.class, () -> ethereumTransactionParser.decode(unsupportedTx));
