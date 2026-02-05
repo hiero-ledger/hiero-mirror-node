@@ -138,6 +138,11 @@ final class NetworkServiceImpl implements NetworkService {
                 .max(Comparator.naturalOrder())
                 .orElse(Long.MAX_VALUE);
 
+        // Validate that the range is not empty (e.g., gt:4 AND lt:5)
+        if (lowerBound > upperBound) {
+            throw new IllegalArgumentException("Invalid range for : node.id");
+        }
+
         return Pair.of(lowerBound, upperBound);
     }
 }

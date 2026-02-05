@@ -247,4 +247,22 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
 
         return addressBook.getFileId();
     }
+
+    @Test
+    void getNetworkNodesInvalidEmptyRange() {
+        // given - setup data
+        var fileId = setupNetworkNodeData();
+        var request = new NetworkNodeRequest();
+        request.setFileId(EntityIdEqualParameter.valueOf(fileId.toString()));
+        // Empty range: gt:4 AND lt:5 (no values between 4 and 5)
+        request.setNodeId(List.of(
+                new EntityIdRangeParameter(RangeOperator.GT, 4L), new EntityIdRangeParameter(RangeOperator.LT, 5L)));
+        request.setLimit(25);
+        request.setOrder(Sort.Direction.ASC);
+
+        // when/then
+        assertThatThrownBy(() -> networkService.getNetworkNodes(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Invalid range for : node.id");
+    }
 }

@@ -252,77 +252,152 @@
     {
       "url": "/api/v1/network/nodes?node.id=gt:4&limit=2&order=desc",
       "responseStatus": 200,
-      "responseJson": {
-        "nodes": [
-          {
-            "admin_key": null,
-            "decline_reward": null,
-            "description": "description",
-            "file_id": "0.0.102",
-            "grpc_proxy_endpoint": null,
-            "max_stake": 2000,
-            "memo": "0.0.9",
-            "min_stake": 1,
-            "node_account_id": "0.0.9",
-            "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
-            "node_id": 6,
-            "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
-            "reward_rate_start": 6,
-            "service_endpoints": [
-              {
-                "domain_name": "",
-                "ip_address_v4": "128.0.0.7",
-                "port": 50217
+      "responseJsonMatrix": {
+        "js": {
+          "nodes": [
+            {
+              "admin_key": null,
+              "decline_reward": null,
+              "description": "description",
+              "file_id": "0.0.102",
+              "grpc_proxy_endpoint": null,
+              "max_stake": 2000,
+              "memo": "0.0.9",
+              "min_stake": 1,
+              "node_account_id": "0.0.9",
+              "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+              "node_id": 6,
+              "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+              "reward_rate_start": 6,
+              "service_endpoints": [
+                {
+                  "domain_name": "",
+                  "ip_address_v4": "128.0.0.7",
+                  "port": 50217
+                }
+              ],
+              "stake": 6,
+              "stake_not_rewarded": 0,
+              "stake_rewarded": 6,
+              "staking_period": {
+                "from": "86400.000000000",
+                "to": "172800.000000000"
+              },
+              "timestamp": {
+                "from": "187654.000123457",
+                "to": null
               }
-            ],
-            "stake": 6,
-            "stake_not_rewarded": 0,
-            "stake_rewarded": 6,
-            "staking_period": {
-              "from": "86400.000000000",
-              "to": "172800.000000000"
             },
-            "timestamp": {
-              "from": "187654.000123457",
-              "to": null
-            }
-          },
-          {
-            "admin_key": null,
-            "decline_reward": null,
-            "description": "description",
-            "file_id": "0.0.102",
-            "grpc_proxy_endpoint": null,
-            "max_stake": 2000,
-            "memo": "0.0.8",
-            "min_stake": 1,
-            "node_account_id": "0.0.8",
-            "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
-            "node_id": 5,
-            "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
-            "reward_rate_start": 5,
-            "service_endpoints": [
-              {
-                "domain_name": "",
-                "ip_address_v4": "128.0.0.6",
-                "port": 50216
+            {
+              "admin_key": null,
+              "decline_reward": null,
+              "description": "description",
+              "file_id": "0.0.102",
+              "grpc_proxy_endpoint": null,
+              "max_stake": 2000,
+              "memo": "0.0.8",
+              "min_stake": 1,
+              "node_account_id": "0.0.8",
+              "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+              "node_id": 5,
+              "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+              "reward_rate_start": 5,
+              "service_endpoints": [
+                {
+                  "domain_name": "",
+                  "ip_address_v4": "128.0.0.6",
+                  "port": 50216
+                }
+              ],
+              "stake": 5,
+              "stake_not_rewarded": 0,
+              "stake_rewarded": 5,
+              "staking_period": {
+                "from": "86400.000000000",
+                "to": "172800.000000000"
+              },
+              "timestamp": {
+                "from": "187654.000123457",
+                "to": null
               }
-            ],
-            "stake": 5,
-            "stake_not_rewarded": 0,
-            "stake_rewarded": 5,
-            "staking_period": {
-              "from": "86400.000000000",
-              "to": "172800.000000000"
-            },
-            "timestamp": {
-              "from": "187654.000123457",
-              "to": null
             }
+          ],
+          "links": {
+            "next": null
           }
-        ],
-        "links": {
-          "next": null
+        },
+        "java": {
+          "nodes": [
+            {
+              "admin_key": null,
+              "decline_reward": null,
+              "description": "description",
+              "file_id": "0.0.102",
+              "grpc_proxy_endpoint": null,
+              "max_stake": 2000,
+              "memo": "0.0.9",
+              "min_stake": 1,
+              "node_account_id": "0.0.9",
+              "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+              "node_id": 6,
+              "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+              "reward_rate_start": 6,
+              "service_endpoints": [
+                {
+                  "domain_name": "",
+                  "ip_address_v4": "128.0.0.7",
+                  "port": 50217
+                }
+              ],
+              "stake": 6,
+              "stake_not_rewarded": 0,
+              "stake_rewarded": 6,
+              "staking_period": {
+                "from": "86400.000000000",
+                "to": "172800.000000000"
+              },
+              "timestamp": {
+                "from": "187654.000123457",
+                "to": null
+              }
+            },
+            {
+              "admin_key": null,
+              "decline_reward": null,
+              "description": "description",
+              "file_id": "0.0.102",
+              "grpc_proxy_endpoint": null,
+              "max_stake": 2000,
+              "memo": "0.0.8",
+              "min_stake": 1,
+              "node_account_id": "0.0.8",
+              "node_cert_hash": "0x01d173753810c0aae794ba72d5443c292e9ff962b01046220dd99f5816422696e0569c977e2f169e1e5688afc8f4aa16",
+              "node_id": 5,
+              "public_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+              "reward_rate_start": 5,
+              "service_endpoints": [
+                {
+                  "domain_name": "",
+                  "ip_address_v4": "128.0.0.6",
+                  "port": 50216
+                }
+              ],
+              "stake": 5,
+              "stake_not_rewarded": 0,
+              "stake_rewarded": 5,
+              "staking_period": {
+                "from": "86400.000000000",
+                "to": "172800.000000000"
+              },
+              "timestamp": {
+                "from": "187654.000123457",
+                "to": null
+              }
+            }
+          ],
+          "links": {
+            "next": "/api/v1/network/nodes?node.id=gt:4&node.id=lt:5&limit=2&order=desc"
+          }
         }
       }
     }
