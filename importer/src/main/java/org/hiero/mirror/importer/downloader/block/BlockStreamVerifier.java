@@ -130,7 +130,7 @@ final class BlockStreamVerifier {
                 throw new InvalidStreamFileException(String.format(
                         "Block number mismatch, from filename = %d, from content = %d", actual, blockNumber));
             }
-        } catch (final NumberFormatException e) {
+        } catch (final NumberFormatException _) {
             throw new InvalidStreamFileException("Failed to parse block number from filename " + blockFile.getName());
         }
     }

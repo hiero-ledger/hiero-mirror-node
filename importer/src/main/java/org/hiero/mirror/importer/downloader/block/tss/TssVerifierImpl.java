@@ -31,7 +31,9 @@ final class TssVerifierImpl implements TssVerifier {
     }
 
     @Override
-    public void verify(final byte[] message, final byte[] signature) {}
+    public void verify(final byte[] message, final byte[] signature) {
+        // TBA in future PRs
+    }
 
     private Ledger getLedger() {
         return ledgerCached
