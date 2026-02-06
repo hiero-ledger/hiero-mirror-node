@@ -62,6 +62,10 @@ public class BlockFile implements StreamFile<BlockTransaction> {
     @ToString.Exclude
     private List<BlockTransaction> items;
 
+    @Singular
+    @ToString.Exclude
+    private List<BlockTransaction> ledgerIdPublicationTransactions;
+
     private Long loadEnd;
 
     private Long loadStart;

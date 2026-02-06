@@ -16,6 +16,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -30,6 +31,7 @@ final class BlockStreamVerifier {
     private final BlockFileTransformer blockFileTransformer;
     private final RecordFileRepository recordFileRepository;
     private final StreamFileNotifier streamFileNotifier;
+    private final TssVerifier tssVerifier;
 
     private final MeterProvider<Timer> streamVerificationMeterProvider;
     private final MeterProvider<Timer> streamLatencyMeterProvider;
@@ -38,13 +40,15 @@ final class BlockStreamVerifier {
     private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
 
     public BlockStreamVerifier(
-            BlockFileTransformer blockFileTransformer,
-            RecordFileRepository recordFileRepository,
-            StreamFileNotifier streamFileNotifier,
-            MeterRegistry meterRegistry) {
+            final BlockFileTransformer blockFileTransformer,
+            final RecordFileRepository recordFileRepository,
+            final StreamFileNotifier streamFileNotifier,
+            final MeterRegistry meterRegistry,
+            final TssVerifier tssVerifier) {
         this.blockFileTransformer = blockFileTransformer;
         this.recordFileRepository = recordFileRepository;
         this.streamFileNotifier = streamFileNotifier;
+        this.tssVerifier = tssVerifier;
 
         // Metrics
         this.streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
@@ -90,7 +94,8 @@ final class BlockStreamVerifier {
             streamLatencyMeterProvider
                     .withTag("block_node", blockFile.getNode())
                     .record(Duration.between(consensusEnd, Instant.now()));
-            var recordFile = blockFileTransformer.transform(blockFile);
+            final var recordFile = blockFileTransformer.transform(blockFile);
+
             streamFileNotifier.verified(recordFile);
 
             getLastBlockFile().ifPresent(last -> {

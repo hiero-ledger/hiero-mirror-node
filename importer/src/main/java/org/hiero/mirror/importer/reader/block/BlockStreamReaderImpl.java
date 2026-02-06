@@ -193,8 +193,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .build();
-                context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
+
+                final var blockFileBuilder = context.getBlockFile();
+                blockFileBuilder.item(blockTransaction);
+                if (blockTransaction.getTransactionBody().hasLedgerIdPublication()) {
+                    blockFileBuilder.ledgerIdPublicationTransaction(blockTransaction);
+                }
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(

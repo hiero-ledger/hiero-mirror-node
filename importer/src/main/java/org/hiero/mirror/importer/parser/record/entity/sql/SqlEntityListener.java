@@ -30,6 +30,7 @@ import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
+import org.hiero.mirror.common.domain.ledger.Ledger;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
@@ -63,7 +64,6 @@ import org.hiero.mirror.importer.parser.record.entity.ConditionOnEntityRecordPar
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
-import org.hiero.mirror.importer.repository.HookStorageRepository;
 import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
 import org.hiero.mirror.importer.util.Utility;
@@ -85,7 +85,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     private final EntityProperties entityProperties;
     private final NftRepository nftRepository;
     private final TokenAccountRepository tokenAccountRepository;
-    private final HookStorageRepository hookStorageRepository;
     private final SqlProperties sqlProperties;
 
     @Override
@@ -232,6 +231,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
             context.merge(hookStorage.getId(), hookStorage, this::mergeHookStorage);
         }
+    }
+
+    @Override
+    public void onLedger(final Ledger ledger) throws ImporterException {
+        context.add(ledger);
     }
 
     @Override
