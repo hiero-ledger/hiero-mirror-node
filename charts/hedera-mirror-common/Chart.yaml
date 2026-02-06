@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: v2
-appVersion: 0.148.0-SNAPSHOT
+appVersion: 0.148.0-rc1
 dependencies:
   - alias: minio
     condition: minio.enabled
@@ -46,4 +46,4 @@ maintainers:
   - name: Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror-common
-version: 0.148.0-SNAPSHOT
+version: 0.148.0-rc1
