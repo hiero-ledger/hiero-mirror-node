@@ -97,13 +97,6 @@ spec:
         enabled: true
       coordinator:
         enableMetricsExporter: true
-      extensions: # remove when deploying 148
-        - name: citus
-          version: "12.1-1"
-        - name: btree_gist
-          version: stable
-        - name: pg_trgm
-          version: "1.6"
       worker:
         config:
           shared_buffers: "20GB"
