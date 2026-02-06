@@ -33,14 +33,14 @@ final class TssVerifierImpl implements TssVerifier {
     @Override
     public void verify(final byte[] message, final byte[] signature) {}
 
-    private Optional<Ledger> loadLedger() {
-        return ledgerRepository.findById(importerProperties.getNetwork());
-    }
-
     private Ledger getLedger() {
         return ledgerCached
                 .or(this::getLedgerStored)
-                .orElseThrow(() ->
-                        new IllegalStateException("Ledger id, history proof key and node contributions not found"));
+                .orElseThrow(() -> new IllegalStateException(
+                        "Ledger id, history proof verification key and node contributions not found"));
+    }
+
+    private Optional<Ledger> loadLedger() {
+        return ledgerRepository.findById(importerProperties.getNetwork());
     }
 }

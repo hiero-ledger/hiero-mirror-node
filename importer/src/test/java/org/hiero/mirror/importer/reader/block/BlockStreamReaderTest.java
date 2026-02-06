@@ -12,12 +12,12 @@ import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
+import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
@@ -378,7 +378,48 @@ public final class BlockStreamReaderTest {
         assertThat(postParent.getNextSibling()).isNull();
 
         // Verify nextInBatch is not used for hook executions
-        assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnly((BlockTransaction) null);
+        assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnlyNulls();
+    }
+
+    @Test
+    void readLedgerIdPublicationTransactions() {
+        // given
+        var defaultTransactionBody = TransactionBody.newBuilder()
+                .setLedgerIdPublication(LedgerIdPublicationTransactionBody.getDefaultInstance())
+                .build();
+        var firstTimestamp = recordItemBuilder.timestamp();
+        var secondTimestamp = recordItemBuilder.timestamp();
+        var thirdTimestamp = recordItemBuilder.timestamp();
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(thirdTimestamp)
+                        .setStatus(ResponseCodeEnum.INVALID_SIGNATURE)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(0, true));
+
+        // when
+        var actual = reader.read(blockStream);
+
+        // then
+        assertThat(actual.getLastLedgerIdPublicationTransaction())
+                .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockTransaction::getConsensusTimestamp);
     }
 
     @Test
@@ -698,10 +739,6 @@ public final class BlockStreamReaderTest {
 
     private BlockItem stateChanges(StateChanges stateChanges) {
         return BlockItem.newBuilder().setStateChanges(stateChanges).build();
-    }
-
-    private BlockItem transactionOutput(TransactionOutput transactionOutput) {
-        return BlockItem.newBuilder().setTransactionOutput(transactionOutput).build();
     }
 
     private BlockItem transactionResult(TransactionResult transactionResult) {

@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -82,6 +83,8 @@ import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.job.ReconciliationJob;
 import org.hiero.mirror.common.domain.job.ReconciliationStatus;
+import org.hiero.mirror.common.domain.ledger.Ledger;
+import org.hiero.mirror.common.domain.ledger.NodeContribution;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
@@ -637,6 +640,27 @@ public class DomainBuilder {
                 .ownerId(id())
                 .valueRead(value)
                 .valueWritten(value);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
+        final var nodeContributions = new ArrayList<NodeContribution>(List.of(
+                NodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build(),
+                NodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build()));
+        final var builder = Ledger.builder()
+                .consensusTimestamp(timestamp())
+                .historyProofVerificationKey(bytes(64))
+                .ledgerId(bytes(32))
+                .network(text(6))
+                .nodeContributions(nodeContributions);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -15,6 +16,8 @@ import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -63,8 +66,13 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var cutoverService =
                 new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
-        var blockStreamVerifier =
-                new BlockStreamVerifier(blockFileTransformer, cutoverService, meterRegistry, streamFileNotifier);
+        var blockStreamVerifier = new BlockStreamVerifier(
+                blockFileTransformer,
+                cutoverService,
+                mock(LedgerIdPublicationTransactionParser.class),
+                meterRegistry,
+                streamFileNotifier,
+                mock(TssVerifier.class));
         var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         return new BlockNodeSubscriber(

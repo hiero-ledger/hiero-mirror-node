@@ -197,8 +197,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
                 final var blockFileBuilder = context.getBlockFile();
                 blockFileBuilder.item(blockTransaction);
-                if (blockTransaction.getTransactionBody().hasLedgerIdPublication()) {
-                    blockFileBuilder.ledgerIdPublicationTransaction(blockTransaction);
+                if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
+                    blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
                 }
             }
         } catch (InvalidProtocolBufferException e) {
