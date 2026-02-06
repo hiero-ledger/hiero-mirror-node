@@ -19,7 +19,6 @@ import org.hiero.mirror.common.domain.entity.TokenAllowance;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
-import org.hiero.mirror.common.domain.ledger.Ledger;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -39,6 +38,7 @@ import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.exception.ImporterException;
 
 /**

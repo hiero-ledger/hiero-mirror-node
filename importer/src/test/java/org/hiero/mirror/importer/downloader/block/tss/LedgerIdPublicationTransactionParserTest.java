@@ -6,8 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
-import org.hiero.mirror.common.domain.ledger.Ledger;
-import org.hiero.mirror.common.domain.ledger.NodeContribution;
+import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.NodeContribution;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;

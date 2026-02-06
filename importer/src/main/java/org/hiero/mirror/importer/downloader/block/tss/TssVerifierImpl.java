@@ -7,7 +7,7 @@ import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.ledger.Ledger;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.common.domain.ledger;
+package org.hiero.mirror.common.domain.tss;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
