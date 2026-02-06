@@ -26,6 +26,6 @@ public class ContractExecutionParameters implements CallServiceParameters {
 
     @Override
     public Bytes getEthereumData() {
-        return null;
+        throw new UnsupportedOperationException("getEthereumData");
     }
 }

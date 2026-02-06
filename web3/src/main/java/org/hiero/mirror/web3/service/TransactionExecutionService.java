@@ -43,6 +43,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTr
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -77,8 +78,9 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         EvmTransactionResult result;
-        final var ethereumData = params.getEthereumData();
-        if (ethereumData != null && !ethereumData.isEmpty()) {
+        if (params instanceof ContractDebugParameters
+                && params.getEthereumData() != null
+                && !params.getEthereumData().isEmpty()) {
             transactionBody = buildEthereumTransactionBody(params);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
@@ -203,7 +205,7 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
         final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
                 .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                        params.getEthereumData().toArray()));
+                        params.getEthereumData().toArrayUnsafe()));
         return defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(ethereumTransactionBuilder.build())
                 .build();
