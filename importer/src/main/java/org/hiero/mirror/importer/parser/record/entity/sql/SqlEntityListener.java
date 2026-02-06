@@ -506,6 +506,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             dest.setDeleted(src.getDeleted());
         }
 
+        if (dest.getDelegationAddress() == null) {
+            dest.setDelegationAddress(src.getDelegationAddress());
+        }
+
         if (dest.getEthereumNonce() == null) {
             dest.setEthereumNonce(src.getEthereumNonce());
         }

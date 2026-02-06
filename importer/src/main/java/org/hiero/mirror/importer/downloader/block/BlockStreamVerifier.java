@@ -8,28 +8,24 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
 
 @Named
 @NullMarked
 final class BlockStreamVerifier {
 
-    static final BlockFile EMPTY = BlockFile.builder().build();
-
     private final BlockFileTransformer blockFileTransformer;
-    private final RecordFileRepository recordFileRepository;
+    private final CutoverService cutoverService;
     private final StreamFileNotifier streamFileNotifier;
     private final TssVerifier tssVerifier;
 
@@ -37,16 +33,14 @@ final class BlockStreamVerifier {
     private final MeterProvider<Timer> streamLatencyMeterProvider;
     private final Timer streamCloseMetric;
 
-    private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
-
     public BlockStreamVerifier(
             final BlockFileTransformer blockFileTransformer,
-            final RecordFileRepository recordFileRepository,
-            final StreamFileNotifier streamFileNotifier,
+            final CutoverService cutoverService,
             final MeterRegistry meterRegistry,
+            final StreamFileNotifier streamFileNotifier,
             final TssVerifier tssVerifier) {
         this.blockFileTransformer = blockFileTransformer;
-        this.recordFileRepository = recordFileRepository;
+        this.cutoverService = cutoverService;
         this.streamFileNotifier = streamFileNotifier;
         this.tssVerifier = tssVerifier;
 
@@ -68,24 +62,8 @@ final class BlockStreamVerifier {
                 .register(meterRegistry);
     }
 
-    public Optional<BlockFile> getLastBlockFile() {
-        return Objects.requireNonNull(lastBlockFile.get()).or(() -> {
-            var last = recordFileRepository
-                    .findLatest()
-                    .map(r -> BlockFile.builder()
-                            .consensusStart(r.getConsensusStart())
-                            .hash(r.getHash())
-                            .index(r.getIndex())
-                            .name(r.getName())
-                            .build())
-                    .or(() -> Optional.of(EMPTY));
-            lastBlockFile.compareAndSet(Optional.empty(), last);
-            return last;
-        });
-    }
-
     public void verify(BlockFile blockFile) {
-        var startTime = Instant.now();
+        final var startTime = Instant.now();
         boolean success = true;
         try {
             verifyBlockNumber(blockFile);
@@ -94,18 +72,15 @@ final class BlockStreamVerifier {
             streamLatencyMeterProvider
                     .withTag("block_node", blockFile.getNode())
                     .record(Duration.between(consensusEnd, Instant.now()));
-            final var recordFile = blockFileTransformer.transform(blockFile);
 
+            final var lastRecordFile = cutoverService.getLastRecordFile();
+            final var recordFile = blockFileTransformer.transform(blockFile);
             streamFileNotifier.verified(recordFile);
 
-            getLastBlockFile().ifPresent(last -> {
-                if (!last.equals(EMPTY)) {
-                    long latency = blockFile.getConsensusStart() - last.getConsensusStart();
-                    streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
-                }
+            lastRecordFile.map(RecordFile::getConsensusStart).ifPresent(lastConsensusStart -> {
+                final long latency = blockFile.getConsensusStart() - lastConsensusStart;
+                streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
             });
-
-            setLastBlockFile(blockFile);
         } catch (Exception e) {
             success = false;
             throw e;
@@ -117,18 +92,12 @@ final class BlockStreamVerifier {
     }
 
     private Optional<String> getExpectedPreviousHash() {
-        return getLastBlockFile().map(BlockFile::getHash);
-    }
-
-    private void setLastBlockFile(BlockFile blockFile) {
-        var copy = (BlockFile) blockFile.copy();
-        copy.clear();
-        lastBlockFile.set(Optional.of(copy));
+        return cutoverService.getLastRecordFile().map(RecordFile::getHash);
     }
 
     private void verifyBlockNumber(BlockFile blockFile) {
         var blockNumber = blockFile.getIndex();
-        getLastBlockFile().map(BlockFile::getIndex).ifPresent(lastBlockNumber -> {
+        cutoverService.getLastRecordFile().map(RecordFile::getIndex).ifPresent(lastBlockNumber -> {
             if (blockNumber != lastBlockNumber + 1) {
                 throw new InvalidStreamFileException(String.format(
                         "Non-consecutive block number, previous = %d, current = %d", lastBlockNumber, blockNumber));

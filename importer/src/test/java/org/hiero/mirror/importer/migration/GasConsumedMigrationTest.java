@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.migration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Array;
@@ -14,16 +15,16 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.contract.Contract;
+import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.contract.ContractResult;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
-import org.hiero.mirror.importer.repository.ContractActionRepository;
-import org.hiero.mirror.importer.repository.ContractRepository;
-import org.hiero.mirror.importer.repository.ContractResultRepository;
-import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -48,10 +49,6 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
     private final Resource sql;
 
     private final TransactionTemplate transactionTemplate;
-    private final ContractActionRepository contractActionRepository;
-    private final ContractRepository contractRepository;
-    private final ContractResultRepository contractResultRepository;
-    private final EntityRepository entityRepository;
 
     @AfterEach
     void teardown() {
@@ -61,18 +58,23 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
     @Test
     void empty() {
         runMigration();
-        assertThat(contractActionRepository.findAll()).isEmpty();
-        assertThat(contractRepository.findAll()).isEmpty();
-        assertThat(contractResultRepository.findAll()).isEmpty();
-        assertThat(entityRepository.findAll()).isEmpty();
+        assertThat(count("contract_action")).isZero();
+        assertThat(count("contract")).isZero();
+        assertThat(count("contract_result")).isZero();
+        assertThat(count("entity")).isZero();
     }
 
     @Test
     void migrate() {
         // Given
-        final var ethTxCreate = domainBuilder.ethereumTransaction(true).persist();
-        final var ethTxCreate1 = domainBuilder.ethereumTransaction(true).persist();
-        final var ethTxCall = domainBuilder.ethereumTransaction(true).persist();
+        final var ethTxCreate = domainBuilder.ethereumTransaction(true).get();
+        persistEthereumTransaction(ethTxCreate);
+
+        final var ethTxCreate1 = domainBuilder.ethereumTransaction(true).get();
+        persistEthereumTransaction(ethTxCreate1);
+
+        final var ethTxCall = domainBuilder.ethereumTransaction(true).get();
+        persistEthereumTransaction(ethTxCall);
 
         // run migration to create gas_consumed column
         runMigration();
@@ -85,7 +87,7 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
         runMigration();
 
         // then
-        assertThat(contractResultRepository.findAll())
+        assertThat(findAllContractResults())
                 .extracting(ContractResult::getGasConsumed)
                 .containsExactly(53296L, 53272L, 22224L);
     }
@@ -94,13 +96,18 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
         final var contract = domainBuilder
                 .contract()
                 .customize(c -> c.initcode(new byte[] {1, 0, 0, 0, 0, 1, 1, 1, 1}))
-                .persist();
-        domainBuilder
+                .get();
+        persistContract(contract);
+
+        Entity entityToPersist = domainBuilder
                 .entity()
+                .customize(e -> e.id(contract.getId()))
+                .customize(e -> e.type(EntityType.CONTRACT))
                 .customize(e -> e.createdTimestamp(
                         successTopLevelCreate ? ethTx.getConsensusTimestamp() : ethTx.getConsensusTimestamp() + 1))
-                .customize(e -> e.id(contract.getId()))
-                .persist();
+                .get();
+        persistEntity(entityToPersist);
+
         var migrateContractResult = createMigrationContractResult(
                 ethTx.getConsensusTimestamp(),
                 domainBuilder.entityId(),
@@ -108,17 +115,21 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
                 failedInitCode,
                 domainBuilder);
         persistMigrationContractResult(migrateContractResult, jdbcOperations);
-        domainBuilder
+
+        var ca1 = domainBuilder
                 .contractAction()
                 .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
                 .customize(ca -> ca.gasUsed(200L))
                 .customize(ca -> ca.callDepth(0))
-                .persist();
-        domainBuilder
+                .get();
+        persistContractAction(ca1);
+
+        var ca2 = domainBuilder
                 .contractAction()
                 .customize(ca -> ca.consensusTimestamp(ethTx.getConsensusTimestamp()))
                 .customize(ca -> ca.callDepth(1))
-                .persist();
+                .get();
+        persistContractAction(ca2);
     }
 
     @SneakyThrows
@@ -132,6 +143,106 @@ class GasConsumedMigrationTest extends ImporterIntegrationTest {
                 }
             });
         }
+    }
+
+    private long count(String table) {
+        return jdbcOperations.queryForObject("select count(*) from " + table, Long.class);
+    }
+
+    private List<ContractResult> findAllContractResults() {
+        return jdbcOperations.query("select * from contract_result", (rs, rowNum) -> {
+            ContractResult cr = new ContractResult();
+            cr.setConsensusTimestamp(rs.getLong("consensus_timestamp"));
+            cr.setGasConsumed((Long) rs.getObject("gas_consumed"));
+            return cr;
+        });
+    }
+
+    private void persistEthereumTransaction(EthereumTransaction ethTx) {
+        jdbcOperations.update(
+                """
+                insert into ethereum_transaction (
+                    call_data, chain_id, consensus_timestamp, data, gas_limit, gas_price, hash,
+                    max_fee_per_gas, max_gas_allowance, max_priority_fee_per_gas, nonce, payer_account_id,
+                    recovery_id, signature_r, signature_s, signature_v, to_address, type, value)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                ethTx.getCallData(),
+                ethTx.getChainId(),
+                ethTx.getConsensusTimestamp(),
+                ethTx.getData(),
+                ethTx.getGasLimit(),
+                ethTx.getGasPrice(),
+                ethTx.getHash(),
+                ethTx.getMaxFeePerGas(),
+                ethTx.getMaxGasAllowance() != null ? ethTx.getMaxGasAllowance() : 0L,
+                ethTx.getMaxPriorityFeePerGas(),
+                ethTx.getNonce(),
+                ethTx.getPayerAccountId().getId(),
+                ethTx.getRecoveryId(),
+                ethTx.getSignatureR(),
+                ethTx.getSignatureS(),
+                ethTx.getSignatureV(),
+                ethTx.getToAddress(),
+                ethTx.getType(),
+                ethTx.getValue());
+    }
+
+    private void persistContract(Contract contract) {
+        jdbcOperations.update(
+                """
+            insert into contract (id, initcode, file_id)
+            values (?, ?, ?)
+            """,
+                contract.getId(),
+                contract.getInitcode(),
+                contract.getFileId() != null ? contract.getFileId().getId() : null);
+    }
+
+    private void persistEntity(Entity entity) {
+        jdbcOperations.update(
+                """
+            insert into entity (id, num, realm, shard, created_timestamp, timestamp_range, type)
+            values (?, ?, ?, ?, ?, ?::int8range, ?::entity_type)
+            on conflict (id) do update set
+            created_timestamp = excluded.created_timestamp,
+            timestamp_range = excluded.timestamp_range,
+            type = excluded.type
+            """,
+                entity.getId(),
+                entity.getNum(),
+                entity.getRealm(),
+                entity.getShard(),
+                entity.getCreatedTimestamp(),
+                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                entity.getType().name());
+    }
+
+    private void persistContractAction(ContractAction ca) {
+        jdbcOperations.update(
+                """
+            insert into contract_action (call_depth, call_operation_type, call_type, caller, caller_type,
+            consensus_timestamp, gas, gas_used, index, input, payer_account_id, recipient_account, recipient_address,
+            recipient_contract, result_data, result_data_type, value)
+            values (?, ?, ?, ?, ?::entity_type, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                ca.getCallDepth(),
+                ca.getCallOperationType(),
+                ca.getCallType(),
+                ca.getCaller() != null ? ca.getCaller().getId() : null,
+                ca.getCallerType() != null ? ca.getCallerType().name() : null,
+                ca.getConsensusTimestamp(),
+                ca.getGas(),
+                ca.getGasUsed(),
+                ca.getIndex(),
+                ca.getInput(),
+                ca.getPayerAccountId() != null ? ca.getPayerAccountId().getId() : null,
+                ca.getRecipientAccount() != null ? ca.getRecipientAccount().getId() : null,
+                ca.getRecipientAddress(),
+                ca.getRecipientContract() != null ? ca.getRecipientContract().getId() : null,
+                ca.getResultData(),
+                ca.getResultDataType(),
+                ca.getValue());
     }
 
     @Data

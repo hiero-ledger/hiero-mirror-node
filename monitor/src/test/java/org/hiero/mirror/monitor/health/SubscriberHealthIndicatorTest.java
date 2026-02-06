@@ -5,6 +5,7 @@ package org.hiero.mirror.monitor.health;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import java.net.ConnectException;
 import java.net.URI;
 import java.time.Duration;
@@ -26,8 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
@@ -38,7 +39,7 @@ import reactor.test.StepVerifier;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-class ClusterHealthIndicatorTest {
+class SubscriberHealthIndicatorTest {
 
     @Mock
     private MirrorSubscriber mirrorSubscriber;
@@ -52,8 +53,11 @@ class ClusterHealthIndicatorTest {
     @Mock
     private ReleaseHealthProperties releaseHealthProperties;
 
+    @Mock
+    private MeterRegistry meterRegistry;
+
     @InjectMocks
-    private ClusterHealthIndicator clusterHealthIndicator;
+    private SubscriberHealthIndicator subscriberHealthIndicator;
 
     @ParameterizedTest
     @CsvSource({
@@ -83,7 +87,7 @@ class ClusterHealthIndicatorTest {
         when(mirrorSubscriber.getSubscriptions()).thenReturn(Flux.just(subscribeScenario(subscribeRate)));
         when(restApiClient.getNetworkStakeStatusCode())
                 .thenReturn(Mono.just(HttpStatusCode.valueOf(networkStatusCode)));
-        assertThat(clusterHealthIndicator.health().block())
+        assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(status);
     }
@@ -97,7 +101,7 @@ class ClusterHealthIndicatorTest {
                 new URI("http://localhost/api/v1/network/stake"),
                 HttpHeaders.EMPTY);
         when(restApiClient.getNetworkStakeStatusCode()).thenReturn(Mono.error(exception));
-        assertThat(clusterHealthIndicator.health().block())
+        assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(Status.DOWN);
     }
@@ -110,7 +114,7 @@ class ClusterHealthIndicatorTest {
         when(restApiClient.getNetworkStakeStatusCode())
                 .thenReturn(Mono.delay(Duration.ofSeconds(6L)).thenReturn(HttpStatusCode.valueOf(200)));
 
-        StepVerifier.withVirtualTime(() -> clusterHealthIndicator.health())
+        StepVerifier.withVirtualTime(() -> subscriberHealthIndicator.health())
                 .thenAwait(Duration.ofSeconds(10L))
                 .expectNextMatches(s -> s.getStatus() == Status.DOWN
                         && ((String) s.getDetails().get("reason")).contains("within 5000ms"))
@@ -121,7 +125,7 @@ class ClusterHealthIndicatorTest {
     @Test
     void restNetworkStakeError() {
         when(restApiClient.getNetworkStakeStatusCode()).thenReturn(Mono.error(new RuntimeException("Test exception")));
-        assertThat(clusterHealthIndicator.health().block())
+        assertThat(subscriberHealthIndicator.health().block())
                 .extracting(Health::getStatus)
                 .isEqualTo(Status.UNKNOWN);
     }

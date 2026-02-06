@@ -438,58 +438,6 @@ describe('Override db pool config', () => {
   });
 });
 
-describe('Override network currencyFormat config', () => {
-  const customConfig = (networkCurrencyFormatConfig) => ({
-    hiero: {
-      mirror: {
-        rest: {
-          network: {
-            currencyFormat: networkCurrencyFormatConfig,
-          },
-        },
-      },
-    },
-  });
-
-  const testSpecs = [
-    {
-      name: 'unspecified value should be valid',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat BOTH',
-      override: 'BOTH',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat HBARS',
-      override: 'HBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat TINYBARS',
-      override: 'TINYBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat INVALID',
-      override: 'INVALID',
-      expectThrow: true,
-    },
-  ];
-
-  testSpecs.forEach((testSpec) => {
-    const {name, override, expectThrow} = testSpec;
-    test(name, async () => {
-      if (!expectThrow) {
-        await loadCustomConfig(customConfig(override));
-      } else {
-        await expect(loadCustomConfig(customConfig(override))).rejects.toThrow();
-      }
-    });
-  });
-});
-
 describe('getResponseLimit', () => {
   test('default', async () => {
     const func = (await import('../config')).getResponseLimit;

@@ -19,8 +19,7 @@ import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.batch.BatchPersister;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -49,12 +48,11 @@ public class AccountBalanceFileParser extends AbstractStreamFileParser<AccountBa
      */
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@balanceParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@balanceParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@balanceParserProperties.getRetry().getMultiplier()}"),
-            maxAttemptsExpression = "#{@balanceParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@balanceParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@balanceParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@balanceParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@balanceParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@balanceParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(AccountBalanceFile accountBalanceFile) {
         super.parse(accountBalanceFile);
@@ -62,12 +60,11 @@ public class AccountBalanceFileParser extends AbstractStreamFileParser<AccountBa
 
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@balanceParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@balanceParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@balanceParserProperties.getRetry().getMultiplier()}"),
-            maxAttemptsExpression = "#{@balanceParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@balanceParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@balanceParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@balanceParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@balanceParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@balanceParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(List<AccountBalanceFile> accountBalanceFile) {
         super.parse(accountBalanceFile);

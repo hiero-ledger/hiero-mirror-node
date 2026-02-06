@@ -18,7 +18,7 @@ import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
-import reactor.retry.Repeat;
+import reactor.util.repeat.RepeatSpec;
 import reactor.util.retry.Retry;
 
 @Named
@@ -39,7 +39,9 @@ public class SharedPollingTopicListener extends SharedTopicListener {
         PollingContext context = new PollingContext();
 
         topicMessages = Flux.defer(() -> poll(context).subscribeOn(scheduler))
-                .repeatWhen(Repeat.times(Long.MAX_VALUE).fixedBackoff(interval).withBackoffScheduler(scheduler))
+                .repeatWhen(RepeatSpec.times(Long.MAX_VALUE)
+                        .withFixedDelay(interval)
+                        .withScheduler(scheduler))
                 .name(METRIC)
                 .tag(METRIC_TAG, "shared poll")
                 .tap(Micrometer.observation(observationRegistry))
