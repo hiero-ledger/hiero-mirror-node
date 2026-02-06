@@ -9,6 +9,10 @@ plugins {
     id("spring-conventions")
 }
 
+configurations.all {
+    exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
+}
+
 dependencies {
     val blockNodeVersion: String by rootProject.extra
 

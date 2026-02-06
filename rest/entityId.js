@@ -3,7 +3,7 @@
 import _ from 'lodash';
 import quickLru from 'quick-lru';
 
-import config, {getMirrorConfig} from './config';
+import {getMirrorConfig} from './config';
 import * as constants from './constants';
 import {InvalidArgumentError} from './errors';
 import {stripHexPrefix, toHexString} from './utils';
@@ -360,11 +360,6 @@ class SystemEntity {
   #networkAdminFeeAccount = of(systemShard, systemRealm, 98);
   #stakingRewardAccount = of(systemShard, systemRealm, 800);
   #treasuryAccount = of(systemShard, systemRealm, 2);
-  unreleasedSupplyAccounts = config.network.unreleasedSupplyAccounts.map((range) => {
-    const from = of(systemShard, systemRealm, range.from);
-    const to = of(systemShard, systemRealm, range.to);
-    return {from, to};
-  });
 
   get addressBookFile101() {
     return this.#addressBookFile101;
