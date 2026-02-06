@@ -97,13 +97,14 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
 
     @Test
     void getHashEip7702() {
-        var hash = ethereumTransactionParser.getHash(
+        var expected = new Keccak.Digest256().digest(Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX);
+        var actual = ethereumTransactionParser.getHash(
                 EMPTY_BYTE_ARRAY,
                 null,
                 domainBuilder.timestamp(),
                 Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX,
                 true);
-        assertThat(hash).isNotEmpty();
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
