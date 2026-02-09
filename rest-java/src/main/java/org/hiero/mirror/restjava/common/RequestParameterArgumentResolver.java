@@ -98,8 +98,8 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
      */
     private BindingMetadata getMetadata(Class<?> clazz) {
         return metadataCache.computeIfAbsent(clazz, c -> {
-            Map<Field, RestJavaQueryParam> queryParams = new java.util.LinkedHashMap<>();
-            Map<Field, RestJavaPathParam> pathParams = new java.util.LinkedHashMap<>();
+            Map<Field, RestJavaQueryParam> queryParams = new ConcurrentHashMap<>();
+            Map<Field, RestJavaPathParam> pathParams = new ConcurrentHashMap<>();
 
             for (Field field : c.getDeclaredFields()) {
                 // Cache @QueryParam annotations
@@ -170,13 +170,18 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
     }
 
     private String[] resolveParameterValues(String[] paramValues, String paramName, RestJavaQueryParam annotation) {
-        boolean hasNoValue = paramValues == null || paramValues.length == 0 || StringUtils.isBlank(paramValues[0]);
-
-        if (!hasNoValue) {
+        if (hasValue(paramValues)) {
             return paramValues;
         }
 
-        // Handle default value or required parameter
+        return handleMissingValue(paramName, annotation);
+    }
+
+    private boolean hasValue(String[] paramValues) {
+        return paramValues != null && paramValues.length > 0 && !StringUtils.isBlank(paramValues[0]);
+    }
+
+    private String[] handleMissingValue(String paramName, RestJavaQueryParam annotation) {
         if (!annotation.defaultValue().equals(ValueConstants.DEFAULT_NONE)) {
             return new String[] {annotation.defaultValue()};
         }
