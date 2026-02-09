@@ -223,7 +223,7 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
-        if: inputs.run_k6_test == 'true'
+        if: ${{ inputs.run_k6_test == 'true' }}
         uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
         with:
           version: v2.3.0
@@ -263,7 +263,7 @@ jobs:
           ./copy-live-environment.sh
 
       - name: Upload k6 test report
-        if: inputs.run_k6_test == 'true'
+        if: ${{ inputs.run_k6_test == 'true' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: k6-test-report
