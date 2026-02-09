@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.common;
 
 import java.lang.reflect.Field;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -97,22 +98,23 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
      */
     private BindingMetadata getMetadata(Class<?> clazz) {
         return metadataCache.computeIfAbsent(clazz, c -> {
-            BindingMetadata metadata = new BindingMetadata();
+            Map<Field, RestJavaQueryParam> queryParams = new java.util.LinkedHashMap<>();
+            Map<Field, RestJavaPathParam> pathParams = new java.util.LinkedHashMap<>();
 
             for (Field field : c.getDeclaredFields()) {
                 // Cache @QueryParam annotations
                 RestJavaQueryParam queryParam = field.getAnnotation(RestJavaQueryParam.class);
                 if (queryParam != null) {
-                    metadata.queryParams.put(field, queryParam);
+                    queryParams.put(field, queryParam);
                 }
 
                 // Cache @PathParam annotations
                 RestJavaPathParam pathParam = field.getAnnotation(RestJavaPathParam.class);
                 if (pathParam != null) {
-                    metadata.pathParams.put(field, pathParam);
+                    pathParams.put(field, pathParam);
                 }
             }
-            return metadata;
+            return new BindingMetadata(queryParams, pathParams);
         });
     }
 
@@ -122,11 +124,7 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             MutablePropertyValues propertyValues,
             Map<String, String> pathVariables) {
 
-        String variableName = annotation.value().isEmpty() ? annotation.name() : annotation.value();
-        if (variableName.isEmpty()) {
-            variableName = field.getName();
-        }
-
+        String variableName = extractName(field, annotation.value(), annotation.name());
         String value = pathVariables != null ? pathVariables.get(variableName) : null;
 
         if (value == null && annotation.required()) {
@@ -134,9 +132,22 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         }
 
         if (value != null) {
-            // Add to property values - WebDataBinder will handle type conversion
             propertyValues.add(field.getName(), value);
         }
+    }
+
+    /**
+     * Extracts the parameter/variable name with priority: value > name > field name. Shared logic for both query params
+     * and path variables.
+     */
+    private String extractName(Field field, String value, String name) {
+        if (!value.isEmpty()) {
+            return value;
+        }
+        if (!name.isEmpty()) {
+            return name;
+        }
+        return field.getName();
     }
 
     private void processQueryParam(
@@ -145,34 +156,47 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             MutablePropertyValues propertyValues,
             NativeWebRequest webRequest) {
 
-        String paramName = annotation.value().isEmpty() ? annotation.name() : annotation.value();
-        if (paramName.isEmpty()) {
-            paramName = field.getName();
-        }
-
-        // Extract parameter values - same logic as RequestParamMethodArgumentResolver
+        String paramName = extractName(field, annotation.value(), annotation.name());
         String[] paramValues = webRequest.getParameterValues(paramName);
 
-        // Handle default value if no parameter provided
-        if ((paramValues == null || paramValues.length == 0 || StringUtils.isBlank(paramValues[0]))) {
-            if (!annotation.defaultValue().equals(ValueConstants.DEFAULT_NONE)) {
-                paramValues = new String[] {annotation.defaultValue()};
-            } else if (annotation.required()) {
-                throw new InvalidParameterCountException("Missing required request parameter: " + paramName);
-            } else {
-                // No value, not required - skip (let @Builder.Default handle it)
-                return;
-            }
+        // Handle missing or empty values
+        paramValues = resolveParameterValues(paramValues, paramName, annotation);
+        if (paramValues == null) {
+            return; // No value, not required - skip
         }
 
-        // Check if multiple values provided for single-value parameter
+        // Validate and add to property values
+        validateAndAddParameter(field, paramName, paramValues, propertyValues);
+    }
+
+    private String[] resolveParameterValues(String[] paramValues, String paramName, RestJavaQueryParam annotation) {
+        boolean hasNoValue = paramValues == null || paramValues.length == 0 || StringUtils.isBlank(paramValues[0]);
+
+        if (!hasNoValue) {
+            return paramValues;
+        }
+
+        // Handle default value or required parameter
+        if (!annotation.defaultValue().equals(ValueConstants.DEFAULT_NONE)) {
+            return new String[] {annotation.defaultValue()};
+        }
+
+        if (annotation.required()) {
+            throw new InvalidParameterCountException("Missing required request parameter: " + paramName);
+        }
+
+        return null; // No value, not required
+    }
+
+    private void validateAndAddParameter(
+            Field field, String paramName, String[] paramValues, MutablePropertyValues propertyValues) {
         boolean isMultiValue = field.getType().isArray() || Collection.class.isAssignableFrom(field.getType());
-        if (!isMultiValue && paramValues != null && paramValues.length > 1) {
+
+        if (!isMultiValue && paramValues.length > 1) {
             throw new InvalidParameterCountException("Only a single instance is supported for " + paramName);
         }
 
-        // Add to property values - WebDataBinder will handle type conversion and arrays/collections
-        // For arrays or Collections (List, Set, etc.), pass all values; otherwise just the first
+        // Add to property values - WebDataBinder will handle type conversion
         Object valueToSet = isMultiValue ? paramValues : paramValues[0];
         propertyValues.add(field.getName(), valueToSet);
     }
@@ -200,11 +224,16 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
     }
 
     /**
-     * Metadata about parameter bindings for a DTO class. Cached to avoid reflection on every request.
+     * Metadata about parameter bindings for a DTO class. Cached to avoid reflection on every request. Immutable record
+     * for thread safety.
      */
-    private static class BindingMetadata {
-        // Use LinkedHashMap to preserve field declaration order
-        final Map<Field, RestJavaQueryParam> queryParams = new java.util.LinkedHashMap<>();
-        final Map<Field, RestJavaPathParam> pathParams = new java.util.LinkedHashMap<>();
+    private record BindingMetadata(
+            Map<Field, RestJavaQueryParam> queryParams, Map<Field, RestJavaPathParam> pathParams) {
+
+        BindingMetadata(Map<Field, RestJavaQueryParam> queryParams, Map<Field, RestJavaPathParam> pathParams) {
+            // Make maps unmodifiable for thread safety - preserves LinkedHashMap order
+            this.queryParams = Collections.unmodifiableMap(queryParams);
+            this.pathParams = Collections.unmodifiableMap(pathParams);
+        }
     }
 }
