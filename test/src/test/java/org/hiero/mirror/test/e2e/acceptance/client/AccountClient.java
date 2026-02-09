@@ -9,6 +9,7 @@ import com.hedera.hashgraph.sdk.AccountCreateTransaction;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
 import com.hedera.hashgraph.sdk.AccountId;
 import com.hedera.hashgraph.sdk.AccountUpdateTransaction;
+import com.hedera.hashgraph.sdk.BatchTransaction;
 import com.hedera.hashgraph.sdk.ContractId;
 import com.hedera.hashgraph.sdk.EvmAddress;
 import com.hedera.hashgraph.sdk.Hbar;
@@ -32,6 +33,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.hiero.mirror.test.e2e.acceptance.config.AcceptanceTestProperties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
@@ -374,6 +376,71 @@ public class AccountClient extends AbstractNetworkClient {
         var response = executeTransactionAndRetrieveReceipt(accountUpdateTransaction);
         log.info(" account updated via {}", response.getTransactionId());
         return response;
+    }
+
+    /**
+     * Submits an atomic batch with two inner CryptoTransfer transactions:
+     *  1) funding transfer to an EVM alias -> hollow auto-create
+     *  2) normal transfer to an existing account
+     *
+     *  Returns NetworkTransactionResponse for the batch transaction.
+     */
+    @SneakyThrows
+    public NetworkTransactionResponse submitBatchWithHollowAutoCreateAndNormalTransfer(
+            ExpandedAccountId batchSigner,
+            AccountId hollowAliasAccountId,
+            AccountClient.AccountNameEnum transferRecipientName,
+            long hollowFundingTinybars,
+            long normalTransferTinybars) {
+
+        final var recipient = getAccount(transferRecipientName);
+
+        // Inner #1: hollow auto-create (operator funds alias)
+        final var hollowCreateInner = new TransferTransaction()
+                .addHbarTransfer(client.getOperatorAccountId(), Hbar.fromTinybars(-hollowFundingTinybars))
+                .addHbarTransfer(hollowAliasAccountId, Hbar.fromTinybars(hollowFundingTinybars))
+                .setTransactionMemo(getMemo("Hollow auto-create"))
+                .batchify(client, batchSigner.getPublicKey());
+
+        // Inner #2: normal transfer (operator -> recipient)
+        final var normalTransferInner = new TransferTransaction()
+                .addHbarTransfer(client.getOperatorAccountId(), Hbar.fromTinybars(-normalTransferTinybars))
+                .addHbarTransfer(recipient.getAccountId(), Hbar.fromTinybars(normalTransferTinybars))
+                .setTransactionMemo(getMemo("Normal transfer"))
+                .batchify(client, batchSigner.getPublicKey());
+
+        final var batch =
+                new BatchTransaction().addInnerTransaction(hollowCreateInner).addInnerTransaction(normalTransferInner);
+
+        batch.setMaxTransactionFee(Hbar.from(5));
+
+        final var batchResponse = executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
+
+        log.info("Batch receipt status: {}", batchResponse.getReceipt().status);
+        log.info("Batch tx id: {}", batchResponse.getTransactionId());
+
+        return batchResponse;
+    }
+
+    /**
+     * Completion transaction (hollow -> full):
+     * payer is the hollow account and it must sign with its ECDSA private key.
+     *
+     * Returns NetworkTransactionResponse for the completion transaction.
+     */
+    @SneakyThrows
+    public NetworkTransactionResponse submitCompletionTransaction(
+            AccountId hollowResolvedAccountId, PrivateKey hollowAccountPrivateKey) {
+        final var completionTx = new TransferTransaction().setTransactionMemo(getMemo("Complete hollow account"));
+
+        final var hollowPayer = new ExpandedAccountId(hollowResolvedAccountId, hollowAccountPrivateKey);
+        final var keys = KeyList.of(hollowAccountPrivateKey);
+        final var completionResponse = executeTransactionAndRetrieveReceipt(completionTx, keys, hollowPayer);
+
+        log.info("Completion receipt status: {}", completionResponse.getReceipt().status);
+        log.info("Completion tx id: {}", completionResponse.getTransactionId());
+
+        return completionResponse;
     }
 
     @RequiredArgsConstructor
