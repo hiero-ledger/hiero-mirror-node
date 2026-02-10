@@ -282,8 +282,8 @@ class ContractControllerTest {
                                 + "\"from\": null, "
                                 + "\"block\": \"latest\", "
                                 + "\"data\": \"0x1079023a\", "
-                                + "\"gas\": " + THROTTLE_GAS_LIMIT + ", "
-                                + "\"gasPrice\": 78282329}"))
+                                + "\"gas\": null, "
+                                + "\"gasPrice\": null}"))
                 .andExpect(status().isOk());
 
         // Verify that the value field defaults to 0 when explicitly set to null
