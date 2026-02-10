@@ -88,8 +88,6 @@ spring:
       minimum-idle: 4
       validation-timeout: 3000
   jackson:
-    deserialization:
-      fail-on-unknown-properties: false
     use-jackson2-defaults: true
   jooq:
     sql-dialect: Postgres
