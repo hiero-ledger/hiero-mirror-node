@@ -28,6 +28,7 @@ public class Ledger {
     private byte[] historyProofVerificationKey;
 
     @Id
+    @ToString.Include
     private byte[] ledgerId;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
