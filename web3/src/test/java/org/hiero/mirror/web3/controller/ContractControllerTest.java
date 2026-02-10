@@ -6,8 +6,10 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_REVERT_EXECUTE
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.hiero.mirror.web3.validation.HexValidator.MESSAGE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
@@ -267,6 +269,25 @@ class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(convert(new GenericErrorResponse(BAD_REQUEST.getReasonPhrase(), error))));
+    }
+
+    @Test
+    void callWithExplicitNullValue() throws Exception {
+        mockMvc.perform(post(CALL_URI)
+                        .accept(MediaType.APPLICATION_JSON)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"to\": \"0x00000000000000000000000000000000000004e4\", "
+                                + "\"estimate\": false, "
+                                + "\"value\": null, "
+                                + "\"from\": null, "
+                                + "\"block\": \"latest\", "
+                                + "\"data\": \"0x1079023a\", "
+                                + "\"gas\": " + THROTTLE_GAS_LIMIT + ", "
+                                + "\"gasPrice\": 78282329}"))
+                .andExpect(status().isOk());
+
+        // Verify that the value field defaults to 0 when explicitly set to null
+        verify(service).processCall(argThat(params -> params.getValue() == 0L));
     }
 
     @Test
