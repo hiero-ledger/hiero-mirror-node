@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.contract.ContractCallTransactionBody;
 import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
@@ -42,6 +43,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTr
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -76,7 +78,11 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         EvmTransactionResult result;
-        if (isContractCreate) {
+        if (params instanceof ContractDebugParameters
+                && params.getEthereumData() != null
+                && !params.getEthereumData().isEmpty()) {
+            transactionBody = buildEthereumTransactionBody(params);
+        } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
@@ -193,6 +199,15 @@ public class TransactionExecutionService {
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
+                .build();
+    }
+
+    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
+                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        params.getEthereumData().toArrayUnsafe()));
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(ethereumTransactionBuilder.build())
                 .build();
     }
 
