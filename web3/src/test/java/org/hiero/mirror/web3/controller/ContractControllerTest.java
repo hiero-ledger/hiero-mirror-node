@@ -273,6 +273,9 @@ class ContractControllerTest {
 
     @Test
     void callWithExplicitNullValue() throws Exception {
+        // Test contract call with explicit null value in JSON (reproduces the curl issue)
+        // With spring.jackson.use-jackson2-defaults=true, Jackson should treat null as the default
+        // value (0L) for primitive long fields
         mockMvc.perform(post(CALL_URI)
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -282,7 +285,7 @@ class ContractControllerTest {
                                 + "\"from\": null, "
                                 + "\"block\": \"latest\", "
                                 + "\"data\": \"0x1079023a\", "
-                                + "\"gas\": null, "
+                                + "\"gas\": " + THROTTLE_GAS_LIMIT + ", "
                                 + "\"gasPrice\": null}"))
                 .andExpect(status().isOk());
 
