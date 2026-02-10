@@ -87,6 +87,8 @@ spring:
       maximum-pool-size: 50
       minimum-idle: 4
       validation-timeout: 3000
+  jackson:
+    use-jackson2-defaults: true
   jooq:
     sql-dialect: Postgres
   jpa:
@@ -97,5 +99,3 @@ spring:
   threads:
     virtual:
       enabled: true
-  jackson:
-    use-jackson2-defaults: true
