@@ -204,6 +204,23 @@ final class BlockFileSourceTest {
                 .isOne();
     }
 
+    @SneakyThrows
+    @Test
+    void getFromResettableNetworkFolderNotfound() {
+        // given
+        importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
+        FileUtils.forceMkdir(dataPath.resolve(
+                        blockBucketProperties.getBucketName(),
+                        importerProperties.getNetwork(),
+                        StreamType.BLOCK.getPath())
+                .toFile());
+
+        // when, then
+        assertThatThrownBy(() -> blockFileSource.get())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Failed to discover network folder for 'previewnet'");
+    }
+
     @ParameterizedTest(name = "startBlockNumber={0}")
     @NullSource
     @ValueSource(longs = {981L})
