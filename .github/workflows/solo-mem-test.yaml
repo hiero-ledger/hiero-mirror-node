@@ -111,7 +111,7 @@ jobs:
           echo SOLO_TEST_CLUSTER=solo-e2e > .env
           echo ONE_SHOT_WITH_BLOCK_NODE=true >> .env
           echo MIRROR_NODE_PINGER_TPS=10 >> .env
-          echo ONE_SHOT_METRICS_TEST_DURATION_IN_MINUTES=5 >> .env
+          echo ONE_SHOT_METRICS_TEST_DURATION_IN_MINUTES=2 >> .env
           cat .env
           task test-e2e-performance
 
