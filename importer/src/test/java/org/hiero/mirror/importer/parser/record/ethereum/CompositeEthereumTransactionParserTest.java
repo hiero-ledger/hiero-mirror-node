@@ -88,6 +88,26 @@ final class CompositeEthereumTransactionParserTest extends AbstractEthereumTrans
     }
 
     @Test
+    void decodeEip7702() {
+        var ethereumTransaction = ethereumTransactionParser.decode(Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX);
+        validateEthereumTransaction(ethereumTransaction);
+        assertThat(ethereumTransaction.getType()).isEqualTo(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE);
+        assertThat(ethereumTransaction.getAuthorizationList()).isNotEmpty();
+    }
+
+    @Test
+    void getHashEip7702() {
+        var expected = new Keccak.Digest256().digest(Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX);
+        var actual = ethereumTransactionParser.getHash(
+                EMPTY_BYTE_ARRAY,
+                null,
+                domainBuilder.timestamp(),
+                Eip7702EthereumTransactionParserTest.EIP7702_RAW_TX,
+                true);
+        assertThat(actual).isEqualTo(expected);
+    }
+
+    @Test
     void decodeUnsupportedEthereumTransaction() {
         byte[] unsupportedTx = Hex.decode("33" + BERLIN_RAW_TX_1.substring(2));
         assertThrows(InvalidDatasetException.class, () -> ethereumTransactionParser.decode(unsupportedTx));
