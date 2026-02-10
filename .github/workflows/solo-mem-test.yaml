@@ -35,6 +35,9 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: hiero-ledger/solo
+          ref: main
 
       - name: Setup Posix Dependencies
         id: set-posix-dependencies
