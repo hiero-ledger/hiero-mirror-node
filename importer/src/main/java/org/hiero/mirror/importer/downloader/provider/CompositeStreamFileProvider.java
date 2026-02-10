@@ -16,6 +16,8 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Primary;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
@@ -24,17 +26,19 @@ import reactor.util.retry.Retry;
 
 @CustomLog
 @Named
+@NullMarked
 @Primary
 final class CompositeStreamFileProvider implements StreamFileProvider {
 
     private final List<ProviderHealth> providers;
 
-    public CompositeStreamFileProvider(CommonDownloaderProperties properties, List<StreamFileProvider> providers) {
-        var providerHealth = new ArrayList<ProviderHealth>();
+    public CompositeStreamFileProvider(
+            final CommonDownloaderProperties properties, final List<StreamFileProvider> providers) {
+        final var providerHealth = new ArrayList<ProviderHealth>();
 
         for (int i = 0; i < providers.size(); ++i) {
-            var provider = providers.get(i);
-            var sourceProperties = properties.getSources().get(i);
+            final var provider = providers.get(i);
+            final var sourceProperties = properties.getSources().get(i);
             providerHealth.add(new ProviderHealth(provider, sourceProperties));
         }
 
@@ -42,25 +46,34 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
     }
 
     @Override
-    public Mono<StreamFileData> get(ConsensusNode consensusNode, StreamFilename streamFilename) {
-        var index = new AtomicInteger(0);
+    public Mono<StreamFileData> get(final StreamFilename streamFilename) {
+        final var index = new AtomicInteger(0);
         return Mono.fromSupplier(() -> getProvider(index))
-                .flatMap(p -> p.get(consensusNode, streamFilename))
+                .flatMap(p -> p.get(streamFilename))
                 .retryWhen(Retry.from(s -> s.map(r -> shouldRetry(r, index))));
     }
 
     @Override
-    public Flux<StreamFileData> list(ConsensusNode consensusNode, StreamFilename lastFilename) {
-        var index = new AtomicInteger(0);
+    public Flux<StreamFileData> list(final ConsensusNode consensusNode, final StreamFilename lastFilename) {
+        final var index = new AtomicInteger(0);
         return Mono.fromSupplier(() -> getProvider(index))
                 .flatMapMany(p -> p.list(consensusNode, lastFilename))
                 .retryWhen(Retry.from(s -> s.map(r -> shouldRetry(r, index))));
     }
 
+    @Override
+    public Flux<String> listNetwork() {
+        final var index = new AtomicInteger(0);
+        return Mono.fromSupplier(() -> getProvider(index))
+                .flatMapMany(StreamFileProvider::listNetwork)
+                .retryWhen(Retry.from(s -> s.map(r -> shouldRetry(r, index))));
+    }
+
     // Get the next healthy provider
-    private StreamFileProvider getProvider(AtomicInteger index) {
+    @Nullable
+    private StreamFileProvider getProvider(final AtomicInteger index) {
         for (; index.get() < providers.size(); index.getAndIncrement()) {
-            var provider = providers.get(index.get());
+            final var provider = providers.get(index.get());
 
             if (provider.isHealthy()) {
                 return provider.getProvider();
@@ -70,11 +83,11 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
         return null;
     }
 
-    private boolean shouldRetry(Retry.RetrySignal r, AtomicInteger index) {
-        var exception = r.failure();
+    private boolean shouldRetry(final Retry.RetrySignal r, final AtomicInteger index) {
+        final var exception = r.failure();
         log.warn("Attempt #{} failed: {}", r.totalRetries() + 1, exception.getMessage());
 
-        if (exception instanceof TransientProviderException t) {
+        if (exception instanceof final TransientProviderException t) {
             throw t;
         }
 
@@ -83,7 +96,7 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
             throw Exceptions.propagate(exception);
         }
 
-        var provider = providers.get(index.getAndIncrement());
+        final var provider = providers.get(index.getAndIncrement());
         provider.markUnhealthy();
         return true;
     }
@@ -111,7 +124,7 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
          * @return whether the provider is healthy
          */
         boolean isHealthy() {
-            long readmitMillis = readmitTime.get();
+            final long readmitMillis = readmitTime.get();
 
             if (readmitMillis > 0 && readmitMillis <= System.currentTimeMillis()) {
                 readmitTime.compareAndSet(readmitMillis, 0L);
@@ -122,7 +135,7 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
         }
 
         void markUnhealthy() {
-            long backoff = sourceProperties.getBackoff().toMillis();
+            final long backoff = sourceProperties.getBackoff().toMillis();
             readmitTime.set(System.currentTimeMillis() + backoff);
         }
     }

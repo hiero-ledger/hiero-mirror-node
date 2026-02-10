@@ -5,21 +5,22 @@ package org.hiero.mirror.importer.downloader.provider;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
+import org.jspecify.annotations.NullMarked;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
  * A stream file provider abstracts away the source of stream files provided by consensus nodes.
  */
+@NullMarked
 public interface StreamFileProvider {
 
     /**
      * Fetches a stream file from a particular node upon subscription.
-     * @param node           the consensus node to download from
      * @param streamFilename the stream filename to download
      * @return the downloaded stream file data, wrapped in a Mono
      */
-    Mono<StreamFileData> get(ConsensusNode node, StreamFilename streamFilename);
+    Mono<StreamFileData> get(StreamFilename streamFilename);
 
     /**
      * Lists and downloads signature files for a particular node upon subscription. Uses the provided lastFilename to
@@ -30,4 +31,11 @@ public interface StreamFileProvider {
      * @return The data associated with one or more stream files, wrapped in a Flux
      */
     Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename);
+
+    /**
+     * Lists network folders in the blockstream bucket for a resettable network.
+     *
+     * @return All top-level folders in the bucket, wrapped in a flux
+     */
+    Flux<String> listNetwork();
 }

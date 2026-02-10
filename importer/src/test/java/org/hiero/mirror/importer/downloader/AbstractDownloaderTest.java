@@ -63,6 +63,7 @@ import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
+import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
 import org.hiero.mirror.importer.reader.signature.CompositeSignatureFileReader;
 import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
@@ -95,6 +96,9 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
 
     protected final DomainBuilder domainBuilder = new DomainBuilder();
 
+    @Mock
+    protected BlockBucketProperties blockBucketProperties;
+
     @Mock(strictness = LENIENT)
     protected ConsensusNodeService consensusNodeService;
 
@@ -107,25 +111,25 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     @TempDir
     protected Path s3Path;
 
-    protected S3Proxy s3Proxy;
-    protected FileCopier fileCopier;
     protected CommonDownloaderProperties commonDownloaderProperties;
-    protected ImporterProperties importerProperties;
-    protected S3AsyncClient s3AsyncClient;
+    protected EntityId corruptedNodeAccountId;
+    protected FileCopier fileCopier;
+    protected long firstIndex = 0L;
     protected DownloaderProperties downloaderProperties;
     protected Downloader<T, ?> downloader;
-    protected MeterRegistry meterRegistry = new SimpleMeterRegistry();
     protected String file1;
-    protected String file2;
     protected Instant file1Instant;
+    protected String file2;
     protected Instant file2Instant;
+    protected ImporterProperties importerProperties;
     protected List<Pair<Instant, String>> instantFilenamePairs;
-    protected EntityId corruptedNodeAccountId;
+    protected MeterRegistry meterRegistry = new SimpleMeterRegistry();
     protected NodeSignatureVerifier nodeSignatureVerifier;
     protected Collection<ConsensusNode> nodes;
+    protected S3AsyncClient s3AsyncClient;
+    protected S3Proxy s3Proxy;
     protected SignatureFileReader signatureFileReader;
     protected StreamType streamType;
-    protected long firstIndex = 0L;
 
     @Captor
     private ArgumentCaptor<T> streamFileCaptor;

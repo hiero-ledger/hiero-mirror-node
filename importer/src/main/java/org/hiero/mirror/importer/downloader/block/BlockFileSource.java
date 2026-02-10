@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import com.google.common.base.Stopwatch;
 import com.hedera.hapi.block.stream.protoc.Block;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -10,17 +9,14 @@ import jakarta.inject.Named;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.StreamType;
-import org.hiero.mirror.importer.addressbook.ConsensusNode;
-import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
-import org.hiero.mirror.importer.downloader.provider.TransientProviderException;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -33,8 +29,11 @@ final class BlockFileSource extends AbstractBlockSource {
 
     private static final String DEFAULT_NODE_ENDPOINT = "cloud";
 
-    private final ConsensusNodeService consensusNodeService;
+    private final BlockBucketProperties bucketProperties;
     private final StreamFileProvider streamFileProvider;
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final String discoveredNetwork = discoverNetwork();
 
     // metrics
     private final Timer cloudStorageLatencyMetric;
@@ -42,14 +41,14 @@ final class BlockFileSource extends AbstractBlockSource {
     BlockFileSource(
             final BlockStreamReader blockStreamReader,
             final BlockStreamVerifier blockStreamVerifier,
+            final BlockBucketProperties bucketProperties,
             final CommonDownloaderProperties commonDownloaderProperties,
-            final ConsensusNodeService consensusNodeService,
             final CutoverService cutoverService,
             final MeterRegistry meterRegistry,
             final BlockProperties properties,
             final StreamFileProvider streamFileProvider) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
-        this.consensusNodeService = consensusNodeService;
+        this.bucketProperties = bucketProperties;
         this.streamFileProvider = streamFileProvider;
 
         cloudStorageLatencyMetric = Timer.builder("hiero.mirror.importer.cloud.latency")
@@ -60,60 +59,71 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     @Override
+    @SneakyThrows
     protected void doGet(final long blockNumber) {
         if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
             throw new IllegalStateException(
                     this.getClass().getSimpleName() + " doesn't support earliest available block number");
         }
 
-        final var nodes = getRandomizedNodes();
-        final var stopwatch = Stopwatch.createStarted();
-        final var streamFilename = StreamFilename.from(blockNumber);
-        final var filename = streamFilename.getFilename();
-        final var streamPath =
-                commonDownloaderProperties.getImporterProperties().getStreamPath();
-        var timeout = commonDownloaderProperties.getTimeout();
+        final var network = getDiscoveredNetwork();
+        final var path = "%s/%s".formatted(network, StreamType.BLOCK.getPath());
+        final var streamFilename = StreamFilename.from(path, blockNumber);
 
-        for (int i = 0; i < nodes.size() && timeout.isPositive(); i++) {
-            final var node = nodes.get(i);
-            final long nodeId = node.getNodeId();
+        try {
+            final var blockFileData = streamFileProvider
+                    .get(streamFilename)
+                    .blockOptional(commonDownloaderProperties.getTimeout())
+                    .orElseThrow();
+            log.debug("Downloaded block file {}", streamFilename.getFilename());
 
-            try {
-                var blockFileData = streamFileProvider
-                        .get(node, streamFilename)
-                        .blockOptional(timeout)
-                        .orElseThrow();
-                log.debug("Downloaded block file {} from node {}", filename, nodeId);
+            final var blockStream = getBlockStream(blockFileData);
+            final var blockFile = onBlockStream(blockStream, DEFAULT_NODE_ENDPOINT);
 
-                var blockStream = getBlockStream(blockFileData, nodeId);
-                var blockFile = onBlockStream(blockStream, DEFAULT_NODE_ENDPOINT);
+            final var cloudStorageTime = blockFileData.getLastModified();
+            final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
+            cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
 
-                var cloudStorageTime = blockFileData.getLastModified();
-                var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
-                cloudStorageLatencyMetric.record(Duration.between(consensusEnd, cloudStorageTime));
-
-                if (properties.isWriteFiles()) {
-                    Utility.archiveFile(blockFileData.getFilePath(), blockStream.bytes(), streamPath);
-                }
-
-                return;
-            } catch (TransientProviderException e) {
-                log.warn(
-                        "Trying next node after failing to download block file {} from node {}: {}",
-                        filename,
-                        nodeId,
-                        e.getMessage());
-            } catch (Throwable t) {
-                log.error("Failed to process block file {} from node {}", filename, nodeId, t);
+            if (properties.isWriteFiles()) {
+                final var streamPath =
+                        commonDownloaderProperties.getImporterProperties().getStreamPath();
+                Utility.archiveFile(blockFileData.getFilePath(), blockStream.bytes(), streamPath);
             }
-
-            timeout = commonDownloaderProperties.getTimeout().minus(stopwatch.elapsed());
+        } catch (final Throwable t) {
+            throw new BlockStreamException("Failed to download block file " + streamFilename.getFilename(), t);
         }
-
-        throw new BlockStreamException("Failed to download block file " + filename);
     }
 
-    private BlockStream getBlockStream(final StreamFileData blockFileData, final long nodeId) throws IOException {
+    private String discoverNetwork() {
+        final var importerProperties = commonDownloaderProperties.getImporterProperties();
+        final var network = importerProperties.getNetwork();
+        if (!bucketProperties.isResettable()) {
+            return importerProperties.getNetwork();
+        }
+
+        final var prefix = network + "-";
+        return streamFileProvider
+                .listNetwork()
+                .filter(s -> {
+                    if (!s.startsWith(prefix)) {
+                        return false;
+                    }
+
+                    try {
+                        Instant.parse(s.substring(prefix.length()));
+                        return true;
+                    } catch (final Exception e) {
+                        return false;
+                    }
+                })
+                .reduce((first, second) -> first.compareTo(second) > 0 ? first : second)
+                .doOnNext(latest -> log.info("Discovered latest network folder '{}'", latest))
+                .blockOptional()
+                .orElseThrow(() ->
+                        new IllegalStateException("Failed to discover network folder for '%s'".formatted(network)));
+    }
+
+    private BlockStream getBlockStream(final StreamFileData blockFileData) throws IOException {
         try (final var inputStream = blockFileData.getInputStream()) {
             final var block = Block.parseFrom(inputStream);
             final byte[] bytes = blockFileData.getBytes();
@@ -121,14 +131,7 @@ final class BlockFileSource extends AbstractBlockSource {
                     block.getItemsList(),
                     bytes,
                     blockFileData.getFilename(),
-                    blockFileData.getStreamFilename().getTimestamp(),
-                    nodeId);
+                    blockFileData.getStreamFilename().getTimestamp());
         }
-    }
-
-    private List<ConsensusNode> getRandomizedNodes() {
-        final var nodes = new ArrayList<>(consensusNodeService.getNodes());
-        Collections.shuffle(nodes);
-        return nodes;
     }
 }

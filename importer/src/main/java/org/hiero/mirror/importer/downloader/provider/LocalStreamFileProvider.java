@@ -15,6 +15,9 @@ import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import lombok.RequiredArgsConstructor;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.addressbook.ConsensusNode;
 import org.hiero.mirror.importer.domain.StreamFileData;
@@ -23,26 +26,23 @@ import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
 import org.hiero.mirror.importer.exception.FileOperationException;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
+import org.jspecify.annotations.NullMarked;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 @CustomLog
-public class LocalStreamFileProvider extends AbstractStreamFileProvider {
+@NullMarked
+@RequiredArgsConstructor
+public final class LocalStreamFileProvider implements StreamFileProvider {
 
     private static final File[] EMPTY = new File[0];
 
+    private final CommonProperties commonProperties;
+    private final CommonDownloaderProperties downloaderProperties;
     private final LocalStreamFileProperties localProperties;
 
-    public LocalStreamFileProvider(
-            CommonProperties commonProperties,
-            CommonDownloaderProperties properties,
-            LocalStreamFileProperties localProperties) {
-        super(commonProperties, properties);
-        this.localProperties = localProperties;
-    }
-
     @Override
-    public Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename) {
+    public Flux<StreamFileData> list(final ConsensusNode node, final StreamFilename lastFilename) {
         var batchSize = downloaderProperties.getBatchSize();
         var startAfter = lastFilename.getFilenameAfter();
         var stopwatch = Stopwatch.createStarted();
@@ -60,10 +60,10 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
     }
 
     @Override
-    protected Mono<StreamFileData> doGet(StreamFilename streamFilename) {
+    public Mono<StreamFileData> get(final StreamFilename streamFilename) {
         var basePath =
                 downloaderProperties.getImporterProperties().getStreamPath().toFile();
-        return Mono.fromSupplier(() -> new File(basePath, streamFilename.getFilePath()))
+        return Mono.fromSupplier(() -> new File(basePath, streamFilename.getBucketFilePath()))
                 .doOnNext(this::checkSize)
                 .map(file -> StreamFileData.from(file, streamFilename))
                 .timeout(downloaderProperties.getTimeout())
@@ -71,8 +71,12 @@ public class LocalStreamFileProvider extends AbstractStreamFileProvider {
     }
 
     @Override
-    protected String getBlockStreamFilePath(long shard, long nodeId, String filename) {
-        return Path.of(String.valueOf(shard), String.valueOf(nodeId), filename).toString();
+    public Flux<String> listNetwork() {
+        final var basePath =
+                downloaderProperties.getImporterProperties().getStreamPath().toFile();
+        return Flux.fromIterable(FileUtils.listFilesAndDirs(basePath, DirectoryFileFilter.DIRECTORY, null))
+                .filter(d -> !d.equals(basePath))
+                .map(File::getName);
     }
 
     private Flux<File> listFiles(PathType pathType, ConsensusNode node, StreamFilename streamFilename) {

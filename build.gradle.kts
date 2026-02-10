@@ -44,6 +44,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
+        api("com.github.luben:zstd-jni:1.5.7-7")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")

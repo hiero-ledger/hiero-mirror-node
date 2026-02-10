@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -105,17 +106,25 @@ public class ImporterProperties {
         public static final String PREVIEWNET = "previewnet";
         public static final String TESTNET = "testnet";
 
-        private static final Map<String, String> NETWORK_DEFAULT_BUCKETS = Map.of(
-                DEMO, "hedera-demo-streams",
-                MAINNET, "hedera-mainnet-streams",
+        private static final Map<String, CloudBucket> NETWORK_DEFAULT_BUCKETS = Map.of(
+                DEMO, new CloudBucket("hedera-demo-recent-block-streams", "hedera-demo-streams"),
+                MAINNET, new CloudBucket("hedera-mainnet-recent-block-streams", "hedera-mainnet-streams"),
                 // OTHER has no default bucket
-                PREVIEWNET, "hedera-preview-testnet-streams",
-                TESTNET, "hedera-testnet-streams-2024-02");
+                PREVIEWNET, new CloudBucket("hedera-previewnet-recent-block-streams", "hedera-preview-testnet-streams"),
+                TESTNET, new CloudBucket("hedera-testnet-recent-block-streams", "hedera-testnet-streams-2024-02"));
 
         private HederaNetwork() {}
 
+        public static String getBlockStreamBucketName(final String network) {
+            return Optional.ofNullable(NETWORK_DEFAULT_BUCKETS.get(network))
+                    .map(CloudBucket::blockStream)
+                    .orElse("");
+        }
+
         public static String getBucketName(final String network) {
-            return NETWORK_DEFAULT_BUCKETS.getOrDefault(network, "");
+            return Optional.ofNullable(NETWORK_DEFAULT_BUCKETS.get(network))
+                    .map(CloudBucket::recordStream)
+                    .orElse("");
         }
 
         public static boolean hasCutover(final String network) {
@@ -125,5 +134,11 @@ public class ImporterProperties {
         public static boolean isAllowAnonymousAccess(final String network) {
             return DEMO.equals(network);
         }
+
+        public static boolean isResettable(final String network) {
+            return PREVIEWNET.equals(network);
+        }
     }
+
+    private record CloudBucket(String blockStream, String recordStream) {}
 }

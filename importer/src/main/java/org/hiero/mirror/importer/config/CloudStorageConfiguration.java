@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
+import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
@@ -37,6 +38,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @RequiredArgsConstructor
 class CloudStorageConfiguration {
 
+    private final BlockBucketProperties blockBucketProperties;
     private final CommonProperties commonProperties;
     private final CommonDownloaderProperties commonDownloaderProperties;
     private final LocalStreamFileProperties localProperties;
@@ -61,7 +63,11 @@ class CloudStorageConfiguration {
                         case LOCAL ->
                             new LocalStreamFileProvider(commonProperties, commonDownloaderProperties, localProperties);
                         case GCP, S3 ->
-                            new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3Client(source));
+                            new S3StreamFileProvider(
+                                    blockBucketProperties,
+                                    commonProperties,
+                                    commonDownloaderProperties,
+                                    s3Client(source));
                     };
 
             providers.add(provider);

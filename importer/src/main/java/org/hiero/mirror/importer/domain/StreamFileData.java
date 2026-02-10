@@ -66,7 +66,7 @@ public class StreamFileData {
     }
 
     public static StreamFileData from(Path basePath, StreamFilename streamFilename) {
-        var streamFile = new File(basePath.toFile(), streamFilename.getFilePath());
+        var streamFile = new File(basePath.toFile(), streamFilename.getBucketFilePath());
         return readStreamFileData(streamFile, streamFilename);
     }
 
@@ -94,7 +94,7 @@ public class StreamFileData {
     }
 
     public String getFilePath() {
-        return streamFilename.getFilePath();
+        return streamFilename.getBucketFilePath();
     }
 
     @Override

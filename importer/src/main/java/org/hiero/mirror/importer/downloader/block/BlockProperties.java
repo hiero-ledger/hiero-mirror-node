@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,7 +17,6 @@ import org.springframework.validation.annotation.Validated;
 @Component("blockProperties")
 @ConfigurationProperties("hiero.mirror.importer.block")
 @Data
-@RequiredArgsConstructor
 @Validated
 public class BlockProperties {
 

@@ -34,7 +34,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 
-class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanceFile> {
+final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanceFile> {
 
     private final CommonProperties commonProperties = new CommonProperties();
 
@@ -57,7 +57,8 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
     protected Downloader<AccountBalanceFile, AccountBalance> getDownloader() {
         BalanceFileReader balanceFileReader =
                 new BalanceFileReaderImplV1(new BalanceParserProperties(), new AccountBalanceLineParserV1());
-        var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(
+                blockBucketProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
         return new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,
@@ -123,7 +124,8 @@ class AccountBalancesDownloaderTest extends AbstractDownloaderTest<AccountBalanc
         // .csv_sig files are intentionally made empty so if two account balance files are processed, they must be
         // the .pb.gz files
         ProtoBalanceFileReader protoBalanceFileReader = new ProtoBalanceFileReader();
-        var streamFileProvider = new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider = new S3StreamFileProvider(
+                blockBucketProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
         downloader = new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,

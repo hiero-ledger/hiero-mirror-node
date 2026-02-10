@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.provider;
 
 import static org.apache.commons.lang3.StringUtils.isNumeric;
+import static org.hiero.mirror.common.domain.StreamType.BLOCK;
 import static org.hiero.mirror.importer.domain.StreamFilename.EPOCH;
 import static org.hiero.mirror.importer.domain.StreamFilename.FileType.SIGNATURE;
 
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
@@ -19,7 +21,9 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
+import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -35,25 +39,23 @@ import software.amazon.awssdk.services.s3.model.RequestPayer;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 @CustomLog
-public final class S3StreamFileProvider extends AbstractStreamFileProvider {
+@NullMarked
+@RequiredArgsConstructor
+public final class S3StreamFileProvider implements StreamFileProvider {
 
     public static final String SEPARATOR = "/";
     private static final String RANGE_PREFIX = "bytes=0-";
     private static final String TEMPLATE_ACCOUNT_ID_PREFIX = "%s/%s%s/";
     private static final String TEMPLATE_NODE_ID_PREFIX = "%s/%d/%d/%s/";
-    private static final String TEMPLATE_BLOCK_STREAM_FILE_PATH = "%d/%d/%s";
 
+    private final BlockBucketProperties blockBucketProperties;
+    private final CommonProperties commonProperties;
+    private final CommonDownloaderProperties downloaderProperties;
     private final Map<PathKey, PathResult> paths = new ConcurrentHashMap<>();
     private final S3AsyncClient s3Client;
 
-    public S3StreamFileProvider(
-            CommonProperties commonProperties, CommonDownloaderProperties properties, S3AsyncClient s3Client) {
-        super(commonProperties, properties);
-        this.s3Client = s3Client;
-    }
-
     @Override
-    public Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename) {
+    public Flux<StreamFileData> list(final ConsensusNode node, final StreamFilename lastFilename) {
         // Number of items we plan do download in a single batch times 2 for file + sig.
         int batchSize = downloaderProperties.getBatchSize() * 2;
 
@@ -81,7 +83,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 .filter(r -> r.size() <= downloaderProperties.getMaxSize())
                 .map(this::toStreamFilename)
                 .filter(s -> s != EPOCH && s.getFileType() == SIGNATURE)
-                .flatMapSequential(this::doGet)
+                .flatMapSequential(this::get)
                 .doOnSubscribe(s -> log.debug(
                         "Searching for the next {} files after {}/{}",
                         batchSize,
@@ -91,10 +93,13 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     }
 
     @Override
-    protected Mono<StreamFileData> doGet(StreamFilename streamFilename) {
-        var s3Key = streamFilename.getFilePath();
-        var request = GetObjectRequest.builder()
-                .bucket(downloaderProperties.getBucketName())
+    public Mono<StreamFileData> get(final StreamFilename streamFilename) {
+        final var bucketName = streamFilename.getStreamType() != BLOCK
+                ? downloaderProperties.getBucketName()
+                : blockBucketProperties.getBucketName();
+        final var s3Key = streamFilename.getBucketFilePath();
+        final var request = GetObjectRequest.builder()
+                .bucket(bucketName)
                 .key(s3Key)
                 .requestPayer(RequestPayer.REQUESTER)
                 .range(RANGE_PREFIX + (downloaderProperties.getMaxSize() - 1))
@@ -104,14 +109,6 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
                 .timeout(downloaderProperties.getTimeout())
                 .onErrorMap(NoSuchKeyException.class, TransientProviderException::new)
                 .doOnSuccess(s -> log.debug("Finished downloading {}", s3Key));
-    }
-
-    @Override
-    protected String getBlockStreamFilePath(long shard, long nodeId, String filename) {
-        String filePath = TEMPLATE_BLOCK_STREAM_FILE_PATH.formatted(shard, nodeId, filename);
-        return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
-                ? downloaderProperties.getPathPrefix() + SEPARATOR + filePath
-                : filePath;
     }
 
     private String getAccountIdPrefix(PathKey key) {
@@ -136,6 +133,23 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
         return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
                 ? downloaderProperties.getPathPrefix() + SEPARATOR + basePrefix
                 : basePrefix;
+    }
+
+    @Override
+    public Flux<String> listNetwork() {
+        final int batchSize = downloaderProperties.getBatchSize();
+        final var listRequest = ListObjectsV2Request.builder()
+                .maxKeys(batchSize)
+                .bucket(blockBucketProperties.getBucketName())
+                .delimiter(SEPARATOR)
+                .requestPayer(RequestPayer.REQUESTER)
+                .build();
+        return Mono.fromFuture(s3Client.listObjectsV2(listRequest))
+                .timeout(downloaderProperties.getTimeout())
+                .doOnNext(r -> log.debug(
+                        "Returned {} common prefixes", r.commonPrefixes().size()))
+                .flatMapIterable(ListObjectsV2Response::commonPrefixes)
+                .mapNotNull(commonPrefix -> StringUtils.substringBeforeLast(commonPrefix.prefix(), SEPARATOR));
     }
 
     private StreamFileData toStreamFileData(StreamFilename streamFilename, ResponseBytes<GetObjectResponse> r) {
