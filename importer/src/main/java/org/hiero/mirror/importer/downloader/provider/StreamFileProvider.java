@@ -16,6 +16,14 @@ import reactor.core.publisher.Mono;
 public interface StreamFileProvider {
 
     /**
+     * Discover the latest network folder in the blockstream bucket for a resettable network. Note the folder name
+     * format is {network}-yyyyMMddHHmm.
+     *
+     * @return The latest network folder, wrapped in a mono
+     */
+    Mono<String> discoverNetwork();
+
+    /**
      * Fetches a stream file from a particular node upon subscription.
      * @param streamFilename the stream filename to download
      * @return the downloaded stream file data, wrapped in a Mono
@@ -31,11 +39,4 @@ public interface StreamFileProvider {
      * @return The data associated with one or more stream files, wrapped in a Flux
      */
     Flux<StreamFileData> list(ConsensusNode node, StreamFilename lastFilename);
-
-    /**
-     * Lists network folders in the blockstream bucket for a resettable network.
-     *
-     * @return All top-level folders in the bucket, wrapped in a flux
-     */
-    Flux<String> listNetwork();
 }

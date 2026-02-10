@@ -11,7 +11,6 @@ import java.time.Duration;
 import java.time.Instant;
 import lombok.AccessLevel;
 import lombok.Getter;
-import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
@@ -59,7 +58,6 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     @Override
-    @SneakyThrows
     protected void doGet(final long blockNumber) {
         if (blockNumber == EARLIEST_AVAILABLE_BLOCK_NUMBER) {
             throw new IllegalStateException(
@@ -95,29 +93,14 @@ final class BlockFileSource extends AbstractBlockSource {
     }
 
     private String discoverNetwork() {
-        final var importerProperties = commonDownloaderProperties.getImporterProperties();
-        final var network = importerProperties.getNetwork();
+        final var network = commonDownloaderProperties.getImporterProperties().getNetwork();
         if (!bucketProperties.isResettable()) {
-            return importerProperties.getNetwork();
+            return network;
         }
 
-        final var prefix = network + "-";
         return streamFileProvider
-                .listNetwork()
-                .filter(s -> {
-                    if (!s.startsWith(prefix)) {
-                        return false;
-                    }
-
-                    try {
-                        Instant.parse(s.substring(prefix.length()));
-                        return true;
-                    } catch (final Exception e) {
-                        return false;
-                    }
-                })
-                .reduce((first, second) -> first.compareTo(second) > 0 ? first : second)
-                .doOnNext(latest -> log.info("Discovered latest network folder '{}'", latest))
+                .discoverNetwork()
+                .doOnNext(n -> log.info("Discovered latest network folder '{}'", n))
                 .blockOptional()
                 .orElseThrow(() ->
                         new IllegalStateException("Failed to discover network folder for '%s'".formatted(network)));

@@ -15,7 +15,6 @@ import java.time.ZoneOffset;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.DirectoryFileFilter;
 import org.hiero.mirror.common.CommonProperties;
@@ -32,14 +31,28 @@ import reactor.core.publisher.Mono;
 
 @CustomLog
 @NullMarked
-@RequiredArgsConstructor
-public final class LocalStreamFileProvider implements StreamFileProvider {
+public final class LocalStreamFileProvider extends AbstractStreamFileProvider {
 
     private static final File[] EMPTY = new File[0];
 
-    private final CommonProperties commonProperties;
-    private final CommonDownloaderProperties downloaderProperties;
     private final LocalStreamFileProperties localProperties;
+
+    public LocalStreamFileProvider(
+            final CommonProperties commonProperties,
+            final CommonDownloaderProperties downloaderProperties,
+            final LocalStreamFileProperties localProperties) {
+        super(commonProperties, downloaderProperties);
+        this.localProperties = localProperties;
+    }
+
+    @Override
+    protected Flux<String> doDiscoverNetwork() {
+        final var basePath =
+                downloaderProperties.getImporterProperties().getStreamPath().toFile();
+        return Flux.fromIterable(FileUtils.listFilesAndDirs(basePath, DirectoryFileFilter.DIRECTORY, null))
+                .filter(d -> !d.equals(basePath))
+                .map(File::getName);
+    }
 
     @Override
     public Flux<StreamFileData> list(final ConsensusNode node, final StreamFilename lastFilename) {
@@ -68,15 +81,6 @@ public final class LocalStreamFileProvider implements StreamFileProvider {
                 .map(file -> StreamFileData.from(file, streamFilename))
                 .timeout(downloaderProperties.getTimeout())
                 .onErrorMap(FileOperationException.class, TransientProviderException::new);
-    }
-
-    @Override
-    public Flux<String> listNetwork() {
-        final var basePath =
-                downloaderProperties.getImporterProperties().getStreamPath().toFile();
-        return Flux.fromIterable(FileUtils.listFilesAndDirs(basePath, DirectoryFileFilter.DIRECTORY, null))
-                .filter(d -> !d.equals(basePath))
-                .map(File::getName);
     }
 
     private Flux<File> listFiles(PathType pathType, ConsensusNode node, StreamFilename streamFilename) {

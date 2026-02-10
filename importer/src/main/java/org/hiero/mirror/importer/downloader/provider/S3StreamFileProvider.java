@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.StreamType;
@@ -40,8 +39,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 @CustomLog
 @NullMarked
-@RequiredArgsConstructor
-public final class S3StreamFileProvider implements StreamFileProvider {
+public final class S3StreamFileProvider extends AbstractStreamFileProvider {
 
     public static final String SEPARATOR = "/";
     private static final String RANGE_PREFIX = "bytes=0-";
@@ -49,10 +47,35 @@ public final class S3StreamFileProvider implements StreamFileProvider {
     private static final String TEMPLATE_NODE_ID_PREFIX = "%s/%d/%d/%s/";
 
     private final BlockBucketProperties blockBucketProperties;
-    private final CommonProperties commonProperties;
-    private final CommonDownloaderProperties downloaderProperties;
     private final Map<PathKey, PathResult> paths = new ConcurrentHashMap<>();
     private final S3AsyncClient s3Client;
+
+    public S3StreamFileProvider(
+            final BlockBucketProperties blockBucketProperties,
+            final CommonProperties commonProperties,
+            final CommonDownloaderProperties downloaderProperties,
+            final S3AsyncClient s3Client) {
+        super(commonProperties, downloaderProperties);
+        this.blockBucketProperties = blockBucketProperties;
+        this.s3Client = s3Client;
+    }
+
+    @Override
+    protected Flux<String> doDiscoverNetwork() {
+        final int batchSize = downloaderProperties.getBatchSize();
+        final var listRequest = ListObjectsV2Request.builder()
+                .maxKeys(batchSize)
+                .bucket(blockBucketProperties.getBucketName())
+                .delimiter(SEPARATOR)
+                .requestPayer(RequestPayer.REQUESTER)
+                .build();
+        return Mono.fromFuture(s3Client.listObjectsV2(listRequest))
+                .timeout(downloaderProperties.getTimeout())
+                .doOnNext(r -> log.debug(
+                        "Returned {} common prefixes", r.commonPrefixes().size()))
+                .flatMapIterable(ListObjectsV2Response::commonPrefixes)
+                .mapNotNull(commonPrefix -> StringUtils.substringBeforeLast(commonPrefix.prefix(), SEPARATOR));
+    }
 
     @Override
     public Flux<StreamFileData> list(final ConsensusNode node, final StreamFilename lastFilename) {
@@ -133,23 +156,6 @@ public final class S3StreamFileProvider implements StreamFileProvider {
         return StringUtils.isNotBlank(downloaderProperties.getPathPrefix())
                 ? downloaderProperties.getPathPrefix() + SEPARATOR + basePrefix
                 : basePrefix;
-    }
-
-    @Override
-    public Flux<String> listNetwork() {
-        final int batchSize = downloaderProperties.getBatchSize();
-        final var listRequest = ListObjectsV2Request.builder()
-                .maxKeys(batchSize)
-                .bucket(blockBucketProperties.getBucketName())
-                .delimiter(SEPARATOR)
-                .requestPayer(RequestPayer.REQUESTER)
-                .build();
-        return Mono.fromFuture(s3Client.listObjectsV2(listRequest))
-                .timeout(downloaderProperties.getTimeout())
-                .doOnNext(r -> log.debug(
-                        "Returned {} common prefixes", r.commonPrefixes().size()))
-                .flatMapIterable(ListObjectsV2Response::commonPrefixes)
-                .mapNotNull(commonPrefix -> StringUtils.substringBeforeLast(commonPrefix.prefix(), SEPARATOR));
     }
 
     private StreamFileData toStreamFileData(StreamFilename streamFilename, ResponseBytes<GetObjectResponse> r) {

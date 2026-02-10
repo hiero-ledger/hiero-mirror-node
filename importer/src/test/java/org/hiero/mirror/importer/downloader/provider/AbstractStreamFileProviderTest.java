@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -157,12 +159,14 @@ abstract class AbstractStreamFileProviderTest {
 
     @SneakyThrows
     @Test
-    void listNetwork() {
+    void discoverNetwork() {
         // given
         final var rootPath = dataPath.resolve(blockStreamTargetRootPath);
+        final var formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneId.of("UTC"));
         final var now = Instant.now();
-        final var latestFolder = "%s-%s".formatted(importerProperties.getNetwork(), now);
-        final var previousFolder = "%s-%s".formatted(importerProperties.getNetwork(), now.minus(Duration.ofDays(10)));
+        final var latestFolder = "%s-%s".formatted(importerProperties.getNetwork(), formatter.format(now));
+        final var previousFolder =
+                "%s-%s".formatted(importerProperties.getNetwork(), formatter.format(now.minus(Duration.ofDays(10))));
         FileUtils.forceMkdir(rootPath.resolve(latestFolder).toFile());
         FileUtils.forceMkdir(rootPath.resolve(previousFolder).toFile());
         // create a top-level file and a subdirectory
@@ -171,9 +175,8 @@ abstract class AbstractStreamFileProviderTest {
                 rootPath.resolve(latestFolder).resolve(previousFolder).toFile());
 
         // when, then
-        StepVerifier.create(streamFileProvider.listNetwork().collectList())
-                .assertNext(actualFolders ->
-                        assertThat(actualFolders).containsExactlyInAnyOrder(latestFolder, previousFolder))
+        StepVerifier.create(streamFileProvider.discoverNetwork())
+                .expectNext(latestFolder)
                 .verifyComplete();
     }
 

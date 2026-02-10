@@ -62,10 +62,10 @@ final class CompositeStreamFileProvider implements StreamFileProvider {
     }
 
     @Override
-    public Flux<String> listNetwork() {
+    public Mono<String> discoverNetwork() {
         final var index = new AtomicInteger(0);
         return Mono.fromSupplier(() -> getProvider(index))
-                .flatMapMany(StreamFileProvider::listNetwork)
+                .flatMap(StreamFileProvider::discoverNetwork)
                 .retryWhen(Retry.from(s -> s.map(r -> shouldRetry(r, index))));
     }
 

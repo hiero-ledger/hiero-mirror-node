@@ -30,6 +30,8 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
@@ -175,10 +177,11 @@ final class BlockFileSourceTest {
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
         fileCopier = fileCopier.resetTo(dataPath).to(blockBucketProperties.getBucketName());
         final var prefix = importerProperties.getNetwork() + "-";
+        final var formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneId.of("UTC"));
         final var now = Instant.now();
-        final var previousFolder = prefix + now.minus(Duration.ofDays(10));
+        final var previousFolder = prefix + formatter.format(now.minus(Duration.ofDays(10)));
         FileUtils.forceMkdir(fileCopier.getTo().resolve(previousFolder).toFile());
-        final var latestFolder = prefix + now;
+        final var latestFolder = prefix + formatter.format(now);
         fileCopier = fileCopier.to(latestFolder).to(StreamType.BLOCK.getPath());
         filterFiles(blockFile(0)).copy();
         when(recordFileRepository.findLatest())

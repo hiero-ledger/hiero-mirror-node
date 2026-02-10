@@ -65,8 +65,8 @@ public class StreamFileData {
         return readStreamFileData(file, streamFilename);
     }
 
-    public static StreamFileData from(Path basePath, StreamFilename streamFilename) {
-        var streamFile = new File(basePath.toFile(), streamFilename.getBucketFilePath());
+    public static StreamFileData from(final Path basePath, final StreamFilename streamFilename) {
+        final var streamFile = new File(basePath.toFile(), streamFilename.getBucketFilePath());
         return readStreamFileData(streamFile, streamFilename);
     }
 

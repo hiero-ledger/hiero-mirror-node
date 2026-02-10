@@ -107,11 +107,6 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
         return -1L;
     }
 
-    @Override
-    public void setNodeId(@NonNull Long nodeId) {
-        // ignored
-    }
-
     public BlockSourceType getSourceType() {
         if (StringUtils.isBlank(name)) {
             return null;
@@ -127,6 +122,11 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
     @Override
     public StreamType getType() {
         return StreamType.BLOCK;
+    }
+
+    @Override
+    public void setNodeId(@NonNull Long nodeId) {
+        // ignored
     }
 
     public static class BlockFileBuilder {
