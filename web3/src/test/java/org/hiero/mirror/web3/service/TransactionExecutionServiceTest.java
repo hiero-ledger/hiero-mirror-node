@@ -16,6 +16,7 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
@@ -435,7 +436,11 @@ class TransactionExecutionServiceTest {
                     .key(DEFAULT_KEY)
                     .build();
 
-            when(aliasesReadableKVState.get(any())).thenReturn(accountID);
+            final var aliasKey = ProtoBytes.newBuilder()
+                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(sender.toArrayUnsafe()))
+                    .build();
+
+            when(aliasesReadableKVState.get(aliasKey)).thenReturn(accountID);
             when(accountReadableKVState.get(accountID)).thenReturn(account);
 
             final var functionResult =
@@ -452,8 +457,10 @@ class TransactionExecutionServiceTest {
             when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
             final var params = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, sender, callType);
+            final var result = transactionExecutionService.execute(params, DEFAULT_GAS);
             // Then
-            assertThat(transactionExecutionService.execute(params, DEFAULT_GAS)).isNotNull();
+            assertThat(result).isNotNull();
+            assertThat(result.responseCodeEnum()).isEqualTo(SUCCESS);
         }
 
         @MockitoSettings(strictness = Strictness.LENIENT)
@@ -468,7 +475,11 @@ class TransactionExecutionServiceTest {
                     .key(DEFAULT_KEY)
                     .build();
 
-            when(aliasesReadableKVState.get(any())).thenReturn(accountID);
+            final var aliasKey = ProtoBytes.newBuilder()
+                    .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(sender.toArrayUnsafe()))
+                    .build();
+
+            when(aliasesReadableKVState.get(aliasKey)).thenReturn(accountID);
             when(accountReadableKVState.get(accountID)).thenReturn(account);
 
             final var functionResult =
