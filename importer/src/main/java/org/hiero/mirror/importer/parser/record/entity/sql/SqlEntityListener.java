@@ -235,7 +235,7 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
     @Override
     public void onLedger(final Ledger ledger) throws ImporterException {
-        context.merge(ledger.getNetwork(), ledger, this::mergeLedger);
+        context.merge(ledger.getLedgerId(), ledger, this::mergeLedger);
     }
 
     @Override
@@ -612,7 +612,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
         // always override, i.e., copy info from current to previous
         previous.setConsensusTimestamp(current.getConsensusTimestamp());
         previous.setHistoryProofVerificationKey(current.getHistoryProofVerificationKey());
-        previous.setLedgerId(current.getLedgerId());
         previous.setNodeContributions(current.getNodeContributions());
 
         return previous;

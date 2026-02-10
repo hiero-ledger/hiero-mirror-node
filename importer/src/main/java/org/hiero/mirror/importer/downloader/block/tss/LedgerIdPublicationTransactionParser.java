@@ -8,9 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.common.domain.tss.NodeContribution;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.jspecify.annotations.NullMarked;
 
 @Named
@@ -18,12 +17,11 @@ import org.jspecify.annotations.NullMarked;
 @RequiredArgsConstructor
 public final class LedgerIdPublicationTransactionParser {
 
-    private final ImporterProperties importerProperties;
-
     public Ledger parse(final long consensusTimestamp, final LedgerIdPublicationTransactionBody transactionBody) {
-        final List<NodeContribution> nodeContributions = new ArrayList<>();
-        for (final var nodeContribution : transactionBody.getNodeContributionsList()) {
-            nodeContributions.add(NodeContribution.builder()
+        final var protoNodeContributions = transactionBody.getNodeContributionsList();
+        final List<LedgerNodeContribution> nodeContributions = new ArrayList<>(protoNodeContributions.size());
+        for (final var nodeContribution : protoNodeContributions) {
+            nodeContributions.add(LedgerNodeContribution.builder()
                     .historyProofKey(DomainUtils.toBytes(nodeContribution.getHistoryProofKey()))
                     .nodeId(nodeContribution.getNodeId())
                     .weight(nodeContribution.getWeight())
@@ -34,7 +32,6 @@ public final class LedgerIdPublicationTransactionParser {
                 .consensusTimestamp(consensusTimestamp)
                 .historyProofVerificationKey(DomainUtils.toBytes(transactionBody.getHistoryProofVerificationKey()))
                 .ledgerId(DomainUtils.toBytes(transactionBody.getLedgerId()))
-                .network(importerProperties.getNetwork())
                 .nodeContributions(nodeContributions)
                 .build();
     }

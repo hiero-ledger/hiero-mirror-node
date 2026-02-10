@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 @NoArgsConstructor
-public class NodeContribution {
+public class LedgerNodeContribution {
 
     private byte[] historyProofKey;
 

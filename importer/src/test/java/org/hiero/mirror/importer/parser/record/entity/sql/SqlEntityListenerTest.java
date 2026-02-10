@@ -1346,11 +1346,11 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // when
         var ledgerAUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.network(ledgerAUpdate1.getNetwork()))
+                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
                 .get();
         var ledgerBUpdate2 = domainBuilder
                 .ledger()
-                .customize(l -> l.network(ledgerBUpdate1.getNetwork()))
+                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
                 .get();
         sqlEntityListener.onLedger(ledgerAUpdate2);
         sqlEntityListener.onLedger(ledgerBUpdate2);

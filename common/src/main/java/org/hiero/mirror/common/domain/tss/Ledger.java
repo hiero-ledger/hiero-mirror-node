@@ -27,13 +27,10 @@ public class Ledger {
 
     private byte[] historyProofVerificationKey;
 
-    private byte[] ledgerId;
-
     @Id
-    @ToString.Include
-    private String network;
+    private byte[] ledgerId;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)
-    private List<NodeContribution> nodeContributions;
+    private List<LedgerNodeContribution> nodeContributions;
 }

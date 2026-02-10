@@ -3,12 +3,11 @@
 package org.hiero.mirror.importer.downloader.block.tss;
 
 import jakarta.inject.Named;
+import java.util.Objects;
 import java.util.Optional;
-import lombok.AccessLevel;
-import lombok.Getter;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.tss.Ledger;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;
 
@@ -17,17 +16,14 @@ import org.jspecify.annotations.NullMarked;
 @RequiredArgsConstructor
 final class TssVerifierImpl implements TssVerifier {
 
-    private final ImporterProperties importerProperties;
+    private static final Ledger EMPTY = new Ledger();
+
+    private final AtomicReference<Optional<Ledger>> ledger = new AtomicReference<>(Optional.empty());
     private final LedgerRepository ledgerRepository;
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final Optional<Ledger> ledgerStored = loadLedger();
-
-    private Optional<Ledger> ledgerCached = Optional.empty();
 
     @Override
     public void setLedger(final Ledger ledger) {
-        ledgerCached = Optional.of(ledger);
+        this.ledger.set(Optional.of(ledger));
     }
 
     @Override
@@ -36,13 +32,16 @@ final class TssVerifierImpl implements TssVerifier {
     }
 
     private Ledger getLedger() {
-        return ledgerCached
-                .or(this::getLedgerStored)
+        return Objects.requireNonNull(ledger.get())
+                .or(() -> {
+                    final var saved = ledgerRepository
+                            .findTopByOrderByConsensusTimestampDesc()
+                            .or(() -> Optional.of(EMPTY));
+                    ledger.compareAndSet(Optional.empty(), saved);
+                    return saved;
+                })
+                .filter(l -> l != EMPTY)
                 .orElseThrow(() -> new IllegalStateException(
                         "Ledger id, history proof verification key and node contributions not found"));
-    }
-
-    private Optional<Ledger> loadLedger() {
-        return ledgerRepository.findById(importerProperties.getNetwork());
     }
 }
