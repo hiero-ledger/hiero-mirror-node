@@ -97,3 +97,5 @@ spring:
   threads:
     virtual:
       enabled: true
+  jackson:
+    use-jackson2-defaults: true
