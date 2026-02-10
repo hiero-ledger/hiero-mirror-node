@@ -280,7 +280,7 @@ class ContractControllerTest {
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"to\": \"0x00000000000000000000000000000000000004e4\", "
-                                + "\"estimate\": false, "
+                                + "\"estimate\": null, "
                                 + "\"value\": null, "
                                 + "\"from\": null, "
                                 + "\"block\": \"latest\", "
