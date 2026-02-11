@@ -147,8 +147,8 @@ final class BlockStreamVerifier {
         final var version = new Version(
                 consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
         if (version.isLessThan(blockProperties.getCompatibleRootHashConsensusNodeVersion())) {
-            // Set both hash and previousHash to all 0s to pass parser validation, will remove when the complete support
-            // of redesigned block and state merkle tree is added
+            // Set both hash and previousHash to all 0s to pass parser validation, will remove in a future release
+            // when running against old consensus node releases is no longer needed
             blockFile.setHash(EMPTY_HASH);
             blockFile.setPreviousHash(EMPTY_HASH);
             return;
