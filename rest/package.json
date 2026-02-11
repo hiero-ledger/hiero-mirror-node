@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.148.0-rc2",
+  "version": "0.148.0-rc3",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
