@@ -110,13 +110,6 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 .flatMap(callType -> gasLimits.stream().map(gasLimit -> Arguments.of(callType, gasLimit)));
     }
 
-    private static String toHexWith64LeadingZeros(final Long value) {
-        final String result;
-        final var paddedHexString = String.format("%064x", value);
-        result = "0x" + paddedHexString;
-        return result;
-    }
-
     private static Stream<Arguments> provideParametersForErcPrecompileExceptionalHalt() {
         return Stream.of(Arguments.of(CallType.ETH_CALL, 1), Arguments.of(CallType.ETH_ESTIMATE_GAS, 2));
     }
@@ -524,7 +517,9 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         // Then
         assertThatThrownBy(() -> contractExecutionService.processCall(serviceParameters))
                 .isInstanceOf(MirrorEvmTransactionException.class)
-                .hasMessage(PAYER_ACCOUNT_NOT_FOUND.name());
+                .extracting("detail")
+                .asString()
+                .matches(".*payer account .* is a smart contract.*");
 
         assertGasLimit(serviceParameters);
     }

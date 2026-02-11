@@ -50,6 +50,8 @@ import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
@@ -158,7 +160,13 @@ final class BlockFileSourceTest {
         cutoverService =
                 new CutoverServiceImpl(properties, mock(RecordDownloaderProperties.class), recordFileRepository);
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, new BlockProperties(), cutoverService, meterRegistry, cutoverService));
+                blockFileTransformer,
+                new BlockProperties(),
+                cutoverService,
+                mock(LedgerIdPublicationTransactionParser.class),
+                meterRegistry,
+                cutoverService,
+                mock(TssVerifier.class)));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
