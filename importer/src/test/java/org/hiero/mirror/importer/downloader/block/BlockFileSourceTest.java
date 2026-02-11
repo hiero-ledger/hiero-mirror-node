@@ -157,8 +157,8 @@ final class BlockFileSourceTest {
                 .transform(any(BlockFile.class));
         cutoverService =
                 new CutoverServiceImpl(properties, mock(RecordDownloaderProperties.class), recordFileRepository);
-        blockStreamVerifier =
-                spy(new BlockStreamVerifier(blockFileTransformer, cutoverService, meterRegistry, cutoverService));
+        blockStreamVerifier = spy(new BlockStreamVerifier(
+                blockFileTransformer, new BlockProperties(), cutoverService, meterRegistry, cutoverService));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,

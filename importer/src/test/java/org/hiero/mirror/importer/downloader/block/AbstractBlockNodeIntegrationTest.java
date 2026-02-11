@@ -63,8 +63,8 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var cutoverService =
                 new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
-        var blockStreamVerifier =
-                new BlockStreamVerifier(blockFileTransformer, cutoverService, meterRegistry, streamFileNotifier);
+        var blockStreamVerifier = new BlockStreamVerifier(
+                blockFileTransformer, blockProperties, cutoverService, meterRegistry, streamFileNotifier);
         var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         return new BlockNodeSubscriber(

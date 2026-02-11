@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.reader.block;
+package org.hiero.mirror.importer.reader.block.hash;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -41,7 +41,7 @@ final class BlockRootHashDigestTest {
         // then
         assertThat(actual)
                 .isEqualTo(
-                        "a191d2423462908c9a1107a04269121399239b6ac0a21b48100128849ebe36e19212bddbdb08b8466e269ae42119d94e");
+                        "9c84abc8b725bc38f73b86b207ede3b9eb6772c49dd87191100d0108305e5b4db6e0eabea7fcf39f16baf8921bf1dc20");
     }
 
     @Test

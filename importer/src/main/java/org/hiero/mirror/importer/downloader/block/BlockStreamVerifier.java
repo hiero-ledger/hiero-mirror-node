@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import com.google.common.base.Strings;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -18,12 +19,16 @@ import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.data.util.Version;
 
 @Named
 @NullMarked
 final class BlockStreamVerifier {
 
+    private static final String EMPTY_HASH = Strings.repeat("0", 96);
+
     private final BlockFileTransformer blockFileTransformer;
+    private final BlockProperties blockProperties;
     private final CutoverService cutoverService;
     private final StreamFileNotifier streamFileNotifier;
 
@@ -33,10 +38,12 @@ final class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             final BlockFileTransformer blockFileTransformer,
+            final BlockProperties blockProperties,
             final CutoverService cutoverService,
             final MeterRegistry meterRegistry,
             final StreamFileNotifier streamFileNotifier) {
         this.blockFileTransformer = blockFileTransformer;
+        this.blockProperties = blockProperties;
         this.cutoverService = cutoverService;
         this.streamFileNotifier = streamFileNotifier;
 
@@ -114,6 +121,17 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(BlockFile blockFile) {
+        final var consensusNodeVersion = blockFile.getBlockHeader().getSoftwareVersion();
+        final var version = new Version(
+                consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
+        if (version.isLessThan(blockProperties.getCompatibleRootHashConsensusNodeVersion())) {
+            // Set both hash and previousHash to all 0s to pass parser validation, will remove when the complete support
+            // of redesigned block and state merkle tree is added
+            blockFile.setHash(EMPTY_HASH);
+            blockFile.setPreviousHash(EMPTY_HASH);
+            return;
+        }
+
         getExpectedPreviousHash().ifPresent(expected -> {
             if (!blockFile.getPreviousHash().contentEquals(expected)) {
                 throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
