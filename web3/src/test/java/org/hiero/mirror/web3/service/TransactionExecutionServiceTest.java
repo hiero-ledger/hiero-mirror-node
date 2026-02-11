@@ -18,6 +18,7 @@ import com.hedera.hapi.node.state.token.Account;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionReceipt;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.app.workflows.standalone.TransactionExecutor;
@@ -42,7 +43,6 @@ import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.NestedCalls;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -129,7 +129,8 @@ class TransactionExecutionServiceTest {
 
         final var senderAddress = Address.fromHexString(senderAddressHex);
         // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
@@ -181,7 +182,8 @@ class TransactionExecutionServiceTest {
         when(contractFunctionResult.errorMessage()).thenReturn(errorMessage);
 
         // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionReceipt.status()).thenReturn(responseCode);
@@ -238,7 +240,8 @@ class TransactionExecutionServiceTest {
         var contractFunctionResult = mock(ContractFunctionResult.class);
 
         // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord, childSingleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionReceipt.status()).thenReturn(responseCode);
@@ -290,7 +293,8 @@ class TransactionExecutionServiceTest {
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
 
         // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
 
         var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
@@ -324,7 +328,8 @@ class TransactionExecutionServiceTest {
         when(transactionRecord.contractCreateResultOrThrow()).thenReturn(contractFunctionResult);
 
         // Mock the executor to return a List with the mocked SingleTransactionRecord
-        when(transactionExecutor.execute(any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+        when(transactionExecutor.execute(
+                        any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
@@ -387,7 +392,7 @@ class TransactionExecutionServiceTest {
 
             // Mock the executor to return a List with the mocked SingleTransactionRecord
             when(transactionExecutor.execute(
-                            any(TransactionBody.class), any(Instant.class), any(OperationTracer[].class)))
+                            any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                     .thenReturn(List.of(singleTransactionRecord));
         }
 

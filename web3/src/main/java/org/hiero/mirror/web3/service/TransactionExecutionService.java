@@ -22,6 +22,7 @@ import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
@@ -48,7 +49,6 @@ import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 @Named
 @CustomLog
@@ -271,10 +271,10 @@ public class TransactionExecutionService {
         throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY);
     }
 
-    private OperationTracer[] getOperationTracers() {
+    private ActionSidecarContentTracer[] getOperationTracers() {
         return ContractCallContext.get().getOpcodeTracerOptions() != null
-                ? new OperationTracer[] {opcodeActionTracer}
-                : new OperationTracer[] {mirrorOperationActionTracer};
+                ? new ActionSidecarContentTracer[] {opcodeActionTracer}
+                : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(

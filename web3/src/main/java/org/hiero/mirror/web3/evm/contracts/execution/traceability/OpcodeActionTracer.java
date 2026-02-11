@@ -4,11 +4,16 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
 import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 
+import com.hedera.hapi.streams.ContractAction;
+import com.hedera.hapi.streams.ContractActionType;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.exec.systemcontracts.HederaSystemContract;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import jakarta.inject.Named;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -21,13 +26,12 @@ import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
 import org.hyperledger.besu.evm.frame.MessageFrame;
 import org.hyperledger.besu.evm.operation.Operation.OperationResult;
-import org.hyperledger.besu.evm.tracing.OperationTracer;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 @Named
 @CustomLog
-public class OpcodeActionTracer extends AbstractOpcodeTracer implements OperationTracer {
+public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSidecarContentTracer {
 
     @Getter
     private final Map<Address, HederaSystemContract> systemContracts = new ConcurrentHashMap<>();
@@ -43,24 +47,15 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
+        context.setGasRemaining(frame.getRemainingGas());
 
         final var options = context.getOpcodeTracerOptions();
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
         final var storage = captureStorage(frame, options);
-        final var opcode = Opcode.builder()
-                .pc(frame.getPC())
-                .op(frame.getCurrentOperation().getName())
-                .gas(frame.getRemainingGas())
-                .gasCost(operationResult.getGasCost())
-                .depth(frame.getDepth())
-                .stack(stack)
-                .memory(memory)
-                .storage(storage)
-                .reason(frame.getRevertReason().map(Bytes::toString).orElse(null))
-                .build();
 
-        context.addOpcodes(opcode);
+        context.addOpcodes(
+                createOpcode(frame, operationResult.getGasCost(), frame.getRevertReason(), stack, memory, storage));
     }
 
     @Override
@@ -70,22 +65,16 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
                 : frame.getRevertReason();
+        final var gasCost = output != null && !output.isEmpty() ? gasRequirement : 0L;
 
-        final var opcode = Opcode.builder()
-                .pc(frame.getPC())
-                .op(
-                        frame.getCurrentOperation() != null
-                                ? frame.getCurrentOperation().getName()
-                                : StringUtils.EMPTY)
-                .gas(frame.getRemainingGas())
-                .gasCost(output != null && !output.isEmpty() ? gasRequirement : 0L)
-                .depth(frame.getDepth())
-                .stack(Collections.emptyList())
-                .memory(Collections.emptyList())
-                .storage(Collections.emptyMap())
-                .reason(revertReason.map(Bytes::toHexString).orElse(null))
-                .build();
-        context.addOpcodes(opcode);
+        context.addOpcodes(createOpcode(
+                frame,
+                gasCost,
+                revertReason,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Collections.emptyMap()));
+        context.setGasRemaining(frame.getRemainingGas());
     }
 
     private Map<Bytes, Bytes> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
@@ -138,5 +127,66 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements Operatio
             final MessageFrame frame, final Map<Address, HederaSystemContract> systemContracts) {
         final var recipientAddress = frame.getRecipientAddress();
         return systemContracts.containsKey(recipientAddress);
+    }
+
+    @Override
+    public void traceOriginAction(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
+        // NO-OP
+        final var context = ContractCallContext.get();
+        context.setGasRemaining(frame.getRemainingGas());
+    }
+
+    @Override
+    public void sanitizeTracedActions(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
+        // NO-OP
+    }
+
+    @Override
+    public void tracePrecompileResult(
+            @edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame,
+            @edu.umd.cs.findbugs.annotations.NonNull ContractActionType type) {
+        final var context = ContractCallContext.get();
+        final var gasCost = context.getGasRemaining() - frame.getRemainingGas();
+
+        final var revertReason = isCallToSystemContracts(frame, systemContracts)
+                ? getRevertReasonFromContractActions(context)
+                : frame.getRevertReason();
+
+        context.addOpcodes(createOpcode(
+                frame,
+                gasCost,
+                revertReason,
+                Collections.emptyList(),
+                Collections.emptyList(),
+                Collections.emptyMap()));
+        context.setGasRemaining(frame.getRemainingGas());
+    }
+
+    private Opcode createOpcode(
+            final MessageFrame frame,
+            final long gasCost,
+            final Optional<Bytes> revertReason,
+            final List<Bytes> stack,
+            final List<Bytes> memory,
+            final Map<Bytes, Bytes> storage) {
+        return Opcode.builder()
+                .pc(frame.getPC())
+                .op(
+                        frame.getCurrentOperation() != null
+                                ? frame.getCurrentOperation().getName()
+                                : StringUtils.EMPTY)
+                .gas(frame.getRemainingGas())
+                .gasCost(gasCost)
+                .depth(frame.getDepth())
+                .stack(stack)
+                .memory(memory)
+                .storage(storage)
+                .reason(revertReason.map(Bytes::toString).orElse(null))
+                .build();
+    }
+
+    @Override
+    public List<ContractAction> contractActions() {
+        return List.of();
     }
 }
