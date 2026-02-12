@@ -58,7 +58,6 @@ public class TransactionExecutionService {
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
-    private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
@@ -228,8 +227,6 @@ public class TransactionExecutionService {
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
-        } else if (account.smartContract()) {
-            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {
             // If the account is hollow, complete it in the state as a workaround
             // as this happens in HandleWorkflow in hedera-app but calling the

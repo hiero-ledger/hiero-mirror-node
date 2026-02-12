@@ -38,6 +38,7 @@ import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.exception.ImporterException;
 
 /**
@@ -80,6 +81,8 @@ public interface EntityListener {
     default void onHook(Hook hook) {}
 
     default void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {}
+
+    default void onLedger(Ledger ledger) throws ImporterException {}
 
     default void onLiveHash(LiveHash liveHash) throws ImporterException {}
 
