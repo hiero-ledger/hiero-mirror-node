@@ -34,8 +34,10 @@ final class BlockBucketPropertiesTest {
     @Test
     void isResettable() {
         assertThat(blockBucketProperties.isResettable()).isFalse();
-        importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
+        importerProperties.setNetwork(ImporterProperties.HederaNetwork.TESTNET);
         assertThat(blockBucketProperties.isResettable()).isTrue();
+        importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
+        assertThat(blockBucketProperties.isResettable()).isFalse();
     }
 
     @Test

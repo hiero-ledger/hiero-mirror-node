@@ -136,7 +136,7 @@ public class ImporterProperties {
         }
 
         public static boolean isResettable(final String network) {
-            return PREVIEWNET.equals(network);
+            return !DEMO.equals(network) && !MAINNET.equals(network);
         }
     }
 

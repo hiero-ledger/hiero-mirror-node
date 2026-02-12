@@ -62,11 +62,10 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
 
     @Override
     protected Flux<String> doDiscoverNetwork() {
-        final int batchSize = downloaderProperties.getBatchSize();
         final var listRequest = ListObjectsV2Request.builder()
-                .maxKeys(batchSize)
                 .bucket(blockBucketProperties.getBucketName())
                 .delimiter(SEPARATOR)
+                .maxKeys(downloaderProperties.getBatchSize() * 4)
                 .requestPayer(RequestPayer.REQUESTER)
                 .build();
         return Mono.fromFuture(s3Client.listObjectsV2(listRequest))
