@@ -207,6 +207,7 @@ public class TransactionExecutionService {
                         params.getEthereumData().toArrayUnsafe()));
         return defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(ethereumTransactionBuilder.build())
+                .transactionFee(CONTRACT_CREATE_TX_FEE)
                 .build();
     }
 
