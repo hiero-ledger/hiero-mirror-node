@@ -338,6 +338,7 @@ function restoreTarget() {
   fi
 
   PAUSE_CLUSTER="true"
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   configureAndValidateSnapshotRestore
   scaleupResources
   resumeKustomization
@@ -382,7 +383,8 @@ function runAcceptanceTest() {
   waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
   # suspend kustomization to allow enabling acceptance test in the helmrelease
   suspendKustomization
-  kubectl patch helmrelease "${HELM_RELEASE_NAME}" --type merge -p '{"spec": {"values": {"test": {"enabled": true }}}}'
+  kubectl patch helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" --type merge \
+    -p '{"spec": {"values": {"test": {"enabled": true }}}}'
   flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}"
 }
 
