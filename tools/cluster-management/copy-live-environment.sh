@@ -16,6 +16,7 @@ K6_TEST_SUITE_NAME="${K6_TEST_SUITE_NAME:-test-suite-rest-mainnet-citus}"
 K8S_SOURCE_CLUSTER_CONTEXT=${K8S_SOURCE_CLUSTER_CONTEXT:-}
 K8S_TARGET_CLUSTER_CONTEXT=${K8S_TARGET_CLUSTER_CONTEXT:-}
 RESTORE="${RESTORE:-true}"
+RUN_ACCEPTANCE_TEST="${RUN_ACCEPTANCE_TEST:-true}"
 RUN_K6_TEST="${RUN_K6_TEST:-true}"
 TEARDOWN_TARGET="${TEARDOWN_TARGET:-false}"
 TEST_KUBE_NAMESPACE="${TEST_KUBE_NAMESPACE:-testkube}"
@@ -337,13 +338,13 @@ function restoreTarget() {
   fi
 
   PAUSE_CLUSTER="true"
-  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
   configureAndValidateSnapshotRestore
   scaleupResources
   resumeKustomization
   resumeCommonChart
   patchBackupPaths
   replaceDisks
+  runAcceptanceTest
 }
 
 function deleteSnapshots() {
@@ -364,6 +365,25 @@ function deleteSnapshots() {
   done
 
   return 0
+}
+
+function runAcceptanceTest() {
+  if [[ "${RUN_ACCEPTANCE_TEST}" != "true" ]]; then
+    return
+  fi
+
+  acceptanceTestEnabled=$(kubectl get helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" -o json 2>/dev/null \
+    | jq 'if has("spec") then (.spec.values.test.enabled // false) else true end')
+  if [[ "${acceptanceTestEnabled}" == "true" ]]; then
+    # Don't run it again if it's enabled in helmrelease or there is no helmrelease at all
+    return
+  fi
+
+  waitForHelmReleaseReady "${TEST_KUBE_TARGET_NAMESPACE}"
+  # suspend kustomization to allow enabling acceptance test in the helmrelease
+  suspendKustomization
+  kubectl patch helmrelease "${HELM_RELEASE_NAME}" --type merge -p '{"spec": {"values": {"test": {"enabled": true }}}}'
+  flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}"
 }
 
 function scaleDownNodePools() {
@@ -503,6 +523,13 @@ function restoreEnvironment() {
   fi
 
   ensureContext K8S_SOURCE_CLUSTER_CONTEXT
+
+  changeContext "${K8S_TARGET_CLUSTER_CONTEXT}"
+  if [[ $(kubectl get nodes -o json | jq '.items | length') != 0 ]]; then
+    log "There are GKE nodes in the target cluster, please teardown the environment before any restore attempt."
+    exit 1
+  fi
+
   snapshotSource
   restoreTarget
   deleteSnapshots
@@ -641,7 +668,6 @@ function waitForK6PodExecution() {
 function waitForHelmReleaseReady() {
   local namespace="$1"
   local hrJson
-  local testsEnabled
   local testStatus
   local testMsg
   local readyStatus
@@ -650,20 +676,13 @@ function waitForHelmReleaseReady() {
   log "Waiting for helm tests to finish in namespace ${namespace}"
   while true; do
     hrJson="$(kubectl -n "${namespace}" get helmrelease "${HELM_RELEASE_NAME}" -o json 2>/dev/null || true)"
-    testsEnabled="$(jq -r '.spec.test.enable // false' <<<"${hrJson}")"
-
-    if [[ "${testsEnabled}" != "true" ]]; then
-      log "Helm tests not enabled for ${HELM_RELEASE_NAME} in ${namespace}; proceeding without waiting."
-      break
-    fi
-
     testStatus="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .status // empty' <<<"${hrJson}")"
     testMsg="$(jq -r '.status.conditions[]? | select(.type=="TestSuccess") | .message // empty' <<<"${hrJson}")"
     readyStatus="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .status // empty' <<<"${hrJson}")"
     readyReason="$(jq -r '.status.conditions[]? | select(.type=="Ready") | .reason // empty' <<<"${hrJson}")"
 
-    if [[ "${testStatus}" == "True" ]] || { [[ "${readyStatus}" == "True" && "${readyReason}" == "TestSucceeded" ]]; }; then
-      log "Helm tests SUCCEEDED for ${HELM_RELEASE_NAME} in ${namespace}"
+    if [[ "${readyStatus}" == "True" ]]; then
+      log "Helmrelease is ready (reason=${readyReason}) for ${HELM_RELEASE_NAME} in ${namespace}"
       break
     fi
 
