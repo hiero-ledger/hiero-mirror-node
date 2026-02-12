@@ -38,11 +38,9 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
     @Override
     public void tracePreExecution(@NonNull final MessageFrame frame) {
-        final var context = ContractCallContext.get();
-        context.setGasRemaining(frame.getRemainingGas());
         if (frame.getCurrentOperation() != null
                 && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
-            context.setBalanceCall(true);
+            ContractCallContext.get().setBalanceCall(true);
         }
     }
 
@@ -62,20 +60,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     @Override
     public void tracePrecompileCall(
             @NonNull final MessageFrame frame, final long gasRequirement, @Nullable final Bytes output) {
-        final var context = ContractCallContext.get();
-        final var revertReason = isCallToSystemContracts(frame, systemContracts)
-                ? getRevertReasonFromContractActions(context)
-                : frame.getRevertReason();
-        final var gasCost = output != null && !output.isEmpty() ? gasRequirement : 0L;
-
-        context.addOpcodes(createOpcode(
-                frame,
-                gasCost,
-                revertReason,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                Collections.emptyMap()));
-        context.setGasRemaining(frame.getRemainingGas());
+        // NO-OP
     }
 
     @Override
