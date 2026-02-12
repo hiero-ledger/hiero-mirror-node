@@ -1,6 +1,6 @@
 {
   "name": "@hiero-ledger/mirror-rest",
-  "version": "0.148.0-SNAPSHOT",
+  "version": "0.149.0-SNAPSHOT",
   "description": "Mirror Node REST API",
   "type": "module",
   "main": "server.js",
@@ -17,7 +17,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.983.0",
+    "@aws-sdk/client-s3": "3.985.0",
     "@godaddy/terminus": "4.12.1",
     "@hiero-ledger/proto": "2.25.0",
     "@trufflesuite/bigint-buffer": "1.1.10",

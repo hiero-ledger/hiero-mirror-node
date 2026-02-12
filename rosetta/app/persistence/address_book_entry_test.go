@@ -232,7 +232,7 @@ func MustEncodeEntityId(shard, realm, num int64) domain.EntityId {
 }
 
 func getAddressBook(start, end int64, fileId domain.EntityId) *domain.AddressBook {
-	addressBook := domain.AddressBook{StartConsensusTimestamp: start, FileId: fileId}
+	addressBook := domain.AddressBook{StartConsensusTimestamp: start, FileData: []byte{}, FileId: fileId}
 	if end != 0 {
 		addressBook.EndConsensusTimestamp = &end
 	}

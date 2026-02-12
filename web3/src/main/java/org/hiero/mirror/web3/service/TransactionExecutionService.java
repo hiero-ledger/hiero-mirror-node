@@ -18,6 +18,7 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.contract.ContractCallTransactionBody;
 import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
@@ -42,6 +43,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTr
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
@@ -56,7 +58,6 @@ public class TransactionExecutionService {
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
-    private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
@@ -76,7 +77,11 @@ public class TransactionExecutionService {
 
         TransactionBody transactionBody;
         EvmTransactionResult result;
-        if (isContractCreate) {
+        if (params instanceof ContractDebugParameters
+                && params.getEthereumData() != null
+                && !params.getEthereumData().isEmpty()) {
+            transactionBody = buildEthereumTransactionBody(params);
+        } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
@@ -196,6 +201,15 @@ public class TransactionExecutionService {
                 .build();
     }
 
+    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
+                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        params.getEthereumData().toArrayUnsafe()));
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(ethereumTransactionBuilder.build())
+                .build();
+    }
+
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
                 .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(address.toArrayUnsafe()))
@@ -213,8 +227,6 @@ public class TransactionExecutionService {
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
-        } else if (account.smartContract()) {
-            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {
             // If the account is hollow, complete it in the state as a workaround
             // as this happens in HandleWorkflow in hedera-app but calling the

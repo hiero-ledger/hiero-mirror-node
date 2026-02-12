@@ -16,7 +16,7 @@ dependencies {
     implementation("com.diffplug.spotless:spotless-plugin-gradle:8.2.1")
     implementation("com.github.node-gradle:gradle-node-plugin:7.1.0")
     implementation("com.google.protobuf:protobuf-gradle-plugin:0.9.5")
-    implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.4")
+    implementation("com.gorylenko.gradle-git-properties:gradle-git-properties:2.5.5")
     implementation("com.gradleup.shadow:shadow-gradle-plugin:9.3.1")
     implementation("com.graphql-java-generator:graphql-gradle-plugin3:4.0")
     implementation("gradle.plugin.io.snyk.gradle.plugin:snyk:0.7.0")
@@ -34,7 +34,7 @@ dependencies {
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.19.0")
     implementation("org.owasp:dependency-check-gradle:12.2.0")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.2")
-    implementation("org.testcontainers:testcontainers-postgresql:2.0.2")
+    implementation("org.testcontainers:testcontainers-postgresql:2.0.3")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
 
