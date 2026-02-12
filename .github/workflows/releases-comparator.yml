@@ -94,7 +94,6 @@ jobs:
             "com/swirlds/state/spi/ReadableKVStateBase.java"
             "com/swirlds/state/spi/WritableKVStateBase.java"
             "com/swirlds/state/spi/WritableSingletonStateBase.java"
-            "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
           )
 
           # Compare the schemas - in case there is a new version we might need to register a new state.
