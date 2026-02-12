@@ -3978,6 +3978,7 @@ components:
         - FILEUPDATE
         - FREEZE
         - HOOKSTORE
+        - LEDGERIDPUBLICATION
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE

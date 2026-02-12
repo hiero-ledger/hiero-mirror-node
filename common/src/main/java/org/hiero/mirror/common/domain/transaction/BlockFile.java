@@ -63,6 +63,9 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
     @ToString.Exclude
     private List<BlockTransaction> items;
 
+    @ToString.Exclude
+    private BlockTransaction lastLedgerIdPublicationTransaction;
+
     private Long loadEnd;
 
     private Long loadStart;
