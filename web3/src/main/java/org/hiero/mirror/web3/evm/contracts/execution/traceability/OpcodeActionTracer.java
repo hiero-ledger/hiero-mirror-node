@@ -38,6 +38,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
     @Override
     public void tracePreExecution(@NonNull final MessageFrame frame) {
+        final var context = ContractCallContext.get();
+        context.setGasRemaining(frame.getRemainingGas());
         if (frame.getCurrentOperation() != null
                 && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
             ContractCallContext.get().setBalanceCall(true);
@@ -47,7 +49,6 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     @Override
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
-        context.setGasRemaining(frame.getRemainingGas());
 
         final var options = context.getOpcodeTracerOptions();
         final var memory = captureMemory(frame, options);
@@ -130,21 +131,32 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     }
 
     @Override
-    public void traceOriginAction(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
-        // NO-OP
-        final var context = ContractCallContext.get();
-        context.setGasRemaining(frame.getRemainingGas());
+    public void traceContextEnter(@NonNull final MessageFrame frame) {
+        // Starting processing a newly created nested MessageFrame, we should set the remainingGas to match the newly
+        // allocated gas for the new frame
+        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
-    public void sanitizeTracedActions(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
+    public void traceContextReEnter(@NonNull final MessageFrame frame) {
+        // Returning to the parent MessageFrame, we should reset the gas to reflect the existing remaining gas of
+        // the parent frame
+        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
+    }
+
+    @Override
+    public void traceOriginAction(@NonNull MessageFrame frame) {
+        // Setting the initial remaining gas on the start of the initial parent frame
+        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
+    }
+
+    @Override
+    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
         // NO-OP
     }
 
     @Override
-    public void tracePrecompileResult(
-            @edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame,
-            @edu.umd.cs.findbugs.annotations.NonNull ContractActionType type) {
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
         final var context = ContractCallContext.get();
         final var gasCost = context.getGasRemaining() - frame.getRemainingGas();
 
@@ -159,6 +171,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                 Collections.emptyList(),
                 Collections.emptyList(),
                 Collections.emptyMap()));
+
         context.setGasRemaining(frame.getRemainingGas());
     }
 
