@@ -19,9 +19,15 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
 
     @Override
     public void create(SyntheticContractLog log) {
-        if (isContract(log.getRecordItem()) && log.getRecordItem().parentHasContractLogs()
-                || !entityProperties.getPersist().isSyntheticContractLogs()) {
+        if (!entityProperties.getPersist().isSyntheticContractLogs()) {
             return;
+        }
+
+        if (log instanceof TransferContractLog transferLog && isContract(log.getRecordItem())) {
+            var contractParent = log.getRecordItem().parseContractParent();
+            if (contractParent != null && matchesExistingContractLog(transferLog, contractParent)) {
+                return;
+            }
         }
 
         long consensusTimestamp = log.getRecordItem().getConsensusTimestamp();
@@ -50,5 +56,19 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     private boolean isContract(RecordItem recordItem) {
         return recordItem.getTransactionRecord().hasContractCallResult()
                 || recordItem.getTransactionRecord().hasContractCreateResult();
+    }
+
+    private boolean matchesExistingContractLog(TransferContractLog transferLog, RecordItem contractParent) {
+        var contractLogs = contractParent.getContractLogs();
+        if (contractLogs == null || contractLogs.isEmpty()) {
+            return false;
+        }
+
+        for (var contractLoginfo : contractLogs) {
+            if (transferLog.equalsContractLoginfo(contractLoginfo)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

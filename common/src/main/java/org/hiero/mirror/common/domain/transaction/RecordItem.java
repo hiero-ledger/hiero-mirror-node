@@ -7,6 +7,7 @@ import static lombok.AccessLevel.PRIVATE;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.services.stream.proto.TransactionSidecarRecord;
+import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -75,6 +76,7 @@ public class RecordItem implements StreamItem {
     private final int transactionIndex;
     private final TransactionRecord transactionRecord;
     private final int transactionType;
+    private final List<ContractLoginfo> contractLogs;
 
     @Setter
     @EqualsAndHashCode.Exclude
@@ -224,15 +226,34 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Check if the recordItem has a parent and the parent has existing contract logs already present in the incoming
-     * stream
+     * Parses and returns the contract parent by iterating over previous items until a parent with contractCallResult
+     * or contractCreateResult is found. For hook-related transactions, the previous item has a consensus timestamp
+     * that is only 1 nanosecond smaller than the current item.
      *
-     * @return whether the parent record item has contract logs
-     * */
-    public boolean parentHasContractLogs() {
-        return parent != null
-                && parent.getLogIndex() != null
-                && parent.getLogIndex().get() > 0;
+     * @return the contract parent RecordItem, or null if not found
+     */
+    public RecordItem parseContractParent() {
+        var current = this.previous;
+        while (current != null) {
+            if (hasContractResult(current)) {
+                // Check if this is a hook-related transaction (1 nanosecond difference)
+                if (this.consensusTimestamp - current.getConsensusTimestamp() == 1) {
+                    // For hooks, the previous item should have a contract result
+                    if (hasContractResult(current)) {
+                        return current;
+                    }
+                } else {
+                    return current;
+                }
+            }
+            current = current.getPrevious();
+        }
+        return null;
+    }
+
+    private boolean hasContractResult(RecordItem item) {
+        var record = item.getTransactionRecord();
+        return record.hasContractCallResult() || record.hasContractCreateResult();
     }
 
     private Map<Long, ContractTransaction> getContractTransactions() {
@@ -261,6 +282,8 @@ public class RecordItem implements StreamItem {
                 transactionRecord = transactionRecordBuilder.build();
             }
 
+            this.contractLogs = parseContractLogs();
+
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
@@ -268,6 +291,15 @@ public class RecordItem implements StreamItem {
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
             return buildInternal();
+        }
+
+        private List<ContractLoginfo> parseContractLogs() {
+            if (transactionRecord.hasContractCallResult()) {
+                return transactionRecord.getContractCallResult().getLogInfoList();
+            } else if (transactionRecord.hasContractCreateResult()) {
+                return transactionRecord.getContractCreateResult().getLogInfoList();
+            }
+            return Collections.emptyList();
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {

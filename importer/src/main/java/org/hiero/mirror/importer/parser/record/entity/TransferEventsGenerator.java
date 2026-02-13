@@ -15,7 +15,7 @@ import org.hiero.mirror.importer.parser.contractlog.TransferContractLog;
 
 @Named
 @RequiredArgsConstructor
-final class MultiPartyTransferEventsGenerator {
+final class TransferEventsGenerator {
 
     private final SyntheticContractLogService syntheticContractLogService;
     private static final Comparator<AccountAmount> ACCOUNT_AMOUNT_COMPARATOR = Comparator.<AccountAmount>comparingLong(
@@ -27,6 +27,10 @@ final class MultiPartyTransferEventsGenerator {
                     e -> e.getAccountID().hasAccountNum() ? e.getAccountID().getAccountNum() : 0L);
 
     public void generate(RecordItem recordItem, EntityId tokenId, List<AccountAmount> tokenTransfers) {
+        if (tokenTransfers.size() < 2) {
+            return;
+        }
+
         final var expectedInitialCapacity = tokenTransfers.size() / 2;
         final var senders = new ArrayList<AccountAmount>(expectedInitialCapacity);
         final var receivers = new ArrayList<AccountAmount>(expectedInitialCapacity);
@@ -42,10 +46,10 @@ final class MultiPartyTransferEventsGenerator {
         senders.sort(ACCOUNT_AMOUNT_COMPARATOR);
         receivers.sort(ACCOUNT_AMOUNT_COMPARATOR);
 
-        createSyntheticEventsForMultiPartyTransfer(senders, receivers, recordItem, tokenId);
+        createSyntheticTransferEvents(senders, receivers, recordItem, tokenId);
     }
 
-    private void createSyntheticEventsForMultiPartyTransfer(
+    private void createSyntheticTransferEvents(
             List<AccountAmount> senders, List<AccountAmount> receivers, RecordItem recordItem, EntityId tokenId) {
         if (senders.isEmpty() || receivers.isEmpty()) {
             return;

@@ -31,20 +31,20 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class MultiPartyTransferEventsGeneratorTest {
+class TransferEventsGeneratorTest {
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
 
     @Mock
     private SyntheticContractLogService syntheticContractLogService;
 
-    private MultiPartyTransferEventsGenerator multiPartyTransferEventsGenerator;
+    private TransferEventsGenerator transferEventsGenerator;
 
     private RecordItem recordItem;
 
     @BeforeEach
     void beforeEach() {
-        multiPartyTransferEventsGenerator = new MultiPartyTransferEventsGenerator(syntheticContractLogService);
+        transferEventsGenerator = new TransferEventsGenerator(syntheticContractLogService);
     }
 
     @ParameterizedTest
@@ -65,7 +65,7 @@ class MultiPartyTransferEventsGeneratorTest {
         var entityTokenId = EntityId.of(tokenId);
         var tokenTransferList = tokenTransfers.build();
 
-        multiPartyTransferEventsGenerator.generate(recordItem, entityTokenId, tokenTransferList.getTransfersList());
+        transferEventsGenerator.generate(recordItem, entityTokenId, tokenTransferList.getTransfersList());
 
         var contractLogCaptor = ArgumentCaptor.forClass(TransferContractLog.class);
         verify(syntheticContractLogService, atLeast(1)).create(contractLogCaptor.capture());
@@ -133,7 +133,7 @@ class MultiPartyTransferEventsGeneratorTest {
                 tokenTransfers1,
                 accounts1);
 
-        multiPartyTransferEventsGenerator.generate(
+        transferEventsGenerator.generate(
                 recordItem, entityTokenId, tokenTransfers1.build().getTransfersList());
 
         var captor1 = ArgumentCaptor.forClass(TransferContractLog.class);
@@ -153,7 +153,7 @@ class MultiPartyTransferEventsGeneratorTest {
                 tokenTransfers2,
                 accounts2);
 
-        multiPartyTransferEventsGenerator.generate(
+        transferEventsGenerator.generate(
                 recordItem, entityTokenId, tokenTransfers2.build().getTransfersList());
 
         var captor2 = ArgumentCaptor.forClass(TransferContractLog.class);
@@ -186,7 +186,7 @@ class MultiPartyTransferEventsGeneratorTest {
                 tokenTransfers1,
                 accounts1);
 
-        multiPartyTransferEventsGenerator.generate(
+        transferEventsGenerator.generate(
                 recordItem, entityTokenId, tokenTransfers1.build().getTransfersList());
 
         var captor1 = ArgumentCaptor.forClass(TransferContractLog.class);
@@ -211,7 +211,7 @@ class MultiPartyTransferEventsGeneratorTest {
                 tokenTransfers2,
                 accounts2);
 
-        multiPartyTransferEventsGenerator.generate(
+        transferEventsGenerator.generate(
                 recordItem, entityTokenId, tokenTransfers2.build().getTransfersList());
 
         var captor2 = ArgumentCaptor.forClass(TransferContractLog.class);
