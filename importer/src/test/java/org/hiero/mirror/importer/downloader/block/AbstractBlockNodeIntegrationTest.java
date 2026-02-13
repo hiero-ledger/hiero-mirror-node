@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
@@ -40,6 +41,9 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     private CommonDownloaderProperties commonDownloaderProperties;
 
     @Resource
+    private ImporterProperties importerProperties;
+
+    @Resource
     private RecordDownloaderProperties recordDownloaderProperties;
 
     @Resource
@@ -59,7 +63,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     }
 
     protected final BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
-        var blockProperties = new BlockProperties();
+        var blockProperties = new BlockProperties(importerProperties);
         blockProperties.setEnabled(true);
         blockProperties.setNodes(nodes);
         boolean isInProcess = nodes.getFirst().getStatusPort() == -1;

@@ -12,6 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
@@ -37,6 +38,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @RequiredArgsConstructor
 class CloudStorageConfiguration {
 
+    private final BlockProperties blockProperties;
     private final CommonProperties commonProperties;
     private final CommonDownloaderProperties commonDownloaderProperties;
     private final LocalStreamFileProperties localProperties;
@@ -45,12 +47,16 @@ class CloudStorageConfiguration {
     @Bean
     List<StreamFileProvider> streamFileProviders() {
         if (StringUtils.isBlank(commonDownloaderProperties.getPathPrefix())) {
-            log.info("Configured to download from bucket {}", commonDownloaderProperties.getBucketName());
+            log.info(
+                    "Configured to download record streams from bucket {} and block streams from bucket {}",
+                    commonDownloaderProperties.getBucketName(),
+                    blockProperties.getBucketName());
         } else {
             log.info(
-                    "Configured to download from bucket {} with path prefix {}",
+                    "Configured to download record streams from bucket {} with path prefix {} and block streams from bucket {}",
                     commonDownloaderProperties.getBucketName(),
-                    commonDownloaderProperties.getPathPrefix());
+                    commonDownloaderProperties.getPathPrefix(),
+                    blockProperties.getBucketName());
         }
 
         var providers = new ArrayList<StreamFileProvider>();
@@ -61,7 +67,8 @@ class CloudStorageConfiguration {
                         case LOCAL ->
                             new LocalStreamFileProvider(commonProperties, commonDownloaderProperties, localProperties);
                         case GCP, S3 ->
-                            new S3StreamFileProvider(commonProperties, commonDownloaderProperties, s3Client(source));
+                            new S3StreamFileProvider(
+                                    blockProperties, commonProperties, commonDownloaderProperties, s3Client(source));
                     };
 
             providers.add(provider);

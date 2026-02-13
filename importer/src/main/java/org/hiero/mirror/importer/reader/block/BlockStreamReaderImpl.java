@@ -59,7 +59,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .size(size)
                 .version(VERSION);
 

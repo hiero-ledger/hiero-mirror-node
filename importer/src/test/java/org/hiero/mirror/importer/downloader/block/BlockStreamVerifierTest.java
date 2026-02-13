@@ -32,6 +32,7 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
@@ -68,10 +69,10 @@ final class BlockStreamVerifierTest {
     @BeforeEach
     void setup() {
         cutoverService = spy(new CutoverServiceImpl(
-                new BlockProperties(), mock(RecordDownloaderProperties.class), recordFileRepository));
+                mock(BlockProperties.class), mock(RecordDownloaderProperties.class), recordFileRepository));
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
-                new BlockProperties(),
+                new BlockProperties(new ImporterProperties()),
                 cutoverService,
                 ledgerIdPublicationTransactionParser,
                 new SimpleMeterRegistry(),
