@@ -440,6 +440,8 @@ public class AccountClient extends AbstractNetworkClient {
         log.info("Completion receipt status: {}", completionResponse.getReceipt().status);
         log.info("Completion tx id: {}", completionResponse.getTransactionId());
 
+        accountIds.add(hollowPayer);
+
         return completionResponse;
     }
 
