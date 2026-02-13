@@ -75,10 +75,12 @@ public class BatchTransactionFeature {
 
     @Then("I should be able to resolve the hollow account id")
     public void resolveHollowAccountId() {
-        hollowResolvedAccountId = AccountId.fromString(mirrorClient
-                .getAccountDetailsUsingEvmAddress(hollowAliasAccountId)
-                .getAccount());
+        final var accountDetails = mirrorClient.getAccountDetailsUsingEvmAddress(hollowAliasAccountId);
+
+        hollowResolvedAccountId = AccountId.fromString(accountDetails.getAccount());
+
         assertThat(hollowResolvedAccountId).isNotNull();
+        assertThat(accountDetails.getKey()).isNull();
     }
 
     @Then("I should see the batch transaction in the record stream")
@@ -116,7 +118,7 @@ public class BatchTransactionFeature {
     }
 
     @Then("I should see the completion transaction in the record stream")
-    public void verifyBothInRecordStream() {
+    public void verifyCompletionTransaction() {
         assertThat(completionTransactionId).isNotNull();
 
         var completionTransactions =
