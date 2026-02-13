@@ -11,6 +11,7 @@ plugins {
 dependencies {
     annotationProcessor("org.mapstruct:mapstruct-processor")
     implementation(project(":common"))
+    implementation("com.hedera.hashgraph:app-hapi-fees:0.71.0-rc.2")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("jakarta.inject:jakarta.inject-api")

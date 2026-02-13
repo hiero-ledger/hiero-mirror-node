@@ -6,17 +6,11 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
-import org.hiero.mirror.rest.model.FeeEstimateNetwork;
 import org.hiero.mirror.rest.model.FeeEstimateResponse;
-import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
@@ -45,34 +39,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RestController
 final class NetworkController {
-
-    static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
-
-    static {
-        final var feeExtra = new FeeExtra();
-        feeExtra.setCharged(1);
-        feeExtra.setCount(2);
-        feeExtra.setFeePerUnit(10_000L);
-        feeExtra.setIncluded(1);
-        feeExtra.setName("Test data");
-        feeExtra.setSubtotal(10_000L);
-
-        final var feeEstimate = new FeeEstimate();
-        feeEstimate.setBase(100_000L);
-        feeEstimate.setExtras(List.of(feeExtra));
-
-        final var network = new FeeEstimateNetwork();
-        network.setMultiplier(2);
-        network.setSubtotal(220_000L);
-
-        final var feeEstimateResponse = new FeeEstimateResponse();
-        feeEstimateResponse.setNotes(List.of("This API is not yet implemented and only returns stubbed test data"));
-        feeEstimateResponse.setNetwork(network);
-        feeEstimateResponse.setNode(feeEstimate);
-        feeEstimateResponse.setService(feeEstimate);
-        feeEstimateResponse.setTotal(440_000L);
-        FEE_ESTIMATE_RESPONSE = feeEstimateResponse;
-    }
 
     private final ExchangeRateMapper exchangeRateMapper;
     private final FeeScheduleMapper feeScheduleMapper;
@@ -105,13 +71,7 @@ final class NetworkController {
     FeeEstimateResponse estimateFees(
             @RequestBody Transaction transaction,
             @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
-        try {
-            SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-        } catch (InvalidProtocolBufferException e) {
-            throw new IllegalArgumentException("Unable to parse SignedTransaction");
-        }
-
-        return FEE_ESTIMATE_RESPONSE;
+        return networkService.estimateFees(transaction, mode);
     }
 
     @GetMapping("/stake")

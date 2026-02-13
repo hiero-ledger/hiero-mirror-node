@@ -33,6 +33,9 @@ public class SystemEntity {
     private final EntityId networkAdminFeeAccount = toEntityId(98L);
 
     @Getter(lazy = true)
+    private final EntityId simpleFeeScheduleFile = toEntityId(113L);
+
+    @Getter(lazy = true)
     private final EntityId hapiPermissionFile = toEntityId(122L);
 
     @Getter(lazy = true)
