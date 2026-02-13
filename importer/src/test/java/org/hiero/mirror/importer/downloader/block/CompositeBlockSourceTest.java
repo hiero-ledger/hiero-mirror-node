@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +42,7 @@ final class CompositeBlockSourceTest {
 
     @BeforeEach
     void setup() {
-        properties = new BlockProperties();
+        properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
         source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, cutoverService, properties);

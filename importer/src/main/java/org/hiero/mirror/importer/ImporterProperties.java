@@ -134,10 +134,6 @@ public class ImporterProperties {
         public static boolean isAllowAnonymousAccess(final String network) {
             return DEMO.equals(network);
         }
-
-        public static boolean isResettable(final String network) {
-            return !DEMO.equals(network) && !MAINNET.equals(network);
-        }
     }
 
     private record CloudBucket(String blockStream, String recordStream) {}

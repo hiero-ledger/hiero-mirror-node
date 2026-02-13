@@ -37,10 +37,9 @@ class S3StreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .forcePathStyle(true)
                 .region(Region.of(properties.getRegion()))
                 .build();
-        streamFileProvider =
-                new S3StreamFileProvider(blockBucketProperties, commonProperties, properties, s3AsyncClient);
+        streamFileProvider = new S3StreamFileProvider(blockProperties, commonProperties, properties, s3AsyncClient);
         s3Proxy = TestUtils.startS3Proxy(dataPath);
-        blockStreamTargetRootPath = blockBucketProperties.getBucketName();
+        blockStreamTargetRootPath = blockProperties.getBucketName();
         targetRootPath = properties.getBucketName();
     }
 

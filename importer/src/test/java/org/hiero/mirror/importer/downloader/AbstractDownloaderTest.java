@@ -63,7 +63,7 @@ import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
-import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.reader.signature.CompositeSignatureFileReader;
 import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.hiero.mirror.importer.reader.signature.SignatureFileReader;
@@ -97,7 +97,7 @@ public abstract class AbstractDownloaderTest<T extends StreamFile<?>> {
     protected final DomainBuilder domainBuilder = new DomainBuilder();
 
     @Mock
-    protected BlockBucketProperties blockBucketProperties;
+    protected BlockProperties blockProperties;
 
     @Mock(strictness = LENIENT)
     protected ConsensusNodeService consensusNodeService;

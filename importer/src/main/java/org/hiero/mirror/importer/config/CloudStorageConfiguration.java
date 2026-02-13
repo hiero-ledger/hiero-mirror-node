@@ -12,7 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamSourceProperties;
-import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProperties;
 import org.hiero.mirror.importer.downloader.provider.LocalStreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
@@ -38,7 +38,7 @@ import software.amazon.awssdk.services.s3.S3AsyncClient;
 @RequiredArgsConstructor
 class CloudStorageConfiguration {
 
-    private final BlockBucketProperties blockBucketProperties;
+    private final BlockProperties blockProperties;
     private final CommonProperties commonProperties;
     private final CommonDownloaderProperties commonDownloaderProperties;
     private final LocalStreamFileProperties localProperties;
@@ -50,13 +50,13 @@ class CloudStorageConfiguration {
             log.info(
                     "Configured to download record streams from bucket {} and block streams from bucket {}",
                     commonDownloaderProperties.getBucketName(),
-                    blockBucketProperties.getBucketName());
+                    blockProperties.getBucketName());
         } else {
             log.info(
                     "Configured to download record streams from bucket {} with path prefix {} and block streams from bucket {}",
                     commonDownloaderProperties.getBucketName(),
                     commonDownloaderProperties.getPathPrefix(),
-                    blockBucketProperties.getBucketName());
+                    blockProperties.getBucketName());
         }
 
         var providers = new ArrayList<StreamFileProvider>();
@@ -68,10 +68,7 @@ class CloudStorageConfiguration {
                             new LocalStreamFileProvider(commonProperties, commonDownloaderProperties, localProperties);
                         case GCP, S3 ->
                             new S3StreamFileProvider(
-                                    blockBucketProperties,
-                                    commonProperties,
-                                    commonDownloaderProperties,
-                                    s3Client(source));
+                                    blockProperties, commonProperties, commonDownloaderProperties, s3Client(source));
                     };
 
             providers.add(provider);

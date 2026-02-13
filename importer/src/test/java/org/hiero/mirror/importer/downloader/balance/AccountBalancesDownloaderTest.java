@@ -57,8 +57,8 @@ final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<Account
     protected Downloader<AccountBalanceFile, AccountBalance> getDownloader() {
         BalanceFileReader balanceFileReader =
                 new BalanceFileReaderImplV1(new BalanceParserProperties(), new AccountBalanceLineParserV1());
-        var streamFileProvider = new S3StreamFileProvider(
-                blockBucketProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider =
+                new S3StreamFileProvider(blockProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
         return new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,
@@ -124,8 +124,8 @@ final class AccountBalancesDownloaderTest extends AbstractDownloaderTest<Account
         // .csv_sig files are intentionally made empty so if two account balance files are processed, they must be
         // the .pb.gz files
         ProtoBalanceFileReader protoBalanceFileReader = new ProtoBalanceFileReader();
-        var streamFileProvider = new S3StreamFileProvider(
-                blockBucketProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
+        var streamFileProvider =
+                new S3StreamFileProvider(blockProperties, commonProperties, commonDownloaderProperties, s3AsyncClient);
         downloader = new AccountBalancesDownloader(
                 accountBalanceFileRepository,
                 consensusNodeService,

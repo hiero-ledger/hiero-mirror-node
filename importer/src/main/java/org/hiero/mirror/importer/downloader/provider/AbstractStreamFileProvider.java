@@ -20,7 +20,8 @@ abstract class AbstractStreamFileProvider implements StreamFileProvider {
     @Override
     public Mono<String> discoverNetwork() {
         final var network = downloaderProperties.getImporterProperties().getNetwork();
-        final var networkFilter = Pattern.compile("^%s-.+$".formatted(network)).asPredicate();
+        final var networkFilter =
+                Pattern.compile("^%s(-.+)?$".formatted(network)).asPredicate();
         return doDiscoverNetwork()
                 .filter(networkFilter)
                 .reduce((first, second) -> first.compareTo(second) > 0 ? first : second);

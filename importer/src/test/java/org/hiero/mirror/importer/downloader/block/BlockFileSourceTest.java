@@ -89,7 +89,6 @@ final class BlockFileSourceTest {
     @TempDir
     private Path dataPath;
 
-    private BlockBucketProperties blockBucketProperties;
     private CommonDownloaderProperties commonDownloaderProperties;
     private CutoverService cutoverService;
     private FileCopier fileCopier;
@@ -107,6 +106,7 @@ final class BlockFileSourceTest {
     }
 
     @BeforeEach
+    @SneakyThrows
     void setup() {
         if (LoggerFactory.getLogger(getClass().getPackageName()) instanceof Logger log) {
             log.setLevel(Level.DEBUG);
@@ -114,10 +114,9 @@ final class BlockFileSourceTest {
 
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(archivePath);
-        blockBucketProperties = new BlockBucketProperties(importerProperties);
         commonDownloaderProperties = new CommonDownloaderProperties(importerProperties);
         commonDownloaderProperties.setPathType(PathType.NODE_ID);
-        properties = new BlockProperties();
+        properties = new BlockProperties(importerProperties);
         properties.setEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
@@ -129,7 +128,7 @@ final class BlockFileSourceTest {
                 .region(Region.of(commonDownloaderProperties.getRegion()))
                 .build();
         var streamFileProvider = new S3StreamFileProvider(
-                blockBucketProperties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
+                properties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
         var blockFileTransformer = mock(BlockFileTransformer.class);
         lenient()
                 .doAnswer(invocation -> {
@@ -156,7 +155,6 @@ final class BlockFileSourceTest {
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
-                blockBucketProperties,
                 commonDownloaderProperties,
                 cutoverService,
                 meterRegistry,
@@ -166,9 +164,10 @@ final class BlockFileSourceTest {
         var fromPath = Path.of("data", "blockstreams");
         fileCopier = FileCopier.create(
                         TestUtils.getResource(fromPath.toString()).toPath(), dataPath)
-                .to(blockBucketProperties.getBucketName())
+                .to(properties.getBucketName())
                 .to(importerProperties.getNetwork())
                 .to(StreamType.BLOCK.getPath());
+        FileUtils.forceMkdir(fileCopier.getTo().toFile());
     }
 
     @AfterEach
@@ -182,7 +181,7 @@ final class BlockFileSourceTest {
     void getFromResettableNetwork(final CapturedOutput output) {
         // given
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
-        fileCopier = fileCopier.resetTo(dataPath).to(blockBucketProperties.getBucketName());
+        fileCopier = fileCopier.resetTo(dataPath).to(properties.getBucketName());
         final var prefix = importerProperties.getNetwork() + "-";
         final var formatter = DateTimeFormatter.ofPattern("yyyyMMddHHmm").withZone(ZoneId.of("UTC"));
         final var now = Instant.now();
@@ -219,11 +218,7 @@ final class BlockFileSourceTest {
     void getFromResettableNetworkFolderNotfound() {
         // given
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.PREVIEWNET);
-        FileUtils.forceMkdir(dataPath.resolve(
-                        blockBucketProperties.getBucketName(),
-                        importerProperties.getNetwork(),
-                        StreamType.BLOCK.getPath())
-                .toFile());
+        FileUtils.forceMkdir(dataPath.resolve(properties.getBucketName()).toFile());
 
         // when, then
         assertThatThrownBy(() -> blockFileSource.get())
@@ -381,12 +376,12 @@ final class BlockFileSourceTest {
         final var filename = BlockFile.getFilename(0L, true);
         commonDownloaderProperties.setTimeout(Duration.ofMillis(100L));
         final var streamFileProvider = mock(StreamFileProvider.class);
+        when(streamFileProvider.discoverNetwork()).thenReturn(Mono.just(importerProperties.getNetwork()));
         when(streamFileProvider.get(any()))
                 .thenReturn(Mono.delay(Duration.ofMillis(120L)).then(Mono.empty()));
         final var source = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
-                blockBucketProperties,
                 commonDownloaderProperties,
                 cutoverService,
                 meterRegistry,
@@ -401,6 +396,7 @@ final class BlockFileSourceTest {
         // then
         verify(blockStreamVerifier, never()).verify(any(BlockFile.class));
         verify(recordFileRepository).findLatest();
+        verify(streamFileProvider).discoverNetwork();
         verify(streamFileProvider).get(any());
 
         final var logs = output.getAll();
@@ -415,7 +411,6 @@ final class BlockFileSourceTest {
         final var source = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
-                blockBucketProperties,
                 commonDownloaderProperties,
                 cutoverService,
                 meterRegistry,

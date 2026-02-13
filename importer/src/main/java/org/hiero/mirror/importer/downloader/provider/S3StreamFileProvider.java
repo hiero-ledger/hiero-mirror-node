@@ -20,7 +20,7 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
-import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -46,24 +46,24 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     private static final String TEMPLATE_ACCOUNT_ID_PREFIX = "%s/%s%s/";
     private static final String TEMPLATE_NODE_ID_PREFIX = "%s/%d/%d/%s/";
 
-    private final BlockBucketProperties blockBucketProperties;
+    private final BlockProperties blockProperties;
     private final Map<PathKey, PathResult> paths = new ConcurrentHashMap<>();
     private final S3AsyncClient s3Client;
 
     public S3StreamFileProvider(
-            final BlockBucketProperties blockBucketProperties,
+            final BlockProperties blockProperties,
             final CommonProperties commonProperties,
             final CommonDownloaderProperties downloaderProperties,
             final S3AsyncClient s3Client) {
         super(commonProperties, downloaderProperties);
-        this.blockBucketProperties = blockBucketProperties;
+        this.blockProperties = blockProperties;
         this.s3Client = s3Client;
     }
 
     @Override
     protected Flux<String> doDiscoverNetwork() {
         final var listRequest = ListObjectsV2Request.builder()
-                .bucket(blockBucketProperties.getBucketName())
+                .bucket(blockProperties.getBucketName())
                 .delimiter(SEPARATOR)
                 .maxKeys(downloaderProperties.getBatchSize() * 4)
                 .requestPayer(RequestPayer.REQUESTER)
@@ -118,7 +118,7 @@ public final class S3StreamFileProvider extends AbstractStreamFileProvider {
     public Mono<StreamFileData> get(final StreamFilename streamFilename) {
         final var bucketName = streamFilename.getStreamType() != BLOCK
                 ? downloaderProperties.getBucketName()
-                : blockBucketProperties.getBucketName();
+                : blockProperties.getBucketName();
         final var s3Key = streamFilename.getBucketFilePath();
         final var request = GetObjectRequest.builder()
                 .bucket(bucketName)

@@ -77,7 +77,7 @@ abstract class AbstractRecordFileDownloaderTest extends AbstractLinkedStreamDown
         sidecarProperties = new SidecarProperties();
         sidecarProperties.setEnabled(true);
         var streamFileProvider = new S3StreamFileProvider(
-                blockBucketProperties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
+                blockProperties, CommonProperties.getInstance(), commonDownloaderProperties, s3AsyncClient);
         return new RecordFileDownloader(
                 consensusNodeService,
                 cutoverService,

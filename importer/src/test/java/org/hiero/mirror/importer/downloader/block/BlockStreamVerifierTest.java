@@ -65,7 +65,7 @@ final class BlockStreamVerifierTest {
     @BeforeEach
     void setup() {
         cutoverService = spy(new CutoverServiceImpl(
-                new BlockProperties(), mock(RecordDownloaderProperties.class), recordFileRepository));
+                mock(BlockProperties.class), mock(RecordDownloaderProperties.class), recordFileRepository));
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 cutoverService,

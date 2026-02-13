@@ -8,8 +8,10 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import lombok.Data;
+import org.apache.logging.log4j.util.Strings;
 import org.hibernate.validator.constraints.time.DurationMin;
 import org.hiero.mirror.common.domain.transaction.BlockSourceType;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
@@ -19,6 +21,10 @@ import org.springframework.validation.annotation.Validated;
 @Data
 @Validated
 public class BlockProperties {
+
+    private final ImporterProperties importerProperties;
+
+    private String bucketName;
 
     private Boolean cutover;
 
@@ -45,4 +51,10 @@ public class BlockProperties {
     private StreamProperties stream = new StreamProperties();
 
     private boolean writeFiles = false;
+
+    public String getBucketName() {
+        return Strings.isNotBlank(bucketName)
+                ? bucketName
+                : ImporterProperties.HederaNetwork.getBlockStreamBucketName(importerProperties.getNetwork());
+    }
 }

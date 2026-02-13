@@ -35,7 +35,7 @@ import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.domain.StreamFileSignature;
 import org.hiero.mirror.importer.domain.StreamFilename;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
-import org.hiero.mirror.importer.downloader.block.BlockBucketProperties;
+import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.InvalidDatasetException;
 import org.hiero.mirror.importer.reader.signature.ProtoSignatureFileReader;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,7 +51,7 @@ abstract class AbstractStreamFileProviderTest {
     @TempDir
     protected Path dataPath;
 
-    protected BlockBucketProperties blockBucketProperties;
+    protected BlockProperties blockProperties;
     protected String blockStreamTargetRootPath;
     protected CommonProperties commonProperties = CommonProperties.getInstance();
     protected ImporterProperties importerProperties;
@@ -63,7 +63,7 @@ abstract class AbstractStreamFileProviderTest {
     void setup() {
         importerProperties = new ImporterProperties();
         importerProperties.setDataPath(dataPath);
-        blockBucketProperties = new BlockBucketProperties(importerProperties);
+        blockProperties = new BlockProperties(importerProperties);
         properties = new CommonDownloaderProperties(importerProperties);
     }
 
@@ -178,6 +178,30 @@ abstract class AbstractStreamFileProviderTest {
         StepVerifier.create(streamFileProvider.discoverNetwork())
                 .expectNext(latestFolder)
                 .verifyComplete();
+    }
+
+    @SneakyThrows
+    @Test
+    void discoverNetworkNonResettable() {
+        // given
+        FileUtils.forceMkdir(dataPath.resolve(blockStreamTargetRootPath)
+                .resolve(importerProperties.getNetwork())
+                .toFile());
+
+        // when, then
+        StepVerifier.create(streamFileProvider.discoverNetwork())
+                .expectNext(importerProperties.getNetwork())
+                .verifyComplete();
+    }
+
+    @SneakyThrows
+    @Test
+    void discoverNetworkNotFound() {
+        // given
+        FileUtils.forceMkdir(dataPath.resolve(blockStreamTargetRootPath).toFile());
+
+        // when, then
+        StepVerifier.create(streamFileProvider.discoverNetwork()).verifyComplete();
     }
 
     @Test

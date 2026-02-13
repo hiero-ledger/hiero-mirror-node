@@ -72,8 +72,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        final var blockProperties = new BlockProperties();
         commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
+        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
         streamCalls = new HashMap<>();

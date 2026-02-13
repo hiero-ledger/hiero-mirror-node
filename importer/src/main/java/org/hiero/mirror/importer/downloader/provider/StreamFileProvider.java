@@ -16,8 +16,9 @@ import reactor.core.publisher.Mono;
 public interface StreamFileProvider {
 
     /**
-     * Discover the latest network folder in the blockstream bucket for a resettable network. Note the folder name
-     * format is {network}-yyyyMMddHHmm.
+     * Discover the latest network folder in the blockstream bucket. For resettable network, the folder name format is
+     * {network}-yyyyMMddHHmm and the function should return the latest folder. For non-resettable network, the function
+     * should return 'network' if exists.
      *
      * @return The latest network folder, wrapped in a mono
      */

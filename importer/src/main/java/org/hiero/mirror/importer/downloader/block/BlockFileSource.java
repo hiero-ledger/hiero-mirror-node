@@ -28,7 +28,6 @@ final class BlockFileSource extends AbstractBlockSource {
 
     private static final String DEFAULT_NODE_ENDPOINT = "cloud";
 
-    private final BlockBucketProperties bucketProperties;
     private final StreamFileProvider streamFileProvider;
 
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
@@ -40,14 +39,12 @@ final class BlockFileSource extends AbstractBlockSource {
     BlockFileSource(
             final BlockStreamReader blockStreamReader,
             final BlockStreamVerifier blockStreamVerifier,
-            final BlockBucketProperties bucketProperties,
             final CommonDownloaderProperties commonDownloaderProperties,
             final CutoverService cutoverService,
             final MeterRegistry meterRegistry,
             final BlockProperties properties,
             final StreamFileProvider streamFileProvider) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
-        this.bucketProperties = bucketProperties;
         this.streamFileProvider = streamFileProvider;
 
         cloudStorageLatencyMetric = Timer.builder("hiero.mirror.importer.cloud.latency")
@@ -94,10 +91,6 @@ final class BlockFileSource extends AbstractBlockSource {
 
     private String discoverNetwork() {
         final var network = commonDownloaderProperties.getImporterProperties().getNetwork();
-        if (!bucketProperties.isResettable()) {
-            return network;
-        }
-
         return streamFileProvider
                 .discoverNetwork()
                 .doOnNext(n -> log.info("Discovered latest network folder '{}'", n))
