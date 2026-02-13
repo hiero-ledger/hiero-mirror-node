@@ -113,7 +113,7 @@ Flags:
 Uses shell-style config file (`bootstrap.env`):
 
 ```bash
-export PGHOST="db_host_or_ip"
+export PGHOST="127.0.0.1"
 export PGPORT="5432"
 export PGUSER="postgres"
 export PGPASSWORD="admin_password"
