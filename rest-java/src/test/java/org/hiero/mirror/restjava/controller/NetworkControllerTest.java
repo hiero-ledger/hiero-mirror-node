@@ -3,7 +3,9 @@
 package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
@@ -22,6 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.fees.FeeScheduleUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -516,6 +519,8 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEstimateEndpointTest extends RestTest {
 
+        private final EntityId simpleFeeScheduleFileId = systemEntity.simpleFeeScheduleFile();
+
         @Override
         protected String getUrl() {
             return "network/fees";
@@ -525,6 +530,7 @@ final class NetworkControllerTest extends ControllerTest {
         @ValueSource(strings = {"protobuf", "x-protobuf"})
         void success(String mediaType) {
             // given
+            setupSimpleFeeSchedule();
             final var transaction = transaction();
 
             // when
@@ -537,7 +543,30 @@ final class NetworkControllerTest extends ControllerTest {
                     .body(FeeEstimateResponse.class);
 
             // then
-            assertThat(actual).isNotNull().isEqualTo(NetworkController.FEE_ESTIMATE_RESPONSE);
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNode()).isNotNull();
+            assertThat(actual.getNetwork()).isNotNull();
+            assertThat(actual.getService()).isNotNull();
+            assertThat(actual.getTotal()).isNotNull();
+            assertThat(actual.getNotes()).isNotNull();
+        }
+
+        @Test
+        void stateMode() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?mode=STATE")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "State-based fee estimation is not supported");
         }
 
         @Test
@@ -593,11 +622,29 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void invalidSignedTransaction() {
             // given
+            setupSimpleFeeSchedule();
             final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
             final var transaction = Transaction.newBuilder()
                     .setSignedTransactionBytes(bytes)
                     .build()
                     .toByteArray();
+
+            // when / then
+            assertThatThrownBy(() -> restClient
+                            .post()
+                            .uri("")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class)
+                    .hasMessageContaining("Unable to parse transaction");
+        }
+
+        @Test
+        void feeScheduleNotFound() {
+            // given
+            final var transaction = transaction();
 
             // when / then
             validateError(
@@ -608,8 +655,8 @@ final class NetworkControllerTest extends ControllerTest {
                             .contentType(MediaType.APPLICATION_PROTOBUF)
                             .retrieve()
                             .body(FeeEstimateResponse.class),
-                    HttpClientErrorException.BadRequest.class,
-                    "Unable to parse SignedTransaction");
+                    HttpClientErrorException.NotFound.class,
+                    "Simple fee schedule (file 113) not found");
         }
 
         @Test
@@ -630,9 +677,42 @@ final class NetworkControllerTest extends ControllerTest {
                     "Content-Type 'application/json' is not supported");
         }
 
+        private void setupSimpleFeeSchedule() {
+            var schedule = org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
+                    .extras(
+                            FeeScheduleUtils.makeExtraDef(org.hiero.hapi.support.fees.Extra.SIGNATURES, 100000),
+                            FeeScheduleUtils.makeExtraDef(org.hiero.hapi.support.fees.Extra.BYTES, 110000))
+                    .node(org.hiero.hapi.support.fees.NodeFee.newBuilder()
+                            .baseFee(100000)
+                            .extras(
+                                    FeeScheduleUtils.makeExtraIncluded(org.hiero.hapi.support.fees.Extra.BYTES, 1024),
+                                    FeeScheduleUtils.makeExtraIncluded(org.hiero.hapi.support.fees.Extra.SIGNATURES, 1))
+                            .build())
+                    .network(org.hiero.hapi.support.fees.NetworkFee.newBuilder()
+                            .multiplier(9)
+                            .build())
+                    .services(FeeScheduleUtils.makeService(
+                            "Crypto",
+                            FeeScheduleUtils.makeServiceFee(
+                                    com.hedera.hapi.node.base.HederaFunctionality.CRYPTO_TRANSFER, 100000)))
+                    .build();
+            var bytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                    .toBytes(schedule)
+                    .toByteArray();
+            domainBuilder
+                    .fileData()
+                    .customize(f -> f.entityId(simpleFeeScheduleFileId).fileData(bytes))
+                    .persist();
+        }
+
         private byte[] transaction() {
-            final var transactionBody =
-                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var cryptoTransfer =
+                    CryptoTransferTransactionBody.newBuilder().build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setMemo("test")
+                    .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()
                     .setBodyBytes(transactionBody)
                     .build()
