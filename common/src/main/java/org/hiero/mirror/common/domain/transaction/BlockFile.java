@@ -21,19 +21,20 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
+import org.jspecify.annotations.NonNull;
 
 @Builder(toBuilder = true)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class BlockFile implements StreamFile<BlockTransaction> {
+public final class BlockFile implements StreamFile<BlockTransaction> {
 
-    private static final int BASENAME_LENGTH = 36;
+    private static final int BASENAME_LENGTH = 19;
     private static final char BASENAME_PADDING = '0';
-    private static final String COMPRESSED_FILE_SUFFIX = ".blk.gz";
+    private static final String COMPRESSED_FILE_SUFFIX = ".blk.zstd";
     private static final String FILE_SUFFIX = ".blk";
     private static final Predicate<String> STREAMED_FILENAME_PREDICATE =
-            Pattern.compile("^\\d{36}.blk$").asPredicate();
+            Pattern.compile("^\\d{19}.blk$").asPredicate();
 
     @ToString.Exclude
     private BlockHeader blockHeader;
@@ -62,13 +63,14 @@ public class BlockFile implements StreamFile<BlockTransaction> {
     @ToString.Exclude
     private List<BlockTransaction> items;
 
+    @ToString.Exclude
+    private BlockTransaction lastLedgerIdPublicationTransaction;
+
     private Long loadEnd;
 
     private Long loadStart;
 
     private String name;
-
-    private Long nodeId;
 
     private String node;
 
@@ -85,13 +87,13 @@ public class BlockFile implements StreamFile<BlockTransaction> {
 
     private int version;
 
-    public static String getFilename(long blockNumber, boolean gzipped) {
+    public static String getFilename(final long blockNumber, final boolean compressed) {
         if (blockNumber < 0) {
             throw new IllegalArgumentException("Block number must be non-negative");
         }
 
         var filename = leftPad(Long.toString(blockNumber), BASENAME_LENGTH, BASENAME_PADDING);
-        return gzipped ? filename + COMPRESSED_FILE_SUFFIX : filename + FILE_SUFFIX;
+        return compressed ? filename + COMPRESSED_FILE_SUFFIX : filename + FILE_SUFFIX;
     }
 
     @Override
@@ -102,6 +104,10 @@ public class BlockFile implements StreamFile<BlockTransaction> {
     @Override
     public String getFileHash() {
         return StringUtils.EMPTY;
+    }
+
+    public Long getNodeId() {
+        return -1L;
     }
 
     public BlockSourceType getSourceType() {
@@ -121,9 +127,14 @@ public class BlockFile implements StreamFile<BlockTransaction> {
         return StreamType.BLOCK;
     }
 
+    @Override
+    public void setNodeId(@NonNull Long nodeId) {
+        // ignored
+    }
+
     public static class BlockFileBuilder {
 
-        public BlockFileBuilder onNewRound(long roundNumber) {
+        public BlockFileBuilder onNewRound(final long roundNumber) {
             if (roundStart == null) {
                 roundStart = roundNumber;
             }

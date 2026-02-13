@@ -58,7 +58,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .size(size)
                 .version(VERSION);
 
@@ -193,8 +192,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .build();
-                context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
+
+                final var blockFileBuilder = context.getBlockFile();
+                blockFileBuilder.item(blockTransaction);
+                if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
+                    blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
+                }
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(

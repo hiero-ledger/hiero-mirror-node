@@ -72,8 +72,8 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @BeforeEach
     void setup() {
-        final var blockProperties = new BlockProperties();
         commonDownloaderProperties = new CommonDownloaderProperties(new ImporterProperties());
+        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
         streamCalls = new HashMap<>();
@@ -366,7 +366,6 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         assertThat(actual)
                 .returns(null, BlockStream::bytes)
                 .returns(BlockFile.getFilename(blockNumber, false), BlockStream::filename)
-                .returns(-1L, BlockStream::nodeId)
                 .extracting(BlockStream::loadStart, InstanceOfAssertFactories.LONG)
                 .isGreaterThan(0L);
     }

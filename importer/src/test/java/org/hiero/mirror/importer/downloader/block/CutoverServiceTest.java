@@ -43,10 +43,10 @@ final class CutoverServiceTest {
 
     @BeforeEach
     void setup() {
-        blockProperties = new BlockProperties();
-        blockProperties.setCutoverThreshold(CUTOVER_THRESHOLD);
         final var importerProperties = new ImporterProperties();
         importerProperties.setNetwork(ImporterProperties.HederaNetwork.MAINNET);
+        blockProperties = new BlockProperties(importerProperties);
+        blockProperties.setCutoverThreshold(CUTOVER_THRESHOLD);
         recordDownloaderProperties = new RecordDownloaderProperties(new CommonDownloaderProperties(importerProperties));
         cutoverService = new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
     }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -13,8 +14,11 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -37,6 +41,9 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     private CommonDownloaderProperties commonDownloaderProperties;
 
     @Resource
+    private ImporterProperties importerProperties;
+
+    @Resource
     private RecordDownloaderProperties recordDownloaderProperties;
 
     @Resource
@@ -56,15 +63,20 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
     }
 
     protected final BlockNodeSubscriber getBlockNodeSubscriber(List<BlockNodeProperties> nodes) {
-        var blockProperties = new BlockProperties();
+        var blockProperties = new BlockProperties(importerProperties);
         blockProperties.setEnabled(true);
         blockProperties.setNodes(nodes);
         boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
         final var cutoverService =
                 new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
-        var blockStreamVerifier =
-                new BlockStreamVerifier(blockFileTransformer, cutoverService, meterRegistry, streamFileNotifier);
+        var blockStreamVerifier = new BlockStreamVerifier(
+                blockFileTransformer,
+                cutoverService,
+                mock(LedgerIdPublicationTransactionParser.class),
+                meterRegistry,
+                streamFileNotifier,
+                mock(TssVerifier.class));
         var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         return new BlockNodeSubscriber(
