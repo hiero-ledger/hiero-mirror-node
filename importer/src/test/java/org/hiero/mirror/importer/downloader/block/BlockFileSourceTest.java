@@ -50,9 +50,11 @@ import org.hiero.mirror.importer.addressbook.ConsensusNodeService;
 import org.hiero.mirror.importer.domain.ConsensusNodeStub;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties.PathType;
-import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.provider.S3StreamFileProvider;
 import org.hiero.mirror.importer.downloader.provider.StreamFileProvider;
+import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
@@ -96,6 +98,7 @@ final class BlockFileSourceTest {
     private Path dataPath;
 
     private CommonDownloaderProperties commonDownloaderProperties;
+    private CutoverService cutoverService;
     private FileCopier fileCopier;
     private ImporterProperties importerProperties;
     private List<ConsensusNode> nodes;
@@ -146,19 +149,29 @@ final class BlockFileSourceTest {
                     var blockFile = invocation.getArgument(0, BlockFile.class);
                     // Only the minimal set: hash and index
                     return RecordFile.builder()
+                            .consensusEnd(blockFile.getConsensusEnd())
+                            .consensusStart(blockFile.getConsensusStart())
                             .hash(blockFile.getHash())
                             .index(blockFile.getIndex())
                             .build();
                 })
                 .when(blockFileTransformer)
                 .transform(any(BlockFile.class));
+        cutoverService =
+                new CutoverServiceImpl(properties, mock(RecordDownloaderProperties.class), recordFileRepository);
         blockStreamVerifier = spy(new BlockStreamVerifier(
-                blockFileTransformer, recordFileRepository, mock(StreamFileNotifier.class), meterRegistry));
+                blockFileTransformer,
+                cutoverService,
+                mock(LedgerIdPublicationTransactionParser.class),
+                meterRegistry,
+                cutoverService,
+                mock(TssVerifier.class)));
         blockFileSource = new BlockFileSource(
                 new BlockStreamReaderImpl(),
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
+                cutoverService,
                 meterRegistry,
                 properties,
                 streamFileProvider);
@@ -344,6 +357,7 @@ final class BlockFileSourceTest {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
+                cutoverService,
                 meterRegistry,
                 properties,
                 streamFileProvider);
@@ -377,6 +391,7 @@ final class BlockFileSourceTest {
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 consensusNodeService,
+                cutoverService,
                 meterRegistry,
                 properties,
                 streamFileProvider);

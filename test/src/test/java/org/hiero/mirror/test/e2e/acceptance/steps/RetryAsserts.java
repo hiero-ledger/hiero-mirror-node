@@ -2,13 +2,15 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
+import com.hedera.hashgraph.sdk.PrecheckStatusException;
+import com.hedera.hashgraph.sdk.ReceiptStatusException;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
+import org.springframework.web.client.HttpClientErrorException;
 
 /**
  * Retries assertion errors to handle higher level business logic failures that are probably due to timing issues across
@@ -17,8 +19,13 @@ import org.springframework.retry.annotation.Retryable;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Retryable(
-        retryFor = {AssertionError.class},
-        backoff = @Backoff(delayExpression = "#{@restProperties.minBackoff.toMillis()}"),
-        maxAttemptsExpression = "#{@restProperties.maxAttempts}")
+        includes = {
+            AssertionError.class,
+            HttpClientErrorException.class,
+            PrecheckStatusException.class,
+            ReceiptStatusException.class
+        },
+        delayString = "#{@restProperties.minBackoff.toMillis()}",
+        maxRetriesString = "#{@restProperties.maxAttempts}")
 @Target({ElementType.METHOD, ElementType.TYPE})
 public @interface RetryAsserts {}

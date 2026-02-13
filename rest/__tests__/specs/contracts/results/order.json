@@ -108,7 +108,8 @@
         "consensus_timestamp": "187654000123456",
         "name": "ETHEREUMTRANSACTION",
         "type": "50",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       },
       {
         "payerAccountId": "0.0.5000",
@@ -116,7 +117,8 @@
         "consensus_timestamp": "987654000123456",
         "name": "ETHEREUMTRANSACTION",
         "type": "50",
-        "entity_id": "0.0.9"
+        "entity_id": "0.0.9",
+        "high_volume": false
       }
     ]
   },

@@ -3,23 +3,24 @@
 package org.hiero.mirror.grpc.controller;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.mirror.api.proto.ConsensusServiceGrpc;
 import com.hedera.mirror.api.proto.ConsensusTopicQuery;
 import com.hedera.mirror.api.proto.ConsensusTopicResponse;
-import com.hedera.mirror.api.proto.ReactorConsensusServiceGrpc;
 import com.hederahashgraph.api.proto.java.ConsensusMessageChunkInfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
+import io.grpc.stub.ServerCallStreamObserver;
+import io.grpc.stub.StreamObserver;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import net.devh.boot.grpc.server.service.GrpcService;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.grpc.domain.TopicMessageFilter;
 import org.hiero.mirror.grpc.service.TopicMessageService;
 import org.hiero.mirror.grpc.util.ProtoUtil;
-import reactor.core.publisher.Flux;
+import org.springframework.grpc.server.service.GrpcService;
 import reactor.core.publisher.Mono;
 
 /**
@@ -31,7 +32,7 @@ import reactor.core.publisher.Mono;
 @GrpcService
 @CustomLog
 @RequiredArgsConstructor
-public class ConsensusController extends ReactorConsensusServiceGrpc.ConsensusServiceImplBase {
+final class ConsensusController extends ConsensusServiceGrpc.ConsensusServiceImplBase {
 
     // Blockstreams no longer contain runningHashVersion, default to the latest version
     static final int DEFAULT_RUNNING_HASH_VERSION = 3;
@@ -39,15 +40,20 @@ public class ConsensusController extends ReactorConsensusServiceGrpc.ConsensusSe
     private final TopicMessageService topicMessageService;
 
     @Override
-    public Flux<ConsensusTopicResponse> subscribeTopic(Mono<ConsensusTopicQuery> request) {
-        return request.map(this::toFilter)
+    public void subscribeTopic(ConsensusTopicQuery request, StreamObserver<ConsensusTopicResponse> responseObserver) {
+        final var disposable = Mono.fromCallable(() -> toFilter(request))
                 .flatMapMany(topicMessageService::subscribeTopic)
                 .map(this::toResponse)
-                .onErrorMap(ProtoUtil::toStatusRuntimeException);
+                .onErrorMap(ProtoUtil::toStatusRuntimeException)
+                .subscribe(responseObserver::onNext, responseObserver::onError, responseObserver::onCompleted);
+
+        if (responseObserver instanceof ServerCallStreamObserver serverCallStreamObserver) {
+            serverCallStreamObserver.setOnCancelHandler(disposable::dispose);
+        }
     }
 
     private TopicMessageFilter toFilter(ConsensusTopicQuery query) {
-        var filter = TopicMessageFilter.builder().limit(query.getLimit());
+        final var filter = TopicMessageFilter.builder().limit(query.getLimit());
 
         if (query.hasTopicID()) {
             filter.topicId(EntityId.of(query.getTopicID()));
@@ -76,7 +82,7 @@ public class ConsensusController extends ReactorConsensusServiceGrpc.ConsensusSe
 
     // Consider caching this conversion for multiple subscribers to the same topic if the need arises.
     private ConsensusTopicResponse toResponse(TopicMessage t) {
-        var consensusTopicResponseBuilder = ConsensusTopicResponse.newBuilder()
+        final var consensusTopicResponseBuilder = ConsensusTopicResponse.newBuilder()
                 .setConsensusTimestamp(ProtoUtil.toTimestamp(t.getConsensusTimestamp()))
                 .setMessage(ProtoUtil.toByteString(t.getMessage()))
                 .setRunningHash(ProtoUtil.toByteString(t.getRunningHash()))

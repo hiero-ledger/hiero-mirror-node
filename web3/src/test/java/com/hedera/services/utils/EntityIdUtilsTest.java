@@ -13,12 +13,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.AccountID.AccountOneOfType;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -31,17 +31,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.testcontainers.shaded.org.apache.commons.lang3.ArrayUtils;
 
 @ExtendWith(MockitoExtension.class)
 class EntityIdUtilsTest {
-
-    public static final ByteString ECDSA_PUBLIC_KEY =
-            ByteString.fromHex("3a2103af80b90d25145da28c583359beb47b21796b2fe1a23c1511e443e7a64dfdb27d");
-    public static final ByteString ECDSA_WRONG_PUBLIC_KEY =
-            ByteString.fromHex("3a2103af80b90d145da28c583359beb47b217511e443e7a64dfdb27d");
-    public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
-    public static final ByteString WRONG_EVM_ADDRESS = ByteString.fromHex("ebb9a1be3701cd7af48e9eda2b8ead57");
 
     private static final String EXPECTED_HEXED_ADDRESS = "0000000000000000000000000000003fffffffff";
     private static final EntityId ENTITY_ID = EntityId.of(Long.MAX_VALUE);

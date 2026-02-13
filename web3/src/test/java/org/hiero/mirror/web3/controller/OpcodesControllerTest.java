@@ -86,8 +86,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -98,7 +99,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.util.StringUtils;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith({MockitoExtension.class, SpringExtension.class})
 @WebMvcTest(controllers = OpcodesController.class)
 class OpcodesControllerTest {
 
@@ -291,6 +292,7 @@ class OpcodesControllerTest {
                         provider.hasEthTransaction()
                                 ? Bytes.of(ethTransaction.getCallData())
                                 : Bytes.of(contractResult.getFunctionParameters()))
+                .ethereumData(provider.hasEthTransaction() ? Bytes.of(ethTransaction.getData()) : null)
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 

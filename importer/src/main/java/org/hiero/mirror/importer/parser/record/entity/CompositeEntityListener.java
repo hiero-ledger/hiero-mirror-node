@@ -43,6 +43,7 @@ import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Primary;
@@ -143,6 +144,11 @@ public class CompositeEntityListener implements EntityListener {
     @Override
     public void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {
         onEach(EntityListener::onHookStorageChange, storageChange);
+    }
+
+    @Override
+    public void onLedger(final Ledger ledger) throws ImporterException {
+        onEach(EntityListener::onLedger, ledger);
     }
 
     @Override

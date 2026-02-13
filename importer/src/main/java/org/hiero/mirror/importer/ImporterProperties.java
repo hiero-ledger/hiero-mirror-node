@@ -114,11 +114,15 @@ public class ImporterProperties {
 
         private HederaNetwork() {}
 
-        public static String getBucketName(String network) {
+        public static String getBucketName(final String network) {
             return NETWORK_DEFAULT_BUCKETS.getOrDefault(network, "");
         }
 
-        public static boolean isAllowAnonymousAccess(String network) {
+        public static boolean hasCutover(final String network) {
+            return MAINNET.equals(network) || TESTNET.equals(network);
+        }
+
+        public static boolean isAllowAnonymousAccess(final String network) {
             return DEMO.equals(network);
         }
     }

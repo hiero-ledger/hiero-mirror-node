@@ -85,6 +85,7 @@ import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.HookStorageChangeRepository;
 import org.hiero.mirror.importer.repository.HookStorageRepository;
+import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.hiero.mirror.importer.repository.LiveHashRepository;
 import org.hiero.mirror.importer.repository.NetworkFreezeRepository;
 import org.hiero.mirror.importer.repository.NetworkStakeRepository;
@@ -142,6 +143,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private final HookRepository hookRepository;
     private final HookStorageChangeRepository hookStorageChangeRepository;
     private final HookStorageRepository hookStorageRepository;
+    private final LedgerRepository ledgerRepository;
     private final LiveHashRepository liveHashRepository;
     private final NetworkFreezeRepository networkFreezeRepository;
     private final NetworkStakeRepository networkStakeRepository;
@@ -1075,6 +1077,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
+        entityUpdate.setDelegationAddress(domainBuilder.bytes(20));
         entityUpdate.setExpirationTimestamp(500L);
         entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);
@@ -1319,6 +1322,42 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         assertThat(fileDataRepository.findAll()).containsExactlyInAnyOrder(fileData1, fileData2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onLedger(int commitIndex) {
+        // given
+        // Note in reality, there should be only one network and exactly one successful LedgerIdPublish transaction.
+        // The focus of the test is the correctness of the listener and upsert SQL
+        var ledgerAUpdate1 = domainBuilder.ledger().get();
+        var ledgerBUpdate1 = domainBuilder.ledger().get();
+
+        // when
+        sqlEntityListener.onLedger(ledgerAUpdate1);
+        sqlEntityListener.onLedger(ledgerBUpdate1);
+
+        // then
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+            assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate1, ledgerBUpdate1);
+        }
+
+        // when
+        var ledgerAUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
+                .get();
+        var ledgerBUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
+                .get();
+        sqlEntityListener.onLedger(ledgerAUpdate2);
+        sqlEntityListener.onLedger(ledgerBUpdate2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate2, ledgerBUpdate2);
     }
 
     @Test

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import long from 'long';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 import TransactionId from '../../transactionId';
 import * as utils from '../../stream/utils';
 

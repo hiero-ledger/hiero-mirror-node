@@ -13,7 +13,6 @@ import ContractResultStateChangeViewModel from './contractResultStateChangeViewM
 import ContractResultViewModel from './contractResultViewModel';
 import CryptoAllowanceViewModel from './cryptoAllowanceViewModel';
 import NetworkNodeViewModel from './networkNodeViewModel';
-import NetworkSupplyViewModel from './networkSupplyViewModel';
 import NftTransactionHistoryViewModel from './nftTransactionHistoryViewModel';
 import NftTransferViewModel from './nftTransferViewModel';
 import NftViewModel from './nftViewModel';
@@ -39,7 +38,6 @@ export {
   ContractResultViewModel,
   CryptoAllowanceViewModel,
   NetworkNodeViewModel,
-  NetworkSupplyViewModel,
   NftTransactionHistoryViewModel,
   NftTransferViewModel,
   NftViewModel,
