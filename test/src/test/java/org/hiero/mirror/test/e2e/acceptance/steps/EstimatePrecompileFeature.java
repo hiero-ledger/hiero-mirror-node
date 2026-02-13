@@ -251,6 +251,7 @@ public class EstimatePrecompileFeature extends AbstractEstimateFeature {
                 asAddress(nonFungibleKycUnfrozenTokenId).toString();
         nonFungibleTokenId = tokenClient.getToken(NFT).tokenId();
         nonFungibleTokenAddressString = asAddress(nonFungibleTokenId).toString();
+        // Test
     }
 
     @Given("I mint and verify a new nft")

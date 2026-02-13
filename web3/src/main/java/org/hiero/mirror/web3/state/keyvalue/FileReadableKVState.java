@@ -4,19 +4,18 @@ package org.hiero.mirror.web3.state.keyvalue;
 
 import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
+import static org.hiero.mirror.web3.state.Utils.getCurrentTimestamp;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.node.app.service.file.FileService;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
-import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Supplier;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.repository.FileDataRepository;
@@ -79,11 +78,6 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
                 .orElseGet(() -> entityRepository.findByIdAndDeletedIsFalse(entityId.getId()))
                 .map(AbstractEntity::getExpirationTimestamp)
                 .orElse(null));
-    }
-
-    private long getCurrentTimestamp() {
-        final var now = Instant.now();
-        return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
     }
 
     @Override
