@@ -19,7 +19,7 @@ extra.apply {
     set("assertj.version", "3.27.7") // Temporary until next Spring Boot
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
-    set("consensusNodeVersion", "0.70.0")
+    set("consensusNodeVersion", "0.71.0")
     set("grpcVersion", "1.79.0")
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -55,7 +55,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.71.0-rc.3") // verify no issues
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.66.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
