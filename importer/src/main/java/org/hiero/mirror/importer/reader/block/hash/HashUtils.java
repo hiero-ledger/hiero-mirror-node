@@ -10,28 +10,23 @@ import org.jspecify.annotations.NullMarked;
 @UtilityClass
 final class HashUtils {
 
-    private static final byte[] INTERNAL_NODE_PREFIX = {0x2};
+    private static final byte[] FULL_INTERNAL_NODE_PREFIX = {0x2};
     private static final byte[] LEAF_PREFIX = {0x0};
     private static final byte[] SINGLE_CHILD_INTERNAL_NODE_PREFIX = {0x1};
 
-    public static byte[] hashInternalNode(final MessageDigest digest, final byte[]... leaves) {
-        if (leaves.length != 1 && leaves.length != 2) {
-            throw new IllegalArgumentException("There must be one or two leaves to calculate the parent's hash");
-        }
+    public static byte[] hashInternalNode(final MessageDigest digest, final byte[] leftChild) {
+        digest.update(SINGLE_CHILD_INTERNAL_NODE_PREFIX);
+        return digest.digest(leftChild);
+    }
 
-        return leaves.length == 1
-                ? hashOfAll(digest, SINGLE_CHILD_INTERNAL_NODE_PREFIX, leaves[0])
-                : hashOfAll(digest, INTERNAL_NODE_PREFIX, leaves[0], leaves[1]);
+    public static byte[] hashInternalNode(final MessageDigest digest, final byte[] leftChild, final byte[] rightChild) {
+        digest.update(FULL_INTERNAL_NODE_PREFIX);
+        digest.update(leftChild);
+        return digest.digest(rightChild);
     }
 
     public static byte[] hashLeaf(final MessageDigest digest, final byte[] leafData) {
-        return hashOfAll(digest, LEAF_PREFIX, leafData);
-    }
-
-    private static byte[] hashOfAll(final MessageDigest digest, final byte[]... bytes) {
-        for (final var chunk : bytes) {
-            digest.update(chunk);
-        }
-        return digest.digest();
+        digest.update(LEAF_PREFIX);
+        return digest.digest(leafData);
     }
 }

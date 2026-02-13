@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.reader.block.hash;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 
 import java.security.MessageDigest;
@@ -24,13 +23,6 @@ final class HashUtilsTest {
                 .isEqualTo(
                         Hex.decode(
                                 "db475240477c5e4497a2c5724ca485f5b1f2c2fc0602b92bae234238ec8d4e873a7148c739593e95a7f4dfe7c6e69f69"));
-    }
-
-    @Test
-    void hashInternalNodeThrowInvalidArgumentException() {
-        assertThatThrownBy(() -> HashUtils.hashInternalNode(digest)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> HashUtils.hashInternalNode(digest, new byte[0], new byte[0], new byte[0]))
-                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
