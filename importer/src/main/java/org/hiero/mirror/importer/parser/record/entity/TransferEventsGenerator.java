@@ -26,7 +26,7 @@ final class TransferEventsGenerator {
             .thenComparing(
                     e -> e.getAccountID().hasAccountNum() ? e.getAccountID().getAccountNum() : 0L);
 
-    public void generate(RecordItem recordItem, EntityId tokenId, List<AccountAmount> tokenTransfers) {
+    public void generate(RecordItem recordItem, EntityId entityId, List<AccountAmount> tokenTransfers) {
         if (tokenTransfers.size() < 2) {
             return;
         }
@@ -46,7 +46,7 @@ final class TransferEventsGenerator {
         senders.sort(ACCOUNT_AMOUNT_COMPARATOR);
         receivers.sort(ACCOUNT_AMOUNT_COMPARATOR);
 
-        createSyntheticTransferEvents(senders, receivers, recordItem, tokenId);
+        createSyntheticTransferEvents(senders, receivers, recordItem, entityId);
     }
 
     private void createSyntheticTransferEvents(

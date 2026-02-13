@@ -11,10 +11,10 @@ import org.hiero.mirror.importer.util.Utility;
 public class TransferContractLog extends AbstractSyntheticContractLog {
 
     public TransferContractLog(
-            RecordItem recordItem, EntityId tokenId, EntityId senderId, EntityId receiverId, long amount) {
+            RecordItem recordItem, EntityId entityId, EntityId senderId, EntityId receiverId, long amount) {
         super(
                 recordItem,
-                tokenId,
+                entityId,
                 TRANSFER_SIGNATURE,
                 entityIdToBytes(senderId),
                 entityIdToBytes(receiverId),

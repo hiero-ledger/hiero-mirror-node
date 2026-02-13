@@ -394,6 +394,14 @@ public class EntityRecordItemListener implements RecordItemListener {
                 || recordItem.getTransactionType() == TransactionType.TOKENWIPE.getProtoId();
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
+        var record = recordItem.getTransactionRecord();
+        boolean isContractOrigin = record.hasContractCallResult() || record.hasContractCreateResult();
+        EntityId contractId = null;
+        if (record.hasContractCallResult()) {
+            contractId = EntityId.of(record.getContractCallResult().getContractID());
+        } else if (record.hasContractCreateResult()) {
+            contractId = EntityId.of(record.getContractCreateResult().getContractID());
+        }
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);
@@ -423,7 +431,7 @@ public class EntityRecordItemListener implements RecordItemListener {
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
         }
 
-        transferEventsGenerator.generate(recordItem, tokenId, tokenTransfers);
+        transferEventsGenerator.generate(recordItem, isContractOrigin ? contractId : tokenId, tokenTransfers);
     }
 
     private boolean isApprovalNftTransfer(NftTransfer nftTransfer, TokenID tokenId, TransactionBody body) {
