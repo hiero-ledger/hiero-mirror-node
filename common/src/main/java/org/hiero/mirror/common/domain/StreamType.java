@@ -27,7 +27,7 @@ public enum StreamType {
             List.of("csv", "pb"),
             Duration.ofMinutes(15L)),
     RECORD(RecordFile::new, "recordstreams", "record", "", List.of("rcd"), Duration.ofSeconds(2L)),
-    BLOCK(BlockFile::new, "", "", "", List.of("blk"), Duration.ofMillis(500L));
+    BLOCK(BlockFile::new, "block", "", "", List.of("blk"), Duration.ofMillis(500L));
 
     public static final String SIGNATURE_SUFFIX = "_sig";
 
@@ -41,12 +41,12 @@ public enum StreamType {
     private final Duration fileCloseInterval;
 
     StreamType(
-            Supplier<? extends StreamFile<?>> supplier,
-            String path,
-            String nodePrefix,
-            String suffix,
-            List<String> extensions,
-            Duration fileCloseInterval) {
+            final Supplier<? extends StreamFile<?>> supplier,
+            final String path,
+            final String nodePrefix,
+            final String suffix,
+            final List<String> extensions,
+            final Duration fileCloseInterval) {
         this.supplier = supplier;
         this.path = path;
         this.nodePrefix = nodePrefix;
@@ -64,6 +64,14 @@ public enum StreamType {
 
     public boolean isChained() {
         return this != BALANCE;
+    }
+
+    public String toBucketFilename(final String filename) {
+        if (this != BLOCK) {
+            return filename;
+        }
+
+        return filename.replaceAll("(\\d{4})", "$1/");
     }
 
     @SuppressWarnings("unchecked")

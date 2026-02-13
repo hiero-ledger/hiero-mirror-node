@@ -49,7 +49,6 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
-    private static final long UNKNOWN_NODE_ID = -1;
 
     private final ManagedChannel statusChannel;
     private final ManagedChannel streamingChannel;
@@ -281,7 +280,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var filename = firstBlockItem.getItemCase() == BLOCK_HEADER
                     ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
                     : null;
-            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID));
+            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart));
         }
 
         long timeout() {

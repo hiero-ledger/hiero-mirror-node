@@ -32,6 +32,7 @@ import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.util.Lists;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -132,7 +133,6 @@ public final class BlockStreamReaderTest {
                 .bytes(blockStream.bytes())
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .recordFileItem(RecordFileItem.getDefaultInstance())
                 .size(blockStream.bytes().length)
                 .version(BlockStreamReader.VERSION)
@@ -747,10 +747,10 @@ public final class BlockStreamReaderTest {
 
     private static BlockStream createBlockStream(Block block, byte[] bytes, String filename) {
         if (bytes == null) {
-            bytes = TestUtils.gzip(block.toByteArray());
+            bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id(), TestUtils.id());
+        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id());
     }
 
     @SneakyThrows
@@ -763,13 +763,13 @@ public final class BlockStreamReaderTest {
     @SneakyThrows
     private static Stream<Arguments> readTestArgumentsProvider() {
         return TEST_BLOCK_FILES.stream().map(blockFile -> {
-            var file = TestUtils.getResource("data/blockstreams/" + blockFile.getName());
-            var streamFileData = StreamFileData.from(file);
-            byte[] bytes = streamFileData.getBytes();
-            var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
+            final var bucketFilename = StreamType.BLOCK.toBucketFilename(blockFile.getName());
+            final var file = TestUtils.getResource("data/blockstreams/" + bucketFilename);
+            final var streamFileData = StreamFileData.from(file);
+            final byte[] bytes = streamFileData.getBytes();
+            final var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
             blockFile.setBytes(bytes);
             blockFile.setLoadStart(blockStream.loadStart());
-            blockFile.setNodeId(blockStream.nodeId());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, blockFile);
         });
