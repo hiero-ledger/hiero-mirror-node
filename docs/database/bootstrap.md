@@ -80,6 +80,7 @@ go version
 If Go is not installed or the version is older than 1.25, install or upgrade:
 
 - **Linux (Ubuntu/Debian):**
+
   ```bash
   # Remove old Go installation (if exists)
   sudo rm -rf /usr/local/go
@@ -94,6 +95,7 @@ If Go is not installed or the version is older than 1.25, install or upgrade:
   ```
 
 - **macOS:**
+
   ```bash
   # Using Homebrew (installs or upgrades to latest version)
   brew install go || brew upgrade go
@@ -329,6 +331,7 @@ The `bootstrap init` command creates the database, roles, and permissions, valid
 ```
 
 **Flags:**
+
 - `-c, --config`: Path to the `bootstrap.env` configuration file
 - `-d, --data-dir`: Directory containing the downloaded data (including `schema.sql.gz`)
 - `-s, --schema`: (Optional) Direct path to `schema.sql` file, overrides `--data-dir`
@@ -373,6 +376,7 @@ nohup ./bootstrap import \
 ```
 
 **Flags:**
+
 - `-c, --config`: Path to the `bootstrap.env` configuration file
 - `-d, --data-dir`: Directory containing the gzipped CSV data files (required)
 - `-m, --manifest`: Path to the `manifest.csv` file (required)
@@ -420,12 +424,14 @@ tail -f bootstrap-logs/bootstrap.log
   ```
 
   Flags:
+
   - `-c, --config`: Path to bootstrap.env configuration file
   - `-m, --manifest`: Path to manifest.csv file (enables row count and percentage display)
   - `-d, --data-dir`: Directory containing data files
   - `-i, --interval`: Refresh interval in seconds (default: 1)
 
   This displays a live-updating table showing:
+
   - `Filename`: The data file being imported
   - `Rows/Total`: Current rows processed / expected total (requires `--manifest`)
   - `%`: Completion percentage
@@ -449,6 +455,7 @@ tail -f bootstrap-logs/bootstrap.log
   ```
 
   Displays a summary of import progress from the tracking file:
+
   - `Imported`: Files successfully imported
   - `In Progress`: Files currently being imported
   - `Failed`: Files that failed to import
@@ -550,11 +557,26 @@ During the import process, the binary tracks the status of each file in `bootstr
 
 ```json
 {
-  "account_balance_p2024_01.csv.gz": {"status": "IMPORTED", "hash_status": "HASH_VERIFIED"},
-  "transaction_p2019_08.csv.gz": {"status": "FAILED_VALIDATION", "hash_status": "HASH_UNVERIFIED"},
-  "transaction_p2019_09.csv.gz": {"status": "FAILED_TO_IMPORT", "hash_status": "HASH_VERIFIED"},
-  "token_balance_p2024_01.csv.gz": {"status": "IMPORTED", "hash_status": "HASH_VERIFIED"},
-  "contract_result_p2024_01.csv.gz": {"status": "NOT_STARTED", "hash_status": "HASH_UNVERIFIED"}
+  "account_balance_p2024_01.csv.gz": {
+    "status": "IMPORTED",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "transaction_p2019_08.csv.gz": {
+    "status": "FAILED_VALIDATION",
+    "hash_status": "HASH_UNVERIFIED"
+  },
+  "transaction_p2019_09.csv.gz": {
+    "status": "FAILED_TO_IMPORT",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "token_balance_p2024_01.csv.gz": {
+    "status": "IMPORTED",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "contract_result_p2024_01.csv.gz": {
+    "status": "NOT_STARTED",
+    "hash_status": "HASH_UNVERIFIED"
+  }
 }
 ```
 

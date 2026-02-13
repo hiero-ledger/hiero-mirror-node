@@ -34,6 +34,7 @@ This tool imports large CSV data exports into PostgreSQL using parallel workers,
 ```
 
 **Key design decisions:**
+
 - **Single-pass processing**: TeeReader computes BLAKE3 hash while streaming to decompressor
 - **No temp files**: Compressed data streams directly to PostgreSQL COPY
 - **Bounded parallelism**: Worker pool prevents overwhelming the database
@@ -78,6 +79,7 @@ Imports CSV files from manifest with parallel workers.
 ```
 
 Flags:
+
 - `-c, --config`: Path to bootstrap.env configuration file
 - `-d, --data-dir`: Directory containing data files
 - `-m, --manifest`: Path to manifest.csv file
@@ -103,6 +105,7 @@ Displays real-time import progress in a separate terminal while import is runnin
 ```
 
 Flags:
+
 - `-c, --config`: Path to bootstrap.env configuration file
 - `-m, --manifest`: Path to manifest.csv file (enables row count and percentage)
 - `-d, --data-dir`: Directory containing data files
@@ -130,12 +133,12 @@ Environment variables override config file values.
 
 ## Performance Characteristics
 
-| Operation | Performance |
-|-----------|-------------|
-| BLAKE3 hashing | 2.9 GB/s (SIMD) |
-| gzip decompression | 400-600 MB/s (parallel, 4 threads) |
-| PostgreSQL COPY | 200-400K rows/s per worker (depends on tables' data structure)|
-| Buffer allocation | Near-zero (pooled) |
+| Operation          | Performance                                                    |
+| ------------------ | -------------------------------------------------------------- |
+| BLAKE3 hashing     | 2.9 GB/s (SIMD)                                                |
+| gzip decompression | 400-600 MB/s (parallel, 4 threads)                             |
+| PostgreSQL COPY    | 200-400K rows/s per worker (depends on tables' data structure) |
+| Buffer allocation  | Near-zero (pooled)                                             |
 
 ## Concurrency Model
 
@@ -152,12 +155,13 @@ State is tracked in `bootstrap-logs/tracking.json`:
 
 ```json
 {
-  "file.csv.gz": {"status": "IMPORTED", "hash_status": "HASH_VERIFIED"},
-  "file2.csv.gz": {"status": "IN_PROGRESS", "hash_status": "HASH_UNVERIFIED"}
+  "file.csv.gz": { "status": "IMPORTED", "hash_status": "HASH_VERIFIED" },
+  "file2.csv.gz": { "status": "IN_PROGRESS", "hash_status": "HASH_UNVERIFIED" }
 }
 ```
 
 On restart:
+
 - `IMPORTED` files are skipped
 - `IN_PROGRESS`, `FAILED_TO_IMPORT`, and `FAILED_VALIDATION` files are reset to `NOT_STARTED` before import begins
 - All non-`IMPORTED` files are then queued for import in manifest order
@@ -171,13 +175,13 @@ On restart:
 
 All logs and state are written to `bootstrap-logs/`:
 
-| File | Purpose |
-|------|---------|
-| `bootstrap.log` | Full structured logs |
-| `tracking.json` | JSON file for resume state (human-readable) |
-| `progress.txt` | Last progress snapshot |
-| `bootstrap_discrepancies.log` | Files where imported rows ≠ expected |
-| `bootstrap.pid` | PID file for single-instance |
+| File                          | Purpose                                     |
+| ----------------------------- | ------------------------------------------- |
+| `bootstrap.log`               | Full structured logs                        |
+| `tracking.json`               | JSON file for resume state (human-readable) |
+| `progress.txt`                | Last progress snapshot                      |
+| `bootstrap_discrepancies.log` | Files where imported rows ≠ expected        |
+| `bootstrap.pid`               | PID file for single-instance                |
 
 ## Building
 
