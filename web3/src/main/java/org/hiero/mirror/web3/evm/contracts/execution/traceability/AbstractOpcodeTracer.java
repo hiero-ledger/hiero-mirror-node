@@ -65,7 +65,7 @@ public abstract class AbstractOpcodeTracer {
                 // If we don't have one -> something unexpected happened and an attempt to
                 // get the storage changes from a ProxyWorldUpdater would result in a
                 // NullPointerException, so in this case just return an empty map.
-                return Map.of();
+                return Collections.emptyMap();
             }
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()

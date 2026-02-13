@@ -81,19 +81,17 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
     }
 
     @Override
-    public void traceOriginAction(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
+    public void traceOriginAction(@NonNull MessageFrame frame) {
         // NO-OP
     }
 
     @Override
-    public void sanitizeTracedActions(@edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame) {
+    public void sanitizeTracedActions(@NonNull MessageFrame frame) {
         // NO-OP
     }
 
     @Override
-    public void tracePrecompileResult(
-            @edu.umd.cs.findbugs.annotations.NonNull MessageFrame frame,
-            @edu.umd.cs.findbugs.annotations.NonNull ContractActionType type) {
+    public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
         // NO-OP
     }
 
