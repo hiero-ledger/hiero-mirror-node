@@ -47,6 +47,7 @@ Deployed automatically on every tag.
 - [ ] REST API performance tests
 - [ ] REST Java API performance tests
 - [ ] Web3 API performance tests
+- [ ] Verify performance test results
 - [ ] Run the `Copy StackGres Citus Cluster` workflow to tear down the cluster
   - Uncheck `Restore the target cluster from the source`
   - Uncheck `Run k6 test`
