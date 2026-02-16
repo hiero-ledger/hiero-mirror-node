@@ -113,7 +113,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should not create synthetic contract log when it matches existing parent log")
     void doNotCreateWhenMatchingParentLog() {
         // Create a ContractLoginfo that matches the TransferContractLog
-        var matchingLog = createMatchingContractLoginfo(entityTokenId, senderId, receiverId, amount);
+        var matchingLog = createMatchingContractLoginfo(senderId, receiverId, amount);
 
         var parentRecordItem = recordItemBuilder
                 .contractCall()
@@ -146,7 +146,7 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should create synthetic contract log with contract with existing parent logs")
+    @DisplayName("Should create synthetic contract log with a parent that has no contract result")
     void createWithContractWithNoParentLogs() {
         var parentRecordItem = recordItemBuilder
                 .contractCall()
@@ -187,11 +187,9 @@ class SyntheticContractLogServiceImplTest {
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         var capturedLog = contractLogCaptor.getValue();
 
-        // Verify bloom is not empty or single zero byte
         assertThat(capturedLog.getBloom()).isNotNull();
-        assertThat(capturedLog.getBloom().length).isEqualTo(LogsBloomFilter.BYTE_SIZE);
+        assertThat(capturedLog.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
 
-        // Verify bloom matches expected calculation
         var expectedBloom = calculateExpectedBloom(entityTokenId, senderId, receiverId, amount);
         assertThat(capturedLog.getBloom()).isEqualTo(expectedBloom);
     }
@@ -199,15 +197,12 @@ class SyntheticContractLogServiceImplTest {
     @Test
     @DisplayName("Should use empty bloom for non-contract transactions")
     void emptyBloomForNonContractTransactions() {
-        // recordItem from setUp is a tokenMint (non-contract)
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         var capturedLog = contractLogCaptor.getValue();
 
-        // Verify bloom is the empty byte array
-        assertThat(capturedLog.getBloom()).isNotNull();
         assertThat(capturedLog.getBloom()).isEqualTo(new byte[] {0});
     }
 
@@ -239,7 +234,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should not create when hook transaction matches parent log with 1ns difference")
     void doNotCreateWhenHookMatchesParentLog() {
         // Create a ContractLoginfo that matches the TransferContractLog
-        var matchingLog = createMatchingContractLoginfo(entityTokenId, senderId, receiverId, amount);
+        var matchingLog = createMatchingContractLoginfo(senderId, receiverId, amount);
 
         var parentRecordItem = recordItemBuilder
                 .contractCall()
@@ -278,38 +273,183 @@ class SyntheticContractLogServiceImplTest {
                 .recordItem(r -> r.previous(parentRecordItem))
                 .build();
 
-        // Non-TransferContractLog types (like TransferIndexedContractLog) should NOT be created
-        // for contract transactions - only TransferContractLog is supported
         syntheticContractLogService.create(
                 new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(0)).onContractLog(any());
     }
 
     @Test
-    @DisplayName("Should create TransferIndexedContractLog for non-contract transactions")
-    void createTransferIndexedContractLogForNonContractTransaction() {
-        // recordItem from setUp is a tokenMint (non-contract transaction)
+    @DisplayName("Should create one of two identical synthetic logs when parent has single matching occurrence")
+    void createOneOfTwoIdenticalLogsWhenSingleOccurrenceInParent() {
+        // Create a parent with a single matching contract log
+        var matchingLog = createMatchingContractLoginfo(senderId, receiverId, amount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
+        // First call: matches the single occurrence in parent, so it is skipped
+        syntheticContractLogService.create(transferLog);
+        // Second call: occurrence consumed, no more matches, so it is created
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(1)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should skip both identical synthetic logs when parent has two matching occurrences")
+    void skipBothIdenticalLogsWhenTwoOccurrencesInParent() {
+        // Create a parent with two identical matching contract logs
+        var matchingLog = createMatchingContractLoginfo(senderId, receiverId, amount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .addLogInfo(matchingLog)
+                        .addLogInfo(matchingLog)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
+        // Both calls match an occurrence in the parent, so both are skipped
+        syntheticContractLogService.create(transferLog);
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should create one of three identical synthetic logs when parent has two matching occurrences")
+    void createOneOfThreeIdenticalLogsWhenTwoOccurrencesInParent() {
+        // Create a parent with two identical matching contract logs
+        var matchingLog = createMatchingContractLoginfo(senderId, receiverId, amount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .addLogInfo(matchingLog)
+                        .addLogInfo(matchingLog)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
+        // First two calls match the two occurrences in parent, so they are skipped
+        syntheticContractLogService.create(transferLog);
+        syntheticContractLogService.create(transferLog);
+        // Third call: both occurrences consumed, so this one is created
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(1)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should skip both different synthetic logs when parent has one of each matching occurrence")
+    void skipBothDifferentLogsWhenEachHasMatchingOccurrenceInParent() {
+        var secondReceiverId = EntityId.of(0, 0, 999);
+        long secondAmount = 500L;
+
+        // Create a parent with two different matching contract logs
+        var matchingLog1 = createMatchingContractLoginfo(senderId, receiverId, amount);
+        var matchingLog2 = createMatchingContractLoginfo(senderId, secondReceiverId, secondAmount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(ContractFunctionResult.newBuilder()
+                        .addLogInfo(matchingLog1)
+                        .addLogInfo(matchingLog2)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        // Each synthetic log matches a different occurrence in the parent, so both are skipped
         syntheticContractLogService.create(
-                new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, secondReceiverId, secondAmount));
+
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should create duplicate synthetic log but skip different one when parent has only the different log")
+    void createDuplicateButSkipDifferentWhenParentHasOnlyDifferentLog() {
+        var secondReceiverId = EntityId.of(0, 0, 999);
+        long secondAmount = 500L;
+
+        // Parent only has the second (different) log, not the first
+        var matchingLog2 = createMatchingContractLoginfo(senderId, secondReceiverId, secondAmount);
+
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog2)))
+                .build();
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
+                        .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        // First log has no match in parent → created
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        // Second log matches the parent → skipped
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, secondReceiverId, secondAmount));
+
         verify(entityListener, times(1)).onContractLog(any());
     }
 
     /**
-     * Creates a ContractLoginfo that matches the topics and data of a TransferContractLog
+     * Creates a ContractLoginfo that matches the topics and data of a TransferContractLog.
+     * Topics and data use the raw trimmed bytes (without left-padding) to match
+     * the format that Utility.getTopic/getDataTrimmed will produce after trimming.
      */
-    private ContractLoginfo createMatchingContractLoginfo(
-            EntityId tokenId, EntityId sender, EntityId receiver, long transferAmount) {
+    private ContractLoginfo createMatchingContractLoginfo(EntityId sender, EntityId receiver, long transferAmount) {
 
-        // Create topics matching TransferContractLog format
         var topic0 = ByteString.copyFrom(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
-        var topic1 = ByteString.copyFrom(
-                DomainUtils.leftPadBytes(DomainUtils.trim(DomainUtils.toEvmAddress(sender)), TOPIC_SIZE_BYTES));
-        var topic2 = ByteString.copyFrom(
-                DomainUtils.leftPadBytes(DomainUtils.trim(DomainUtils.toEvmAddress(receiver)), TOPIC_SIZE_BYTES));
+        var topic1 = ByteString.copyFrom(entityIdToBytes(sender));
+        var topic2 = ByteString.copyFrom(entityIdToBytes(receiver));
 
-        // Create data matching the amount
-        var data = ByteString.copyFrom(DomainUtils.leftPadBytes(
-                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()), TOPIC_SIZE_BYTES));
+        var data = ByteString.copyFrom(
+                DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe()));
 
         return ContractLoginfo.newBuilder()
                 .addTopic(topic0)
@@ -317,6 +457,13 @@ class SyntheticContractLogServiceImplTest {
                 .addTopic(topic2)
                 .setData(data)
                 .build();
+    }
+
+    private byte[] entityIdToBytes(EntityId entityId) {
+        if (EntityId.isEmpty(entityId)) {
+            return new byte[0];
+        }
+        return DomainUtils.trim(DomainUtils.toEvmAddress(entityId));
     }
 
     /**
@@ -330,17 +477,13 @@ class SyntheticContractLogServiceImplTest {
         topics.add(LogTopic.wrap(Bytes.wrap(
                 DomainUtils.leftPadBytes(AbstractSyntheticContractLog.TRANSFER_SIGNATURE, TOPIC_SIZE_BYTES))));
 
-        // Topic 1: Sender (padded)
-        var senderBytes = DomainUtils.trim(DomainUtils.toEvmAddress(sender));
-        if (senderBytes.length > 0) {
-            topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(senderBytes, TOPIC_SIZE_BYTES))));
-        }
+        // Topic 1: Sender (padded) — mirrors addTopicIfPresent which checks for null, not empty
+        var senderBytes = entityIdToBytes(sender);
+        topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(senderBytes, TOPIC_SIZE_BYTES))));
 
         // Topic 2: Receiver (padded)
-        var receiverBytes = DomainUtils.trim(DomainUtils.toEvmAddress(receiver));
-        if (receiverBytes.length > 0) {
-            topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(receiverBytes, TOPIC_SIZE_BYTES))));
-        }
+        var receiverBytes = entityIdToBytes(receiver);
+        topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(receiverBytes, TOPIC_SIZE_BYTES))));
 
         // Data: Amount
         var amountBytes = DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe());

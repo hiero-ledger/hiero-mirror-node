@@ -32,34 +32,40 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return;
         }
 
-        if (isContract(log.getRecordItem())) {
+        var recordItem = log.getRecordItem();
+        RecordItem parentRecordItemWithContractResult = null;
+
+        if (isContract(recordItem)) {
             if (!(log instanceof TransferContractLog transferLog)) {
                 return;
             }
-            var contractParent = log.getRecordItem().parseContractParent();
-            if (contractParent != null && matchesExistingContractLog(transferLog, contractParent)) {
+            parentRecordItemWithContractResult = recordItem.parseParentWithContractResult();
+            if (parentRecordItemWithContractResult != null
+                    && logAlreadyImported(transferLog, parentRecordItemWithContractResult)) {
                 return;
             }
         }
 
-        long consensusTimestamp = log.getRecordItem().getConsensusTimestamp();
-        int logIndex = log.getRecordItem().getAndIncrementLogIndex();
+        long consensusTimestamp = parentRecordItemWithContractResult != null
+                ? parentRecordItemWithContractResult.getConsensusTimestamp()
+                : recordItem.getConsensusTimestamp();
+        int logIndex = recordItem.getAndIncrementLogIndex();
 
         ContractLog contractLog = new ContractLog();
 
-        contractLog.setBloom(isContract(log.getRecordItem()) ? createBloom(log) : empty);
+        contractLog.setBloom(isContract(recordItem) ? createBloom(log) : empty);
         contractLog.setConsensusTimestamp(consensusTimestamp);
         contractLog.setContractId(log.getEntityId());
         contractLog.setData(log.getData() != null ? log.getData() : empty);
         contractLog.setIndex(logIndex);
         contractLog.setRootContractId(log.getEntityId());
-        contractLog.setPayerAccountId(log.getRecordItem().getPayerAccountId());
+        contractLog.setPayerAccountId(recordItem.getPayerAccountId());
         contractLog.setTopic0(log.getTopic0());
         contractLog.setTopic1(log.getTopic1());
         contractLog.setTopic2(log.getTopic2());
         contractLog.setTopic3(log.getTopic3());
-        contractLog.setTransactionIndex(log.getRecordItem().getTransactionIndex());
-        contractLog.setTransactionHash(log.getRecordItem().getTransactionHash());
+        contractLog.setTransactionIndex(recordItem.getTransactionIndex());
+        contractLog.setTransactionHash(recordItem.getTransactionHash());
         contractLog.setSyntheticTransfer(log instanceof TransferContractLog);
 
         entityListener.onContractLog(contractLog);
@@ -70,18 +76,17 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                 || recordItem.getTransactionRecord().hasContractCreateResult();
     }
 
-    private boolean matchesExistingContractLog(TransferContractLog transferLog, RecordItem contractParent) {
-        var contractLogs = contractParent.getContractLogs();
-        if (contractLogs == null || contractLogs.isEmpty()) {
-            return false;
-        }
-
-        for (var contractLoginfo : contractLogs) {
-            if (transferLog.equalsContractLoginfo(contractLoginfo)) {
-                return true;
-            }
-        }
-        return false;
+    /**
+     * Checks if the given TransferContractLog matches an existing contract log in the parent record item
+     * and consumes one occurrence of the matching log. This handles the case where the same contract log
+     * appears multiple times in the record as being part of different operations.
+     *
+     * @param transferLog the TransferContractLog to check
+     * @param parentWithContractResult the parent RecordItem containing the contract logs
+     * @return true if a matching log is found and it is persisted, false otherwise
+     */
+    private boolean logAlreadyImported(TransferContractLog transferLog, RecordItem parentWithContractResult) {
+        return parentWithContractResult.consumeMatchingContractLog(transferLog::equalsContractLoginfo);
     }
 
     /**

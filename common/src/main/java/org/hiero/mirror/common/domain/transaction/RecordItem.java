@@ -115,6 +115,10 @@ public class RecordItem implements StreamItem {
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
+    // Map to track remaining occurrences of each contract log for duplicate detection
+    @EqualsAndHashCode.Exclude
+    private Map<ContractLoginfo, AtomicInteger> contractLogOccurrences;
+
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
      *
@@ -125,6 +129,35 @@ public class RecordItem implements StreamItem {
             return parent != null ? parent.nextHookContext() : null;
         }
         return hookExecutionQueue.poll();
+    }
+
+    /**
+     * Attempts to consume a matching contract log from the tracked occurrences. If a matching log is found
+     * and its count is greater than 0, the count is decremented.
+     *
+     * <p>This method is used to handle duplicate contract logs in the record. When the same log appears
+     * multiple times, a synthetic TransferContractLog can match one occurrence and should be skipped
+     * unless the occurrence count is 0.
+     *
+     * @param matcher a Predicate that takes a ContractLoginfo and returns true if it matches
+     * @return true if a matching log was found and consumed, false otherwise
+     */
+    public boolean consumeMatchingContractLog(Predicate<ContractLoginfo> matcher) {
+        if (contractLogOccurrences == null || contractLogOccurrences.isEmpty()) {
+            return false;
+        }
+
+        for (var entry : contractLogOccurrences.entrySet()) {
+            var logInfo = entry.getKey();
+            var occurrenceCount = entry.getValue();
+
+            if (occurrenceCount.get() > 0 && matcher.test(logInfo)) {
+                occurrenceCount.decrementAndGet();
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void addContractTransaction(EntityId entityId) {
@@ -226,17 +259,17 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Parses and returns the contract parent by iterating over previous items until a parent with contractCallResult
-     * or contractCreateResult is found. For hook-related transactions, the previous item has a consensus timestamp
-     * that is only 1 nanosecond smaller than the current item.
+     * Parses and returns a contract related parent by iterating over previous items until a parent with
+     * contractCallResult or contractCreateResult is found. For hook-related transactions, the previous item has
+     * a consensus timestamp that is only 1 nanosecond smaller than the current item.
      *
-     * @return the contract parent RecordItem, or null if not found
+     * @return the contract related parent RecordItem, or null if not found
      */
-    public RecordItem parseContractParent() {
+    public RecordItem parseParentWithContractResult() {
         var current = this.previous;
         while (current != null) {
             if (hasContractResult(current)) {
-                // Check if this is a hook-related transaction (1 nanosecond difference)
+                // Check if this is a hook-related transaction (should have 1 nanosecond difference)
                 if (this.consensusTimestamp - current.getConsensusTimestamp() == 1) {
                     // For hooks, the previous item should have a contract result
                     if (hasContractResult(current)) {
@@ -252,8 +285,8 @@ public class RecordItem implements StreamItem {
     }
 
     private boolean hasContractResult(RecordItem item) {
-        var record = item.getTransactionRecord();
-        return record.hasContractCallResult() || record.hasContractCreateResult();
+        var txnRecord = item.getTransactionRecord();
+        return txnRecord.hasContractCallResult() || txnRecord.hasContractCreateResult();
     }
 
     private Map<Long, ContractTransaction> getContractTransactions() {
@@ -283,6 +316,7 @@ public class RecordItem implements StreamItem {
             }
 
             this.contractLogs = parseContractLogs();
+            this.contractLogOccurrences = initializeContractLogOccurrences(this.contractLogs);
 
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
@@ -300,6 +334,19 @@ public class RecordItem implements StreamItem {
                 return transactionRecord.getContractCreateResult().getLogInfoList();
             }
             return Collections.emptyList();
+        }
+
+        private Map<ContractLoginfo, AtomicInteger> initializeContractLogOccurrences(List<ContractLoginfo> logs) {
+            if (logs == null || logs.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            var logOccurrences = new HashMap<ContractLoginfo, AtomicInteger>();
+            for (var logInfo : logs) {
+                logOccurrences
+                        .computeIfAbsent(logInfo, k -> new AtomicInteger(0))
+                        .incrementAndGet();
+            }
+            return logOccurrences;
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
