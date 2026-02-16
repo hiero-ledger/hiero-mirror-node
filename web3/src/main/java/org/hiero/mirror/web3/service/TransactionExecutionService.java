@@ -47,6 +47,7 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
+import org.hiero.mirror.web3.utils.EthereumTransactionNonceExtractor;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
@@ -202,19 +203,41 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
-        var rawData = params.getEthereumData();
-        if (rawData == null || rawData.isEmpty()) {
+        final var data = params.getEthereumData();
+        if (data == null || data.isEmpty()) {
             log.error("Ethereum data is missing in params!");
         }
 
-        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
-                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                        params.getEthereumData().toArrayUnsafe()))
-                .maxGasAllowance(Long.MAX_VALUE);
-        return defaultTransactionBodyBuilder(params)
-                .ethereumTransaction(ethereumTransactionBuilder.build())
+        final var txnBody = defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(EthereumTransactionBody.newBuilder()
+                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                                params.getEthereumData().toArrayUnsafe()))
+                        .maxGasAllowance(Long.MAX_VALUE)
+                        .build())
                 .transactionFee(CONTRACT_CREATE_TX_FEE)
                 .build();
+
+        patchSenderNonce(params);
+        return txnBody;
+    }
+
+    private void patchSenderNonce(final CallServiceParameters params) {
+        if (params.getSender().isZero() && params.getValue() == 0L) {
+            return;
+        }
+        final var nonce = EthereumTransactionNonceExtractor.extractNonce(
+                params.getEthereumData().toArray());
+        if (nonce == null || !ContractCallContext.isInitialized()) {
+            return;
+        }
+        final var senderId = getSenderAccountIDAsNum(params.getSender());
+        final var account = accountReadableKVState.get(senderId);
+        if (account != null && account.ethereumNonce() != nonce) {
+            final var writableCache = ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID);
+            writableCache.put(
+                    account.accountId(),
+                    account.copyBuilder().ethereumNonce(nonce).build());
+        }
     }
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
