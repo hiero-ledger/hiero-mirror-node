@@ -202,9 +202,15 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        var rawData = params.getEthereumData();
+        if (rawData == null || rawData.isEmpty()) {
+            log.error("Ethereum data is missing in params!");
+        }
+
         final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
                 .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                        params.getEthereumData().toArrayUnsafe()));
+                        params.getEthereumData().toArrayUnsafe()))
+                .maxGasAllowance(Long.MAX_VALUE);
         return defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(ethereumTransactionBuilder.build())
                 .transactionFee(CONTRACT_CREATE_TX_FEE)
