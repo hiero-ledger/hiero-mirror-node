@@ -19,7 +19,7 @@ extra.apply {
     set("assertj.version", "3.27.7") // Temporary until next Spring Boot
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
-    set("consensusNodeVersion", "0.70.0")
+    set("consensusNodeVersion", "0.71.0")
     set("grpcVersion", "1.79.0")
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
@@ -44,6 +44,7 @@ dependencies {
 
         api("com.asarkar.grpc:grpc-test:2.0.0")
         api("com.esaulpaugh:headlong:13.3.1")
+        api("com.github.luben:zstd-jni:1.5.7-7")
         api("com.github.meanbeanlib:meanbean:3.0.0-M9")
         api("com.github.vertical-blank:sql-formatter:2.0.5")
         api("com.bucket4j:bucket4j-core:8.10.1")
@@ -54,7 +55,7 @@ dependencies {
         api("com.graphql-java:graphql-java-extended-validation:24.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.71.0-rc.3") // verify no issues
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
         api("com.hedera.hashgraph:sdk:2.66.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
@@ -63,7 +64,7 @@ dependencies {
         api("io.fabric8:kubernetes-client-bom:7.5.2")
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
-        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.1")
+        api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
         api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")
@@ -84,7 +85,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.41.24")
+        api("software.amazon.awssdk:bom:2.41.29")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

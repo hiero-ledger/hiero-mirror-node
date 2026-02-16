@@ -22,7 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import reactor.test.StepVerifier;
 
-class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
+final class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
 
     private final LocalStreamFileProperties localProperties = new LocalStreamFileProperties();
 
@@ -32,21 +32,12 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
     }
 
     @Override
-    protected String targetRootPath() {
-        return STREAMS;
-    }
-
-    @Override
     @BeforeEach
     void setup() {
         super.setup();
+        blockStreamTargetRootPath = STREAMS;
         streamFileProvider = new LocalStreamFileProvider(commonProperties, properties, localProperties);
-    }
-
-    @Disabled("PathPrefix not supported")
-    @Override
-    void getBlockFileWithPathPrefix() {
-        // empty
+        targetRootPath = STREAMS;
     }
 
     @Test
@@ -58,8 +49,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .collectList()
                 .block();
         assertThat(sigs).hasSize(2);
-        sigs.forEach(
-                sig -> streamFileProvider.get(node, sig.getStreamFilename()).block());
+        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
     }
 
     @Test
@@ -73,8 +63,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .collectList()
                 .block();
         assertThat(sigs).hasSize(2);
-        sigs.forEach(
-                sig -> streamFileProvider.get(node, sig.getStreamFilename()).block());
+        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
     }
 
     @Test
@@ -89,8 +78,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .collectList()
                 .block();
         assertThat(sigs).hasSize(2);
-        sigs.forEach(
-                sig -> streamFileProvider.get(node, sig.getStreamFilename()).block());
+        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
     }
 
     @Test
@@ -104,8 +92,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .collectList()
                 .block();
         assertThat(sigs).hasSize(2);
-        sigs.forEach(
-                sig -> streamFileProvider.get(node, sig.getStreamFilename()).block());
+        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
     }
 
     @Test
@@ -120,8 +107,7 @@ class LocalStreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .collectList()
                 .block();
         assertThat(sigs).hasSize(1).extracting(StreamFileData::getFilename).containsExactly(expected.getName());
-        sigs.forEach(
-                sig -> streamFileProvider.get(node, sig.getStreamFilename()).block());
+        sigs.forEach(sig -> streamFileProvider.get(sig.getStreamFilename()).block());
         assertThat(Files.walk(dataPath)
                         .filter(p ->
                                 p.toString().contains(node.getNodeAccountId().toString()))

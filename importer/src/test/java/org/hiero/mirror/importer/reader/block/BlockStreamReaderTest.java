@@ -32,6 +32,7 @@ import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.util.Lists;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -49,48 +50,48 @@ public final class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1764733132492007719L)
-                    .consensusEnd(1764733132492007719L)
-                    .count(0L)
+                    .consensusStart(1770842061390565879L)
+                    .consensusEnd(1770842061390565879L)
+                    .count(1L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
-                    .index(25L)
-                    .name(BlockFile.getFilename(25, true))
+                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                    .index(7L)
+                    .name(BlockFile.getFilename(7, true))
                     .previousHash(
-                            "9cdd7fae144d0ba07b8a00a01d7056fb5e34c9507b8db520d41346f94e643f7d5524b4fd8ba4e5d05973d700e9835eee")
-                    .roundStart(810L)
-                    .roundEnd(844L)
+                            "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb")
+                    .roundStart(179L)
+                    .roundEnd(213L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1764733134591915512L)
-                    .consensusEnd(1764733134591915512L)
-                    .count(0L)
+                    .consensusStart(1770842063775529380L)
+                    .consensusEnd(1770842063775529380L)
+                    .count(1L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "a8ee79046f3184f124e05faf51c0d6f615f2551b5c9d2d42991a8a315cdd2ff7163b42b9c04d0d8f5631d075a78a7fd0")
-                    .index(26L)
-                    .name(BlockFile.getFilename(26, true))
+                            "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d")
+                    .index(8L)
+                    .name(BlockFile.getFilename(8, true))
                     .previousHash(
-                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
-                    .roundStart(845L)
-                    .roundEnd(879L)
+                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                    .roundStart(214L)
+                    .roundEnd(248L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1764733073872562823L)
-                    .consensusEnd(1764733073872563544L)
-                    .count(722L)
+                    .consensusStart(1770842078844243554L)
+                    .consensusEnd(1770842078844243554L)
+                    .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "87b30cd9634a24ab500b72fecba90bd51a6a1a6de5570b18aea4ccd22c8936c6b77dc7d9ab931de9e2558418945cb96d")
-                    .index(0L)
-                    .name(BlockFile.getFilename(0, true))
+                            "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9")
+                    .index(16L)
+                    .name(BlockFile.getFilename(16, true))
                     .previousHash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-                    .roundStart(1L)
-                    .roundEnd(1L)
+                            "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098")
+                    .roundStart(493L)
+                    .roundEnd(527L)
                     .version(BlockStreamReader.VERSION)
                     .build());
 
@@ -132,7 +133,6 @@ public final class BlockStreamReaderTest {
                 .bytes(blockStream.bytes())
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .recordFileItem(RecordFileItem.getDefaultInstance())
                 .size(blockStream.bytes().length)
                 .version(BlockStreamReader.VERSION)
@@ -747,10 +747,10 @@ public final class BlockStreamReaderTest {
 
     private static BlockStream createBlockStream(Block block, byte[] bytes, String filename) {
         if (bytes == null) {
-            bytes = TestUtils.gzip(block.toByteArray());
+            bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id(), TestUtils.id());
+        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id());
     }
 
     @SneakyThrows
@@ -763,13 +763,13 @@ public final class BlockStreamReaderTest {
     @SneakyThrows
     private static Stream<Arguments> readTestArgumentsProvider() {
         return TEST_BLOCK_FILES.stream().map(blockFile -> {
-            var file = TestUtils.getResource("data/blockstreams/" + blockFile.getName());
-            var streamFileData = StreamFileData.from(file);
-            byte[] bytes = streamFileData.getBytes();
-            var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
+            final var bucketFilename = StreamType.BLOCK.toBucketFilename(blockFile.getName());
+            final var file = TestUtils.getResource("data/blockstreams/" + bucketFilename);
+            final var streamFileData = StreamFileData.from(file);
+            final byte[] bytes = streamFileData.getBytes();
+            final var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
             blockFile.setBytes(bytes);
             blockFile.setLoadStart(blockStream.loadStart());
-            blockFile.setNodeId(blockStream.nodeId());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, blockFile);
         });
