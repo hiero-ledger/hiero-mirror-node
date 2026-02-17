@@ -1418,6 +1418,30 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
+        void limitZero() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?limit=0").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: limit");
+        }
+
+        @Test
+        void limitNegative() {
+            // given
+            setupNetworkNodeData();
+
+            // when/then
+            validateError(
+                    () -> restClient.get().uri("?limit=-1").retrieve().toEntity(String.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "Invalid parameter: limit");
+        }
+
+        @Test
         void notFoundWithInvalidFileId() {
             // given
             setupNetworkNodeData();

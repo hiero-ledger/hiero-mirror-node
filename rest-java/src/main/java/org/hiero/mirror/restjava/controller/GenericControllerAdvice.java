@@ -38,6 +38,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageConversionException;
+import org.springframework.validation.BindException;
 import org.springframework.validation.Errors;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
@@ -91,7 +92,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
     }
 
-    @ExceptionHandler(org.springframework.validation.BindException.class)
+    @ExceptionHandler(BindException.class)
     private ResponseEntity<Object> bindException(
             final org.springframework.validation.BindException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, BAD_REQUEST, request);

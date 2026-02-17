@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.dto;
 
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.restjava.common.RestJavaQueryParam;
@@ -19,20 +20,21 @@ public class NetworkNodeRequest {
     public static final int DEFAULT_LIMIT = 10;
 
     @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "0.0.102")
-    EntityIdEqualParameter fileId;
+    private EntityIdEqualParameter fileId;
 
     @RestJavaQueryParam(name = "node.id", required = false)
-    List<EntityIdRangeParameter> nodeId;
+    private List<EntityIdRangeParameter> nodeId;
 
     @RestJavaQueryParam(name = "limit", defaultValue = "10")
-    int limit;
+    @Min(1)
+    private int limit;
 
     @RestJavaQueryParam(name = "order", defaultValue = "ASC")
-    Direction order;
+    private Direction order;
 
     /**
-     * Gets the effective limit, capped at MAX_LIMIT.
-     * Matches rest module behavior where limit is capped at 25 for network nodes.
+     * Gets the effective limit, capped at MAX_LIMIT. Matches rest module behavior where limit is capped at 25 for
+     * network nodes.
      */
     public int getEffectiveLimit() {
         return Math.min(limit, MAX_LIMIT);

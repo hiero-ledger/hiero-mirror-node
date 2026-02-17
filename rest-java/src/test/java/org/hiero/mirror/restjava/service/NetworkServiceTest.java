@@ -249,6 +249,48 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void getNetworkNodesWithMultipleLowerBounds() {
+        // given - gte:1 AND gte:2 should use the most restrictive lower bound (2), returning only node 2 and 3
+        var fileId = setupNetworkNodeData();
+        var request = new NetworkNodeRequest();
+        request.setFileId(EntityIdEqualParameter.valueOf(fileId.toString()));
+        request.setNodeId(List.of(
+                new EntityIdRangeParameter(RangeOperator.GTE, 1L), new EntityIdRangeParameter(RangeOperator.GTE, 2L)));
+        request.setLimit(25);
+        request.setOrder(Sort.Direction.ASC);
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).getNodeId()).isEqualTo(2L);
+        assertThat(result.get(1).getNodeId()).isEqualTo(3L);
+    }
+
+    @Test
+    void getNetworkNodesWithMultipleUpperBounds() {
+        // given - lte:3 AND lte:2 should use the most restrictive upper bound (2), returning only nodes 1 and 2
+        var fileId = setupNetworkNodeData();
+        var request = new NetworkNodeRequest();
+        request.setFileId(EntityIdEqualParameter.valueOf(fileId.toString()));
+        request.setNodeId(List.of(
+                new EntityIdRangeParameter(RangeOperator.LTE, 3L), new EntityIdRangeParameter(RangeOperator.LTE, 2L)));
+        request.setLimit(25);
+        request.setOrder(Sort.Direction.ASC);
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(2);
+        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
+        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
+    }
+
+    @Test
     void getNetworkNodesInvalidEmptyRange() {
         // given - setup data
         var fileId = setupNetworkNodeData();

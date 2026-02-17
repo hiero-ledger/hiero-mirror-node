@@ -124,18 +124,18 @@ final class NetworkServiceImpl implements NetworkService {
             return Pair.of(0L, Long.MAX_VALUE);
         }
 
-        // Calculate lower bound: min of (value+1 for GT, value for GTE)
+        // Calculate lower bound: max of (value+1 for GT, value for GTE) — most restrictive lower bound
         Long lowerBound = rangeSet.stream()
                 .filter(x -> x.operator() == RangeOperator.GTE || x.operator() == RangeOperator.GT)
                 .map(x -> x.operator() == RangeOperator.GT ? x.value() + 1 : x.value())
-                .min(Comparator.naturalOrder())
+                .max(Comparator.naturalOrder())
                 .orElse(0L);
 
-        // Calculate upper bound: max of (value-1 for LT, value for LTE)
+        // Calculate upper bound: min of (value-1 for LT, value for LTE) — most restrictive upper bound
         Long upperBound = rangeSet.stream()
                 .filter(x -> x.operator() == RangeOperator.LTE || x.operator() == RangeOperator.LT)
                 .map(x -> x.operator() == RangeOperator.LT ? x.value() - 1 : x.value())
-                .max(Comparator.naturalOrder())
+                .min(Comparator.naturalOrder())
                 .orElse(Long.MAX_VALUE);
 
         // Validate that the range is not empty (e.g., gt:4 AND lt:5)

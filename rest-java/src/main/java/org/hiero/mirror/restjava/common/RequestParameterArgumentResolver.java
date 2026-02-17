@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.common;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +77,7 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         // Create WebDataBinder and bind - exactly like Spring's @ModelAttribute
         String objectName = parameterType.getSimpleName();
         WebDataBinder binder = binderFactory.createBinder(webRequest, attribute, objectName);
+        binder.initDirectFieldAccess();
         binder.bind(propertyValues);
 
         // Validate - same as Spring's validation
@@ -98,8 +100,8 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
      */
     private BindingMetadata getMetadata(Class<?> clazz) {
         return metadataCache.computeIfAbsent(clazz, c -> {
-            Map<Field, RestJavaQueryParam> queryParams = new ConcurrentHashMap<>();
-            Map<Field, RestJavaPathParam> pathParams = new ConcurrentHashMap<>();
+            Map<Field, RestJavaQueryParam> queryParams = new LinkedHashMap<>();
+            Map<Field, RestJavaPathParam> pathParams = new LinkedHashMap<>();
 
             for (Field field : c.getDeclaredFields()) {
                 // Cache @QueryParam annotations
