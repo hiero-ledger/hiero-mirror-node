@@ -26,11 +26,13 @@ table provides a compatibility matrix of the most recent changes:
 Users writing dApps want to monitor for token approval and transfer events. HAPI transactions like `CryptoTransfer`,
 `CryptoApproveAllowance`, `CryptoDeleteAllowance`, `TokenMint`, `TokenWipe`, and `TokenBurn` do not emit events that
 could be captured by monitoring tools since they're executed outside the EVM. In order to not bloat the size of the
-blocks, the decision was made for the mirror node to generate synthetic events for these native HAPI transactions. It
-is assumed that any transfers that occur via the EVM on consensus nodes will emit events that will show up in the
-blocks.
+blocks, the decision was made for the mirror node to generate synthetic events for these native HAPI transactions.
+Transfers that occur via the EVM on consensus nodes will emit events that will show up in the blocks. Different
+transfer types have been supported from different releases of the consensus nodes. Mirror node will also generate
+synthetic events for EVM-based transfers related to fungible tokens in case a RecordItem with missing synthetic events is being
+imported.
 
-Whether or not to generate these synthetic contract logs is controlled by the property
+Whether to generate these synthetic contract logs is controlled by the property
 `hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogs`, which has a default of `true`. When
 enabled, the mirror node will persist synthetic contract logs from HAPI transactions to the database. This will
 generate synthetic logs for the following scenarios:

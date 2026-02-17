@@ -33,17 +33,12 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         }
 
         var recordItem = log.getRecordItem();
-        RecordItem parentRecordItemWithContractResult = null;
+        var parentRecordItemWithContractResult = recordItem.parseParentWithContractResult();
 
-        if (isContract(recordItem)) {
-            if (!(log instanceof TransferContractLog transferLog)) {
-                return;
-            }
-            parentRecordItemWithContractResult = recordItem.parseParentWithContractResult();
-            if (parentRecordItemWithContractResult != null
-                    && logAlreadyImported(transferLog, parentRecordItemWithContractResult)) {
-                return;
-            }
+        // We will backfill any EVM-related fungible token transfers that don't have synthetic events produced by CN
+        if (isContract(recordItem)
+                && shouldSkipLogCreationForContractTransfer(log, parentRecordItemWithContractResult)) {
+            return;
         }
 
         long consensusTimestamp = parentRecordItemWithContractResult != null
@@ -74,6 +69,30 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     private boolean isContract(RecordItem recordItem) {
         return recordItem.getTransactionRecord().hasContractCallResult()
                 || recordItem.getTransactionRecord().hasContractCreateResult();
+    }
+
+    private boolean shouldSkipLogCreationForContractTransfer(
+            SyntheticContractLog syntheticLog, RecordItem parentRecordItemWithContractResult) {
+        if (!(syntheticLog instanceof TransferContractLog transferLog)) {
+            // Only TransferContractLog synthetic event creation is supported for an operation with contract origin
+            return true;
+        }
+
+        // We have a contract-related parent which already persisted the same log
+        if (parentRecordItemWithContractResult != null
+                && syntheticLog
+                                .getRecordItem()
+                                .getTransactionRecord()
+                                .getTransferList()
+                                .getAccountAmountsCount()
+                        > 2
+                && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
+            // We have a multi-party fungible transfer scenario, but synthetic event creation for
+            // such transfers is disabled
+            return true;
+        } else
+            return parentRecordItemWithContractResult != null
+                    && logAlreadyImported(transferLog, parentRecordItemWithContractResult);
     }
 
     /**
