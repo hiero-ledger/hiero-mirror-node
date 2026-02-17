@@ -81,6 +81,45 @@ public class EthereumClient extends AbstractNetworkClient {
         return response;
     }
 
+    public NetworkTransactionResponse transferValue(
+            PrivateKey signerKey, String toEvmAddress, BigInteger value, TransactionType type) {
+
+        var rawTransaction =
+                switch (type) {
+                    case EIP1559 ->
+                        RawTransaction.createTransaction(
+                                acceptanceTestProperties.getNetwork().getChainId(),
+                                getNonce(signerKey),
+                                maxContractFunctionGas(),
+                                toEvmAddress,
+                                value,
+                                "",
+                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxFeePerGas);
+                    case EIP2930 ->
+                        RawTransaction.createTransaction(
+                                acceptanceTestProperties.getNetwork().getChainId(),
+                                getNonce(signerKey),
+                                maxContractFunctionGas(),
+                                toEvmAddress,
+                                value,
+                                "",
+                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxFeePerGas,
+                                Collections.emptyList());
+                    default ->
+                        RawTransaction.createEtherTransaction(
+                                getNonce(signerKey), gasPrice, maxContractFunctionGas(), toEvmAddress, value);
+                };
+
+        Credentials credentials = Credentials.create(signerKey.toStringRaw());
+        EthereumTransaction ethereumTransaction = new EthereumTransaction()
+                .setMaxGasAllowanceHbar(Hbar.from(100L))
+                .setEthereumData(TransactionEncoder.signMessage(rawTransaction, credentials));
+
+        return executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
+    }
+
     public ContractClient.ExecuteContractResult executeContract(
             PrivateKey signerKey,
             ContractId contractId,
