@@ -18,7 +18,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
-import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 
 public final class BlockGenerator {
 

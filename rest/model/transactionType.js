@@ -60,6 +60,7 @@ const protoToName = {
   74: 'ATOMICBATCH',
   75: 'HOOKSTORE',
   76: 'HOOKDISPATCH',
+  77: 'LEDGERIDPUBLICATION',
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types

@@ -11,11 +11,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-class StreamTypeTest {
+final class StreamTypeTest {
 
     private static final Map<StreamType, List<String>> DATA_EXTENSIONS =
             ImmutableMap.<StreamType, List<String>>builder()
@@ -67,6 +68,18 @@ class StreamTypeTest {
     @MethodSource("provideTypeAndSignatureExtensions")
     void getSignatureExtensions(StreamType streamType, List<String> signatureExtensions) {
         assertPriorities(streamType.getSignatureExtensions(), signatureExtensions);
+    }
+
+    @Test
+    void toBucketFilename() {
+        assertThat(StreamType.BALANCE.toBucketFilename("2020-06-03T16_45_00.1Z_Balances.csv"))
+                .isEqualTo("2020-06-03T16_45_00.1Z_Balances.csv");
+        assertThat(StreamType.RECORD.toBucketFilename("2020-06-03T16_45_00.1Z.rcd"))
+                .isEqualTo("2020-06-03T16_45_00.1Z.rcd");
+        assertThat(StreamType.BLOCK.toBucketFilename("0000000000000000000.blk.zstd"))
+                .isEqualTo("0000/0000/0000/0000/000.blk.zstd");
+        assertThat(StreamType.BLOCK.toBucketFilename("0000000000000000000.blk"))
+                .isEqualTo("0000/0000/0000/0000/000.blk");
     }
 
     void assertPriorities(SortedSet<StreamType.Extension> actual, List<String> expected) {

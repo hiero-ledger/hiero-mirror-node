@@ -124,7 +124,9 @@ export class Cache {
         }
       });
 
-      this.redis.mset(newValues).catch((err) => logger.warn(`Redis error during mset: ${err.message}`));
+      if (newValues.length > 0) {
+        this.redis.mset(newValues).catch((err) => logger.warn(`Redis error during mset: ${err.message}`));
+      }
     }
 
     if (logger.isDebugEnabled()) {

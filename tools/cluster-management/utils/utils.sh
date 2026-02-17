@@ -334,6 +334,11 @@ function resumeKustomization() {
   flux resume kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
 }
 
+function suspendKustomization() {
+  log "Suspending kustomization ${KUSTOMIZATION_NAME} in namespace ${KUSTOMIZATION_NAMESPACE}"
+  flux suspend kustomization "${KUSTOMIZATION_NAME}" -n "${KUSTOMIZATION_NAMESPACE}"
+}
+
 function unrouteTraffic() {
   local namespace="${1}"
   if [[ "${AUTO_UNROUTE}" == "true" ]]; then

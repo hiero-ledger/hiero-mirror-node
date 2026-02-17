@@ -81,6 +81,10 @@ public class FileCopier {
                 WildcardFileFilter.builder().setWildcards(wildcardPattern).get());
     }
 
+    public FileCopier resetTo(final Path target) {
+        return new FileCopier(from, target, dirFilter, fileFilter);
+    }
+
     public FileCopier to(Path target) {
         return new FileCopier(from, to.resolve(target), dirFilter, fileFilter);
     }

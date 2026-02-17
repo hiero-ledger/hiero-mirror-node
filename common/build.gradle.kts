@@ -4,6 +4,10 @@ description = "Hedera Mirror Node Common"
 
 plugins { id("java-conventions") }
 
+configurations.all {
+    exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
+}
+
 dependencies {
     val testClasses by configurations.registering
     annotationProcessor("jakarta.persistence:jakarta.persistence-api")

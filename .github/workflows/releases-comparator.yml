@@ -26,7 +26,7 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
@@ -63,7 +63,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
@@ -94,8 +94,6 @@ jobs:
             "com/swirlds/state/spi/ReadableKVStateBase.java"
             "com/swirlds/state/spi/WritableKVStateBase.java"
             "com/swirlds/state/spi/WritableSingletonStateBase.java"
-            "com/hedera/node/app/service/contract/impl/exec/processors/CustomMessageCallProcessor.java"
-            "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
           )
 
           # Compare the schemas - in case there is a new version we might need to register a new state.

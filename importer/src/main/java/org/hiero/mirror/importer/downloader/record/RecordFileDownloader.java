@@ -121,7 +121,7 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
         var records = Flux.fromIterable(recordFile.getSidecars())
                 .filter(sidecar ->
                         acceptedTypes.isEmpty() || sidecar.getTypes().stream().anyMatch(acceptedTypes::contains))
-                .flatMap(sidecar -> getSidecar(node, recordFilename, sidecar))
+                .flatMap(sidecar -> getSidecar(recordFilename, sidecar))
                 .flatMapIterable(SidecarFile::getRecords)
                 .filter(t -> acceptedTypes.isEmpty() || acceptedTypes.contains(getSidecarType(t)))
                 .collect(Multimaps.toMultimap(
@@ -142,9 +142,9 @@ public class RecordFileDownloader extends Downloader<RecordFile, RecordItem> {
         });
     }
 
-    private Mono<SidecarFile> getSidecar(ConsensusNode node, StreamFilename recordFilename, SidecarFile sidecar) {
+    private Mono<SidecarFile> getSidecar(StreamFilename recordFilename, SidecarFile sidecar) {
         var sidecarFilename = StreamFilename.from(recordFilename, sidecar.getName());
-        return streamFileProvider.get(node, sidecarFilename).map(streamFileData -> {
+        return streamFileProvider.get(sidecarFilename).map(streamFileData -> {
             sidecarFileReader.read(sidecar, streamFileData);
 
             if (!Arrays.equals(sidecar.getHash(), sidecar.getActualHash())) {
