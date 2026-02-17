@@ -21,6 +21,7 @@ import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import com.hederahashgraph.api.proto.java.SemanticVersion;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
@@ -31,6 +32,7 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
@@ -41,6 +43,8 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -68,6 +72,7 @@ final class BlockStreamVerifierTest {
                 mock(BlockProperties.class), mock(RecordDownloaderProperties.class), recordFileRepository));
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
+                new BlockProperties(new ImporterProperties()),
                 cutoverService,
                 ledgerIdPublicationTransactionParser,
                 new SimpleMeterRegistry(),
@@ -249,6 +254,41 @@ final class BlockStreamVerifierTest {
         assertThat(cutoverService.getLastRecordFile()).get().returns(previous.getIndex(), RecordFile::getIndex);
     }
 
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            0, 71, 0, rc.1
+            0, 71, 0,
+            """)
+    void hashMismatchIgnoredWithNewRootHashAlgorithm(
+            final int major, final int minor, final int patch, final String pre) {
+        // given
+        final var previous = getRecordFile();
+        when(recordFileRepository.findLatest()).thenReturn(Optional.of(previous));
+        final var blockFile = getBlockFile(previous);
+        final var versionBuilder =
+                SemanticVersion.newBuilder().setMajor(major).setMinor(minor).setPatch(patch);
+        if (pre != null) {
+            versionBuilder.setPre(pre);
+        }
+
+        final var version = versionBuilder.build();
+        blockFile.setBlockHeader(BlockHeader.newBuilder()
+                .setSoftwareVersion(version)
+                .setHapiProtoVersion(version)
+                .build());
+        blockFile.setPreviousHash(sha384Hash());
+
+        // when
+        verifier.verify(blockFile);
+
+        // then
+
+        verify(blockFileTransformer).transform(blockFile);
+        verify(recordFileRepository).findLatest();
+        verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
+        assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
+    }
+
     @Test
     void malformedFilename() {
         // given
@@ -303,8 +343,12 @@ final class BlockStreamVerifierTest {
         long blockNumber = previous != null ? previous.getIndex() + 1 : DomainUtils.convertToNanosMax(Instant.now());
         String previousHash = previous != null ? previous.getHash() : sha384Hash();
         long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
+        var version = SemanticVersion.newBuilder().setMinor(72).build();
         return withBlockNumber(BlockFile.builder(), blockNumber)
-                .blockHeader(BlockHeader.newBuilder().build())
+                .blockHeader(BlockHeader.newBuilder()
+                        .setHapiProtoVersion(version)
+                        .setSoftwareVersion(version)
+                        .build())
                 .hash(sha384Hash())
                 .node("host:port")
                 .previousHash(previousHash)
