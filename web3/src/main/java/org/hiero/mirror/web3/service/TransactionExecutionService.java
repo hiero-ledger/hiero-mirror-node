@@ -76,8 +76,8 @@ public class TransactionExecutionService {
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
-        TransactionBody transactionBody;
-        EvmTransactionResult result;
+        final TransactionBody transactionBody;
+        final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters
                 && params.getEthereumData() != null
                 && !params.getEthereumData().isEmpty()) {
@@ -205,7 +205,7 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
         final var data = params.getEthereumData();
         if (data == null || data.isEmpty()) {
-            log.error("Ethereum data is missing in params!");
+            throw new IllegalArgumentException("Ethereum data is missing in params");
         }
 
         final var txnBody = defaultTransactionBodyBuilder(params)
@@ -221,6 +221,10 @@ public class TransactionExecutionService {
         return txnBody;
     }
 
+    /**
+     *  Overwrite the sender account nonce in the state if the nonce from the txn is different from the one stored in
+     *  the state, to bypass the nonce verification during transaction replay.
+     */
     private void patchSenderNonce(final CallServiceParameters params) {
         if (params.getSender().isZero() && params.getValue() == 0L) {
             return;

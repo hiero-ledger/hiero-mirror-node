@@ -27,16 +27,16 @@ public class EthereumTransactionNonceExtractor {
         final var first = decoder.next();
         List<RLPItem> elements;
         final int nonceIndex;
-        if (first.isList()) {
+        if (first.isList()) { // 0xc0-0xff indicates a list, indicating legacy txn, i.e txn without a type byte
             elements = first.asRLPList().elements();
-            nonceIndex = 0;
+            nonceIndex = 0; // in legacy txns the fist element of the list is the transaction nonce
         } else {
             final var payload = decoder.next();
             if (!payload.isList()) {
                 return null;
             }
             elements = payload.asRLPList().elements();
-            nonceIndex = 1;
+            nonceIndex = 1; // in non-legacy txns the first element is the chainId, the second is the nonce
         }
         if (elements.size() <= nonceIndex) {
             return null;

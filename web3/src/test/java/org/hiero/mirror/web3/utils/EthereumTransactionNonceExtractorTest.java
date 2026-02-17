@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.esaulpaugh.headlong.rlp.RLPEncoder;
 import com.esaulpaugh.headlong.util.Integers;
 import java.util.List;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -30,38 +31,38 @@ final class EthereumTransactionNonceExtractorTest {
             "02f87082012a022f2f83018000947e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181880de0b6b3a764000083123456c001a0df48f2efd10421811de2bfb125ab75b2d3c44139c4642837fb1fccce911fd479a01aaf7ae92bee896651dfc9d99ae422a296bf5d9f1ca49b2d96d82b79eb112d66";
 
     @Test
-    void extractsNonceFromLegacyTransaction() throws Exception {
+    void extractsNonceFromLegacyTransaction() throws DecoderException {
         final var txBytes = Hex.decodeHex(LEGACY_EIP155_RAW_TX);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(9L);
     }
 
     @Test
-    void extractsNonceFromEip2930Transaction() throws Exception {
+    void extractsNonceFromEip2930Transaction() throws DecoderException {
         final var txBytes = Hex.decodeHex(EIP2930_RAW_TX);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(5644L);
     }
 
     @Test
-    void extractsNonceFromEip1559Transaction() throws Exception {
+    void extractsNonceFromEip1559Transaction() throws DecoderException {
         final var txBytes = Hex.decodeHex(EIP1559_RAW_TX);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(2L);
     }
 
     @Test
-    void extractsNonceFromEip7702Transaction() throws Exception {
+    void extractsNonceFromEip7702Transaction() throws DecoderException {
         final var txBytes = buildEip7702RawTx(1L);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(1L);
     }
 
     @ParameterizedTest
     @CsvSource({"0, 0", "42, 42", "12345, 12345"})
-    void extractsNonceFromEip7702TransactionWithVariousNonces(long nonce, long expected) throws Exception {
+    void extractsNonceFromEip7702TransactionWithVariousNonces(long nonce, long expected) throws DecoderException {
         final var txBytes = buildEip7702RawTx(nonce);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(expected);
     }
 
     @Test
-    void extractsNonceFromEip7702TransactionWithEmptyAuthorizationList() throws Exception {
+    void extractsNonceFromEip7702TransactionWithEmptyAuthorizationList() throws DecoderException {
         final var txBytes = buildEip7702RawTxWithEmptyAuthList(7L);
         assertThat(EthereumTransactionNonceExtractor.extractNonce(txBytes)).isEqualTo(7L);
     }
@@ -88,7 +89,7 @@ final class EthereumTransactionNonceExtractorTest {
         assertThat(EthereumTransactionNonceExtractor.extractNonce(new byte[1])).isNull();
     }
 
-    private static byte[] buildEip7702RawTx(long nonce) throws Exception {
+    private static byte[] buildEip7702RawTx(long nonce) throws DecoderException {
         final var chainId = Hex.decodeHex("80");
         final var fee = Hex.decodeHex("2f");
         final var toAddress = Hex.decodeHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181");
@@ -122,7 +123,7 @@ final class EthereumTransactionNonceExtractorTest {
         return RLPEncoder.sequence(Integers.toBytes(4), rlpList);
     }
 
-    private static byte[] buildEip7702RawTxWithEmptyAuthList(long nonce) throws Exception {
+    private static byte[] buildEip7702RawTxWithEmptyAuthList(long nonce) throws DecoderException {
         final var chainId = Hex.decodeHex("80");
         final var fee = Hex.decodeHex("2f");
         final var toAddress = Hex.decodeHex("7e3a9eaf9bcc39e2ffa38eb30bf7a93feacbc181");
