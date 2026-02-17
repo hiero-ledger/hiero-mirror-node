@@ -4,6 +4,7 @@ Feature: Ethereum transactions Coverage Feature
   Scenario Outline: Validate Ethereum Contract create and call
 
   Given I successfully created a signer account with an EVM address alias
+  Then I estimate gas and execute hollow account creation using ethereum transaction
 
   Given I successfully create contract by Legacy ethereum transaction
   Then the mirror node REST API should return status <httpStatusCode> for the eth contract creation transaction
@@ -21,7 +22,3 @@ Feature: Ethereum transactions Coverage Feature
   Examples:
     | httpStatusCode |
     | 200            |
-
-  Scenario: Validate gas estimate vs actual gas for hollow account creation using ethereum transaction
-    Given I successfully created a signer account with an EVM address alias
-    Then I estimate gas and execute hollow account creation using ethereum transaction
