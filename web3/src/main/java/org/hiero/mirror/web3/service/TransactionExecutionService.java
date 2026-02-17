@@ -78,10 +78,10 @@ public class TransactionExecutionService {
 
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
-        if (params instanceof ContractDebugParameters
+        if (params instanceof ContractDebugParameters debugParams
                 && params.getEthereumData() != null
                 && !params.getEthereumData().isEmpty()) {
-            transactionBody = buildEthereumTransactionBody(params);
+            transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
@@ -202,7 +202,7 @@ public class TransactionExecutionService {
                 .build();
     }
 
-    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+    private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
@@ -220,14 +220,11 @@ public class TransactionExecutionService {
      *  Overwrite the sender account nonce in the state if the nonce from the txn is different from the one stored in
      *  the state, to bypass the nonce verification during transaction replay.
      */
-    private void patchSenderNonce(final CallServiceParameters params) {
-        if (params.getSender().isZero() && params.getValue() == 0L) {
+    private void patchSenderNonce(final ContractDebugParameters params) {
+        if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
         final long nonce = populateEthTxData(params.getEthereumData().toArray()).nonce();
-        if (!ContractCallContext.isInitialized()) {
-            return;
-        }
         final var senderId = getSenderAccountIDAsNum(params.getSender());
         final var account = accountReadableKVState.get(senderId);
         if (account != null && account.ethereumNonce() != nonce) {
