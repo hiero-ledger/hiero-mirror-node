@@ -5,7 +5,9 @@ package org.hiero.mirror.monitor.publish.generator;
 import static org.hiero.mirror.monitor.OperatorProperties.DEFAULT_OPERATOR_ACCOUNT_ID;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.google.common.base.Suppliers;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validation;
@@ -33,6 +35,10 @@ import reactor.core.publisher.Flux;
 @CustomLog
 public class ConfigurableTransactionGenerator implements TransactionGenerator {
 
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES, true)
+            .build();
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final ExpressionConverter expressionConverter;
@@ -108,9 +114,8 @@ public class ConfigurableTransactionGenerator implements TransactionGenerator {
     private TransactionSupplier<?> convert() {
         Map<String, String> convertedProperties = expressionConverter.convert(properties.getProperties());
         Map<String, Object> correctedProperties = scenarioPropertiesAggregator.aggregateProperties(convertedProperties);
-        TransactionSupplier<?> supplier = new ObjectMapper()
-                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-                .convertValue(correctedProperties, properties.getType().getSupplier());
+        final var supplier = OBJECT_MAPPER.convertValue(
+                correctedProperties, properties.getType().getSupplier().get().getClass());
 
         validateSupplier(supplier);
 

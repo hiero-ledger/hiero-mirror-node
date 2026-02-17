@@ -32,7 +32,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,9 +62,9 @@ class SystemFileLoaderTest {
     @BeforeEach
     void setup() {
         systemEntity = new SystemEntity(commonProperties);
-        final var mirrorNodeEvmProperties = new MirrorNodeEvmProperties();
-        systemFileLoader = new SystemFileLoader(mirrorNodeEvmProperties, fileDataRepository, systemEntity);
-        configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
+        final var evmProperties = new EvmProperties();
+        systemFileLoader = new SystemFileLoader(evmProperties, fileDataRepository, systemEntity);
+        configuration = evmProperties.getVersionedConfiguration();
     }
 
     @Test

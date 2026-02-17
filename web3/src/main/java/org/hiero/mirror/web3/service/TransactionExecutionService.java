@@ -18,9 +18,11 @@ import com.hedera.hapi.node.base.TransactionID;
 import com.hedera.hapi.node.contract.ContractCallTransactionBody;
 import com.hedera.hapi.node.contract.ContractCreateTransactionBody;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
+import com.hedera.hapi.node.contract.EthereumTransactionBody;
 import com.hedera.hapi.node.state.primitives.ProtoBytes;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.hapi.node.transaction.TransactionRecord;
+import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
@@ -39,14 +41,14 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
+import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.tracing.OperationTracer;
 
 @Named
 @CustomLog
@@ -56,12 +58,11 @@ public class TransactionExecutionService {
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
-    private static final String SENDER_IS_SMART_CONTRACT = "Sender account is a smart contract.";
 
     private final AccountReadableKVState accountReadableKVState;
     private final AliasesReadableKVState aliasesReadableKVState;
     private final CommonProperties commonProperties;
-    private final MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private final EvmProperties evmProperties;
     private final OpcodeActionTracer opcodeActionTracer;
     private final MirrorOperationActionTracer mirrorOperationActionTracer;
     private final SystemEntity systemEntity;
@@ -69,14 +70,18 @@ public class TransactionExecutionService {
 
     public EvmTransactionResult execute(final CallServiceParameters params, final long estimatedGas) {
         final var isContractCreate = params.getReceiver().isZero();
-        final var configuration = mirrorNodeEvmProperties.getVersionedConfiguration();
+        final var configuration = evmProperties.getVersionedConfiguration();
         final var maxLifetime =
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
         TransactionBody transactionBody;
         EvmTransactionResult result;
-        if (isContractCreate) {
+        if (params instanceof ContractDebugParameters
+                && params.getEthereumData() != null
+                && !params.getEthereumData().isEmpty()) {
+            transactionBody = buildEthereumTransactionBody(params);
+        } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
             transactionBody = buildContractCallTransactionBody(params, estimatedGas);
@@ -196,6 +201,15 @@ public class TransactionExecutionService {
                 .build();
     }
 
+    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
+        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
+                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                        params.getEthereumData().toArrayUnsafe()));
+        return defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(ethereumTransactionBuilder.build())
+                .build();
+    }
+
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
                 .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(address.toArrayUnsafe()))
@@ -213,8 +227,6 @@ public class TransactionExecutionService {
         final var account = accountReadableKVState.get(accountIDNum);
         if (account == null) {
             throwPayerAccountNotFoundException(SENDER_NOT_FOUND);
-        } else if (account.smartContract()) {
-            throwPayerAccountNotFoundException(SENDER_IS_SMART_CONTRACT);
         } else if (!account.hasKey() || account.key().equals(IMMUTABILITY_SENTINEL_KEY)) {
             // If the account is hollow, complete it in the state as a workaround
             // as this happens in HandleWorkflow in hedera-app but calling the
@@ -256,10 +268,10 @@ public class TransactionExecutionService {
         throw new MirrorEvmTransactionException(PAYER_ACCOUNT_NOT_FOUND, message, StringUtils.EMPTY);
     }
 
-    private OperationTracer[] getOperationTracers() {
+    private ActionSidecarContentTracer[] getOperationTracers() {
         return ContractCallContext.get().getOpcodeTracerOptions() != null
-                ? new OperationTracer[] {opcodeActionTracer}
-                : new OperationTracer[] {mirrorOperationActionTracer};
+                ? new ActionSidecarContentTracer[] {opcodeActionTracer}
+                : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
 
     private SequencedCollection<String> populateChildTransactionErrors(

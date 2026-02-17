@@ -66,7 +66,7 @@ public abstract class AbstractSharedTopicListenerTest extends AbstractTopicListe
                 .expectNext(1L, 2L)
                 .thenAwait(Duration.ofMillis(500L)) // stall to overrun backpressure buffer
                 .thenRequest(Long.MAX_VALUE)
-                .thenConsumeWhile(n -> n < numMessages)
+                .expectNextCount(maxBufferSize)
                 .expectErrorMatches(Exceptions::isOverflow)
                 .verify(Duration.ofMillis(1000L));
 

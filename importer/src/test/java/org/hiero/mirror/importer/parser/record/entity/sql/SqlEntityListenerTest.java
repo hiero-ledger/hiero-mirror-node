@@ -85,6 +85,7 @@ import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.HookStorageChangeRepository;
 import org.hiero.mirror.importer.repository.HookStorageRepository;
+import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.hiero.mirror.importer.repository.LiveHashRepository;
 import org.hiero.mirror.importer.repository.NetworkFreezeRepository;
 import org.hiero.mirror.importer.repository.NetworkStakeRepository;
@@ -142,6 +143,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private final HookRepository hookRepository;
     private final HookStorageChangeRepository hookStorageChangeRepository;
     private final HookStorageRepository hookStorageRepository;
+    private final LedgerRepository ledgerRepository;
     private final LiveHashRepository liveHashRepository;
     private final NetworkFreezeRepository networkFreezeRepository;
     private final NetworkStakeRepository networkStakeRepository;
@@ -1075,6 +1077,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
+        entityUpdate.setDelegationAddress(domainBuilder.bytes(20));
         entityUpdate.setExpirationTimestamp(500L);
         entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);
@@ -1319,6 +1322,42 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         assertThat(fileDataRepository.findAll()).containsExactlyInAnyOrder(fileData1, fileData2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onLedger(int commitIndex) {
+        // given
+        // Note in reality, there should be only one network and exactly one successful LedgerIdPublish transaction.
+        // The focus of the test is the correctness of the listener and upsert SQL
+        var ledgerAUpdate1 = domainBuilder.ledger().get();
+        var ledgerBUpdate1 = domainBuilder.ledger().get();
+
+        // when
+        sqlEntityListener.onLedger(ledgerAUpdate1);
+        sqlEntityListener.onLedger(ledgerBUpdate1);
+
+        // then
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+            assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate1, ledgerBUpdate1);
+        }
+
+        // when
+        var ledgerAUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
+                .get();
+        var ledgerBUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
+                .get();
+        sqlEntityListener.onLedger(ledgerAUpdate2);
+        sqlEntityListener.onLedger(ledgerBUpdate2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate2, ledgerBUpdate2);
     }
 
     @Test
@@ -3753,7 +3792,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var expectedPrevious = hookDelete.toBuilder().build();
         expectedPrevious.setTimestampUpper(hookCreate.getTimestampLower() + 1);
         expectedPrevious.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
-        expectedPrevious.setType(HookType.LAMBDA);
+        expectedPrevious.setType(HookType.EVM);
         assertThat(hookRepository.findAll()).containsExactly(hookCreate);
         assertThat(findHistory(Hook.class)).containsExactly(expectedPrevious);
     }
@@ -3785,7 +3824,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3822,7 +3861,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             var expectedDelete = hookDelete.toBuilder()
                     .deleted(true)
                     .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                    .type(HookType.LAMBDA)
+                    .type(HookType.EVM)
                     .timestampRange(Range.atLeast(deletedTimestamp))
                     .build();
             // Merge Changes
@@ -3857,7 +3896,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookCreate2 = hookCreate.toBuilder()
@@ -3908,7 +3947,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3917,7 +3956,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedHookDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         if (commitIndex > 1) {
@@ -3953,7 +3992,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3979,7 +4018,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
         expectedDelete.setTimestampUpper(createdTimestamp + 101);
 
@@ -4010,7 +4049,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookDelete = Hook.builder()
@@ -4060,7 +4099,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then - hook should be persisted with default values for missing fields
         var expectedHook = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // database default
-                .type(HookType.LAMBDA) // database default
+                .type(HookType.EVM) // database default
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(expectedHook);

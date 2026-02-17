@@ -232,7 +232,7 @@ redis:
   kubectl:
     image:
       repository: rancher/kubectl
-      tag: v1.33.4
+      tag: v1.34.3
   metrics:
     image:
       repository: bitnamilegacy/redis-exporter
@@ -345,6 +345,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1
@@ -409,6 +413,10 @@ stackgres:
       wal_init_zero: "off"  # Not needed with ZFS
       wal_recycle: "off"  # Not needed with ZFS
       work_mem: "12MB"
+    configurations:
+      patroni:
+        dynamicConfig:
+          failsafe_mode: "true"
     enableEnvoy: false
     enablePostgresUtil: true
     instances: 1

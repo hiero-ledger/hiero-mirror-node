@@ -7,6 +7,9 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class Constants {
 
+    // Headers
+    public static final String APPLICATION_JSON = "application/json;charset=UTF-8";
+
     // Native query parameter names
     public static final String CONSENSUS_TIMESTAMP = "consensus_timestamp";
 

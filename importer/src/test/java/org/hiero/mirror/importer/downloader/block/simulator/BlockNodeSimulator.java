@@ -88,7 +88,8 @@ public final class BlockNodeSimulator implements AutoCloseable {
         validateState(started, "BlockNodeSimulator has not been started");
         var properties = new BlockNodeProperties();
         properties.setHost(host);
-        properties.setPort(port);
+        properties.setStatusPort(port);
+        properties.setStreamingPort(port);
         return properties;
     }
 

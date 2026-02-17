@@ -7,7 +7,7 @@ import static org.hiero.mirror.web3.utils.ContractCallTestUtil.FIRST_USER_ENTITY
 import static org.mockito.Mockito.when;
 
 import org.hiero.mirror.web3.ContextExtension;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ class EntityIdSingletonTest {
 
     @BeforeEach
     void setup() {
-        entityIdSingleton = new EntityIdSingleton(entityRepository, new MirrorNodeEvmProperties());
+        entityIdSingleton = new EntityIdSingleton(entityRepository, new EvmProperties());
     }
 
     @Test

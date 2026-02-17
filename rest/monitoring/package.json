@@ -1,12 +1,12 @@
 {
   "name": "@hiero-ledger/mirror-monitor",
-  "version": "0.146.0-SNAPSHOT",
+  "version": "0.149.0-SNAPSHOT",
   "description": "Mirror Node Monitor",
   "type": "module",
   "main": "server.js",
   "private": true,
   "engines": {
-    "node": ">= 22"
+    "node": ">= 24"
   },
   "scripts": {
     "dev": "nodemon --import=extensionless/register server.js",
@@ -16,15 +16,14 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "abort-controller": "3.0.0",
     "compression": "1.8.1",
-    "cors": "2.8.5",
+    "cors": "2.8.6",
     "express": "5.2.1",
     "extend": "3.0.2",
     "extensionless": "2.0.6",
-    "lodash": "4.17.21",
+    "lodash": "4.17.23",
     "log4js": "6.9.1",
-    "mathjs": "15.1.0",
+    "mathjs": "15.1.1",
     "parse-duration": "2.1.5",
     "pretty-ms": "9.3.0"
   },

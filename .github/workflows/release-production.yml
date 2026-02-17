@@ -43,12 +43,12 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Get tag
         run: echo "TAG=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV
@@ -58,16 +58,16 @@ jobs:
         run: echo "CONTEXT=rest/monitoring" >> $GITHUB_ENV
 
       - name: Install JDK
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
-          distribution: "temurin"
-          java-version: 21
+          distribution: temurin
+          java-version: 25
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
+        uses: gradle/actions/setup-gradle@f29f5a9d7b09a7c6b29859002d29d24e1674c884 # v4
 
       - name: Authenticate to Google Cloud
-        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
+        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
         with:
           service_account: "mirrornode-gh-actions-sa@mirrornode.iam.gserviceaccount.com"
           workload_identity_provider: "projects/521285740332/locations/global/workloadIdentityPools/mirrornode-gh-actions/providers/mirrornode-gh-actions"
@@ -97,7 +97,7 @@ jobs:
           version: latest
 
       - name: Build and push images
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           annotations: "index,manifest,manifest-descriptor:com.googleapis.cloudmarketplace.product.service.name=services/hedera-mirror-node-mirror-node-public.cloudpartnerservices.goog"
           build-args: VERSION=${{env.TAG}}
@@ -118,15 +118,15 @@ jobs:
       contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Publish helm chart
-        uses: step-security/helm-gh-pages@616180123f50f1296942fd9982119baa053e1daf # v1.7.5
+        uses: step-security/helm-gh-pages@2826baf4d1d58b2809163c3839154c16dcc7143d # v1.7.7
         with:
           target_dir: charts
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -144,16 +144,16 @@ jobs:
       MPDEV: "/home/runner/mpdev"
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Authenticate to Google Cloud
         id: google-auth
-        uses: step-security/google-github-auth@f0e5c257a9534a30b5df12f43329c1eb7b85a5be # v3.0.0
+        uses: step-security/google-github-auth@57c51210cb4d85d8a5d39dc4c576c79bd693f914 # v3.0.1
         with:
           workload_identity_provider: "projects/798248771094/locations/global/workloadIdentityPools/default-pool/providers/gh-provider"
           service_account: "container-publisher@mirror-node-public.iam.gserviceaccount.com"
@@ -170,7 +170,7 @@ jobs:
         run: curl --retry 3 -fsL https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 
       - name: Create k3d cluster
-        run: k3d cluster create mirror --agents 1 --wait --image rancher/k3s:v1.32.3-k3s1
+        run: k3d cluster create mirror --agents 1 --wait --image rancher/k3s:v1.34.3-k3s1
 
       - name: Get tag
         run: echo "TAG=${GITHUB_REF#refs/*/v}" >> $GITHUB_ENV

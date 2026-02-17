@@ -13,6 +13,9 @@ import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.STATE_CHANG
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRACE_DATA;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_OUTPUT;
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.TRANSACTION_RESULT;
+import static org.hiero.mirror.common.util.DomainUtils.bytesToHex;
+import static org.hiero.mirror.common.util.DomainUtils.timestampInNanosMax;
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
@@ -37,8 +40,8 @@ import lombok.experimental.NonFinal;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
-import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -56,7 +59,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .size(size)
                 .version(VERSION);
 
@@ -67,7 +69,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         readBlockHeader(context);
         readRounds(context);
-        readNonTransactionStateChanges(context);
         readBlockFooter(context);
         readBlockProof(context);
 
@@ -94,8 +95,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         }
 
         final var blockFooter = blockItem.getBlockFooter();
-        context.getBlockFile()
-                .previousHash(DomainUtils.bytesToHex(DomainUtils.toBytes(blockFooter.getPreviousBlockRootHash())));
+        context.getBlockFile().previousHash(bytesToHex(toBytes(blockFooter.getPreviousBlockRootHash())));
     }
 
     private void readBlockHeader(final ReaderContext context) {
@@ -127,7 +127,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         context.getBlockFile().blockProof(blockItem.getBlockProof());
 
-        // Read remaining blockProof block items. In a later release, implement new block & state merkle tree support
+        // Read remaining blockProof block items. In a later release, implement support of multiple blockProof items,
+        // primarily for wrapped record files which come with both SignedRecordFileProof and StateProof
         while (context.readBlockItemFor(BLOCK_PROOF) != null) {
             log.debug("Skip remaining block proof block items");
         }
@@ -175,8 +176,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     final var stateChanges = protoBlockItem.getStateChanges();
                     if (!Objects.equals(
                             transactionResult.getConsensusTimestamp(), stateChanges.getConsensusTimestamp())) {
-                        context.setLastMetaTimestamp(
-                                DomainUtils.timestampInNanosMax(stateChanges.getConsensusTimestamp()));
+                        context.setLastMetaTimestamp(timestampInNanosMax(stateChanges.getConsensusTimestamp()));
                         break;
                     }
 
@@ -193,8 +193,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .build();
-                context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
+
+                final var blockFileBuilder = context.getBlockFile();
+                blockFileBuilder.item(blockTransaction);
+                if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
+                    blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
+                }
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(
@@ -206,26 +211,7 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         BlockItem blockItem;
         while ((blockItem = context.readBlockItemFor(ROUND_HEADER)) != null) {
             context.getBlockFile().onNewRound(blockItem.getRoundHeader().getRoundNumber());
-            readNonTransactionStateChanges(context);
             readEvents(context);
-            readNonTransactionStateChanges(context);
-        }
-    }
-
-    /**
-     * Read non-transaction state changes. There are three possible places for such state changes
-     * - in a network's genesis block, between the first round header and the first event header
-     * - at the end of a round, right before the next round header
-     * - before block proof
-     *
-     * @param context - The reader context
-     */
-    private void readNonTransactionStateChanges(ReaderContext context) {
-        BlockItem blockItem;
-        while ((blockItem = context.readBlockItemFor(STATE_CHANGES)) != null) {
-            // read all non-transaction state changes
-            context.setLastMetaTimestamp(
-                    DomainUtils.timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp()));
         }
     }
 
@@ -257,6 +243,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         @NonFinal
         @Nullable
+        private BlockTransaction lastChildTransaction;
+
+        @NonFinal
+        @Nullable
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
 
@@ -271,36 +261,41 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         SignedTransactionInfo getSignedTransaction() {
             final var blockItemProto = readBlockItemFor(SIGNED_TRANSACTION);
             if (blockItemProto != null) {
-                return new SignedTransactionInfo(DomainUtils.toBytes(blockItemProto.getSignedTransaction()), false);
+                return new SignedTransactionInfo(toBytes(blockItemProto.getSignedTransaction()), false);
             }
 
             if (batchBody != null && batchIndex < batchBody.getTransactionsCount()) {
-                return new SignedTransactionInfo(DomainUtils.toBytes(batchBody.getTransactions(batchIndex++)), true);
+                return new SignedTransactionInfo(toBytes(batchBody.getTransactions(batchIndex++)), true);
             }
 
             return null;
         }
 
         /**
-         * Returns the current block item if it matches the itemCase, and advances the index. If no match, index is not
-         * changed
+         * Returns the current block item if it matches the itemCase, and advances the index. Index can also advance
+         * until consecutive non-transaction statechanges block items are read
+         *
          * @param itemCase - block item case
          * @return The matching block item, or null
          */
         @Nullable
         BlockItem readBlockItemFor(final BlockItem.ItemCase itemCase) {
-            if (index >= blockItems.size()) {
-                return null;
+            while (index < blockItems.size()) {
+                final var blockItem = blockItems.get(index);
+                final var currentItemCase = blockItem.getItemCase();
+                if (currentItemCase == itemCase) {
+                    consumeBlockItem(blockItem);
+                    return blockItem;
+                } else if (shouldSkip(currentItemCase, itemCase)) {
+                    consumeBlockItem(blockItem);
+                    lastMetaTimestamp =
+                            timestampInNanosMax(blockItem.getStateChanges().getConsensusTimestamp());
+                } else {
+                    return null;
+                }
             }
 
-            final var blockItem = blockItems.get(index);
-            if (blockItem.getItemCase() != itemCase) {
-                return null;
-            }
-
-            blockRootHashDigest.addBlockItem(blockItem);
-            index++;
-            return blockItem;
+            return null;
         }
 
         void resetBatchTransaction() {
@@ -324,12 +319,47 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 lastUserTransactionInBatch = lastBlockTransaction;
             }
 
+            // Link child transactions (e.g., hook executions) that share the same parent for intermediate
+            // contract storage changes. This uses the nextSibling chain to enable storage resolution
+            // for hook execution child transactions triggered by a parent transaction (e.g., crypto transfer)
+            if (lastChildTransaction != null
+                    && lastBlockTransaction.getParentConsensusTimestamp() != null
+                    && lastBlockTransaction
+                            .getParentConsensusTimestamp()
+                            .equals(lastChildTransaction.getParentConsensusTimestamp())) {
+                lastChildTransaction.setNextSibling(lastBlockTransaction);
+            }
+
+            // Track the last child transaction for linking siblings with the same parent
+            if (lastBlockTransaction.getParentConsensusTimestamp() != null) {
+                lastChildTransaction = lastBlockTransaction;
+            } else {
+                // Reset when we encounter a non-child transaction
+                lastChildTransaction = null;
+            }
+
             this.lastBlockTransaction = lastBlockTransaction;
             if (lastBlockTransaction.getTransactionBody().hasAtomicBatch()) {
                 this.batchIndex = 0;
                 this.batchBody = lastBlockTransaction.getTransactionBody().getAtomicBatch();
                 this.lastUserTransactionInBatch = null;
             }
+        }
+
+        private static boolean shouldSkip(final BlockItem.ItemCase actual, final BlockItem.ItemCase expected) {
+            // Skip a statechanges block item when the expected type is not statechanges / trace data / transaction
+            // output. Such a statechanges block item must be a non-transaction statechanges block item. When
+            // the expected type is either trace data or transaction output, the statechanges block item should not be
+            // skipped since it may belong to the current signed transaction
+            return actual != expected
+                    && actual == STATE_CHANGES
+                    && expected != TRACE_DATA
+                    && expected != TRANSACTION_OUTPUT;
+        }
+
+        private void consumeBlockItem(final BlockItem blockItem) {
+            blockRootHashDigest.addBlockItem(blockItem);
+            index++;
         }
     }
 

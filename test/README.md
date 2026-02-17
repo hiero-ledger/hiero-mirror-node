@@ -22,7 +22,7 @@ complex code underneath.
 
 ### Requirements
 
-- Java 21
+- Java
 
 ### Test Execution
 
@@ -39,6 +39,7 @@ include:
 | Name                                                                    | Default                                      | Description                                                                                                       |
 | ----------------------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `hiero.mirror.test.acceptance.backOffPeriod`                            | 5s                                           | The amount of time the client will wait before retrying a retryable failure.                                      |
+| `hiero.mirror.test.acceptance.childAccountBalance`                      | 0.1                                          | The amount of dollars to fund a child account.                                                                    |
 | `hiero.mirror.test.acceptance.createOperatorAccount`                    | true                                         | Whether to create a separate operator account to run the acceptance tests.                                        |
 | `hiero.mirror.test.acceptance.emitBackgroundMessages`                   | false                                        | Whether background topic messages should be emitted.                                                              |
 | `hiero.mirror.test.acceptance.feature.contractCallLocalEstimate`        | false                                        | Whether to execute additional ContractCallLocal queries to network node for additional gas estimate validation    |

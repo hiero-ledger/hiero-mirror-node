@@ -12,14 +12,15 @@ import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.StateChange;
 import com.hedera.hapi.block.stream.output.protoc.StateChanges;
-import com.hedera.hapi.block.stream.output.protoc.TransactionOutput;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.Block;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hedera.hapi.block.stream.protoc.RecordFileItem;
+import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hedera.hapi.platform.event.legacy.StateSignatureTransaction;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
+import com.hederahashgraph.api.proto.java.ContractCallTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
@@ -31,6 +32,7 @@ import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.util.Lists;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -48,48 +50,48 @@ public final class BlockStreamReaderTest {
 
     public static final List<BlockFile> TEST_BLOCK_FILES = List.of(
             BlockFile.builder()
-                    .consensusStart(1764733132492007719L)
-                    .consensusEnd(1764733132492007719L)
-                    .count(0L)
+                    .consensusStart(1770842061390565879L)
+                    .consensusEnd(1770842061390565879L)
+                    .count(1L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
-                    .index(25L)
-                    .name(BlockFile.getFilename(25, true))
+                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                    .index(7L)
+                    .name(BlockFile.getFilename(7, true))
                     .previousHash(
-                            "9cdd7fae144d0ba07b8a00a01d7056fb5e34c9507b8db520d41346f94e643f7d5524b4fd8ba4e5d05973d700e9835eee")
-                    .roundStart(810L)
-                    .roundEnd(844L)
+                            "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb")
+                    .roundStart(179L)
+                    .roundEnd(213L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1764733134591915512L)
-                    .consensusEnd(1764733134591915512L)
-                    .count(0L)
+                    .consensusStart(1770842063775529380L)
+                    .consensusEnd(1770842063775529380L)
+                    .count(1L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "a8ee79046f3184f124e05faf51c0d6f615f2551b5c9d2d42991a8a315cdd2ff7163b42b9c04d0d8f5631d075a78a7fd0")
-                    .index(26L)
-                    .name(BlockFile.getFilename(26, true))
+                            "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d")
+                    .index(8L)
+                    .name(BlockFile.getFilename(8, true))
                     .previousHash(
-                            "82c86f04bd1fc71a4ce0d7cb942073e0425f2d4e9cfd2d099a1671b2d5a226a152c1bee9e458fdb09ba65a02c3607b84")
-                    .roundStart(845L)
-                    .roundEnd(879L)
+                            "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                    .roundStart(214L)
+                    .roundEnd(248L)
                     .version(BlockStreamReader.VERSION)
                     .build(),
             BlockFile.builder()
-                    .consensusStart(1764733073872562823L)
-                    .consensusEnd(1764733073872563544L)
-                    .count(722L)
+                    .consensusStart(1770842078844243554L)
+                    .consensusEnd(1770842078844243554L)
+                    .count(0L)
                     .digestAlgorithm(DigestAlgorithm.SHA_384)
                     .hash(
-                            "87b30cd9634a24ab500b72fecba90bd51a6a1a6de5570b18aea4ccd22c8936c6b77dc7d9ab931de9e2558418945cb96d")
-                    .index(0L)
-                    .name(BlockFile.getFilename(0, true))
+                            "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9")
+                    .index(16L)
+                    .name(BlockFile.getFilename(16, true))
                     .previousHash(
-                            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
-                    .roundStart(1L)
-                    .roundEnd(1L)
+                            "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098")
+                    .roundStart(493L)
+                    .roundEnd(527L)
                     .version(BlockStreamReader.VERSION)
                     .build());
 
@@ -131,7 +133,6 @@ public final class BlockStreamReaderTest {
                 .bytes(blockStream.bytes())
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .recordFileItem(RecordFileItem.getDefaultInstance())
                 .size(blockStream.bytes().length)
                 .version(BlockStreamReader.VERSION)
@@ -269,6 +270,159 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
+    void readHookExecutionChildTransactions() {
+        // given - Create timestamps for parent and child transactions
+        var parentTransactionTimestamp = recordItemBuilder.timestamp();
+        var hookExecution1Timestamp = recordItemBuilder.timestamp();
+        var hookExecution2Timestamp = recordItemBuilder.timestamp();
+        var hookExecution3Timestamp = recordItemBuilder.timestamp();
+        var postParentTransactionTimestamp = recordItemBuilder.timestamp();
+
+        // Parent transaction (e.g., CryptoTransfer that triggers hooks)
+        var parentTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+        var parentStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(parentTransactionTimestamp)
+                .build();
+
+        // Hook execution child transactions with same parent
+        var hookExecution1Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution1Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        var hookExecution2Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution2Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        var hookExecution3Result = TransactionResult.newBuilder()
+                .setConsensusTimestamp(hookExecution3Timestamp)
+                .setParentConsensusTimestamp(parentTransactionTimestamp)
+                .setStatus(ResponseCodeEnum.SUCCESS)
+                .build();
+
+        // Unrelated transaction after hook executions
+        var postParentTransactionResult = TransactionResult.newBuilder()
+                .setConsensusTimestamp(postParentTransactionTimestamp)
+                .build();
+        var postParentStateChanges = StateChanges.newBuilder()
+                .setConsensusTimestamp(postParentTransactionTimestamp)
+                .build();
+
+        // Build block with parent and hook execution children
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction()) // parent transaction
+                .addItems(transactionResult(parentTransactionResult))
+                .addItems(stateChanges(parentStateChanges))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 1 - contract call
+                .addItems(transactionResult(hookExecution1Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 2 - contract call
+                .addItems(transactionResult(hookExecution2Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction(TransactionBody.newBuilder()
+                        .setContractCall(ContractCallTransactionBody.getDefaultInstance())
+                        .build())) // hook execution 3 - contract call
+                .addItems(transactionResult(hookExecution3Result))
+                .addItems(eventHeader())
+                .addItems(signedTransaction()) // post-parent transaction
+                .addItems(transactionResult(postParentTransactionResult))
+                .addItems(stateChanges(postParentStateChanges))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(1, true));
+
+        // when
+        var blockFile = reader.read(blockStream);
+        var items = blockFile.getItems();
+
+        // then
+        assertThat(items).hasSize(5);
+        var parent = items.get(0);
+        var hookExec1 = items.get(1);
+        var hookExec2 = items.get(2);
+        var hookExec3 = items.get(3);
+        var postParent = items.get(4);
+
+        // Verify parent relationships
+        assertThat(items).extracting(BlockTransaction::getParent).containsExactly(null, parent, parent, parent, null);
+
+        // Verify all hook executions share the same state change context from parent
+        assertThat(parent.getStateChangeContext())
+                .isEqualTo(hookExec1.getStateChangeContext())
+                .isEqualTo(hookExec2.getStateChangeContext())
+                .isEqualTo(hookExec3.getStateChangeContext())
+                .isNotEqualTo(postParent.getStateChangeContext());
+
+        // Verify hook execution children are linked via nextSibling
+        assertThat(hookExec1.getNextSibling()).isEqualTo(hookExec2);
+        assertThat(hookExec2.getNextSibling()).isEqualTo(hookExec3);
+        assertThat(hookExec3.getNextSibling()).isNull();
+
+        // Verify parent and unrelated transaction have no nextSibling
+        assertThat(parent.getNextSibling()).isNull();
+        assertThat(postParent.getNextSibling()).isNull();
+
+        // Verify nextInBatch is not used for hook executions
+        assertThat(items).extracting(BlockTransaction::getNextInBatch).containsOnlyNulls();
+    }
+
+    @Test
+    void readLedgerIdPublicationTransactions() {
+        // given
+        var defaultTransactionBody = TransactionBody.newBuilder()
+                .setLedgerIdPublication(LedgerIdPublicationTransactionBody.getDefaultInstance())
+                .build();
+        var firstTimestamp = recordItemBuilder.timestamp();
+        var secondTimestamp = recordItemBuilder.timestamp();
+        var thirdTimestamp = recordItemBuilder.timestamp();
+        var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(eventHeader())
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction(defaultTransactionBody))
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(thirdTimestamp)
+                        .setStatus(ResponseCodeEnum.INVALID_SIGNATURE)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        var blockStream = createBlockStream(block, null, BlockFile.getFilename(0, true));
+
+        // when
+        var actual = reader.read(blockStream);
+
+        // then
+        assertThat(actual.getLastLedgerIdPublicationTransaction())
+                .returns(DomainUtils.timestampInNanosMax(secondTimestamp), BlockTransaction::getConsensusTimestamp);
+    }
+
+    @Test
     void readBatchTransactionsNoTransactionResultForSkippedInnerTransactions() {
         // given
         var batchTransactionResult = TransactionResult.newBuilder()
@@ -351,8 +505,10 @@ public final class BlockStreamReaderTest {
     @ValueSource(booleans = {true, false})
     void mixedStateChanges(final boolean postConsensusNodeRelease68) {
         // given non-transaction state changes
-        // - appear after first round header and before the first even header in the round
-        // - appear right before the next round header
+        // - in a network's genesis block, between the first round header and the first event header
+        // - at the end of a round, right before the next round header
+        // - at the end of an event. Either there are no signed transactions, or the trailing statechanges don't belong
+        //   to the preceding transaction unit
         // - right before block proof
         final var nonTransactionStateChangesType1 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
@@ -370,6 +526,9 @@ public final class BlockStreamReaderTest {
         final var nonTransactionStateChangeType3 = StateChanges.newBuilder()
                 .setConsensusTimestamp(recordItemBuilder.timestamp())
                 .build();
+        final var nonTransactionStateChangeType4 = StateChanges.newBuilder()
+                .setConsensusTimestamp(recordItemBuilder.timestamp())
+                .build();
         final var blockBuilder = Block.newBuilder()
                 .addItems(blockHeader())
                 .addItems(roundHeader())
@@ -378,10 +537,12 @@ public final class BlockStreamReaderTest {
                 .addItems(stateChanges(nonTransactionStateChangesType2))
                 .addItems(roundHeader())
                 .addItems(eventHeader())
+                .addItems(stateChanges(nonTransactionStateChangeType3))
+                .addItems(eventHeader())
                 .addItems(signedTransaction())
                 .addItems(transactionResult(transactionResult))
                 .addItems(stateChanges(transactionStateChanges))
-                .addItems(stateChanges(nonTransactionStateChangeType3));
+                .addItems(stateChanges(nonTransactionStateChangeType4));
         if (postConsensusNodeRelease68) {
             blockBuilder.addItems(blockFooter()).addItems(blockProof());
         }
@@ -580,20 +741,16 @@ public final class BlockStreamReaderTest {
         return BlockItem.newBuilder().setStateChanges(stateChanges).build();
     }
 
-    private BlockItem transactionOutput(TransactionOutput transactionOutput) {
-        return BlockItem.newBuilder().setTransactionOutput(transactionOutput).build();
-    }
-
     private BlockItem transactionResult(TransactionResult transactionResult) {
         return BlockItem.newBuilder().setTransactionResult(transactionResult).build();
     }
 
     private static BlockStream createBlockStream(Block block, byte[] bytes, String filename) {
         if (bytes == null) {
-            bytes = TestUtils.gzip(block.toByteArray());
+            bytes = TestUtils.zstd(block.toByteArray());
         }
 
-        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id(), TestUtils.id());
+        return new BlockStream(block.getItemsList(), bytes, filename, TestUtils.id());
     }
 
     @SneakyThrows
@@ -606,13 +763,13 @@ public final class BlockStreamReaderTest {
     @SneakyThrows
     private static Stream<Arguments> readTestArgumentsProvider() {
         return TEST_BLOCK_FILES.stream().map(blockFile -> {
-            var file = TestUtils.getResource("data/blockstreams/" + blockFile.getName());
-            var streamFileData = StreamFileData.from(file);
-            byte[] bytes = streamFileData.getBytes();
-            var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
+            final var bucketFilename = StreamType.BLOCK.toBucketFilename(blockFile.getName());
+            final var file = TestUtils.getResource("data/blockstreams/" + bucketFilename);
+            final var streamFileData = StreamFileData.from(file);
+            final byte[] bytes = streamFileData.getBytes();
+            final var blockStream = createBlockStream(getBlock(streamFileData), bytes, blockFile.getName());
             blockFile.setBytes(bytes);
             blockFile.setLoadStart(blockStream.loadStart());
-            blockFile.setNodeId(blockStream.nodeId());
             blockFile.setSize(bytes.length);
             return Arguments.of(blockStream, blockFile);
         });

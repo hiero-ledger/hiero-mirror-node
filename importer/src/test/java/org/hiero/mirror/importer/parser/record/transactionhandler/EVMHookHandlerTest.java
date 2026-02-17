@@ -16,13 +16,13 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.Range;
 import com.google.common.primitives.Bytes;
 import com.google.protobuf.ByteString;
+import com.hedera.hapi.node.hooks.legacy.EvmHook;
+import com.hedera.hapi.node.hooks.legacy.EvmHookMappingEntries;
+import com.hedera.hapi.node.hooks.legacy.EvmHookMappingEntry;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
-import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
-import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntries;
-import com.hedera.hapi.node.hooks.legacy.LambdaMappingEntry;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
 import com.hedera.services.stream.proto.StorageChange;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -84,9 +84,9 @@ final class EVMHookHandlerTest {
         final var trimmedValue = Bytes.concat(new byte[] {0x1}, domainBuilder.bytes(15));
         final var value = leftPadBytes(trimmedValue, 32);
 
-        var lambdaEvmHook = LambdaEvmHook.newBuilder()
-                .addStorageUpdates(LambdaStorageUpdate.newBuilder()
-                        .setStorageSlot(LambdaStorageSlot.newBuilder()
+        var evmHook = EvmHook.newBuilder()
+                .addStorageUpdates(EvmHookStorageUpdate.newBuilder()
+                        .setStorageSlot(EvmHookStorageSlot.newBuilder()
                                 .setKey(ByteString.copyFrom(key))
                                 .setValue(ByteString.copyFrom(value)))
                         .build())
@@ -96,7 +96,7 @@ final class EVMHookHandlerTest {
         var hookCreationDetails = HookCreationDetails.newBuilder()
                 .setExtensionPoint(com.hedera.hapi.node.hooks.legacy.HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .setHookId(hookId)
-                .setLambdaEvmHook(lambdaEvmHook)
+                .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
                         .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())
@@ -125,7 +125,7 @@ final class EVMHookHandlerTest {
                 () -> assertThat(capturedHook.getAdminKey())
                         .isEqualTo(hookCreationDetails.getAdminKey().toByteArray()),
                 () -> assertThat(capturedHook.getExtensionPoint()).isEqualTo(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK),
-                () -> assertThat(capturedHook.getType()).isEqualTo(HookType.LAMBDA),
+                () -> assertThat(capturedHook.getType()).isEqualTo(HookType.EVM),
                 () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
@@ -150,12 +150,12 @@ final class EVMHookHandlerTest {
                 .setContractId(contractId.toContractID())
                 .build();
 
-        var lambdaEvmHook = LambdaEvmHook.newBuilder().setSpec(evmHookSpec).build();
+        var evmHook = EvmHook.newBuilder().setSpec(evmHookSpec).build();
 
         var hookCreationDetails = HookCreationDetails.newBuilder()
                 .setExtensionPoint(com.hedera.hapi.node.hooks.legacy.HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .setHookId(hookId)
-                .setLambdaEvmHook(lambdaEvmHook)
+                .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
                         .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())
@@ -180,7 +180,7 @@ final class EVMHookHandlerTest {
                 () -> assertThat(capturedHook.getAdminKey())
                         .isEqualTo(hookCreationDetails.getAdminKey().toByteArray()),
                 () -> assertThat(capturedHook.getExtensionPoint()).isEqualTo(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK),
-                () -> assertThat(capturedHook.getType()).isEqualTo(HookType.LAMBDA),
+                () -> assertThat(capturedHook.getType()).isEqualTo(HookType.EVM),
                 () -> assertThat(capturedHook.getOwnerId()).isEqualTo(entityId.getId()),
                 () -> assertThat(capturedHook.getCreatedTimestamp()).isEqualTo(consensusTimestamp),
                 () -> assertThat(capturedHook.getTimestampRange()).isEqualTo(Range.atLeast(consensusTimestamp)),
@@ -312,14 +312,14 @@ final class EVMHookHandlerTest {
         final var hookId = domainBuilder.id();
         final var ownerId = domainBuilder.entityId();
 
-        final var updates = new ArrayList<LambdaStorageUpdate>(numSlots);
+        final var updates = new ArrayList<EvmHookStorageUpdate>(numSlots);
         final var expectedStorageChanges = new ArrayList<HookStorageChange>(numSlots);
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
                 .ownerId(ownerId.getId());
 
-        updates.add(LambdaStorageUpdate.getDefaultInstance());
+        updates.add(EvmHookStorageUpdate.getDefaultInstance());
 
         for (int i = 0; i < numSlots; i++) {
             final var key = domainBuilder.bytes(32);
@@ -331,8 +331,8 @@ final class EVMHookHandlerTest {
             final var value =
                     ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
 
-            updates.add(LambdaStorageUpdate.newBuilder()
-                    .setStorageSlot(LambdaStorageSlot.newBuilder()
+            updates.add(EvmHookStorageUpdate.newBuilder()
+                    .setStorageSlot(EvmHookStorageSlot.newBuilder()
                             .setKey(ByteString.copyFrom(key))
                             .setValue(ByteString.copyFrom(value)))
                     .build());
@@ -351,7 +351,7 @@ final class EVMHookHandlerTest {
         verify(entityListener, times(numSlots)).onHookStorageChange(captor.capture());
         assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
-                .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
+                .contains("Recoverable error. Ignoring EvmHookStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
     }
 
@@ -369,7 +369,7 @@ final class EVMHookHandlerTest {
                 .hookId(hookId)
                 .ownerId(ownerId.getId());
 
-        final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
+        final var entriesBuilder = EvmHookMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
 
         for (int i = 0; i < numEntries; i++) {
             final var key = domainBuilder.bytes(keySize);
@@ -380,7 +380,7 @@ final class EVMHookHandlerTest {
                     .array();
             final var value =
                     ByteBuffer.allocate(32).put(leadingZeros).put(trimmedValue).array();
-            entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+            entriesBuilder.addEntries(EvmHookMappingEntry.newBuilder()
                     .setKey(ByteString.copyFrom(key))
                     .setValue(ByteString.copyFrom(value)));
             expectedStorageChanges.add(hookStorageChangeBuilder
@@ -390,20 +390,20 @@ final class EVMHookHandlerTest {
                     .build());
         }
 
-        final var update = LambdaStorageUpdate.newBuilder()
+        final var update = EvmHookStorageUpdate.newBuilder()
                 .setMappingEntries(entriesBuilder.build())
                 .build();
 
         // when
         eVMHookHandler.processStorageUpdates(
-                consensusTimestamp, hookId, ownerId, List.of(update, LambdaStorageUpdate.getDefaultInstance()));
+                consensusTimestamp, hookId, ownerId, List.of(update, EvmHookStorageUpdate.getDefaultInstance()));
 
         // then
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
         assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
-                .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
+                .contains("Recoverable error. Ignoring EvmHookStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
     }
 
@@ -415,7 +415,7 @@ final class EVMHookHandlerTest {
         final var hookId = domainBuilder.id();
         final var ownerId = domainBuilder.entityId();
         final var mappingSlot = domainBuilder.bytes(4);
-        final var entriesBuilder = LambdaMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
+        final var entriesBuilder = EvmHookMappingEntries.newBuilder().setMappingSlot(ByteString.copyFrom(mappingSlot));
         final var hookStorageChangeBuilder = HookStorageChange.builder()
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
@@ -427,7 +427,7 @@ final class EVMHookHandlerTest {
             final var trimmedValue = Bytes.concat(new byte[] {0x1}, domainBuilder.bytes(16));
             final var value = leftPadBytes(trimmedValue, 32);
 
-            entriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+            entriesBuilder.addEntries(EvmHookMappingEntry.newBuilder()
                     .setPreimage(ByteString.copyFrom(preimage))
                     .setValue(ByteString.copyFrom(value)));
             expectedStorageChanges.add(hookStorageChangeBuilder
@@ -437,20 +437,20 @@ final class EVMHookHandlerTest {
                     .build());
         }
 
-        final var update = LambdaStorageUpdate.newBuilder()
+        final var update = EvmHookStorageUpdate.newBuilder()
                 .setMappingEntries(entriesBuilder.build())
                 .build();
 
         // when
         eVMHookHandler.processStorageUpdates(
-                consensusTimestamp, hookId, ownerId, List.of(LambdaStorageUpdate.getDefaultInstance(), update));
+                consensusTimestamp, hookId, ownerId, List.of(EvmHookStorageUpdate.getDefaultInstance(), update));
 
         // then
         final var captor = ArgumentCaptor.forClass(HookStorageChange.class);
         verify(entityListener, times(numEntries)).onHookStorageChange(captor.capture());
         assertThat(captor.getAllValues()).containsExactlyInAnyOrderElementsOf(expectedStorageChanges);
         assertThat(output.getAll())
-                .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
+                .contains("Recoverable error. Ignoring EvmHookStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
     }
 
@@ -465,17 +465,17 @@ final class EVMHookHandlerTest {
                 .consensusTimestamp(consensusTimestamp)
                 .hookId(hookId)
                 .ownerId(ownerId.getId());
-        final var storageUpdates = new ArrayList<LambdaStorageUpdate>();
+        final var storageUpdates = new ArrayList<EvmHookStorageUpdate>();
 
         final byte[] key = domainBuilder.nonZeroBytes(16);
-        storageUpdates.add(LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+        storageUpdates.add(EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(DomainUtils.fromBytes(key))
                         .setValue(ByteString.copyFrom(domainBuilder.nonZeroBytes(32))))
                 .build());
         final byte[] value = domainBuilder.nonZeroBytes(32);
-        storageUpdates.add((LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+        storageUpdates.add((EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(DomainUtils.fromBytes(key))
                         .setValue(DomainUtils.fromBytes(value)))
                 .build()));
@@ -491,12 +491,12 @@ final class EVMHookHandlerTest {
         final byte[] mappingSlot = domainBuilder.bytes(4);
         byte[] preimage = domainBuilder.bytes(8);
         final var mappingEntriesBuilder =
-                LambdaMappingEntries.newBuilder().setMappingSlot(DomainUtils.fromBytes(mappingSlot));
+                EvmHookMappingEntries.newBuilder().setMappingSlot(DomainUtils.fromBytes(mappingSlot));
         mappingEntriesBuilder
-                .addEntries(LambdaMappingEntry.newBuilder()
+                .addEntries(EvmHookMappingEntry.newBuilder()
                         .setPreimage(DomainUtils.fromBytes(preimage))
                         .setValue(DomainUtils.fromBytes(domainBuilder.nonZeroBytes(24))))
-                .addEntries(LambdaMappingEntry.newBuilder()
+                .addEntries(EvmHookMappingEntry.newBuilder()
                         .setPreimage(DomainUtils.fromBytes(preimage))
                         .setValue(DomainUtils.fromBytes(value)));
         expectedStorageChanges.add(hookStorageChangeBuilder
@@ -505,17 +505,17 @@ final class EVMHookHandlerTest {
                 .valueWritten(value)
                 .build());
         preimage = domainBuilder.bytes(16);
-        mappingEntriesBuilder.addEntries(LambdaMappingEntry.newBuilder()
+        mappingEntriesBuilder.addEntries(EvmHookMappingEntry.newBuilder()
                 .setPreimage(DomainUtils.fromBytes(preimage))
                 .setValue(DomainUtils.fromBytes(domainBuilder.nonZeroBytes(24))));
-        storageUpdates.add(LambdaStorageUpdate.newBuilder()
+        storageUpdates.add(EvmHookStorageUpdate.newBuilder()
                 .setMappingEntries(mappingEntriesBuilder)
                 .build());
 
         // An explicit key slot overrides the last mapping entry
         final byte[] mappedKey = keccak256(keccak256(preimage), leftPadBytes(mappingSlot, 32));
-        storageUpdates.add(LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+        storageUpdates.add(EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(DomainUtils.fromBytes(mappedKey))
                         .setValue(DomainUtils.fromBytes(value)))
                 .build());
@@ -540,12 +540,12 @@ final class EVMHookHandlerTest {
         final var hookId = 7L;
         final var ownerId = domainBuilder.entityId();
 
-        final var updates = List.of(LambdaStorageUpdate.getDefaultInstance());
+        final var updates = List.of(EvmHookStorageUpdate.getDefaultInstance());
 
         eVMHookHandler.processStorageUpdates(consensusTimestamp, hookId, ownerId, updates);
 
         assertThat(output.getAll())
-                .contains("Recoverable error. Ignoring LambdaStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
+                .contains("Recoverable error. Ignoring EvmHookStorageUpdate=UPDATE_NOT_SET at consensus_timestamp="
                         + consensusTimestamp);
     }
 
@@ -630,12 +630,12 @@ final class EVMHookHandlerTest {
                 .setContractId(contractId.toContractID())
                 .build();
 
-        var lambdaEvmHook = LambdaEvmHook.newBuilder().setSpec(evmHookSpec).build();
+        var evmHook = EvmHook.newBuilder().setSpec(evmHookSpec).build();
 
         return HookCreationDetails.newBuilder()
                 .setExtensionPoint(com.hedera.hapi.node.hooks.legacy.HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .setHookId(hookId)
-                .setLambdaEvmHook(lambdaEvmHook)
+                .setEvmHook(evmHook)
                 .setAdminKey(com.hederahashgraph.api.proto.java.Key.newBuilder()
                         .setEd25519(com.google.protobuf.ByteString.copyFrom(adminKey))
                         .build())

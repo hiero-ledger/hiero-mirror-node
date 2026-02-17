@@ -24,10 +24,7 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.Key;
 import com.sun.jna.ptr.IntByReference;
 import com.swirlds.state.State;
-import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
@@ -36,14 +33,12 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.base.utility.CommonUtils;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -62,13 +57,12 @@ import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.tableusage.EndpointContext;
 import org.hiero.mirror.web3.Web3IntegrationTest;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.evm.utils.EvmTokenUtils;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
-import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hiero.mirror.web3.utils.ContractFunctionProviderRecord;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.TestWeb3jService;
@@ -78,7 +72,6 @@ import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.context.annotation.Import;
-import org.testcontainers.shaded.org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
@@ -109,7 +102,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected TestWeb3jService testWeb3jService;
 
     @Resource
-    protected MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    protected EvmProperties evmProperties;
 
     @Resource
     protected State state;
@@ -563,9 +556,9 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     /**
-     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers.
-     * This ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations.
-     * Use this when testing scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
+     * Method used to create an Entity of type account with evmAddress AND sufficient balance for value transfers. This
+     * ensures the account has DEFAULT_ACCOUNT_BALANCE and an evmAddress for alias operations. Use this when testing
+     * scenarios where value > 0, balance validation is enabled, AND evmAddress is required.
      *
      * @return Entity that is persisted in the database with evmAddress and sufficient balance
      */
@@ -803,21 +796,6 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         return Address.wrap(Bytes.wrap(evmAddress)).toHexString();
     }
 
-    protected void initializeState() throws InvocationTargetException, IllegalAccessException {
-        Method postConstructMethod = Arrays.stream(MirrorNodeState.class.getDeclaredMethods())
-                .filter(method -> method.isAnnotationPresent(PostConstruct.class))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("@PostConstruct method not found"));
-
-        postConstructMethod.setAccessible(true);
-        postConstructMethod.invoke(state);
-
-        final Map<String, String> propertiesMap = new ConcurrentHashMap<>();
-        propertiesMap.put("contracts.maxRefundPercentOfGasLimit", "100");
-        propertiesMap.put("contracts.maxGasPerSec", "15000000");
-        mirrorNodeEvmProperties.setProperties(propertiesMap);
-    }
-
     protected void persistRewardAccounts() {
         domainBuilder
                 .entity(systemEntity.nodeRewardAccount())
@@ -885,9 +863,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
      * @return the default account balance
      */
     private long getDefaultAccountBalance() {
-        return mirrorNodeEvmProperties.isValidatePayerBalance()
-                ? DEFAULT_ACCOUNT_BALANCE
-                : DEFAULT_SMALL_ACCOUNT_BALANCE;
+        return evmProperties.isValidatePayerBalance() ? DEFAULT_ACCOUNT_BALANCE : DEFAULT_SMALL_ACCOUNT_BALANCE;
     }
 
     public enum KeyType {

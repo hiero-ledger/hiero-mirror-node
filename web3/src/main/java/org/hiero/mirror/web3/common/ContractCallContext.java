@@ -64,6 +64,9 @@ public class ContractCallContext {
     private boolean isBalanceCall;
 
     @Setter
+    private long gasRemaining;
+
+    @Setter
     private long gasRequirement;
 
     @Setter

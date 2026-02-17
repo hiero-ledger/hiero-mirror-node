@@ -242,7 +242,7 @@ public class ContractFeature extends BaseContractFeature {
     @And("the mirror node REST API should indicate not found when using evm address to retrieve as a contract")
     public void verifyMirrorAPIContractNotFoundResponse() {
         try {
-            mirrorClient.getContractInfo(create2ChildContractEvmAddress);
+            mirrorClient.getContractInfoWithNotFound(create2ChildContractEvmAddress);
             fail("Did not expect to find contract at EVM address");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());
@@ -350,22 +350,13 @@ public class ContractFeature extends BaseContractFeature {
                                 .getAccountId()
                                 .toEvmAddress());
 
-        var createdIds = contractResult.getCreatedContractIds();
-        assertThat(createdIds).isNotEmpty();
-
         int amount = 0; // no payment in contract construction phase
-        int numCreatedIds = 2; // parent and child contract
         switch (contractExecutionStage) {
             case CREATION:
                 amount = 10000000;
-                assertThat(createdIds)
-                        .contains(deployedParentContract.contractId().toString());
                 assertThat(isEmptyHex(contractResult.getFunctionParameters())).isTrue();
                 break;
             case CALL:
-                numCreatedIds = 1;
-                assertThat(createdIds)
-                        .doesNotContain(deployedParentContract.contractId().toString());
                 assertThat(isEmptyHex(contractResult.getFunctionParameters())).isFalse();
                 break;
             default:
@@ -373,7 +364,6 @@ public class ContractFeature extends BaseContractFeature {
         }
 
         assertThat(contractResult.getAmount()).isEqualTo(amount);
-        assertThat(createdIds).hasSize(numCreatedIds);
     }
 
     private void executeCreateChildTransaction(int transferAmount) {

@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.restjava.controller;
 
+import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
+
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Topic;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @CustomLog
-@RequestMapping("/api/v1/topics")
+@RequestMapping(value = "/api/v1/topics", produces = APPLICATION_JSON)
 @RequiredArgsConstructor
 @RestController
 public class TopicController {

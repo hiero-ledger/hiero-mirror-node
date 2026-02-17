@@ -18,14 +18,14 @@ dependencies {
     implementation("org.springframework:spring-context-support")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
+    implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.retry:spring-retry")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation(project(path = ":common", configuration = "testClasses"))
-    testImplementation("org.mockito:mockito-inline")
     testImplementation("org.flywaydb:flyway-database-postgresql")
+    testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

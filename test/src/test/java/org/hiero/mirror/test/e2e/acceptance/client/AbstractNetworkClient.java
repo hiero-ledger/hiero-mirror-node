@@ -34,10 +34,11 @@ import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.response.NetworkTransactionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.retry.support.RetryTemplate;
+import org.springframework.core.retry.RetryException;
+import org.springframework.core.retry.RetryTemplate;
 
 @Data
-public abstract class AbstractNetworkClient implements Cleanable {
+abstract class AbstractNetworkClient implements Cleanable {
 
     private static final int MEMO_BYTES_MAX_LENGTH = 100;
 
@@ -85,7 +86,7 @@ public abstract class AbstractNetworkClient implements Cleanable {
 
     @SneakyThrows
     public <O, T extends Query<O, T>> O executeQuery(Supplier<Query<O, T>> querySupplier) {
-        return retryTemplate.execute(x -> querySupplier.get().execute(client));
+        return retryTemplate.execute(() -> querySupplier.get().execute(client));
     }
 
     @SneakyThrows
@@ -106,7 +107,7 @@ public abstract class AbstractNetworkClient implements Cleanable {
         }
 
         try {
-            var transactionResponse = retryTemplate.execute(x -> transaction.execute(client));
+            var transactionResponse = retryTemplate.execute(() -> transaction.execute(client));
             var transactionId = transactionResponse.transactionId;
 
             if (log.isDebugEnabled()) {
@@ -114,8 +115,8 @@ public abstract class AbstractNetworkClient implements Cleanable {
                 log.debug("Executed transaction {} with signatures: {}", transaction, publicKeys);
             }
             return transactionId;
-        } catch (PrecheckStatusException e) {
-            if (e.status == Status.INVALID_SIGNATURE) {
+        } catch (RetryException e) {
+            if (e.getCause() instanceof PrecheckStatusException pse && pse.status == Status.INVALID_SIGNATURE) {
                 var publicKeys = getSignatures(transaction);
                 log.error("Invalid signature for transaction {} signed with: {}", transaction, publicKeys);
             }
@@ -172,7 +173,7 @@ public abstract class AbstractNetworkClient implements Cleanable {
 
     @SneakyThrows
     public TransactionRecord getTransactionRecord(TransactionId transactionId) {
-        return retryTemplate.execute(x -> {
+        return retryTemplate.execute(() -> {
             var receipt = new TransactionReceiptQuery()
                     .setTransactionId(transactionId)
                     .execute(client);

@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
@@ -36,13 +37,13 @@ final class LinkFactoryImpl implements LinkFactory {
             return DEFAULT_LINKS;
         }
 
-        var servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-        if (servletRequestAttributes == null) {
+        final var servletRequestAttributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (servletRequestAttributes == null || servletRequestAttributes.getResponse() == null) {
             return DEFAULT_LINKS;
         }
 
         var request = servletRequestAttributes.getRequest();
-        var lastItem = CollectionUtils.lastElement(items);
+        var lastItem = Objects.requireNonNull(CollectionUtils.lastElement(items));
         var nextLink = createNextLink(lastItem, pageable, extractor, request);
         servletRequestAttributes.getResponse().setHeader(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink));
         return new Links().next(nextLink);

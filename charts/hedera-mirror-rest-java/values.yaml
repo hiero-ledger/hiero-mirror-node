@@ -87,11 +87,9 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
-        {{- if .Values.routes.supply }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/supply$'
-        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -145,7 +143,6 @@ ingress:
         - path: '/api/v1/network/fees$'
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/network/supply$'
-          condition: "{{ .Values.routes.supply }}"
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
   tls:
     enabled: false
@@ -326,8 +323,7 @@ resources:
 
 revisionHistoryLimit: 3
 
-routes:
-  supply: false
+routes: {}
 
 securityContext:
   allowPrivilegeEscalation: false

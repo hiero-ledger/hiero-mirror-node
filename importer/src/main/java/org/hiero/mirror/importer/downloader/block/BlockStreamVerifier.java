@@ -2,49 +2,58 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import com.google.common.base.Strings;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.io.FilenameUtils;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.StreamFileNotifier;
+import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
+import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.data.util.Version;
 
 @Named
 @NullMarked
 final class BlockStreamVerifier {
 
-    static final BlockFile EMPTY = BlockFile.builder().build();
+    private static final String EMPTY_HASH = Strings.repeat("0", 96);
 
     private final BlockFileTransformer blockFileTransformer;
-    private final RecordFileRepository recordFileRepository;
+    private final BlockProperties blockProperties;
+    private final CutoverService cutoverService;
+    private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
     private final StreamFileNotifier streamFileNotifier;
+    private final TssVerifier tssVerifier;
 
     private final MeterProvider<Timer> streamVerificationMeterProvider;
     private final MeterProvider<Timer> streamLatencyMeterProvider;
     private final Timer streamCloseMetric;
 
-    private final AtomicReference<Optional<BlockFile>> lastBlockFile = new AtomicReference<>(Optional.empty());
-
     public BlockStreamVerifier(
-            BlockFileTransformer blockFileTransformer,
-            RecordFileRepository recordFileRepository,
-            StreamFileNotifier streamFileNotifier,
-            MeterRegistry meterRegistry) {
+            final BlockFileTransformer blockFileTransformer,
+            final BlockProperties blockProperties,
+            final CutoverService cutoverService,
+            final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser,
+            final MeterRegistry meterRegistry,
+            final StreamFileNotifier streamFileNotifier,
+            final TssVerifier tssVerifier) {
         this.blockFileTransformer = blockFileTransformer;
-        this.recordFileRepository = recordFileRepository;
+        this.blockProperties = blockProperties;
+        this.cutoverService = cutoverService;
+        this.ledgerIdPublicationTransactionParser = ledgerIdPublicationTransactionParser;
         this.streamFileNotifier = streamFileNotifier;
+        this.tssVerifier = tssVerifier;
 
         // Metrics
         this.streamVerificationMeterProvider = Timer.builder("hiero.mirror.importer.stream.verification")
@@ -64,43 +73,27 @@ final class BlockStreamVerifier {
                 .register(meterRegistry);
     }
 
-    public Optional<BlockFile> getLastBlockFile() {
-        return Objects.requireNonNull(lastBlockFile.get()).or(() -> {
-            var last = recordFileRepository
-                    .findLatest()
-                    .map(r -> BlockFile.builder()
-                            .consensusStart(r.getConsensusStart())
-                            .hash(r.getHash())
-                            .index(r.getIndex())
-                            .name(r.getName())
-                            .build())
-                    .or(() -> Optional.of(EMPTY));
-            lastBlockFile.compareAndSet(Optional.empty(), last);
-            return last;
-        });
-    }
-
     public void verify(BlockFile blockFile) {
-        var startTime = Instant.now();
+        final var startTime = Instant.now();
         boolean success = true;
         try {
             verifyBlockNumber(blockFile);
             verifyHashChain(blockFile);
+            verifyTssSignature(blockFile);
+
             final var consensusEnd = Instant.ofEpochSecond(0, blockFile.getConsensusEnd());
             streamLatencyMeterProvider
                     .withTag("block_node", blockFile.getNode())
                     .record(Duration.between(consensusEnd, Instant.now()));
-            var recordFile = blockFileTransformer.transform(blockFile);
+
+            final var lastRecordFile = cutoverService.getLastRecordFile();
+            final var recordFile = blockFileTransformer.transform(blockFile);
             streamFileNotifier.verified(recordFile);
 
-            getLastBlockFile().ifPresent(last -> {
-                if (!last.equals(EMPTY)) {
-                    long latency = blockFile.getConsensusStart() - last.getConsensusStart();
-                    streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
-                }
+            lastRecordFile.map(RecordFile::getConsensusStart).ifPresent(lastConsensusStart -> {
+                final long latency = blockFile.getConsensusStart() - lastConsensusStart;
+                streamCloseMetric.record(latency, TimeUnit.NANOSECONDS);
             });
-
-            setLastBlockFile(blockFile);
         } catch (Exception e) {
             success = false;
             throw e;
@@ -112,18 +105,24 @@ final class BlockStreamVerifier {
     }
 
     private Optional<String> getExpectedPreviousHash() {
-        return getLastBlockFile().map(BlockFile::getHash);
+        return cutoverService.getLastRecordFile().map(RecordFile::getHash);
     }
 
-    private void setLastBlockFile(BlockFile blockFile) {
-        var copy = (BlockFile) blockFile.copy();
-        copy.clear();
-        lastBlockFile.set(Optional.of(copy));
+    private void updateLedger(final BlockFile blockFile) {
+        final var transaction = blockFile.getLastLedgerIdPublicationTransaction();
+        if (blockFile.getIndex() != 0 || transaction == null) {
+            return;
+        }
+
+        final var ledger = ledgerIdPublicationTransactionParser.parse(
+                transaction.getConsensusTimestamp(),
+                transaction.getTransactionBody().getLedgerIdPublication());
+        tssVerifier.setLedger(ledger);
     }
 
-    private void verifyBlockNumber(BlockFile blockFile) {
-        var blockNumber = blockFile.getIndex();
-        getLastBlockFile().map(BlockFile::getIndex).ifPresent(lastBlockNumber -> {
+    private void verifyBlockNumber(final BlockFile blockFile) {
+        final var blockNumber = blockFile.getIndex();
+        cutoverService.getLastRecordFile().map(RecordFile::getIndex).ifPresent(lastBlockNumber -> {
             if (blockNumber != lastBlockNumber + 1) {
                 throw new InvalidStreamFileException(String.format(
                         "Non-consecutive block number, previous = %d, current = %d", lastBlockNumber, blockNumber));
@@ -131,23 +130,39 @@ final class BlockStreamVerifier {
         });
 
         try {
-            String filename = blockFile.getName();
-            int endIndex = filename.indexOf(FilenameUtils.EXTENSION_SEPARATOR);
-            long actual = Long.parseLong(endIndex != -1 ? filename.substring(0, endIndex) : filename);
+            final var filename = blockFile.getName();
+            final int endIndex = filename.indexOf(FilenameUtils.EXTENSION_SEPARATOR);
+            final long actual = Long.parseLong(endIndex != -1 ? filename.substring(0, endIndex) : filename);
             if (actual != blockNumber) {
                 throw new InvalidStreamFileException(String.format(
                         "Block number mismatch, from filename = %d, from content = %d", actual, blockNumber));
             }
-        } catch (NumberFormatException e) {
+        } catch (final NumberFormatException _) {
             throw new InvalidStreamFileException("Failed to parse block number from filename " + blockFile.getName());
         }
     }
 
-    private void verifyHashChain(BlockFile blockFile) {
+    private void verifyHashChain(final BlockFile blockFile) {
+        final var consensusNodeVersion = blockFile.getBlockHeader().getSoftwareVersion();
+        final var version = new Version(
+                consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
+        if (version.isLessThan(blockProperties.getCompatibleRootHashConsensusNodeVersion())) {
+            // Set both hash and previousHash to all 0s to pass parser validation, will remove in a future release
+            // when running against old consensus node releases is no longer needed
+            blockFile.setHash(EMPTY_HASH);
+            blockFile.setPreviousHash(EMPTY_HASH);
+            return;
+        }
+
         getExpectedPreviousHash().ifPresent(expected -> {
             if (!blockFile.getPreviousHash().contentEquals(expected)) {
                 throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
             }
         });
+    }
+
+    private void verifyTssSignature(final BlockFile blockFile) {
+        updateLedger(blockFile);
+        // TBA tssVerifier.verify
     }
 }

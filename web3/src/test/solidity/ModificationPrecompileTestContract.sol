@@ -486,6 +486,33 @@ contract ModificationPrecompileTestContract is HederaTokenService {
         }
     }
 
+    function mintTokenNativePrecompileAndBurnExternal(
+        address token,
+        int64 mintAmount,
+        int64 burnAmount,
+        bytes[] memory metadata) external
+    returns (int responseCode, int64 newTotalSupplyAfterMint, int64 newTotalSupplyAfterBurn)
+    {
+        int mintResponseCode;
+        int burnResponseCode;
+        
+        (mintResponseCode, newTotalSupplyAfterMint,) = HederaTokenService.mintToken(token, mintAmount, metadata);
+        if (mintResponseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+
+        bytes memory input = abi.encodePacked("test");
+        (bool success, bytes memory result) = address(0x02).call(input);
+        require(success, "SHA256 precompile call failed");
+
+        (burnResponseCode, newTotalSupplyAfterBurn) = HederaTokenService.burnToken(token, burnAmount, new int64[](0));
+        if (burnResponseCode != HederaResponseCodes.SUCCESS) {
+            revert();
+        }
+        
+        responseCode = HederaResponseCodes.SUCCESS;
+    }
+
     receive() external payable {
     }
 }

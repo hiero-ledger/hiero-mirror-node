@@ -4,6 +4,7 @@ description = "Hiero Mirror Node Monitor"
 
 plugins {
     id("openapi-conventions")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 
@@ -22,14 +23,16 @@ dependencies {
     implementation("io.grpc:grpc-netty")
     implementation("io.grpc:grpc-stub")
     implementation("io.micrometer:micrometer-registry-prometheus")
-    implementation("io.swagger:swagger-annotations")
     implementation("jakarta.inject:jakarta.inject-api")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.apache.commons:commons-math3")
-    implementation("org.springdoc:springdoc-openapi-webflux-ui")
+    implementation("org.slf4j:jcl-over-slf4j")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
+    implementation("org.springframework.boot:spring-boot-health")
+    implementation("org.springframework.boot:spring-boot-starter-micrometer-metrics")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.boot:spring-boot-starter-webclient")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     testImplementation("com.github.meanbeanlib:meanbean")
     testImplementation("io.fabric8:kubernetes-server-mock")

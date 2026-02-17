@@ -12,14 +12,13 @@ import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.hiero.block.api.protoc.BlockItemSet;
 import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
-import org.hiero.mirror.importer.reader.block.BlockRootHashDigest;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 
 public final class BlockGenerator {
 
@@ -85,12 +84,8 @@ public final class BlockGenerator {
 
     private List<BlockItem> transactionUnit() {
         var recordItem = recordItemBuilder.cryptoTransfer().build();
-        var signedTransaction = SignedTransaction.newBuilder()
-                .setBodyBytes(recordItem.getTransaction().getSignedTransactionBytes())
-                .setSigMap(recordItem.getSignatureMap())
-                .build();
         var eventTransaction = BlockItem.newBuilder()
-                .setSignedTransaction(signedTransaction.toByteString())
+                .setSignedTransaction(recordItem.getTransaction().getSignedTransactionBytes())
                 .build();
         var transactionResult = BlockItem.newBuilder()
                 .setTransactionResult(TransactionResult.newBuilder()

@@ -17,4 +17,8 @@ public class BlockStreamException extends ImporterException {
     public BlockStreamException(Throwable cause) {
         super(cause);
     }
+
+    public BlockStreamException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

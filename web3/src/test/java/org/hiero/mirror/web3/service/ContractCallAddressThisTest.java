@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.math.BigInteger;
 import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -27,11 +28,10 @@ import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.testcontainers.shaded.org.apache.commons.lang3.StringUtils;
 
 @AutoConfigureMockMvc
 class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
@@ -149,26 +149,49 @@ class ContractCallAddressThisTest extends AbstractContractCallServiceTest {
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getBalance(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final var contract = testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(1000));
         final var entity1 = accountEntityPersist();
         final var functionCall = contract.call_getBalance(getAddressFromEntity(entity1));
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(entity1.getBalance()));
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void getAddressThisBalance(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
         final var contract =
                 testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
         final var functionCall = contract.call_getAddressThisBalance();
         final var result = functionCall.send();
         assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void getAddressThisBalanceWithLowBalancePayer(boolean validatePayerBalance) throws Exception {
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
+
+        final var lowBalancePayer = accountEntityPersistCustomizable(e -> e.balance(500_000L));
+
+        final long contractBalance = DEFAULT_SMALL_ACCOUNT_BALANCE - 1;
+        final var contract =
+                testWeb3jService.deployWithValue(TestAddressThis::deploy, BigInteger.valueOf(contractBalance));
+
+        testWeb3jService.setSender(Address.wrap(org.apache.tuweni.bytes.Bytes.wrap(lowBalancePayer.getEvmAddress()))
+                .toHexString());
+
+        final var functionCall = contract.call_getAddressThisBalance();
+        final var result = functionCall.send();
+
+        assertThat(result).isEqualTo(BigInteger.valueOf(contractBalance));
+
+        testWeb3jService.reset();
+        evmProperties.setValidatePayerBalance(true);
     }
 
     private void addressThisContractPersist(byte[] runtimeBytecode, Address contractAddress) {

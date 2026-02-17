@@ -2,7 +2,9 @@
 
 import _ from 'lodash';
 import crypto from 'crypto';
-import {proto} from '@hashgraph/proto';
+import httpContext from 'express-http-context';
+import {jest} from '@jest/globals';
+import {proto} from '@hiero-ledger/proto';
 import * as utils from '../utils';
 import config from '../config';
 import * as constants from '../constants';
@@ -1315,6 +1317,26 @@ describe('Utils getLimitParamValue', () => {
 
   test('values array', () => {
     expect(utils.getLimitParamValue(['1', '50'])).toEqual(50);
+  });
+});
+
+describe('Utils getLimitParamValue with authentication', () => {
+  beforeEach(() => {
+    jest.spyOn(httpContext, 'get').mockReturnValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('authenticated user caps at custom max', () => {
+    httpContext.get.mockReturnValue(200);
+    expect(utils.getLimitParamValue('250')).toEqual(200);
+  });
+
+  test('no authentication caps at default max', () => {
+    httpContext.get.mockReturnValue(undefined);
+    expect(utils.getLimitParamValue(`${responseLimit.max + 1}`)).toEqual(responseLimit.max);
   });
 });
 

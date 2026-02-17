@@ -88,7 +88,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.data.util.Version;
 
 @RequiredArgsConstructor
-class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListenerTest {
+final class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListenerTest {
 
     private static final Version HAPI_VERSION_0_23_0 = new Version(0, 23, 0);
     private final ContractActionRepository contractActionRepository;
@@ -228,8 +228,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // Assert after creation
@@ -245,7 +244,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(ownerId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(contractUpdateWithHookDetails.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
@@ -1164,8 +1163,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // when
@@ -1184,7 +1182,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(ownerId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
@@ -1827,7 +1825,7 @@ class EntityRecordItemListenerContractTest extends AbstractEntityRecordItemListe
                 entityIds.add(EntityId.of(body.getProxyAccountID()));
                 entityIds.add(EntityId.of(body.getStakedAccountId()));
                 List<EntityId> hookEntityIds = body.getHookCreationDetailsList().stream()
-                        .map(x -> parseContractId(x.getLambdaEvmHook().getSpec().getContractId()))
+                        .map(x -> parseContractId(x.getEvmHook().getSpec().getContractId()))
                         .toList();
                 entityIds.addAll(hookEntityIds);
             }

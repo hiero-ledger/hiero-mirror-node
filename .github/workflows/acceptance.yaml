@@ -28,6 +28,9 @@ defaults:
   run:
     shell: bash
 
+env:
+  LC_ALL: C.UTF-8
+
 jobs:
   acceptance:
     runs-on: hiero-mirror-node-linux-large
@@ -40,7 +43,7 @@ jobs:
     timeout-minutes: 50
     env:
       BLOCK_NODE_CHART_VERSION: v0.24.2
-      CONSENSUS_VERSION: v0.69.1-rc.3
+      CONSENSUS_VERSION: v0.69.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
@@ -51,36 +54,37 @@ jobs:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
           node-version: 24
 
       - name: Install Helm
         uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with:
-          version: "3.19.2"
+          version: "4.0.5"
 
       - name: Setup Kind
         uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
-          kubectl_version: v1.33.7
+          kubectl_version: v1.34.0
+          version: v0.31.0
 
       - name: Install JDK
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
-          distribution: "temurin"
-          java-version: 21
+          distribution: temurin
+          java-version: 25
 
       - name: Install Solo CLI via npm
         run: npm install -g @hashgraph/solo@${SOLO_VERSION}
@@ -136,6 +140,10 @@ jobs:
             web3:
             - 'web3/**'
 
+      - name: Setup Gradle
+        if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
+        uses: gradle/actions/setup-gradle@f29f5a9d7b09a7c6b29859002d29d24e1674c884 # v4
+
       - name: Build images
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
         run: |
@@ -149,6 +157,23 @@ jobs:
         run: |
           set -ex
 
+          cat <<EOF > mirror.yaml
+          monitor:
+            env:
+              HIERO_MIRROR_MONITOR_HEALTH_RELEASE_FAILWHENINACTIVE: "true"
+            test:
+              enabled: true
+          test:
+            env:
+              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
+              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+            enabled: true
+          web3:
+            env:
+              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
+          EOF
+
           solo init
           solo cluster-ref config connect --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
             --context kind-"${SOLO_CLUSTER_NAME}"
@@ -158,50 +183,20 @@ jobs:
           solo cluster-ref config setup --cluster-ref kind-"${SOLO_CLUSTER_NAME}"
 
           if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
-              --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
-          fi
-          solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
-          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
-          solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
-          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
-
-          if [ "${{ matrix.stream-type }}" = "BLOCK" ]; then
-            cat <<EOF > mirror.yaml
+            cat <<EOF >> mirror.yaml
           importer:
             env:
               HIERO_MIRROR_IMPORTER_BLOCK_NODES_0_HOST: 'block-node-1.${SOLO_NAMESPACE}.svc.cluster.local'
               SPRING_PROFILES_ACTIVE: 'blocknode'
-          test:
-            cucumberTags: "@acceptance and not @ethereum and not @ethcall and not @crud"
-            annotations:
-              helm.sh/hook-delete-policy: before-hook-creation
-            env:
-              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
-              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
-            enabled: true
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
           EOF
-
-          else
-            cat <<EOF > mirror.yaml
-          test:
-            annotations:
-              helm.sh/hook-delete-policy: before-hook-creation
-            env:
-              HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
-              HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
-              HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
-              HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
-            enabled: true
-          web3:
-            env:
-              HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
-          EOF
+            solo block node add --deployment "${SOLO_DEPLOYMENT}" --cluster-ref kind-"${SOLO_CLUSTER_NAME}" \
+              --chart-version "${BLOCK_NODE_CHART_VERSION}" --release-tag "${CONSENSUS_VERSION}"
           fi
+
+          solo keys consensus generate --gossip-keys --tls-keys --deployment "${SOLO_DEPLOYMENT}" -i node1
+          solo consensus network deploy --deployment "${SOLO_DEPLOYMENT}" --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node setup --deployment "${SOLO_DEPLOYMENT}" -i node1 --release-tag "${CONSENSUS_VERSION}"
+          solo consensus node start --deployment "${SOLO_DEPLOYMENT}" -i node1
 
           helm dependency update charts/hedera-mirror
           solo mirror node add --cluster-ref kind-"${SOLO_CLUSTER_NAME}" --deployment "${SOLO_DEPLOYMENT}" \
@@ -210,12 +205,10 @@ jobs:
             | jq -r '.[] | select (.chart | test("hedera-mirror-.*")) | .app_version')
           echo "Installed hedera-mirror chart version $APP_VERSION"
 
-          echo "Solo cluster setup completed successfully!"
-
       - name: Run acceptance tests
         run: |
           helm test "${HELM_RELEASE_NAME}" -n "${SOLO_NAMESPACE}" --logs \
-            --filter name="${HELM_RELEASE_NAME}-mirror-acceptance" --timeout 20m | tee output_log.txt
+            --timeout 20m | tee output_log.txt
 
       - name: Run k6 tests
         if: ${{ matrix.stream-type != 'BLOCK' }}

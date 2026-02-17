@@ -8,6 +8,7 @@ import static com.hedera.services.stream.proto.ContractAction.ResultDataCase.REV
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.web3.convert.BytesDecoder.getAbiEncodedRevertReason;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.utils.Constants.BALANCE_OPERATION_NAME;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INSUFFICIENT_GAS;
 import static org.hyperledger.besu.evm.frame.ExceptionalHaltReason.INVALID_OPERATION;
 import static org.hyperledger.besu.evm.frame.MessageFrame.State.COMPLETED_FAILED;
@@ -58,7 +59,7 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -123,7 +124,7 @@ class OpcodeActionTracerTest {
     private MutableAccount recipientAccount;
 
     @Mock
-    private MirrorNodeEvmProperties mirrorNodeEvmProperties;
+    private EvmProperties evmProperties;
 
     // Transient test data
     private OpcodeActionTracer tracer;
@@ -144,6 +145,33 @@ class OpcodeActionTracerTest {
     @AfterAll
     static void closeStaticMocks() {
         contextMockedStatic.close();
+    }
+
+    private static ContractAction contractAction(
+            final int index,
+            final int depth,
+            final CallOperationType callOperationType,
+            final int resultDataType,
+            final Address recipientAddress) {
+        return ContractAction.builder()
+                .callDepth(depth)
+                .caller(EntityId.of("0.0.1"))
+                .callerType(EntityType.ACCOUNT)
+                .callOperationType(callOperationType.getNumber())
+                .callType(ContractActionType.PRECOMPILE.getNumber())
+                .consensusTimestamp(new SecureRandom().nextLong())
+                .gas(REMAINING_GAS.get())
+                .gasUsed(GAS_PRICE)
+                .index(index)
+                .input(new byte[0])
+                .payerAccountId(EntityId.of("0.0.2"))
+                .recipientAccount(EntityId.of("0.0.3"))
+                .recipientAddress(recipientAddress.toArray())
+                .recipientContract(EntityId.of("0.0.4"))
+                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
+                .resultDataType(resultDataType)
+                .value(1L)
+                .build();
     }
 
     @BeforeEach
@@ -415,19 +443,6 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName("should not record gas requirement of precompile call with null output")
-    void shouldNotRecordGasRequirementWhenPrecompileCallHasNullOutput() {
-        // Given
-        frame = setupInitialFrame(tracerOptions);
-
-        // When
-        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, Bytes.EMPTY);
-
-        // Then
-        assertThat(opcode.gasCost()).isZero();
-    }
-
-    @Test
     @DisplayName("should not record revert reason of precompile call with no revert reason")
     void shouldNotRecordRevertReasonWhenPrecompileCallHasNoRevertReason() {
         // Given
@@ -566,6 +581,54 @@ class OpcodeActionTracerTest {
         assertThat(opcodeForPrecompileCall.reason()).isNotNull().isEqualTo(Bytes.EMPTY.toHexString());
     }
 
+    @Test
+    @DisplayName("should set balance call flag when BALANCE opcode is executed")
+    void shouldSetBalanceCallFlagForBalanceOperation() {
+        // Given
+        final var balanceOperation = new AbstractOperation(0x31, BALANCE_OPERATION_NAME, 1, 1, null) {
+            @Override
+            public OperationResult execute(final MessageFrame frame, final EVM evm) {
+                return new OperationResult(GAS_COST, null);
+            }
+        };
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(balanceOperation);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, times(1)).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not set balance call flag when non-BALANCE opcode is executed")
+    void shouldNotSetBalanceCallFlagForNonBalanceOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(OPERATION);
+
+        // When
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
+    @Test
+    @DisplayName("should not throw exception when current operation is null")
+    void shouldHandleNullCurrentOperation() {
+        // Given
+        frame = setupInitialFrame(tracerOptions);
+        frame.setCurrentOperation(null);
+
+        // When & Then
+        tracer.tracePreExecution(frame);
+
+        // Then
+        verify(contractCallContext, never()).setBalanceCall(true);
+    }
+
     private Opcode executeOperation(final MessageFrame frame) {
         return executeOperation(frame, null);
     }
@@ -606,7 +669,13 @@ class OpcodeActionTracerTest {
         } else {
             tracer.traceContextReEnter(frame);
         }
-        tracer.tracePrecompileCall(frame, gasRequirement, output);
+
+        // Simulate gas consumption by the precompile before tracing the result.
+        // In a real EVM execution, the precompile consumes gas before tracePrecompileResult
+        REMAINING_GAS.set(REMAINING_GAS.get() - gasRequirement);
+        frame.setGasRemaining(REMAINING_GAS.get());
+
+        tracer.tracePrecompileResult(frame, com.hedera.hapi.streams.ContractActionType.CALL);
         if (frame.getState() == COMPLETED_SUCCESS || frame.getState() == COMPLETED_FAILED) {
             tracer.traceContextExit(frame);
         }
@@ -749,32 +818,5 @@ class OpcodeActionTracerTest {
 
     private ContractAction getContractActionWithRevert() {
         return contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-    }
-
-    private static ContractAction contractAction(
-            final int index,
-            final int depth,
-            final CallOperationType callOperationType,
-            final int resultDataType,
-            final Address recipientAddress) {
-        return ContractAction.builder()
-                .callDepth(depth)
-                .caller(EntityId.of("0.0.1"))
-                .callerType(EntityType.ACCOUNT)
-                .callOperationType(callOperationType.getNumber())
-                .callType(ContractActionType.PRECOMPILE.getNumber())
-                .consensusTimestamp(new SecureRandom().nextLong())
-                .gas(REMAINING_GAS.get())
-                .gasUsed(GAS_PRICE)
-                .index(index)
-                .input(new byte[0])
-                .payerAccountId(EntityId.of("0.0.2"))
-                .recipientAccount(EntityId.of("0.0.3"))
-                .recipientAddress(recipientAddress.toArray())
-                .recipientContract(EntityId.of("0.0.4"))
-                .resultData(resultDataType == REVERT_REASON.getNumber() ? "revert reason".getBytes() : new byte[0])
-                .resultDataType(resultDataType)
-                .value(1L)
-                .build();
     }
 }

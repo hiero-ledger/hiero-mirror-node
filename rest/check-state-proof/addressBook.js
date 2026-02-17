@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import log4js from 'log4js';
-import {proto} from '@hashgraph/proto';
+import {proto} from '@hiero-ledger/proto';
 
 const logger = log4js.getLogger();
 

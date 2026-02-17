@@ -6,8 +6,8 @@ import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.core.StreamWriteConstraints;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.hedera.node.config.data.JumboTransactionsConfig;
-import org.hiero.mirror.web3.evm.properties.MirrorNodeEvmProperties;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,7 +16,8 @@ class JacksonConfiguration {
 
     // Configure JSON parsing limits to reject malicious input
     @Bean
-    Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(MirrorNodeEvmProperties properties) {
+    @SuppressWarnings("removal")
+    Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer(EvmProperties properties) {
         final var jumboConfig = properties.getVersionedConfiguration().getConfigData(JumboTransactionsConfig.class);
         final int maxSize = jumboConfig.ethereumMaxCallDataSize() * 2 + 1024;
         return builder -> {

@@ -28,12 +28,16 @@ import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
 import {JSONParse} from '../../utils';
-import {slowStepTimeoutMillis, setupIntegrationTest} from '../integrationUtils';
+import {
+  slowStepTimeoutMillis,
+  setupIntegrationTest,
+  transformResponseHeaders,
+  transformShardRealmValues,
+} from '../integrationUtils';
 import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
 import {writeTableUsage} from '../tableUsage';
-import {transformShardRealmValues} from '../integrationUtils';
 
 const groupSpecPath = $$GROUP_SPEC_PATH$$;
 
@@ -165,8 +169,15 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseJsonMatrix, responseStatus} = test;
-        return urls.map((url) => ({url, responseJson, responseJsonMatrix, responseStatus}));
+        const {responseJson, responseJsonMatrix, responseStatus, requestHeaders, responseHeaders} = test;
+        return urls.map((url) => ({
+          url,
+          responseJson,
+          responseJsonMatrix,
+          responseStatus,
+          requestHeaders,
+          responseHeaders,
+        }));
       })
     );
   };
@@ -350,7 +361,16 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
               }
 
               const target = spec.java ? global.REST_JAVA_BASE_URL : server;
-              const response = await request(target).get(tt.url);
+              let req = request(target).get(tt.url);
+
+              // apply request headers if specified
+              if (tt.requestHeaders) {
+                Object.entries(tt.requestHeaders).forEach(([key, value]) => {
+                  req = req.set(key, value);
+                });
+              }
+
+              const response = await req;
 
               expect(response.status).toEqual(tt.responseStatus);
               const contentType = response.get('Content-Type');
@@ -370,8 +390,13 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
 
               if (response.status >= 200 && response.status < 300) {
                 const expectedHeaders =
-                  spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ?? spec.responseHeaders ?? {};
-                expect(lowercaseKeys(response.headers)).toMatchObject(lowercaseKeys(expectedHeaders));
+                  tt.responseHeaders ??
+                  spec.responseHeadersMatrix[spec.java ? 'java' : 'js'] ??
+                  spec.responseHeaders ??
+                  {};
+                expect(lowercaseKeys(response.headers)).toMatchObject(
+                  transformResponseHeaders(lowercaseKeys(expectedHeaders))
+                );
               }
             });
           });

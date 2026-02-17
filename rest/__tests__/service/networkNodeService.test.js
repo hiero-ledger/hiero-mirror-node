@@ -697,38 +697,3 @@ describe('NetworkNodeService node_account_id override logic', () => {
     expect(result[0].addressBookEntry.nodeAccountId).toEqual(nodeAccountOriginal.getEncodedId());
   });
 });
-
-describe(`NetworkNodeService.getSupply`, () => {
-  test('Without timestamp', async () => {
-    const accounts = [];
-    const timestamp = utils.nowInNs();
-    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
-      const from = range.from.num;
-      const to = range.to.num;
-      bigIntRange(BigInt(from), BigInt(to)).forEach((id) => {
-        accounts.push({balance: 1n, balance_timestamp: timestamp, num: id});
-      });
-    });
-    await integrationDomainOps.loadAccounts(accounts);
-    await expect(NetworkNodeService.getSupply([])).resolves.toEqual({
-      consensus_timestamp: timestamp,
-      unreleased_supply: '548',
-    });
-  });
-  test('With timestamp', async () => {
-    const balances = [];
-    const timestamp = utils.nowInNs();
-    EntityId.systemEntity.unreleasedSupplyAccounts.forEach((range) => {
-      const from = range.from.num;
-      const to = range.to.num;
-      bigIntRange(BigInt(from), BigInt(to)).forEach((id) => {
-        balances.push({balance: 1n, timestamp: timestamp, id: id});
-      });
-    });
-    await integrationDomainOps.loadBalances(balances);
-    await expect(NetworkNodeService.getSupply([`ab.consensus_timestamp <= ${timestamp}`])).resolves.toEqual({
-      consensus_timestamp: timestamp,
-      unreleased_supply: '548',
-    });
-  });
-});

@@ -18,6 +18,15 @@ const {
   common: {realm: systemRealm, shard: systemShard},
 } = getMirrorConfig();
 
+const transformResponseHeaders = (headers) => {
+  const shardRealm = `${systemShard}.${systemRealm}.`;
+  for (const key of Object.keys(headers)) {
+    headers[key] = headers[key].replace(/0\.0\.(\d+)/g, `${shardRealm}$1`);
+  }
+
+  return headers;
+};
+
 const transformShardRealmValues = (obj) => {
   const shardRealm = `${systemShard}.${systemRealm}.`;
 
@@ -146,5 +155,6 @@ export {
   isDockerInstalled,
   setupIntegrationTest,
   slowStepTimeoutMillis,
+  transformResponseHeaders,
   transformShardRealmValues,
 };

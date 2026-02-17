@@ -30,7 +30,8 @@
         "consensus_timestamp": "1565779209711927001",
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
-        "entity_id": "0.0.8"
+        "entity_id": "0.0.8",
+        "high_volume": false
       }
     ],
     "cryptotransfers": [
@@ -62,6 +63,7 @@
         "charged_tx_fee": 0,
         "consensus_timestamp": "1565779209.711927001",
         "entity_id": "0.0.8",
+        "high_volume": false,
         "max_custom_fees": [],
         "max_fee": "33",
         "memo_base64": null,

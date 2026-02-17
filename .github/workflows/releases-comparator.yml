@@ -26,12 +26,12 @@ jobs:
       base_version: ${{ steps.check.outputs.base_version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Compare versions
         id: check
@@ -63,21 +63,21 @@ jobs:
     continue-on-error: true
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install JDK
-        uses: actions/setup-java@f2beeb24e141e01a676f977032f5a29d81c9e27e # v5.1.0
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
         with:
-          distribution: "temurin"
-          java-version: 21
+          distribution: temurin
+          java-version: 25
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v4
+        uses: gradle/actions/setup-gradle@f29f5a9d7b09a7c6b29859002d29d24e1674c884 # v4
 
       - name: Run diff script
         run: |
@@ -92,9 +92,20 @@ jobs:
             "com/hedera/hapi/node/state/file/File.java"
             "com/hedera/hapi/node/state/schedule/Schedule.java"
             "com/swirlds/state/spi/WritableSingletonStateBase.java"
-            "com/hedera/node/app/service/contract/impl/exec/processors/CustomMessageCallProcessor.java"
-            "com/hedera/node/app/service/contract/impl/state/RootProxyWorldUpdater.java"
-            "com/hedera/node/app/service/contract/impl/exec/operations/CustomBalanceOperation.java"
+          )
+
+          # Compare the schemas - in case there is a new version we might need to register a new state.
+          DIRS_TO_COMPARE=(
+            "com/hedera/node/app/blocks/schemas"
+            "com/hedera/node/app/fees/schemas"
+            "com/hedera/node/app/records/schemas"
+            "com/hedera/node/app/service/contract/impl/schemas"
+            "com/hedera/node/app/service/entityid/impl/schemas"
+            "com/hedera/node/app/service/file/impl/schemas"
+            "com/hedera/node/app/service/schedule/impl/schemas"
+            "com/hedera/node/app/service/token/impl/schemas"
+            "com/hedera/node/app/state/recordcache/schemas"
+            "com/hedera/node/app/throttle/schemas"
           )
 
           # Temp directories to store cloned repos
@@ -139,9 +150,6 @@ jobs:
             if ! diff_output=$(diff -u "$branch_two_file_path" "$branch_one_file_path"); then
               echo ""
               echo "File changed: $input_file_path"
-              echo "----------------------------------------"
-              echo "$diff_output"
-              echo "----------------------------------------"
               CHANGES_COUNT=$((CHANGES_COUNT + 1))
             fi
           }
@@ -154,6 +162,65 @@ jobs:
             echo "✅ No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of files."
           else
             echo "::warning::Found ${CHANGES_COUNT} changed file(s) between versions $TAG_TWO and $TAG_ONE. Please review the diffs in the logs above."
+          fi
+
+          compare_schemas_dir() {
+            local input_dir_path="$1"
+            local branch_one_dir_path branch_two_dir_path
+
+            case "$input_dir_path" in
+                com/hedera/node/app/service/contract/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-smart-contract-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/entityid/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-entity-id-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/file/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-file-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-file-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/schedule/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-schedule-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-schedule-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/service/token/impl/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-token-service-impl/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-token-service-impl/src/main/java/$input_dir_path"
+                ;;
+                com/hedera/node/app/records/* | com/hedera/node/app/blocks/* | com/hedera/node/app/throttle/* | com/hedera/node/app/fees/* | com/hedera/node/app/state/recordcache/*)
+                branch_one_dir_path="$TMP_DIR_ONE/hedera-node/hedera-app/src/main/java/$input_dir_path"
+                branch_two_dir_path="$TMP_DIR_TWO/hedera-node/hedera-app/src/main/java/$input_dir_path"
+                ;;
+                *)
+            esac
+
+            # Search for newly added files
+            find "$branch_two_dir_path" -maxdepth 1 -type f -printf "%f\n" | while read -r filename; do
+              if [ ! -f "$branch_one_dir_path/$filename" ]; then
+              echo ""
+              echo "New file found: $filename. Please add it in MirrorNodeStateIntegrationTest."
+              echo "$filename" >> "$CHANGES_FILE"
+              fi
+            done
+          }
+
+          # Create a temporary file to track changes across subshells (pipes)
+          CHANGES_FILE=$(mktemp)
+
+          for dir in "${DIRS_TO_COMPARE[@]}"; do
+            compare_schemas_dir "$dir"
+          done
+
+          NEW_FILES_ADDED_COUNT=$(wc -l < "$CHANGES_FILE")
+          if [ "$NEW_FILES_ADDED_COUNT" -eq 0 ]; then
+            echo "✅ No differences detected between versions $TAG_TWO and $TAG_ONE for the specified set of dirs."
+          else
+            echo "::warning::Found ${NEW_FILES_ADDED_COUNT} new file(s) in the specified set of dirs between versions $TAG_TWO and $TAG_ONE."
+          fi
+
+          if [ $((NEW_FILES_ADDED_COUNT + CHANGES_COUNT)) -gt 0 ]; then
             exit 1
           fi
 

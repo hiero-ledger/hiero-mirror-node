@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -113,6 +114,7 @@ import org.hiero.mirror.common.domain.topic.TopicHistory;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.domain.topic.TopicMessageLookup;
 import org.hiero.mirror.common.domain.transaction.AssessedCustomFee;
+import org.hiero.mirror.common.domain.transaction.Authorization;
 import org.hiero.mirror.common.domain.transaction.CryptoTransfer;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.ItemizedTransfer;
@@ -126,6 +128,8 @@ import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionHash;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.domain.tss.Ledger;
+import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -431,6 +435,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -476,6 +481,7 @@ public class DomainBuilder {
                 .createdTimestamp(createdTimestamp)
                 .declineReward(false)
                 .deleted(false)
+                .delegationAddress(bytes(20))
                 .ethereumNonce(1L)
                 .evmAddress(evmAddress())
                 .expirationTimestamp(createdTimestamp + 30_000_000L)
@@ -544,6 +550,7 @@ public class DomainBuilder {
             boolean hasInitCode) {
         var builder = EthereumTransaction.builder()
                 .accessList(bytes(100))
+                .authorizationList(authorizationList())
                 .chainId(bytes(1))
                 .consensusTimestamp(timestamp())
                 .data(bytes(100))
@@ -592,7 +599,7 @@ public class DomainBuilder {
                 .hookId(number())
                 .ownerId(id())
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA);
+                .type(HookType.EVM);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -607,7 +614,7 @@ public class DomainBuilder {
                 .hookId(number())
                 .ownerId(id())
                 .timestampRange(Range.closedOpen(createdTimestamp, createdTimestamp + 10))
-                .type(HookType.LAMBDA);
+                .type(HookType.EVM);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -633,6 +640,26 @@ public class DomainBuilder {
                 .ownerId(id())
                 .valueRead(value)
                 .valueWritten(value);
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
+    public DomainWrapper<Ledger, Ledger.LedgerBuilder<?, ?>> ledger() {
+        final var nodeContributions = new ArrayList<LedgerNodeContribution>(List.of(
+                LedgerNodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build(),
+                LedgerNodeContribution.builder()
+                        .historyProofKey(bytes(48))
+                        .nodeId(number())
+                        .weight(number())
+                        .build()));
+        final var builder = Ledger.builder()
+                .consensusTimestamp(timestamp())
+                .historyProofVerificationKey(bytes(64))
+                .ledgerId(bytes(32))
+                .nodeContributions(nodeContributions);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -1136,6 +1163,7 @@ public class DomainBuilder {
                 .chargedTxFee(10000000L)
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
+                .highVolume(false)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()
@@ -1204,6 +1232,17 @@ public class DomainBuilder {
 
     public byte[] evmAddress() {
         return bytes(20);
+    }
+
+    public List<Authorization> authorizationList() {
+        return List.of(Authorization.builder()
+                .address("0x" + hash(40))
+                .chainId("0x1")
+                .nonce(number())
+                .r("0x" + hash(64))
+                .s("0x" + hash(64))
+                .yParity(0x01)
+                .build());
     }
 
     public FixedFee fixedFee() {

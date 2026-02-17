@@ -49,9 +49,9 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
     private static final Comparator<BlockNode> COMPARATOR = Comparator.comparing(blockNode -> blockNode.properties);
     private static final Range<Long> EMPTY_BLOCK_RANGE = Range.closedOpen(0L, 0L);
     private static final ServerStatusRequest SERVER_STATUS_REQUEST = ServerStatusRequest.getDefaultInstance();
-    private static final long UNKNOWN_NODE_ID = -1;
 
-    private final ManagedChannel channel;
+    private final ManagedChannel statusChannel;
+    private final ManagedChannel streamingChannel;
     private final AtomicInteger errors = new AtomicInteger();
     private final Consumer<BlockingClientCall<?, ?>> grpcBufferDisposer;
 
@@ -72,33 +72,46 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final BlockNodeProperties properties,
             final StreamProperties streamProperties,
             final MeterRegistry meterRegistry) {
-        this.channel = channelBuilderProvider
-                .get(properties)
-                .maxInboundMessageSize(
-                        (int) streamProperties.getMaxStreamResponseSize().toBytes())
+        final int maxInboundMessageSize =
+                (int) streamProperties.getMaxStreamResponseSize().toBytes();
+        this.statusChannel = channelBuilderProvider
+                .get(properties.getHost(), properties.getStatusPort())
+                .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
+
+        if (properties.getStatusPort() == properties.getStreamingPort()) {
+            this.streamingChannel = this.statusChannel;
+        } else {
+            this.streamingChannel = channelBuilderProvider
+                    .get(properties.getHost(), properties.getStreamingPort())
+                    .maxInboundMessageSize(maxInboundMessageSize)
+                    .build();
+        }
+
         this.grpcBufferDisposer = grpcBufferDisposer;
         this.properties = properties;
         this.streamProperties = streamProperties;
         this.errorsMetric = Counter.builder(ERROR_METRIC_NAME)
                 .description("The number of errors that occurred while streaming from a particular block node.")
                 .tag("type", StreamType.BLOCK.toString())
-                .tag("block_node", properties.getEndpoint())
+                .tag("block_node", properties.getStatusEndpoint())
                 .register(meterRegistry);
     }
 
     @Override
     public void close() {
-        if (channel.isShutdown()) {
-            return;
+        if (!statusChannel.isShutdown()) {
+            statusChannel.shutdown();
         }
 
-        channel.shutdown();
+        if (streamingChannel != statusChannel && !streamingChannel.isShutdown()) {
+            streamingChannel.shutdown();
+        }
     }
 
     public Range<Long> getBlockRange() {
         try {
-            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(channel)
+            final var blockNodeService = BlockNodeServiceGrpc.newBlockingStub(statusChannel)
                     .withDeadlineAfter(streamProperties.getResponseTimeout());
             final var response = blockNodeService.serverStatus(SERVER_STATUS_REQUEST);
             final long firstBlockNumber = response.getFirstAvailableBlock();
@@ -127,7 +140,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                     .setStartBlockNumber(blockNumber)
                     .build();
             final var grpcCall = ClientCalls.blockingV2ServerStreamingCall(
-                    channel,
+                    streamingChannel,
                     BlockStreamSubscribeServiceGrpc.getSubscribeBlockStreamMethod(),
                     CallOptions.DEFAULT,
                     request);
@@ -178,7 +191,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
 
     @Override
     public String toString() {
-        return String.format("BlockNode(%s)", properties.getEndpoint());
+        return String.format("BlockNode(%s)", properties.getStatusEndpoint());
     }
 
     public BlockNode tryReadmit(final boolean force) {
@@ -267,7 +280,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var filename = firstBlockItem.getItemCase() == BLOCK_HEADER
                     ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
                     : null;
-            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart, UNKNOWN_NODE_ID));
+            blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart));
         }
 
         long timeout() {

@@ -24,9 +24,6 @@ public class RetrieverProperties {
     @NotNull
     private Duration pollingFrequency = Duration.ofSeconds(2L);
 
-    @Min(1)
-    private int threadMultiplier = 4;
-
     @NotNull
     private Duration timeout = Duration.ofSeconds(60L);
 

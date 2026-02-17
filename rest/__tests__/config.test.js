@@ -438,58 +438,6 @@ describe('Override db pool config', () => {
   });
 });
 
-describe('Override network currencyFormat config', () => {
-  const customConfig = (networkCurrencyFormatConfig) => ({
-    hiero: {
-      mirror: {
-        rest: {
-          network: {
-            currencyFormat: networkCurrencyFormatConfig,
-          },
-        },
-      },
-    },
-  });
-
-  const testSpecs = [
-    {
-      name: 'unspecified value should be valid',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat BOTH',
-      override: 'BOTH',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat HBARS',
-      override: 'HBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat TINYBARS',
-      override: 'TINYBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat INVALID',
-      override: 'INVALID',
-      expectThrow: true,
-    },
-  ];
-
-  testSpecs.forEach((testSpec) => {
-    const {name, override, expectThrow} = testSpec;
-    test(name, async () => {
-      if (!expectThrow) {
-        await loadCustomConfig(customConfig(override));
-      } else {
-        await expect(loadCustomConfig(customConfig(override))).rejects.toThrow();
-      }
-    });
-  });
-});
-
 describe('getResponseLimit', () => {
   test('default', async () => {
     const func = (await import('../config')).getResponseLimit;
@@ -500,6 +448,62 @@ describe('getResponseLimit', () => {
     const customLimit = {default: 10, max: 200, tokenBalance: {multipleAccounts: 90, singleAccount: 200}};
     module.default.response.limit = customLimit;
     expect(module.getResponseLimit()).toEqual(customLimit);
+  });
+});
+
+describe('users config validation', () => {
+  test('valid users configuration', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [
+              {username: 'user1', password: 'pass1', limit: 100},
+              {username: 'user2', password: 'pass2', limit: 200},
+            ],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([
+      {username: 'user1', password: 'pass1', limit: 100},
+      {username: 'user2', password: 'pass2', limit: 200},
+    ]);
+  });
+
+  test('empty users array is valid', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([]);
+  });
+
+  test('users without limit is valid', async () => {
+    const validConfig = {
+      hiero: {
+        mirror: {
+          rest: {
+            users: [{username: 'user1', password: 'pass1'}],
+          },
+        },
+      },
+    };
+    const configFile = path.join(tempDir, 'application.yml');
+    fs.writeFileSync(configFile, yaml.dump(validConfig));
+    const config = (await import('../config')).default;
+    expect(config.users).toEqual([{username: 'user1', password: 'pass1'}]);
   });
 });
 

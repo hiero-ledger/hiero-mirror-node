@@ -26,7 +26,6 @@ import org.hiero.mirror.monitor.publish.PublishScenario;
 import org.hiero.mirror.monitor.publish.PublishScenarioProperties;
 import org.hiero.mirror.monitor.publish.TransactionPublisher;
 import org.hiero.mirror.monitor.publish.transaction.AdminKeyable;
-import org.hiero.mirror.monitor.publish.transaction.TransactionSupplier;
 import org.hiero.mirror.monitor.publish.transaction.TransactionType;
 import org.hiero.mirror.monitor.publish.transaction.schedule.ScheduleCreateTransactionSupplier;
 import org.hiero.mirror.monitor.publish.transaction.token.TokenCreateTransactionSupplier;
@@ -68,10 +67,8 @@ public class ExpressionConverterImpl implements ExpressionConverter {
         try {
             log.debug("Processing expression {}", expression);
             ExpressionType type = expression.getType();
-            Class<? extends TransactionSupplier<?>> supplierClass =
-                    type.getTransactionType().getSupplier();
-            TransactionSupplier<?> transactionSupplier =
-                    supplierClass.getConstructor().newInstance();
+            final var transactionSupplier =
+                    type.getTransactionType().getSupplier().get();
 
             if (transactionSupplier instanceof AdminKeyable adminKeyable) {
                 PrivateKey privateKey =

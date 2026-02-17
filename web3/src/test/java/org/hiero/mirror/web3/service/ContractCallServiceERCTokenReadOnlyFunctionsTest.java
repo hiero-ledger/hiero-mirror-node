@@ -7,7 +7,6 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 
-import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -315,7 +314,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     void ethCallBalanceOfStatic(boolean validatePayerBalance) throws Exception {
-        mirrorNodeEvmProperties.setValidatePayerBalance(validatePayerBalance);
+        evmProperties.setValidatePayerBalance(validatePayerBalance);
         final var ownerEntityId = accountPersist();
         final var token = fungibleTokenPersistWithTreasuryAccount(ownerEntityId);
         final var tokenId = token.getTokenId();
@@ -330,7 +329,7 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
 
         assertThat(result).isEqualTo(BigInteger.valueOf(tokenAccount.getBalance()));
         verifyEthCallAndEstimateGas(functionCall, contract);
-        mirrorNodeEvmProperties.setValidatePayerBalance(true);
+        evmProperties.setValidatePayerBalance(true);
     }
 
     @Test
@@ -694,28 +693,6 @@ class ContractCallServiceERCTokenReadOnlyFunctionsTest extends AbstractContractC
         final var functionCall = contract.send_decimals(tokenAddress);
         // Then
         assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-    }
-
-    // Temporary test to increase test coverage
-    @Test
-    void decimalsNegativeModularizedServices() throws InvocationTargetException, IllegalAccessException {
-        // Given
-        final var backupProperties = mirrorNodeEvmProperties.getProperties();
-
-        try {
-            initializeState();
-
-            final var token = nftPersist();
-            final var tokenAddress = toAddress(token.getTokenId()).toHexString();
-            final var contract = testWeb3jService.deploy(ERCTestContract::deploy);
-            // When
-            final var functionCall = contract.send_decimals(tokenAddress);
-            // Then
-            assertThatThrownBy(functionCall::send).isInstanceOf(MirrorEvmTransactionException.class);
-        } finally {
-            // Restore changed property values.
-            mirrorNodeEvmProperties.setProperties(backupProperties);
-        }
     }
 
     @Test

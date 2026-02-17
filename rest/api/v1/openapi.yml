@@ -1479,7 +1479,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.146.0-SNAPSHOT
+  version: 0.149.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -1686,8 +1686,8 @@ components:
           $ref: "#/components/schemas/TimestampRangeNullable"
         type:
           description: The type of the hook implementation
-          enum: [LAMBDA]
-          example: LAMBDA
+          enum: [EVM]
+          example: EVM
           type: string
     HookStorage:
       type: object
@@ -3831,6 +3831,10 @@ components:
           example: true
           nullable: true
         expiry_timestamp:
+          description: >-
+            The token's expiration time in nanoseconds since the Unix epoch. Note that this encoding
+            differs from other entity expiry timestamps (e.g., accounts) which use a seconds.nanoseconds
+            string format. This inconsistency is a known issue retained for backwards compatibility.
           example: 1234567890100000
           format: int64
           nullable: true
@@ -3973,7 +3977,8 @@ components:
         - FILEDELETE
         - FILEUPDATE
         - FREEZE
-        - LAMBDASSTORE
+        - HOOKSTORE
+        - LEDGERIDPUBLICATION
         - NODECREATE
         - NODEDELETE
         - NODESTAKEUPDATE
@@ -4125,6 +4130,9 @@ components:
           $ref: "#/components/schemas/Timestamp"
         entity_id:
           $ref: "#/components/schemas/EntityId"
+        high_volume:
+          description: Whether the transaction used high-volume entity creation throttles and pricing per HIP-1313
+          type: boolean
         max_custom_fees:
           type: array
           items:
@@ -4221,6 +4229,7 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
         max_custom_fees:
           - account_id: 0.0.8
             amount: 1000
@@ -4302,6 +4311,7 @@ components:
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
         entity_id: "0.0.2281979"
+        high_volume: false
         max_fee: 33
         memo_base64: null
         name: CRYPTOTRANSFER
