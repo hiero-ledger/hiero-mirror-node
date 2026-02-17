@@ -24,19 +24,24 @@ public class EthereumTransactionNonceExtractor {
         }
 
         final var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
-        final var first = decoder.next();
+        final int firstByte = transactionBytes[0] & 0xFF;
         List<RLPItem> elements;
         final int nonceIndex;
-        if (first.isList()) { // 0xc0-0xff indicates a list, indicating legacy txn, i.e txn without a type byte
-            elements = first.asRLPList().elements();
-            nonceIndex = 0; // in legacy txns the fist element of the list is the transaction nonce
+
+        // Legacy Case: 0xc0-0xff is the RLP range for a List (Legacy)
+        if (firstByte >= 0xc0) {
+            final var txnList = decoder.next();
+            elements = txnList.asRLPList().elements();
+            nonceIndex = 0; // Nonce is the 1st field in legacy txn: [nonce, gasPrice...]
         } else {
+            // Typed Case: The first item is the Type Byte (0x01, 0x02, 0x04)
+            decoder.next(); // Consume and skip the Type Byte
             final var payload = decoder.next();
             if (!payload.isList()) {
                 return null;
             }
             elements = payload.asRLPList().elements();
-            nonceIndex = 1; // in non-legacy txns the first element is the chainId, the second is the nonce
+            nonceIndex = 1; // Nonce is the 2nd field in typed txn: [chainId, nonce, maxFee...]
         }
         if (elements.size() <= nonceIndex) {
             return null;

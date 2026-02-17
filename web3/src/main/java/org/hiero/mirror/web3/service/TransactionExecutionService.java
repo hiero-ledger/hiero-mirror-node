@@ -203,11 +203,6 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
-        final var data = params.getEthereumData();
-        if (data == null || data.isEmpty()) {
-            throw new IllegalArgumentException("Ethereum data is missing in params");
-        }
-
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
