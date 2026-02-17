@@ -209,6 +209,51 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName("Should use parent's consensus timestamp when parent has contract result")
+    void useParentConsensusTimestampWhenParentHasContractResult() {
+        // Create a parent record item with contract result
+        var parentRecordItem = recordItemBuilder.contractCall().build();
+        long parentTimestamp = parentRecordItem.getConsensusTimestamp();
+
+        // Create a child record item linked to the parent
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
+                        .setSeconds(parentTimestamp / 1_000_000_000)
+                        .setNanos((int) (parentTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentRecordItem))
+                .build();
+
+        // Verify child has a different timestamp than parent
+        assertThat(recordItem.getConsensusTimestamp()).isNotEqualTo(parentTimestamp);
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        var capturedLog = contractLogCaptor.getValue();
+
+        // The log should use the parent's consensus timestamp since parent has contract result
+        assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(parentTimestamp);
+    }
+
+    @Test
+    @DisplayName("Should use child's consensus timestamp when no parent with contract result")
+    void useChildConsensusTimestampWhenNoParentWithContractResult() {
+        // Use the default recordItem from @BeforeEach which is a tokenMint (no parent with contract result)
+        long childTimestamp = recordItem.getConsensusTimestamp();
+
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener).onContractLog(contractLogCaptor.capture());
+        var capturedLog = contractLogCaptor.getValue();
+
+        // The log should use the child's own consensus timestamp since there's no parent with contract result
+        assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(childTimestamp);
+    }
+
+    @Test
     @DisplayName("Should create log for a hook-related transaction")
     void hookRelatedTransactionCreatesSyntheticLog() {
         // Create a parent record item with contract result and non-zero nonce (hook scenario)

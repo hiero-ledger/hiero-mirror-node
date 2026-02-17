@@ -40,7 +40,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return;
         }
 
-        long consensusTimestamp = parentRecordItem != null && parentRecordItem.hasContractLogsFromSource()
+        long consensusTimestamp = parentRecordItem != null && parentRecordItem.hasContractResult()
                 ? parentRecordItem.getConsensusTimestamp()
                 : recordItem.getConsensusTimestamp();
         int logIndex = recordItem.getAndIncrementLogIndex();

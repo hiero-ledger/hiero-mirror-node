@@ -275,9 +275,8 @@ public class RecordItem implements StreamItem {
         return contractTransactions.values();
     }
 
-    public boolean hasContractLogsFromSource() {
-        return !contractLogs.isEmpty()
-                && (transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult());
+    public boolean hasContractResult() {
+        return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
     }
 
     public static class RecordItemBuilder {
