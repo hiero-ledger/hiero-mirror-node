@@ -210,10 +210,13 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should handle hook-related transaction with 1 nanosecond difference")
-    void hookRelatedTransactionWithOneNanosecondDifference() {
-        // Create a parent record item with contract result
-        var parentRecordItem = recordItemBuilder.contractCall().build();
+    @DisplayName("Should create log for a hook-related transaction")
+    void hookRelatedTransactionCreatesSyntheticLog() {
+        // Create a parent record item with contract result and non-zero nonce (hook scenario)
+        var parentRecordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1)))
+                .build();
         long parentTimestamp = parentRecordItem.getConsensusTimestamp();
 
         // Create a child with exactly 1 nanosecond difference (hook scenario)
@@ -509,7 +512,7 @@ class SyntheticContractLogServiceImplTest {
         entityProperties.getPersist().setSyntheticContractLogsMulti(false);
 
         // Contract call with no previous that has contract results → parentRecordItemWithContractResult is null
-        // Even with >2 account amounts, if there's no parent with contract result, log should be created
+        // Even with >2 account amounts, if there's no parent with a contract result, log should be created
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setTransferList(TransferList.newBuilder()

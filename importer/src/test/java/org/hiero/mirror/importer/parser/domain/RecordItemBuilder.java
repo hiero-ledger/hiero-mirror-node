@@ -1531,7 +1531,7 @@ public class RecordItemBuilder {
         return topicId;
     }
 
-    public void updateState(GeneratedMessage id) {
+    private void updateState(GeneratedMessage id) {
         // Don't cascade creations that occur during an auto creation to avoid infinite recursion
         if (!autoCreation.get()) {
             state.computeIfAbsent(id, k -> new EntityState());
