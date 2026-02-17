@@ -143,7 +143,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
     }
 
     @Then("I estimate gas and execute hollow account creation using ethereum transaction")
-    public void estimateGasAndExecuteHollowAccountCreation() throws Exception {
+    public void estimateGasAndExecuteHollowAccountCreation() {
         // Prepare a non-existing EVM address (hollow account alias) as the recipient
         var hollowAccountKey = PrivateKey.generateECDSA();
         var hollowAccountEvmAddress = hollowAccountKey.getPublicKey().toEvmAddress();
@@ -188,6 +188,12 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
         // stricter validation in the web3 module.
         assertThat(opcodes.getOpcodes()).isNotEmpty();
+    }
+
+    @And("I set lower deviation to {int}% and upper deviation to {int}%")
+    public void setDeviations(int lower, int upper) {
+        lowerDeviation = lower;
+        upperDeviation = upper;
     }
 
     public DeployedContract ethereumContractCreate(ContractResource contractResource) {
