@@ -181,7 +181,6 @@ class SyntheticContractLogServiceImplTest {
     @Test
     @DisplayName("Should populate bloom filter correctly for contract transactions")
     void bloomFilterPopulated() {
-        // Use a contract call record item so bloom is calculated
         recordItem = recordItemBuilder.contractCall().build();
 
         syntheticContractLogService.create(
@@ -444,16 +443,6 @@ class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(0)).onContractLog(any());
     }
 
-    private AccountAmount accountAmount(long shard, long realm, long num, long amount) {
-        return AccountAmount.newBuilder()
-                .setAccountID(AccountID.newBuilder()
-                        .setShardNum(shard)
-                        .setRealmNum(realm)
-                        .setAccountNum(num))
-                .setAmount(amount)
-                .build();
-    }
-
     @Test
     @DisplayName(
             "Should create synthetic log when multi-party transfer is enabled and child has more than 2 account amounts")
@@ -507,12 +496,10 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should create synthetic log when multi-party disabled but parent has no contract result")
-    void createWhenMultiPartyDisabledAndNoContractParent() {
+    @DisplayName("Should not create synthetic log when multi-party disabled and no contract-related parent")
+    void skipCreationWhenMultiPartyDisabledAndNoContractParent() {
         entityProperties.getPersist().setSyntheticContractLogsMulti(false);
 
-        // Contract call with no previous that has contract results → parentRecordItemWithContractResult is null
-        // Even with >2 account amounts, if there's no parent with a contract result, log should be created
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setTransferList(TransferList.newBuilder()
@@ -523,7 +510,17 @@ class SyntheticContractLogServiceImplTest {
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    private AccountAmount accountAmount(long shard, long realm, long num, long amount) {
+        return AccountAmount.newBuilder()
+                .setAccountID(AccountID.newBuilder()
+                        .setShardNum(shard)
+                        .setRealmNum(realm)
+                        .setAccountNum(num))
+                .setAmount(amount)
+                .build();
     }
 
     /**
@@ -532,7 +529,7 @@ class SyntheticContractLogServiceImplTest {
      * Topics and data use the raw trimmed bytes (without left-padding) to match
      * the format that Utility.getTopic/getDataTrimmed will produce after trimming.
      *
-     * @param tokenId the token contract that emitted the log
+     * @param tokenId the token that emitted the log (contract)
      * @param sender the sender address (topic1)
      * @param receiver the receiver address (topic2)
      * @param transferAmount the transfer amount (data)

@@ -394,13 +394,6 @@ public class EntityRecordItemListener implements RecordItemListener {
                 || recordItem.getTransactionType() == TransactionType.TOKENWIPE.getProtoId();
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
-        var record = recordItem.getTransactionRecord();
-        EntityId contractId = null;
-        if (record.hasContractCallResult()) {
-            contractId = EntityId.of(record.getContractCallResult().getContractID());
-        } else if (record.hasContractCreateResult()) {
-            contractId = EntityId.of(record.getContractCreateResult().getContractID());
-        }
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);

@@ -71,40 +71,36 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     }
 
     private boolean shouldSkipLogCreationForContractTransfer(
-            SyntheticContractLog syntheticLog, RecordItem parentRecordItemWithContractResult) {
+            SyntheticContractLog syntheticLog, RecordItem contractRelatedParent) {
         if (!(syntheticLog instanceof TransferContractLog transferLog)) {
             // Only TransferContractLog synthetic event creation is supported for an operation with contract origin
             return true;
         }
 
-        // We have a contract-related parent which already persisted the same log
-        if (parentRecordItemWithContractResult != null
-                && syntheticLog
+        if (syntheticLog
                                 .getRecordItem()
                                 .getTransactionRecord()
                                 .getTransferList()
                                 .getAccountAmountsCount()
                         > 2
                 && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
-            // We have a multi-party fungible transfer scenario, but synthetic event creation for
+            // We have a multi-party fungible transfer scenario and synthetic event creation for
             // such transfers is disabled
             return true;
-        } else
-            return parentRecordItemWithContractResult != null
-                    && logAlreadyImported(transferLog, parentRecordItemWithContractResult);
+        } else return contractRelatedParent != null && logAlreadyImported(transferLog, contractRelatedParent);
     }
 
     /**
      * Checks if the given TransferContractLog matches an existing contract log in the parent record item
      * and consumes one occurrence of the matching log. This handles the case where the same contract log
-     * appears multiple times in the record as being part of different operations.
+     * appears multiple times in the child records as being part of different operations.
      *
      * @param transferLog the TransferContractLog to check
-     * @param parentWithContractResult the parent RecordItem containing the contract logs
-     * @return true if a matching log is found and it is persisted, false otherwise
+     * @param contractRelatedParent the parent RecordItem containing the contract logs
+     * @return true if a matching log is found and it is already persisted, false otherwise
      */
-    private boolean logAlreadyImported(TransferContractLog transferLog, RecordItem parentWithContractResult) {
-        return parentWithContractResult.consumeMatchingContractLog(transferLog::equalsContractLoginfo);
+    private boolean logAlreadyImported(TransferContractLog transferLog, RecordItem contractRelatedParent) {
+        return contractRelatedParent.consumeMatchingContractLog(transferLog::equalsContractLoginfo);
     }
 
     /**
