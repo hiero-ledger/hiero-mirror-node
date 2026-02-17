@@ -135,7 +135,7 @@ public abstract class NetworkNodeMapper {
         }
 
         // Add 1 nanosecond to staking period start
-        long stakingPeriodStart = stakingPeriod + 1L;
+        final var stakingPeriodStart = stakingPeriod + 1L;
 
         var period = new TimestampRangeNullable();
         period.setFrom(DomainUtils.toTimestamp(stakingPeriodStart));

@@ -216,10 +216,10 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             BindingMetadata metadata, NativeWebRequest webRequest, WebDataBinder binder) {
         Map<String, String[]> allParams = webRequest.getParameterMap();
 
-        // Collect all known parameter names from annotations
-        var knownParams = metadata.queryParams.values().stream()
-                .map(annotation -> annotation.value().isEmpty() ? annotation.name() : annotation.value())
-                .filter(name -> !name.isEmpty())
+        // Collect all known parameter names from annotations, falling back to field name if no explicit name is set
+        var knownParams = metadata.queryParams.entrySet().stream()
+                .map(e -> extractName(
+                        e.getKey(), e.getValue().value(), e.getValue().name()))
                 .toList();
 
         // Check for unknown parameters and add errors
