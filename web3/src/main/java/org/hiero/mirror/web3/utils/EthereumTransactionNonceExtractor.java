@@ -22,28 +22,25 @@ public class EthereumTransactionNonceExtractor {
         if (transactionBytes == null || transactionBytes.length < 2) {
             return null;
         }
-        try {
-            var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
-            var first = decoder.next();
-            List<RLPItem> elements;
-            int nonceIndex;
-            if (first.isList()) {
-                elements = first.asRLPList().elements();
-                nonceIndex = 0;
-            } else {
-                var payload = decoder.next();
-                if (!payload.isList()) {
-                    return null;
-                }
-                elements = payload.asRLPList().elements();
-                nonceIndex = 1;
-            }
-            if (elements.size() <= nonceIndex) {
+
+        final var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
+        final var first = decoder.next();
+        List<RLPItem> elements;
+        final int nonceIndex;
+        if (first.isList()) {
+            elements = first.asRLPList().elements();
+            nonceIndex = 0;
+        } else {
+            final var payload = decoder.next();
+            if (!payload.isList()) {
                 return null;
             }
-            return elements.get(nonceIndex).asLong();
-        } catch (Exception e) {
+            elements = payload.asRLPList().elements();
+            nonceIndex = 1;
+        }
+        if (elements.size() <= nonceIndex) {
             return null;
         }
+        return elements.get(nonceIndex).asLong();
     }
 }

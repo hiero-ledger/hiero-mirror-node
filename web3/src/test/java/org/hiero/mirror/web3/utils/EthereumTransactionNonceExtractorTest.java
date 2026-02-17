@@ -14,9 +14,15 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 final class EthereumTransactionNonceExtractorTest {
 
+    // the f8 byte indicates the "Long List" prefix,
+    // the 6c byte indicates the length of the RLP-encoded transaction (108 bytes)
+    // the rest is the RLP-encoded transaction data, where the nonce is the first element (09)
     private static final String LEGACY_EIP155_RAW_TX =
             "f86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a028ef61340bd939bc2195fe537567866003e1a15d3c71ff63e1590620aa636276a067cbe9d8997f761aecb703304b3800ccf555c9f3dc64214b297fb1966a3b6d83";
 
+    // 01 - The Transaction Type identifier(EIP2930)
+    // f8 - The "Long List" prefix
+    // 73 - The length indicator (115 bytes)
     private static final String EIP2930_RAW_TX =
             "01f87382012a82160c85a54f4c3c00832dc6c094000000000000000000000000000000000000052d8502540be40083123456c001a0abb9e9c510716df2988cf626734ee50dcd9f41d30d638220712b5fe33fe4c816a0249a72e1479b61e00d4f20308577bb63167d71b26138ee5229ca1cb3c49a2e53";
 
