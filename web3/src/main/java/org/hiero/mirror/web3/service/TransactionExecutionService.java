@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
+import static com.hedera.node.app.hapi.utils.ethereum.EthTxData.populateEthTxData;
 import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL_KEY;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
@@ -47,7 +48,6 @@ import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
-import org.hiero.mirror.web3.utils.EthereumTransactionNonceExtractor;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.tracing.OperationTracer;
 
@@ -224,9 +224,8 @@ public class TransactionExecutionService {
         if (params.getSender().isZero() && params.getValue() == 0L) {
             return;
         }
-        final var nonce = EthereumTransactionNonceExtractor.extractNonce(
-                params.getEthereumData().toArray());
-        if (nonce == null || !ContractCallContext.isInitialized()) {
+        final long nonce = populateEthTxData(params.getEthereumData().toArray()).nonce();
+        if (!ContractCallContext.isInitialized()) {
             return;
         }
         final var senderId = getSenderAccountIDAsNum(params.getSender());
