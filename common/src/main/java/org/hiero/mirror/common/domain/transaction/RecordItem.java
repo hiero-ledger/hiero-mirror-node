@@ -258,37 +258,6 @@ public class RecordItem implements StreamItem {
                         DomainUtils.toBytes(getTransactionRecord().getTransactionHash()), 0, 32));
     }
 
-    /**
-     * Parses and returns a contract related parent by iterating over previous items until a parent with
-     * contractCallResult or contractCreateResult is found. For hook-related transactions, the previous item has
-     * a consensus timestamp that is only 1 nanosecond smaller than the current item.
-     *
-     * @return the contract related parent RecordItem, or null if not found
-     */
-    public RecordItem parseParentWithContractResult() {
-        var current = this.previous;
-        while (current != null) {
-            if (hasContractResult(current)) {
-                // Check if this is a hook-related transaction (should have 1 nanosecond difference)
-                if (this.consensusTimestamp - current.getConsensusTimestamp() == 1) {
-                    // For hooks, the previous item should have a contract result
-                    if (hasContractResult(current)) {
-                        return current;
-                    }
-                } else {
-                    return current;
-                }
-            }
-            current = current.getPrevious();
-        }
-        return null;
-    }
-
-    private boolean hasContractResult(RecordItem item) {
-        var txnRecord = item.getTransactionRecord();
-        return txnRecord.hasContractCallResult() || txnRecord.hasContractCreateResult();
-    }
-
     private Map<Long, ContractTransaction> getContractTransactions() {
         if (contractTransactions == null) {
             contractTransactions = new HashMap<>();
@@ -304,6 +273,11 @@ public class RecordItem implements StreamItem {
         var ids = new ArrayList<>(contractTransactions.keySet());
         contractTransactions.values().forEach(contractTransaction -> contractTransaction.setContractIds(ids));
         return contractTransactions.values();
+    }
+
+    public boolean hasContractLogsFromSource() {
+        return !contractLogs.isEmpty()
+                && (transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult());
     }
 
     public static class RecordItemBuilder {

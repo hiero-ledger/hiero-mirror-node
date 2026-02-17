@@ -234,35 +234,6 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
-    @DisplayName("Should not create when hook transaction matches parent log with 1ns difference")
-    void doNotCreateWhenHookMatchesParentLog() {
-        // Create a ContractLoginfo that matches the TransferContractLog
-        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
-
-        var parentRecordItem = recordItemBuilder
-                .contractCall()
-                .record(r -> r.setContractCallResult(
-                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
-                .build();
-        long parentTimestamp = parentRecordItem.getConsensusTimestamp();
-
-        // Create a child with exactly 1 nanosecond difference (hook scenario)
-        long childTimestamp = parentTimestamp + 1;
-
-        recordItem = recordItemBuilder
-                .contractCall()
-                .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder()
-                        .setSeconds(childTimestamp / 1_000_000_000)
-                        .setNanos((int) (childTimestamp % 1_000_000_000))))
-                .recordItem(r -> r.previous(parentRecordItem))
-                .build();
-
-        syntheticContractLogService.create(
-                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(0)).onContractLog(any());
-    }
-
-    @Test
     @DisplayName("Should not create for non-TransferContractLog types in contract transactions")
     void doNotCreateForNonTransferContractLogInContractTransaction() {
         // Create a parent with contract logs

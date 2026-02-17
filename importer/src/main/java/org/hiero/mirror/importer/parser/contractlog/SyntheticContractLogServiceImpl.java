@@ -33,16 +33,15 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         }
 
         var recordItem = log.getRecordItem();
-        var parentRecordItemWithContractResult = recordItem.parseParentWithContractResult();
+        var parentRecordItem = recordItem.getParent();
 
         // We will backfill any EVM-related fungible token transfers that don't have synthetic events produced by CN
-        if (isContract(recordItem)
-                && shouldSkipLogCreationForContractTransfer(log, parentRecordItemWithContractResult)) {
+        if (isContract(recordItem) && shouldSkipLogCreationForContractTransfer(log, parentRecordItem)) {
             return;
         }
 
-        long consensusTimestamp = parentRecordItemWithContractResult != null
-                ? parentRecordItemWithContractResult.getConsensusTimestamp()
+        long consensusTimestamp = parentRecordItem != null && parentRecordItem.hasContractLogsFromSource()
+                ? parentRecordItem.getConsensusTimestamp()
                 : recordItem.getConsensusTimestamp();
         int logIndex = recordItem.getAndIncrementLogIndex();
 
