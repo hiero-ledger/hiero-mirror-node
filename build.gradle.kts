@@ -65,7 +65,6 @@ dependencies {
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
-        api("io.projectreactor:reactor-core-micrometer:3.8.3")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
