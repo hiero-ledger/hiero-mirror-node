@@ -414,12 +414,7 @@ public class AccountClient extends AbstractNetworkClient {
 
         batch.setMaxTransactionFee(Hbar.from(5));
 
-        final var batchResponse = executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
-
-        log.info("Batch receipt status: {}", batchResponse.getReceipt().status);
-        log.info("Batch tx id: {}", batchResponse.getTransactionId());
-
-        return batchResponse;
+        return executeTransactionAndRetrieveReceipt(batch, (KeyList) null);
     }
 
     /**
@@ -436,9 +431,6 @@ public class AccountClient extends AbstractNetworkClient {
         final var hollowPayer = new ExpandedAccountId(hollowResolvedAccountId, hollowAccountPrivateKey);
         final var keys = KeyList.of(hollowAccountPrivateKey);
         final var completionResponse = executeTransactionAndRetrieveReceipt(completionTx, keys, hollowPayer);
-
-        log.info("Completion receipt status: {}", completionResponse.getReceipt().status);
-        log.info("Completion tx id: {}", completionResponse.getTransactionId());
 
         accountIds.add(hollowPayer);
 

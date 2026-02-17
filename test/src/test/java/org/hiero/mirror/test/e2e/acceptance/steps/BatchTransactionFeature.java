@@ -83,7 +83,7 @@ public class BatchTransactionFeature {
         assertThat(accountDetails.getKey()).isNull();
     }
 
-    @Then("I should see the batch transaction in the record stream")
+    @Then("I should see the batch transaction in mirror node")
     public void verifyBatchTransactionInRecordStream() {
         assertThat(batchTransactionId).isNotNull();
 
@@ -117,7 +117,7 @@ public class BatchTransactionFeature {
                 .allMatch(t -> t.getBatchKey() == null);
     }
 
-    @Then("I should see the completion transaction in the record stream")
+    @Then("I should see the completion transaction in mirror node")
     public void verifyCompletionTransaction() {
         assertThat(completionTransactionId).isNotNull();
 
