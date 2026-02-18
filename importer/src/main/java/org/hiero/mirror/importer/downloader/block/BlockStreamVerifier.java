@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
+import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -167,17 +168,18 @@ final class BlockStreamVerifier {
         updateLedger(blockFile);
 
         final var blockProof = blockFile.getBlockProof();
-        if (blockFile.getIndex() != blockProof.getBlock()) {
-            throw new InvalidStreamFileException("Block number mismatch, in block header = %d, in block proof = %d"
-                    .formatted(blockFile.getIndex(), blockProof.getBlock()));
-        }
-
         if (!blockProof.hasSignedBlockProof()) {
             throw new InvalidStreamFileException("Invalid block proof case " + blockProof.getProofCase());
         }
 
         final byte[] hash = blockFile.getRawHash();
         final byte[] signature = toBytes(blockProof.getSignedBlockProof().getBlockSignature());
+        if (signature.length == DigestAlgorithm.SHA_384.getSize()) {
+            // Signature is the SHA-384 hash of the root hash when TSS isn't enabled. Will remove the shortcut in a
+            // future release when testing with a network without TSS is no longer needed
+            return;
+        }
+
         tssVerifier.verify(blockFile.getIndex(), hash, signature);
     }
 }

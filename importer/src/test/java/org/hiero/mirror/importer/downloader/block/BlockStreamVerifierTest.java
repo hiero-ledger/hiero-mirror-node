@@ -240,34 +240,6 @@ final class BlockStreamVerifierTest {
     }
 
     @Test
-    void blockNumberMismatchBetweenHeaderAndPoof() {
-        // given
-        when(recordFileRepository.findLatest()).thenReturn(Optional.empty());
-        final var blockFile = getBlockFile(null);
-        blockFile.setBlockProof(BlockProof.newBuilder()
-                .setBlock(blockFile.getIndex() + 1)
-                .setSignedBlockProof(TssSignedBlockProof.getDefaultInstance())
-                .build());
-
-        // then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
-
-        // when, then
-        clearInvocations(cutoverService);
-        assertThatThrownBy(() -> verifier.verify(blockFile))
-                .isInstanceOf(InvalidStreamFileException.class)
-                .hasMessage("Block number mismatch, in block header = %d, in block proof = %d"
-                        .formatted(blockFile.getIndex(), blockFile.getIndex() + 1));
-        verifyNoInteractions(blockFileTransformer);
-        verify(cutoverService, times(2)).getLastRecordFile();
-        verify(cutoverService, never()).verified(any(RecordFile.class));
-        verifyNoInteractions(ledgerIdPublicationTransactionParser);
-        verifyNoInteractions(tssVerifier);
-        verify(recordFileRepository).findLatest();
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
-    }
-
-    @Test
     void hashMismatch() {
         // given
         final var previous = getRecordFile();
