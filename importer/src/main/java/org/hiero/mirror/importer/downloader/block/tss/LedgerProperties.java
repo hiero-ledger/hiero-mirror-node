@@ -22,6 +22,7 @@ public final class LedgerProperties {
     @NotEmpty
     private byte[] ledgerId;
 
+    @Builder.Default
     @NotEmpty
     @Valid
     private List<LedgerNodeContribution> nodeContributions = List.of();
