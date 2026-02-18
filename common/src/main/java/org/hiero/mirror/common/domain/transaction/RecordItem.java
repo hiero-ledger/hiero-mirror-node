@@ -97,6 +97,10 @@ public class RecordItem implements StreamItem {
     private Predicate<EntityId> entityTransactionPredicate;
 
     @NonFinal
+    @Setter
+    private Predicate<EntityId> entityNftTransactionPredicate;
+
+    @NonFinal
     private Map<Long, EntityTransaction> entityTransactions;
 
     @NonFinal
@@ -137,7 +141,15 @@ public class RecordItem implements StreamItem {
     }
 
     public void addEntityId(EntityId entityId) {
-        if (entityTransactionPredicate == null || !entityTransactionPredicate.test(entityId)) {
+        boolean shouldPersist = false;
+
+        if (entityTransactionPredicate != null && entityTransactionPredicate.test(entityId)) {
+            shouldPersist = true;
+        } else if (entityNftTransactionPredicate != null && entityNftTransactionPredicate.test(entityId)) {
+            shouldPersist = true;
+        }
+
+        if (!shouldPersist) {
             return;
         }
 

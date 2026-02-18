@@ -13,6 +13,7 @@ import java.util.Set;
 import lombok.Data;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -57,6 +58,7 @@ public class EntityProperties {
         private Set<EntityId> entityTransactionExclusion;
 
         private boolean entityTransactions = false;
+        private boolean entityNftTransactions = false;
 
         private boolean ethereumTransactions = true;
 
@@ -126,6 +128,63 @@ public class EntityProperties {
 
         public boolean shouldPersistEntityTransaction(EntityId entityId) {
             return entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
+        }
+
+        public boolean shouldPersistEntityNftTransaction(EntityId entityId, RecordItem recordItem) {
+            if (!entityNftTransactions || EntityId.isEmpty(entityId) || entityTransactionExclusion.contains(entityId)) {
+                return false;
+            }
+
+            int transactionTypeValue = recordItem.getTransactionType();
+            TransactionType transactionType = TransactionType.of(transactionTypeValue);
+            boolean isNftRelatedTransaction = transactionType == TransactionType.CRYPTOTRANSFER
+                    || transactionType == TransactionType.TOKENMINT
+                    || transactionType == TransactionType.TOKENBURN
+                    || transactionType == TransactionType.TOKENWIPE
+                    || transactionType == TransactionType.TOKENUPDATE;
+
+            if (!isNftRelatedTransaction) {
+                return false;
+            }
+
+            // Exclude payer account
+            if (entityId.equals(recordItem.getPayerAccountId())) {
+                return false;
+            }
+
+            // Exclude node account
+            EntityId nodeAccountId = EntityId.of(recordItem.getTransactionBody().getNodeAccountID());
+            if (entityId.equals(nodeAccountId)) {
+                return false;
+            }
+
+            // Exclude primary entity account from the receipt (e.g. created account)
+            EntityId receiptAccountId =
+                    EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+            if (entityId.equals(receiptAccountId)) {
+                return false;
+            }
+
+            // Exclude primary token ids involved in token operations
+            var body = recordItem.getTransactionBody();
+            if (body.hasTokenWipe()
+                    && entityId.equals(EntityId.of(body.getTokenWipe().getToken()))) {
+                return false;
+            }
+            if (body.hasTokenBurn()
+                    && entityId.equals(EntityId.of(body.getTokenBurn().getToken()))) {
+                return false;
+            }
+            if (body.hasTokenMint()
+                    && entityId.equals(EntityId.of(body.getTokenMint().getToken()))) {
+                return false;
+            }
+            if (body.hasTokenUpdate()
+                    && entityId.equals(EntityId.of(body.getTokenUpdate().getToken()))) {
+                return false;
+            }
+
+            return true;
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {

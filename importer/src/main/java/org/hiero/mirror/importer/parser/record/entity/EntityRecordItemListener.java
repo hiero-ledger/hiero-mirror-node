@@ -77,7 +77,10 @@ public class EntityRecordItemListener implements RecordItemListener {
 
     @Override
     public void onItem(RecordItem recordItem) throws ImporterException {
-        recordItem.setEntityTransactionPredicate(entityProperties.getPersist()::shouldPersistEntityTransaction);
+        recordItem.setEntityTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityTransaction(entityId));
+        recordItem.setEntityNftTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, recordItem));
         recordItem.setContractTransactionPredicate(
                 entityId -> entityProperties.getPersist().isContractTransaction());
 
