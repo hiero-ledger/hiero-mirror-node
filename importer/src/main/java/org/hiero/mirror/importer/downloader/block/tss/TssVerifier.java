@@ -10,5 +10,5 @@ public interface TssVerifier {
 
     void setLedger(Ledger ledger);
 
-    void verify(final long blockNumber, byte[] message, byte[] signature);
+    void verify(long blockNumber, byte[] message, byte[] signature);
 }

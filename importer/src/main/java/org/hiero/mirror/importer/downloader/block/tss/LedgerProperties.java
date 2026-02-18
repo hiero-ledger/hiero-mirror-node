@@ -14,7 +14,7 @@ import org.springframework.validation.annotation.Validated;
 @Builder
 @Data
 @Validated
-public class LedgerProperties {
+public final class LedgerProperties {
 
     @NotEmpty
     private byte[] historyProofVerificationKey;
