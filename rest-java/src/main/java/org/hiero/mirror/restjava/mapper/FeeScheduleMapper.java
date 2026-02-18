@@ -7,12 +7,14 @@ import static org.hiero.mirror.restjava.mapper.CommonMapper.QUALIFIER_TIMESTAMP;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import com.hederahashgraph.api.proto.java.FeeSchedule;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.restjava.dto.SystemFile;
@@ -53,20 +55,20 @@ public interface FeeScheduleMapper {
             Bound bound,
             Sort.Direction order) {
 
-        final var schedule = feeScheduleFile.protobuf().getCurrentFeeSchedule();
         final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
-        final var rate = getEffectiveExchangeRate(exchangeRateFile.protobuf(), refTimestampNanos);
+        final var feeSchedule = getEffectiveFeeSchedule(feeScheduleFile.protobuf(), refTimestampNanos);
+        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.protobuf(), refTimestampNanos);
 
-        return schedule.getTransactionFeeScheduleList().stream()
+        return feeSchedule.getTransactionFeeScheduleList().stream()
                 .filter(s -> ENABLED_TRANSACTION_TYPES.containsKey(s.getHederaFunctionality()) && s.getFeesCount() > 0)
-                .map(s -> mapToNetworkFee(s, rate))
+                .map(s -> mapToNetworkFee(s, exchangeRate))
                 .filter(Objects::nonNull)
                 .sorted(getComparator(order))
                 .toList();
     }
 
     private long getReferenceTimestampNanos(SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile, Bound bound) {
-        final long upperBound = (bound == null || bound.isEmpty()) ? Long.MAX_VALUE : bound.adjustUpperBound();
+        final long upperBound = bound.adjustUpperBound();
 
         if (upperBound == Long.MAX_VALUE) {
             final var timestamp = feeScheduleFile.fileData().getConsensusTimestamp();
@@ -80,10 +82,22 @@ public interface FeeScheduleMapper {
         final var currentRate = exchangeRateSet.getCurrentRate();
         final var currentRateExpirationTime = currentRate.getExpirationTime().getSeconds();
 
-        if (refTimestampNanos > currentRateExpirationTime * 1_000_000_000L) {
+        if (refTimestampNanos > currentRateExpirationTime * DomainUtils.NANOS_PER_SECOND) {
             return exchangeRateSet.getNextRate();
         }
         return currentRate;
+    }
+
+    private FeeSchedule getEffectiveFeeSchedule(CurrentAndNextFeeSchedule feeSchedules, long refTimestampNanos) {
+
+        final var currentFeeSchedule = feeSchedules.getCurrentFeeSchedule();
+        final var feeScheduleExpirationTime = currentFeeSchedule.getExpiryTime().getSeconds();
+
+        if (refTimestampNanos > feeScheduleExpirationTime * DomainUtils.NANOS_PER_SECOND) {
+            return feeSchedules.getNextFeeSchedule();
+        }
+
+        return currentFeeSchedule;
     }
 
     @Nullable

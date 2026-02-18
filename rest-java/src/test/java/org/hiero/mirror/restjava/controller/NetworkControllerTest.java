@@ -257,7 +257,7 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEndpointTest extends EndpointTest {
 
-        private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * 1_000_000_000L;
+        private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * DomainUtils.NANOS_PER_SECOND;
         private long feeFileTimestampSeq = 0;
 
         private final EntityId feeFileId = systemEntity.feeScheduleFile();
@@ -454,7 +454,8 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData feeScheduleFile(final byte[] bytes) {
-            final var timestamp = CURRENT_RATE_EXPIRATION_NANOS - 1_000_000_000L + (feeFileTimestampSeq++);
+            final var timestamp =
+                    CURRENT_RATE_EXPIRATION_NANOS - DomainUtils.NANOS_PER_SECOND + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(f -> f.entityId(feeFileId).fileData(bytes).consensusTimestamp(timestamp))
@@ -462,7 +463,8 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData exchangeRateFile(final byte[] bytes) {
-            final var timestamp = CURRENT_RATE_EXPIRATION_NANOS - 1_000_000_000L + (feeFileTimestampSeq++);
+            final var timestamp =
+                    CURRENT_RATE_EXPIRATION_NANOS - DomainUtils.NANOS_PER_SECOND + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
                     .customize(
