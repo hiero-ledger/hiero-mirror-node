@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.common;
 
+import jakarta.inject.Named;
 import java.lang.reflect.Field;
 import java.util.Collection;
 import java.util.Collections;
@@ -13,7 +14,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.restjava.exception.InvalidParameterCountException;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.core.MethodParameter;
-import org.springframework.stereotype.Component;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ValueConstants;
@@ -28,7 +28,7 @@ import org.springframework.web.servlet.HandlerMapping;
  * binding and validation, exactly like Spring's built-in @RequestParam resolver. The only difference: annotations are
  * on DTO fields instead of method parameters.
  */
-@Component
+@Named
 @RequiredArgsConstructor
 public class RequestParameterArgumentResolver implements HandlerMethodArgumentResolver {
 

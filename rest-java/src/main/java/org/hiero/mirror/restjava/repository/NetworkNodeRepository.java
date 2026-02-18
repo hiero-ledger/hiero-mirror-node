@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.repository;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
+import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 
@@ -19,7 +20,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
      * @param maxNodeId      Maximum node ID for range filter (inclusive)
      * @param orderDirection Sort direction ('ASC' or 'DESC')
      * @param limit          Maximum number of results to return
-     * @return List of network node query result rows
+     * @return List of network node query results
      */
     @Query(value = """
             with latest_address_book as (
@@ -52,7 +53,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 ab.end_consensus_timestamp as endConsensusTimestamp,
                 n.admin_key as adminKey,
                 n.decline_reward as declineReward,
-                n.grpc_proxy_endpoint as grpcProxyEndpoint,
+                n.grpc_proxy_endpoint as grpcProxyEndpointJson,
                 ns.max_stake as maxStake,
                 ns.min_stake as minStake,
                 ns.reward_rate as rewardRateStart,
@@ -71,7 +72,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                     from address_book_service_endpoint abse
                     where abse.consensus_timestamp = abe.consensus_timestamp
                       and abse.node_id = abe.node_id
-                ), '[]'::jsonb) as serviceEndpoints
+                ), '[]'::jsonb) as serviceEndpointsJson
             from address_book_entry abe
             join latest_address_book ab
               on ab.start_consensus_timestamp = abe.consensus_timestamp
@@ -87,6 +88,6 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
               case when :orderDirection = 'DESC' then abe.node_id end desc
             limit :limit
             """, nativeQuery = true)
-    List<NetworkNodeRow> findNetworkNodes(
+    List<NetworkNodeDto> findNetworkNodes(
             Long fileId, Long[] nodeIds, long minNodeId, long maxNodeId, String orderDirection, int limit);
 }

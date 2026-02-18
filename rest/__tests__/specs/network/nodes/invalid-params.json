@@ -3,58 +3,25 @@
   "setup": {},
   "url": "/api/v1/network/nodes?file.id=a&node.id=b&limit=c&order=d&token.id=2",
   "responseStatus": 400,
-  "responseJsonMatrix": {
-    "js": {
-      "_status": {
-        "messages": [
-          {
-            "message": "Invalid parameter: file.id"
-          },
-          {
-            "message": "Invalid parameter: node.id"
-          },
-          {
-            "message": "Invalid parameter: limit"
-          },
-          {
-            "message": "Invalid parameter: order"
-          },
-          {
-            "message": "Unknown query parameter: token.id"
-          }
-        ]
-      }
-    },
-    "java": {
-      "_status": {
-        "messages": [
-          {
-            "data": null,
-            "detail": null,
-            "message": "Invalid parameter: file.id"
-          },
-          {
-            "data": null,
-            "detail": null,
-            "message": "Invalid parameter: node.id"
-          },
-          {
-            "data": null,
-            "detail": null,
-            "message": "Invalid parameter: limit"
-          },
-          {
-            "data": null,
-            "detail": null,
-            "message": "Invalid parameter: order"
-          },
-          {
-            "data": null,
-            "detail": null,
-            "message": "Unknown query parameter: token.id"
-          }
-        ]
-      }
+  "responseJson": {
+    "_status": {
+      "messages": [
+        {
+          "message": "Invalid parameter: file.id"
+        },
+        {
+          "message": "Invalid parameter: node.id"
+        },
+        {
+          "message": "Invalid parameter: limit"
+        },
+        {
+          "message": "Invalid parameter: order"
+        },
+        {
+          "message": "Unknown query parameter: token.id"
+        }
+      ]
     }
   }
 }

@@ -8,6 +8,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -173,7 +174,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     private Error errorResponse(final String message, final String detail) {
-        var errorMessage = new ErrorStatusMessagesInner();
+        var errorMessage = new ErrorMessage();
         errorMessage.setMessage(message);
         if (StringUtils.isNotBlank(detail)) {
             errorMessage.setDetail(detail);
@@ -195,12 +196,30 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
         // Return error in rest module format: { "message": "..." }
         // Don't set detail or data fields to match Node.js behavior
-        return new ErrorStatusMessagesInner().message(message);
+        return new ErrorMessage().message(message);
     }
 
     private String camelCaseToParameterName(String fieldName) {
         // Convert camelCase to dot notation: nodeId -> node.id, fileId -> file.id
         return fieldName.replaceAll("([a-z])([A-Z])", "$1.$2").toLowerCase();
+    }
+
+    // Subclass that overrides nullable getters with @JsonInclude(NON_NULL) so that unset
+    // fields are omitted from the serialized error response, matching the JS module behavior.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private static class ErrorMessage extends ErrorStatusMessagesInner {
+
+        @Override
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public String getData() {
+            return super.getData();
+        }
+
+        @Override
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public String getDetail() {
+            return super.getDetail();
+        }
     }
 
     private static class ErrorMessageSource extends StaticMessageSource {

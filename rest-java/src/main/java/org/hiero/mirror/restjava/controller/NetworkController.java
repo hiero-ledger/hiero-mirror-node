@@ -26,6 +26,7 @@ import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.restjava.common.LinkFactory;
+import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.RequestParameter;
 import org.hiero.mirror.restjava.common.SupplyType;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
@@ -159,13 +160,15 @@ final class NetworkController {
 
     @GetMapping("/nodes")
     ResponseEntity<NetworkNodesResponse> getNodes(@RequestParameter NetworkNodeRequest request) {
+        if (request.getFileId().operator() != RangeOperator.EQ) {
+            throw new IllegalArgumentException("Only equality operator is supported for file.id");
+        }
         final var networkNodeRows = networkService.getNetworkNodes(request);
         // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
 
         // Map database rows to response model
-        final var networkNodes =
-                networkNodeRows.stream().map(networkNodeMapper::map).toList();
+        final var networkNodes = networkNodeMapper.map(networkNodeRows);
 
         // Create pagination links using LinkFactory
         // Matches Node.js behavior: generate next link when results.size() == limit (optimistic pagination)

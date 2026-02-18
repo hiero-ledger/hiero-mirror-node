@@ -55,7 +55,6 @@ final class LinkFactoryImpl implements LinkFactory {
         return new Links().next(nextLink);
     }
 
-    @org.jspecify.annotations.Nullable
     private <T> String createNextLink(
             T lastItem, Pageable pageable, Function<T, Map<String, String>> extractor, HttpServletRequest request) {
         var sortOrders = pageable.getSort();

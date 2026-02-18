@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Min;
 import java.util.List;
 import lombok.Data;
 import org.hiero.mirror.restjava.common.RestJavaQueryParam;
-import org.hiero.mirror.restjava.parameter.EntityIdEqualParameter;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -20,7 +19,7 @@ public class NetworkNodeRequest {
     public static final int DEFAULT_LIMIT = 10;
 
     @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "0.0.102")
-    private EntityIdEqualParameter fileId;
+    private EntityIdRangeParameter fileId;
 
     @RestJavaQueryParam(name = "node.id", required = false)
     private List<EntityIdRangeParameter> nodeId;

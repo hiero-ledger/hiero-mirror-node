@@ -16,13 +16,13 @@ import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
+import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
-import org.hiero.mirror.restjava.repository.NetworkNodeRow;
 import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 
 @Named
@@ -84,9 +84,9 @@ final class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public List<NetworkNodeRow> getNetworkNodes(NetworkNodeRequest request) {
+    public List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request) {
         // fileId has a default value of 102, so it's always present
-        final var fileId = request.getFileId().entityId().getId();
+        final var fileId = request.getFileId().value();
         // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeId();

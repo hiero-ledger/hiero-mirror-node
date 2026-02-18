@@ -3,11 +3,9 @@
 package org.hiero.mirror.restjava.mapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -15,25 +13,15 @@ import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.ServiceEndpoint;
-import org.hiero.mirror.restjava.repository.NetworkNodeRow;
-import org.junit.jupiter.api.BeforeEach;
+import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.junit.jupiter.api.Test;
 
 class NetworkNodeMapperTest {
 
-    private ObjectMapper objectMapper;
-    private CommonMapper commonMapper;
-    private TestNetworkNodeMapper mapper;
-
-    @BeforeEach
-    void setup() {
-        objectMapper = new ObjectMapper();
-        commonMapper = new CommonMapperImpl();
-        mapper = new TestNetworkNodeMapper(objectMapper, commonMapper);
-    }
+    private final NetworkNodeMapper mapper = new NetworkNodeMapperImpl();
 
     @Test
-    void map() throws Exception {
+    void map() {
         // Given
         var row = mockNetworkNodeRow();
         when(row.getDescription()).thenReturn("Test Node");
@@ -58,14 +46,12 @@ class NetworkNodeMapperTest {
         var serviceEndpoint = new ServiceEndpoint();
         serviceEndpoint.setIpAddressV4("192.168.1.1");
         serviceEndpoint.setPort(50211);
-        var serviceEndpointsJson = objectMapper.writeValueAsString(List.of(serviceEndpoint));
-        when(row.getServiceEndpoints()).thenReturn(serviceEndpointsJson);
+        when(row.getServiceEndpoints()).thenReturn(List.of(serviceEndpoint));
 
         var grpcProxyEndpoint = new ServiceEndpoint();
         grpcProxyEndpoint.setIpAddressV4("10.0.0.1");
         grpcProxyEndpoint.setPort(8080);
-        var grpcProxyJson = objectMapper.writeValueAsString(grpcProxyEndpoint);
-        when(row.getGrpcProxyEndpoint()).thenReturn(grpcProxyJson);
+        when(row.getGrpcProxyEndpoint()).thenReturn(grpcProxyEndpoint);
 
         // When
         var result = mapper.map(row);
@@ -115,7 +101,7 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapWithNullValues() throws Exception {
+    void mapWithNullValues() {
         // Given
         var row = mockNetworkNodeRow();
         when(row.getDescription()).thenReturn(null);
@@ -137,7 +123,7 @@ class NetworkNodeMapperTest {
         when(row.getStakeRewarded()).thenReturn(null);
         when(row.getStakingPeriod()).thenReturn(null);
         when(row.getGrpcProxyEndpoint()).thenReturn(null);
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
@@ -166,7 +152,7 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapWithMinusOneStakeValues() throws Exception {
+    void mapWithMinusOneStakeValues() {
         // Given - stake values of -1 should be mapped to null
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
@@ -176,7 +162,7 @@ class NetworkNodeMapperTest {
         when(row.getMaxStake()).thenReturn(-1L);
         when(row.getMinStake()).thenReturn(-1L);
         when(row.getStakeNotRewarded()).thenReturn(-1L);
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
@@ -189,7 +175,7 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapWithEmptyStrings() throws Exception {
+    void mapWithEmptyStrings() {
         // Given
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
@@ -198,8 +184,8 @@ class NetworkNodeMapperTest {
         when(row.getEndConsensusTimestamp()).thenReturn(2000L);
         when(row.getPublicKey()).thenReturn("");
         when(row.getNodeCertHash()).thenReturn(new byte[0]);
-        when(row.getGrpcProxyEndpoint()).thenReturn("");
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getGrpcProxyEndpoint()).thenReturn(null);
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
@@ -212,7 +198,7 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapWithExistingHexPrefix() throws Exception {
+    void mapWithExistingHexPrefix() {
         // Given - values already have 0x prefix
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
@@ -221,29 +207,13 @@ class NetworkNodeMapperTest {
         when(row.getEndConsensusTimestamp()).thenReturn(2000L);
         when(row.getPublicKey()).thenReturn("0xabcd");
         when(row.getNodeCertHash()).thenReturn("0x1234".getBytes(StandardCharsets.UTF_8));
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
 
         // Then - addHexPrefix checks for existing prefix and doesn't double it
         assertThat(result).returns("0xabcd", NetworkNode::getPublicKey).returns("0x1234", NetworkNode::getNodeCertHash);
-    }
-
-    @Test
-    void mapWithInvalidJson() {
-        // Given - invalid JSON for service endpoints
-        var row = mockNetworkNodeRow();
-        when(row.getNodeId()).thenReturn(1L);
-        when(row.getFileId()).thenReturn(102L);
-        when(row.getStartConsensusTimestamp()).thenReturn(1000L);
-        when(row.getEndConsensusTimestamp()).thenReturn(2000L);
-        when(row.getServiceEndpoints()).thenReturn("invalid json");
-
-        // When/Then
-        assertThatThrownBy(() -> mapper.map(row))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Failed to map NetworkNodeRow to NetworkNode");
     }
 
     @Test
@@ -309,30 +279,14 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapTimestampRange() {
-        // Given
-        long startTimestamp = 1000000000L;
-        long endTimestamp = 2000000000L;
-
-        // When
-        var result = mapper.mapTimestampRange(startTimestamp, endTimestamp);
-
-        // Then
-        assertThat(result)
-                .isNotNull()
-                .returns(DomainUtils.toTimestamp(startTimestamp), org.hiero.mirror.rest.model.TimestampRange::getFrom)
-                .returns(DomainUtils.toTimestamp(endTimestamp), org.hiero.mirror.rest.model.TimestampRange::getTo);
-    }
-
-    @Test
-    void mapFileIdConversion() throws Exception {
+    void mapFileIdConversion() {
         // Given - fileId as Long should be converted to EntityId format
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
         when(row.getFileId()).thenReturn(102L);
         when(row.getStartConsensusTimestamp()).thenReturn(1000L);
         when(row.getEndConsensusTimestamp()).thenReturn(2000L);
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
@@ -342,14 +296,14 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapFileIdNull() throws Exception {
+    void mapFileIdNull() {
         // Given - null fileId should remain null
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
         when(row.getFileId()).thenReturn(null);
         when(row.getStartConsensusTimestamp()).thenReturn(1000L);
         when(row.getEndConsensusTimestamp()).thenReturn(2000L);
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // When
         var result = mapper.map(row);
@@ -359,13 +313,13 @@ class NetworkNodeMapperTest {
     }
 
     @Test
-    void mapFileIdDifferentValues() throws Exception {
+    void mapFileIdDifferentValues() {
         // Given - various fileId values
         var row = mockNetworkNodeRow();
         when(row.getNodeId()).thenReturn(1L);
         when(row.getStartConsensusTimestamp()).thenReturn(1000L);
         when(row.getEndConsensusTimestamp()).thenReturn(2000L);
-        when(row.getServiceEndpoints()).thenReturn("[]");
+        when(row.getServiceEndpoints()).thenReturn(List.of());
 
         // Test fileId = 101
         when(row.getFileId()).thenReturn(101L);
@@ -384,17 +338,7 @@ class NetworkNodeMapperTest {
         assertThat(mapper.map(row).getFileId()).isEqualTo("0.0.112");
     }
 
-    private NetworkNodeRow mockNetworkNodeRow() {
-        return mock(NetworkNodeRow.class);
-    }
-
-    /**
-     * Concrete test implementation of NetworkNodeMapper that allows dependency injection for testing.
-     */
-    private static class TestNetworkNodeMapper extends NetworkNodeMapper {
-        TestNetworkNodeMapper(ObjectMapper objectMapper, CommonMapper commonMapper) {
-            this.objectMapper = objectMapper;
-            this.commonMapper = commonMapper;
-        }
+    private NetworkNodeDto mockNetworkNodeRow() {
+        return mock(NetworkNodeDto.class);
     }
 }
