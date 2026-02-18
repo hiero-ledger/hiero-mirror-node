@@ -4224,7 +4224,9 @@ components:
         valid_start_timestamp:
           $ref: "#/components/schemas/Timestamp"
       example:
-        batch_key: "0xae8bebf1c9fa0f309356e48057f6047af7cde63037d0509d16ddc3b20e085158bfdf14d15345c1b18b199b72fed4dead"
+        batch_key:
+          _type: "ED25519"
+          key: "7934a257a6144fabc8fbdeeaa5810662adb89e7b6978ace46a74fdb2d12bd4b2"
         bytes: null
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"
