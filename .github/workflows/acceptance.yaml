@@ -12,7 +12,6 @@ on:
       - "test/**"
   push:
     branches:
-      - "bump-up-acceptance-test-dependencies"
       - "main"
       - "release/**"
   workflow_dispatch:
