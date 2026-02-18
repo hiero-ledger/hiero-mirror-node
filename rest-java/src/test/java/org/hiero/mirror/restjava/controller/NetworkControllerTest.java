@@ -33,6 +33,8 @@ import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
 import org.hiero.mirror.rest.model.NetworkSupplyResponse;
+import org.hiero.mirror.restjava.common.Constants;
+import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.mapper.CommonMapper;
@@ -40,6 +42,8 @@ import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.parameter.EntityIdParameter;
+import org.hiero.mirror.restjava.parameter.TimestampParameter;
+import org.hiero.mirror.restjava.service.Bound;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -253,6 +257,9 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEndpointTest extends EndpointTest {
 
+        private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * 1_000_000_000L;
+        private long feeFileTimestampSeq = 0;
+
         private final EntityId feeFileId = systemEntity.feeScheduleFile();
         private final EntityId exchangeRateFileId = systemEntity.exchangeRateFile();
 
@@ -275,7 +282,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.ASC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
 
             // when
             final var actual = restClient.get().uri("").retrieve().body(NetworkFeesResponse.class);
@@ -289,7 +296,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.DESC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.DESC);
 
             // when
             final var actual = restClient
@@ -307,7 +314,7 @@ final class NetworkControllerTest extends ControllerTest {
             // given
             final var feeSchedule = systemFileFee();
             final var exchangeRate = systemFileExchangeRate();
-            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Sort.Direction.ASC);
+            final var expected = feeScheduleMapper.map(feeSchedule, exchangeRate, Bound.EMPTY, Sort.Direction.ASC);
             feeScheduleFile(domainBuilder.bytes(100)); // The latest file is corrupt and is skipped
 
             // when
@@ -355,10 +362,13 @@ final class NetworkControllerTest extends ControllerTest {
                     commonMapper.mapTimestamp(fee1.fileData().getConsensusTimestamp()),
                     commonMapper.mapTimestamp(fee2.fileData().getConsensusTimestamp()));
 
-            final var expected0 = feeScheduleMapper.map(fee0, exchangeRate0, Sort.Direction.ASC);
-            final var expected1 = feeScheduleMapper.map(fee1, exchangeRate1, Sort.Direction.ASC);
+            final var bound0 = boundForTimestamp(fee0.fileData().getConsensusTimestamp());
+            final var bound1 = boundForTimestamp(fee1.fileData().getConsensusTimestamp());
+            final var bound2 = boundForTimestamp(fee2.fileData().getConsensusTimestamp());
+            final var expected0 = feeScheduleMapper.map(fee0, exchangeRate0, bound0, Sort.Direction.ASC);
+            final var expected1 = feeScheduleMapper.map(fee1, exchangeRate1, bound1, Sort.Direction.ASC);
             // For fee2, use exchangeRate3 as it will be found by gte queries
-            final var expected2 = feeScheduleMapper.map(fee2, exchangeRate3, Sort.Direction.ASC);
+            final var expected2 = feeScheduleMapper.map(fee2, exchangeRate3, bound2, Sort.Direction.ASC);
             final var expected = List.of(expected0, expected1, expected2);
 
             // when
@@ -444,17 +454,27 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private FileData feeScheduleFile(final byte[] bytes) {
+            final var timestamp = CURRENT_RATE_EXPIRATION_NANOS - 1_000_000_000L + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
-                    .customize(f -> f.entityId(feeFileId).fileData(bytes))
+                    .customize(f -> f.entityId(feeFileId).fileData(bytes).consensusTimestamp(timestamp))
                     .persist();
         }
 
         private FileData exchangeRateFile(final byte[] bytes) {
+            final var timestamp = CURRENT_RATE_EXPIRATION_NANOS - 1_000_000_000L + (feeFileTimestampSeq++);
             return domainBuilder
                     .fileData()
-                    .customize(f -> f.entityId(exchangeRateFileId).fileData(bytes))
+                    .customize(
+                            f -> f.entityId(exchangeRateFileId).fileData(bytes).consensusTimestamp(timestamp))
                     .persist();
+        }
+
+        private Bound boundForTimestamp(long timestampNanos) {
+            return Bound.of(
+                    new TimestampParameter[] {new TimestampParameter(RangeOperator.LTE, timestampNanos)},
+                    Constants.TIMESTAMP,
+                    org.hiero.mirror.restjava.jooq.domain.tables.FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         }
 
         private CurrentAndNextFeeSchedule feeSchedule() {

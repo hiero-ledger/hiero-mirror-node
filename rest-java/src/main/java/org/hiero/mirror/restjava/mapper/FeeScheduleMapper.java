@@ -10,17 +10,19 @@ import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.HederaFunctionality;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.hiero.mirror.rest.model.NetworkFee;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.restjava.dto.SystemFile;
+import org.hiero.mirror.restjava.service.Bound;
 import org.jspecify.annotations.Nullable;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.data.domain.Sort;
 
-@Mapper(config = MapperConfiguration.class, uses = CommonMapper.class)
+@Mapper(config = MapperConfiguration.class)
 public interface FeeScheduleMapper {
 
     long FEE_DIVISOR_FACTOR = 1000L;
@@ -34,7 +36,7 @@ public interface FeeScheduleMapper {
             HederaFunctionality.ContractCreate, "ContractCreate",
             HederaFunctionality.EthereumTransaction, "EthereumTransaction");
 
-    @Mapping(target = "fees", expression = "java(mapFees(feeScheduleFile, exchangeRateFile, order))")
+    @Mapping(target = "fees", expression = "java(mapFees(feeScheduleFile, exchangeRateFile, bound, order))")
     @Mapping(
             source = "feeScheduleFile.fileData.consensusTimestamp",
             target = "timestamp",
@@ -42,15 +44,18 @@ public interface FeeScheduleMapper {
     NetworkFeesResponse map(
             SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
+            Bound bound,
             Sort.Direction order);
 
-    default java.util.List<NetworkFee> mapFees(
+    default List<NetworkFee> mapFees(
             SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile,
             SystemFile<ExchangeRateSet> exchangeRateFile,
+            Bound bound,
             Sort.Direction order) {
 
-        var schedule = feeScheduleFile.protobuf().getCurrentFeeSchedule();
-        var rate = exchangeRateFile.protobuf().getCurrentRate();
+        final var schedule = feeScheduleFile.protobuf().getCurrentFeeSchedule();
+        final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
+        final var rate = getEffectiveExchangeRate(exchangeRateFile.protobuf(), refTimestampNanos);
 
         return schedule.getTransactionFeeScheduleList().stream()
                 .filter(s -> ENABLED_TRANSACTION_TYPES.containsKey(s.getHederaFunctionality()) && s.getFeesCount() > 0)
@@ -58,6 +63,27 @@ public interface FeeScheduleMapper {
                 .filter(Objects::nonNull)
                 .sorted(getComparator(order))
                 .toList();
+    }
+
+    private long getReferenceTimestampNanos(SystemFile<CurrentAndNextFeeSchedule> feeScheduleFile, Bound bound) {
+        final long upperBound = (bound == null || bound.isEmpty()) ? Long.MAX_VALUE : bound.adjustUpperBound();
+
+        if (upperBound == Long.MAX_VALUE) {
+            final var timestamp = feeScheduleFile.fileData().getConsensusTimestamp();
+            return (timestamp != null) ? timestamp : 0L;
+        }
+
+        return upperBound;
+    }
+
+    private ExchangeRate getEffectiveExchangeRate(ExchangeRateSet exchangeRateSet, long refTimestampNanos) {
+        final var currentRate = exchangeRateSet.getCurrentRate();
+        final var currentRateExpirationTime = currentRate.getExpirationTime().getSeconds();
+
+        if (refTimestampNanos > currentRateExpirationTime * 1_000_000_000L) {
+            return exchangeRateSet.getNextRate();
+        }
+        return currentRate;
     }
 
     @Nullable
@@ -77,7 +103,12 @@ public interface FeeScheduleMapper {
 
     @Nullable
     default Long convertGasPriceToTinyBars(long gasPrice, int hbars, int cents) {
-        return cents == 0 ? null : Math.max((gasPrice * hbars) / (cents * FEE_DIVISOR_FACTOR), 1L);
+        if (cents == 0) {
+            return null;
+        }
+        final long gasInTinyCents = gasPrice / FEE_DIVISOR_FACTOR;
+        final long gasInTinyBars = gasInTinyCents * hbars / cents;
+        return Math.max(gasInTinyBars, 1L);
     }
 
     default Comparator<NetworkFee> getComparator(Sort.Direction order) {
