@@ -53,7 +53,7 @@ public class EthereumFeature extends AbstractEstimateFeature {
 
     private byte[] childContractBytecodeFromParent;
 
-    private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(0.9); // usd
+    private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(1.0); // usd
 
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
