@@ -71,6 +71,25 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("provideRecordItems")
+    void testEntityNftTransactionsWhenDisabled(String name, RecordItem recordItem) {
+        entityProperties.getPersist().setEntityTransactions(false);
+        entityProperties.getPersist().setEntityNftTransactions(false);
+        parseRecordItemAndCommit(recordItem);
+        assertThat(entityTransactionRepository.findAll()).isEmpty();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("provideRecordItems")
+    void testEntityNftTransactionsWhenEnabled(String name, RecordItem recordItem) {
+        entityProperties.getPersist().setEntityTransactions(false);
+        entityProperties.getPersist().setEntityNftTransactions(true);
+        parseRecordItemAndCommit(recordItem);
+        assertThat(entityTransactionRepository.findAll())
+                .containsExactlyInAnyOrderElementsOf(getExpectedEntityNftTransactions(recordItem));
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("provideRecordItems")
     void testEntityTransactionsWhenItemizedTransfersDisabled(String name, RecordItem recordItem) {
         entityProperties.getPersist().setItemizedTransfers(false);
         parseRecordItemAndCommit(recordItem);
@@ -81,6 +100,14 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
     private Collection<EntityTransaction> getExpectedEntityTransactions(RecordItem recordItem) {
         return getEntities(recordItem).stream()
                 .filter(entityProperties.getPersist()::shouldPersistEntityTransaction)
+                .map(e -> TestUtils.toEntityTransaction(e, recordItem))
+                .toList();
+    }
+
+    private Collection<EntityTransaction> getExpectedEntityNftTransactions(RecordItem recordItem) {
+        return getEntities(recordItem).stream()
+                .filter(entityId ->
+                        entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, recordItem))
                 .map(e -> TestUtils.toEntityTransaction(e, recordItem))
                 .toList();
     }
