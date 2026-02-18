@@ -33,14 +33,14 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
         }
 
         var recordItem = log.getRecordItem();
-        var parentRecordItem = recordItem.getParent();
+        var parentRecordItem = recordItem.getContractRelatedParent();
 
         // We will backfill any EVM-related fungible token transfers that don't have synthetic events produced by CN
-        if (isContract(recordItem) && shouldSkipLogCreationForContractTransfer(log, parentRecordItem)) {
+        if (isContract(recordItem) && shouldSkipLogCreationForContractTransfer(log)) {
             return;
         }
 
-        long consensusTimestamp = parentRecordItem != null && parentRecordItem.hasContractResult()
+        long consensusTimestamp = parentRecordItem != null
                 ? parentRecordItem.getConsensusTimestamp()
                 : recordItem.getConsensusTimestamp();
         int logIndex = recordItem.getAndIncrementLogIndex();
@@ -70,8 +70,7 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
                 || recordItem.getTransactionRecord().hasContractCreateResult();
     }
 
-    private boolean shouldSkipLogCreationForContractTransfer(
-            SyntheticContractLog syntheticLog, RecordItem contractRelatedParent) {
+    private boolean shouldSkipLogCreationForContractTransfer(SyntheticContractLog syntheticLog) {
         if (!(syntheticLog instanceof TransferContractLog transferLog)) {
             // Only TransferContractLog synthetic event creation is supported for an operation with contract origin
             return true;
@@ -87,20 +86,22 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             // We have a multi-party fungible transfer scenario and synthetic event creation for
             // such transfers is disabled
             return true;
-        } else return contractRelatedParent != null && logAlreadyImported(transferLog, contractRelatedParent);
+        } else return logAlreadyImported(transferLog);
     }
 
     /**
-     * Checks if the given TransferContractLog matches an existing contract log in the parent record item
-     * and consumes one occurrence of the matching log. This handles the case where the same contract log
-     * appears multiple times in the child records as being part of different operations.
+     * Checks if the given TransferContractLog matches an existing contract log in the record itself or
+     * in the parent record item and consumes one occurrence of the matching log. This handles the case where the
+     * same contract log appears multiple times in the child records as being part of different operations.
      *
      * @param transferLog the TransferContractLog to check
-     * @param contractRelatedParent the parent RecordItem containing the contract logs
      * @return true if a matching log is found and it is already persisted, false otherwise
      */
-    private boolean logAlreadyImported(TransferContractLog transferLog, RecordItem contractRelatedParent) {
-        return contractRelatedParent.consumeMatchingContractLog(transferLog::equalsContractLoginfo);
+    private boolean logAlreadyImported(TransferContractLog transferLog) {
+        var parentRecordItem = transferLog.getRecordItem().getContractRelatedParent();
+        return transferLog.getRecordItem().consumeMatchingContractLog(transferLog::equalsContractLoginfo)
+                || (parentRecordItem != null
+                        && parentRecordItem.consumeMatchingContractLog(transferLog::equalsContractLoginfo));
     }
 
     /**

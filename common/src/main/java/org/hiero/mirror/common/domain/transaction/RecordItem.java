@@ -67,6 +67,7 @@ public class RecordItem implements StreamItem {
 
     private final boolean blockstream;
     private final RecordItem parent;
+    private final RecordItem hookContractRelatedParent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
     private final SignatureMap signatureMap;
@@ -275,8 +276,18 @@ public class RecordItem implements StreamItem {
         return contractTransactions.values();
     }
 
-    public boolean hasContractResult() {
-        return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
+    public RecordItem getContractRelatedParent() {
+        if (hookContractRelatedParent != null) {
+            return hookContractRelatedParent;
+        } else {
+            return hasContractResult(parent) ? parent : null;
+        }
+    }
+
+    private boolean hasContractResult(RecordItem recordItem) {
+        return recordItem != null
+                && (recordItem.transactionRecord.hasContractCreateResult()
+                        || recordItem.transactionRecord.hasContractCallResult());
     }
 
     public static class RecordItemBuilder {
@@ -294,6 +305,7 @@ public class RecordItem implements StreamItem {
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
+            this.hookContractRelatedParent = parseHookContractRelatedParent();
             this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
@@ -356,6 +368,25 @@ public class RecordItem implements StreamItem {
                 }
             }
             return this.parent;
+        }
+
+        private RecordItem parseHookContractRelatedParent() {
+            if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
+                if (transactionRecord.getConsensusTimestamp().getNanos()
+                                == previous.transactionRecord
+                                                .getConsensusTimestamp()
+                                                .getNanos()
+                                        + 1
+                        && hasContractResult(transactionRecord)
+                        && hasContractResult(previous.transactionRecord)) {
+                    return previous;
+                }
+            }
+            return null;
+        }
+
+        private boolean hasContractResult(TransactionRecord transactionRecord) {
+            return transactionRecord.hasContractCreateResult() || transactionRecord.hasContractCallResult();
         }
 
         private boolean parseSuccess() {

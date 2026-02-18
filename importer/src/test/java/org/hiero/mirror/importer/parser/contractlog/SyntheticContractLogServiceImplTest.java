@@ -36,6 +36,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -253,31 +255,50 @@ class SyntheticContractLogServiceImplTest {
         assertThat(capturedLog.getConsensusTimestamp()).isEqualTo(childTimestamp);
     }
 
-    @Test
-    @DisplayName("Should create log for a hook-related transaction")
-    void hookRelatedTransactionCreatesSyntheticLog() {
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("Create log for a hook-related transaction")
+    void correctBehaviourForHookRelatedTransferPrecompile(boolean hasMatchingLog) {
+        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
+
+        // Create a top-level record item for the transaction which is triggering the hook
+        var topLevelRecordItem = recordItemBuilder.cryptoTransfer().build();
+        long topLevelTimestamp = topLevelRecordItem.getConsensusTimestamp();
+
         // Create a parent record item with contract result and non-zero nonce (hook scenario)
-        var parentRecordItem = recordItemBuilder
+        long parentContractCallTimestamp = topLevelTimestamp + 1;
+        var parentContractCallRecordItem = recordItemBuilder
                 .contractCall()
-                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1)))
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(ContractFunctionResult.newBuilder()
+                                .addLogInfo(hasMatchingLog ? matchingLog : ContractLoginfo.getDefaultInstance()))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(parentContractCallTimestamp / 1_000_000_000)
+                                .setNanos((int) (parentContractCallTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) topLevelTimestamp % 1_000_000_000)))
+                .recordItem(r -> r.previous(topLevelRecordItem))
                 .build();
-        long parentTimestamp = parentRecordItem.getConsensusTimestamp();
 
         // Create a child with exactly 1 nanosecond difference (hook scenario)
-        long childTimestamp = parentTimestamp + 1;
+        long childTimestamp = parentContractCallTimestamp + 1;
 
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder()
-                        .setSeconds(childTimestamp / 1_000_000_000)
-                        .setNanos((int) (childTimestamp % 1_000_000_000))))
-                .recordItem(r -> r.previous(parentRecordItem))
+                                .setSeconds(childTimestamp / 1_000_000_000)
+                                .setNanos((int) (childTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) topLevelTimestamp % 1_000_000_000)))
+                .recordItem(r -> r.previous(parentContractCallRecordItem))
                 .build();
 
         // The parent has random logs that don't match
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
-        verify(entityListener, times(1)).onContractLog(any());
+        verify(entityListener, times(hasMatchingLog ? 0 : 1)).onContractLog(any());
     }
 
     @Test
@@ -354,6 +375,24 @@ class SyntheticContractLogServiceImplTest {
 
         // Both calls match an occurrence in the parent, so both are skipped
         syntheticContractLogService.create(transferLog);
+        syntheticContractLogService.create(transferLog);
+
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
+    @DisplayName("Should skip creation of a log that is already present within the same RecordItem being imported")
+    void skipAlreadyPresentContractLog() {
+        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
+                .build();
+
+        var transferLog = new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount);
+
         syntheticContractLogService.create(transferLog);
 
         verify(entityListener, times(0)).onContractLog(any());
