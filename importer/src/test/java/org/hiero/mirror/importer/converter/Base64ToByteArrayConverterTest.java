@@ -10,10 +10,9 @@ import org.junit.jupiter.api.Test;
 
 final class Base64ToByteArrayConverterTest {
 
-    private final Base64ToByteArrayConverter converter = new Base64ToByteArrayConverter();
-
     @Test
     void convert() {
+        final var converter = new Base64ToByteArrayConverter();
         final byte[] expected = TestUtils.generateRandomByteArray(16);
         final var source = Base64.encodeBase64String(expected);
         assertThat(converter.convert(source)).isEqualTo(expected);

@@ -24,7 +24,7 @@ public final class LedgerProperties {
 
     @NotEmpty
     @Valid
-    private List<LedgerNodeContribution> nodeContributions;
+    private List<LedgerNodeContribution> nodeContributions = List.of();
 
     public Ledger toLedger() {
         return Ledger.builder()

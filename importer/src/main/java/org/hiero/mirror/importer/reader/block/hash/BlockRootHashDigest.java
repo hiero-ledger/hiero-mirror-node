@@ -100,7 +100,7 @@ public final class BlockRootHashDigest {
         final byte[] depth1Right = HashUtils.hashInternalNode(digest, depth2Left);
         final byte[] depth1Left = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
 
-        final var rootHash = combine(depth1Left, depth1Right);
+        final byte[] rootHash = combine(depth1Left, depth1Right);
         finalized = true;
 
         return rootHash;

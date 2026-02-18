@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.tss;
 
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +21,9 @@ public class LedgerNodeContribution {
     @NotEmpty
     private byte[] historyProofKey;
 
+    @PositiveOrZero
     private long nodeId;
 
+    @PositiveOrZero
     private long weight;
 }
