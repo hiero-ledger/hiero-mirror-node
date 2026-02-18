@@ -68,7 +68,6 @@ spec:
           enabled: false
     rest:
       env:
-        HIERO_MIRROR_REST_STATEPROOF_ENABLED: "true"
         HIERO_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
       monitor:
         config:
