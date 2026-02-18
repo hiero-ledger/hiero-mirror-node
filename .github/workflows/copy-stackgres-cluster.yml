@@ -11,6 +11,9 @@ on:
       restore:
         default: true
         type: boolean
+      run_acceptance_test:
+        default: true
+        type: boolean
       run_k6_test:
         default: true
         type: boolean
@@ -60,6 +63,10 @@ on:
       restore:
         default: true
         description: "Restore the target cluster from the source"
+        type: boolean
+      run_acceptance_test:
+        default: true
+        description: "Run acceptance test"
         type: boolean
       run_k6_test:
         default: true
@@ -129,6 +136,7 @@ jobs:
       K8S_SOURCE_CLUSTER_CONTEXT: "source_gke_context"
       K8S_TARGET_CLUSTER_CONTEXT: "target_gke_context"
       RESTORE: ${{ inputs.restore }}
+      RUN_ACCEPTANCE_TEST: ${{ inputs.run_acceptance_test }}
       RUN_K6_TEST: ${{ inputs.run_k6_test }}
       SA_EMAIL: ${{ secrets.GH_ACTIONS_KUBECTL_GCP_SERVICE_ACCOUNT }}
       TEARDOWN_TARGET: ${{ inputs.teardown_target }}
@@ -223,7 +231,7 @@ jobs:
           echo "CLOUDSDK_BIN_DIR=$CLOUDSDK_BIN_DIR" >> "$GITHUB_ENV"
 
       - name: Setup Testkube CLI
-        if: inputs.run_k6_test == 'true'
+        if: ${{ inputs.run_k6_test == true }}
         uses: kubeshop/setup-testkube@e06cc069575f7cd2a67403c7da0a48229371a1db # v1.0.11
         with:
           version: v2.3.0
@@ -263,7 +271,7 @@ jobs:
           ./copy-live-environment.sh
 
       - name: Upload k6 test report
-        if: inputs.run_k6_test == 'true'
+        if: ${{ inputs.run_k6_test == true }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: k6-test-report

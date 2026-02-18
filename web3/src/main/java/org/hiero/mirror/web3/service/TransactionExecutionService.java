@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.PAYER_ACCOUNT_NOT_FOUND;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.REVERTED_SUCCESS;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
+import static com.hedera.node.app.hapi.utils.ethereum.EthTxData.populateEthTxData;
 import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL_KEY;
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
@@ -75,12 +76,12 @@ public class TransactionExecutionService {
                 configuration.getConfigData(EntitiesConfig.class).maxLifetime();
         final var executor = transactionExecutorFactory.get();
 
-        TransactionBody transactionBody;
-        EvmTransactionResult result;
-        if (params instanceof ContractDebugParameters
+        final TransactionBody transactionBody;
+        final EvmTransactionResult result;
+        if (params instanceof ContractDebugParameters debugParams
                 && params.getEthereumData() != null
                 && !params.getEthereumData().isEmpty()) {
-            transactionBody = buildEthereumTransactionBody(params);
+            transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
         } else {
@@ -201,13 +202,37 @@ public class TransactionExecutionService {
                 .build();
     }
 
-    private TransactionBody buildEthereumTransactionBody(final CallServiceParameters params) {
-        final var ethereumTransactionBuilder = EthereumTransactionBody.newBuilder()
-                .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                        params.getEthereumData().toArrayUnsafe()));
-        return defaultTransactionBodyBuilder(params)
-                .ethereumTransaction(ethereumTransactionBuilder.build())
+    private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
+        final var txnBody = defaultTransactionBodyBuilder(params)
+                .ethereumTransaction(EthereumTransactionBody.newBuilder()
+                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
+                                params.getEthereumData().toArrayUnsafe()))
+                        .maxGasAllowance(Long.MAX_VALUE)
+                        .build())
+                .transactionFee(CONTRACT_CREATE_TX_FEE)
                 .build();
+
+        patchSenderNonce(params);
+        return txnBody;
+    }
+
+    /**
+     *  Overwrite the sender account nonce in the state if the nonce from the txn is different from the one stored in
+     *  the state, to bypass the nonce verification during transaction replay.
+     */
+    private void patchSenderNonce(final ContractDebugParameters params) {
+        if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
+            return;
+        }
+        final long nonce = populateEthTxData(params.getEthereumData().toArray()).nonce();
+        final var senderId = getSenderAccountIDAsNum(params.getSender());
+        final var account = accountReadableKVState.get(senderId);
+        if (account != null && account.ethereumNonce() != nonce) {
+            final var writableCache = ContractCallContext.get().getWriteCacheState(AccountReadableKVState.STATE_ID);
+            writableCache.put(
+                    account.accountId(),
+                    account.copyBuilder().ethereumNonce(nonce).build());
+        }
     }
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
