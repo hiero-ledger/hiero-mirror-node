@@ -77,6 +77,8 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
     @ToString.Exclude
     private String previousHash;
 
+    private byte[] rawHash;
+
     private RecordFileItem recordFileItem;
 
     private Long roundEnd;

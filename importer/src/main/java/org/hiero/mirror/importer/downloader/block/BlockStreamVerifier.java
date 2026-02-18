@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.hiero.mirror.common.util.DomainUtils.toBytes;
+
 import com.google.common.base.Strings;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -163,6 +165,19 @@ final class BlockStreamVerifier {
 
     private void verifyTssSignature(final BlockFile blockFile) {
         updateLedger(blockFile);
-        // TBA tssVerifier.verify
+
+        final var blockProof = blockFile.getBlockProof();
+        if (blockFile.getIndex() != blockProof.getBlock()) {
+            throw new InvalidStreamFileException("Block number mismatch, in block header = %d, in block proof = %d"
+                    .formatted(blockFile.getIndex(), blockProof.getBlock()));
+        }
+
+        if (!blockProof.hasSignedBlockProof()) {
+            throw new InvalidStreamFileException("Invalid block proof case " + blockProof.getProofCase());
+        }
+
+        final byte[] hash = blockFile.getRawHash();
+        final byte[] signature = toBytes(blockProof.getSignedBlockProof().getBlockSignature());
+        tssVerifier.verify(blockFile.getIndex(), hash, signature);
     }
 }

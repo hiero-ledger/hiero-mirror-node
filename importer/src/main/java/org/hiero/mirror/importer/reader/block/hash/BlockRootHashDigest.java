@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.DomainUtils.createSha384Digest;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.security.MessageDigest;
-import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.jspecify.annotations.NonNull;
 
@@ -57,7 +56,7 @@ public final class BlockRootHashDigest {
         }
     }
 
-    public String digest() {
+    public byte[] digest() {
         if (blockTimestamp == null
                 || previousBlocksTreeHash == null
                 || previousHash == null
@@ -101,7 +100,7 @@ public final class BlockRootHashDigest {
         final byte[] depth1Right = HashUtils.hashInternalNode(digest, depth2Left);
         final byte[] depth1Left = HashUtils.hashLeaf(digest, blockTimestamp.toByteArray());
 
-        final var rootHash = Hex.toHexString(combine(depth1Left, depth1Right));
+        final var rootHash = combine(depth1Left, depth1Right);
         finalized = true;
 
         return rootHash;
