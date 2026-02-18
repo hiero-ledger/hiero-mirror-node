@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
-import static org.hiero.mirror.web3.state.Utils.getCurrentTimestamp;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
@@ -13,8 +12,10 @@ import jakarta.inject.Named;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.SystemFileLoader;
+import org.hiero.mirror.web3.viewmodel.BlockType;
 
 @Named
 final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
@@ -46,15 +47,38 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     @SneakyThrows
     @Override
     public ExchangeRateSet get() {
-        final var current = systemFileLoader.load(exchangeRatesFileId, getCurrentTimestamp());
-        return current != null ? ExchangeRateSet.PROTOBUF.parse(current.contents()) : cachedExchangeRateSet;
+        final var context = ContractCallContext.get();
+        final long timestamp = resolveTimestamp(context);
+
+        // Return result from the transaction cache if possible to avoid unnecessary calls to the DB
+        // and protobuf parsing. The result will be correct since the record file timestamp will be
+        // consistent throughout the transaction execution.
+        final var cache = context.getReadCacheState(getStateId());
+        final var cached = cache.get(timestamp);
+        if (cached instanceof ExchangeRateSet rates) {
+            return rates;
+        }
+
+        final var file = systemFileLoader.load(exchangeRatesFileId, timestamp);
+        final var rates = file != null ? ExchangeRateSet.PROTOBUF.parse(file.contents()) : cachedExchangeRateSet;
+        cache.put(timestamp, rates);
+        return rates;
+    }
+
+    private long resolveTimestamp(final ContractCallContext context) {
+        final var params = context.getCallServiceParameters();
+        final var block = params != null ? params.getBlock() : BlockType.LATEST;
+        return block == BlockType.LATEST
+                ? Long.MAX_VALUE
+                : context.getRecordFile().getConsensusEnd();
     }
 
     private FileID getExchangeRateFileId() {
+        final var fileId = systemEntity.exchangeRateFile();
         return FileID.newBuilder()
-                .shardNum(CommonProperties.getInstance().getShard())
-                .realmNum(CommonProperties.getInstance().getRealm())
-                .fileNum(systemEntity.exchangeRateFile().getNum())
+                .shardNum(fileId.getShard())
+                .realmNum(fileId.getRealm())
+                .fileNum(fileId.getNum())
                 .build();
     }
 }
