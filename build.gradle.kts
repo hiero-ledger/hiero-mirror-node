@@ -16,7 +16,6 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("assertj.version", "3.27.7") // Temporary until next Spring Boot
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.24.2")
     set("consensusNodeVersion", "0.71.0")
@@ -26,7 +25,6 @@ extra.apply {
     set("nodeJsVersion", "24.13.0")
     set("protobufVersion", "4.33.5")
     set("springGrpcVersion", "1.0.1")
-    set("tomcat.version", "11.0.18") // Temporary until next Spring Boot
     set("tuweniVersion", "2.3.1")
 }
 
