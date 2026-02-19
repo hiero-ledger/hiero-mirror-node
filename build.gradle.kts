@@ -54,6 +54,7 @@ dependencies {
         api("com.graphql-java-generator:graphql-java-client-runtime:4.0")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.5.1")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
         api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
