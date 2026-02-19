@@ -52,14 +52,19 @@ final class FileServiceTest extends RestJavaIntegrationTest {
     @Test
     void getExchangeRateRecovers() {
         // given
+        final var baseTimestamp = domainBuilder.timestamp();
         final var exchangeRateSet = ExchangeRateSet.newBuilder().build();
         final var fileData = domainBuilder
                 .fileData()
-                .customize(f -> f.entityId(systemEntity.exchangeRateFile()).fileData(exchangeRateSet.toByteArray()))
+                .customize(f -> f.entityId(systemEntity.exchangeRateFile())
+                        .fileData(exchangeRateSet.toByteArray())
+                        .consensusTimestamp(baseTimestamp))
                 .persist();
         domainBuilder
                 .fileData()
-                .customize(f -> f.entityId(systemEntity.exchangeRateFile()).fileData(domainBuilder.bytes(10)))
+                .customize(f -> f.entityId(systemEntity.exchangeRateFile())
+                        .fileData(domainBuilder.bytes(10))
+                        .consensusTimestamp(baseTimestamp + 1))
                 .persist();
         final var bound = bound(RangeOperator.GTE, fileData);
 
