@@ -168,6 +168,7 @@ final class BlockFileSourceTest {
                 .to(properties.getBucketName())
                 .to(importerProperties.getNetwork())
                 .to(StreamType.BLOCK.getPath());
+        fileCopier.setIgnoreNonZeroRealmShard(true);
         FileUtils.forceMkdir(fileCopier.getTo().toFile());
     }
 

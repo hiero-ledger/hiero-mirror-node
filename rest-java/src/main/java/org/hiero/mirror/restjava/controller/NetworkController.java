@@ -96,7 +96,7 @@ final class NetworkController {
         final var bound = Bound.of(timestamp, TIMESTAMP, FileData.FILE_DATA.CONSENSUS_TIMESTAMP);
         final var feeSchedule = fileService.getFeeSchedule(bound);
         final var exchangeRate = fileService.getExchangeRate(bound);
-        return feeScheduleMapper.map(feeSchedule, exchangeRate, order);
+        return feeScheduleMapper.map(feeSchedule, exchangeRate, bound, order);
     }
 
     @PostMapping(
