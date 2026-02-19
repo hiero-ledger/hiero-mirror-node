@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.147.0'
+      version: '0.148.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -67,9 +67,6 @@ spec:
         MonitorSubscribeLatency:
           enabled: false
     rest:
-      env:
-        HIERO_MIRROR_REST_STATEPROOF_ENABLED: "true"
-        HIERO_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
       monitor:
         config:
           contract:
