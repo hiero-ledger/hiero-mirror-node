@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package worker provides a concurrent job processing pool for parallel imports.
 package worker
 

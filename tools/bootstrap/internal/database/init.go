@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package database handles database initialization including schema and roles.
 package database
 

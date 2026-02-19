@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package tracking provides JSON-based import status tracking for resumable operations.
 package tracking
 

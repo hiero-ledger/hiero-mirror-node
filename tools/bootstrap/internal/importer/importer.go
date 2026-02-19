@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package importer handles the PostgreSQL import pipeline including
 // table name extraction, partition truncation, and COPY streaming.
 package importer

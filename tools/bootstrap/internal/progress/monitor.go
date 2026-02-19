@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package progress provides real-time import progress monitoring.
 // Queries pg_stat_progress_copy and calculates processing rates.
 package progress

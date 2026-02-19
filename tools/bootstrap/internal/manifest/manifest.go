@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package manifest handles parsing and querying the CSV manifest file
 // that contains expected file sizes, row counts, and BLAKE3 hashes.
 package manifest

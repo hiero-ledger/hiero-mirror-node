@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package buffers provides memory-efficient buffer pooling for high-throughput data processing.
 // Uses multiple sync.Pool instances with size-graduated buffers to minimize allocations
 // and GC pressure during import operations.

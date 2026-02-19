@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package main implements the mirrornode-bootstrap CLI for database bootstrapping.
 package main
 

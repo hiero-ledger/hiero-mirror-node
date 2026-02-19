@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 // Package config handles loading configuration from bootstrap.env and environment.
 package config
 
