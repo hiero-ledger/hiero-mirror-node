@@ -27,7 +27,7 @@ import org.jspecify.annotations.NonNull;
 @Value
 public class FileCopier {
 
-    private static final FileFilter ALL_FILTER = f -> true;
+    private static final FileFilter ALL_FILTER = _ -> true;
     private static final CommonProperties COMMON_PROPERTIES = CommonProperties.getInstance();
 
     private final Path from;
@@ -40,19 +40,24 @@ public class FileCopier {
     private boolean ignoreNonZeroRealmShard = false;
 
     private FileCopier(
-            @NonNull Path from, @NonNull Path to, @NonNull FileFilter dirFilter, @NonNull FileFilter fileFilter) {
+            @NonNull Path from,
+            @NonNull Path to,
+            @NonNull FileFilter dirFilter,
+            @NonNull FileFilter fileFilter,
+            boolean ignoreNonZeroRealmShard) {
         this.from = from;
         this.to = to;
         this.dirFilter = dirFilter;
         this.fileFilter = fileFilter;
+        this.ignoreNonZeroRealmShard = ignoreNonZeroRealmShard;
     }
 
     public static FileCopier create(Path from, Path to) {
-        return new FileCopier(from, to, ALL_FILTER, ALL_FILTER);
+        return new FileCopier(from, to, ALL_FILTER, ALL_FILTER, false);
     }
 
     public FileCopier from(Path source) {
-        return new FileCopier(from.resolve(source), to, dirFilter, fileFilter);
+        return new FileCopier(from.resolve(source), to, dirFilter, fileFilter, ignoreNonZeroRealmShard);
     }
 
     public FileCopier from(String... source) {
@@ -62,7 +67,7 @@ public class FileCopier {
     public FileCopier filterDirectories(FileFilter newDirFilter) {
         FileFilter andFilter =
                 dirFilter == ALL_FILTER ? newDirFilter : f -> dirFilter.accept(f) || newDirFilter.accept(f);
-        return new FileCopier(from, to, andFilter, fileFilter);
+        return new FileCopier(from, to, andFilter, fileFilter, ignoreNonZeroRealmShard);
     }
 
     public FileCopier filterDirectories(String wildcardPattern) {
@@ -73,7 +78,7 @@ public class FileCopier {
     public FileCopier filterFiles(FileFilter newFileFilter) {
         FileFilter andFilter =
                 fileFilter == ALL_FILTER ? newFileFilter : f -> fileFilter.accept(f) || newFileFilter.accept(f);
-        return new FileCopier(from, to, dirFilter, andFilter);
+        return new FileCopier(from, to, dirFilter, andFilter, ignoreNonZeroRealmShard);
     }
 
     public FileCopier filterFiles(String wildcardPattern) {
@@ -81,8 +86,12 @@ public class FileCopier {
                 WildcardFileFilter.builder().setWildcards(wildcardPattern).get());
     }
 
+    public FileCopier resetTo(final Path target) {
+        return new FileCopier(from, target, dirFilter, fileFilter, ignoreNonZeroRealmShard);
+    }
+
     public FileCopier to(Path target) {
-        return new FileCopier(from, to.resolve(target), dirFilter, fileFilter);
+        return new FileCopier(from, to.resolve(target), dirFilter, fileFilter, ignoreNonZeroRealmShard);
     }
 
     public FileCopier to(String... target) {

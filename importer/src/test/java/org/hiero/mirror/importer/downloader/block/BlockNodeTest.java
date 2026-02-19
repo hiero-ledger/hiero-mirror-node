@@ -497,10 +497,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     private ObjectAssert<BlockStream> assertBlockStreamCommon(BlockStream blockStream) {
-        return assertThat(blockStream)
-                .satisfies(b -> assertThat(b.loadStart())
-                        .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
-                .returns(-1L, BlockStream::nodeId);
+        return assertThat(blockStream).satisfies(b -> assertThat(b.loadStart())
+                .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()));
     }
 
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {
