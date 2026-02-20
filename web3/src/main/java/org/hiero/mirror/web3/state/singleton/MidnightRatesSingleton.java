@@ -26,7 +26,7 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
     private final ExchangeRateSet cachedExchangeRateSet;
     private final SystemFileLoader systemFileLoader;
-    private SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
+    private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
 
     @SneakyThrows
     public MidnightRatesSingleton(final EvmProperties evmProperties, final SystemFileLoader systemFileLoader) {
@@ -51,6 +51,10 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     public ExchangeRateSet get() {
         final var context = ContractCallContext.get();
         long timestamp = context.getTimestamp().orElse(Utils.getCurrentTimestamp());
+        // Round the timestamp to the nearest hour and two minutes - the file gets updated every hour,
+        // it gets available until the first or the second minute of that hour. All timestamps up until
+        // the next file update would match that file, so parse the timestamp here to reduce the number
+        // of the DB calls and cache entries.
         timestamp = roundDownToHourAndTwoMinutes(timestamp);
 
         // Return result from the transaction cache if possible to avoid unnecessary calls to the DB

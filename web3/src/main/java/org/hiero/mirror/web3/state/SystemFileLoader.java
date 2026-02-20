@@ -94,7 +94,6 @@ public class SystemFileLoader {
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
             cacheNames = CACHE_NAME_MODULARIZED,
-            key = "#consensusTimestamp",
             unless = "#result == null")
     public @Nullable File loadExchangeRates(long consensusTimestamp) {
         var systemFile = getSystemFiles().get(exchangeRateFileId);

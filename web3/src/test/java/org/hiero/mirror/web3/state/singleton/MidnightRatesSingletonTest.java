@@ -31,9 +31,6 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
-    private static final long SECONDS_PER_HOUR = 3600L;
-    private static final long SECONDS_PER_TWO_MINUTES = 2L * 60L;
-
     private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
     private static final long NANOS_PER_TWO_MINUTES = 2L * 60L * 1_000_000_000L;
 
