@@ -121,7 +121,7 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     @Test
-    void decodeEmptyAuthorizationListRejected() {
+    void decodeEmptyAuthorizationListSucceeds() {
         final var transactionData = List.of(
                 Hex.decode(CHAIN_ID_HEX),
                 Integers.toBytes(NONCE),
@@ -138,10 +138,26 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
                 Hex.decode(SIGNATURE_S_HEX));
         final var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
 
-        assertThatThrownBy(() -> ethereumTransactionParser.decode(ethereumTransactionBytes))
-                .isInstanceOf(InvalidEthereumBytesException.class)
-                .hasMessage(
-                        "Unable to decode EIP7702 ethereum transaction bytes, Authorization list must not be empty for EIP-7702 transactions");
+        final var ethereumTransaction = ethereumTransactionParser.decode(ethereumTransactionBytes);
+
+        assertThat(ethereumTransaction)
+                .isNotNull()
+                .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
+                .returns(Hex.decode(CHAIN_ID_HEX), EthereumTransaction::getChainId)
+                .returns(NONCE, EthereumTransaction::getNonce)
+                .returns(null, EthereumTransaction::getGasPrice)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
+                .returns(GAS_LIMIT, EthereumTransaction::getGasLimit)
+                .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
+                .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
+                .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
+                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
+                .returns(1, EthereumTransaction::getRecoveryId)
+                .returns(null, EthereumTransaction::getSignatureV)
+                .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
+                .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
+        assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
     }
 
     @Test

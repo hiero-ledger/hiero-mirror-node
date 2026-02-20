@@ -54,10 +54,6 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
         }
 
         final var authorizationList = parseAuthorizationList(rlpItems.get(9));
-        if (authorizationList.isEmpty()) {
-            throw new InvalidEthereumBytesException(
-                    TRANSACTION_TYPE_NAME, "Authorization list must not be empty for EIP-7702 transactions");
-        }
 
         final var ethereumTransaction = EthereumTransaction.builder()
                 .chainId(rlpItems.get(0).data())
