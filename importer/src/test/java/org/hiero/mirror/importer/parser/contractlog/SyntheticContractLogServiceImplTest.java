@@ -11,12 +11,13 @@ import com.google.protobuf.ByteString;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractFunctionResult;
+import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
+import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
-import com.hederahashgraph.api.proto.java.TransferList;
 import java.util.ArrayList;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
@@ -47,6 +48,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SyntheticContractLogServiceImplTest {
 
     private static final int TOPIC_SIZE_BYTES = 32;
+    private static final ContractID HOOK_CONTRACT_ADDRESS =
+            ContractID.newBuilder().setContractNum(0x16d).build();
+    private static final ContractID HTS_PRECOMPILE_CONTRACT_ADDRESS =
+            ContractID.newBuilder().setContractNum(0x167).build();
 
     private final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
     private final EntityProperties entityProperties = new EntityProperties(new SystemEntity(new CommonProperties()));
@@ -243,7 +248,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should use child's consensus timestamp when no parent with contract result")
     void useChildConsensusTimestampWhenNoParentWithContractResult() {
         // Use the default recordItem from @BeforeEach which is a tokenMint (no parent with contract result)
-        long childTimestamp = recordItem.getConsensusTimestamp();
+        var childTimestamp = recordItem.getConsensusTimestamp();
 
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
@@ -257,20 +262,23 @@ class SyntheticContractLogServiceImplTest {
 
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
-    @DisplayName("Create log for a hook-related transaction")
-    void correctBehaviourForHookRelatedTransferPrecompile(boolean hasMatchingLog) {
+    @DisplayName(
+            "Correct behaviour for hook-related transaction with a ContractCall and a Transfer precompile as childs")
+    void correctBehaviourForHookRelatedContractCallWithTransferPrecompile(boolean hasMatchingLog) {
         var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
 
         // Create a top-level record item for the transaction which is triggering the hook
         var topLevelRecordItem = recordItemBuilder.cryptoTransfer().build();
-        long topLevelTimestamp = topLevelRecordItem.getConsensusTimestamp();
+        var topLevelTimestamp = topLevelRecordItem.getConsensusTimestamp();
 
-        // Create a parent record item with contract result and non-zero nonce (hook scenario)
-        long parentContractCallTimestamp = topLevelTimestamp + 1;
+        // Create a parent record item with contract result and non-zero nonce (hook scenario).
+        // Parent = hook execution (contract 365); child = HTS precompile (contract 0x167).
+        var parentContractCallTimestamp = topLevelTimestamp + 1;
         var parentContractCallRecordItem = recordItemBuilder
-                .contractCall()
+                .contractCall(HOOK_CONTRACT_ADDRESS)
                 .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
                         .setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(HOOK_CONTRACT_ADDRESS)
                                 .addLogInfo(hasMatchingLog ? matchingLog : ContractLoginfo.getDefaultInstance()))
                         .setConsensusTimestamp(Timestamp.newBuilder()
                                 .setSeconds(parentContractCallTimestamp / 1_000_000_000)
@@ -281,12 +289,14 @@ class SyntheticContractLogServiceImplTest {
                 .recordItem(r -> r.previous(topLevelRecordItem))
                 .build();
 
-        // Create a child with exactly 1 nanosecond difference (hook scenario)
-        long childTimestamp = parentContractCallTimestamp + 1;
-
+        var childTimestamp = parentContractCallTimestamp + 1;
+        // Child record: HTS precompile (0x167), distinct transaction ID (nonce 2) and its own record instance
         recordItem = recordItemBuilder
-                .contractCall()
-                .record(r -> r.setConsensusTimestamp(Timestamp.newBuilder()
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(2))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
                                 .setSeconds(childTimestamp / 1_000_000_000)
                                 .setNanos((int) (childTimestamp % 1_000_000_000)))
                         .setParentConsensusTimestamp(Timestamp.newBuilder()
@@ -295,9 +305,57 @@ class SyntheticContractLogServiceImplTest {
                 .recordItem(r -> r.previous(parentContractCallRecordItem))
                 .build();
 
-        // The parent has random logs that don't match
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(hasMatchingLog ? 0 : 1)).onContractLog(any());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("Correct behaviour for a hook-related transaction with multiple ContractCalls as childs")
+    void correctBehaviourForHookWithMultipleCallChildRecords(boolean hasMatchingLog) {
+        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
+
+        // Create a top-level record item for the transaction which is triggering the hook
+        var topLevelRecordItem = recordItemBuilder.cryptoTransfer().build();
+        var topLevelTimestamp = topLevelRecordItem.getConsensusTimestamp();
+
+        // 1st child record: ContractCall to HOOK contract
+        var firstChildContractCallTimestamp = topLevelTimestamp + 1;
+        var firstChildContractCallRecordItem = recordItemBuilder
+                .contractCall(HOOK_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HOOK_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(firstChildContractCallTimestamp / 1_000_000_000)
+                                .setNanos((int) (firstChildContractCallTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(topLevelRecordItem))
+                .build();
+
+        var secondChildContractCallTimestamp = firstChildContractCallTimestamp + 1;
+
+        // 2nd child record: ContractCall to HOOK contract
+        var secondChildContractCallRecordItem = recordItemBuilder
+                .contractCall(HOOK_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(2))
+                        .setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(HOOK_CONTRACT_ADDRESS)
+                                .addLogInfo(hasMatchingLog ? matchingLog : ContractLoginfo.getDefaultInstance()))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(secondChildContractCallTimestamp / 1_000_000_000)
+                                .setNanos((int) (secondChildContractCallTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(firstChildContractCallRecordItem))
+                .build();
+
+        syntheticContractLogService.create(new TransferContractLog(
+                secondChildContractCallRecordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(hasMatchingLog ? 0 : 1)).onContractLog(any());
     }
 
@@ -434,7 +492,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should skip both different synthetic logs when parent has one of each matching occurrence")
     void skipBothDifferentLogsWhenEachHasMatchingOccurrenceInParent() {
         var secondReceiverId = EntityId.of(0, 0, 999);
-        long secondAmount = 500L;
+        var secondAmount = 500L;
 
         // Create a parent with two different matching contract logs
         var matchingLog1 = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
@@ -469,7 +527,7 @@ class SyntheticContractLogServiceImplTest {
     @DisplayName("Should skip duplicate synthetic log but create different one when parent has only the first log")
     void createSkipSyntheticLogButCreateDifferentWhenParentHasOnlyFirstLog() {
         var secondReceiverId = EntityId.of(0, 0, 999);
-        long secondAmount = 500L;
+        var secondAmount = 500L;
 
         // Parent only has the second (different) log, not the first
         var matchingLog2 =
@@ -501,27 +559,33 @@ class SyntheticContractLogServiceImplTest {
 
     @Test
     @DisplayName(
-            "Should not create synthetic log when multi-party transfer is disabled and child has more than 2 account amounts")
-    void doNotCreateWhenMultiPartyDisabledAndChildHasMoreThanTwoAccountAmounts() {
+            "Should not create synthetic log when multi-party transfer is disabled and child has more than 2 token transfer lists")
+    void doNotCreateWhenMultiPartyDisabledAndChildHasMoreThanTwoTokenTransferLists() {
         entityProperties.getPersist().setSyntheticContractLogsMulti(false);
 
         // Create a parent with contract result (required for the multi-party check)
         var parentRecordItem = recordItemBuilder.contractCall().build();
 
-        // Create a child record item with more than 2 account amounts in the transfer list (multi-party scenario)
+        // Create a child record item with more than 2 fungible token transfer lists (multi-party scenario)
+        var tokenId2 = EntityId.of(0, 0, 1000).toTokenID();
+        var tokenId3 = EntityId.of(0, 0, 1001).toTokenID();
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
                                 .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
                                 .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000)))
-                        .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(0, 0, 100, -100L))
-                                .addAccountAmounts(accountAmount(0, 0, 200, 50L))
-                                .addAccountAmounts(accountAmount(0, 0, 300, 50L))))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                entityTokenId.toTokenID(),
+                                tokenTransfer(0, 0, 100, -100L),
+                                tokenTransfer(0, 0, 200, 50L),
+                                tokenTransfer(0, 0, 300, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                tokenId2, tokenTransfer(0, 0, 100, -50L), tokenTransfer(0, 0, 200, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(tokenId3, tokenTransfer(0, 0, 300, 100L))))
                 .recordItem(r -> r.previous(parentRecordItem))
                 .build();
 
-        // Multi-party is disabled and child has >2 account amounts → skip
+        // Multi-party is disabled and child has >2 token transfer lists → skip
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(0)).onContractLog(any());
@@ -529,24 +593,30 @@ class SyntheticContractLogServiceImplTest {
 
     @Test
     @DisplayName(
-            "Should create synthetic log when multi-party transfer is enabled and child has more than 2 account amounts")
-    void createWhenMultiPartyEnabledAndChildHasMoreThanTwoAccountAmounts() {
+            "Should create synthetic log when multi-party transfer is enabled and child has more than 2 token transfer lists")
+    void createWhenMultiPartyEnabledAndChildHasMoreThanTwoTokenTransferLists() {
         var parentRecordItem = recordItemBuilder.contractCall().build();
 
-        // Create a child record item with more than 2 account amounts in the transfer list (multi-party scenario)
+        // Create a child record item with more than 2 fungible token transfer lists (multi-party scenario)
+        var tokenId2 = EntityId.of(0, 0, 1000).toTokenID();
+        var tokenId3 = EntityId.of(0, 0, 1001).toTokenID();
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
                                 .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
                                 .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000)))
-                        .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(0, 0, 100, -100L))
-                                .addAccountAmounts(accountAmount(0, 0, 200, 50L))
-                                .addAccountAmounts(accountAmount(0, 0, 300, 50L))))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                entityTokenId.toTokenID(),
+                                tokenTransfer(0, 0, 100, -100L),
+                                tokenTransfer(0, 0, 200, 50L),
+                                tokenTransfer(0, 0, 300, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                tokenId2, tokenTransfer(0, 0, 100, -50L), tokenTransfer(0, 0, 200, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(tokenId3, tokenTransfer(0, 0, 300, 100L))))
                 .recordItem(r -> r.previous(parentRecordItem))
                 .build();
 
-        // Multi-party is enabled (default), so log should be created even with >2 account amounts
+        // Multi-party is enabled (default), so log should be created even with >2 token transfer lists
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(any());
@@ -554,26 +624,30 @@ class SyntheticContractLogServiceImplTest {
 
     @Test
     @DisplayName(
-            "Should create synthetic log when multi-party transfer is disabled but child has exactly 2 account amounts")
-    void createWhenMultiPartyDisabledAndChildHasExactlyTwoAccountAmounts() {
+            "Should create synthetic log when multi-party transfer is disabled but child has exactly 2 token transfer lists")
+    void createWhenMultiPartyDisabledAndChildHasExactlyTwoTokenTransferLists() {
         entityProperties.getPersist().setSyntheticContractLogsMulti(false);
 
         // Create a parent with contract result
         var parentRecordItem = recordItemBuilder.contractCall().build();
 
-        // Create a child record item with exactly 2 account amounts in the transfer list (not multi-party)
+        // Create a child record item with exactly 2 fungible token transfer lists (not multi-party for skip)
+        var tokenId2 = EntityId.of(0, 0, 1000).toTokenID();
         recordItem = recordItemBuilder
                 .contractCall()
                 .record(r -> r.setParentConsensusTimestamp(Timestamp.newBuilder()
                                 .setSeconds(parentRecordItem.getConsensusTimestamp() / 1_000_000_000)
                                 .setNanos((int) (parentRecordItem.getConsensusTimestamp() % 1_000_000_000)))
-                        .setTransferList(TransferList.newBuilder()
-                                .addAccountAmounts(accountAmount(0, 0, 100, -100L))
-                                .addAccountAmounts(accountAmount(0, 0, 200, 100L))))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                entityTokenId.toTokenID(),
+                                tokenTransfer(0, 0, 100, -100L),
+                                tokenTransfer(0, 0, 200, 100L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                tokenId2, tokenTransfer(0, 0, 200, -50L), tokenTransfer(0, 0, 300, 50L))))
                 .recordItem(r -> r.previous(parentRecordItem))
                 .build();
 
-        // Only 2 account amounts - a single transfer so log should be created
+        // Only 2 token transfer lists - log should be created
         syntheticContractLogService.create(
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
         verify(entityListener, times(1)).onContractLog(any());
@@ -584,12 +658,18 @@ class SyntheticContractLogServiceImplTest {
     void skipCreationWhenMultiPartyDisabledAndNoContractParent() {
         entityProperties.getPersist().setSyntheticContractLogsMulti(false);
 
+        var tokenId2 = EntityId.of(0, 0, 1000).toTokenID();
+        var tokenId3 = EntityId.of(0, 0, 1001).toTokenID();
         recordItem = recordItemBuilder
                 .contractCall()
-                .record(r -> r.setTransferList(TransferList.newBuilder()
-                        .addAccountAmounts(accountAmount(0, 0, 100, -100L))
-                        .addAccountAmounts(accountAmount(0, 0, 200, 50L))
-                        .addAccountAmounts(accountAmount(0, 0, 300, 50L))))
+                .record(r -> r.addTokenTransferLists(fungibleTokenTransferList(
+                                entityTokenId.toTokenID(),
+                                tokenTransfer(0, 0, 100, -100L),
+                                tokenTransfer(0, 0, 200, 50L),
+                                tokenTransfer(0, 0, 300, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(
+                                tokenId2, tokenTransfer(0, 0, 100, -50L), tokenTransfer(0, 0, 200, 50L)))
+                        .addTokenTransferLists(fungibleTokenTransferList(tokenId3, tokenTransfer(0, 0, 300, 100L))))
                 .build();
 
         syntheticContractLogService.create(
@@ -597,7 +677,7 @@ class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(0)).onContractLog(any());
     }
 
-    private AccountAmount accountAmount(long shard, long realm, long num, long amount) {
+    private AccountAmount tokenTransfer(long shard, long realm, long num, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(AccountID.newBuilder()
                         .setShardNum(shard)
@@ -605,6 +685,14 @@ class SyntheticContractLogServiceImplTest {
                         .setAccountNum(num))
                 .setAmount(amount)
                 .build();
+    }
+
+    private TokenTransferList fungibleTokenTransferList(TokenID tokenId, AccountAmount... transfers) {
+        var builder = TokenTransferList.newBuilder().setToken(tokenId);
+        for (AccountAmount t : transfers) {
+            builder.addTransfers(t);
+        }
+        return builder.build();
     }
 
     /**

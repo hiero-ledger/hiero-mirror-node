@@ -76,17 +76,15 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
             return true;
         }
 
-        if (syntheticLog
-                                .getRecordItem()
-                                .getTransactionRecord()
-                                .getTransferList()
-                                .getAccountAmountsCount()
-                        > 2
-                && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
+        var tokenTransfersCount =
+                syntheticLog.getRecordItem().getTransactionRecord().getTokenTransferListsCount();
+        if (tokenTransfersCount > 2 && !entityProperties.getPersist().isSyntheticContractLogsMulti()) {
             // We have a multi-party fungible transfer scenario and synthetic event creation for
             // such transfers is disabled
             return true;
-        } else return logAlreadyImported(transferLog);
+        }
+
+        return logAlreadyImported(transferLog);
     }
 
     /**

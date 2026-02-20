@@ -204,6 +204,25 @@ public class Utility {
     }
 
     /**
+     * Compares two different byte arrays
+     *
+     * @param actual the actual byte array to be checked
+     * @param expected the expected byte array to check with
+     */
+    public static boolean byteArrayCompare(byte[] actual, byte[] expected) {
+        if (actual.length != expected.length) {
+            return false;
+        }
+
+        for (int i = 0; i < expected.length; i++) {
+            if (actual[i] != expected[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
      * Generates a TransactionID object
      *
      * @param payerAccountId the AccountID of the transaction payer account
