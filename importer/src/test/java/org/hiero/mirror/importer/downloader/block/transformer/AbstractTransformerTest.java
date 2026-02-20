@@ -28,12 +28,12 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     private static final RecursiveComparisonConfiguration RECORD_ITEMS_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
                     .withIgnoredFields(
-                            "contractLogOccurrences",
                             "parent",
-                            "hookContractRelatedParent",
+                            "hookParent",
                             "previous",
                             "transactionBody",
-                            "signatureMap")
+                            "signatureMap",
+                            "trimmedTopicsAndDataList")
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
                     .build();

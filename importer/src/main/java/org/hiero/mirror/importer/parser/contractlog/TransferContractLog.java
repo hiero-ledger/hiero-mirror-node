@@ -2,11 +2,10 @@
 
 package org.hiero.mirror.importer.parser.contractlog;
 
-import com.hederahashgraph.api.proto.java.ContractLoginfo;
-import java.util.function.Supplier;
+import com.google.protobuf.ByteString;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
-import org.hiero.mirror.importer.util.Utility;
+import org.hiero.mirror.common.domain.transaction.TrimmedTopicsAndData;
 
 public class TransferContractLog extends AbstractSyntheticContractLog {
 
@@ -23,31 +22,17 @@ public class TransferContractLog extends AbstractSyntheticContractLog {
     }
 
     /**
-     * Checks if this TransferContractLog is equal to a ContractLoginfo by comparing topics and data.
+     * Converts the topics and data fields to a {@link TrimmedTopicsAndData}
      *
-     * @param contractLoginfo the ContractLoginfo to compare against
-     * @return true if the logs are equal, false otherwise
+     * @return TrimmedTopicsAndData the converted object
      */
-    public boolean equalsContractLoginfo(ContractLoginfo contractLoginfo) {
-        return Utility.byteArrayCompare(
-                        getByteArrayOrDefault(() -> Utility.getTopic(contractLoginfo, 0)),
-                        getByteArrayOrDefault(this::getTopic0))
-                && Utility.byteArrayCompare(
-                        getByteArrayOrDefault(() -> Utility.getTopic(contractLoginfo, 1)),
-                        getByteArrayOrDefault(this::getTopic1))
-                && Utility.byteArrayCompare(
-                        getByteArrayOrDefault(() -> Utility.getTopic(contractLoginfo, 2)),
-                        getByteArrayOrDefault(this::getTopic2))
-                && Utility.byteArrayCompare(
-                        getByteArrayOrDefault(() -> Utility.getTopic(contractLoginfo, 3)),
-                        getByteArrayOrDefault(this::getTopic3))
-                && Utility.byteArrayCompare(
-                        getByteArrayOrDefault(() -> Utility.getDataTrimmed(contractLoginfo)),
-                        getByteArrayOrDefault(this::getData));
-    }
-
-    private byte[] getByteArrayOrDefault(Supplier<byte[]> supplier) {
-        byte[] result = supplier.get();
-        return result != null ? result : new byte[0];
+    public TrimmedTopicsAndData getTrimmedTopicsAndData() {
+        var topic1AsByteString = getTopic0() != null ? ByteString.copyFrom(getTopic0()) : ByteString.EMPTY;
+        var topic2AsByteString = getTopic1() != null ? ByteString.copyFrom(getTopic1()) : ByteString.EMPTY;
+        var topic3AsByteString = getTopic2() != null ? ByteString.copyFrom(getTopic2()) : ByteString.EMPTY;
+        var topic4AsByteString = getTopic3() != null ? ByteString.copyFrom(getTopic3()) : ByteString.EMPTY;
+        var dataAsByteString = getData() != null ? ByteString.copyFrom(getData()) : ByteString.EMPTY;
+        return new TrimmedTopicsAndData(
+                topic1AsByteString, topic2AsByteString, topic3AsByteString, topic4AsByteString, dataAsByteString);
     }
 }

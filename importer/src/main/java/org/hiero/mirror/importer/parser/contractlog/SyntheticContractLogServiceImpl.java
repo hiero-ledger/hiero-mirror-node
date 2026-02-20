@@ -97,9 +97,9 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
      */
     private boolean logAlreadyImported(TransferContractLog transferLog) {
         var parentRecordItem = transferLog.getRecordItem().getContractRelatedParent();
-        return transferLog.getRecordItem().consumeMatchingContractLog(transferLog::equalsContractLoginfo)
+        return transferLog.getRecordItem().consumeMatchingContractLog(transferLog.getTrimmedTopicsAndData())
                 || (parentRecordItem != null
-                        && parentRecordItem.consumeMatchingContractLog(transferLog::equalsContractLoginfo));
+                        && parentRecordItem.consumeMatchingContractLog(transferLog.getTrimmedTopicsAndData()));
     }
 
     /**

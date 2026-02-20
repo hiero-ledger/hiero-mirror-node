@@ -310,6 +310,94 @@ class SyntheticContractLogServiceImplTest {
         verify(entityListener, times(hasMatchingLog ? 0 : 1)).onContractLog(any());
     }
 
+    @Test
+    @DisplayName(
+            "Correct behaviour for hook-related transaction with a ContractCall and three nested Transfer precompile children")
+    void correctBehaviourForHookRelatedContractCallWithThreePrecompileChildren() {
+        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
+
+        // Create a top-level record item for the transaction which is triggering the hook
+        var topLevelRecordItem = recordItemBuilder.cryptoTransfer().build();
+        var topLevelTimestamp = topLevelRecordItem.getConsensusTimestamp();
+
+        // Create a parent ContractCall record item hook triggered
+        var parentContractCallTimestamp = topLevelTimestamp + 1;
+        var parentContractCallRecordItem = recordItemBuilder
+                .contractCall(HOOK_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(1))
+                        .setContractCallResult(ContractFunctionResult.newBuilder()
+                                .setContractID(HOOK_CONTRACT_ADDRESS)
+                                .addLogInfo(matchingLog)
+                                .addLogInfo(matchingLog))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(parentContractCallTimestamp / 1_000_000_000)
+                                .setNanos((int) (parentContractCallTimestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(topLevelRecordItem))
+                .build();
+
+        // First nested precompile child (nonce 2)
+        var child1Timestamp = parentContractCallTimestamp + 1;
+        var child1RecordItem = recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(2))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(child1Timestamp / 1_000_000_000)
+                                .setNanos((int) (child1Timestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(parentContractCallRecordItem))
+                .build();
+
+        // Second nested precompile child (nonce 3)
+        var child2Timestamp = child1Timestamp + 1;
+        var child2RecordItem = recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(3))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(child2Timestamp / 1_000_000_000)
+                                .setNanos((int) (child2Timestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(child1RecordItem))
+                .build();
+
+        // Third nested precompile child (nonce 4)
+        var child3Timestamp = child2Timestamp + 1;
+        var child3RecordItem = recordItemBuilder
+                .contractCall(HTS_PRECOMPILE_CONTRACT_ADDRESS)
+                .record(r -> r.setTransactionID(r.getTransactionID().toBuilder().setNonce(4))
+                        .setContractCallResult(
+                                ContractFunctionResult.newBuilder().setContractID(HTS_PRECOMPILE_CONTRACT_ADDRESS))
+                        .setConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(child3Timestamp / 1_000_000_000)
+                                .setNanos((int) (child3Timestamp % 1_000_000_000)))
+                        .setParentConsensusTimestamp(Timestamp.newBuilder()
+                                .setSeconds(topLevelTimestamp / 1_000_000_000)
+                                .setNanos((int) (topLevelTimestamp % 1_000_000_000))))
+                .recordItem(r -> r.previous(child2RecordItem))
+                .build();
+
+        // We have 2 occurrences of the logs already in the ContractCall parent, so only the last child
+        // will create a synthetic record
+        syntheticContractLogService.create(
+                new TransferContractLog(child1RecordItem, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(
+                new TransferContractLog(child2RecordItem, entityTokenId, senderId, receiverId, amount));
+        syntheticContractLogService.create(
+                new TransferContractLog(child3RecordItem, entityTokenId, senderId, receiverId, amount));
+
+        verify(entityListener, times(1)).onContractLog(any());
+    }
+
     @ParameterizedTest
     @ValueSource(booleans = {true, false})
     @DisplayName("Correct behaviour for a hook-related transaction with multiple ContractCalls as childs")

@@ -119,9 +119,9 @@ public class RecordItem implements StreamItem {
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
-    // Map to track remaining occurrences of each contract log for duplicate detection
+    // List to track trimmed topics and data for all ContractLogs
     @EqualsAndHashCode.Exclude
-    private Map<ContractLoginfo, AtomicInteger> contractLogOccurrences;
+    private List<TrimmedTopicsAndData> trimmedTopicsAndDataList;
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
@@ -136,32 +136,20 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Attempts to consume a matching contract log from the tracked occurrences. If a matching log is found
-     * and its count is greater than 0, the count is decremented.
+     * Attempts to consume a matching contract log. If a matching log is found, a synthetic log is not created.
      *
      * <p>This method is used to handle duplicate contract logs in the record. When the same log appears
-     * multiple times, a synthetic TransferContractLog can match one occurrence and should be skipped
-     * unless the occurrence count is 0.
+     * multiple times, a synthetic TransferContractLog can match one occurrence and should be skipped.
      *
-     * @param matcher a Predicate that takes a ContractLoginfo and returns true if it matches
+     * @param trimmedTopicsAndData a {@link TrimmedTopicsAndData} object trying to match an existing one
      * @return true if a matching log was found and consumed, false otherwise
      */
-    public boolean consumeMatchingContractLog(Predicate<ContractLoginfo> matcher) {
-        if (contractLogOccurrences == null || contractLogOccurrences.isEmpty()) {
+    public boolean consumeMatchingContractLog(TrimmedTopicsAndData trimmedTopicsAndData) {
+        if (trimmedTopicsAndDataList == null || trimmedTopicsAndDataList.isEmpty()) {
             return false;
         }
 
-        for (var entry : contractLogOccurrences.entrySet()) {
-            var logInfo = entry.getKey();
-            var occurrenceCount = entry.getValue();
-
-            if (occurrenceCount.get() > 0 && matcher.test(logInfo)) {
-                occurrenceCount.decrementAndGet();
-                return true;
-            }
-        }
-
-        return false;
+        return trimmedTopicsAndDataList.remove(trimmedTopicsAndData);
     }
 
     public void addContractTransaction(EntityId entityId) {
@@ -311,12 +299,12 @@ public class RecordItem implements StreamItem {
             }
 
             this.contractLogs = parseContractLogs();
-            this.contractLogOccurrences = initializeContractLogOccurrences(this.contractLogs);
+            this.trimmedTopicsAndDataList = parseTrimmedTopicsAndData(this.contractLogs);
 
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
             this.parent = parseParent();
-            this.hookParent = parseHookParent();
+            this.hookParent = parsePossiblyHookContractRelatedParent();
             this.payerAccountId = EntityId.of(transactionBody.getTransactionID().getAccountID());
             this.successful = parseSuccess();
             this.transactionType = parseTransactionType(transactionBody);
@@ -332,17 +320,13 @@ public class RecordItem implements StreamItem {
             return Collections.emptyList();
         }
 
-        private Map<ContractLoginfo, AtomicInteger> initializeContractLogOccurrences(List<ContractLoginfo> logs) {
-            if (logs == null || logs.isEmpty()) {
-                return Collections.emptyMap();
-            }
-            var logOccurrences = new HashMap<ContractLoginfo, AtomicInteger>();
+        private List<TrimmedTopicsAndData> parseTrimmedTopicsAndData(List<ContractLoginfo> logs) {
+            var trimmedTopicsAndDataList = new ArrayList<TrimmedTopicsAndData>();
             for (var logInfo : logs) {
-                logOccurrences
-                        .computeIfAbsent(logInfo, k -> new AtomicInteger(0))
-                        .incrementAndGet();
+                trimmedTopicsAndDataList.add(new TrimmedTopicsAndData(logInfo));
             }
-            return logOccurrences;
+
+            return trimmedTopicsAndDataList;
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {
@@ -381,16 +365,28 @@ public class RecordItem implements StreamItem {
             return this.parent;
         }
 
-        private RecordItem parseHookParent() {
+        private RecordItem parsePossiblyHookContractRelatedParent() {
             if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
-                var currentTxnRecordContractResult = getContractResult();
-                var previousTxnRecordContractResult = previous.getContractResult();
-                if (previousTxnRecordContractResult != null
-                        && previousTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM
-                        && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM) {
-                    return previous;
+                var candidateRecord = previous;
+
+                while (candidateRecord != parent) {
+                    var currentTxnRecordContractResult = getContractResult();
+                    var previousTxnRecordContractResult = candidateRecord.getContractResult();
+                    if (previousTxnRecordContractResult != null
+                            && previousTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM
+                            && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM) {
+                        // we found the first hook child item, which has a ContractResult and is executed via a hook
+                        return candidateRecord;
+                    }
+
+                    candidateRecord = candidateRecord.previous;
                 }
             }
+
+            // we have multiple contract hook-related child items executed via a hook (which are not precompile-related)
+            // and we are already in one of them, so we return the hook triggering transaction instead, which is the
+            // actual
+            // parent of all child items linked to a hook
             return parent;
         }
 
