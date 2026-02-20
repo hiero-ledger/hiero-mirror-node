@@ -28,7 +28,7 @@
     "pretty-ms": "9.3.0"
   },
   "devDependencies": {
-    "nodemon": "3.1.11"
+    "nodemon": "3.1.12"
   },
   "peerDependencies": {
     "debug": "4.4.3"
