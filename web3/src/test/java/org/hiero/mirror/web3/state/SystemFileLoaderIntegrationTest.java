@@ -167,8 +167,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                         .consensusTimestamp(200L))
                 .persist();
 
-        final var resultAtTimestamp1 = systemFileLoader.load(fileId, 150L);
-        final var resultAtTimestamp2 = systemFileLoader.load(fileId, 350L);
+        final var resultAtTimestamp1 = systemFileLoader.loadExchangeRates(150L);
+        final var resultAtTimestamp2 = systemFileLoader.loadExchangeRates(350L);
 
         assertThat(resultAtTimestamp1).isNotNull();
         assertThat(resultAtTimestamp1.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET.toByteArray()));
@@ -177,8 +177,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(resultAtTimestamp2.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET_2.toByteArray()));
 
         // Verify the cache returns the same distinct results on subsequent calls
-        final var cachedResult1 = systemFileLoader.load(fileId, 150L);
-        final var cachedResult2 = systemFileLoader.load(fileId, 350L);
+        final var cachedResult1 = systemFileLoader.loadExchangeRates(150L);
+        final var cachedResult2 = systemFileLoader.loadExchangeRates(350L);
 
         assertThat(cachedResult1.contents()).isEqualTo(resultAtTimestamp1.contents());
         assertThat(cachedResult2.contents()).isEqualTo(resultAtTimestamp2.contents());

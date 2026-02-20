@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
+import static org.hiero.mirror.web3.state.Utils.toFileID;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
@@ -15,13 +16,16 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.SystemFileLoader;
+import org.hiero.mirror.web3.state.Utils;
 
 @Named
 final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
+    private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
+    private static final long NANOS_PER_TWO_MINUTES = 2L * 60L * 1_000_000_000L;
+
     private final ExchangeRateSet cachedExchangeRateSet;
     private final SystemFileLoader systemFileLoader;
-    private final FileID exchangeRatesFileId;
     private SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
 
     @SneakyThrows
@@ -30,7 +34,6 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
         this.cachedExchangeRateSet = ExchangeRateSet.PROTOBUF.parse(
                 fileSchema.genesisExchangeRates(evmProperties.getVersionedConfiguration()));
         this.systemFileLoader = systemFileLoader;
-        this.exchangeRatesFileId = getExchangeRateFileId();
     }
 
     @Override
@@ -47,7 +50,8 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     @Override
     public ExchangeRateSet get() {
         final var context = ContractCallContext.get();
-        final long timestamp = context.getTimestamp().orElse(Long.MAX_VALUE);
+        long timestamp = context.getTimestamp().orElse(Utils.getCurrentTimestamp());
+        timestamp = roundDownToHourAndTwoMinutes(timestamp);
 
         // Return result from the transaction cache if possible to avoid unnecessary calls to the DB
         // and protobuf parsing. The result will be correct since the record file timestamp will be
@@ -58,18 +62,24 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
             return rates;
         }
 
-        final var file = systemFileLoader.load(exchangeRatesFileId, timestamp);
+        final var file = systemFileLoader.loadExchangeRates(timestamp);
         final var rates = file != null ? ExchangeRateSet.PROTOBUF.parse(file.contents()) : cachedExchangeRateSet;
         cache.put(timestamp, rates);
         return rates;
     }
 
     private FileID getExchangeRateFileId() {
-        final var fileId = systemEntity.exchangeRateFile();
-        return FileID.newBuilder()
-                .shardNum(fileId.getShard())
-                .realmNum(fileId.getRealm())
-                .fileNum(fileId.getNum())
-                .build();
+        final var entityId = systemEntity.exchangeRateFile();
+        return toFileID(entityId);
+    }
+
+    /**
+     * Rounds the given consensus timestamp (nanoseconds) down to the nearest boundary at 2 minutes
+     * past the hour (e.g. 00:02, 01:02, 02:02).
+     */
+    private static long roundDownToHourAndTwoMinutes(long consensusTimestampNanos) {
+        final long hourStart = (consensusTimestampNanos / NANOS_PER_HOUR) * NANOS_PER_HOUR;
+        final long boundaryThisHour = hourStart + NANOS_PER_TWO_MINUTES;
+        return consensusTimestampNanos >= boundaryThisHour ? boundaryThisHour : boundaryThisHour - NANOS_PER_HOUR;
     }
 }

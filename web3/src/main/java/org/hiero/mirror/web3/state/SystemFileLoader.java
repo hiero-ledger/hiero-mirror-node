@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -49,12 +48,22 @@ import org.springframework.core.retry.RetryTemplate;
 
 @Named
 @CustomLog
-@RequiredArgsConstructor
 public class SystemFileLoader {
 
     private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
+    private final FileID exchangeRateFileId;
+
+    public SystemFileLoader(
+            final EvmProperties properties,
+            final FileDataRepository fileDataRepository,
+            final SystemEntity systemEntity) {
+        this.properties = properties;
+        this.fileDataRepository = fileDataRepository;
+        this.systemEntity = systemEntity;
+        this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
+    }
 
     private final V0490FileSchema fileSchema = new V0490FileSchema();
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
@@ -71,6 +80,7 @@ public class SystemFileLoader {
     @Cacheable(
             cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
             cacheNames = CACHE_NAME_MODULARIZED,
+            key = "#key",
             unless = "#result == null")
     public @Nullable File load(@NonNull FileID key, long consensusTimestamp) {
         var systemFile = getSystemFiles().get(key);
@@ -79,6 +89,20 @@ public class SystemFileLoader {
         }
 
         return loadWithRetry(key, consensusTimestamp, systemFile);
+    }
+
+    @Cacheable(
+            cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
+            cacheNames = CACHE_NAME_MODULARIZED,
+            key = "#consensusTimestamp",
+            unless = "#result == null")
+    public @Nullable File loadExchangeRates(long consensusTimestamp) {
+        var systemFile = getSystemFiles().get(exchangeRateFileId);
+        if (systemFile == null) {
+            return null;
+        }
+
+        return loadWithRetry(exchangeRateFileId, consensusTimestamp, systemFile);
     }
 
     public boolean isSystemFile(final FileID key) {

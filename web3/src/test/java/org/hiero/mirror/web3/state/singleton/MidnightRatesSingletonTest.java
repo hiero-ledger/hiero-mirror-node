@@ -4,7 +4,7 @@ package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -15,6 +15,7 @@ import com.hedera.hapi.node.state.file.File;
 import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.config.data.BootstrapConfig;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -29,6 +30,12 @@ import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class MidnightRatesSingletonTest extends Web3IntegrationTest {
+
+    private static final long SECONDS_PER_HOUR = 3600L;
+    private static final long SECONDS_PER_TWO_MINUTES = 2L * 60L;
+
+    private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
+    private static final long NANOS_PER_TWO_MINUTES = 2L * 60L * 1_000_000_000L;
 
     private final MidnightRatesSingleton midnightRatesSingleton;
     private final EvmProperties evmProperties;
@@ -59,14 +66,45 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
     }
 
     @Test
-    void getWithDifferentTimestampsReturnsDifferentCorrectRates() {
-        final long timestamp1 = 100L;
-        final long timestamp2 = 200L;
-
+    void getExchangeRateWithTimestampRoundsDown() {
         final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
         final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
 
-        final var rates1 = ExchangeRateSet.newBuilder()
+        final var exchangeRate = ExchangeRateSet.newBuilder()
+                .currentRate(ExchangeRate.newBuilder()
+                        .hbarEquiv(1)
+                        .centEquiv(2)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(1))
+                        .build())
+                .nextRate(ExchangeRate.newBuilder()
+                        .hbarEquiv(3)
+                        .centEquiv(4)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(2))
+                        .build())
+                .build();
+
+        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_TWO_MINUTES))).thenReturn(fileWithRates(exchangeRate));
+
+        long consensusTimestamp = NANOS_PER_TWO_MINUTES + 100;
+        final CallServiceParameters params = mock(CallServiceParameters.class);
+        when(params.getBlock()).thenReturn(BlockType.of("123"));
+        final ExchangeRateSet result = ContractCallContext.run(ctx -> {
+            ctx.setCallServiceParameters(params);
+            ctx.setTimestamp(Optional.of(consensusTimestamp));
+            ctx.setBlockSupplier(
+                    () -> RecordFile.builder().consensusEnd(consensusTimestamp).build());
+            return midnightRatesSingleton.get();
+        });
+
+        assertThat(result).isEqualTo(exchangeRate);
+    }
+
+    @Test
+    void getExchangeRateWithTimestampRoundsDownToCorrectExchangeRate() {
+        final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
+        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
+
+        final var exchangeRate = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
                         .hbarEquiv(1)
                         .centEquiv(2)
@@ -79,67 +117,69 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
                         .build())
                 .build();
 
-        final var rates2 = ExchangeRateSet.newBuilder()
+        final var exchangeRate2 = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
-                        .hbarEquiv(10)
-                        .centEquiv(20)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(10L))
+                        .hbarEquiv(3)
+                        .centEquiv(4)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(2L))
                         .build())
                 .nextRate(ExchangeRate.newBuilder()
-                        .hbarEquiv(30)
-                        .centEquiv(40)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(20L))
+                        .hbarEquiv(5)
+                        .centEquiv(6)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(3L))
                         .build())
                 .build();
 
-        final var rates3 = ExchangeRateSet.newBuilder()
+        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_TWO_MINUTES))).thenReturn(fileWithRates(exchangeRate));
+        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_HOUR + NANOS_PER_TWO_MINUTES)))
+                .thenReturn(fileWithRates(exchangeRate2));
+
+        long consensusTimestamp = NANOS_PER_HOUR + NANOS_PER_TWO_MINUTES + 10;
+        final CallServiceParameters params = mock(CallServiceParameters.class);
+        when(params.getBlock()).thenReturn(BlockType.of("123"));
+        final ExchangeRateSet result = ContractCallContext.run(ctx -> {
+            ctx.setCallServiceParameters(params);
+            ctx.setTimestamp(Optional.of(consensusTimestamp));
+            ctx.setBlockSupplier(
+                    () -> RecordFile.builder().consensusEnd(consensusTimestamp).build());
+            return midnightRatesSingleton.get();
+        });
+
+        assertThat(result).isEqualTo(exchangeRate2);
+    }
+
+    @Test
+    void getExchangeRateWithLatestBlock() {
+        final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
+        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
+
+        final var exchangeRate = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
-                        .hbarEquiv(100)
-                        .centEquiv(200)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(100L))
+                        .hbarEquiv(1)
+                        .centEquiv(2)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(1))
                         .build())
                 .nextRate(ExchangeRate.newBuilder()
-                        .hbarEquiv(300)
-                        .centEquiv(400)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(200L))
+                        .hbarEquiv(3)
+                        .centEquiv(4)
+                        .expirationTime(TimestampSeconds.newBuilder().seconds(2))
                         .build())
                 .build();
 
-        when(systemFileLoader.load(any(FileID.class), eq(timestamp1))).thenReturn(fileWithRates(rates1));
-        when(systemFileLoader.load(any(FileID.class), eq(timestamp2))).thenReturn(fileWithRates(rates2));
-        when(systemFileLoader.load(any(FileID.class), eq(Long.MAX_VALUE))).thenReturn(fileWithRates(rates3));
+        // We use getCurrentTimestamp() in this case so we can't pass a more specific value
+        when(systemFileLoader.loadExchangeRates(anyLong())).thenReturn(fileWithRates(exchangeRate));
 
-        final CallServiceParameters params1 = mock(CallServiceParameters.class);
-        when(params1.getBlock()).thenReturn(BlockType.EARLIEST);
-        final ExchangeRateSet result1 = ContractCallContext.run(ctx -> {
-            ctx.setCallServiceParameters(params1);
+        long consensusTimestamp = NANOS_PER_TWO_MINUTES + 100;
+        final CallServiceParameters params = mock(CallServiceParameters.class);
+        when(params.getBlock()).thenReturn(BlockType.LATEST);
+        final ExchangeRateSet result = ContractCallContext.run(ctx -> {
+            ctx.setCallServiceParameters(params);
             ctx.setBlockSupplier(
-                    () -> RecordFile.builder().consensusEnd(timestamp1).build());
+                    () -> RecordFile.builder().consensusEnd(consensusTimestamp).build());
             return midnightRatesSingleton.get();
         });
 
-        final CallServiceParameters params2 = mock(CallServiceParameters.class);
-        when(params2.getBlock()).thenReturn(BlockType.of("200"));
-        final ExchangeRateSet result2 = ContractCallContext.run(ctx -> {
-            ctx.setCallServiceParameters(params2);
-            ctx.setBlockSupplier(
-                    () -> RecordFile.builder().consensusEnd(timestamp2).build());
-            return midnightRatesSingleton.get();
-        });
-
-        final CallServiceParameters params3 = mock(CallServiceParameters.class);
-        when(params3.getBlock()).thenReturn(BlockType.LATEST);
-        final ExchangeRateSet result3 = ContractCallContext.run(ctx -> {
-            ctx.setCallServiceParameters(params3);
-            return midnightRatesSingleton.get();
-        });
-
-        assertThat(result1).isEqualTo(rates1);
-        assertThat(result2).isEqualTo(rates2);
-        assertThat(result3).isEqualTo(rates3);
-        assertThat(result1).isNotEqualTo(result2);
-        assertThat(result2).isNotEqualTo(result3);
-        assertThat(result1).isNotEqualTo(result3);
+        assertThat(result).isEqualTo(exchangeRate);
     }
 
     private File fileWithRates(ExchangeRateSet exchangeRateSet) {

@@ -36,6 +36,7 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
     public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
+    public static final String CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE = "systemFileExchangeRates";
     public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
     public static final String CACHE_MANAGER_TOKEN = "token";
     public static final String CACHE_MANAGER_TOKEN_TYPE = "tokenType";
@@ -140,7 +141,7 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_SYSTEM_FILE)
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_FEE_SCHEDULE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }
@@ -150,6 +151,14 @@ public class EvmConfiguration {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_MODULARIZED));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
+        return caffeineCacheManager;
+    }
+
+    @Bean(CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE)
+    CacheManager cacheManagerSystemFileExchangeRates() {
+        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getExchangeRate());
         return caffeineCacheManager;
     }
 
