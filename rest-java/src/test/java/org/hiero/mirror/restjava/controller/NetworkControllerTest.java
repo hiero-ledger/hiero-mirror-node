@@ -24,7 +24,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.hiero.hapi.fees.FeeScheduleUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -541,8 +540,6 @@ final class NetworkControllerTest extends ControllerTest {
     @Nested
     final class FeesEstimateEndpointTest extends RestTest {
 
-        private final EntityId simpleFeeScheduleFileId = systemEntity.simpleFeeScheduleFile();
-
         @Override
         protected String getUrl() {
             return "network/fees";
@@ -552,7 +549,6 @@ final class NetworkControllerTest extends ControllerTest {
         @ValueSource(strings = {"protobuf", "x-protobuf"})
         void success(String mediaType) {
             // given
-            setupSimpleFeeSchedule();
             final var transaction = transaction();
 
             // when
@@ -644,7 +640,6 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void invalidSignedTransaction() {
             // given
-            setupSimpleFeeSchedule();
             final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
             final var transaction = Transaction.newBuilder()
                     .setSignedTransactionBytes(bytes)
@@ -664,24 +659,6 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         @Test
-        void feeScheduleNotFound() {
-            // given
-            final var transaction = transaction();
-
-            // when / then
-            validateError(
-                    () -> restClient
-                            .post()
-                            .uri("")
-                            .body(transaction)
-                            .contentType(MediaType.APPLICATION_PROTOBUF)
-                            .retrieve()
-                            .body(FeeEstimateResponse.class),
-                    HttpClientErrorException.NotFound.class,
-                    "Simple fee schedule (file 113) not found");
-        }
-
-        @Test
         void unsupportedMediaType() {
             // given
             final var transaction = transaction();
@@ -697,34 +674,6 @@ final class NetworkControllerTest extends ControllerTest {
                             .body(FeeEstimateResponse.class),
                     HttpClientErrorException.UnsupportedMediaType.class,
                     "Content-Type 'application/json' is not supported");
-        }
-
-        private void setupSimpleFeeSchedule() {
-            var schedule = org.hiero.hapi.support.fees.FeeSchedule.newBuilder()
-                    .extras(
-                            FeeScheduleUtils.makeExtraDef(org.hiero.hapi.support.fees.Extra.SIGNATURES, 100000),
-                            FeeScheduleUtils.makeExtraDef(org.hiero.hapi.support.fees.Extra.BYTES, 110000))
-                    .node(org.hiero.hapi.support.fees.NodeFee.newBuilder()
-                            .baseFee(100000)
-                            .extras(
-                                    FeeScheduleUtils.makeExtraIncluded(org.hiero.hapi.support.fees.Extra.BYTES, 1024),
-                                    FeeScheduleUtils.makeExtraIncluded(org.hiero.hapi.support.fees.Extra.SIGNATURES, 1))
-                            .build())
-                    .network(org.hiero.hapi.support.fees.NetworkFee.newBuilder()
-                            .multiplier(9)
-                            .build())
-                    .services(FeeScheduleUtils.makeService(
-                            "Crypto",
-                            FeeScheduleUtils.makeServiceFee(
-                                    com.hedera.hapi.node.base.HederaFunctionality.CRYPTO_TRANSFER, 100000)))
-                    .build();
-            var bytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
-                    .toBytes(schedule)
-                    .toByteArray();
-            domainBuilder
-                    .fileData()
-                    .customize(f -> f.entityId(simpleFeeScheduleFileId).fileData(bytes))
-                    .persist();
         }
 
         private byte[] transaction() {
