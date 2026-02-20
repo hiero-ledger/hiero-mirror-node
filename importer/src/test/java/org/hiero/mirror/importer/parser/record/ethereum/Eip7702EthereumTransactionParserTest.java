@@ -121,6 +121,30 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     @Test
+    void decodeEmptyAuthorizationListRejected() {
+        final var transactionData = List.of(
+                Hex.decode(CHAIN_ID_HEX),
+                Integers.toBytes(NONCE),
+                Hex.decode(FEE_HEX),
+                Hex.decode(FEE_HEX),
+                Integers.toBytes(GAS_LIMIT),
+                Hex.decode(TO_ADDRESS_HEX),
+                Hex.decode(VALUE_HEX),
+                Hex.decode(CALL_DATA_HEX),
+                List.of(),
+                List.of(),
+                Integers.toBytes(1),
+                Hex.decode(SIGNATURE_R_HEX),
+                Hex.decode(SIGNATURE_S_HEX));
+        final var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
+
+        assertThatThrownBy(() -> ethereumTransactionParser.decode(ethereumTransactionBytes))
+                .isInstanceOf(InvalidEthereumBytesException.class)
+                .hasMessage(
+                        "Unable to decode EIP7702 ethereum transaction bytes, Authorization list must not be empty for EIP-7702 transactions");
+    }
+
+    @Test
     void decodeMultipleAuthorizationEntries() {
         var transactionBytes = RLPEncoder.sequence(
                 Integers.toBytes(4),
