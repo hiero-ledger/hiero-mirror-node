@@ -4,25 +4,22 @@ package org.hiero.mirror.restjava.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hiero.hapi.fees.FeeScheduleUtils.makeExtraDef;
-import static org.hiero.hapi.fees.FeeScheduleUtils.makeExtraIncluded;
-import static org.hiero.hapi.fees.FeeScheduleUtils.makeService;
-import static org.hiero.hapi.fees.FeeScheduleUtils.makeServiceFee;
 
 import com.google.protobuf.ByteString;
-import com.hedera.hapi.node.base.HederaFunctionality;
+import com.hederahashgraph.api.proto.java.AccountID;
+import com.hederahashgraph.api.proto.java.ConsensusSubmitMessageTransactionBody;
+import com.hederahashgraph.api.proto.java.CryptoCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.CryptoDeleteTransactionBody;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
+import com.hederahashgraph.api.proto.java.Key;
+import com.hederahashgraph.api.proto.java.KeyList;
 import com.hederahashgraph.api.proto.java.SignatureMap;
 import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
+import com.hederahashgraph.api.proto.java.TopicID;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.hiero.hapi.support.fees.Extra;
-import org.hiero.hapi.support.fees.FeeSchedule;
-import org.hiero.hapi.support.fees.NetworkFee;
-import org.hiero.hapi.support.fees.NodeFee;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
@@ -36,123 +33,57 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     @Test
     void estimateFees() {
         // given
-        persistFeeSchedule(simpleFeeSchedule());
-        var transaction = cryptoTransferTransaction(0);
+        var transaction = cryptoTransfer(0);
 
         // when
         var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
 
         // then
         assertThat(result).isNotNull();
-        assertThat(result.getNode()).isNotNull();
-        assertThat(result.getNode().getBase()).isEqualTo(100000);
-        assertThat(result.getNetwork()).isNotNull();
-        assertThat(result.getNetwork().getMultiplier()).isEqualTo(9);
-        assertThat(result.getService()).isNotNull();
-        assertThat(result.getService().getBase()).isEqualTo(50000);
+        assertThat(result.getNode().getBase()).isNotNegative();
+        assertThat(result.getNetwork().getMultiplier()).isPositive();
         assertThat(result.getTotal()).isPositive();
         assertThat(result.getNotes()).isEmpty();
     }
 
     @Test
-    void estimateFeesCalculation() {
-        // given
-        var schedule = FeeSchedule.newBuilder()
-                .extras(makeExtraDef(Extra.SIGNATURES, 100000))
-                .node(NodeFee.newBuilder().baseFee(1000).build())
-                .network(NetworkFee.newBuilder().multiplier(3).build())
-                .services(makeService("Crypto", makeServiceFee(HederaFunctionality.CRYPTO_TRANSFER, 2000)))
-                .build();
-        persistFeeSchedule(schedule);
-        var transaction = cryptoTransferTransaction(0);
-
+    void estimateFeesWithSignatures() {
         // when
-        var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
+        var base = service.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC);
+        var withSignatures = service.estimateFees(cryptoTransfer(2), FeeEstimateMode.INTRINSIC);
 
         // then
-        assertThat(result.getNode().getBase()).isEqualTo(1000);
-        assertThat(result.getNetwork().getSubtotal()).isEqualTo(3000);
-        assertThat(result.getService().getBase()).isEqualTo(2000);
-        assertThat(result.getTotal()).isEqualTo(6000);
-    }
-
-    @Test
-    void estimateFeesWithExtras() {
-        // given
-        var schedule = FeeSchedule.newBuilder()
-                .extras(makeExtraDef(Extra.SIGNATURES, 200000))
-                .node(NodeFee.newBuilder()
-                        .baseFee(1000)
-                        .extras(makeExtraIncluded(Extra.SIGNATURES, 1))
-                        .build())
-                .network(NetworkFee.newBuilder().multiplier(1).build())
-                .services(makeService("Crypto", makeServiceFee(HederaFunctionality.CRYPTO_TRANSFER, 500)))
-                .build();
-        persistFeeSchedule(schedule);
-        var transaction = cryptoTransferTransaction(2);
-
-        // when
-        var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
-
-        // then
-        assertThat(result.getNode().getExtras()).hasSize(1);
-        var sigExtra = result.getNode().getExtras().getFirst();
-        assertThat(sigExtra.getName()).isEqualTo("SIGNATURES");
-        assertThat(sigExtra.getCount()).isEqualTo(2);
-        assertThat(sigExtra.getIncluded()).isEqualTo(1);
-        assertThat(sigExtra.getCharged()).isEqualTo(1);
-        assertThat(sigExtra.getFeePerUnit()).isEqualTo(200000);
-        assertThat(sigExtra.getSubtotal()).isEqualTo(200000);
-
-        assertThat(result.getTotal()).isEqualTo(402500);
+        assertThat(withSignatures.getTotal()).isGreaterThan(base.getTotal());
     }
 
     @SuppressWarnings("deprecation")
     @Test
     void estimateFeesLegacyFormat() {
         // given
-        persistFeeSchedule(simpleFeeSchedule());
-        final var body = TransactionBody.newBuilder()
+        var body = TransactionBody.newBuilder()
                 .setMemo("legacy")
                 .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder().build())
                 .build();
-        final var transaction =
+        var transaction =
                 Transaction.newBuilder().setBodyBytes(body.toByteString()).build();
 
         // when
         var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
 
         // then
-        assertThat(result).isNotNull();
         assertThat(result.getTotal()).isPositive();
     }
 
     @Test
     void stateMode() {
-        // given
-        var transaction = cryptoTransferTransaction(0);
-
-        // when / then
-        assertThatThrownBy(() -> service.estimateFees(transaction, FeeEstimateMode.STATE))
+        assertThatThrownBy(() -> service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("State-based fee estimation is not supported");
     }
 
     @Test
-    void feeScheduleNotFound() {
-        // given
-        var transaction = cryptoTransferTransaction(0);
-
-        // when / then
-        assertThatThrownBy(() -> service.estimateFees(transaction, FeeEstimateMode.INTRINSIC))
-                .isInstanceOf(EntityNotFoundException.class)
-                .hasMessageContaining("Simple fee schedule (file 113) not found");
-    }
-
-    @Test
     void invalidTransaction() {
         // given
-        persistFeeSchedule(simpleFeeSchedule());
         var transaction = Transaction.newBuilder()
                 .setSignedTransactionBytes(DomainUtils.fromBytes(domainBuilder.bytes(100)))
                 .build();
@@ -165,12 +96,7 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     @Test
     void emptyTransaction() {
-        // given
-        persistFeeSchedule(simpleFeeSchedule());
-        var transaction = Transaction.getDefaultInstance();
-
-        // when / then
-        assertThatThrownBy(() -> service.estimateFees(transaction, FeeEstimateMode.INTRINSIC))
+        assertThatThrownBy(() -> service.estimateFees(Transaction.getDefaultInstance(), FeeEstimateMode.INTRINSIC))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Transaction must contain body bytes or signed transaction bytes");
     }
@@ -178,7 +104,6 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     @Test
     void unknownTransactionType() {
         // given
-        persistFeeSchedule(simpleFeeSchedule());
         var body = TransactionBody.newBuilder().setMemo("test").build();
         var signedTransaction =
                 SignedTransaction.newBuilder().setBodyBytes(body.toByteString()).build();
@@ -193,44 +118,97 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
-    void unsupportedTransactionType() {
+    void cryptoDelete() {
         // given
-        var schedule = FeeSchedule.newBuilder()
-                .extras(makeExtraDef(Extra.SIGNATURES, 100000))
-                .node(NodeFee.newBuilder().baseFee(1000).build())
-                .network(NetworkFee.newBuilder().multiplier(1).build())
-                .services(makeService("Consensus", makeServiceFee(HederaFunctionality.CONSENSUS_CREATE_TOPIC, 1000)))
-                .build();
-        persistFeeSchedule(schedule);
-        var transaction = cryptoTransferTransaction(0);
-
-        // when / then
-        assertThatThrownBy(() -> service.estimateFees(transaction, FeeEstimateMode.INTRINSIC))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Unsupported transaction type");
-    }
-
-    private FeeSchedule simpleFeeSchedule() {
-        return FeeSchedule.newBuilder()
-                .extras(makeExtraDef(Extra.SIGNATURES, 100000), makeExtraDef(Extra.BYTES, 110000))
-                .node(NodeFee.newBuilder()
-                        .baseFee(100000)
-                        .extras(makeExtraIncluded(Extra.BYTES, 1024), makeExtraIncluded(Extra.SIGNATURES, 1))
+        var body = TransactionBody.newBuilder()
+                .setCryptoDelete(CryptoDeleteTransactionBody.newBuilder()
+                        .setDeleteAccountID(
+                                AccountID.newBuilder().setAccountNum(1001L).build())
+                        .setTransferAccountID(
+                                AccountID.newBuilder().setAccountNum(3L).build())
                         .build())
-                .network(NetworkFee.newBuilder().multiplier(9).build())
-                .services(makeService("Crypto", makeServiceFee(HederaFunctionality.CRYPTO_TRANSFER, 50000)))
+                .build();
+
+        // when
+        var result = service.estimateFees(buildTransaction(body), FeeEstimateMode.INTRINSIC);
+
+        // then
+        assertThat(result.getService().getBase()).isEqualTo(49_000_000L);
+        assertThat(result.getTotal()).isEqualTo(50_000_000L);
+    }
+
+    @Test
+    void cryptoCreateExtraKeys() {
+        // given
+        var key = Key.newBuilder()
+                .setKeyList(KeyList.newBuilder()
+                        .addKeys(ed25519Key(1))
+                        .addKeys(ed25519Key(2))
+                        .build())
+                .build();
+        var body = TransactionBody.newBuilder()
+                .setCryptoCreateAccount(
+                        CryptoCreateTransactionBody.newBuilder().setKey(key).build())
+                .build();
+
+        // when
+        var result = service.estimateFees(buildTransaction(body), FeeEstimateMode.INTRINSIC);
+
+        // then
+        assertThat(result.getTotal()).isEqualTo(600_000_000L);
+    }
+
+    @Test
+    void consensusSubmitMessageShort() {
+        // given
+        var body = TransactionBody.newBuilder()
+                .setConsensusSubmitMessage(ConsensusSubmitMessageTransactionBody.newBuilder()
+                        .setTopicID(TopicID.newBuilder().setTopicNum(1L).build())
+                        .setMessage(ByteString.copyFrom(new byte[100]))
+                        .build())
+                .build();
+
+        // when
+        var result = service.estimateFees(buildTransaction(body), FeeEstimateMode.INTRINSIC);
+
+        // then
+        assertThat(result.getService().getBase()).isEqualTo(7_000_000L);
+        assertThat(result.getTotal()).isEqualTo(8_000_000L);
+    }
+
+    @Test
+    void consensusSubmitMessageLong() {
+        // given
+        var body = TransactionBody.newBuilder()
+                .setConsensusSubmitMessage(ConsensusSubmitMessageTransactionBody.newBuilder()
+                        .setTopicID(TopicID.newBuilder().setTopicNum(1L).build())
+                        .setMessage(ByteString.copyFrom(new byte[2000]))
+                        .build())
+                .build();
+
+        // when
+        var result = service.estimateFees(buildTransaction(body), FeeEstimateMode.INTRINSIC);
+
+        // then
+        assertThat(result.getService().getBase()).isEqualTo(7_000_000L);
+        assertThat(result.getTotal()).isEqualTo(115_360_000L);
+    }
+
+    private Transaction buildTransaction(TransactionBody body) {
+        var signedTransaction =
+                SignedTransaction.newBuilder().setBodyBytes(body.toByteString()).build();
+        return Transaction.newBuilder()
+                .setSignedTransactionBytes(signedTransaction.toByteString())
                 .build();
     }
 
-    private void persistFeeSchedule(FeeSchedule schedule) {
-        var bytes = FeeSchedule.PROTOBUF.toBytes(schedule).toByteArray();
-        domainBuilder
-                .fileData()
-                .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(bytes))
-                .persist();
+    private static Key ed25519Key(int seed) {
+        var key = new byte[32];
+        key[0] = (byte) seed;
+        return Key.newBuilder().setEd25519(ByteString.copyFrom(key)).build();
     }
 
-    private Transaction cryptoTransferTransaction(int signatureCount) {
+    private Transaction cryptoTransfer(int signatureCount) {
         var body = TransactionBody.newBuilder()
                 .setMemo("test")
                 .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder().build())
