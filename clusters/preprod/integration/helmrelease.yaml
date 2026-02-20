@@ -71,4 +71,9 @@ spec:
             test:
               acceptance:
                 network: OTHER
+      env:
+        HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
       enabled: true
+    web3:
+      env:
+        HIERO_MIRROR_WEB3_OPCODE_TRACER_ENABLED: "true"
