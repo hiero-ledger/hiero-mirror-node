@@ -369,7 +369,7 @@ public class RecordItem implements StreamItem {
             if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
                 var candidateRecord = previous;
 
-                while (candidateRecord != parent) {
+                while (candidateRecord != null && candidateRecord != parent) {
                     var currentTxnRecordContractResult = getContractResult();
                     var previousTxnRecordContractResult = candidateRecord.getContractResult();
                     if (previousTxnRecordContractResult != null
