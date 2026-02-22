@@ -17,7 +17,7 @@
   "author": "Mirror Node Team",
   "license": "Apache-2.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.993.0",
+    "@aws-sdk/client-s3": "3.995.0",
     "@godaddy/terminus": "4.12.1",
     "@hiero-ledger/proto": "2.25.0",
     "@trufflesuite/bigint-buffer": "1.1.10",
@@ -63,7 +63,7 @@
     "jest-extended": "7.0.0",
     "jest-junit": "16.0.0",
     "node-flywaydb": "3.0.7",
-    "nodemon": "3.1.12",
+    "nodemon": "3.1.14",
     "pg-format": "1.0.4",
     "pgsql-parser": "17.9.11",
     "rewire": "9.0.1",
