@@ -159,7 +159,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
+import java.util.BitSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -1633,13 +1635,28 @@ public class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
+            var contractLogs = parseContractLogs(transactionRecordInstance);
+            var consumedContractLogIndices = new BitSet();
+
             return recordItemBuilder
                     .contractTransactionPredicate(contractTransactionPredicate)
                     .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
+                    .contractLogs(contractLogs)
+                    .consumedContractLogIndices(consumedContractLogIndices)
                     .build();
+        }
+
+        private List<ContractLoginfo> parseContractLogs(TransactionRecord record) {
+            if (record.hasContractCallResult()) {
+                return record.getContractCallResult().getLogInfoList();
+            }
+            if (record.hasContractCreateResult()) {
+                return record.getContractCreateResult().getLogInfoList();
+            }
+            return Collections.emptyList();
         }
 
         public Builder<T> clearIncrementer() {

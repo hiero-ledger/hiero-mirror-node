@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.transaction;
 
 import static lombok.AccessLevel.PRIVATE;
+import static org.hiero.mirror.common.util.DomainUtils.contractLogTopicsAndDataMatches;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -18,6 +19,7 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -119,9 +121,10 @@ public class RecordItem implements StreamItem {
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
-    // List to track trimmed topics and data for all ContractLogs
+    // Tracks which contract log indices have been consumed (matched by synthetic log).
     @EqualsAndHashCode.Exclude
-    private List<TrimmedTopicsAndData> trimmedTopicsAndDataList;
+    @NonFinal
+    private BitSet consumedContractLogIndices;
 
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
@@ -136,20 +139,39 @@ public class RecordItem implements StreamItem {
     }
 
     /**
-     * Attempts to consume a matching contract log. If a matching log is found, a synthetic log is not created.
+     * Attempts to consume a matching contract log by comparing raw topic and data bytes. If a
+     * matching log is found, a synthetic log is not created. Uses contract logs already on the
+     * record and a BitSet of consumed indices.
      *
-     * <p>This method is used to handle duplicate contract logs in the record. When the same log appears
-     * multiple times, a synthetic TransferContractLog can match one occurrence and should be skipped.
+     * <p>This method is used to handle duplicate contract logs in the record. When the same log
+     * appears multiple times, a synthetic TransferContractLog can match one occurrence and should
+     * be skipped.
      *
-     * @param trimmedTopicsAndData a {@link TrimmedTopicsAndData} object trying to match an existing one
+     * @param topic0 first topic
+     * @param topic1 second topic
+     * @param topic2 third topic
+     * @param topic3 fourth topic
+     * @param data   log data
      * @return true if a matching log was found and consumed, false otherwise
      */
-    public boolean consumeMatchingContractLog(TrimmedTopicsAndData trimmedTopicsAndData) {
-        if (trimmedTopicsAndDataList == null || trimmedTopicsAndDataList.isEmpty()) {
+    public boolean consumeMatchingContractLog(byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
+        if (contractLogs == null || contractLogs.isEmpty()) {
             return false;
         }
+        if (consumedContractLogIndices == null) {
+            consumedContractLogIndices = new BitSet(contractLogs.size());
+        }
 
-        return trimmedTopicsAndDataList.remove(trimmedTopicsAndData);
+        for (int i = 0; i < contractLogs.size(); i++) {
+            if (consumedContractLogIndices.get(i)) {
+                continue;
+            }
+            if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                consumedContractLogIndices.set(i);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void addContractTransaction(EntityId entityId) {
@@ -299,7 +321,7 @@ public class RecordItem implements StreamItem {
             }
 
             this.contractLogs = parseContractLogs();
-            this.trimmedTopicsAndDataList = parseTrimmedTopicsAndData(this.contractLogs);
+            this.consumedContractLogIndices = new BitSet(contractLogs.size());
 
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
@@ -318,15 +340,6 @@ public class RecordItem implements StreamItem {
                 return transactionRecord.getContractCreateResult().getLogInfoList();
             }
             return Collections.emptyList();
-        }
-
-        private List<TrimmedTopicsAndData> parseTrimmedTopicsAndData(List<ContractLoginfo> logs) {
-            var trimmedTopicsAndDataList = new ArrayList<TrimmedTopicsAndData>();
-            for (var logInfo : logs) {
-                trimmedTopicsAndDataList.add(new TrimmedTopicsAndData(logInfo));
-            }
-
-            return trimmedTopicsAndDataList;
         }
 
         public RecordItemBuilder transactionRecord(TransactionRecord transactionRecord) {

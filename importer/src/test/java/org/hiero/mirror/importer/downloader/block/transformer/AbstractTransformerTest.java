@@ -33,7 +33,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                             "previous",
                             "transactionBody",
                             "signatureMap",
-                            "trimmedTopicsAndDataList")
+                            "consumedContractLogIndices")
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
                     .build();
