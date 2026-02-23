@@ -31,7 +31,7 @@ dependencies {
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
     implementation("org.jooq:jooq-meta:$jooqVersion")
     implementation("org.jooq:jooq-postgres-extensions:${jooqVersion}")
-    implementation("org.openapitools:openapi-generator-gradle-plugin:7.19.0")
+    implementation("org.openapitools:openapi-generator-gradle-plugin:7.20.0")
     implementation("org.owasp:dependency-check-gradle:12.2.0")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.3")
     implementation("org.testcontainers:testcontainers-postgresql:2.0.3")
