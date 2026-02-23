@@ -20,6 +20,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.Web3IntegrationTest;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -32,7 +33,7 @@ import org.junit.jupiter.api.Test;
 @RequiredArgsConstructor
 class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
-    private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
+    private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
 
     private final MidnightRatesSingleton midnightRatesSingleton;
     private final EvmProperties evmProperties;

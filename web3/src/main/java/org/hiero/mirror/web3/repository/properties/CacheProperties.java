@@ -33,9 +33,6 @@ public class CacheProperties {
     private String entity = ENTITY_CACHE_CONFIG;
 
     @NotBlank
-    private String systemFile = "expireAfterWrite=10m,maximumSize=20,recordStats";
-
-    @NotBlank
     private String fee = "expireAfterWrite=60m,maximumSize=20,recordStats";
 
     @NotBlank
@@ -43,6 +40,9 @@ public class CacheProperties {
 
     @NotBlank
     private String systemAccount = "expireAfterWrite=10m,maximumSize=1000,recordStats";
+
+    @NotBlank
+    private String systemFile = "expireAfterWrite=10m,maximumSize=20,recordStats";
 
     @NotBlank
     private String token = ENTITY_CACHE_CONFIG;

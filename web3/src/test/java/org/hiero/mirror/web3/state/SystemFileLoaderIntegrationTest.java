@@ -100,6 +100,13 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                             .build())
                     .build();
 
+    private static final com.hederahashgraph.api.proto.java.ThrottleDefinitions THROTTLE_DEFINITIONS_2 =
+            com.hederahashgraph.api.proto.java.ThrottleDefinitions.newBuilder()
+                    .addThrottleBuckets(com.hederahashgraph.api.proto.java.ThrottleBucket.newBuilder()
+                            .setName("throttleBucket2")
+                            .build())
+                    .build();
+
     private static final CurrentAndNextFeeSchedule FEE_SCHEDULE = CurrentAndNextFeeSchedule.newBuilder()
             .setCurrentFeeSchedule(FeeSchedule.newBuilder()
                     .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()

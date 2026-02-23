@@ -11,6 +11,7 @@ import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.state.SystemFileLoader;
@@ -19,7 +20,7 @@ import org.hiero.mirror.web3.state.Utils;
 @Named
 final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
-    private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
+    private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
 
     private final ExchangeRateSet cachedExchangeRateSet;
     private final SystemFileLoader systemFileLoader;
