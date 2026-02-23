@@ -47,18 +47,27 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 abe.node_id as nodeId,
                 coalesce(n.account_id, abe.node_account_id) as nodeAccountId,
                 abe.node_cert_hash as nodeCertHash,
-                abe.public_key as publicKey,
+                case when abe.public_key is null or abe.public_key = '' then '0x'
+                     when left(abe.public_key, 2) = '0x' then abe.public_key
+                     else '0x' || abe.public_key
+                     end as publicKey,
                 ab.file_id as fileId,
                 ab.start_consensus_timestamp as startConsensusTimestamp,
                 ab.end_consensus_timestamp as endConsensusTimestamp,
                 n.admin_key as adminKey,
                 n.decline_reward as declineReward,
-                n.grpc_proxy_endpoint as grpcProxyEndpointJson,
-                ns.max_stake as maxStake,
-                ns.min_stake as minStake,
+                case when n.grpc_proxy_endpoint is null then null
+                     else jsonb_build_object(
+                         'domain_name', coalesce(n.grpc_proxy_endpoint->>'domain_name', ''),
+                         'ip_address_v4', coalesce(n.grpc_proxy_endpoint->>'ip_address_v4', ''),
+                         'port', (n.grpc_proxy_endpoint->>'port')::integer
+                     )::text
+                     end as grpcProxyEndpointJson,
+                nullif(ns.max_stake, -1) as maxStake,
+                nullif(ns.min_stake, -1) as minStake,
                 ns.reward_rate as rewardRateStart,
                 ns.stake as stake,
-                ns.stake_not_rewarded as stakeNotRewarded,
+                nullif(ns.stake_not_rewarded, -1) as stakeNotRewarded,
                 ns.stake_rewarded as stakeRewarded,
                 ns.staking_period as stakingPeriod,
                 coalesce((
@@ -72,7 +81,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                     from address_book_service_endpoint abse
                     where abse.consensus_timestamp = abe.consensus_timestamp
                       and abse.node_id = abe.node_id
-                ), '[]'::jsonb) as serviceEndpointsJson
+                ), '[]'::jsonb)::text as serviceEndpointsJson
             from address_book_entry abe
             join latest_address_book ab
               on ab.start_consensus_timestamp = abe.consensus_timestamp
