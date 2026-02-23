@@ -23,13 +23,7 @@ import org.hiero.mirror.rest.model.FeeExtra;
 @Named
 final class FeeEstimationService {
 
-    private static final Map<String, String> INTRINSIC_CONFIG = Map.of(
-            "fees.simpleFeesEnabled",
-            "true",
-            "hedera.transaction.maxMemoUtf8Bytes",
-            "101",
-            TransactionExecutors.DISABLE_THROTTLES_PROPERTY,
-            "true");
+    private static final Map<String, String> INTRINSIC_CONFIG = Map.of("fees.simpleFeesEnabled", "true");
 
     private final StandaloneFeeCalculator intrinsicCalculator;
 
