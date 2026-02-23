@@ -149,7 +149,7 @@ public class EvmConfiguration {
     CacheManager cacheManagerSystemFileExchangeRates() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
         caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getExchangeRate());
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
         return caffeineCacheManager;
     }
 
