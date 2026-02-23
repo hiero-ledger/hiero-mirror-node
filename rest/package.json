@@ -20,7 +20,6 @@
     "@aws-sdk/client-s3": "3.995.0",
     "@godaddy/terminus": "4.12.1",
     "@hiero-ledger/proto": "2.25.0",
-    "@trufflesuite/bigint-buffer": "1.1.10",
     "asn1js": "3.0.7",
     "assert": "2.1.0",
     "basic-auth": "2.0.1",
