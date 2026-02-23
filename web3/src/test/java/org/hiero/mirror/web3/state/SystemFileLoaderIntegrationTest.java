@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.FILECREATE;
 import static org.hiero.mirror.common.domain.transaction.TransactionType.FILEUPDATE;
+import static org.hiero.mirror.web3.state.Utils.toFileID;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.FileID;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.Web3IntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -112,6 +114,12 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     private static final byte[] EMPTY_BYTES = new byte[0];
 
     private final SystemFileLoader systemFileLoader;
+    private FileID exchangeRateFileId;
+
+    @BeforeEach
+    void setUp() {
+        exchangeRateFileId = toFileID(systemEntity.exchangeRateFile());
+    }
 
     @Test
     void loadCachingBehavior() {
@@ -167,8 +175,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                         .consensusTimestamp(200L))
                 .persist();
 
-        final var resultAtTimestamp1 = systemFileLoader.loadExchangeRates(150L);
-        final var resultAtTimestamp2 = systemFileLoader.loadExchangeRates(350L);
+        final var resultAtTimestamp1 = systemFileLoader.load(exchangeRateFileId, 150L);
+        final var resultAtTimestamp2 = systemFileLoader.load(exchangeRateFileId, 350L);
 
         assertThat(resultAtTimestamp1).isNotNull();
         assertThat(resultAtTimestamp1.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET.toByteArray()));
@@ -177,8 +185,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(resultAtTimestamp2.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET_2.toByteArray()));
 
         // Verify the cache returns the same distinct results on subsequent calls
-        final var cachedResult1 = systemFileLoader.loadExchangeRates(150L);
-        final var cachedResult2 = systemFileLoader.loadExchangeRates(350L);
+        final var cachedResult1 = systemFileLoader.load(exchangeRateFileId, 150L);
+        final var cachedResult2 = systemFileLoader.load(exchangeRateFileId, 350L);
 
         assertThat(cachedResult1.contents()).isEqualTo(resultAtTimestamp1.contents());
         assertThat(cachedResult2.contents()).isEqualTo(resultAtTimestamp2.contents());

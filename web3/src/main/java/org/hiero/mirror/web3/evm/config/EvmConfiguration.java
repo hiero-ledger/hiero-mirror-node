@@ -35,7 +35,6 @@ public class EvmConfiguration {
     public static final String CACHE_MANAGER_RECORD_FILE_TIMESTAMP = "recordFileTimestamp";
     public static final String CACHE_MANAGER_SLOTS_PER_CONTRACT = "slotsPerContract";
     public static final String CACHE_MANAGER_SYSTEM_FILE = "systemFile";
-    public static final String CACHE_MANAGER_SYSTEM_FILE_MODULARIZED = "systemFileModularized";
     public static final String CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE = "systemFileExchangeRates";
     public static final String CACHE_MANAGER_SYSTEM_ACCOUNT = "systemAccount";
     public static final String CACHE_MANAGER_TOKEN = "token";
@@ -46,10 +45,10 @@ public class EvmConfiguration {
     public static final String CACHE_NAME_ALIAS = "alias";
     public static final String CACHE_NAME_EXCHANGE_RATE = "exchangeRate";
     public static final String CACHE_NAME_FEE_SCHEDULE = "feeSchedule";
-    public static final String CACHE_NAME_MODULARIZED = "cacheModularized";
     public static final String CACHE_NAME_NFT = "nft";
     public static final String CACHE_NAME_NFT_ALLOWANCE = "nftAllowance";
     public static final String CACHE_NAME_RECORD_FILE_LATEST = "latest";
+    public static final String CACHE_NAME_SYSTEM_FILE = "cacheSystemFile";
     public static final String CACHE_NAME_TOKEN = "token";
     public static final String CACHE_NAME_TOKEN_ACCOUNT = "tokenAccount";
     public static final String CACHE_NAME_TOKEN_ACCOUNT_COUNT = "tokenAccountCount";
@@ -141,23 +140,15 @@ public class EvmConfiguration {
     @Bean(CACHE_MANAGER_SYSTEM_FILE)
     CacheManager cacheManagerSystemFile() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_FEE_SCHEDULE));
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
-        return caffeineCacheManager;
-    }
-
-    @Bean(CACHE_MANAGER_SYSTEM_FILE_MODULARIZED)
-    CacheManager cacheManagerSystemFileModularized() {
-        final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_MODULARIZED));
-        caffeineCacheManager.setCacheSpecification(cacheProperties.getFee());
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_SYSTEM_FILE));
+        caffeineCacheManager.setCacheSpecification(cacheProperties.getSystemFile());
         return caffeineCacheManager;
     }
 
     @Bean(CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE)
     CacheManager cacheManagerSystemFileExchangeRates() {
         final CaffeineCacheManager caffeineCacheManager = new CaffeineCacheManager();
-        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE));
+        caffeineCacheManager.setCacheNames(Set.of(CACHE_NAME_EXCHANGE_RATE, CACHE_NAME_FEE_SCHEDULE));
         caffeineCacheManager.setCacheSpecification(cacheProperties.getExchangeRate());
         return caffeineCacheManager;
     }

@@ -14,8 +14,6 @@ import com.hedera.hapi.node.state.file.File;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.util.Collections;
 import java.util.Optional;
-import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -70,9 +68,6 @@ class FileReadableKVStateTest {
 
     @Mock
     private SystemFileLoader systemFileLoader;
-
-    @Mock
-    private SystemEntity systemEntity;
 
     @BeforeAll
     static void initStaticMocks() {
@@ -181,8 +176,6 @@ class FileReadableKVStateTest {
         when(contractCallContext.getTimestamp()).thenReturn(TIMESTAMP);
         when(systemFileLoader.isSystemFile(FILE_ID)).thenReturn(true);
         when(systemFileLoader.load(any(), anyLong())).thenReturn(FILE);
-        when(systemEntity.exchangeRateFile())
-                .thenReturn(new SystemEntity(CommonProperties.getInstance()).exchangeRateFile());
 
         File result = fileReadableKVState.readFromDataSource(FILE_ID);
 

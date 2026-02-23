@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.state.keyvalue;
 import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
 import static org.hiero.mirror.web3.state.Utils.getCurrentTimestamp;
-import static org.hiero.mirror.web3.state.Utils.toFileID;
 
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
@@ -14,7 +13,6 @@ import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.util.Optional;
 import java.util.function.Supplier;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.file.FileData;
@@ -37,18 +35,15 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
     private final FileDataRepository fileDataRepository;
     private final EntityRepository entityRepository;
     private final SystemFileLoader systemFileLoader;
-    private final SystemEntity systemEntity;
 
     public FileReadableKVState(
             final FileDataRepository fileDataRepository,
             final EntityRepository entityRepository,
-            final SystemFileLoader systemFileLoader,
-            final SystemEntity systemEntity) {
+            final SystemFileLoader systemFileLoader) {
         super(FileService.NAME, FILES_STATE_ID);
         this.fileDataRepository = fileDataRepository;
         this.entityRepository = entityRepository;
         this.systemFileLoader = systemFileLoader;
-        this.systemEntity = systemEntity;
     }
 
     @Override
@@ -59,9 +54,6 @@ final class FileReadableKVState extends AbstractReadableKVState<FileID, File> {
         final var currentTimestamp = getCurrentTimestamp();
 
         if (systemFileLoader.isSystemFile(key)) {
-            if (key.equals(toFileID(systemEntity.exchangeRateFile()))) {
-                return systemFileLoader.loadExchangeRates(currentTimestamp);
-            }
             return systemFileLoader.load(key, currentTimestamp);
         }
 

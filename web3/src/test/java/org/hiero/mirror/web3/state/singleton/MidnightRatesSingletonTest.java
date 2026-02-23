@@ -4,6 +4,7 @@ package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.state.Utils.toFileID;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -17,7 +18,6 @@ import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.config.data.BootstrapConfig;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.Web3IntegrationTest;
@@ -26,17 +26,23 @@ import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.state.SystemFileLoader;
 import org.hiero.mirror.web3.viewmodel.BlockType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 class MidnightRatesSingletonTest extends Web3IntegrationTest {
 
     private static final long NANOS_PER_HOUR = 3600L * 1_000_000_000L;
-    private static final long NANOS_PER_TWO_MINUTES = 2L * 60L * 1_000_000_000L;
 
     private final MidnightRatesSingleton midnightRatesSingleton;
     private final EvmProperties evmProperties;
-    private final SystemEntity systemEntity = new SystemEntity(CommonProperties.getInstance());
+    private final SystemEntity systemEntity;
+    private FileID exchangeRateFileId;
+
+    @BeforeEach
+    void setUp() {
+        exchangeRateFileId = toFileID(systemEntity.exchangeRateFile());
+    }
 
     @Test
     void get() {
@@ -65,7 +71,7 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
     @Test
     void getExchangeRateWithTimestampRoundsDown() {
         final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
-        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
+        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader, systemEntity);
 
         final var exchangeRate = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
@@ -80,9 +86,9 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
                         .build())
                 .build();
 
-        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_TWO_MINUTES))).thenReturn(fileWithRates(exchangeRate));
+        when(systemFileLoader.load(eq(exchangeRateFileId), eq(0L))).thenReturn(fileWithRates(exchangeRate));
 
-        long consensusTimestamp = NANOS_PER_TWO_MINUTES + 100;
+        long consensusTimestamp = 100;
         final CallServiceParameters params = mock(CallServiceParameters.class);
         when(params.getBlock()).thenReturn(BlockType.of("123"));
         final ExchangeRateSet result = ContractCallContext.run(ctx -> {
@@ -99,7 +105,7 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
     @Test
     void getExchangeRateWithTimestampRoundsDownToCorrectExchangeRate() {
         final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
-        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
+        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader, systemEntity);
 
         final var exchangeRate = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
@@ -127,11 +133,11 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
                         .build())
                 .build();
 
-        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_TWO_MINUTES))).thenReturn(fileWithRates(exchangeRate));
-        when(systemFileLoader.loadExchangeRates(eq(NANOS_PER_HOUR + NANOS_PER_TWO_MINUTES)))
+        when(systemFileLoader.load(eq(exchangeRateFileId), eq(0L))).thenReturn(fileWithRates(exchangeRate));
+        when(systemFileLoader.load(eq(exchangeRateFileId), eq(NANOS_PER_HOUR)))
                 .thenReturn(fileWithRates(exchangeRate2));
 
-        long consensusTimestamp = NANOS_PER_HOUR + NANOS_PER_TWO_MINUTES + 10;
+        long consensusTimestamp = NANOS_PER_HOUR + 10;
         final CallServiceParameters params = mock(CallServiceParameters.class);
         when(params.getBlock()).thenReturn(BlockType.of("123"));
         final ExchangeRateSet result = ContractCallContext.run(ctx -> {
@@ -148,7 +154,7 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
     @Test
     void getExchangeRateWithLatestBlock() {
         final SystemFileLoader systemFileLoader = mock(SystemFileLoader.class);
-        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader);
+        final var midnightRatesSingleton = new MidnightRatesSingleton(evmProperties, systemFileLoader, systemEntity);
 
         final var exchangeRate = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
@@ -164,9 +170,9 @@ class MidnightRatesSingletonTest extends Web3IntegrationTest {
                 .build();
 
         // We use getCurrentTimestamp() in this case so we can't pass a more specific value
-        when(systemFileLoader.loadExchangeRates(anyLong())).thenReturn(fileWithRates(exchangeRate));
+        when(systemFileLoader.load(eq(exchangeRateFileId), anyLong())).thenReturn(fileWithRates(exchangeRate));
 
-        long consensusTimestamp = NANOS_PER_TWO_MINUTES + 100;
+        long consensusTimestamp = 100;
         final CallServiceParameters params = mock(CallServiceParameters.class);
         when(params.getBlock()).thenReturn(BlockType.LATEST);
         final ExchangeRateSet result = ContractCallContext.run(ctx -> {
