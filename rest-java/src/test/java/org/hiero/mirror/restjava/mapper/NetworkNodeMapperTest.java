@@ -7,10 +7,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.Links;
-import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.junit.jupiter.api.Test;
@@ -25,14 +22,16 @@ class NetworkNodeMapperTest {
         var row = mock(NetworkNodeDto.class);
         when(row.getNodeId()).thenReturn(3L);
         when(row.getFileId()).thenReturn(102L);
-        when(row.getNodeAccountId()).thenReturn("8");
+        when(row.getNodeAccountId()).thenReturn(8L);
         when(row.getNodeCertHash()).thenReturn("0xa1b2c3d4e5f6".getBytes(StandardCharsets.UTF_8));
         when(row.getPublicKey()).thenReturn("0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f");
         when(row.getStartConsensusTimestamp()).thenReturn(1000000000L);
         when(row.getEndConsensusTimestamp()).thenReturn(2000000000L);
         when(row.getStakingPeriod()).thenReturn(1609459200000000000L);
-        when(row.getServiceEndpoints()).thenReturn(List.of(createServiceEndpoint("192.168.1.1", 50211)));
-        when(row.getGrpcProxyEndpoint()).thenReturn(createServiceEndpoint("10.0.0.1", 8080));
+        when(row.getServiceEndpointsJson())
+                .thenReturn("[{\"domain_name\":\"\",\"ip_address_v4\":\"192.168.1.1\",\"port\":50211}]");
+        when(row.getGrpcProxyEndpointJson())
+                .thenReturn("{\"domain_name\":\"\",\"ip_address_v4\":\"10.0.0.1\",\"port\":8080}");
 
         // When
         var result = mapper.map(row);
@@ -92,26 +91,6 @@ class NetworkNodeMapperTest {
 
         // Then
         assertThat(result.getNodeCertHash()).isEqualTo("0x1a2b3c4d5e6f");
-    }
-
-    @Test
-    void mapToResponse() {
-        // Given
-        var node1 = new NetworkNode();
-        node1.setNodeId(1L);
-        var node2 = new NetworkNode();
-        node2.setNodeId(2L);
-        var nodes = List.of(node1, node2);
-        var links = new Links();
-
-        // When
-        var response = mapper.mapToResponse(nodes, links);
-
-        // Then
-        assertThat(response).isNotNull().satisfies(r -> {
-            assertThat(r.getNodes()).isEqualTo(nodes);
-            assertThat(r.getLinks()).isEqualTo(links);
-        });
     }
 
     private ServiceEndpoint createServiceEndpoint(String ip, int port) {

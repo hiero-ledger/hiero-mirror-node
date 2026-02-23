@@ -3,37 +3,37 @@
 package org.hiero.mirror.restjava.mapper;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.Links;
 import org.hiero.mirror.rest.model.NetworkNode;
-import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
+import org.hiero.mirror.restjava.converter.StringToServiceEndpointConverter;
+import org.hiero.mirror.restjava.converter.StringToServiceEndpointListConverter;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
-@Mapper(config = MapperConfiguration.class)
+@Mapper(
+        config = MapperConfiguration.class,
+        imports = {StringToServiceEndpointConverter.class, StringToServiceEndpointListConverter.class})
 public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, NetworkNode> {
 
     @Override
     @Mapping(
             target = "nodeAccountId",
             expression =
-                    "java(row.getNodeAccountId() != null ? commonMapper.mapEntityId(Long.parseLong(row.getNodeAccountId())) : null)")
+                    "java(row.getNodeAccountId() != null ? commonMapper.mapEntityId(row.getNodeAccountId()) : null)")
     @Mapping(target = "nodeCertHash", qualifiedByName = "mapNodeCertHash")
-    @Mapping(target = "stakingPeriod", expression = "java(mapStakingPeriod(row.getStakingPeriod()))")
+    @Mapping(
+            target = "grpcProxyEndpoint",
+            expression = "java(StringToServiceEndpointConverter.INSTANCE.convert(row.getGrpcProxyEndpointJson()))")
+    @Mapping(
+            target = "serviceEndpoints",
+            expression = "java(StringToServiceEndpointListConverter.INSTANCE.convert(row.getServiceEndpointsJson()))")
+    @Mapping(target = "stakingPeriod", qualifiedByName = "mapStakingPeriod")
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(row))")
     NetworkNode map(NetworkNodeDto row);
-
-    default NetworkNodesResponse mapToResponse(List<NetworkNode> nodes, Links links) {
-        var response = new NetworkNodesResponse();
-        response.setNodes(nodes);
-        response.setLinks(links);
-        return response;
-    }
 
     @Named("mapNodeCertHash")
     default String mapNodeCertHash(byte[] nodeCertHash) {
@@ -58,6 +58,7 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
                 .to(end != null ? DomainUtils.toTimestamp(end) : null);
     }
 
+    @Named("mapStakingPeriod")
     default TimestampRangeNullable mapStakingPeriod(Long stakingPeriod) {
         if (stakingPeriod == null) {
             return null;

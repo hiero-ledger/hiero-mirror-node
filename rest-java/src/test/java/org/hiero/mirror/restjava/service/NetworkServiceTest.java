@@ -72,11 +72,12 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithNoFilters() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(null);
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(null)
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -93,11 +94,12 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithNodeIdEquality() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 1L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 1L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -112,12 +114,14 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithNodeIdRange() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(
-                new EntityIdRangeParameter(RangeOperator.GTE, 1L), new EntityIdRangeParameter(RangeOperator.LTE, 2L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.GTE, 1L),
+                        new EntityIdRangeParameter(RangeOperator.LTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -133,14 +137,15 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithCombinedFilters() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(
-                new EntityIdRangeParameter(RangeOperator.EQ, 2L),
-                new EntityIdRangeParameter(RangeOperator.EQ, 3L),
-                new EntityIdRangeParameter(RangeOperator.GTE, 2L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.EQ, 2L),
+                        new EntityIdRangeParameter(RangeOperator.EQ, 3L),
+                        new EntityIdRangeParameter(RangeOperator.GTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -156,11 +161,12 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithOrderDesc() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(null);
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.DESC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(null)
+                .limit(25)
+                .order(Sort.Direction.DESC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -177,11 +183,12 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithLimit() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(null);
-        request.setLimit(2);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(null)
+                .limit(2)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -199,11 +206,12 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesEmptyResults() {
         // given
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 99999L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 99999L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -251,12 +259,14 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithMultipleLowerBounds() {
         // given - gte:1 AND gte:2 should use the most restrictive lower bound (2), returning only node 2 and 3
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(
-                new EntityIdRangeParameter(RangeOperator.GTE, 1L), new EntityIdRangeParameter(RangeOperator.GTE, 2L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.GTE, 1L),
+                        new EntityIdRangeParameter(RangeOperator.GTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -272,12 +282,14 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesWithMultipleUpperBounds() {
         // given - lte:3 AND lte:2 should use the most restrictive upper bound (2), returning only nodes 1 and 2
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        request.setNodeId(List.of(
-                new EntityIdRangeParameter(RangeOperator.LTE, 3L), new EntityIdRangeParameter(RangeOperator.LTE, 2L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.LTE, 3L),
+                        new EntityIdRangeParameter(RangeOperator.LTE, 2L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when
         var result = networkService.getNetworkNodes(request);
@@ -293,13 +305,14 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
     void getNetworkNodesInvalidEmptyRange() {
         // given - setup data
         var fileId = setupNetworkNodeData();
-        var request = new NetworkNodeRequest();
-        request.setFileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()));
-        // Empty range: gt:4 AND lt:5 (no values between 4 and 5)
-        request.setNodeId(List.of(
-                new EntityIdRangeParameter(RangeOperator.GT, 4L), new EntityIdRangeParameter(RangeOperator.LT, 5L)));
-        request.setLimit(25);
-        request.setOrder(Sort.Direction.ASC);
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.GT, 4L),
+                        new EntityIdRangeParameter(RangeOperator.LT, 5L)))
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
 
         // when/then
         assertThatThrownBy(() -> networkService.getNetworkNodes(request))

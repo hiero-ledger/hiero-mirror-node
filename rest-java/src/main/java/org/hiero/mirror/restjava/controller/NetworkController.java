@@ -25,6 +25,7 @@ import org.hiero.mirror.rest.model.NetworkFeesResponse;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.restjava.common.Constants;
 import org.hiero.mirror.restjava.common.LinkFactory;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.RequestParameter;
@@ -32,7 +33,6 @@ import org.hiero.mirror.restjava.common.SupplyType;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
-import org.hiero.mirror.restjava.mapper.CommonMapper;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
 import org.hiero.mirror.restjava.mapper.NetworkNodeMapper;
@@ -59,9 +59,8 @@ import org.springframework.web.bind.annotation.RestController;
 final class NetworkController {
 
     static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
-    private static final String NODE_ID = "node.id";
     private static final Function<NetworkNode, Map<String, String>> NETWORK_NODE_EXTRACTOR =
-            node -> ImmutableSortedMap.of(NODE_ID, node.getNodeId().toString());
+            node -> ImmutableSortedMap.of(Constants.NODE_ID, node.getNodeId().toString());
 
     static {
         final var feeExtra = new FeeExtra();
@@ -97,7 +96,6 @@ final class NetworkController {
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkSupplyMapper networkSupplyMapper;
     private final NetworkNodeMapper networkNodeMapper;
-    private final CommonMapper commonMapper;
 
     @GetMapping("/exchangerate")
     NetworkExchangeRateSetResponse getExchangeRate(
@@ -164,19 +162,17 @@ final class NetworkController {
             throw new IllegalArgumentException("Only equality operator is supported for file.id");
         }
         final var networkNodeRows = networkService.getNetworkNodes(request);
-        // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
 
-        // Map database rows to response model
         final var networkNodes = networkNodeMapper.map(networkNodeRows);
 
-        // Create pagination links using LinkFactory
-        // Matches Node.js behavior: generate next link when results.size() == limit (optimistic pagination)
-        // No link when results.size() < limit (definitively at the end)
-        final var sort = Sort.by(request.getOrder(), NODE_ID);
+        final var sort = Sort.by(request.getOrder(), Constants.NODE_ID);
         final var pageable = PageRequest.of(0, limit, sort);
         final var links = linkFactory.create(networkNodes, pageable, NETWORK_NODE_EXTRACTOR);
 
-        return ResponseEntity.ok(networkNodeMapper.mapToResponse(networkNodes, links));
+        var response = new NetworkNodesResponse();
+        response.setNodes(networkNodes);
+        response.setLinks(links);
+        return ResponseEntity.ok(response);
     }
 }

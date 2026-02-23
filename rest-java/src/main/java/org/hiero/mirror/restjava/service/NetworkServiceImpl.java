@@ -11,7 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.Range;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
@@ -106,22 +106,18 @@ final class NetworkServiceImpl implements NetworkService {
                         .filter(x -> !RangeOperator.EQ.equals(x.operator()))
                         .collect(Collectors.toSet());
 
-        // Always calculate range bounds (defaults to 0L and Long.MAX_VALUE if no range parameters)
         var rangeBounds = combineOverlappingRanges(rangeSet);
 
-        // Extract order direction from request
-        // Query for exact limit (not limit+1) to match Node.js behavior
-        // Pagination link is generated when results.size() == limit (optimistic pagination)
         final var orderDirection = request.getOrder().name();
 
         return networkNodeRepository.findNetworkNodes(
-                fileId, equalitySet, rangeBounds.getLeft(), rangeBounds.getRight(), orderDirection, limit);
+                fileId, equalitySet, rangeBounds.getMinimum(), rangeBounds.getMaximum(), orderDirection, limit);
     }
 
-    private Pair<Long, Long> combineOverlappingRanges(Collection<EntityIdRangeParameter> rangeSet) {
+    private Range<Long> combineOverlappingRanges(Collection<EntityIdRangeParameter> rangeSet) {
 
         if (rangeSet.isEmpty()) {
-            return Pair.of(0L, Long.MAX_VALUE);
+            return Range.of(0L, Long.MAX_VALUE);
         }
 
         // Calculate lower bound: max of (value+1 for GT, value for GTE) — most restrictive lower bound
@@ -143,6 +139,6 @@ final class NetworkServiceImpl implements NetworkService {
             throw new IllegalArgumentException("Invalid range for : node.id");
         }
 
-        return Pair.of(lowerBound, upperBound);
+        return Range.of(lowerBound, upperBound);
     }
 }

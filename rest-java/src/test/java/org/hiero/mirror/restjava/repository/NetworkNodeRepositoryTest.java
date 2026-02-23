@@ -244,7 +244,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getServiceEndpoints()).isNotNull();
+        assertThat(result.getServiceEndpointsJson()).isNotNull();
     }
 
     @Test
@@ -282,7 +282,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(result.getMinStake()).isNotNull();
         assertThat(result.getStake()).isNotNull();
         assertThat(result.getRewardRateStart()).isNotNull();
-        assertThat(result.getServiceEndpoints()).isNotNull();
+        assertThat(result.getServiceEndpointsJson()).isNotNull();
     }
 
     @Test

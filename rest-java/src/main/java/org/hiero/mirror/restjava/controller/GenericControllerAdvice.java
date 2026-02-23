@@ -68,7 +68,6 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     @Bean
     @SuppressWarnings("java:S5122")
-    // Make sure that enabling CORS is safe here.
     WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override

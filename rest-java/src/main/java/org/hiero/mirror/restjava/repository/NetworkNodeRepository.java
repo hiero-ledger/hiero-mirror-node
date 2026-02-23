@@ -93,8 +93,8 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
               and abe.node_id >= :minNodeId
               and abe.node_id <= :maxNodeId
             order by
-              case when :orderDirection = 'ASC' then abe.node_id end asc,
-              case when :orderDirection = 'DESC' then abe.node_id end desc
+              case when CAST(:orderDirection AS text) = 'ASC' then abe.node_id end asc,
+              case when CAST(:orderDirection AS text) = 'DESC' then abe.node_id end desc
             limit :limit
             """, nativeQuery = true)
     List<NetworkNodeDto> findNetworkNodes(

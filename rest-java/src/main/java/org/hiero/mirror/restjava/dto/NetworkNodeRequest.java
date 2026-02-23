@@ -4,7 +4,10 @@ package org.hiero.mirror.restjava.dto;
 
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hiero.mirror.restjava.common.RestJavaQueryParam;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.springframework.data.domain.Sort.Direction;
@@ -13,16 +16,20 @@ import org.springframework.data.domain.Sort.Direction;
  * Network nodes request DTO for testing annotation framework.
  */
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class NetworkNodeRequest {
 
     public static final int MAX_LIMIT = 25;
     public static final int DEFAULT_LIMIT = 10;
 
-    @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "0.0.102")
+    @RestJavaQueryParam(name = "file.id", required = false, defaultValue = "102")
     private EntityIdRangeParameter fileId;
 
     @RestJavaQueryParam(name = "node.id", required = false)
-    private List<EntityIdRangeParameter> nodeId;
+    @Builder.Default
+    private List<EntityIdRangeParameter> nodeId = List.of();
 
     @RestJavaQueryParam(name = "limit", defaultValue = "10")
     @Min(1)
