@@ -74,7 +74,7 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     /**
      * Rounds the given consensus timestamp (nanoseconds) down to the start of the hour (e.g. 00:00, 01:00, 02:00).
      */
-    private static long roundDownToHour(long consensusTimestampNanos) {
+    private long roundDownToHour(long consensusTimestampNanos) {
         return (consensusTimestampNanos / NANOS_PER_HOUR) * NANOS_PER_HOUR;
     }
 }

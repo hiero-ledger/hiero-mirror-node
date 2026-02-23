@@ -111,20 +111,33 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                     .build())
             .build();
 
+    private static final CurrentAndNextFeeSchedule FEE_SCHEDULE_2 = CurrentAndNextFeeSchedule.newBuilder()
+            .setCurrentFeeSchedule(FeeSchedule.newBuilder()
+                    .addTransactionFeeSchedule(TransactionFeeSchedule.newBuilder()
+                            .addFees(FeeData.newBuilder()
+                                    .setNodedata(
+                                            FeeComponents.newBuilder().setBpr(2).build())
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+
     private static final byte[] EMPTY_BYTES = new byte[0];
 
     private final SystemFileLoader systemFileLoader;
     private FileID exchangeRateFileId;
+    private FileID feeScheduleFileId;
 
     @BeforeEach
     void setUp() {
         exchangeRateFileId = toFileID(systemEntity.exchangeRateFile());
+        feeScheduleFileId = toFileID(systemEntity.feeScheduleFile());
     }
 
     @Test
-    void loadCachingBehavior() {
+    void loadExchangeRatesCachingBehavior() {
         // Setup
-        final var fileId = fileId(systemEntity.exchangeRateFile());
+        final var fileId = toFileID(systemEntity.exchangeRateFile());
         final var entityId = toEntityId(fileId);
 
         domainBuilder
@@ -155,8 +168,8 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     }
 
     @Test
-    void loadWithDifferentTimestampsReturnsDifferentCachedResults() {
-        final var fileId = fileId(systemEntity.exchangeRateFile());
+    void loadExchangeRatesWithDifferentTimestampsReturnsDifferentCachedResults() {
+        final var fileId = toFileID(systemEntity.exchangeRateFile());
         final var entityId = toEntityId(fileId);
 
         domainBuilder
@@ -193,11 +206,78 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(cachedResult1.contents()).isNotEqualTo(cachedResult2.contents());
     }
 
+    @Test
+    void loadFeeScheduleCachingBehavior() {
+        final var fileId = toFileID(systemEntity.feeScheduleFile());
+        final var entityId = toEntityId(fileId);
+
+        domainBuilder
+                .fileData()
+                .customize(f -> f.transactionType(FILECREATE.getProtoId())
+                        .fileData(FEE_SCHEDULE.toByteArray())
+                        .entityId(entityId)
+                        .consensusTimestamp(200L))
+                .persist();
+
+        final var firstLoad = systemFileLoader.load(fileId, 350L);
+        assertThat(firstLoad).isNotNull();
+        assertThat(firstLoad.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE.toByteArray()));
+
+        domainBuilder
+                .fileData()
+                .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
+                        .fileData(FEE_SCHEDULE_2.toByteArray())
+                        .entityId(entityId)
+                        .consensusTimestamp(300L))
+                .persist();
+
+        final var secondLoad = systemFileLoader.load(fileId, 350L);
+        assertThat(secondLoad).isNotNull();
+        assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE.toByteArray()));
+    }
+
+    @Test
+    void loadFeeScheduleWithDifferentTimestampsReturnsDifferentCachedResults() {
+        final var fileId = toFileID(systemEntity.feeScheduleFile());
+        final var entityId = toEntityId(fileId);
+
+        domainBuilder
+                .fileData()
+                .customize(f -> f.transactionType(FILECREATE.getProtoId())
+                        .fileData(FEE_SCHEDULE.toByteArray())
+                        .entityId(entityId)
+                        .consensusTimestamp(100L))
+                .persist();
+
+        domainBuilder
+                .fileData()
+                .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
+                        .fileData(FEE_SCHEDULE_2.toByteArray())
+                        .entityId(entityId)
+                        .consensusTimestamp(200L))
+                .persist();
+
+        final var resultAt150 = systemFileLoader.load(feeScheduleFileId, 150L);
+        final var resultAt350 = systemFileLoader.load(feeScheduleFileId, 350L);
+
+        assertThat(resultAt150).isNotNull();
+        assertThat(resultAt150.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE.toByteArray()));
+        assertThat(resultAt350).isNotNull();
+        assertThat(resultAt350.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE_2.toByteArray()));
+
+        final var cachedResult1 = systemFileLoader.load(feeScheduleFileId, 150L);
+        final var cachedResult2 = systemFileLoader.load(feeScheduleFileId, 350L);
+
+        assertThat(cachedResult1.contents()).isEqualTo(resultAt150.contents());
+        assertThat(cachedResult2.contents()).isEqualTo(resultAt350.contents());
+        assertThat(cachedResult1.contents()).isNotEqualTo(cachedResult2.contents());
+    }
+
     @ParameterizedTest
     @MethodSource("fileNumData")
     void loadFileWithEmptyBytesReturnsGenesisFile(EntityId entityId) {
         // Setup
-        final var fileId = fileId(entityId);
+        final var fileId = toFileID(entityId);
 
         domainBuilder
                 .fileData()
@@ -217,7 +297,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     @MethodSource("fileData")
     void loadFileReturnsCorrectWithEmptyAndValidFile(EntityId entityId, byte[] fileData) {
         // Setup
-        final var fileId = fileId(entityId);
+        final var fileId = toFileID(entityId);
 
         domainBuilder
                 .fileData()
@@ -251,13 +331,5 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
 
     private Stream<Arguments> fileNumData() {
         return fileData().map(args -> Arguments.of(args.get()[0]));
-    }
-
-    private FileID fileId(EntityId fileId) {
-        return FileID.newBuilder()
-                .shardNum(fileId.getShard())
-                .realmNum(fileId.getRealm())
-                .fileNum(fileId.getNum())
-                .build();
     }
 }
