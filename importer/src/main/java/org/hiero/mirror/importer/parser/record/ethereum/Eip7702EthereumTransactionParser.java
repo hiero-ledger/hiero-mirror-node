@@ -32,20 +32,20 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
 
     @Override
     public EthereumTransaction decode(byte[] transactionBytes) {
-        var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
-        var type = decoder.next().asByte();
+        final var decoder = RLPDecoder.RLP_STRICT.sequenceIterator(transactionBytes);
+        final var type = decoder.next().asByte();
         if (type != EIP7702_TYPE_BYTE) {
             throw new InvalidEthereumBytesException(
                     TRANSACTION_TYPE_NAME,
                     String.format("First byte was %s but should be %s", type, EIP7702_TYPE_BYTE));
         }
 
-        var eip7702RlpItem = decoder.next();
+        final var eip7702RlpItem = decoder.next();
         if (!eip7702RlpItem.isList()) {
             throw new InvalidEthereumBytesException(TRANSACTION_TYPE_NAME, "Second RLPItem was not a list");
         }
 
-        var rlpItems = eip7702RlpItem.asRLPList().elements();
+        final var rlpItems = eip7702RlpItem.asRLPList().elements();
         if (rlpItems.size() != EIP7702_TYPE_RLP_ITEM_COUNT) {
             throw new InvalidEthereumBytesException(
                     TRANSACTION_TYPE_NAME,
@@ -53,9 +53,9 @@ final class Eip7702EthereumTransactionParser extends AbstractEthereumTransaction
                             "RLP list size was %d but expected %d", rlpItems.size(), EIP7702_TYPE_RLP_ITEM_COUNT));
         }
 
-        var authorizationList = parseAuthorizationList(rlpItems.get(9));
+        final var authorizationList = parseAuthorizationList(rlpItems.get(9));
 
-        var ethereumTransaction = EthereumTransaction.builder()
+        final var ethereumTransaction = EthereumTransaction.builder()
                 .chainId(rlpItems.get(0).data())
                 .nonce(rlpItems.get(1).asLong())
                 .maxPriorityFeePerGas(rlpItems.get(2).data())

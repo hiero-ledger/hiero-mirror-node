@@ -92,6 +92,10 @@ final class ContractResultServiceImpl implements ContractResultService {
     }
 
     private void addDefaultEthereumTransactionContractResult(RecordItem recordItem, Transaction transaction) {
+        if (!entityProperties.getPersist().isContractResults()) {
+            return;
+        }
+
         var status = recordItem.getTransactionRecord().getReceipt().getStatus();
         if (recordItem.isSuccessful()
                 || status == ResponseCodeEnum.DUPLICATE_TRANSACTION
