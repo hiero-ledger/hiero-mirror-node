@@ -7,8 +7,10 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.DigestAlgorithm.SHA_384;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -19,6 +21,8 @@ import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.output.protoc.TransactionResult;
+import com.hedera.hapi.block.stream.protoc.BlockProof;
+import com.hedera.hapi.block.stream.protoc.TssSignedBlockProof;
 import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.SemanticVersion;
@@ -39,6 +43,7 @@ import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -119,6 +124,7 @@ final class BlockStreamVerifierTest {
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
         verify(ledgerIdPublicationTransactionParser).parse(consensusTimestamp, ledgerIdPublicationTransactionBody);
         verify(tssVerifier).setLedger(ledger);
+        verify(tssVerifier).verify(eq(0L), any(), any());
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
     }
@@ -150,8 +156,9 @@ final class BlockStreamVerifierTest {
 
         // then
         verify(blockFileTransformer).transform(blockFile1);
-        verify(recordFileRepository).findLatest();
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile1)));
+        verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile1.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile1.getIndex(), RecordFile::getIndex);
 
         // given next block file
@@ -159,14 +166,15 @@ final class BlockStreamVerifierTest {
 
         // when
         clearInvocations(cutoverService);
+        clearInvocations(tssVerifier);
         verifier.verify(blockFile2);
 
         // then
         verify(blockFileTransformer).transform(blockFile2);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile2)));
         verifyNoInteractions(ledgerIdPublicationTransactionParser);
-        verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile2.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile2.getIndex(), RecordFile::getIndex);
     }
 
@@ -185,8 +193,9 @@ final class BlockStreamVerifierTest {
 
         // then
         verify(blockFileTransformer).transform(blockFile1);
-        verify(recordFileRepository).findLatest();
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile1)));
+        verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile1.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile1.getIndex(), RecordFile::getIndex);
 
         // given next block file
@@ -194,14 +203,15 @@ final class BlockStreamVerifierTest {
 
         // when
         clearInvocations(cutoverService);
+        clearInvocations(tssVerifier);
         verifier.verify(blockFile2);
 
         // then
         verify(blockFileTransformer).transform(blockFile2);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile2)));
         verifyNoInteractions(ledgerIdPublicationTransactionParser);
-        verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile2.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile2.getIndex(), RecordFile::getIndex);
     }
 
@@ -327,8 +337,33 @@ final class BlockStreamVerifierTest {
         verify(recordFileRepository).findLatest();
     }
 
+    @Test
+    void tssVerificationFails() {
+        // given
+        when(recordFileRepository.findLatest()).thenReturn(Optional.empty());
+        final var blockFile = getBlockFile(null);
+        final long blockNumber = blockFile.getIndex();
+        final var exception =
+                new SignatureVerificationException("TSS signature verification failed for block " + blockNumber);
+        doThrow(exception).when(tssVerifier).verify(eq(blockNumber), any(), any());
+
+        // then
+        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+
+        // when, then
+        assertThatThrownBy(() -> verifier.verify(blockFile)).isEqualTo(exception);
+        verifyNoInteractions(blockFileTransformer);
+        verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockNumber), any(), any());
+    }
+
     private static BlockFile.BlockFileBuilder withBlockNumber(BlockFile.BlockFileBuilder builder, long blockNumber) {
-        return builder.index(blockNumber).name(BlockFile.getFilename(blockNumber, true));
+        return builder.blockProof(BlockProof.newBuilder()
+                        .setBlock(blockNumber)
+                        .setSignedBlockProof(TssSignedBlockProof.getDefaultInstance())
+                        .build())
+                .index(blockNumber)
+                .name(BlockFile.getFilename(blockNumber, true));
     }
 
     private void assertRecordFile(final StreamFile<?> actual, final BlockFile source) {
@@ -348,6 +383,10 @@ final class BlockStreamVerifierTest {
                 .blockHeader(BlockHeader.newBuilder()
                         .setHapiProtoVersion(version)
                         .setSoftwareVersion(version)
+                        .build())
+                .blockProof(BlockProof.newBuilder()
+                        .setBlock(blockNumber)
+                        .setSignedBlockProof(TssSignedBlockProof.getDefaultInstance())
                         .build())
                 .hash(sha384Hash())
                 .node("host:port")

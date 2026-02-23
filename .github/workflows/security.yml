@@ -55,7 +55,7 @@ jobs:
           cache-read-only: false
 
       - name: Vulnerability check
-        run: ./gradlew dependencyCheckAggregate
+        run: ./gradlew dependencyCheckAggregate --no-configuration-cache
         timeout-minutes: 20
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
