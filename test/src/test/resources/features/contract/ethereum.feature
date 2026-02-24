@@ -4,6 +4,8 @@ Feature: Ethereum transactions Coverage Feature
   Scenario Outline: Validate Ethereum Contract create and call
 
   Given I successfully created a signer account with an EVM address alias
+  And I set lower deviation to 5% and upper deviation to 20%
+  Then I estimate gas and execute hollow account creation using ethereum transaction
 
   Given I successfully create contract by Legacy ethereum transaction
   Then the mirror node REST API should return status <httpStatusCode> for the eth contract creation transaction
