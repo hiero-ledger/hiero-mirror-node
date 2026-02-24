@@ -381,12 +381,14 @@ public class DomainUtils {
      * Compares ByteString to byte[] trim-aware (leading zeros in ByteString skipped), without allocating.
      */
     private static boolean trimmedByteStringEquals(ByteString bs, byte[] arr) {
-        if (bs == null) {
-            return arr == null;
+        if (bs == null && arr == null) {
+            return true;
+        } else if (bs == null || arr == null) {
+            return false;
         }
 
         if (bs.isEmpty()) {
-            return arr != null && arr.length == 0;
+            return arr.length == 0;
         }
         int start = 0;
         int n = bs.size();
