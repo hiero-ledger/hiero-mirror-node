@@ -104,7 +104,22 @@ final class NetworkServiceImpl implements NetworkService {
         final var rangeBounds = combineOverlappingRanges(rangeSet);
         final var orderDirection = request.getOrder().name();
 
-        final var nodeIds = equalitySet.isEmpty() ? new Long[0] : equalitySet.toArray(Long[]::new);
+        // If both equality and range filters are present, validate overlap
+        final Long[] nodeIds;
+        if (!equalitySet.isEmpty() && !rangeSet.isEmpty()) {
+            // Both equal and range filters are present - filter equality IDs to those within range
+            final var idsInRange = equalitySet.stream()
+                    .filter(nodeId -> nodeId >= rangeBounds.getMinimum() && nodeId <= rangeBounds.getMaximum())
+                    .toArray(Long[]::new);
+
+            if (idsInRange.length == 0) {
+                return List.of(); // No overlap between equality and range filters
+            }
+            nodeIds = idsInRange;
+        } else {
+            nodeIds = equalitySet.isEmpty() ? new Long[0] : equalitySet.toArray(Long[]::new);
+        }
+
         return networkNodeRepository.findNetworkNodes(
                 fileId, nodeIds, rangeBounds.getMinimum(), rangeBounds.getMaximum(), orderDirection, limit);
     }

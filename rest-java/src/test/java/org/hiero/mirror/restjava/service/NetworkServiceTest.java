@@ -319,4 +319,26 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Invalid range for : node.id");
     }
+
+    @Test
+    void getNetworkNodesNoOverlapBetweenEqualityAndRange() {
+        // given - setup data with nodes 1, 2, 3
+        var fileId = setupNetworkNodeData();
+        var request = NetworkNodeRequest.builder()
+                .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
+                .nodeId(List.of(
+                        new EntityIdRangeParameter(RangeOperator.EQ, 1L), // Node 1 exists
+                        new EntityIdRangeParameter(RangeOperator.EQ, 2L), // Node 2 exists
+                        new EntityIdRangeParameter(RangeOperator.GT, 10L))) // Range gt:10 excludes nodes 1, 2
+                .limit(25)
+                .order(Sort.Direction.ASC)
+                .build();
+
+        // when
+        var result = networkService.getNetworkNodes(request);
+
+        // then - should return empty list because no equality IDs fall within the range
+        assertThat(result).isNotNull();
+        assertThat(result.size()).isEqualTo(0);
+    }
 }

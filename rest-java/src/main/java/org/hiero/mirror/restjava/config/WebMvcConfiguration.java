@@ -12,9 +12,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * Spring MVC configuration to register custom argument resolvers.
  */
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
-public class WebMvcConfiguration implements WebMvcConfigurer {
+final class WebMvcConfiguration implements WebMvcConfigurer {
 
     private final RequestParameterArgumentResolver requestParameterArgumentResolver;
 

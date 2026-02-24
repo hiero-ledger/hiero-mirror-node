@@ -119,7 +119,8 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
                     pathParams.put(field, pathParam);
                 }
             }
-            return new BindingMetadata(queryParams, pathParams);
+            return new BindingMetadata(
+                    Collections.unmodifiableMap(queryParams), Collections.unmodifiableMap(pathParams));
         });
     }
 
@@ -162,10 +163,10 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             NativeWebRequest webRequest) {
 
         String paramName = extractName(field, annotation.value(), annotation.name());
-        String @Nullable [] paramValues = webRequest.getParameterValues(paramName);
+        var paramValues = webRequest.getParameterValues(paramName);
 
         // Handle missing or empty values
-        String @Nullable [] resolvedValues = resolveParameterValues(paramValues, paramName, annotation);
+        var resolvedValues = resolveParameterValues(paramValues, paramName, annotation);
         if (resolvedValues == null) {
             return; // No value, not required - skip
         }
@@ -239,12 +240,5 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
      * for thread safety.
      */
     private record BindingMetadata(
-            Map<Field, RestJavaQueryParam> queryParams, Map<Field, RestJavaPathParam> pathParams) {
-
-        BindingMetadata(Map<Field, RestJavaQueryParam> queryParams, Map<Field, RestJavaPathParam> pathParams) {
-            // Make maps unmodifiable for thread safety - preserves LinkedHashMap order
-            this.queryParams = Collections.unmodifiableMap(queryParams);
-            this.pathParams = Collections.unmodifiableMap(pathParams);
-        }
-    }
+            Map<Field, RestJavaQueryParam> queryParams, Map<Field, RestJavaPathParam> pathParams) {}
 }
