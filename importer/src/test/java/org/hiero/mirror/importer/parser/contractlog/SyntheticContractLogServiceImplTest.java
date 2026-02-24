@@ -120,6 +120,23 @@ class SyntheticContractLogServiceImplTest {
     }
 
     @Test
+    @DisplayName("Do not create synthetic contract log when no parent and log is existing")
+    void doNotCreateLogWithNoParentAndExistingLog() {
+        var matchingLog = createMatchingFungibleTokenTransferLog(entityTokenId, senderId, receiverId, amount);
+
+        recordItem = recordItemBuilder
+                .contractCall()
+                .record(r -> r.setContractCallResult(
+                        ContractFunctionResult.newBuilder().addLogInfo(matchingLog)))
+                .build();
+
+        // The recordItem already has the log, so no log should be created
+        syntheticContractLogService.create(
+                new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
+        verify(entityListener, times(0)).onContractLog(any());
+    }
+
+    @Test
     @DisplayName("Should not create synthetic contract log when it matches existing parent log")
     void doNotCreateWhenMatchingParentLog() {
         // Create a ContractLoginfo that matches the TransferContractLog

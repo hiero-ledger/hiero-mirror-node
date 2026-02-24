@@ -151,14 +151,12 @@ public class RecordItem implements StreamItem {
      * @return true if a matching log was found and consumed, false otherwise
      */
     public boolean consumeMatchingContractLog(byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
-        if (contractLogs == null || contractLogs.isEmpty()) {
-            return false;
-        }
-
-        for (int i = 0; i < contractLogs.size(); i++) {
-            if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
-                contractLogs.remove(i);
-                return true;
+        if (contractLogs != null && !contractLogs.isEmpty()) {
+            for (int i = 0; i < contractLogs.size(); i++) {
+                if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                    contractLogs.remove(i);
+                    return true;
+                }
             }
         }
 
