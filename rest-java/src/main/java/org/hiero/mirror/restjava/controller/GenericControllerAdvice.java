@@ -92,8 +92,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(BindException.class)
-    private ResponseEntity<Object> bindException(
-            final org.springframework.validation.BindException e, final WebRequest request) {
+    private ResponseEntity<Object> bindException(final BindException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, BAD_REQUEST, request);
     }
 

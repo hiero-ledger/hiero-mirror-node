@@ -14,6 +14,7 @@ import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
@@ -73,12 +74,13 @@ final class LinkFactoryImpl implements LinkFactory {
      * EntityIdRangeParameter parsing happens earlier in the service layer, but by this point we need to check the
      * combined query params (original + newly added pagination bounds).
      */
-    private static boolean isEmptyRange(LinkedMultiValueMap<String, String> queryParams, Sort sort) {
-        // Get the primary sort field (first one in the sort order)
-        var primaryField = sort.iterator().hasNext() ? sort.iterator().next().getProperty() : null;
-        if (primaryField == null) {
+    private static boolean isEmptyRange(
+            Sort.@Nullable Order primarySort, LinkedMultiValueMap<String, String> queryParams) {
+        if (primarySort == null) {
             return false;
         }
+
+        var primaryField = primarySort.getProperty();
 
         var values = queryParams.get(primaryField);
         if (values == null || values.isEmpty()) {
@@ -86,8 +88,8 @@ final class LinkFactoryImpl implements LinkFactory {
         }
 
         // Compute the effective range bounds from all query parameters
-        Long lower = null;
-        Long upper = null;
+        var lower = Long.MIN_VALUE;
+        var upper = Long.MAX_VALUE;
 
         for (var value : values) {
             var normalized = value.toLowerCase();
@@ -96,24 +98,24 @@ final class LinkFactoryImpl implements LinkFactory {
                 // Extract the numeric value and update bounds
                 if (normalized.startsWith("gt:")) {
                     long val = Long.parseLong(value.substring(3)) + 1; // gt:4 → gte:5
-                    lower = lower == null ? val : Math.max(lower, val);
+                    lower = Math.max(lower, val);
                 } else if (normalized.startsWith("gte:")) {
                     long val = Long.parseLong(value.substring(4));
-                    lower = lower == null ? val : Math.max(lower, val);
+                    lower = Math.max(lower, val);
                 } else if (normalized.startsWith("lt:")) {
                     long val = Long.parseLong(value.substring(3)) - 1; // lt:5 → lte:4
-                    upper = upper == null ? val : Math.min(upper, val);
+                    upper = Math.min(upper, val);
                 } else if (normalized.startsWith("lte:")) {
                     long val = Long.parseLong(value.substring(4));
-                    upper = upper == null ? val : Math.min(upper, val);
+                    upper = Math.min(upper, val);
                 }
             } catch (NumberFormatException e) {
                 // Skip invalid values
             }
         }
 
-        // If we have both bounds and upper < lower, the range is empty
-        return lower != null && upper != null && upper < lower;
+        // If upper < lower, the range is empty (e.g., gt:4 AND lt:5)
+        return upper < lower;
     }
 
     @Override
@@ -156,7 +158,7 @@ final class LinkFactoryImpl implements LinkFactory {
 
         // Check if the pagination would create an empty range (e.g., gt:4 AND lt:5 with no values in between)
         // If so, return null to indicate no more results
-        if (isEmptyRange(queryParams, sortOrders)) {
+        if (isEmptyRange(primarySort, queryParams)) {
             return null;
         }
 
