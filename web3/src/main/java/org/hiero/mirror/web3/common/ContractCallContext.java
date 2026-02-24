@@ -137,11 +137,11 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, k -> new HashMap<>());
+        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
-        return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+        return writeCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public RecordFile getRecordFile() {

@@ -95,7 +95,7 @@ public class TransactionExecutionService {
                 .receiptOrThrow()
                 .status();
         if (parentTransactionStatus == SUCCESS) {
-            result = buildSuccessResult(isContractCreate, singleTransactionRecords, params);
+            result = buildSuccessResult(isContractCreate, singleTransactionRecords);
         } else {
             result = handleFailedResult(singleTransactionRecords, isContractCreate);
         }
@@ -110,9 +110,7 @@ public class TransactionExecutionService {
     }
 
     private EvmTransactionResult buildSuccessResult(
-            final boolean isContractCreate,
-            final List<SingleTransactionRecord> transactionRecords,
-            final CallServiceParameters params) {
+            final boolean isContractCreate, final List<SingleTransactionRecord> transactionRecords) {
         final var parentTransaction = transactionRecords.getFirst().transactionRecord();
         final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 

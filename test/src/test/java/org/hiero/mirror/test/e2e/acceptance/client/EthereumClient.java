@@ -51,7 +51,7 @@ public class EthereumClient extends AbstractNetworkClient {
 
     public static final BigInteger WEIBARS_TO_TINYBARS = BigInteger.valueOf(10_000_000_000L);
 
-    private final BigInteger maxFeePerGas = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(50L));
+    private final BigInteger maxFeePerGas = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(60L));
 
     private final BigInteger gasPrice = WEIBARS_TO_TINYBARS.multiply(BigInteger.valueOf(50L));
 
@@ -79,6 +79,45 @@ public class EthereumClient extends AbstractNetworkClient {
         TransactionRecord transactionRecord = getTransactionRecord(response.getTransactionId());
         logContractFunctionResult("constructor", transactionRecord.contractFunctionResult);
         return response;
+    }
+
+    public NetworkTransactionResponse transferValue(
+            PrivateKey signerKey, String toEvmAddress, BigInteger value, TransactionType type) {
+
+        var rawTransaction =
+                switch (type) {
+                    case EIP1559 ->
+                        RawTransaction.createTransaction(
+                                acceptanceTestProperties.getNetwork().getChainId(),
+                                getNonce(signerKey),
+                                maxContractFunctionGas(),
+                                toEvmAddress,
+                                value,
+                                "",
+                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxFeePerGas);
+                    case EIP2930 ->
+                        RawTransaction.createTransaction(
+                                acceptanceTestProperties.getNetwork().getChainId(),
+                                getNonce(signerKey),
+                                maxContractFunctionGas(),
+                                toEvmAddress,
+                                value,
+                                "",
+                                BigInteger.valueOf(20000L), // maxPriorityGas
+                                maxFeePerGas,
+                                Collections.emptyList());
+                    default ->
+                        RawTransaction.createEtherTransaction(
+                                getNonce(signerKey), gasPrice, maxContractFunctionGas(), toEvmAddress, value);
+                };
+
+        Credentials credentials = Credentials.create(signerKey.toStringRaw());
+        EthereumTransaction ethereumTransaction = new EthereumTransaction()
+                .setMaxGasAllowanceHbar(Hbar.from(100L))
+                .setEthereumData(TransactionEncoder.signMessage(rawTransaction, credentials));
+
+        return executeTransactionAndRetrieveReceipt(ethereumTransaction, null, null);
     }
 
     public ContractClient.ExecuteContractResult executeContract(
