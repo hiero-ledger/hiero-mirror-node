@@ -174,36 +174,6 @@ public class Utility {
     }
 
     /**
-     * Retrieves the data from the contract log info with leading zeros removed.
-     * <p>
-     * Data must be trimmed because ContractLoginfo stores data as a 32-byte left-padded value
-     * (standard EVM ABI encoding), while SyntheticContractLog stores the minimal representation
-     * without leading zeros. For accurate comparison between a synthetic log and an existing
-     * contract log, both must be in the same trimmed format.
-     *
-     * @param contractLoginfo the contract log info
-     * @return a byte array with leading zeros removed, or null if empty
-     */
-    @SuppressWarnings("java:S1168")
-    public static byte[] getDataTrimmed(ContractLoginfo contractLoginfo) {
-        ByteString byteString = contractLoginfo.getData();
-
-        if (byteString == null || byteString.isEmpty()) {
-            return null;
-        }
-
-        byte[] data = DomainUtils.toBytes(byteString);
-        int firstNonZero = 0;
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] != 0 || i == data.length - 1) {
-                firstNonZero = i;
-                break;
-            }
-        }
-        return Arrays.copyOfRange(data, firstNonZero, data.length);
-    }
-
-    /**
      * Generates a TransactionID object
      *
      * @param payerAccountId the AccountID of the transaction payer account

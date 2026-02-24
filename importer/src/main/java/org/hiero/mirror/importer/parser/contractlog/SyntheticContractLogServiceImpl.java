@@ -96,22 +96,14 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
      * @return true if a matching log is found and it is already persisted, false otherwise
      */
     private boolean logAlreadyImported(TransferContractLog transferLog) {
-        var parentRecordItem = transferLog.getRecordItem().getContractRelatedParent();
         return transferLog
-                        .getRecordItem()
-                        .consumeMatchingContractLog(
-                                transferLog.getTopic0(),
-                                transferLog.getTopic1(),
-                                transferLog.getTopic2(),
-                                transferLog.getTopic3(),
-                                transferLog.getData())
-                || (parentRecordItem != null
-                        && parentRecordItem.consumeMatchingContractLog(
-                                transferLog.getTopic0(),
-                                transferLog.getTopic1(),
-                                transferLog.getTopic2(),
-                                transferLog.getTopic3(),
-                                transferLog.getData()));
+                .getRecordItem()
+                .consumeMatchingContractLog(
+                        transferLog.getTopic0(),
+                        transferLog.getTopic1(),
+                        transferLog.getTopic2(),
+                        transferLog.getTopic3(),
+                        transferLog.getData());
     }
 
     /**

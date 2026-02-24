@@ -19,7 +19,6 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -82,7 +81,10 @@ public class RecordItem implements StreamItem {
     private final int transactionIndex;
     private final TransactionRecord transactionRecord;
     private final int transactionType;
-    private final List<ContractLoginfo> contractLogs;
+
+    @Setter
+    @NonFinal
+    private List<ContractLoginfo> contractLogs;
 
     @Setter
     @EqualsAndHashCode.Exclude
@@ -121,11 +123,6 @@ public class RecordItem implements StreamItem {
     @Setter
     private ArrayDeque<AbstractHook.Id> hookExecutionQueue;
 
-    // Tracks which contract log indices have been consumed (matched by synthetic log).
-    @EqualsAndHashCode.Exclude
-    @NonFinal
-    private BitSet consumedContractLogIndices;
-
     /**
      * Gets the next hook context from the execution queue. Returns null if no more contexts are available.
      *
@@ -140,8 +137,7 @@ public class RecordItem implements StreamItem {
 
     /**
      * Attempts to consume a matching contract log by comparing raw topic and data bytes. If a
-     * matching log is found, a synthetic log is not created. Uses contract logs already on the
-     * record and a BitSet of consumed indices.
+     * matching log is found, a synthetic log is not created.
      *
      * <p>This method is used to handle duplicate contract logs in the record. When the same log
      * appears multiple times, a synthetic TransferContractLog can match one occurrence and should
@@ -158,17 +154,28 @@ public class RecordItem implements StreamItem {
         if (contractLogs == null || contractLogs.isEmpty()) {
             return false;
         }
-        if (consumedContractLogIndices == null) {
-            consumedContractLogIndices = new BitSet(contractLogs.size());
-        }
 
         for (int i = 0; i < contractLogs.size(); i++) {
-            if (consumedContractLogIndices.get(i)) {
-                continue;
-            }
             if (contractLogTopicsAndDataMatches(contractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
-                consumedContractLogIndices.set(i);
+                contractLogs.remove(i);
                 return true;
+            }
+        }
+
+        final var parentContractRelatedItem = getContractRelatedParent();
+        if (parentContractRelatedItem != null) {
+            final var parentContractLogs = parentContractRelatedItem.getContractLogs();
+
+            if (parentContractLogs == null || parentContractLogs.isEmpty()) {
+                return false;
+            }
+
+            for (int i = 0; i < parentContractLogs.size(); i++) {
+                if (contractLogTopicsAndDataMatches(parentContractLogs.get(i), topic0, topic1, topic2, topic3, data)) {
+                    parentContractLogs.remove(i);
+                    parentContractRelatedItem.setContractLogs(parentContractLogs);
+                    return true;
+                }
             }
         }
         return false;
@@ -291,10 +298,12 @@ public class RecordItem implements StreamItem {
 
     public RecordItem getContractRelatedParent() {
         if (hookParent != null) {
-            return hookParent.hasContractResult() ? hookParent : null;
-        } else {
-            return parent != null && parent.hasContractResult() ? parent : null;
+            return hookParent;
         }
+        if (parent != null && parent.hasContractResult()) {
+            return parent;
+        }
+        return null;
     }
 
     private boolean hasContractResult() {
@@ -321,7 +330,6 @@ public class RecordItem implements StreamItem {
             }
 
             this.contractLogs = parseContractLogs();
-            this.consumedContractLogIndices = new BitSet(contractLogs.size());
 
             parseTransaction();
             this.consensusTimestamp = DomainUtils.timestampInNanosMax(transactionRecord.getConsensusTimestamp());
@@ -335,9 +343,11 @@ public class RecordItem implements StreamItem {
 
         private List<ContractLoginfo> parseContractLogs() {
             if (transactionRecord.hasContractCallResult()) {
-                return transactionRecord.getContractCallResult().getLogInfoList();
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
+                        .toList());
             } else if (transactionRecord.hasContractCreateResult()) {
-                return transactionRecord.getContractCreateResult().getLogInfoList();
+                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
+                        .toList());
             }
             return Collections.emptyList();
         }
@@ -379,15 +389,21 @@ public class RecordItem implements StreamItem {
         }
 
         private RecordItem parsePossiblyHookContractRelatedParent() {
-            if (transactionRecord.hasParentConsensusTimestamp() && previous != null) {
+            final var currentTxnRecordContractResult = getContractResult();
+
+            if (transactionRecord.hasParentConsensusTimestamp()
+                    && currentTxnRecordContractResult != null
+                    && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM
+                    && previous != null) {
                 var candidateRecord = previous;
 
                 while (candidateRecord != null && candidateRecord != parent) {
-                    var currentTxnRecordContractResult = getContractResult();
-                    var previousTxnRecordContractResult = candidateRecord.getContractResult();
-                    if (previousTxnRecordContractResult != null
-                            && previousTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM
-                            && currentTxnRecordContractResult.getContractID().getContractNum() != HOOK_CONTRACT_NUM) {
+                    var candidateTxnRecordContractResult = candidateRecord.getContractResult();
+                    if (candidateTxnRecordContractResult == null) {
+                        break;
+                    }
+
+                    if (candidateTxnRecordContractResult.getContractID().getContractNum() == HOOK_CONTRACT_NUM) {
                         // we found the first hook child item, which has a ContractResult and is executed via a hook
                         return candidateRecord;
                     }
@@ -396,11 +412,7 @@ public class RecordItem implements StreamItem {
                 }
             }
 
-            // we have multiple contract hook-related child items executed via a hook (which are not precompile-related)
-            // and we are already in one of them, so we return the hook triggering transaction instead, which is the
-            // actual
-            // parent of all child items linked to a hook
-            return parent;
+            return null;
         }
 
         private ContractFunctionResult getContractResult() {
