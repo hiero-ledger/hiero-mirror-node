@@ -4,7 +4,7 @@ package org.hiero.mirror.restjava.config;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.restjava.common.RequestParameterArgumentResolver;
+import org.hiero.mirror.restjava.parameter.RequestParameterArgumentResolver;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;

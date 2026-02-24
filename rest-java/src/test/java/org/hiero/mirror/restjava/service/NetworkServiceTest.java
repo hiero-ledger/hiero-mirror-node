@@ -74,7 +74,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var fileId = setupNetworkNodeData();
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
-                .nodeId(null)
+                .nodeId(List.of())
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -163,7 +163,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var fileId = setupNetworkNodeData();
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
-                .nodeId(null)
+                .nodeId(List.of())
                 .limit(25)
                 .order(Sort.Direction.DESC)
                 .build();
@@ -185,7 +185,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var fileId = setupNetworkNodeData();
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
-                .nodeId(null)
+                .nodeId(List.of())
                 .limit(2)
                 .order(Sort.Direction.ASC)
                 .build();

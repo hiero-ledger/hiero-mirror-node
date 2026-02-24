@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.common;
+package org.hiero.mirror.restjava.parameter;
 
 import jakarta.inject.Named;
 import java.lang.reflect.Field;
@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.hiero.mirror.restjava.exception.InvalidParameterCountException;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.core.MethodParameter;
 import org.springframework.validation.BindException;
@@ -43,9 +43,9 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
     @Override
     public Object resolveArgument(
             MethodParameter parameter,
-            ModelAndViewContainer mavContainer,
+            @Nullable ModelAndViewContainer mavContainer,
             NativeWebRequest webRequest,
-            WebDataBinderFactory binderFactory)
+            @Nullable WebDataBinderFactory binderFactory)
             throws Exception {
 
         Class<?> parameterType = parameter.getParameterType();
@@ -75,6 +75,9 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         }
 
         // Create WebDataBinder and bind - exactly like Spring's @ModelAttribute
+        if (binderFactory == null) {
+            throw new IllegalStateException("WebDataBinderFactory is required");
+        }
         String objectName = parameterType.getSimpleName();
         WebDataBinder binder = binderFactory.createBinder(webRequest, attribute, objectName);
         binder.initDirectFieldAccess();
@@ -103,15 +106,15 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             Map<Field, RestJavaQueryParam> queryParams = new LinkedHashMap<>();
             Map<Field, RestJavaPathParam> pathParams = new LinkedHashMap<>();
 
-            for (Field field : c.getDeclaredFields()) {
+            for (final var field : c.getDeclaredFields()) {
                 // Cache @QueryParam annotations
-                RestJavaQueryParam queryParam = field.getAnnotation(RestJavaQueryParam.class);
+                final var queryParam = field.getAnnotation(RestJavaQueryParam.class);
                 if (queryParam != null) {
                     queryParams.put(field, queryParam);
                 }
 
                 // Cache @PathParam annotations
-                RestJavaPathParam pathParam = field.getAnnotation(RestJavaPathParam.class);
+                final var pathParam = field.getAnnotation(RestJavaPathParam.class);
                 if (pathParam != null) {
                     pathParams.put(field, pathParam);
                 }
@@ -124,13 +127,13 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             Field field,
             RestJavaPathParam annotation,
             MutablePropertyValues propertyValues,
-            Map<String, String> pathVariables) {
+            @Nullable Map<String, String> pathVariables) {
 
         String variableName = extractName(field, annotation.value(), annotation.name());
         String value = pathVariables != null ? pathVariables.get(variableName) : null;
 
         if (value == null && annotation.required()) {
-            throw new InvalidParameterCountException("Missing required path variable: " + variableName);
+            throw new IllegalArgumentException("Missing required path variable: " + variableName);
         }
 
         if (value != null) {
@@ -159,19 +162,20 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             NativeWebRequest webRequest) {
 
         String paramName = extractName(field, annotation.value(), annotation.name());
-        String[] paramValues = webRequest.getParameterValues(paramName);
+        String @Nullable [] paramValues = webRequest.getParameterValues(paramName);
 
         // Handle missing or empty values
-        paramValues = resolveParameterValues(paramValues, paramName, annotation);
-        if (paramValues == null) {
+        String @Nullable [] resolvedValues = resolveParameterValues(paramValues, paramName, annotation);
+        if (resolvedValues == null) {
             return; // No value, not required - skip
         }
 
         // Validate and add to property values
-        validateAndAddParameter(field, paramName, paramValues, propertyValues);
+        validateAndAddParameter(field, paramName, resolvedValues, propertyValues);
     }
 
-    private String[] resolveParameterValues(String[] paramValues, String paramName, RestJavaQueryParam annotation) {
+    private String @Nullable [] resolveParameterValues(
+            String @Nullable [] paramValues, String paramName, RestJavaQueryParam annotation) {
         if (hasValue(paramValues)) {
             return paramValues;
         }
@@ -179,17 +183,17 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         return handleMissingValue(paramName, annotation);
     }
 
-    private boolean hasValue(String[] paramValues) {
+    private boolean hasValue(String @Nullable [] paramValues) {
         return paramValues != null && paramValues.length > 0 && !StringUtils.isBlank(paramValues[0]);
     }
 
-    private String[] handleMissingValue(String paramName, RestJavaQueryParam annotation) {
+    private String @Nullable [] handleMissingValue(String paramName, RestJavaQueryParam annotation) {
         if (!annotation.defaultValue().equals(ValueConstants.DEFAULT_NONE)) {
             return new String[] {annotation.defaultValue()};
         }
 
         if (annotation.required()) {
-            throw new InvalidParameterCountException("Missing required request parameter: " + paramName);
+            throw new IllegalArgumentException("Missing required request parameter: " + paramName);
         }
 
         return null; // No value, not required
@@ -200,7 +204,7 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         boolean isMultiValue = field.getType().isArray() || Collection.class.isAssignableFrom(field.getType());
 
         if (!isMultiValue && paramValues.length > 1) {
-            throw new InvalidParameterCountException("Only a single instance is supported for " + paramName);
+            throw new IllegalArgumentException("Only a single instance is supported for " + paramName);
         }
 
         // Add to property values - WebDataBinder will handle type conversion

@@ -22,7 +22,6 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
-import org.hiero.mirror.restjava.exception.InvalidParameterCountException;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
@@ -96,14 +95,6 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     private ResponseEntity<Object> bindException(
             final org.springframework.validation.BindException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, BAD_REQUEST, request);
-    }
-
-    @ExceptionHandler(InvalidParameterCountException.class)
-    private ResponseEntity<Object> invalidParameter(final InvalidParameterCountException e, final WebRequest request) {
-        // For InvalidParameterException, use the exception message directly as the error detail
-        // This exception is specifically thrown for parameter validation errors
-        var problem = ProblemDetail.forStatusAndDetail(BAD_REQUEST, e.getMessage());
-        return handleExceptionInternal(e, problem, null, BAD_REQUEST, request);
     }
 
     @ExceptionHandler({

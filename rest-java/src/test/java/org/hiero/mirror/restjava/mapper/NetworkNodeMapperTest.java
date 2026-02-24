@@ -12,7 +12,7 @@ import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.junit.jupiter.api.Test;
 
-class NetworkNodeMapperTest {
+final class NetworkNodeMapperTest {
 
     private final NetworkNodeMapper mapper = new NetworkNodeMapperImpl(new CommonMapperImpl());
 

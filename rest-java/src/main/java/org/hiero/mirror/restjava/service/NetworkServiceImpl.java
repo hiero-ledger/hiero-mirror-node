@@ -8,8 +8,8 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.Range;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
@@ -91,27 +91,22 @@ final class NetworkServiceImpl implements NetworkService {
         final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeId();
 
-        // Create two sets: equality operators and range operators
-        // Use empty array when there are no parameters - SQL handles this with array_length check
-        final var equalitySet = (nodeIdParams == null || nodeIdParams.isEmpty())
-                ? new Long[0]
-                : nodeIdParams.stream()
-                        .filter(x -> RangeOperator.EQ.equals(x.operator()))
-                        .map(EntityIdRangeParameter::value)
-                        .toArray(Long[]::new);
+        final var equalitySet = new HashSet<Long>();
+        final var rangeSet = new HashSet<EntityIdRangeParameter>();
+        nodeIdParams.forEach(p -> {
+            if (RangeOperator.EQ.equals(p.operator())) {
+                equalitySet.add(p.value());
+            } else {
+                rangeSet.add(p);
+            }
+        });
 
-        final var rangeSet = (nodeIdParams == null || nodeIdParams.isEmpty())
-                ? List.<EntityIdRangeParameter>of()
-                : nodeIdParams.stream()
-                        .filter(x -> !RangeOperator.EQ.equals(x.operator()))
-                        .collect(Collectors.toSet());
-
-        var rangeBounds = combineOverlappingRanges(rangeSet);
-
+        final var rangeBounds = combineOverlappingRanges(rangeSet);
         final var orderDirection = request.getOrder().name();
 
+        final var nodeIds = equalitySet.isEmpty() ? new Long[0] : equalitySet.toArray(Long[]::new);
         return networkNodeRepository.findNetworkNodes(
-                fileId, equalitySet, rangeBounds.getMinimum(), rangeBounds.getMaximum(), orderDirection, limit);
+                fileId, nodeIds, rangeBounds.getMinimum(), rangeBounds.getMaximum(), orderDirection, limit);
     }
 
     private Range<Long> combineOverlappingRanges(Collection<EntityIdRangeParameter> rangeSet) {
