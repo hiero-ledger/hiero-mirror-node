@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.state;
 
+import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.KeyList;
 import com.hedera.hapi.node.base.Timestamp;
@@ -9,6 +10,8 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.time.Instant;
 import lombok.experimental.UtilityClass;
+import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 
 @UtilityClass
 public class Utils {
@@ -49,5 +52,18 @@ public class Utils {
     public static Timestamp convertToTimestamp(final long timestamp) {
         var instant = Instant.ofEpochSecond(0, timestamp);
         return new Timestamp(instant.getEpochSecond(), instant.getNano());
+    }
+
+    public static long getCurrentTimestamp() {
+        final var now = Instant.now();
+        return DomainUtils.convertToNanos(now.getEpochSecond(), now.getNano());
+    }
+
+    public static FileID toFileID(final EntityId entityId) {
+        return FileID.newBuilder()
+                .shardNum(entityId.getShard())
+                .realmNum(entityId.getRealm())
+                .fileNum(entityId.getNum())
+                .build();
     }
 }

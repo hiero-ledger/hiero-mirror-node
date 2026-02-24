@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -138,12 +137,12 @@ public class ContractCallContext {
         return timestamp.or(() -> Optional.ofNullable(getRecordFile()).map(RecordFile::getConsensusEnd));
     }
 
-    public ConcurrentMap<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, k -> new ConcurrentHashMap<>() {});
+    public Map<Object, Object> getReadCacheState(final int stateId) {
+        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
-        return writeCache.computeIfAbsent(stateId, k -> new HashMap<>());
+        return writeCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public RecordFile getRecordFile() {

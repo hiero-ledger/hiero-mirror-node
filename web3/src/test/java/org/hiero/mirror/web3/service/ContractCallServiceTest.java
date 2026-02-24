@@ -1059,7 +1059,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .isEstimate(false)
+                .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
@@ -1130,6 +1130,32 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
             assertGasLimit(serviceParameters);
+        }
+
+        @Test
+        void transferToNonExistingAddressEstimateGas() {
+            // Given
+            final var payer = accountEntityWithEvmAddressPersist();
+
+            // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
+            // public key), otherwise INVALID_ALIAS_KEY could be thrown
+            final var serviceParameters = getContractExecutionParametersWithValue(
+                    BlockType.LATEST,
+                    Bytes.EMPTY,
+                    getAliasAddressFromEntity(payer),
+                    NON_EXISTING_ADDRESS,
+                    ETH_ESTIMATE_GAS,
+                    10000000L);
+
+            // When
+            final var result = contractExecutionService.processCall(serviceParameters);
+
+            // Then
+            final long expectedGas = 570000L;
+            final long estimatedGas = Long.parseLong(result.substring(2), 16);
+            assertThat(isWithinExpectedGasRange(estimatedGas, expectedGas))
+                    .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, expectedGas)
+                    .isTrue();
         }
 
         @Test

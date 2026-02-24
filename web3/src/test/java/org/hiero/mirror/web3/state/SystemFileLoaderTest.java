@@ -41,6 +41,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.CacheManager;
 
 @ExtendWith(MockitoExtension.class)
 class SystemFileLoaderTest {
@@ -55,6 +56,12 @@ class SystemFileLoaderTest {
     @Mock
     private FileDataRepository fileDataRepository;
 
+    @Mock
+    private CacheManager exchangeRatesCacheManager;
+
+    @Mock
+    private CacheManager modularizedCacheManager;
+
     private SystemFileLoader systemFileLoader;
     private VersionedConfiguration configuration;
     private SystemEntity systemEntity;
@@ -63,7 +70,8 @@ class SystemFileLoaderTest {
     void setup() {
         systemEntity = new SystemEntity(commonProperties);
         final var evmProperties = new EvmProperties();
-        systemFileLoader = new SystemFileLoader(evmProperties, fileDataRepository, systemEntity);
+        systemFileLoader = new SystemFileLoader(
+                evmProperties, fileDataRepository, systemEntity, exchangeRatesCacheManager, modularizedCacheManager);
         configuration = evmProperties.getVersionedConfiguration();
     }
 

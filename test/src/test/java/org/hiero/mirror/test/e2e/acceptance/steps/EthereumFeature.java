@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.rest.model.TransactionByIdResponse;
 import org.hiero.mirror.rest.model.TransactionDetail;
@@ -34,6 +35,7 @@ import org.hiero.mirror.test.e2e.acceptance.client.EthereumClient;
 import org.hiero.mirror.test.e2e.acceptance.client.MirrorNodeClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.CompiledSolidityArtifact;
+import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.http.HttpStatus;
 import org.web3j.crypto.transaction.type.TransactionType;
 
@@ -54,6 +56,8 @@ public class EthereumFeature extends AbstractEstimateFeature {
     private byte[] childContractBytecodeFromParent;
 
     private static final BigDecimal INITIAL_BALANCE = BigDecimal.valueOf(1.0); // usd
+
+    private long estimatedGasForHollowAccountCreation;
 
     @Given("I successfully created a signer account with an EVM address alias")
     public void createAccountWithEvmAddressAlias() {
@@ -138,6 +142,39 @@ public class EthereumFeature extends AbstractEstimateFeature {
         gasConsumedSelector = encodeDataToByteArray(PARENT_CONTRACT, GET_BYTE_CODE);
     }
 
+    @Then("I estimate gas and execute hollow account creation using ethereum transaction")
+    public void estimateGasAndExecuteHollowAccountCreation() {
+        // Prepare a non-existing EVM address (hollow account alias) as the recipient
+        var hollowAccountKey = PrivateKey.generateECDSA();
+        var hollowAccountEvmAddress = hollowAccountKey.getPublicKey().toEvmAddress();
+        var senderEvmAddress = ethereumSignerAccount.toEvmAddress();
+        var value = EthereumClient.WEIBARS_TO_TINYBARS.multiply(BigInteger.ONE);
+
+        // Estimate gas on the mirror node for a value transfer that will trigger hollow account creation
+        var contractCallRequest = ModelBuilder.contractCallRequest()
+                .to(hollowAccountEvmAddress.toString())
+                .from(senderEvmAddress.toString())
+                .data("0x") // Empty data for a pure value transfer
+                .estimate(true)
+                .value(value.longValue());
+
+        var estimateResponse = mirrorClient.contractsCall(contractCallRequest);
+        estimatedGasForHollowAccountCreation =
+                Bytes.fromHexString(estimateResponse.getResult()).toBigInteger().longValue();
+
+        // Send the actual ethereum transaction to the consensus node
+        networkTransactionResponse = ethereumClient.transferValue(
+                ethereumSignerPrivateKey, hollowAccountEvmAddress.toString(), value, EIP1559);
+
+        // Compare the mirror estimate with the actual gas used
+        var txId = networkTransactionResponse.getTransactionIdStringNoCheckSum();
+        var contractResult = mirrorClient.getContractResultByTransactionId(txId);
+        int actualGasUsed = contractResult.getGasConsumed().intValue();
+
+        assertWithinDeviation(
+                actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation, upperDeviation);
+    }
+
     @And("the mirror node contract results opcodes API should return a non-empty response")
     public void verifyOpcodes() {
         if (!web3Properties.getOpcodeTracer().isEnabled()) {
@@ -151,6 +188,12 @@ public class EthereumFeature extends AbstractEstimateFeature {
         // quickly out of sync on EVM bumps and this would be hard to maintain and there is already a
         // stricter validation in the web3 module.
         assertThat(opcodes.getOpcodes()).isNotEmpty();
+    }
+
+    @And("I set lower deviation to {int}% and upper deviation to {int}%")
+    public void setDeviations(int lower, int upper) {
+        lowerDeviation = lower;
+        upperDeviation = upper;
     }
 
     public DeployedContract ethereumContractCreate(ContractResource contractResource) {
