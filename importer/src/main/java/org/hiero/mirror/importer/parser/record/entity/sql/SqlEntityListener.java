@@ -31,6 +31,7 @@ import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.AbstractNft;
 import org.hiero.mirror.common.domain.token.AbstractTokenAccount.Id;
@@ -266,6 +267,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onNode(Node node) {
         context.merge(node.getNodeId(), node, this::mergeNode);
+    }
+
+    @Override
+    public void onRegisteredNode(RegisteredNode registeredNode) {
+        context.merge(registeredNode.getRegisteredNodeId(), registeredNode, this::mergeRegisteredNode);
     }
 
     @Override
@@ -726,6 +732,33 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
 
         if (current.getGrpcProxyEndpoint() == null) {
             current.setGrpcProxyEndpoint(previous.getGrpcProxyEndpoint());
+        }
+
+        if (current.getAssociatedRegisteredNodes() == null) {
+            current.setAssociatedRegisteredNodes(previous.getAssociatedRegisteredNodes());
+        }
+
+        return current;
+    }
+
+    private RegisteredNode mergeRegisteredNode(RegisteredNode previous, RegisteredNode current) {
+        previous.setTimestampUpper(current.getTimestampLower());
+        current.setCreatedTimestamp(previous.getCreatedTimestamp());
+
+        if (current.getAdminKey() == null) {
+            current.setAdminKey(previous.getAdminKey());
+        }
+
+        if (current.getDescription() == null) {
+            current.setDescription(previous.getDescription());
+        }
+
+        if (current.getNodeAccount() == null) {
+            current.setNodeAccount(previous.getNodeAccount());
+        }
+
+        if (current.getServiceEndpoints() == null) {
+            current.setServiceEndpoints(previous.getServiceEndpoints());
         }
 
         return current;

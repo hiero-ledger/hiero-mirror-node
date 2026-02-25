@@ -2,24 +2,18 @@
 
 package org.hiero.mirror.common.domain.node;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.google.common.collect.Range;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import java.util.Collections;
 import java.util.List;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import org.hiero.mirror.common.converter.ListToStringSerializer;
-import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
-import org.hiero.mirror.common.domain.UpsertColumn;
 import org.hiero.mirror.common.domain.Upsertable;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
@@ -28,9 +22,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @NoArgsConstructor
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
-public abstract class AbstractNode implements History {
-
-    private EntityId accountId;
+public abstract class AbstractRegisteredNode implements History {
 
     @ToString.Exclude
     private byte[] adminKey;
@@ -38,21 +30,17 @@ public abstract class AbstractNode implements History {
     @Column(updatable = false)
     private Long createdTimestamp;
 
-    private Boolean declineReward;
-
     private boolean deleted;
 
-    @Builder.Default
-    @JsonSerialize(using = ListToStringSerializer.class)
-    private List<Long> associatedRegisteredNodes = Collections.emptyList();
+    private String description;
 
-    @JsonSerialize(using = ObjectToStringSerializer.class)
-    @JdbcTypeCode(SqlTypes.JSON)
-    @UpsertColumn(coalesce = "case when ({0} -> ''port'')::integer = -1 then null else coalesce({0}, e_{0}) end")
-    private ServiceEndpoint grpcProxyEndpoint;
+    private EntityId nodeAccount;
 
     @Id
-    private Long nodeId;
+    private Long registeredNodeId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<RegisteredServiceEndpoint> serviceEndpoints;
 
     private Range<Long> timestampRange;
 }

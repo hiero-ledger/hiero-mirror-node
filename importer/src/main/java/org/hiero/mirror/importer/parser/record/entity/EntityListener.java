@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.Nft;
@@ -97,6 +98,8 @@ public interface EntityListener {
     default void onNode(Node node) throws ImporterException {}
 
     default void onNodeStake(NodeStake nodeStake) throws ImporterException {}
+
+    default void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {}
 
     default void onPrng(Prng prng) {}
 
