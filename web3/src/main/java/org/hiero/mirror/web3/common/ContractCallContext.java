@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -138,7 +139,7 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
+        return readCache.computeIfAbsent(stateId, _ -> new ConcurrentHashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
