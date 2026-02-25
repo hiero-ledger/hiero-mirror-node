@@ -21,6 +21,7 @@ import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransac
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
+import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.jspecify.annotations.NullMarked;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -73,6 +74,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 blockProperties,
+                mock(BlockStateProofHasher.class),
                 cutoverService,
                 mock(LedgerIdPublicationTransactionParser.class),
                 meterRegistry,
