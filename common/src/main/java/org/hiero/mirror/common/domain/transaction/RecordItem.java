@@ -341,12 +341,12 @@ public class RecordItem implements StreamItem {
 
         private List<ContractLoginfo> parseContractLogs() {
             if (transactionRecord.hasContractCallResult()) {
-                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
-                        .toList());
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList());
             } else if (transactionRecord.hasContractCreateResult()) {
-                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
-                        .toList());
+                return new ArrayList<>(
+                        transactionRecord.getContractCreateResult().getLogInfoList());
             }
+
             return Collections.emptyList();
         }
 
