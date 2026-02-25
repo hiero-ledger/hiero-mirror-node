@@ -42,20 +42,11 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 from node
             )
             select
-                abe.description as description,
-                abe.memo as memo,
-                abe.node_id as nodeId,
-                coalesce(n.account_id, abe.node_account_id) as nodeAccountId,
-                abe.node_cert_hash as nodeCertHash,
-                case when abe.public_key is null or abe.public_key = '' then '0x'
-                     when left(abe.public_key, 2) = '0x' then abe.public_key
-                     else '0x' || abe.public_key
-                     end as publicKey,
-                ab.file_id as fileId,
-                ab.start_consensus_timestamp as startConsensusTimestamp,
-                ab.end_consensus_timestamp as endConsensusTimestamp,
                 n.admin_key as adminKey,
                 n.decline_reward as declineReward,
+                abe.description as description,
+                ab.end_consensus_timestamp as endConsensusTimestamp,
+                ab.file_id as fileId,
                 case when n.grpc_proxy_endpoint is null then null
                      else jsonb_build_object(
                          'domain_name', coalesce(n.grpc_proxy_endpoint->>'domain_name', ''),
@@ -64,12 +55,16 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                      )::text
                      end as grpcProxyEndpointJson,
                 nullif(ns.max_stake, -1) as maxStake,
+                abe.memo as memo,
                 nullif(ns.min_stake, -1) as minStake,
+                coalesce(n.account_id, abe.node_account_id) as nodeAccountId,
+                abe.node_cert_hash as nodeCertHash,
+                abe.node_id as nodeId,
+                case when abe.public_key is null or abe.public_key = '' then '0x'
+                     when left(abe.public_key, 2) = '0x' then abe.public_key
+                     else '0x' || abe.public_key
+                     end as publicKey,
                 ns.reward_rate as rewardRateStart,
-                ns.stake as stake,
-                nullif(ns.stake_not_rewarded, -1) as stakeNotRewarded,
-                ns.stake_rewarded as stakeRewarded,
-                ns.staking_period as stakingPeriod,
                 coalesce((
                     select jsonb_agg(
                         jsonb_build_object(
@@ -81,7 +76,12 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                     from address_book_service_endpoint abse
                     where abse.consensus_timestamp = abe.consensus_timestamp
                       and abse.node_id = abe.node_id
-                ), '[]'::jsonb)::text as serviceEndpointsJson
+                ), '[]'::jsonb)::text as serviceEndpointsJson,
+                ns.stake as stake,
+                nullif(ns.stake_not_rewarded, -1) as stakeNotRewarded,
+                ns.stake_rewarded as stakeRewarded,
+                ns.staking_period as stakingPeriod,
+                ab.start_consensus_timestamp as startConsensusTimestamp
             from address_book_entry abe
             join latest_address_book ab
               on ab.start_consensus_timestamp = abe.consensus_timestamp

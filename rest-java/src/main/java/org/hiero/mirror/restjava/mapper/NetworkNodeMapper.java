@@ -22,15 +22,14 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
     @Override
     @Mapping(
             target = "nodeAccountId",
-            expression =
-                    "java(row.getNodeAccountId() != null ? commonMapper.mapEntityId(row.getNodeAccountId()) : null)")
+            expression = "java(row.nodeAccountId() != null ? commonMapper.mapEntityId(row.nodeAccountId()) : null)")
     @Mapping(target = "nodeCertHash", qualifiedByName = "mapNodeCertHash")
     @Mapping(
             target = "grpcProxyEndpoint",
-            expression = "java(StringToServiceEndpointConverter.INSTANCE.convert(row.getGrpcProxyEndpointJson()))")
+            expression = "java(StringToServiceEndpointConverter.INSTANCE.convert(row.grpcProxyEndpointJson()))")
     @Mapping(
             target = "serviceEndpoints",
-            expression = "java(StringToServiceEndpointListConverter.INSTANCE.convert(row.getServiceEndpointsJson()))")
+            expression = "java(StringToServiceEndpointListConverter.INSTANCE.convert(row.serviceEndpointsJson()))")
     @Mapping(target = "stakingPeriod", qualifiedByName = "mapStakingPeriod")
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(row))")
     NetworkNode map(NetworkNodeDto row);
@@ -48,8 +47,8 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
         if (row == null) {
             return null;
         }
-        var start = row.getStartConsensusTimestamp();
-        var end = row.getEndConsensusTimestamp();
+        var start = row.startConsensusTimestamp();
+        var end = row.endConsensusTimestamp();
         if (start == null && end == null) {
             return null;
         }

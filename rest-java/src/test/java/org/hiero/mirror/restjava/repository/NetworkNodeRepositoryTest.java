@@ -23,9 +23,9 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(3);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(2).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
+        assertThat(results.get(1).nodeId()).isEqualTo(2L);
+        assertThat(results.get(2).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -47,8 +47,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(0).getFileId()).isEqualTo(addressBook.getFileId().getId());
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
+        assertThat(results.get(0).fileId()).isEqualTo(addressBook.getFileId().getId());
     }
 
     @Test
@@ -73,7 +73,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
     }
 
     @Test
@@ -86,8 +86,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(2);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
+        assertThat(results.get(1).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -100,8 +100,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(2);
-        assertThat(results.get(0).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(2L);
+        assertThat(results.get(1).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -114,7 +114,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then - should return nodes matching equality AND range (node 3 matches both conditions)
         assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -127,9 +127,9 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(3);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(2).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
+        assertThat(results.get(1).nodeId()).isEqualTo(2L);
+        assertThat(results.get(2).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -142,9 +142,9 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(3);
-        assertThat(results.get(0).getNodeId()).isEqualTo(3L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(2).getNodeId()).isEqualTo(1L);
+        assertThat(results.get(0).nodeId()).isEqualTo(3L);
+        assertThat(results.get(1).nodeId()).isEqualTo(2L);
+        assertThat(results.get(2).nodeId()).isEqualTo(1L);
     }
 
     @Test
@@ -157,8 +157,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(2);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(2L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
+        assertThat(results.get(1).nodeId()).isEqualTo(2L);
     }
 
     @Test
@@ -193,11 +193,11 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getNodeId()).isEqualTo(1L);
-        assertThat(result.getMaxStake()).isNotNull();
-        assertThat(result.getMinStake()).isNotNull();
-        assertThat(result.getStake()).isNotNull();
-        assertThat(result.getRewardRateStart()).isNotNull();
+        assertThat(result.nodeId()).isEqualTo(1L);
+        assertThat(result.maxStake()).isNotNull();
+        assertThat(result.minStake()).isNotNull();
+        assertThat(result.stake()).isNotNull();
+        assertThat(result.rewardRateStart()).isNotNull();
     }
 
     @Test
@@ -220,9 +220,9 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getNodeId()).isEqualTo(1L);
-        assertThat(result.getAdminKey()).isNotNull();
-        assertThat(result.getDeclineReward()).isNotNull();
+        assertThat(result.nodeId()).isEqualTo(1L);
+        assertThat(result.adminKey()).isNotNull();
+        assertThat(result.declineReward()).isNotNull();
     }
 
     @Test
@@ -244,7 +244,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getServiceEndpointsJson()).isNotNull();
+        assertThat(result.serviceEndpointsJson()).isNotNull();
     }
 
     @Test
@@ -268,21 +268,21 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getNodeId()).isNotNull();
-        assertThat(result.getNodeAccountId()).isNotNull();
-        assertThat(result.getDescription()).isNotNull();
-        assertThat(result.getMemo()).isNotNull();
-        assertThat(result.getPublicKey()).isNotNull();
-        assertThat(result.getFileId()).isNotNull();
-        assertThat(result.getStartConsensusTimestamp()).isNotNull();
-        assertThat(result.getEndConsensusTimestamp()).isNotNull();
-        assertThat(result.getAdminKey()).isNotNull();
-        assertThat(result.getDeclineReward()).isNotNull();
-        assertThat(result.getMaxStake()).isNotNull();
-        assertThat(result.getMinStake()).isNotNull();
-        assertThat(result.getStake()).isNotNull();
-        assertThat(result.getRewardRateStart()).isNotNull();
-        assertThat(result.getServiceEndpointsJson()).isNotNull();
+        assertThat(result.nodeId()).isNotNull();
+        assertThat(result.nodeAccountId()).isNotNull();
+        assertThat(result.description()).isNotNull();
+        assertThat(result.memo()).isNotNull();
+        assertThat(result.publicKey()).isNotNull();
+        assertThat(result.fileId()).isNotNull();
+        assertThat(result.startConsensusTimestamp()).isNotNull();
+        assertThat(result.endConsensusTimestamp()).isNotNull();
+        assertThat(result.adminKey()).isNotNull();
+        assertThat(result.declineReward()).isNotNull();
+        assertThat(result.maxStake()).isNotNull();
+        assertThat(result.minStake()).isNotNull();
+        assertThat(result.stake()).isNotNull();
+        assertThat(result.rewardRateStart()).isNotNull();
+        assertThat(result.serviceEndpointsJson()).isNotNull();
     }
 
     @Test
@@ -304,14 +304,14 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getNodeId()).isEqualTo(1L);
-        assertThat(result.getNodeAccountId()).isNotNull();
-        assertThat(result.getFileId()).isNotNull();
+        assertThat(result.nodeId()).isEqualTo(1L);
+        assertThat(result.nodeAccountId()).isNotNull();
+        assertThat(result.fileId()).isNotNull();
         // Optional fields should be null
-        assertThat(result.getAdminKey()).isNull();
-        assertThat(result.getDeclineReward()).isNull();
-        assertThat(result.getMaxStake()).isNull();
-        assertThat(result.getMinStake()).isNull();
+        assertThat(result.adminKey()).isNull();
+        assertThat(result.declineReward()).isNull();
+        assertThat(result.maxStake()).isNull();
+        assertThat(result.minStake()).isNull();
     }
 
     @Test
@@ -343,8 +343,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then - should only return nodes from latest address book
         assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(0).getStartConsensusTimestamp()).isEqualTo(timestamp2);
+        assertThat(results.get(0).nodeId()).isEqualTo(2L);
+        assertThat(results.get(0).startConsensusTimestamp()).isEqualTo(timestamp2);
     }
 
     @Test
@@ -378,8 +378,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         // then - should use latest node stake
         assertThat(results).isNotNull().hasSize(1);
         var result = results.get(0);
-        assertThat(result.getStake()).isEqualTo(latestStake.getStake());
-        assertThat(result.getRewardRateStart()).isEqualTo(latestStake.getRewardRate());
+        assertThat(result.stake()).isEqualTo(latestStake.getStake());
+        assertThat(result.rewardRateStart()).isEqualTo(latestStake.getRewardRate());
     }
 
     @Test
@@ -411,8 +411,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         assertThat(results).isNotNull().hasSize(2);
         // With AND logic: nodeId IN (2,3) AND nodeId in [1,3] = nodes 2,3
         // With ASC order and limit=2, returns nodes 2,3
-        assertThat(results.get(0).getNodeId()).isEqualTo(2L);
-        assertThat(results.get(1).getNodeId()).isEqualTo(3L);
+        assertThat(results.get(0).nodeId()).isEqualTo(2L);
+        assertThat(results.get(1).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -425,7 +425,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then - should include the min value
         assertThat(results).isNotNull().hasSize(3);
-        assertThat(results.get(0).getNodeId()).isEqualTo(1L);
+        assertThat(results.get(0).nodeId()).isEqualTo(1L);
     }
 
     @Test
@@ -438,7 +438,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then - should include the max value
         assertThat(results).isNotNull().hasSize(2);
-        assertThat(results.get(1).getNodeId()).isEqualTo(2L);
+        assertThat(results.get(1).nodeId()).isEqualTo(2L);
     }
 
     @Test
@@ -451,7 +451,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
         // then
         assertThat(results).isNotNull().hasSize(1);
-        assertThat(results.get(0).getNodeId()).isEqualTo(2L);
+        assertThat(results.get(0).nodeId()).isEqualTo(2L);
     }
 
     private void setupNetworkNodeData() {

@@ -85,9 +85,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(3);
-        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(result.get(2).getNodeId()).isEqualTo(3L);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+        assertThat(result.get(2).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -107,7 +107,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(1);
-        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
     }
 
     @Test
@@ -129,8 +129,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(2);
-        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
     }
 
     @Test
@@ -153,8 +153,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then - should return nodes matching equality AND range
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(2);
-        assertThat(result.get(0).getNodeId()).isEqualTo(2L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(3L);
+        assertThat(result.get(0).nodeId()).isEqualTo(2L);
+        assertThat(result.get(1).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -174,9 +174,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(3);
-        assertThat(result.get(0).getNodeId()).isEqualTo(3L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
-        assertThat(result.get(2).getNodeId()).isEqualTo(1L);
+        assertThat(result.get(0).nodeId()).isEqualTo(3L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
+        assertThat(result.get(2).nodeId()).isEqualTo(1L);
     }
 
     @Test
@@ -198,8 +198,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // Controller truncates to limit if needed
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(2); // Returns limit
-        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
     }
 
     @Test
@@ -274,8 +274,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(2);
-        assertThat(result.get(0).getNodeId()).isEqualTo(2L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(3L);
+        assertThat(result.get(0).nodeId()).isEqualTo(2L);
+        assertThat(result.get(1).nodeId()).isEqualTo(3L);
     }
 
     @Test
@@ -297,8 +297,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // then
         assertThat(result).isNotNull();
         assertThat(result.size()).isEqualTo(2);
-        assertThat(result.get(0).getNodeId()).isEqualTo(1L);
-        assertThat(result.get(1).getNodeId()).isEqualTo(2L);
+        assertThat(result.get(0).nodeId()).isEqualTo(1L);
+        assertThat(result.get(1).nodeId()).isEqualTo(2L);
     }
 
     @Test

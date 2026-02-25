@@ -20,17 +20,17 @@ final class NetworkNodeMapperTest {
     void map() {
         // Given - row with all fields populated
         var row = mock(NetworkNodeDto.class);
-        when(row.getNodeId()).thenReturn(3L);
-        when(row.getFileId()).thenReturn(102L);
-        when(row.getNodeAccountId()).thenReturn(8L);
-        when(row.getNodeCertHash()).thenReturn("0xa1b2c3d4e5f6".getBytes(StandardCharsets.UTF_8));
-        when(row.getPublicKey()).thenReturn("0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f");
-        when(row.getStartConsensusTimestamp()).thenReturn(1000000000L);
-        when(row.getEndConsensusTimestamp()).thenReturn(2000000000L);
-        when(row.getStakingPeriod()).thenReturn(1609459200000000000L);
-        when(row.getServiceEndpointsJson())
+        when(row.nodeId()).thenReturn(3L);
+        when(row.fileId()).thenReturn(102L);
+        when(row.nodeAccountId()).thenReturn(8L);
+        when(row.nodeCertHash()).thenReturn("0xa1b2c3d4e5f6".getBytes(StandardCharsets.UTF_8));
+        when(row.publicKey()).thenReturn("0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f");
+        when(row.startConsensusTimestamp()).thenReturn(1000000000L);
+        when(row.endConsensusTimestamp()).thenReturn(2000000000L);
+        when(row.stakingPeriod()).thenReturn(1609459200000000000L);
+        when(row.serviceEndpointsJson())
                 .thenReturn("[{\"domain_name\":\"\",\"ip_address_v4\":\"192.168.1.1\",\"port\":50211}]");
-        when(row.getGrpcProxyEndpointJson())
+        when(row.grpcProxyEndpointJson())
                 .thenReturn("{\"domain_name\":\"\",\"ip_address_v4\":\"10.0.0.1\",\"port\":8080}");
 
         // When
@@ -55,12 +55,12 @@ final class NetworkNodeMapperTest {
         });
 
         // Given - row with null/empty values
-        when(row.getFileId()).thenReturn(null);
-        when(row.getNodeAccountId()).thenReturn(null);
-        when(row.getNodeCertHash()).thenReturn(null);
-        when(row.getStartConsensusTimestamp()).thenReturn(null);
-        when(row.getEndConsensusTimestamp()).thenReturn(null);
-        when(row.getStakingPeriod()).thenReturn(null);
+        when(row.fileId()).thenReturn(null);
+        when(row.nodeAccountId()).thenReturn(null);
+        when(row.nodeCertHash()).thenReturn(null);
+        when(row.startConsensusTimestamp()).thenReturn(null);
+        when(row.endConsensusTimestamp()).thenReturn(null);
+        when(row.stakingPeriod()).thenReturn(null);
 
         // When
         result = mapper.map(row);
@@ -75,7 +75,7 @@ final class NetworkNodeMapperTest {
         });
 
         // Given - empty byte array
-        when(row.getNodeCertHash()).thenReturn(new byte[0]);
+        when(row.nodeCertHash()).thenReturn(new byte[0]);
 
         // When
         result = mapper.map(row);
@@ -84,7 +84,7 @@ final class NetworkNodeMapperTest {
         assertThat(result.getNodeCertHash()).isEqualTo("0x");
 
         // Given - node cert hash without prefix
-        when(row.getNodeCertHash()).thenReturn("1a2b3c4d5e6f".getBytes(StandardCharsets.UTF_8));
+        when(row.nodeCertHash()).thenReturn("1a2b3c4d5e6f".getBytes(StandardCharsets.UTF_8));
 
         // When
         result = mapper.map(row);
