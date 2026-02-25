@@ -132,7 +132,7 @@ jobs:
             monitor:
             - 'monitor/**'
             rest:
-            - 'rest/!(check-state-proof|monitoring)?(/**)'
+            - 'rest/!(monitoring)?(/**)'
             rest-java:
             - 'rest-java/**'
             test:

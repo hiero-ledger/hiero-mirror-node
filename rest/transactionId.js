@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import long from 'long';
 import EntityId from './entityId';
 import {InvalidArgumentError} from './errors';
+import {isPositiveLong} from './utils';
 
 class TransactionId {
   constructor(entityId, validStartSeconds, validStartNanos) {
@@ -47,12 +47,13 @@ const fromString = (transactionIdStr) => {
   }
 
   const entityId = EntityId.parse(`${txIdMatches[1]}.${txIdMatches[2]}.${txIdMatches[3]}`);
-  const seconds = long.fromString(txIdMatches[4]);
-  const nanos = parseInt(txIdMatches[5], 10);
-  if (seconds.lessThan(0)) {
+
+  if (!isPositiveLong(txIdMatches[4], true)) {
     throw new InvalidArgumentError(message);
   }
 
+  const seconds = BigInt(txIdMatches[4]);
+  const nanos = parseInt(txIdMatches[5], 10);
   return new TransactionId(entityId, seconds, nanos);
 };
 
