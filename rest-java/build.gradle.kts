@@ -11,6 +11,16 @@ plugins {
 dependencies {
     annotationProcessor("org.mapstruct:mapstruct-processor")
     implementation(project(":common"))
+    implementation("com.hedera.hashgraph:app:0.72.0-alpha.3") {
+        exclude(group = "io.netty")
+        exclude(group = "io.opentelemetry")
+        exclude(group = "io.prometheus")
+        exclude(group = "org.assertj")
+        exclude("org.junit")
+    }
+    implementation("com.hedera.hashgraph:app-service-entity-id-impl:0.72.0-alpha.3") {
+        exclude(group = "io.netty")
+    }
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("jakarta.inject:jakarta.inject-api")

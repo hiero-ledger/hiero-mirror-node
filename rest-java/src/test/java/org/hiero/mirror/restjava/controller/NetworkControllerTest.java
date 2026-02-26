@@ -3,7 +3,9 @@
 package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
@@ -559,7 +561,29 @@ final class NetworkControllerTest extends ControllerTest {
                     .body(FeeEstimateResponse.class);
 
             // then
-            assertThat(actual).isNotNull().isEqualTo(NetworkController.FEE_ESTIMATE_RESPONSE);
+            assertThat(actual).isNotNull();
+            assertThat(actual.getNode()).isNotNull();
+            assertThat(actual.getNetwork()).isNotNull();
+            assertThat(actual.getService()).isNotNull();
+            assertThat(actual.getTotal()).isNotNull();
+        }
+
+        @Test
+        void stateMode() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?mode=STATE")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "State-based fee estimation is not supported");
         }
 
         @Test
@@ -622,16 +646,15 @@ final class NetworkControllerTest extends ControllerTest {
                     .toByteArray();
 
             // when / then
-            validateError(
-                    () -> restClient
+            assertThatThrownBy(() -> restClient
                             .post()
                             .uri("")
                             .body(transaction)
                             .contentType(MediaType.APPLICATION_PROTOBUF)
                             .retrieve()
-                            .body(FeeEstimateResponse.class),
-                    HttpClientErrorException.BadRequest.class,
-                    "Unable to parse SignedTransaction");
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class)
+                    .hasMessageContaining("Unable to parse transaction");
         }
 
         @Test
@@ -653,8 +676,13 @@ final class NetworkControllerTest extends ControllerTest {
         }
 
         private byte[] transaction() {
-            final var transactionBody =
-                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var cryptoTransfer =
+                    CryptoTransferTransactionBody.newBuilder().build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setMemo("test")
+                    .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()
                     .setBodyBytes(transactionBody)
                     .build()
