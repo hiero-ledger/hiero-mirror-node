@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.web3.controller;
 
-import static org.hiero.mirror.web3.config.ThrottleConfiguration.RATE_LIMIT_BUCKET;
-
-import io.github.bucket4j.Bucket;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
@@ -12,9 +9,8 @@ import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
-import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.service.OpcodeService;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,10 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 class OpcodesController {
 
     private final OpcodeService opcodeService;
-
-    @Qualifier(RATE_LIMIT_BUCKET)
-    private final Bucket rateLimitBucket;
-
+    private final ThrottleManager throttleManager;
     private final EvmProperties evmProperties;
 
     /**
@@ -60,9 +53,7 @@ class OpcodesController {
             @RequestParam(required = false, defaultValue = "false") boolean memory,
             @RequestParam(required = false, defaultValue = "false") boolean storage,
             HttpServletResponse response) {
-        if (!rateLimitBucket.tryConsume(1)) {
-            throw new ThrottleException("Requests per second rate limit exceeded.");
-        }
+        throttleManager.throttleOpcodeRequest();
 
         final var options = new OpcodeTracerOptions(stack, memory, storage);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options);

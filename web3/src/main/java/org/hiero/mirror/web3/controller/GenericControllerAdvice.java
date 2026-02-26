@@ -11,6 +11,7 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.UNKNOWN;
 import static com.hedera.hapi.node.base.ResponseCodeEnum.WAITING_FOR_LEDGER_ID;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.NOT_IMPLEMENTED;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -25,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
+import org.hiero.mirror.web3.exception.InvalidRequestHeaderException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -132,6 +134,12 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     @ExceptionHandler
     private ResponseEntity<?> throttleException(final ThrottleException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, TOO_MANY_REQUESTS, request);
+    }
+
+    @ExceptionHandler
+    private ResponseEntity<?> invalidRequestHeaderException(
+            final InvalidRequestHeaderException e, final WebRequest request) {
+        return handleExceptionInternal(e, null, null, NOT_ACCEPTABLE, request);
     }
 
     @Nullable
