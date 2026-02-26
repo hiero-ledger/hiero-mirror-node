@@ -4,9 +4,12 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
@@ -47,9 +50,12 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
         final var description =
                 StringUtils.isNotBlank(nodeCreate.getDescription()) ? nodeCreate.getDescription() : null;
 
-        final var serviceEndpoints = nodeCreate.getServiceEndpointList().stream()
-                .map(this::toRegisteredServiceEndpoint)
-                .toList();
+        final var endpointList = nodeCreate.getServiceEndpointList();
+        final int size = endpointList.size();
+        final List<RegisteredServiceEndpoint> serviceEndpoints = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            serviceEndpoints.add(toRegisteredServiceEndpoint(endpointList.get(i)));
+        }
 
         return RegisteredNode.builder()
                 .adminKey(adminKey)

@@ -27,9 +27,6 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
 
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
-        transaction.setTransactionBytes(recordItem.getTransaction().toByteArray());
-        transaction.setTransactionRecordBytes(recordItem.getTransactionRecord().toByteArray());
-
         final var registeredNode = parseRegisteredNode(recordItem);
         if (registeredNode != null) {
             entityListener.onRegisteredNode(registeredNode);
@@ -69,12 +66,12 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         }
 
         return RegisteredServiceEndpoint.builder()
-                .ipAddress(ipAddress)
+                .blockNode(blockNode)
                 .domainName(domainName)
+                .ipAddress(ipAddress)
+                .mirrorNode(mirrorNode)
                 .port(proto.getPort())
                 .requiresTls(proto.getRequiresTls())
-                .blockNode(blockNode)
-                .mirrorNode(mirrorNode)
                 .rpcRelay(rpcRelay)
                 .build();
     }
