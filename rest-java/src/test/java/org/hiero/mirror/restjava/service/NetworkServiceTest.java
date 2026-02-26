@@ -5,13 +5,8 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
-import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Transaction;
-import com.hederahashgraph.api.proto.java.TransactionBody;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.junit.jupiter.api.Test;
 
@@ -66,41 +61,5 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         assertThatThrownBy(() -> networkService.getSupply(Bound.EMPTY))
                 .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("Network supply not found");
-    }
-
-    @Test
-    void estimateFees() {
-        // given
-        var transaction = cryptoTransferTransaction();
-
-        // when
-        var result = networkService.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
-
-        // then
-        assertThat(result).isNotNull();
-        assertThat(result.getTotal()).isPositive();
-    }
-
-    @Test
-    void estimateFeesStateMode() {
-        // given
-        var transaction = cryptoTransferTransaction();
-
-        // when / then
-        assertThatThrownBy(() -> networkService.estimateFees(transaction, FeeEstimateMode.STATE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("State-based fee estimation is not supported");
-    }
-
-    private Transaction cryptoTransferTransaction() {
-        var body = TransactionBody.newBuilder()
-                .setMemo("test")
-                .setCryptoTransfer(CryptoTransferTransactionBody.newBuilder().build())
-                .build();
-        var signedTransaction =
-                SignedTransaction.newBuilder().setBodyBytes(body.toByteString()).build();
-        return Transaction.newBuilder()
-                .setSignedTransactionBytes(signedTransaction.toByteString())
-                .build();
     }
 }

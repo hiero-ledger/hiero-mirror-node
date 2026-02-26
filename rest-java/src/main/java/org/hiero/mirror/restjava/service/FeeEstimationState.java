@@ -18,16 +18,13 @@ import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.State;
 import com.swirlds.state.StateChangeListener;
-import com.swirlds.state.spi.CommittableWritableStates;
 import com.swirlds.state.spi.ReadableKVStateBase;
 import com.swirlds.state.spi.ReadableQueueStateBase;
 import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
-import com.swirlds.state.spi.WritableKVStateBase;
-import com.swirlds.state.spi.WritableQueueState;
-import com.swirlds.state.spi.WritableSingletonStateBase;
 import com.swirlds.state.spi.WritableStates;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,10 +43,9 @@ final class FeeEstimationState implements State {
 
     private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
     private final Map<String, ReadableStates> readableStatesCache = new ConcurrentHashMap<>();
-    private final Map<String, WritableStates> writableStatesCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    FeeEstimationState() {
+    FeeEstimationState(Bytes simpleFeeBytes) {
         var midnightRates = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
                         .centEquiv(12)
@@ -77,6 +73,9 @@ final class FeeEstimationState implements State {
         var files = (Map<FileID, File>) states.computeIfAbsent(FileService.NAME, _ -> new ConcurrentHashMap<>())
                 .computeIfAbsent(V0490FileSchema.FILES_STATE_ID, _ -> new ConcurrentHashMap<>());
         files.put(fileId, file);
+        files.put(
+                FileID.newBuilder().fileNum(113).build(),
+                File.newBuilder().contents(simpleFeeBytes).build());
 
         addSingleton(
                 CongestionThrottleService.NAME,
@@ -115,25 +114,8 @@ final class FeeEstimationState implements State {
     }
 
     @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
     public WritableStates getWritableStates(String serviceName) {
-        return writableStatesCache.computeIfAbsent(serviceName, s -> {
-            var serviceStates = states.computeIfAbsent(s, _ -> new ConcurrentHashMap<>());
-            Map<Integer, Object> wrapped = new HashMap<>();
-            for (var entry : serviceStates.entrySet()) {
-                int stateId = entry.getKey();
-                Object state = entry.getValue();
-                if (state instanceof Map map) {
-                    wrapped.put(stateId, new InMemoryWritableKVState<>(stateId, map));
-                } else if (state instanceof AtomicReference ref) {
-                    wrapped.put(stateId, new InMemoryWritableSingletonState<>(stateId, ref));
-                }
-            }
-            return new InMemoryWritableStates(wrapped, () -> {
-                readableStatesCache.remove(serviceName);
-                writableStatesCache.remove(serviceName);
-            });
-        });
+        throw new UnsupportedOperationException("Fee estimation is read-only");
     }
 
     @Override
@@ -194,50 +176,6 @@ final class FeeEstimationState implements State {
         }
     }
 
-    @SuppressWarnings("NullAway")
-    private record InMemoryWritableStates(Map<Integer, Object> stateMap, Runnable onCommit)
-            implements WritableStates, CommittableWritableStates {
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <K, V> InMemoryWritableKVState<K, V> get(int stateId) {
-            return (InMemoryWritableKVState<K, V>) stateMap.get(stateId);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <T> InMemoryWritableSingletonState<T> getSingleton(int stateId) {
-            return (InMemoryWritableSingletonState<T>) stateMap.get(stateId);
-        }
-
-        @Override
-        public <E> WritableQueueState<E> getQueue(int stateId) {
-            throw new UnsupportedOperationException("Queue state not supported");
-        }
-
-        @Override
-        public boolean contains(int stateId) {
-            return stateMap.containsKey(stateId);
-        }
-
-        @Override
-        public Set<Integer> stateIds() {
-            return stateMap.keySet();
-        }
-
-        @Override
-        public void commit() {
-            for (var state : stateMap.values()) {
-                if (state instanceof WritableKVStateBase<?, ?> kv) {
-                    kv.commit();
-                } else if (state instanceof WritableSingletonStateBase<?> singleton) {
-                    singleton.commit();
-                }
-            }
-            onCommit.run();
-        }
-    }
-
     private static final class InMemoryReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
         private final Map<K, V> backingMap;
 
@@ -257,36 +195,6 @@ final class FeeEstimationState implements State {
         }
     }
 
-    @SuppressWarnings("NullableProblems")
-    private static final class InMemoryWritableKVState<K, V> extends WritableKVStateBase<K, V> {
-        private final Map<K, V> backingMap;
-
-        InMemoryWritableKVState(int stateId, Map<K, V> backingMap) {
-            super(stateId, "state." + stateId);
-            this.backingMap = backingMap;
-        }
-
-        @Override
-        protected @Nullable V readFromDataSource(K key) {
-            return backingMap.get(key);
-        }
-
-        @Override
-        protected void putIntoDataSource(K key, V value) {
-            backingMap.put(key, value);
-        }
-
-        @Override
-        protected void removeFromDataSource(K key) {
-            backingMap.remove(key);
-        }
-
-        @Override
-        protected long sizeOfDataSource() {
-            return backingMap.size();
-        }
-    }
-
     @SuppressWarnings("DataFlowIssue")
     private static final class InMemoryReadableSingletonState<T> extends ReadableSingletonStateBase<T> {
         private final AtomicReference<T> backingRef;
@@ -299,31 +207,6 @@ final class FeeEstimationState implements State {
         @Override
         protected @Nullable T readFromDataSource() {
             return backingRef.get();
-        }
-    }
-
-    @SuppressWarnings({"NullableProblems", "DataFlowIssue"})
-    private static final class InMemoryWritableSingletonState<T> extends WritableSingletonStateBase<T> {
-        private final AtomicReference<T> backingRef;
-
-        InMemoryWritableSingletonState(int stateId, AtomicReference<T> backingRef) {
-            super(stateId, "state." + stateId);
-            this.backingRef = backingRef;
-        }
-
-        @Override
-        protected @Nullable T readFromDataSource() {
-            return backingRef.get();
-        }
-
-        @Override
-        protected void putIntoDataSource(T value) {
-            backingRef.set(value);
-        }
-
-        @Override
-        protected void removeFromDataSource() {
-            backingRef.set(null);
         }
     }
 
