@@ -57,6 +57,7 @@ import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.BlockStreamReaderImpl;
+import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -148,6 +149,7 @@ final class BlockFileSourceTest {
         blockStreamVerifier = spy(new BlockStreamVerifier(
                 blockFileTransformer,
                 new BlockProperties(new ImporterProperties()),
+                mock(BlockStateProofHasher.class),
                 cutoverService,
                 mock(LedgerIdPublicationTransactionParser.class),
                 meterRegistry,
