@@ -4,7 +4,6 @@ create table if not exists registered_node
     created_timestamp      bigint          null,
     deleted                boolean         default false not null,
     description            varchar(100)    null,
-    node_account           bigint          null,
     registered_node_id     bigint          not null,
     service_endpoints      jsonb           null,
     timestamp_range        int8range       not null

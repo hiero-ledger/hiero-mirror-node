@@ -8,17 +8,13 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
 
-    private final EntityIdService entityIdService;
-
-    RegisteredNodeUpdateTransactionHandler(EntityListener entityListener, EntityIdService entityIdService) {
+    RegisteredNodeUpdateTransactionHandler(EntityListener entityListener) {
         super(entityListener);
-        this.entityIdService = entityIdService;
     }
 
     @Override
@@ -47,13 +43,6 @@ final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNod
 
         if (nodeUpdate.hasDescription()) {
             node.setDescription(nodeUpdate.getDescription().getValue());
-        }
-
-        if (nodeUpdate.hasNodeAccount()) {
-            entityIdService
-                    .lookup(nodeUpdate.getNodeAccount())
-                    .filter(e -> !EntityId.isEmpty(e))
-                    .ifPresent(node::setNodeAccount);
         }
 
         if (!nodeUpdate.getServiceEndpointList().isEmpty()) {

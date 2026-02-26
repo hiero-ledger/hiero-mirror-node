@@ -9,17 +9,13 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
-import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
 final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
 
-    private final EntityIdService entityIdService;
-
-    RegisteredNodeCreateTransactionHandler(EntityListener entityListener, EntityIdService entityIdService) {
+    RegisteredNodeCreateTransactionHandler(EntityListener entityListener) {
         super(entityListener);
-        this.entityIdService = entityIdService;
     }
 
     @Override
@@ -46,14 +42,7 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
         final var nodeCreate = txnBody.getRegisteredNodeCreate();
         final var receipt = recordItem.getTransactionRecord().getReceipt();
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
-        EntityId nodeAccount = null;
 
-        if (nodeCreate.hasNodeAccount()) {
-            nodeAccount = entityIdService
-                    .lookup(nodeCreate.getNodeAccount())
-                    .filter(e -> !EntityId.isEmpty(e))
-                    .orElse(null);
-        }
         final var adminKey = nodeCreate.hasAdminKey() ? nodeCreate.getAdminKey().toByteArray() : null;
         final var description =
                 StringUtils.isNotBlank(nodeCreate.getDescription()) ? nodeCreate.getDescription() : null;
@@ -67,7 +56,6 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
                 .createdTimestamp(consensusTimestamp)
                 .deleted(false)
                 .description(description)
-                .nodeAccount(nodeAccount)
                 .registeredNodeId(receipt.getRegisteredNodeId())
                 .serviceEndpoints(serviceEndpoints)
                 .timestampRange(Range.atLeast(consensusTimestamp))

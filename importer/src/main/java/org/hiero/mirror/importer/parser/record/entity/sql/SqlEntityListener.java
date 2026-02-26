@@ -753,10 +753,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             current.setDescription(previous.getDescription());
         }
 
-        if (current.getNodeAccount() == null) {
-            current.setNodeAccount(previous.getNodeAccount());
-        }
-
         if (current.getServiceEndpoints() == null) {
             current.setServiceEndpoints(previous.getServiceEndpoints());
         }

@@ -15,7 +15,6 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
-import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
 @MappedSuperclass
@@ -33,8 +32,6 @@ public abstract class AbstractRegisteredNode implements History {
     private boolean deleted;
 
     private String description;
-
-    private EntityId nodeAccount;
 
     @Id
     private Long registeredNodeId;
