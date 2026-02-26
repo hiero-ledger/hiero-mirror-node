@@ -11,7 +11,6 @@ import * as constants from '../constants';
 import EntityId from '../entityId';
 import {valueToBuffer} from './testutils';
 import {JSONStringify} from '../utils';
-import long from 'long';
 import {encodedIdFromSpecValue} from './integrationUtils';
 
 const config = getMirrorConfig();
@@ -900,7 +899,7 @@ const addTransaction = async (transaction) => {
   transaction.payer_account_id = encodedIdFromSpecValue(transaction.payerAccountId);
 
   if ((transaction.max_custom_fees ?? []).length !== 0) {
-    const idDefaults = {shardNum: long.fromValue(config.common.shard), realmNum: long.fromValue(config.common.realm)};
+    const idDefaults = {shardNum: BigInt(config.common.shard), realmNum: BigInt(config.common.realm)};
     transaction.max_custom_fees = transaction.max_custom_fees.map((fee) => {
       if (fee.fees) {
         fee.fees = fee.fees.map((f) => {
@@ -1364,8 +1363,8 @@ const addTopicMessage = async (message) => {
     const initialTransactionIdProto = proto.TransactionID.decode(valueToBuffer(message.initial_transaction_id));
     initialTransactionIdProto.accountID = proto.AccountID.create({
       accountNum: initialTransactionIdProto.accountID.accountNum,
-      shardNum: long.fromValue(config.common.shard),
-      realmNum: long.fromValue(config.common.realm),
+      shardNum: BigInt(config.common.shard),
+      realmNum: BigInt(config.common.realm),
     });
     message.initial_transaction_id = proto.TransactionID.encode(initialTransactionIdProto).finish();
   }
@@ -1685,7 +1684,6 @@ const addRecordFile = async (recordFileInput) => {
     'load_start',
     'logs_bloom',
     'name',
-    'node_id',
     'prev_hash',
     'size',
     'version',
@@ -1708,7 +1706,6 @@ const addRecordFile = async (recordFileInput) => {
     load_start: 1629298233,
     logs_bloom: Buffer.alloc(0),
     name: '2021-08-12T06_59_32.000852000Z.rcd',
-    node_id: 0,
     prev_hash: '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
     size: 6,
     version: 5,
