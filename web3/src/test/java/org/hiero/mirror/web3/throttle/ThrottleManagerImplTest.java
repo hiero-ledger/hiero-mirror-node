@@ -72,7 +72,6 @@ final class ThrottleManagerImplTest {
 
     @Test
     void opcodeRequestNotThrottled() {
-        var request = request();
         throttleManager.throttleOpcodeRequest();
     }
 
