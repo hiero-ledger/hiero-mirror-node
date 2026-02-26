@@ -6,6 +6,7 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.controller.AcceptEncodingInterceptor.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -243,6 +244,7 @@ class OpcodesControllerTest {
 
     private MockHttpServletRequestBuilder opcodesRequest(final String transactionIdOrHash) {
         return get(OPCODES_URI, transactionIdOrHash)
+                .accept(MediaType.APPLICATION_JSON)
                 .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON);
     }
@@ -515,8 +517,8 @@ class OpcodesControllerTest {
                         .header(HttpHeaders.ACCEPT_ENCODING, acceptEncoding)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotAcceptable())
-                .andExpect(responseBody(new GenericErrorResponse(
-                        NOT_ACCEPTABLE.getReasonPhrase(), "Accept-Encoding: gzip header is required")));
+                .andExpect(responseBody(
+                        new GenericErrorResponse(NOT_ACCEPTABLE.getReasonPhrase(), MISSING_GZIP_HEADER_MESSAGE)));
     }
 
     @ParameterizedTest

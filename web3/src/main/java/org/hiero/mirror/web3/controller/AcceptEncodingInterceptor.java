@@ -16,12 +16,14 @@ import org.springframework.web.servlet.HandlerInterceptor;
 @ConditionalOnProperty(prefix = "hiero.mirror.web3.opcode.tracer", name = "enabled", havingValue = "true")
 public class AcceptEncodingInterceptor implements HandlerInterceptor {
 
+    public static String MISSING_GZIP_HEADER_MESSAGE = "Accept-Encoding: gzip header is required";
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
-        String acceptEncoding = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
+        final var acceptEncodingHeader = request.getHeader(HttpHeaders.ACCEPT_ENCODING);
 
-        if (acceptEncoding == null || !acceptEncoding.toLowerCase().contains("gzip")) {
-            throw new InvalidRequestHeaderException("Accept-Encoding: gzip header is required");
+        if (acceptEncodingHeader == null || !acceptEncodingHeader.toLowerCase().contains("gzip")) {
+            throw new InvalidRequestHeaderException(MISSING_GZIP_HEADER_MESSAGE);
         }
         return true;
     }
