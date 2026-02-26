@@ -39,7 +39,6 @@ jobs:
           - monitor
           - rest
           - rest-java
-          - "rest:check-state-proof"
           - rosetta
           - test
           - web3
@@ -50,8 +49,6 @@ jobs:
           - project: common
             schema: v2
           - project: monitor
-            schema: v2
-          - project: rest:check-state-proof
             schema: v2
           - project: rosetta
             schema: v2

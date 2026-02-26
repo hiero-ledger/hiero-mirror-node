@@ -13,8 +13,11 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
+import static org.hiero.mirror.web3.service.ContractCallService.EVM_INVOCATION_METRIC;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_LIMIT_METRIC;
 import static org.hiero.mirror.web3.service.ContractCallService.GAS_USED_METRIC;
+import static org.hiero.mirror.web3.service.ContractCallService.TAG_BLOCK;
+import static org.hiero.mirror.web3.service.ContractCallService.TAG_TYPE;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.utils.ContractCallTestUtil.ECDSA_KEY;
@@ -36,6 +39,7 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import java.math.BigInteger;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
@@ -75,7 +79,7 @@ import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.tx.Contract;
 
 @RequiredArgsConstructor
-class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
+final class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTest {
 
     private final BinaryGasEstimator binaryGasEstimator;
     private final RecordFileService recordFileService;
@@ -610,6 +614,10 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
         }
         assertGasLimit(serviceParameters);
         evmProperties.setValidatePayerBalance(true);
+        final var counter = meterRegistry.find(EVM_INVOCATION_METRIC).counters().stream()
+                .findFirst()
+                .get();
+        assertThat(counter.getId().getTag(TAG_BLOCK)).isEqualTo(YearMonth.now().toString());
     }
 
     @Test
@@ -971,12 +979,19 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     private void assertGasUsedIsPositive(final double gasUsedBeforeExecution, final CallType callType) {
         final var counter = meterRegistry.find(GAS_USED_METRIC).counters().stream()
-                .filter(c -> callType.name().equals(c.getId().getTag("type")))
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
+                .findFirst()
+                .get();
+
+        final var counterInvocation = meterRegistry.find(EVM_INVOCATION_METRIC).counters().stream()
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
                 .findFirst()
                 .get();
 
         final var gasConsumed = counter.count() - gasUsedBeforeExecution;
         assertThat(gasConsumed).isPositive();
+        assertThat(counterInvocation.count()).isEqualTo(1L);
+        assertThat(counterInvocation.getId().getTag(TAG_BLOCK)).isEqualTo(BlockType.LATEST.toString());
     }
 
     private void assertGasLimit(ContractExecutionParameters parameters) {
@@ -985,7 +1000,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
 
     private void assertGasLimit(final CallType callType, final long gasLimit) {
         final var counter = meterRegistry.find(GAS_LIMIT_METRIC).counters().stream()
-                .filter(c -> callType.name().equals(c.getId().getTag("type")))
+                .filter(c -> callType.name().equals(c.getId().getTag(TAG_TYPE)))
                 .findFirst()
                 .get();
 
@@ -1059,7 +1074,7 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
-                .isEstimate(false)
+                .isEstimate(ETH_ESTIMATE_GAS == callType)
                 .isStatic(false)
                 .receiver(receiverAddress)
                 .sender(senderAddress)
@@ -1130,6 +1145,32 @@ class ContractCallServiceTest extends ContractCallServicePrecompileHistoricalTes
             // Then
             assertThat(result).isEqualTo(HEX_PREFIX);
             assertGasLimit(serviceParameters);
+        }
+
+        @Test
+        void transferToNonExistingAddressEstimateGas() {
+            // Given
+            final var payer = accountEntityWithEvmAddressPersist();
+
+            // The NON_EXISTING_ADDRESS should be a valid EVM alias key(Ethereum-style address derived from an ECDSA
+            // public key), otherwise INVALID_ALIAS_KEY could be thrown
+            final var serviceParameters = getContractExecutionParametersWithValue(
+                    BlockType.LATEST,
+                    Bytes.EMPTY,
+                    getAliasAddressFromEntity(payer),
+                    NON_EXISTING_ADDRESS,
+                    ETH_ESTIMATE_GAS,
+                    10000000L);
+
+            // When
+            final var result = contractExecutionService.processCall(serviceParameters);
+
+            // Then
+            final long expectedGas = 570000L;
+            final long estimatedGas = Long.parseLong(result.substring(2), 16);
+            assertThat(isWithinExpectedGasRange(estimatedGas, expectedGas))
+                    .withFailMessage(ESTIMATE_GAS_ERROR_MESSAGE, estimatedGas, expectedGas)
+                    .isTrue();
         }
 
         @Test

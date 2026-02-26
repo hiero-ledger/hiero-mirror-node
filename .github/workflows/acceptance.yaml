@@ -74,7 +74,7 @@ jobs:
           version: "4.0.5"
 
       - name: Setup Kind
-        uses: helm/kind-action@92086f6be054225fa813e0a4b13787fc9088faab # v1.13.0
+        uses: helm/kind-action@ef37e7f390d99f746eb8b610417061a60e82a6cc # v1.14.0
         with:
           cluster_name: ${{ env.SOLO_CLUSTER_NAME }}
           kubectl_version: v1.34.0
@@ -132,7 +132,7 @@ jobs:
             monitor:
             - 'monitor/**'
             rest:
-            - 'rest/!(check-state-proof|monitoring)?(/**)'
+            - 'rest/!(monitoring)?(/**)'
             rest-java:
             - 'rest-java/**'
             test:
@@ -168,6 +168,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
             enabled: true
           web3:
             env:
