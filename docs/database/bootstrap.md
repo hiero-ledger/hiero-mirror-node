@@ -1,17 +1,15 @@
 # Database Bootstrap Guide
 
-This guide provides step-by-step instructions for setting up a fresh PostgreSQL database and importing Mirror Node data into it using the `bootstrap.sh` script and `bootstrap.env` configuration file. The process involves initializing the database, configuring environment variables, and running the import script. The data import is a long-running process, so it's important to ensure it continues running even if your SSH session is terminated.
+This guide provides step-by-step instructions for setting up a fresh PostgreSQL database and importing Mirror Node data into it using the `bootstrap` Go binary. The process involves initializing the database, configuring environment variables, and running the import. The data import is a long-running process, so it's important to ensure it continues running even if your SSH session is terminated.
 
 ---
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-  - [1. Optional High-Performance Decompressors](#1-optional-high-performance-decompressors)
-  - [2. Environment Variables for Thread Counts](#2-environment-variables-for-thread-counts)
-  - [3. Sizing the Script Runner Machine](#3-sizing-the-script-runner-machine)
+  - [1. Sizing the Bootstrap Machine](#1-sizing-the-bootstrap-machine)
 - [Database Initialization and Data Import](#database-initialization-and-data-import)
-  - [1. Download the Required Scripts and Configuration File](#1-download-the-required-scripts-and-configuration-file)
+  - [1. Download the Required Files](#1-download-the-required-files)
   - [2. Edit the `bootstrap.env` Configuration File](#2-edit-the-bootstrapenv-configuration-file)
   - [3. Download the Database Export Data](#3-download-the-database-export-data)
     - [3.1. Set Your Default GCP Project](#31-set-your-default-gcp-project)
@@ -21,12 +19,13 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
       - [Download Minimal DB Data Files](#download-minimal-db-data-files)
       - [Download Full DB Data Files](#download-full-db-data-files)
   - [4. Check Version Compatibility](#4-check-version-compatibility)
-  - [5. Run the Bootstrap Script](#5-run-the-bootstrap-script)
-  - [6. Monitoring and Managing the Import Process](#6-monitoring-and-managing-the-import-process)
-    - [6.1. Monitoring the Import Process](#61-monitoring-the-import-process)
-    - [6.2. Stopping the Script](#62-stopping-the-script)
-    - [6.3. Resuming the Import Process](#63-resuming-the-import-process)
-    - [6.4. Start the Mirrornode Importer](#64-start-the-mirrornode-importer)
+  - [5. Initialize the Database](#5-initialize-the-database)
+  - [6. Run the Import](#6-run-the-import)
+  - [7. Monitoring and Managing the Import Process](#7-monitoring-and-managing-the-import-process)
+    - [7.1. Monitoring the Import Process](#71-monitoring-the-import-process)
+    - [7.2. Stopping the Import](#72-stopping-the-import)
+    - [7.3. Resuming the Import Process](#73-resuming-the-import-process)
+    - [7.4. Start the Mirror Node Importer](#74-start-the-mirror-node-importer)
 - [Handling Failed Imports](#handling-failed-imports)
 - [Additional Notes](#additional-notes)
 - [Troubleshooting](#troubleshooting)
@@ -35,16 +34,12 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
 
 ## Prerequisites
 
-1. Access to a modern Linux machine (tested on Ubuntu 24.04 LTS) where you can run the initialization/bootstrap scripts and connect to the PostgreSQL database.
+1. Access to a modern Linux or macOS machine where you can run the bootstrap binary and connect to the PostgreSQL database.
 2. **PostgreSQL 16** installed and running.
 3. Ensure the following tools are installed on your machine:
 
-   - `b3sum`
-   - `curl`
-   - `psql`
-   - `python3`
-
-   **Note:** The `bootstrap.sh` script performs a check for all required command-line tools upon startup and will halt if any are missing. The complete list of checked tools can be found in the `REQUIRED_TOOLS` array variable within the `bootstrap.sh` script itself. Most tools listed there are standard core utilities and are typically included in common Linux distributions.
+   - `psql` (PostgreSQL client)
+   - `jq` (optional, for parsing the tracking file)
 
 4. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install), then authenticate:
 
@@ -54,58 +49,114 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
 
 5. A Google Cloud Platform (GCP) account with a valid billing account attached (required for downloading data from a Requester Pays bucket). For detailed instructions on obtaining the necessary GCP information, refer to the [documentation](https://docs.hedera.com/hedera/core-concepts/mirror-nodes/run-your-own-beta-mirror-node/run-your-own-mirror-node-gcs#id-1.-obtain-google-cloud-platform-requester-pay-information).
 
-   ### 1. Optional High-Performance Decompressors
+   ### 1. Sizing the Bootstrap Machine
 
-   The script automatically detects and uses faster alternatives to `gunzip` if they are available in the system's or user's PATH:
+   The `bootstrap` binary processes up to `--jobs` (default: 8) data files concurrently. Each file uses `DECOMPRESSOR_THREADS` (default: 4) goroutines for parallel gzip decompression.
 
-   - [rapidgzip](https://github.com/mxmlnkn/rapidgzip) - A high-performance parallel gzip decompressor (fastest option, even for single-threaded decompression)
-   - [igzip](https://github.com/intel/isa-l) - Intel's optimized gzip implementation from ISA-L (second fastest option)
-
-   These tools can significantly improve decompression performance during the import process. If neither is available, the script will fall back to using standard `gunzip`.
-
-   ### 2. Environment Variables for Thread Counts
-
-   Thread counts for certain parallel operations can be configured via environment variables before running the script. If not set, defaults will be used.
-
-   **Important:** These thread counts apply _per parallel import job_ launched by the main script, not globally for the entire script. For example, if `MAX_JOBS` allows 4 concurrent import jobs and `B3SUM_THREADS` is set to 2, up to 8 threads could be used for hashing simultaneously across those jobs.
-
-   - `export B3SUM_THREADS=N` (Default: 2) - Number of threads for `b3sum` hash calculation.
-   - `export DECOMPRESSOR_THREADS=N` (Default: 2) - Number of threads used _only if_ `rapidgzip` or `igzip` is installed and selected by the script for decompression.
-
-   **Note:** The default `gunzip` decompressor is single-threaded and is not affected by these environment variables. When setting these values, be mindful of the CPU resources on the machine _running the script_. Setting thread counts too high relative to available cores can lead to CPU overcontention and potentially slow down the overall process rather than speeding it up.
-
-   ### 3. Sizing the Script Runner Machine
-
-   The `bootstrap.sh` script utilizes multiple layers of parallelism: it processes up to `MAX_JOBS` data files concurrently, and for each file, it may use `DECOMPRESSOR_THREADS` (for `rapidgzip` or `igzip`) and `B3SUM_THREADS` in parallel. Proper resource allocation on the machine running the script is crucial for optimal performance.
-
-   - **CPU Threads:** A good starting point is `((DECOMPRESSOR_THREADS + B3SUM_THREADS) * MAX_JOBS) + 2`.
-     - _Example:_ Using defaults (`DECOMPRESSOR_THREADS=2`, `B3SUM_THREADS=2`) and `MAX_JOBS=8` (derived from an 8-core DB), you would ideally want `((2 + 2) * 8) + 2 = 34` CPU threads available on the script runner machine.
-   - **RAM:** Allocate a minimum of 1GB, preferably 2GB, per calculated CPU thread.
-     - _Example:_ For 34 threads, aim for 34GB to 68GB of RAM.
+   - **CPU Cores:** Recommended formula: `MAX_JOBS + DECOMPRESSOR_THREADS + 2`
+     - _Example:_ With defaults (8 jobs, 4 decompressor threads): `8 + 4 + 2 = 14` CPU cores
+     - For maximum throughput on large machines: up to `MAX_JOBS × DECOMPRESSOR_THREADS` cores
+   - **RAM:** Allocate 128-256MB per parallel job
+     - _Example:_ For 8 jobs, aim for 2GB to 4GB of RAM.
 
    > [!NOTE]
-   > For optimal performance and resource isolation, it is strongly recommended to run the `bootstrap.sh` script on a separate machine from the PostgreSQL database server. This prevents contention for CPU, RAM, and I/O resources between the import script and the database itself.
+   > For optimal performance and resource isolation, it is strongly recommended to run `bootstrap` on a separate machine from the PostgreSQL database server. This prevents contention for CPU, RAM, and I/O resources between the import process and the database itself.
    >
-   > Additionally, ensure the database server has adequate resources for the import: allocate at least `MAX_JOBS + 2` CPU threads and sufficient RAM to handle `MAX_JOBS` concurrent write operations, considering your specific PostgreSQL configuration (e.g., `work_mem`, `shared_buffers`).
+   > Additionally, ensure the database server has adequate resources for the import: allocate at least `MAX_JOBS + 2` CPU threads and sufficient RAM to handle concurrent write operations.
 
 ---
 
 ## Database Initialization and Data Import
 
-### 1. Download the Required Scripts and Configuration File
+### 1. Build `bootstrap` from Source
 
-Download the `bootstrap.sh` script and the `bootstrap.env` configuration file. The `bootstrap.env` file comes with default values and needs to be edited to set your specific configurations.
+**Ensure you have Go 1.25 or later installed:**
 
-**Steps:**
+```bash
+# Check if Go is installed and verify version
+go version
+```
 
-1. **Download `bootstrap.sh` and `bootstrap.env`:**
+If Go is not installed or the version is older than 1.25, install or upgrade:
 
-   ```bash
-   curl -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/importer/src/main/resources/db/scripts/bootstrap.sh \
-        -O https://raw.githubusercontent.com/hiero-ledger/hiero-mirror-node/main/importer/src/main/resources/db/scripts/bootstrap.env
+- **Linux (Ubuntu/Debian):**
 
-   chmod +x bootstrap.sh
-   ```
+  ```bash
+  # Remove old Go installation (if exists)
+  sudo rm -rf /usr/local/go
+
+  # Download and install Go 1.25+ (adjust version as needed)
+  wget https://go.dev/dl/go1.25.0.linux-amd64.tar.gz
+  sudo tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz
+  rm go1.25.0.linux-amd64.tar.gz
+
+  # Add to PATH (add to ~/.bashrc or ~/.profile for persistence)
+  export PATH=$PATH:/usr/local/go/bin
+  ```
+
+- **macOS:**
+
+  ```bash
+  # Using Homebrew (installs or upgrades to latest version)
+  brew install go || brew upgrade go
+
+  # Or download from https://go.dev/dl/
+  ```
+
+After installation, verify:
+
+```bash
+go version
+```
+
+**Download the bootstrap source code:**
+
+```bash
+# Download the source tarball
+wget https://github.com/hiero-ledger/hiero-mirror-node/archive/refs/heads/main.tar.gz
+
+# Extract only the bootstrap directory
+tar xz --strip=2 -f main.tar.gz hiero-mirror-node-main/tools/bootstrap
+
+# Clean up
+rm main.tar.gz
+
+# Navigate to the bootstrap directory
+cd bootstrap
+```
+
+**Build the binary:**
+
+Install dependencies:
+
+```bash
+go mod tidy
+```
+
+Build for your target platform:
+
+```bash
+# Current platform (build and run locally)
+go build -o bootstrap ./cmd/mirrornode-bootstrap/
+
+# Linux x86_64
+GOOS=linux GOARCH=amd64 go build -o bootstrap ./cmd/mirrornode-bootstrap/
+
+# macOS x86_64 (Intel)
+GOOS=darwin GOARCH=amd64 go build -o bootstrap ./cmd/mirrornode-bootstrap/
+
+# macOS ARM64 (Apple Silicon)
+GOOS=darwin GOARCH=arm64 go build -o bootstrap ./cmd/mirrornode-bootstrap/
+```
+
+Verify the binary (if built for current platform):
+
+```bash
+./bootstrap --help
+```
+
+> [!NOTE]
+> The `bootstrap.env` configuration file is included in the directory. You can now move both the `bootstrap` binary and `bootstrap.env` file to your preferred working directory, or continue working in the current directory.
 
 ### 2. Edit the `bootstrap.env` Configuration File
 
@@ -152,21 +203,16 @@ Edit the `bootstrap.env` file to set your own credentials and passwords for data
 
   - Replace each `SET_PASSWORD` with a strong, unique password for each respective database user.
 
-- **(Optional) Configure Parallelism and Progress Monitoring:**
+- **(Optional) Configure Performance Settings:**
 
   ```bash
-  # Progress tracking refresh interval in seconds
-  export PROGRESS_INTERVAL=10
-
-  # Parallelism for compression and checksum calculation
-  export DECOMPRESSOR_THREADS=2 # Number of threads for selected decompressor (rapidgzip or igzip)
-  export B3SUM_THREADS=2        # Number of threads for b3sum
+  # Import performance settings (optional - defaults shown)
+  export MAX_JOBS="8"                    # Number of parallel import workers
+  export DECOMPRESSOR_THREADS="4"        # Goroutines per file for parallel gzip decompression
   ```
 
-  - `PROGRESS_INTERVAL`: How often (in seconds) the progress monitor updates `bootstrap_progress.log` (Default: 10).
-  - `DECOMPRESSOR_THREADS`: Number of threads used _only if_ `rapidgzip` or `igzip` is installed and selected for decompression (Default: 2).
-  - `B3SUM_THREADS`: Number of threads for `b3sum` hash calculation (Default: 2).
-  - **Note:** The thread counts apply _per parallel import job_. Be mindful of the CPU resources on the machine _running the script_ to avoid overcontention.
+  - `MAX_JOBS`: Number of files to import in parallel (see [Sizing the Bootstrap Machine](#1-sizing-the-bootstrap-machine))
+  - `DECOMPRESSOR_THREADS`: Number of goroutines for parallel gzip decompression per file
 
 - **Save and Secure the `bootstrap.env` File:**
 
@@ -272,215 +318,315 @@ After downloading the data, it's crucial to ensure version compatibility between
 
    - The version number in the `MIRRORNODE_VERSION.gz` file should match the name of the directory from which you downloaded the data, and should also be the version of the Mirror Node you intend to run using this export's data.
 
-### 5. Run the Bootstrap Script
+### 5. Initialize the Database
 
-The `bootstrap.sh` script initializes the database and imports the data. It is designed to be a one-stop solution for setting up your Mirror Node database.
+The `bootstrap init` command creates the database, roles, and permissions, validates the special files (`MIRRORNODE_VERSION.gz` and `schema.sql.gz`), and executes the schema.
 
 **Instructions:**
 
-1. **Ensure You Have `bootstrap.sh` and `bootstrap.env` in the Same Directory:**
+```bash
+./bootstrap init \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export
+```
 
-   ```bash
-   ls -l bootstrap.*
-   # Should list bootstrap.sh and bootstrap.env
-   ```
+**Flags:**
 
-2. **Run the Bootstrap Script Using `setsid` and Redirect Output to `bootstrap.log`:**
+- `-c, --config`: Path to the `bootstrap.env` configuration file
+- `-d, --data-dir`: Directory containing the downloaded data (including `schema.sql.gz`)
+- `-s, --schema`: (Optional) Direct path to `schema.sql` file, overrides `--data-dir`
 
-   To ensure the script continues running even if your SSH session is terminated, run it in a new session using `setsid`. The script handles its own logging, but we redirect stderr to capture any startup errors:
+**Notes:**
 
-   For a minimal database import (default):
+- The init command creates a `bootstrap-logs/SKIP_DB_INIT` flag file after successful initialization.
+- On subsequent runs, if `bootstrap-logs/SKIP_DB_INIT` exists, initialization is skipped.
+- To force re-initialization, delete the flag file:
 
-   ```bash
-   setsid ./bootstrap.sh 8 /path/to/db_export 2>> bootstrap.log
-   ```
+  ```bash
+  rm -f bootstrap-logs/SKIP_DB_INIT
+  ```
 
-   For a full database import:
+### 6. Run the Import
 
-   ```bash
-   setsid ./bootstrap.sh 8 --full /path/to/db_export 2>> bootstrap.log
-   ```
+The `bootstrap import` command imports all data files into PostgreSQL using parallel streaming COPY operations. All parallelism is managed internally via Go goroutines.
 
-   - The script handles logging internally to `bootstrap.log`, and the execution command will also append stderr to the log file
-   - `8` refers to the number of CPU cores to use for parallel processing. Adjust this number based on your system's resources.
-   - `/path/to/db_export` is the directory where you downloaded the database export data.
-   - The script creates several tracking and logging files:
+**Option A: Interactive Mode (stay connected)**
 
-     - `bootstrap.log`: Main log file for all script operations.
-     - `bootstrap.pid`: Stores the process ID of the main script, used for managing the process group (e.g., for termination). The script performs an improved check at startup to avoid conflicts with unrelated processes that might share a stale PID.
-     - `bootstrap_tracking.txt`: Tracks the progress of each file's import and hash verification.
-     - `bootstrap_progress.log`: Displays real-time progress of active `psql COPY` operations (see Monitoring section).
-     - `bootstrap_discrepancies.log`: Records any data verification issues (e.g., row count mismatches). Only created if discrepancies are found.
+Run directly with output to terminal:
 
-   - **Important**: The `SKIP_DB_INIT` flag file is automatically created by the script after a successful database initialization. Do not manually create or delete this file. If you need to force the script to reinitialize the database in future runs, remove the flag file using:
+```bash
+./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.csv \
+  --jobs 8
+```
 
-     ```bash
-     rm -f SKIP_DB_INIT
-     ```
+**Option B: Background Mode (SSH-safe)**
 
-3. **Verify the Script is Running:**
+Run in the background so it continues if your SSH session disconnects:
 
-   ```bash
-   tail -f bootstrap.log
-   watch --color -n .1 "cat bootstrap_progress.log | tail -n $(($(tput lines) - 2))"
-   ```
+```bash
+nohup ./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.csv \
+  --jobs 8 \
+  > bootstrap-logs/bootstrap.log 2>&1 &
+```
 
-   - Monitor the progress in the log and progress tracking files and check for any errors or warnings.
+**Flags:**
 
-4. **Disconnect Your SSH Session (Optional):**
+- `-c, --config`: Path to the `bootstrap.env` configuration file
+- `-d, --data-dir`: Directory containing the gzipped CSV data files (required)
+- `-m, --manifest`: Path to the `manifest.csv` file (required)
+- `-j, --jobs`: Number of parallel import jobs (default: 8)
 
-   You can safely close your SSH session. The script will continue running in the background.
+**Note:** For live progress monitoring, use the separate `watch` command (see section 7.1 below).
 
-### 6. Monitoring and Managing the Import Process
+**Files Created:**
 
-#### **6.1. Monitoring the Import Process:**
+The import process creates several files in the `bootstrap-logs/` directory:
+
+- `bootstrap-logs/bootstrap.log`: Main log file for all operations.
+- `bootstrap-logs/bootstrap.pid`: Process ID of the running import (for process management).
+- `bootstrap-logs/tracking.json`: JSON file tracking the import status of each file.
+- `bootstrap-logs/progress.txt`: Periodic progress snapshots (updated during import).
+- `bootstrap-logs/bootstrap_discrepancies.log`: Records any row count mismatches (only created if issues are found).
+- `bootstrap-logs/SKIP_DB_INIT`: Flag file indicating database has been initialized.
+
+**Verify the Import is Running (Background Mode):**
+
+```bash
+# Check if process is running
+ps -p $(cat bootstrap-logs/bootstrap.pid)
+
+# Watch the log file
+tail -f bootstrap-logs/bootstrap.log
+
+# Monitor live progress (in a separate terminal)
+./bootstrap watch -c bootstrap.env -m /path/to/db_export/manifest.csv -d /path/to/db_export
+```
+
+### 7. Monitoring and Managing the Import Process
+
+#### **7.1. Monitoring the Import Process:**
+
+- **Live Progress Display (Recommended):**
+
+  Run the `watch` command in a separate terminal to see real-time progress:
+
+  ```bash
+  ./bootstrap watch \
+    -c bootstrap.env \
+    -m /path/to/db_export/manifest.csv \
+    -d /path/to/db_export
+  ```
+
+  Flags:
+
+  - `-c, --config`: Path to bootstrap.env configuration file
+  - `-m, --manifest`: Path to manifest.csv file (enables row count and percentage display)
+  - `-d, --data-dir`: Directory containing data files
+  - `-i, --interval`: Refresh interval in seconds (default: 1)
+
+  This displays a live-updating table showing:
+
+  - `Filename`: The data file being imported
+  - `Rows/Total`: Current rows processed / expected total (requires `--manifest`)
+  - `%`: Completion percentage
+  - `Rate`: Import speed in rows per second
+
+  Press `Ctrl+C` to stop watching.
 
 - **Check the Main Log File:**
 
   ```bash
-  tail -f bootstrap.log
+  tail -f bootstrap-logs/bootstrap.log
   ```
 
-  - The script logs all activity to `bootstrap.log`.
-  - Note that the script processes files in parallel and asynchronously. Activities are logged as they occur, so log entries may appear in an arbitrary order.
+  - The binary logs all activity including file imports, validation results, and errors.
+  - Files are processed in parallel, so log entries may appear in an arbitrary order.
 
-- **Check the Progress Log File:**
-
-  - To continuously view the latest progress with automatic screen refreshing, use the following `watch` command:
+- **Quick Status Check:**
 
   ```bash
-  watch --color -n .1 "cat bootstrap_progress.log | tail -n $(($(tput lines) - 2))"
+  ./bootstrap status -c bootstrap.env
   ```
 
-  - This command uses `watch` to re-run the `cat | tail` command every 0.1 seconds. `$(($(tput lines) - 2))` calculates the number of lines in your current terminal and subtracts 2, and `tail -n` uses this value to display the most recent log lines that fit your screen height.
+  Displays a summary of import progress from the tracking file:
 
-  - This file provides a real-time, formatted view of active import jobs. It typically updates every `$PROGRESS_INTERVAL` seconds (default: 10 seconds, configurable in `bootstrap.env`).
-  - Columns include:
-    - `Filename`: The data file being imported.
-    - `Rows_Processed`: Current count of rows processed by `psql COPY`.
-    - `Total_Rows`: Expected total rows for the file from the manifest.
-    - `Percentage`: Calculated completion percentage.
-    - `Rate(rows/s)`: Estimated import rate in rows per second based on recent progress.
-  - If the monitor cannot query the database or encounters issues, an error message will be displayed in this file. Check `bootstrap.log` for more details in that case.
+  - `Imported`: Files successfully imported
+  - `In Progress`: Files currently being imported
+  - `Failed`: Files that failed to import
+  - `Not Started`: Files not yet processed
 
 - **Check the Tracking File:**
 
   ```bash
-  cat bootstrap_tracking.txt
+  # View formatted JSON
+  cat bootstrap-logs/tracking.json | jq .
+
+  # Count total files
+  jq 'keys | length' bootstrap-logs/tracking.json
+
+  # Show only IMPORTED files
+  jq 'to_entries | .[] | select(.value.status == "IMPORTED") | .key' bootstrap-logs/tracking.json
+
+  # Show files NOT imported (failed or in progress)
+  jq 'to_entries | .[] | select(.value.status != "IMPORTED")' bootstrap-logs/tracking.json
+
+  # Count by status
+  jq '[.[] | {status: .status}] | group_by(.status) | map({status: .[0].status, count: length})' bootstrap-logs/tracking.json
   ```
 
-  - This file tracks the status of each file being imported.
-  - Each line contains the file name, followed by two status indicators:
-    - Import Status:
+  - This JSON file tracks the status of each file being imported.
+  - Each entry contains:
+    - `status`: Import status
       - `NOT_STARTED`: File has not begun processing.
       - `IN_PROGRESS`: File is currently being validated or imported.
       - `IMPORTED`: File was successfully validated and imported.
       - `FAILED_VALIDATION`: File failed size or hash check.
-      - `FAILED_TO_IMPORT`: File import process failed (e.g., `psql` error).
-    - Hash Verification Status:
+      - `FAILED_TO_IMPORT`: File import process failed.
+    - `hash_status`: Hash verification status
       - `HASH_UNVERIFIED`: BLAKE3 hash has not been verified yet.
       - `HASH_VERIFIED`: BLAKE3 hash verification passed.
-      - `ROW_COUNT_UNVERIFIED`: (Fallback) Import completed, primary row count query failed, but a basic data existence check passed.
 
-#### **6.2. Stopping the Script**
+#### **7.2. Stopping the Import**
 
-If you need to stop the script before it completes:
+If you need to stop the import before it completes:
 
-1. **Gracefully Terminate the Script and All Child Processes:**
-
-   ```bash
-   kill -TERM -- -$(cat temp/bootstrap.pid)
-   ```
-
-   - Sends the `SIGTERM` signal to the entire process group identified by the PID in `temp/bootstrap.pid`.
-   - Allows the script and all its background processes to perform cleanup (including removing temporary DB objects and files) and exit gracefully.
-
-2. **If the Script Doesn't Stop, Force Termination of the Process Group:**
+1. **Gracefully Terminate the Process:**
 
    ```bash
-   kill -KILL -- -$(cat temp/bootstrap.pid)
+   kill -TERM $(cat bootstrap-logs/bootstrap.pid)
    ```
 
-   - Sends the `SIGKILL` signal to the entire process group.
-   - Immediately terminates the script and its children. **Cleanup might not complete successfully.** This is generally discouraged unless graceful termination does not work.
+   - Sends the `SIGTERM` signal to the import process.
+   - Allows the binary to perform cleanup (cancel in-flight operations) and exit gracefully.
 
-#### **6.3. Resuming the Import Process**
+2. **If the Process Doesn't Stop, Force Termination:**
 
-- **Re-run the Bootstrap Script:**
+   ```bash
+   kill -KILL $(cat bootstrap-logs/bootstrap.pid)
+   ```
 
-  ```bash
-  # Minimal DB
-  setsid ./bootstrap.sh 8 /path/to/db_export 2>> bootstrap.log
+   - Sends the `SIGKILL` signal for immediate termination.
+   - **Cleanup might not complete successfully.** This is generally discouraged unless graceful termination does not work.
 
-  # Full DB
-  setsid ./bootstrap.sh 8 --full /path/to/db_export 2>> bootstrap.log
-  ```
+#### **7.3. Resuming the Import Process**
 
-  - The script will resume where it left off, skipping files that have already been imported successfully.
-  - Add the `--full` flag if you were performing a full database import previously.
+Simply re-run the import command:
 
-#### **6.4. Start the Mirrornode Importer**
+```bash
+# Interactive mode
+./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.csv \
+  --jobs 8
 
-- Once the bootstrap process completes without errors (check `bootstrap.log` for a success message and verify `bootstrap_tracking.txt` shows all files as `IMPORTED HASH_VERIFIED`), you may start the Mirrornode Importer.
+# Or background mode
+nohup ./bootstrap import \
+  --config bootstrap.env \
+  --data-dir /path/to/db_export \
+  --manifest /path/to/db_export/manifest.csv \
+  --jobs 8 \
+  >> bootstrap-logs/bootstrap.log 2>&1 &
+```
+
+- The import automatically resumes where it left off.
+- Files marked as `IMPORTED` in `bootstrap-logs/tracking.json` are skipped.
+- Files left in `IN_PROGRESS`, `FAILED_TO_IMPORT`, or `FAILED_VALIDATION` from the previous run are reset to `NOT_STARTED` on startup. Each file handles its own data cleanup (truncation or targeted delete) during import. This reset is logged for each file.
+
+#### **7.4. Start the Mirror Node Importer**
+
+Once the bootstrap process completes without errors:
+
+1. Check `bootstrap-logs/bootstrap.log` for a success message.
+2. Run `./bootstrap status -c bootstrap.env` and verify all files show as `Imported` with zero failures.
+3. You may now start the Mirror Node Importer service.
 
 ---
 
 ## Handling Failed Imports
 
-During the import process, the script generates `bootstrap_tracking.txt`, which logs the status of each file import (see Monitoring section for status descriptions). If any files end with `FAILED_VALIDATION` or `FAILED_TO_IMPORT`, the script will exit with an error status.
+During the import process, the binary tracks the status of each file in `bootstrap-logs/tracking.json`. If any files end with `FAILED_VALIDATION` or `FAILED_TO_IMPORT`, the import will exit with an error status.
 
-**Example of `bootstrap_tracking.txt`:**
+**Example of `bootstrap-logs/tracking.json`:**
 
+```json
+{
+  "account_balance_p2024_01.csv.gz": {
+    "status": "IMPORTED",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "transaction_p2019_08.csv.gz": {
+    "status": "FAILED_VALIDATION",
+    "hash_status": "HASH_UNVERIFIED"
+  },
+  "transaction_p2019_09.csv.gz": {
+    "status": "FAILED_TO_IMPORT",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "token_balance_p2024_01.csv.gz": {
+    "status": "IMPORTED",
+    "hash_status": "HASH_VERIFIED"
+  },
+  "contract_result_p2024_01.csv.gz": {
+    "status": "NOT_STARTED",
+    "hash_status": "HASH_UNVERIFIED"
+  }
+}
 ```
-schema.sql.gz IMPORTED HASH_VERIFIED
-MIRRORNODE_VERSION.gz IMPORTED HASH_VERIFIED
-account_balance_p2024_01.csv.gz IMPORTED HASH_VERIFIED
-transaction_p2019_08.csv.gz FAILED_VALIDATION HASH_UNVERIFIED
-transaction_p2019_09.csv.gz FAILED_TO_IMPORT HASH_VERIFIED
-token_balance_p2024_01.csv.gz IMPORTED HASH_VERIFIED
-```
+
+> **Note:** Special files (`schema.sql.gz` and `MIRRORNODE_VERSION.gz`) are handled during `init`, not `import`, and are not tracked in this file.
 
 **Notes on Data Consistency:**
 
-- **Automatic Retry:** When you re-run the `bootstrap.sh` script, it will automatically attempt to import files marked NOT marked as "IMPORTED".
-- **Data Integrity:** The script uses single transactions for `psql COPY` operations, ensuring that no partial data is committed in case of an import failure for a specific file. Hash and size validation prevent corrupted data files from being imported.
-- **Concurrent Write Safety:** The script uses file locking (`flock`) to safely handle concurrent writes to tracking and log files.
+- **Automatic Cleanup and Retry:** When you re-run the import command, files left in `IN_PROGRESS`, `FAILED_TO_IMPORT`, or `FAILED_VALIDATION` are automatically cleaned up (truncated and reset to `NOT_STARTED`), then re-imported along with any remaining `NOT_STARTED` files.
+- **Data Integrity:** Each file import uses a single PostgreSQL transaction, ensuring no partial data is committed in case of failure. Hash and size validation prevent corrupted data files from being imported.
 
 ---
 
 ## Additional Notes
 
 - **System Resources:**
-  - Adjust the number of CPU cores used (`8` in the example) based on your system's capabilities.
-  - Monitor system resources (CPU, memory, I/O) on both the client machine and the database server during the import process to identify potential bottlenecks.
+  - Adjust the number of parallel jobs (`--jobs`) based on your system's capabilities.
+  - Monitor system resources (CPU, memory, I/O) on both the bootstrap machine and the database server during the import process.
 - **Security Considerations:**
   - Secure your `bootstrap.env` file and any other files containing sensitive information.
-- **Environment Variables:**
-  - Ensure `bootstrap.env` is in the same directory as `bootstrap.sh`.
+- **Debug Mode:**
+  - Set `DEBUG_MODE=true` environment variable for verbose logging:
+    ```bash
+    DEBUG_MODE=true ./bootstrap import ...
+    ```
 
 ---
 
 ## Troubleshooting
 
 - **Connection Errors:**
-  - Confirm that `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` in `bootstrap.env` are correctly set for the _initial connection_ (usually as `postgres` user to the `postgres` database). The script switches credentials internally after initialization.
-  - Ensure that the database server allows connections from your client machine (check `pg_hba.conf` and firewall rules).
+  - Confirm that `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` in `bootstrap.env` are correctly set.
+  - Ensure that the database server allows connections from your machine (check `pg_hba.conf` and firewall rules).
   - Verify that the database port (`PGPORT`) is correct and accessible.
 - **Import Failures:**
-  - Review `bootstrap.log` for detailed error messages from `psql`, `b3sum`, decompressors, or the script itself.
-  - Check `bootstrap_tracking.txt` to identify which files failed validation or import.
-  - Check `bootstrap_discrepancies.log` for specific row count mismatches (this file is only created if discrepancies are found).
-  - Check `bootstrap_progress.log` for errors related to the progress monitor itself.
-  - Re-run the `bootstrap.sh` script to retry importing failed files.
+  - Review `bootstrap-logs/bootstrap.log` for detailed error messages.
+  - Check `bootstrap-logs/tracking.json` to identify which files failed validation or import.
+  - Check `bootstrap-logs/bootstrap_discrepancies.log` for specific row count mismatches.
+  - Re-run the import command to retry failed files.
 - **Permission Denied Errors:**
-  - Ensure that the initial user specified in `PGUSER` has superuser privileges or sufficient permissions to create databases and roles.
-  - Verify that file system permissions allow the script to read the data directory and write log/tracking files in the current directory.
+  - Ensure that the user specified in `PGUSER` has superuser privileges or sufficient permissions to create databases and roles.
+  - Verify that file system permissions allow the binary to read the data directory and write to the `bootstrap-logs/` directory.
 - **Environment Variable Issues:**
   - Double-check that all required variables in `bootstrap.env` are correctly set and exported.
-  - Ensure there are no typos or missing variables. Check `bootstrap.log` for errors related to sourcing the environment file.
-- **Script Does Not Continue After SSH Disconnect:**
-  - Ensure you used `setsid` when running the script.
-  - Confirm that the script is running by checking the process list:
+  - Ensure there are no typos or missing variables.
+- **Process Does Not Continue After SSH Disconnect:**
+  - Ensure you used `nohup` when running the import in background mode.
+  - Confirm that the process is running:
     ```bash
-    ps -p $(cat bootstrap.pid)
+    ps -p $(cat bootstrap-logs/bootstrap.pid)
     ```
+- **Out of Memory Errors:**
+  - Reduce the number of parallel jobs with `--jobs`.
+  - Ensure sufficient RAM is available (128-256MB per job recommended).
