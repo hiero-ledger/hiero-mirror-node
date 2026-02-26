@@ -121,6 +121,46 @@ class Eip7702EthereumTransactionParserTest extends AbstractEthereumTransactionPa
     }
 
     @Test
+    void decodeEmptyAuthorizationListSucceeds() {
+        final var transactionData = List.of(
+                Hex.decode(CHAIN_ID_HEX),
+                Integers.toBytes(NONCE),
+                Hex.decode(FEE_HEX),
+                Hex.decode(FEE_HEX),
+                Integers.toBytes(GAS_LIMIT),
+                Hex.decode(TO_ADDRESS_HEX),
+                Hex.decode(VALUE_HEX),
+                Hex.decode(CALL_DATA_HEX),
+                List.of(),
+                List.of(),
+                Integers.toBytes(1),
+                Hex.decode(SIGNATURE_R_HEX),
+                Hex.decode(SIGNATURE_S_HEX));
+        final var ethereumTransactionBytes = RLPEncoder.sequence(Integers.toBytes(4), transactionData);
+
+        final var ethereumTransaction = ethereumTransactionParser.decode(ethereumTransactionBytes);
+
+        assertThat(ethereumTransaction)
+                .isNotNull()
+                .returns(Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE, EthereumTransaction::getType)
+                .returns(Hex.decode(CHAIN_ID_HEX), EthereumTransaction::getChainId)
+                .returns(NONCE, EthereumTransaction::getNonce)
+                .returns(null, EthereumTransaction::getGasPrice)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxPriorityFeePerGas)
+                .returns(Hex.decode(FEE_HEX), EthereumTransaction::getMaxFeePerGas)
+                .returns(GAS_LIMIT, EthereumTransaction::getGasLimit)
+                .returns(Hex.decode(TO_ADDRESS_HEX), EthereumTransaction::getToAddress)
+                .returns(Hex.decode(VALUE_HEX), EthereumTransaction::getValue)
+                .returns(Hex.decode(CALL_DATA_HEX), EthereumTransaction::getCallData)
+                .returns(Hex.decode(""), EthereumTransaction::getAccessList)
+                .returns(1, EthereumTransaction::getRecoveryId)
+                .returns(null, EthereumTransaction::getSignatureV)
+                .returns(Hex.decode(SIGNATURE_R_HEX), EthereumTransaction::getSignatureR)
+                .returns(Hex.decode(SIGNATURE_S_HEX), EthereumTransaction::getSignatureS);
+        assertThat(ethereumTransaction.getAuthorizationList()).isEmpty();
+    }
+
+    @Test
     void decodeMultipleAuthorizationEntries() {
         var transactionBytes = RLPEncoder.sequence(
                 Integers.toBytes(4),

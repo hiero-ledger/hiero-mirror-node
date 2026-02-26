@@ -121,9 +121,6 @@ local.properties
 .idea/
 *.iml
 
-# check-state-proof output dir
-rest/check-state-proof/output
-
 # generated spec based integration test modules
 rest/__tests__/integration/*.spec.test.js
 

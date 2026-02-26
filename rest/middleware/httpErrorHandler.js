@@ -8,7 +8,6 @@ const defaultStatusCode = httpStatusCodes.INTERNAL_ERROR;
 
 const errorMap = {
   DbError: httpStatusCodes.SERVICE_UNAVAILABLE,
-  FileDownloadError: httpStatusCodes.BAD_GATEWAY,
   InvalidArgumentError: httpStatusCodes.BAD_REQUEST,
   NotFoundError: httpStatusCodes.NOT_FOUND,
   RangeError: httpStatusCodes.BAD_REQUEST,
