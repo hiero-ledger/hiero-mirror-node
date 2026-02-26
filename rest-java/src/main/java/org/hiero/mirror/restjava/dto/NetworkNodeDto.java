@@ -6,8 +6,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Record-based projection representing a network node query result from the database. Spring Data JPA maps query column
- * aliases directly to record components, avoiding proxy overhead. JSON string fields are converted to objects by the
- * service layer using Spring-managed converters.
+ * aliases directly to record components, avoiding proxy overhead. The SQL query handles all formatting (hex encoding,
+ * "0x" prefixes, JSON conversion) to produce ready-to-use values.
  *
  * <p>Parameter order matches the SQL SELECT clause order (alphabetically sorted by alias name).
  */
@@ -22,7 +22,7 @@ public record NetworkNodeDto(
         @Nullable String memo,
         @Nullable Long minStake,
         @Nullable Long nodeAccountId,
-        byte @Nullable [] nodeCertHash,
+        @Nullable String nodeCertHash,
         @Nullable Long nodeId,
         @Nullable String publicKey,
         @Nullable Long rewardRateStart,
