@@ -2,58 +2,56 @@
 
 package org.hiero.mirror.restjava.service;
 
+import com.hedera.hapi.node.base.Transaction;
+import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.node.app.config.ConfigProviderImpl;
 import com.hedera.node.app.fees.StandaloneFeeCalculator;
 import com.hedera.node.app.fees.StandaloneFeeCalculatorImpl;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.inject.Named;
-import java.util.List;
+import java.io.IOException;
 import java.util.Map;
 import org.hiero.hapi.fees.FeeResult;
-import org.hiero.mirror.rest.model.FeeEstimate;
+import org.hiero.hapi.support.fees.FeeSchedule;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
-import org.hiero.mirror.rest.model.FeeEstimateNetwork;
-import org.hiero.mirror.rest.model.FeeEstimateResponse;
-import org.hiero.mirror.rest.model.FeeExtra;
+import org.hiero.mirror.restjava.repository.FileDataRepository;
 
 @Named
-final class FeeEstimationService {
+public final class FeeEstimationService {
 
     private static final Map<String, String> INTRINSIC_CONFIG = Map.of("fees.simpleFeesEnabled", "true");
 
     private final StandaloneFeeCalculator intrinsicCalculator;
 
-    FeeEstimationService() {
-        this.intrinsicCalculator = buildIntrinsicCalculator();
+    FeeEstimationService(FileDataRepository fileDataRepository, SystemEntity systemEntity) {
+        this.intrinsicCalculator =
+                buildIntrinsicCalculator(loadSimpleFeeScheduleBytes(fileDataRepository, systemEntity));
     }
 
-    @SuppressWarnings("deprecation")
-    public FeeEstimateResponse estimateFees(Transaction transaction, FeeEstimateMode mode) {
+    public FeeResult estimateFees(Transaction transaction, FeeEstimateMode mode) {
         if (mode == FeeEstimateMode.STATE) {
             throw new IllegalArgumentException("State-based fee estimation is not supported");
         }
         try {
-            if (transaction.getBodyBytes().isEmpty()
-                    && transaction.getSignedTransactionBytes().isEmpty()) {
+            Transaction pbjTxn;
+            if (transaction.signedTransactionBytes().length() > 0) {
+                pbjTxn = transaction;
+            } else if (transaction.bodyBytes().length() > 0) {
+                var signedTxn = SignedTransaction.newBuilder()
+                        .bodyBytes(transaction.bodyBytes())
+                        .build();
+                pbjTxn = Transaction.newBuilder()
+                        .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTxn))
+                        .build();
+            } else {
                 throw new IllegalArgumentException("Transaction must contain body bytes or signed transaction bytes");
             }
-            com.hedera.hapi.node.base.Transaction pbjTxn;
-            if (!transaction.getSignedTransactionBytes().isEmpty()) {
-                pbjTxn = com.hedera.hapi.node.base.Transaction.PROTOBUF.parse(Bytes.wrap(transaction.toByteArray()));
-            } else {
-                var signedTxn = com.hedera.hapi.node.transaction.SignedTransaction.newBuilder()
-                        .bodyBytes(Bytes.wrap(transaction.getBodyBytes().toByteArray()))
-                        .build();
-                pbjTxn = com.hedera.hapi.node.base.Transaction.newBuilder()
-                        .signedTransactionBytes(
-                                com.hedera.hapi.node.transaction.SignedTransaction.PROTOBUF.toBytes(signedTxn))
-                        .build();
-            }
-            return toResponse(intrinsicCalculator.calculateIntrinsic(pbjTxn));
+            return intrinsicCalculator.calculateIntrinsic(pbjTxn);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
@@ -61,42 +59,30 @@ final class FeeEstimationService {
         }
     }
 
-    private static StandaloneFeeCalculator buildIntrinsicCalculator() {
-        var state = new FeeEstimationState();
+    private static Bytes loadSimpleFeeScheduleBytes(FileDataRepository repo, SystemEntity systemEntity) {
+        var fileId = systemEntity.simpleFeeScheduleFile().getId();
+        return repo.getFileAtTimestamp(fileId, 0L, Long.MAX_VALUE)
+                .map(fd -> Bytes.wrap(fd.getFileData()))
+                .orElseGet(() -> {
+                    try (var in = V0490FileSchema.class.getResourceAsStream("/genesis/simpleFeesSchedules.json")) {
+                        if (in == null) {
+                            throw new IllegalStateException("Bundled simpleFeesSchedules.json not found on classpath");
+                        }
+                        var schedule = V0490FileSchema.parseSimpleFeesSchedules(in.readAllBytes());
+                        return FeeSchedule.PROTOBUF.toBytes(schedule);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to load bundled simpleFeesSchedules.json", e);
+                    }
+                });
+    }
+
+    private static StandaloneFeeCalculator buildIntrinsicCalculator(Bytes simpleFeeBytes) {
+        var state = new FeeEstimationState(simpleFeeBytes);
         var properties = TransactionExecutors.Properties.newBuilder()
                 .state(state)
                 .appProperties(INTRINSIC_CONFIG)
                 .build();
         var config = new ConfigProviderImpl(false, null, INTRINSIC_CONFIG).getConfiguration();
         return new StandaloneFeeCalculatorImpl(state, properties, new AppEntityIdFactory(config));
-    }
-
-    private static FeeEstimateResponse toResponse(FeeResult r) {
-        return new FeeEstimateResponse()
-                .node(new FeeEstimate()
-                        .base(r.getNodeBaseFeeTinycents())
-                        .extras(r.getNodeExtraDetails().stream()
-                                .map(FeeEstimationService::toExtra)
-                                .toList()))
-                .network(new FeeEstimateNetwork()
-                        .multiplier(r.getNetworkMultiplier())
-                        .subtotal(r.getNetworkTotalTinycents()))
-                .service(new FeeEstimate()
-                        .base(r.getServiceBaseFeeTinycents())
-                        .extras(r.getServiceExtraDetails().stream()
-                                .map(FeeEstimationService::toExtra)
-                                .toList()))
-                .total(r.totalTinycents())
-                .notes(List.of());
-    }
-
-    private static FeeExtra toExtra(FeeResult.FeeDetail d) {
-        return new FeeExtra()
-                .name(d.name())
-                .count((int) d.used())
-                .feePerUnit(d.perUnit())
-                .included((int) d.included())
-                .charged((int) d.charged())
-                .subtotal(d.perUnit() * d.charged());
     }
 }

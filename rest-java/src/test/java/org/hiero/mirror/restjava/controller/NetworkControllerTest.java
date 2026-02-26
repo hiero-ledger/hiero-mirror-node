@@ -566,7 +566,6 @@ final class NetworkControllerTest extends ControllerTest {
             assertThat(actual.getNetwork()).isNotNull();
             assertThat(actual.getService()).isNotNull();
             assertThat(actual.getTotal()).isNotNull();
-            assertThat(actual.getNotes()).isNotNull();
         }
 
         @Test

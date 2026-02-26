@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -10,8 +9,6 @@ import java.time.ZoneOffset;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.rest.model.FeeEstimateMode;
-import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
@@ -24,14 +21,8 @@ final class NetworkServiceImpl implements NetworkService {
 
     private final AccountBalanceRepository accountBalanceRepository;
     private final EntityRepository entityRepository;
-    private final FeeEstimationService feeEstimationService;
     private final NetworkStakeRepository networkStakeRepository;
     private final NetworkProperties networkProperties;
-
-    @Override
-    public FeeEstimateResponse estimateFees(Transaction transaction, FeeEstimateMode mode) {
-        return feeEstimationService.estimateFees(transaction, mode);
-    }
 
     @Override
     public NetworkStake getLatestNetworkStake() {
