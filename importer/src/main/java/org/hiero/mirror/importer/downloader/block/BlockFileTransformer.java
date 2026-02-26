@@ -47,7 +47,6 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                 .loadEnd(blockFile.getLoadEnd())
                 .loadStart(blockFile.getLoadStart())
                 .name(blockFile.getName())
-                .nodeId(blockFile.getNodeId())
                 .previousHash(blockFile.getPreviousHash())
                 .roundEnd(blockFile.getRoundEnd())
                 .roundStart(blockFile.getRoundStart())

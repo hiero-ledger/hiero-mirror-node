@@ -468,10 +468,6 @@ Beginning from an `EventTransaction` block item, a record item is composed of on
 | prng_bytes          | transaction_output.util_prng.entropy.prng_bytes  |
 | prng_number         | transaction_output.util_prng.entropy.prng_number |
 
-## REST API
-
-- Deprecate the REST API's State Proof Alpha. The record files and signature files will no longer be provided in the cloud buckets.
-
 ## Testing
 
 - Add a BlockFile to RecordFile comparer class to the importer along with a configuration option to ingest both record and block files together and to compare the transformed record file to the corresponding record file and to log differences. This configuration can be run in test environments.

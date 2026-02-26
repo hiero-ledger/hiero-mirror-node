@@ -16,7 +16,6 @@ import config from './config';
 import * as constants from './constants';
 import health from './health';
 import schedules from './schedules';
-import stateproof from './stateproof';
 import tokens from './tokens';
 import topicmessage from './topicmessage';
 import transactions from './transactions';
@@ -119,14 +118,6 @@ app.use(`${apiPrefix}/${BlockRoutes.resource}`, BlockRoutes.router);
 // schedules routes
 app.getExt(`${apiPrefix}/schedules`, schedules.getSchedules);
 app.getExt(`${apiPrefix}/schedules/:scheduleId`, schedules.getScheduleById);
-
-// stateproof route
-if (config.stateproof.enabled || isTestEnv()) {
-  logger.info('stateproof REST API is enabled, install handler');
-  app.getExt(`${apiPrefix}/transactions/:transactionId/stateproof`, stateproof.getStateProofForTransaction);
-} else {
-  logger.info('stateproof REST API is disabled');
-}
 
 // tokens routes
 app.getExt(`${apiPrefix}/tokens`, tokens.getTokensRequest);
