@@ -19,11 +19,11 @@ import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
 
 @RequiredArgsConstructor
-public abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransactionHandler {
+abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransactionHandler {
 
     private final EntityListener entityListener;
 
-    public abstract RegisteredNode parseRegisteredNode(RecordItem recordItem);
+    protected abstract RegisteredNode parseRegisteredNode(RecordItem recordItem);
 
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
@@ -52,7 +52,7 @@ public abstract class AbstractRegisteredNodeTransactionHandler extends AbstractT
                 }
             }
             case DOMAIN_NAME -> domainName = proto.getDomainName();
-            default -> {}
+            default -> Utility.handleRecoverableError("Invalid addressCase: {}", proto.getAddressCase());
         }
 
         RegisteredServiceEndpoint.BlockNodeEndpoint blockNode = null;
@@ -63,9 +63,9 @@ public abstract class AbstractRegisteredNodeTransactionHandler extends AbstractT
                 blockNode = BlockNodeEndpoint.builder()
                         .endpointApi(toBlockNodeApi(proto.getBlockNode().getEndpointApi()))
                         .build();
-            case MIRROR_NODE -> mirrorNode = MirrorNodeEndpoint.builder().build();
-            case RPC_RELAY -> rpcRelay = RpcRelayEndpoint.builder().build();
-            default -> {}
+            case MIRROR_NODE -> mirrorNode = new MirrorNodeEndpoint();
+            case RPC_RELAY -> rpcRelay = new RpcRelayEndpoint();
+            default -> Utility.handleRecoverableError("Invalid endpointTypeCase: {}", proto.getEndpointTypeCase());
         }
 
         return RegisteredServiceEndpoint.builder()
@@ -81,10 +81,17 @@ public abstract class AbstractRegisteredNodeTransactionHandler extends AbstractT
 
     private static BlockNodeApi toBlockNodeApi(
             com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi proto) {
-        try {
-            return BlockNodeApi.valueOf(proto.name());
-        } catch (IllegalArgumentException e) {
-            return BlockNodeApi.OTHER;
-        }
+        return switch (proto) {
+            case STATUS -> BlockNodeApi.STATUS;
+            case PUBLISH -> BlockNodeApi.PUBLISH;
+            case SUBSCRIBE_STREAM -> BlockNodeApi.SUBSCRIBE_STREAM;
+            case STATE_PROOF -> BlockNodeApi.STATE_PROOF;
+            case OTHER -> BlockNodeApi.OTHER;
+            case UNRECOGNIZED -> BlockNodeApi.UNRECOGNIZED;
+            default -> {
+                Utility.handleRecoverableError("Unsupported BlockNodeApi: {}", proto.name());
+                yield BlockNodeApi.OTHER;
+            }
+        };
     }
 }

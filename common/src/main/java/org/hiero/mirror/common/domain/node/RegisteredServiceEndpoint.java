@@ -15,18 +15,16 @@ import lombok.Data;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class RegisteredServiceEndpoint {
 
-    private String ipAddress;
+    private BlockNodeEndpoint blockNode;
     private String domainName;
+    private String ipAddress;
+    private MirrorNodeEndpoint mirrorNode;
     private int port;
     private boolean requiresTls;
-
-    private BlockNodeEndpoint blockNode;
-    private MirrorNodeEndpoint mirrorNode;
     private RpcRelayEndpoint rpcRelay;
 
     @Data
     @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class BlockNodeEndpoint {
         private BlockNodeApi endpointApi;
     }
@@ -36,16 +34,11 @@ public class RegisteredServiceEndpoint {
         STATUS,
         PUBLISH,
         SUBSCRIBE_STREAM,
-        STATE_PROOF
+        STATE_PROOF,
+        UNRECOGNIZED
     }
 
-    @Data
-    @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class MirrorNodeEndpoint {}
 
-    @Data
-    @Builder
-    @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class RpcRelayEndpoint {}
 }

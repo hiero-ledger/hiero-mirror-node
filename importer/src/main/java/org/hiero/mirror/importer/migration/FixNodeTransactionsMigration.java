@@ -164,10 +164,6 @@ public class FixNodeTransactionsMigration extends ConfigurableJavaMigration {
             if (current.getAdminKey() == null) {
                 current.setAdminKey(previous.getAdminKey());
             }
-
-            if (current.getAssociatedRegisteredNodes() == null) {
-                current.setAssociatedRegisteredNodes(previous.getAssociatedRegisteredNodes());
-            }
         }
 
         return current;

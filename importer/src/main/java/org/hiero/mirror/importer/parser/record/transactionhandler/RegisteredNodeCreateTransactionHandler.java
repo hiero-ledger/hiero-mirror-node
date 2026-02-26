@@ -13,7 +13,7 @@ import org.hiero.mirror.importer.domain.EntityIdService;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
-class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
+final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
 
     private final EntityIdService entityIdService;
 

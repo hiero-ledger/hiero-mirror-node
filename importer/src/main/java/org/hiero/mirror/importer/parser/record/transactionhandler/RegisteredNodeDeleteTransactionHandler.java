@@ -11,7 +11,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 
 @Named
-class RegisteredNodeDeleteTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
+final class RegisteredNodeDeleteTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
 
     RegisteredNodeDeleteTransactionHandler(EntityListener entityListener) {
         super(entityListener);

@@ -61,6 +61,9 @@ const protoToName = {
   75: 'HOOKSTORE',
   76: 'HOOKDISPATCH',
   77: 'LEDGERIDPUBLICATION',
+  101: 'REGISTEREDNODECREATE',
+  102: 'REGISTEREDNODEUPDATE',
+  103: 'REGISTEREDNODEDELETE',
 };
 
 // Temporary extra mappings until we can update the hashgraph proto dependency with the latest types

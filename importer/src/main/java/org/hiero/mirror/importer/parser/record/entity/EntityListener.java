@@ -99,9 +99,9 @@ public interface EntityListener {
 
     default void onNodeStake(NodeStake nodeStake) throws ImporterException {}
 
-    default void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {}
-
     default void onPrng(Prng prng) {}
+
+    default void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {}
 
     default void onSchedule(Schedule schedule) throws ImporterException {}
 

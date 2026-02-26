@@ -270,11 +270,6 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     }
 
     @Override
-    public void onRegisteredNode(RegisteredNode registeredNode) {
-        context.merge(registeredNode.getRegisteredNodeId(), registeredNode, this::mergeRegisteredNode);
-    }
-
-    @Override
     public void onNodeStake(NodeStake nodeStake) {
         context.add(nodeStake);
     }
@@ -282,6 +277,11 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
     @Override
     public void onPrng(Prng prng) {
         context.add(prng);
+    }
+
+    @Override
+    public void onRegisteredNode(RegisteredNode registeredNode) {
+        context.merge(registeredNode.getRegisteredNodeId(), registeredNode, this::mergeRegisteredNode);
     }
 
     @Override

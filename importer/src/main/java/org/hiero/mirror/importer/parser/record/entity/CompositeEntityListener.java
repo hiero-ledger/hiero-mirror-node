@@ -188,13 +188,13 @@ public class CompositeEntityListener implements EntityListener {
     }
 
     @Override
-    public void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {
-        onEach(EntityListener::onRegisteredNode, registeredNode);
+    public void onPrng(Prng prng) {
+        onEach(EntityListener::onPrng, prng);
     }
 
     @Override
-    public void onPrng(Prng prng) {
-        onEach(EntityListener::onPrng, prng);
+    public void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {
+        onEach(EntityListener::onRegisteredNode, registeredNode);
     }
 
     @Override
