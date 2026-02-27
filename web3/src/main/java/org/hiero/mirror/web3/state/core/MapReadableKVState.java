@@ -32,9 +32,10 @@ public class MapReadableKVState<K, V> extends ReadableKVStateBase<K, V> {
      * @param stateId The state key for this state
      * @param backingStore The backing store to use
      */
+    @SuppressWarnings("unchecked")
     public MapReadableKVState(
             @NonNull final String serviceName, final int stateId, @NonNull final Map<K, V> backingStore) {
-        super(stateId, serviceName);
+        super(stateId, serviceName, new ForwardingReadableKVStateBase<>(stateId));
         this.backingStore = Objects.requireNonNull(backingStore);
     }
 
