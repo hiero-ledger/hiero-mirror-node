@@ -175,6 +175,7 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.importer.parser.record.entity.persist.pendingReward`              | true                                                 | Calculate pending reward and update entity stake state                                                                                                                                                                                                             |
 | `hiero.mirror.importer.parser.record.entity.persist.schedules`                  | true                                                 | Persist schedule transactions to the database                                                                                                                                                                                                                      |
 | `hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogs`      | true                                                 | Persist synthetic contract logs from HAPI transaction to the database                                                                                                                                                                                              |
+| `hiero.mirror.importer.parser.record.entity.persist.syntheticContractLogsMulti` | true                                                 | Persist synthetic contract logs from transactions including multi-party fungible token transfers to the database                                                                                                                                                   |
 | `hiero.mirror.importer.parser.record.entity.persist.syntheticContractResults`   | false                                                | Persist synthetic contract results from HAPI transaction to the database                                                                                                                                                                                           |
 | `hiero.mirror.importer.parser.record.entity.persist.systemFiles`                | true                                                 | Persist only system files (number lower than `1000`) to the database                                                                                                                                                                                               |
 | `hiero.mirror.importer.parser.record.entity.persist.tokenAirdrops`              | true                                                 | Persist token airdrop data to the database                                                                                                                                                                                                                         |
@@ -596,41 +597,6 @@ value, it is recommended to only populate overridden properties in the custom `a
 | `hiero.mirror.rest.response.limit.tokenBalance.multipleAccounts`         | 50                      | The maximum number of token balances per account for endpoints which return such info for multiple accounts                                                                                   |
 | `hiero.mirror.rest.response.limit.tokenBalance.singleAccount`            | 1000                    | The maximum number of token balances per account for endpoints which return such info for a single account                                                                                    |
 | `hiero.mirror.rest.users`                                                | []                      | Array of user credentials for per-customer response limits. Each user object contains `username`, `password`, and optional `limit` (overrides max).                                           |
-| `hiero.mirror.rest.stateproof.enabled`                                   | false                   | Whether to enable stateproof REST API or not                                                                                                                                                  |
-| `hiero.mirror.rest.stateproof.streams.accessKey`                         | ""                      | The cloud storage access key                                                                                                                                                                  |
-| `hiero.mirror.rest.stateproof.streams.bucketName`                        |                         | The cloud storage bucket name to download streamed files. This value takes priority over network hardcoded bucket names regardless of `hiero.mirror.rest.stateproof.streams.network`          |
-| `hiero.mirror.rest.stateproof.streams.cloudProvider`                     | S3                      | The cloud provider to download files from. Either `S3` or `GCP`                                                                                                                               |
-| `hiero.mirror.rest.stateproof.streams.endpointOverride`                  |                         | Can be specified to download streams from a source other than S3 and GCP. Should be S3 compatible                                                                                             |
-| `hiero.mirror.rest.stateproof.streams.gcpProjectId`                      |                         | GCP project id to bill for requests to GCS bucket which has Requester Pays enabled.                                                                                                           |
-| `hiero.mirror.rest.stateproof.streams.httpOptions.connectTimeout`        | 2000                    | The number of milliseconds to wait to establish a connection                                                                                                                                  |
-| `hiero.mirror.rest.stateproof.streams.httpOptions.timeout`               | 5000                    | The number of milliseconds a request can take before automatically being terminated                                                                                                           |
-| `hiero.mirror.rest.stateproof.streams.maxRetries`                        | 3                       | The maximum amount of retries to perform for a cloud storage download request.                                                                                                                |
-| `hiero.mirror.rest.stateproof.streams.network`                           | DEMO                    | Which network to use. Can be either `DEMO`, `MAINNET`, `TESTNET`, `PREVIEWNET` or `OTHER`                                                                                                     |
-| `hiero.mirror.rest.stateproof.streams.region`                            | us-east-1               | The region associated with the bucket                                                                                                                                                         |
-| `hiero.mirror.rest.stateproof.streams.secretKey`                         | ""                      | The cloud storage secret key                                                                                                                                                                  |
-
-### Enable State Proof Alpha
-
-To enable State Proof logic the REST API configurations must updated to allow for communication with cloud buckets to
-pull down the necessary files (address book, signatures files and record file). The process involves setting the
-properties under `hiero.mirror.rest.stateproof` as documented above [REST API Config](#rest-api).
-
-An example configuration is provided below
-
-```yaml
-hiero:
-  mirror:
-    rest:
-      stateproof:
-        enabled: true
-        streams:
-          accessKey: <accessKey>
-          bucketName: "hedera-mainnet-streams"
-          cloudProvider: "GCP"
-          network: "MAINNET"
-          region: "us-east-1"
-          secretKey: <secretKey>
-```
 
 ## REST Java API
 

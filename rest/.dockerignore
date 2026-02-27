@@ -7,7 +7,6 @@
 __tests__/
 application.yml
 build/
-check-state-proof/
 coverage/
 monitoring/
 node/
