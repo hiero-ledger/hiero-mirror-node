@@ -33,6 +33,9 @@ import com.hedera.hapi.node.file.FileAppendTransactionBody;
 import com.hedera.hapi.node.file.FileCreateTransactionBody;
 import com.hedera.hapi.node.file.FileDeleteTransactionBody;
 import com.hedera.hapi.node.file.FileUpdateTransactionBody;
+import com.hedera.hapi.node.hooks.HookStoreTransactionBody;
+import com.hedera.hapi.node.scheduled.SchedulableTransactionBody;
+import com.hedera.hapi.node.scheduled.ScheduleCreateTransactionBody;
 import com.hedera.hapi.node.scheduled.ScheduleDeleteTransactionBody;
 import com.hedera.hapi.node.scheduled.ScheduleSignTransactionBody;
 import com.hedera.hapi.node.token.CryptoAllowance;
@@ -201,13 +204,20 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         fee(b -> b.nodeUpdate(NodeUpdateTransactionBody.DEFAULT), HederaFunctionality.NODE_UPDATE),
                         // Schedule
                         fee(
+                                b -> b.scheduleCreate(ScheduleCreateTransactionBody.newBuilder()
+                                        .scheduledTransactionBody(SchedulableTransactionBody.newBuilder()
+                                                .cryptoTransfer(CryptoTransferTransactionBody.DEFAULT)
+                                                .build())
+                                        .build()),
+                                HederaFunctionality.SCHEDULE_CREATE),
+                        fee(
                                 b -> b.scheduleDelete(ScheduleDeleteTransactionBody.DEFAULT),
                                 HederaFunctionality.SCHEDULE_DELETE),
                         fee(
                                 b -> b.scheduleSign(ScheduleSignTransactionBody.DEFAULT),
                                 HederaFunctionality.SCHEDULE_SIGN),
                         // Token
-                        // 1 fungible + 1 NFT transfer (2 token lists); calculator charges NODE_PORTION per list
+                        // NODE_PORTION + 1 extra TOKEN_TYPES beyond included=1 = 2 × NODE_PORTION
                         fee(
                                 b -> b.tokenAirdrop(TokenAirdropTransactionBody.newBuilder()
                                         .tokenTransfers(List.of(
@@ -328,6 +338,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                         fee(
                                 b -> b.tokenWipe(TokenWipeAccountTransactionBody.DEFAULT),
                                 HederaFunctionality.TOKEN_ACCOUNT_WIPE),
+                        // Hooks
+                        fee(b -> b.hookStore(HookStoreTransactionBody.DEFAULT), HederaFunctionality.HOOK_STORE),
                         // Miscellaneous
                         fee(b -> b.atomicBatch(AtomicBatchTransactionBody.DEFAULT), HederaFunctionality.ATOMIC_BATCH),
                         fee(b -> b.utilPrng(UtilPrngTransactionBody.DEFAULT), HederaFunctionality.UTIL_PRNG))
