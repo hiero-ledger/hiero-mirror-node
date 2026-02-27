@@ -48,14 +48,14 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             @Nullable WebDataBinderFactory binderFactory)
             throws Exception {
 
-        Class<?> parameterType = parameter.getParameterType();
+        final var parameterType = parameter.getParameterType();
 
         // Get cached metadata (computed once per DTO class)
-        BindingMetadata metadata = getMetadata(parameterType);
+        final var metadata = getMetadata(parameterType);
 
         // Get path variables from request attributes
         @SuppressWarnings("unchecked")
-        Map<String, String> pathVariables = (Map<String, String>) webRequest.getAttribute(
+        final var pathVariables = (Map<String, String>) webRequest.getAttribute(
                 HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE, NativeWebRequest.SCOPE_REQUEST);
 
         // Create instance using default constructor - same as Spring's @ModelAttribute
@@ -65,12 +65,12 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         MutablePropertyValues propertyValues = new MutablePropertyValues();
 
         // Process path parameters
-        for (Map.Entry<Field, RestJavaPathParam> entry : metadata.pathParams.entrySet()) {
+        for (final var entry : metadata.pathParams.entrySet()) {
             processPathParam(entry.getKey(), entry.getValue(), propertyValues, pathVariables);
         }
 
         // Process query parameters
-        for (Map.Entry<Field, RestJavaQueryParam> entry : metadata.queryParams.entrySet()) {
+        for (final var entry : metadata.queryParams.entrySet()) {
             processQueryParam(entry.getKey(), entry.getValue(), propertyValues, webRequest);
         }
 
@@ -163,10 +163,10 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
             NativeWebRequest webRequest) {
 
         String paramName = extractName(field, annotation.value(), annotation.name());
-        var paramValues = webRequest.getParameterValues(paramName);
+        final var paramValues = webRequest.getParameterValues(paramName);
 
         // Handle missing or empty values
-        var resolvedValues = resolveParameterValues(paramValues, paramName, annotation);
+        final var resolvedValues = resolveParameterValues(paramValues, paramName, annotation);
         if (resolvedValues == null) {
             return; // No value, not required - skip
         }
@@ -222,13 +222,13 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         Map<String, String[]> allParams = webRequest.getParameterMap();
 
         // Collect all known parameter names from annotations, falling back to field name if no explicit name is set
-        var knownParams = metadata.queryParams.entrySet().stream()
+        final var knownParams = metadata.queryParams.entrySet().stream()
                 .map(e -> extractName(
                         e.getKey(), e.getValue().value(), e.getValue().name()))
                 .toList();
 
         // Check for unknown parameters and add errors
-        for (String paramName : allParams.keySet()) {
+        for (final var paramName : allParams.keySet()) {
             if (!knownParams.contains(paramName)) {
                 binder.getBindingResult().reject("unknown.parameter", "Unknown query parameter: " + paramName);
             }

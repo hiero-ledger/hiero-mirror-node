@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.mapper;
 
+import java.nio.charset.StandardCharsets;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkNode;
 import org.hiero.mirror.rest.model.TimestampRange;
@@ -22,6 +23,7 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
     @Mapping(
             target = "grpcProxyEndpoint",
             expression = "java(StringToServiceEndpointConverter.INSTANCE.convert(row.grpcProxyEndpointJson()))")
+    @Mapping(target = "nodeCertHash", qualifiedByName = "mapNodeCertHash")
     @Mapping(
             target = "serviceEndpoints",
             expression = "java(StringToServiceEndpointListConverter.INSTANCE.convert(row.serviceEndpointsJson()))")
@@ -29,12 +31,21 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(row))")
     NetworkNode map(NetworkNodeDto row);
 
+    @Named("mapNodeCertHash")
+    default String mapNodeCertHash(byte[] nodeCertHash) {
+        if (nodeCertHash == null || nodeCertHash.length == 0) {
+            return "0x";
+        }
+        var hexString = new String(nodeCertHash, StandardCharsets.UTF_8);
+        return hexString.startsWith("0x") ? hexString : "0x" + hexString;
+    }
+
     default TimestampRange mapTimestampRange(NetworkNodeDto row) {
         if (row == null) {
             return null;
         }
-        var start = row.startConsensusTimestamp();
-        var end = row.endConsensusTimestamp();
+        final var start = row.startConsensusTimestamp();
+        final var end = row.endConsensusTimestamp();
         if (start == null && end == null) {
             return null;
         }

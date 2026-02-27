@@ -22,7 +22,7 @@ public record NetworkNodeDto(
         @Nullable String memo,
         @Nullable Long minStake,
         @Nullable Long nodeAccountId,
-        @Nullable String nodeCertHash,
+        byte @Nullable [] nodeCertHash,
         @Nullable Long nodeId,
         @Nullable String publicKey,
         @Nullable Long rewardRateStart,
