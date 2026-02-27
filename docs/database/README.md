@@ -85,15 +85,9 @@ nodes connected to those environments will need to be reset to remain functional
    ```
 
 4. Start the Importer process and ensure it prints the new bucket on startup and successfully starts syncing.
-5. Update the REST API to the new bucket name if state proofs are enabled.
-
-   ```shell
-   HIERO_MIRROR_REST_STATEPROOF_STREAMS_BUCKETNAME: "hedera-testnet-streams-YYYY-MM"
-   ```
-
-6. If any of the mirror node monitoring tools is used, ensure any hardcoded entity IDs in their configuration is updated
+5. If any of the mirror node monitoring tools is used, ensure any hardcoded entity IDs in their configuration is updated
    with new entities created after the reset.
-7. Restart the remaining mirror node components to clear any cached information.
+6. Restart the remaining mirror node components to clear any cached information.
 
 ## Retention
 

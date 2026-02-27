@@ -22,9 +22,7 @@ import _ from 'lodash';
 import path from 'path';
 import request from 'supertest';
 import integrationDomainOps from '../integrationDomainOps';
-import IntegrationS3Ops from '../integrationS3Ops';
 import config from '../../config';
-import {cloudProviders} from '../../constants';
 import server from '../../server';
 import {getModuleDirname} from '../testutils';
 import {JSONParse} from '../../utils';
@@ -34,7 +32,6 @@ import {
   transformResponseHeaders,
   transformShardRealmValues,
 } from '../integrationUtils';
-import {CreateBucketCommand, PutObjectCommand, S3} from '@aws-sdk/client-s3';
 import sinon from 'sinon';
 import integrationContainerOps from '../integrationContainerOps';
 import {writeTableUsage} from '../tableUsage';
@@ -142,27 +139,10 @@ setupIntegrationTest();
 const specs = await getSpecs();
 
 describe(`API specification tests - ${groupSpecPath}`, () => {
-  const bucketName = 'hedera-demo-streams';
   const featureSupport = {};
-  const s3TestDataRoot = path.join(getModuleDirname(import.meta), '..', 'data', 's3');
 
   let configOverridden = false;
   let configClone;
-  let s3Ops;
-
-  const configS3ForStateProof = (endpoint) => {
-    config.stateproof = _.merge(config.stateproof, {
-      addressBookHistory: false,
-      enabled: true,
-      streams: {
-        network: 'OTHER',
-        cloudProvider: cloudProviders.S3,
-        endpointOverride: endpoint,
-        region: 'us-east-1',
-        bucketName,
-      },
-    });
-  };
 
   const getTests = (spec) => {
     const tests = spec.tests || [spec];
@@ -182,8 +162,6 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     );
   };
 
-  const hasher = (data) => crypto.createHash('sha256').update(data).digest('hex');
-
   const loadSqlScripts = async (pathPrefix, sqlScripts) => {
     if (!sqlScripts) {
       return;
@@ -196,8 +174,6 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
       await ownerPool.query(script);
     }
   };
-
-  const needsS3 = (specs) => Object.keys(specs).some((dir) => dir.includes('stateproof'));
 
   const overrideConfig = (override) => {
     if (!override) {
@@ -262,85 +238,13 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     }
   };
 
-  const transformStateProofResponse = (jsonObj) => {
-    const deepBase64Encode = (obj) => {
-      if (typeof obj === 'string') {
-        return hasher(obj);
-      }
-
-      const result = {};
-      for (const [k, v] of Object.entries(obj)) {
-        if (typeof v === 'string') {
-          result[k] = hasher(v);
-        } else if (Array.isArray(v)) {
-          result[k] = v.map((val) => deepBase64Encode(val));
-        } else if (_.isPlainObject(v)) {
-          result[k] = deepBase64Encode(v);
-        } else {
-          result[k] = v;
-        }
-      }
-      return result;
-    };
-
-    return deepBase64Encode(jsonObj);
-  };
-
-  const uploadFilesToS3 = async (endpoint) => {
-    const dataPath = path.join(s3TestDataRoot, bucketName);
-    // use fake accessKeyId and secretAccessKey, otherwise upload will fail
-    const s3client = new S3({
-      credentials: {
-        accessKeyId: 'AKIAIOSFODNN7EXAMPLE',
-        secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-      },
-      endpoint,
-      forcePathStyle: true,
-      region: 'us-east-1',
-    });
-
-    logger.debug(`creating s3 bucket ${bucketName}`);
-    await s3client.send(new CreateBucketCommand({Bucket: bucketName}));
-
-    logger.debug('uploading file objects to mock s3 service');
-    const s3ObjectKeys = [];
-    for (const filePath of walk(dataPath)) {
-      const s3ObjectKey =
-        process.platform === 'win32'
-          ? path.relative(dataPath, filePath).replace(/\\/g, '/')
-          : path.relative(dataPath, filePath);
-      const fileStream = fs.createReadStream(filePath);
-      await s3client.send(
-        new PutObjectCommand({
-          Bucket: bucketName,
-          Key: s3ObjectKey,
-          Body: fileStream,
-          ACL: 'public-read',
-        })
-      );
-      s3ObjectKeys.push(s3ObjectKey);
-    }
-    logger.debug(`uploaded ${s3ObjectKeys.length} file objects: ${s3ObjectKeys}`);
-  };
-
   jest.setTimeout(60000);
 
   beforeAll(async () => {
-    if (needsS3(specs)) {
-      s3Ops = new IntegrationS3Ops();
-      await s3Ops.start();
-      configS3ForStateProof(s3Ops.getEndpointUrl());
-      await uploadFilesToS3(s3Ops.getEndpointUrl());
-    }
-
     configClone = _.cloneDeep(config);
   }, slowStepTimeoutMillis);
 
   afterAll(async () => {
-    if (s3Ops) {
-      await s3Ops.stop();
-    }
-
     await writeTableUsage(groupSpecPath);
   });
 
@@ -377,10 +281,7 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
               expect(contentType).not.toBeNull();
 
               if (contentType.includes('application/json')) {
-                let jsonObj = response.text === '' ? {} : JSONParse(response.text);
-                if (response.status === 200 && dir.endsWith('stateproof')) {
-                  jsonObj = transformStateProofResponse(jsonObj);
-                }
+                const jsonObj = response.text === '' ? {} : JSONParse(response.text);
                 const responseJson = (tt.responseJsonMatrix ?? {})[spec.java ? 'java' : 'js'] ?? tt.responseJson;
                 expect(jsonObj).toEqual(responseJson);
               } else {

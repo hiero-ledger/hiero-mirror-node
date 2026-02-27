@@ -46,7 +46,7 @@ To customize per-resource configuration:
 - `freshnessThreshold` (in seconds) for `balance`, `transaction`, `topic`, and `token` (balances of a token) can be
   adjusted independently if needed. Set to 0 to disable freshness check for a resource
 - `intervalMultiplier` for all resources. The tests for a resource will run every `interval * intervalMultiplier`
-  seconds. For `stateproof`, it defaults to 10, so the tests run at a lower frequency to reduce cost
+  seconds.
 - `limit` threshold for `account`, `balance`, `transaction`, `topic`, and `token` can be adjusted independently if
   needed, e.g.,for environments with lower traffic volume. For `token`, `tokenBalancesLimit` is the limit for a token's
   balance query and `tokensLimit` is the limit for the token discovery query

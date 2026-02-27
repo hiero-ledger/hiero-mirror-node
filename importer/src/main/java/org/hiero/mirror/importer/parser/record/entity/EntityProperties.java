@@ -72,6 +72,8 @@ public class EntityProperties {
 
         private boolean syntheticContractLogEvmAddressLookup = true;
 
+        private boolean syntheticContractLogsMulti = true;
+
         private boolean syntheticContractResults = false;
 
         private boolean systemFiles = true;

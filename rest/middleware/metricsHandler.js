@@ -37,9 +37,7 @@ const recordIpAndEndpoint = (req) => {
 };
 
 const metricsHandler = () => {
-  // We removed stateproof from OpenAPI, but we still want to capture metrics from it
   const openApiSpec = _.cloneDeep(getV1OpenApiObject());
-  openApiSpec.paths['/api/v1/transactions/{transactionId}/stateproof'] = {get: {}};
 
   const defaultMetricsConfig = {
     name: process.env.npm_package_name,

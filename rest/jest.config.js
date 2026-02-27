@@ -6,7 +6,6 @@ const config = {
   coverageDirectory: 'build/coverage/',
   coveragePathIgnorePatterns: [
     '<rootDir>/build/',
-    '<rootDir>/check-state-proof/',
     '<rootDir>/monitoring/',
     '<rootDir>/node_modules/',
     '<rootDir>/__tests__/',

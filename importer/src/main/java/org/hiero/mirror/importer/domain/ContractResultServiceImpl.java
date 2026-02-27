@@ -2,6 +2,8 @@
 
 package org.hiero.mirror.importer.domain;
 
+import static org.hiero.mirror.common.domain.transaction.RecordItem.HOOK_CONTRACT_NUM;
+
 import com.google.common.base.Stopwatch;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -43,7 +45,6 @@ import org.jspecify.annotations.NonNull;
 @RequiredArgsConstructor
 final class ContractResultServiceImpl implements ContractResultService {
 
-    public static final int HOOK_CONTRACT_NUM = 365;
     private final ContractInitcodeService contractInitcodeService;
     private final EntityProperties entityProperties;
     private final EntityIdService entityIdService;

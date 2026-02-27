@@ -21,7 +21,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamFile;
 import org.hiero.mirror.common.domain.StreamType;
-import org.jspecify.annotations.NonNull;
 
 @Builder(toBuilder = true)
 @Data
@@ -108,10 +107,6 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
         return StringUtils.EMPTY;
     }
 
-    public Long getNodeId() {
-        return -1L;
-    }
-
     public BlockSourceType getSourceType() {
         if (StringUtils.isBlank(name)) {
             return null;
@@ -127,11 +122,6 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
     @Override
     public StreamType getType() {
         return StreamType.BLOCK;
-    }
-
-    @Override
-    public void setNodeId(@NonNull Long nodeId) {
-        // ignored
     }
 
     public static class BlockFileBuilder {

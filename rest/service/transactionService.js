@@ -48,7 +48,7 @@ class TransactionService extends BaseService {
     ${EthereumTransaction.getFullName(EthereumTransaction.TYPE)},
     ${EthereumTransaction.getFullName(EthereumTransaction.RECOVERY_ID)},
     ${EthereumTransaction.getFullName(EthereumTransaction.TO_ADDRESS)},
-    ${EthereumTransaction.getFullName(EthereumTransaction.VALUE)}
+    encode(${EthereumTransaction.getFullName(EthereumTransaction.VALUE)}, 'hex') as ${EthereumTransaction.VALUE}
   from ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
   join ${Transaction.tableName} ${Transaction.tableAlias}
   on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} =

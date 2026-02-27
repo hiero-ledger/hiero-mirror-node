@@ -160,6 +160,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -1360,7 +1361,7 @@ public class RecordItemBuilder {
         return accountAmount(accountId.toAccountID(), amount);
     }
 
-    private AccountAmount accountAmount(AccountID accountID, long amount) {
+    public AccountAmount accountAmount(AccountID accountID, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(accountID)
                 .setAmount(amount)
@@ -1633,13 +1634,28 @@ public class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
+            var contractLogs = parseContractLogs(transactionRecordInstance);
+
             return recordItemBuilder
                     .contractTransactionPredicate(contractTransactionPredicate)
                     .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
+                    .contractLogs(contractLogs)
                     .build();
+        }
+
+        private List<ContractLoginfo> parseContractLogs(TransactionRecord record) {
+            if (record.hasContractCallResult()) {
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
+                        .toList());
+            }
+            if (record.hasContractCreateResult()) {
+                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
+                        .toList());
+            }
+            return Collections.emptyList();
         }
 
         public Builder<T> clearIncrementer() {

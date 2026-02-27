@@ -74,6 +74,7 @@ public class EntityRecordItemListener implements RecordItemListener {
     private final TransactionHandlerFactory transactionHandlerFactory;
     private final SyntheticContractLogService syntheticContractLogService;
     private final SyntheticContractResultService syntheticContractResultService;
+    private final TransferEventsGenerator transferEventsGenerator;
 
     @Override
     public void onItem(RecordItem recordItem) throws ImporterException {
@@ -393,7 +394,6 @@ public class EntityRecordItemListener implements RecordItemListener {
                 || recordItem.getTransactionType() == TransactionType.TOKENWIPE.getProtoId();
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
-        boolean isSingleTransfer = tokenTransferCount == 2;
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);
@@ -421,9 +421,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
 
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
-
-            logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
         }
+
+        transferEventsGenerator.generate(recordItem, tokenId, tokenTransfers);
     }
 
     private boolean isApprovalNftTransfer(NftTransfer nftTransfer, TokenID tokenId, TransactionBody body) {
@@ -461,23 +461,6 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
-        }
-    }
-
-    private void logTokenTransfers(
-            RecordItem recordItem,
-            EntityId tokenId,
-            List<AccountAmount> tokenTransfers,
-            boolean isSingleTransfer,
-            int i,
-            EntityId accountId,
-            long amount) {
-        if (isSingleTransfer && amount > 0) {
-            EntityId senderId = i == 0
-                    ? EntityId.of(tokenTransfers.get(1).getAccountID())
-                    : EntityId.of(tokenTransfers.get(0).getAccountID());
-            syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
         }
     }
 

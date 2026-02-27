@@ -51,16 +51,6 @@ updates:
     schedule:
       interval: "weekly"
 
-  - directory: "/rest/check-state-proof"
-    groups:
-      dependencies:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 10
-    package-ecosystem: "npm"
-    schedule:
-      interval: "weekly"
-
   - directory: "/rosetta"
     groups:
       dependencies:

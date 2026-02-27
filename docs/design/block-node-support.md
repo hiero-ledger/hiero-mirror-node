@@ -22,9 +22,6 @@ This design document concerns the support of streaming blocks from block nodes i
 
 ### Database
 
-Since block nodes don't have a node id, the `not null` constraint of the `node_id` column in `record_file` table needs
-to be dropped. Note the column can be dropped after sunsetting stateproof alpha API.
-
 For blocks streamed from block nodes, it's an expensive operation to get the serialized protobuf message size given
 there can be tens of thousands block items in a block. As a result, there won't be `size` info, and the `size` column
 will have `null` value.

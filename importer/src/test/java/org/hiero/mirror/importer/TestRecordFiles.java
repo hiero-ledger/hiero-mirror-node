@@ -242,7 +242,6 @@ public class TestRecordFiles {
                 .hash(
                         "e7d9e71efd239bde3adcad8eb0571c38f91f77ae76a4af69bb44f19b2785ad3594ac1d265351a592ab14301da9bb1950")
                 .name("2021-01-21T00_15_51.568507001Z.rcd")
-                .nodeId(0L)
                 .previousHash(
                         "d27ba83c736bfa2ffc9a6f062b27ea4856800bbbe820b77b32e08faf3d7475d81ef5a16f90ce065d35eefa999677edaa")
                 .size(389)
@@ -263,7 +262,6 @@ public class TestRecordFiles {
                 .metadataHash(
                         "1d83206a166a06c8579f9de637cf50a565341928b55bfbdc774ce85ac2169b46c23db42729723e7c39e5a042bd9e3b98")
                 .name("2021-01-21T00_19_43.558496000Z.rcd")
-                .nodeId(0L)
                 .previousHash(recordFileV2.getHash())
                 .size(495)
                 .softwareVersionMajor(0)
@@ -279,7 +277,6 @@ public class TestRecordFiles {
                 .name("2022-06-21T09_14_34.364804003Z.rcd")
                 .digestAlgorithm(DigestAlgorithm.SHA_384)
                 .index(0L)
-                .nodeId(0L)
                 .size(492)
                 .version(5)
                 .build();
@@ -288,7 +285,6 @@ public class TestRecordFiles {
                 .name("2022-06-21T09_15_38.325469003Z.rcd.gz")
                 .digestAlgorithm(DigestAlgorithm.SHA_384)
                 .index(-9223372036854775797L)
-                .nodeId(0L)
                 .size(788)
                 .version(6)
                 .build();

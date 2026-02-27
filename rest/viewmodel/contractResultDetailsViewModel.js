@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import _ from 'lodash';
-import {toBigIntBE} from '@trufflesuite/bigint-buffer';
 
 import ContractLogResultsViewModel from './contractResultLogViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
@@ -83,10 +82,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
     if (!_.isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
-      this.amount =
-        typeof ethTransaction.value === 'string'
-          ? BigInt(utils.addHexPrefix(ethTransaction.value))
-          : toBigIntBE(Buffer.from(ethTransaction.value));
+      this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && _.isEmpty(contractResult.errorMessage)) {

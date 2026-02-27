@@ -120,8 +120,6 @@ hiero:
             /api/v1/transactions: { "cache-control": "public, max-age=2" }
             /api/v1/transactions/:transactionIdOrHash:
               { "cache-control": "public, max-age=600" }
-            /api/v1/transactions/:transactionId/stateproof:
-              { "cache-control": "public, max-age=600" }
         includeHostInLink: false
         limit:
           default: 25
@@ -130,19 +128,3 @@ hiero:
             multipleAccounts: 50
             singleAccount: 1000
       users: []
-      stateproof:
-        addressBookHistory: false
-        enabled: false
-        streams:
-          accessKey:
-          bucketName:
-          cloudProvider: "S3"
-          endpointOverride:
-          gcpProjectId:
-          httpOptions:
-            connectTimeout: 2000
-            timeout: 5000
-          maxRetries: 3
-          network: "DEMO"
-          region: "us-east-1"
-          secretKey:

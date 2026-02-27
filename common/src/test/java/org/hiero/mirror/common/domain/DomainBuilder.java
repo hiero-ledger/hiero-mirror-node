@@ -860,7 +860,6 @@ public class DomainBuilder {
                 .loadEnd(now.toEpochMilli() + 1000L)
                 .loadStart(now.toEpochMilli())
                 .name(instantString + ".rcd.gz")
-                .nodeId(number())
                 .previousHash(hash(96))
                 .roundEnd(round)
                 .roundStart(round)

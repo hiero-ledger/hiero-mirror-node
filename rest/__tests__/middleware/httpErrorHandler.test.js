@@ -3,7 +3,6 @@
 import {
   DbError,
   FileDecodeError,
-  FileDownloadError,
   InvalidArgumentError,
   InvalidClauseError,
   InvalidConfigError,
@@ -22,7 +21,6 @@ describe('Server error handler', () => {
     const exception = () => {
       handleUncaughtException(new DbError());
       handleUncaughtException(new FileDecodeError());
-      handleUncaughtException(new FileDownloadError());
       handleUncaughtException(new InvalidArgumentError());
       handleUncaughtException(new InvalidClauseError());
       handleUncaughtException(new NotFoundError());

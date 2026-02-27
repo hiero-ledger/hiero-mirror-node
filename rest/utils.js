@@ -5,7 +5,6 @@ import anonymize from 'ip-anonymize';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import JSONBigFactory from 'json-bigint';
-import long from 'long';
 import * as math from 'mathjs';
 import pg from 'pg';
 import pgRange, {Range} from 'pg-range';
@@ -81,16 +80,22 @@ const isNumeric = (n) => {
 
 // The max signed long has 19 digits
 const positiveLongRegex = /^\d{1,19}$/;
+const maxLong = 9223372036854775807n;
 
 /**
- * Validates that num is a positive long.
+ * Validates that num is a positive BigInt.
  * @param {number|string} num
  * @param {boolean} allowZero
  * @return {boolean}
  */
 const isPositiveLong = (num, allowZero = false) => {
+  if (!positiveLongRegex.test(num)) {
+    return false;
+  }
+
+  const bigInt = BigInt(num);
   const min = allowZero ? 0 : 1;
-  return positiveLongRegex.test(num) && long.fromValue(num).greaterThanOrEqual(min);
+  return bigInt >= min && bigInt <= maxLong;
 };
 
 /**
@@ -518,9 +523,9 @@ const getLimitParamValue = (values) => {
   let ret = responseLimit.default;
   if (values !== undefined) {
     const value = Array.isArray(values) ? values[values.length - 1] : values;
-    const parsed = long.fromValue(value);
+    const parsed = Number(value);
     const maxLimit = getEffectiveMaxLimit();
-    ret = parsed.greaterThan(maxLimit) ? maxLimit : parsed.toNumber();
+    ret = parsed > maxLimit ? maxLimit : parsed;
   }
   return ret;
 };

@@ -54,7 +54,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
         with:
           egress-policy: audit
 
@@ -132,7 +132,7 @@ jobs:
             monitor:
             - 'monitor/**'
             rest:
-            - 'rest/!(check-state-proof|monitoring)?(/**)'
+            - 'rest/!(monitoring)?(/**)'
             rest-java:
             - 'rest-java/**'
             test:
@@ -142,7 +142,7 @@ jobs:
 
       - name: Setup Gradle
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
-        uses: gradle/actions/setup-gradle@f29f5a9d7b09a7c6b29859002d29d24e1674c884 # v4
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v4
 
       - name: Build images
         if: env.TRIGGERED_BY_TAG != 'true' && steps.changeset.outputs.changes != '[]'
@@ -168,6 +168,7 @@ jobs:
               HIERO_MIRROR_TEST_ACCEPTANCE_FEATURE_CONTRACTCALLLOCALESTIMATE: "true"
               HIERO_MIRROR_TEST_ACCEPTANCE_NETWORK: OTHER
               HIERO_MIRROR_TEST_ACCEPTANCE_WEB3_OPCODETRACER_ENABLED: "true"
+              HIERO_MIRROR_TEST_ACCEPTANCE_SKIPENTITIESCLEANUP: "true"
             enabled: true
           web3:
             env:
