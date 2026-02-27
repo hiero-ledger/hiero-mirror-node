@@ -51,6 +51,8 @@ public class EntityProperties {
 
         private boolean entityHistory = true;
 
+        private boolean entityNftTransactions = false;
+
         /**
          * A set of entity ids to exclude from entity_transaction table
          */
@@ -58,7 +60,6 @@ public class EntityProperties {
         private Set<EntityId> entityTransactionExclusion;
 
         private boolean entityTransactions = false;
-        private boolean entityNftTransactions = false;
 
         private boolean ethereumTransactions = true;
 
@@ -137,17 +138,12 @@ public class EntityProperties {
 
             int transactionTypeValue = recordItem.getTransactionType();
             TransactionType transactionType = TransactionType.of(transactionTypeValue);
-            boolean isNftRelatedTransaction = transactionType == TransactionType.CRYPTOTRANSFER
+
+            return transactionType == TransactionType.CRYPTOTRANSFER
                     || transactionType == TransactionType.TOKENMINT
                     || transactionType == TransactionType.TOKENBURN
                     || transactionType == TransactionType.TOKENWIPE
                     || transactionType == TransactionType.TOKENUPDATE;
-
-            if (!isNftRelatedTransaction) {
-                return false;
-            }
-
-            return true;
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {
