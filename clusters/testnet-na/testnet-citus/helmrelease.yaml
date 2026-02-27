@@ -54,6 +54,15 @@ spec:
         HIERO_MIRROR_IMPORTER_PARSER_RECORD_SIDECAR_ENABLED: "true"
         HIERO_MIRROR_IMPORTER_START_DATE: "1970-01-01T00:00:00.000000000Z"
     monitor:
+      config:
+        hiero:
+          mirror:
+            monitor:
+              health:
+                importer-lag:
+                  clusters:
+                    - testnet-eu
+                  local-cluster: testnet-na
       enabled: true
       env:
         HIERO_MIRROR_MONITOR_HEALTH_RELEASE_ENABLED: "true"
