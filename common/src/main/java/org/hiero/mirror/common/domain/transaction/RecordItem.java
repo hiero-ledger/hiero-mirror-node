@@ -99,6 +99,10 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private Map<Long, ContractTransaction> contractTransactions;
 
+    @NonFinal
+    @Setter
+    private Predicate<EntityId> entityNftTransactionPredicate;
+
     @Getter(AccessLevel.NONE)
     @NonFinal
     private EntityTransaction.EntityTransactionBuilder entityTransactionBuilder;
@@ -106,10 +110,6 @@ public class RecordItem implements StreamItem {
     @NonFinal
     @Setter
     private Predicate<EntityId> entityTransactionPredicate;
-
-    @NonFinal
-    @Setter
-    private Predicate<EntityId> entityNftTransactionPredicate;
 
     @NonFinal
     private Map<Long, EntityTransaction> entityTransactions;
@@ -200,17 +200,7 @@ public class RecordItem implements StreamItem {
             return;
         }
 
-        if (entityTransactionBuilder == null) {
-            entityTransactionBuilder = EntityTransaction.builder()
-                    .consensusTimestamp(consensusTimestamp)
-                    .payerAccountId(payerAccountId)
-                    .result(getTransactionStatus())
-                    .type(transactionType);
-        }
-
-        getEntityTransactions().computeIfAbsent(entityId.getId(), id -> entityTransactionBuilder
-                .entityId(id)
-                .build());
+        addEntityIdUnconditionally(entityId);
     }
 
     public void addNftTransactionEntityId(EntityId entityId) {
@@ -220,6 +210,10 @@ public class RecordItem implements StreamItem {
             return;
         }
 
+        addEntityIdUnconditionally(entityId);
+    }
+
+    private void addEntityIdUnconditionally(EntityId entityId) {
         if (entityTransactionBuilder == null) {
             entityTransactionBuilder = EntityTransaction.builder()
                     .consensusTimestamp(consensusTimestamp)
