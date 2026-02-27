@@ -21,7 +21,6 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
-import org.hiero.mirror.restjava.parameter.RequestParameterArgumentResolver;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
@@ -64,7 +63,6 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     private final MessageSource messageSource = new ErrorMessageSource();
     private final RestJavaProperties properties;
-    private final RequestParameterArgumentResolver parameterResolver;
 
     @Bean
     @SuppressWarnings("java:S5122")
@@ -159,9 +157,8 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     private Error bindExceptionResponse(BindException e) {
-        Object target = e.getTarget();
         var messages = e.getBindingResult().getAllErrors().stream()
-                .map(error -> formatBindingErrorMessage(error, target))
+                .map(this::formatBindingErrorMessage)
                 .toList();
         var errorStatus = new ErrorStatus().messages(messages);
         return new Error().status(errorStatus);
@@ -181,22 +178,15 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new Error().status(errorStatus);
     }
 
-    private ErrorStatusMessagesInner formatBindingErrorMessage(MessageSourceResolvable error, Object target) {
+    private ErrorStatusMessagesInner formatBindingErrorMessage(MessageSourceResolvable error) {
         var detail = error.getDefaultMessage();
         if (error instanceof FieldError fieldError) {
-            detail = "Invalid parameter: " + getParameterName(fieldError, target);
+            detail = "Invalid parameter: " + fieldError.getField();
         } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
             detail = messageSource.getMessage(resolvable, Locale.getDefault());
         }
 
         return new ErrorStatusMessagesInner().message(detail);
-    }
-
-    private String getParameterName(FieldError fieldError, Object target) {
-        if (target == null) {
-            return fieldError.getField();
-        }
-        return parameterResolver.getParameterName(target.getClass(), fieldError.getField());
     }
 
     private ErrorStatusMessagesInner formatErrorMessage(MessageSourceResolvable error) {

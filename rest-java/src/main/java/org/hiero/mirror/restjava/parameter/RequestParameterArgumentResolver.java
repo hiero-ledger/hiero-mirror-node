@@ -14,7 +14,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.MutablePropertyValues;
 import org.springframework.core.MethodParameter;
+import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.ValueConstants;
 import org.springframework.web.bind.support.WebDataBinderFactory;
@@ -83,15 +85,40 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         binder.initDirectFieldAccess();
         binder.bind(propertyValues);
 
+        validate(binder, parameterType, attribute);
+
+        return attribute;
+    }
+
+    private void validate(WebDataBinder binder, Class<?> parameterType, Object attribute) throws BindException {
         // Validate - same as Spring's validation
         binder.validate();
 
         // Throw BindException if there are validation errors (same as Spring)
         if (binder.getBindingResult().hasErrors()) {
-            throw new BindException(binder.getBindingResult());
-        }
+            // Replace field names with annotation parameter names in errors
+            var bindingResult = binder.getBindingResult();
+            var modifiedErrors = bindingResult.getAllErrors().stream()
+                    .map(error -> {
+                        if (error instanceof FieldError fieldError) {
+                            var paramName = getParameterName(parameterType, fieldError.getField());
+                            return new FieldError(
+                                    fieldError.getObjectName(),
+                                    paramName, // Use annotation name instead of field name
+                                    fieldError.getRejectedValue(),
+                                    fieldError.isBindingFailure(),
+                                    fieldError.getCodes(),
+                                    fieldError.getArguments(),
+                                    fieldError.getDefaultMessage());
+                        }
+                        return error;
+                    })
+                    .toList();
 
-        return attribute;
+            var modifiedResult = new BeanPropertyBindingResult(attribute, bindingResult.getObjectName());
+            modifiedErrors.forEach(modifiedResult::addError);
+            throw new BindException(modifiedResult);
+        }
     }
 
     /**
@@ -214,7 +241,7 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
      * Gets the parameter name for a field from cached metadata. Returns the annotation name if present, otherwise the
      * field name.
      */
-    public String getParameterName(Class<?> dtoClass, String fieldName) {
+    private String getParameterName(Class<?> dtoClass, String fieldName) {
         final var metadata = getMetadata(dtoClass);
 
         // Check query params
