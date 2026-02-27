@@ -7,7 +7,6 @@ import com.swirlds.state.spi.ReadableKVStateBase;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import org.hiero.mirror.web3.state.keyvalue.ForwardingReadableKVStateBase;
 import org.jspecify.annotations.NonNull;
 
 /**
