@@ -208,7 +208,7 @@ public class DomainBuilder {
                 .memo(text(10))
                 .nodeId(nodeId)
                 .nodeAccountId(entityNum(nodeId + 3))
-                .nodeCertHash(bytes(96))
+                .nodeCertHash(hexBytes(96))
                 .publicKey(text(64))
                 .stake(0L);
 
@@ -1219,6 +1219,15 @@ public class DomainBuilder {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public byte[] hexBytes(int length) {
+        var hexChars = "0123456789abcdef";
+        var result = new byte[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = (byte) hexChars.charAt(random.nextInt(hexChars.length()));
+        }
+        return result;
     }
 
     public EntityId entityId() {

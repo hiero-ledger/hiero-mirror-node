@@ -23,7 +23,7 @@ public record NetworkNodeDto(
         String memo,
         Long minStake,
         Long nodeAccountId,
-        byte[] nodeCertHash,
+        String nodeCertHash,
         Long nodeId,
         String publicKey,
         Long rewardRateStart,

@@ -4,7 +4,6 @@ package org.hiero.mirror.restjava.mapper;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
@@ -23,20 +22,10 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
 
     @Override
     @Mapping(target = "grpcProxyEndpoint", expression = "java(parseServiceEndpoint(row.grpcProxyEndpointJson()))")
-    @Mapping(target = "nodeCertHash", qualifiedByName = "mapNodeCertHash")
     @Mapping(target = "serviceEndpoints", expression = "java(parseServiceEndpointList(row.serviceEndpointsJson()))")
     @Mapping(target = "stakingPeriod", qualifiedByName = "mapStakingPeriod")
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(row))")
     NetworkNode map(NetworkNodeDto row);
-
-    @Named("mapNodeCertHash")
-    default String mapNodeCertHash(byte[] nodeCertHash) {
-        if (nodeCertHash == null || nodeCertHash.length == 0) {
-            return "0x";
-        }
-        var hexString = new String(nodeCertHash, StandardCharsets.UTF_8);
-        return hexString.startsWith("0x") ? hexString : "0x" + hexString;
-    }
 
     default TimestampRange mapTimestampRange(NetworkNodeDto row) {
         if (row == null) {

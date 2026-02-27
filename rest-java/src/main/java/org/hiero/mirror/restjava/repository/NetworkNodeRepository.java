@@ -58,7 +58,10 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
                 abe.memo as memo,
                 nullif(ns.min_stake, -1) as minStake,
                 coalesce(n.account_id, abe.node_account_id) as nodeAccountId,
-                abe.node_cert_hash as nodeCertHash,
+                case when abe.node_cert_hash is null or abe.node_cert_hash = ''::bytea then '0x'
+                     when left(convert_from(abe.node_cert_hash, 'UTF8'), 2) = '0x' then convert_from(abe.node_cert_hash, 'UTF8')
+                     else '0x' || convert_from(abe.node_cert_hash, 'UTF8')
+                     end as nodeCertHash,
                 abe.node_id as nodeId,
                 case when abe.public_key is null or abe.public_key = '' then '0x'
                      when left(abe.public_key, 2) = '0x' then abe.public_key
