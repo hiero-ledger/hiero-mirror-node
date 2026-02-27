@@ -77,16 +77,16 @@ public class EntityRecordItemListener implements RecordItemListener {
 
     @Override
     public void onItem(RecordItem recordItem) throws ImporterException {
-        recordItem.setEntityTransactionPredicate(
-                entityId -> entityProperties.getPersist().shouldPersistEntityTransaction(entityId));
-        recordItem.setEntityNftTransactionPredicate(
-                entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, recordItem));
-        recordItem.setContractTransactionPredicate(
-                entityId -> entityProperties.getPersist().isContractTransaction());
-
         int transactionTypeValue = recordItem.getTransactionType();
         TransactionType transactionType = TransactionType.of(transactionTypeValue);
         TransactionHandler transactionHandler = transactionHandlerFactory.get(transactionType);
+
+        recordItem.setEntityTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityTransaction(entityId));
+        recordItem.setEntityNftTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, transactionType));
+        recordItem.setContractTransactionPredicate(
+                entityId -> entityProperties.getPersist().isContractTransaction());
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         EntityId entityId;

@@ -123,8 +123,10 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
         }
 
         return entityIds.stream()
-                .filter(entityId ->
-                        entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, recordItem))
+                .filter(entityId -> entityProperties
+                        .getPersist()
+                        .shouldPersistEntityNftTransaction(
+                                entityId, TransactionType.of(recordItem.getTransactionType())))
                 .map(e -> TestUtils.toEntityTransaction(e, recordItem))
                 .toList();
     }

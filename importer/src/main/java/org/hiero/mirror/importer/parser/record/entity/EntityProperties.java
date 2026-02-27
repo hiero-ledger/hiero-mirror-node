@@ -13,7 +13,6 @@ import java.util.Set;
 import lombok.Data;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -51,7 +50,7 @@ public class EntityProperties {
 
         private boolean entityHistory = true;
 
-        private boolean entityNftTransactions = false;
+        private boolean entityNftTransactions = true;
 
         /**
          * A set of entity ids to exclude from entity_transaction table
@@ -131,13 +130,10 @@ public class EntityProperties {
             return entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
         }
 
-        public boolean shouldPersistEntityNftTransaction(EntityId entityId, RecordItem recordItem) {
-            if (!entityNftTransactions || EntityId.isEmpty(entityId) || entityTransactionExclusion.contains(entityId)) {
+        public boolean shouldPersistEntityNftTransaction(EntityId entityId, TransactionType transactionType) {
+            if (!entityNftTransactions || EntityId.isEmpty(entityId)) {
                 return false;
             }
-
-            int transactionTypeValue = recordItem.getTransactionType();
-            TransactionType transactionType = TransactionType.of(transactionTypeValue);
 
             return transactionType == TransactionType.CRYPTOTRANSFER
                     || transactionType == TransactionType.TOKENMINT

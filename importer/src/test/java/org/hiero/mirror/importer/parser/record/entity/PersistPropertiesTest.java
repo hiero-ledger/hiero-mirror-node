@@ -13,6 +13,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 class PersistPropertiesTest {
@@ -62,6 +63,36 @@ class PersistPropertiesTest {
                 .isTrue();
         assertThat(persistProperties.shouldPersistEntityTransaction(EntityId.of(800)))
                 .isTrue();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = TransactionType.class)
+    void shouldPersistEntityNftTransaction(final TransactionType transactionType) {
+        var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setEntityNftTransactions(true);
+        var expected =
+                switch (transactionType) {
+                    case CRYPTOTRANSFER, TOKENMINT, TOKENUPDATE, TOKENBURN, TOKENWIPE -> true;
+                    default -> false;
+                };
+        assertThat(persistProperties.shouldPersistEntityNftTransaction(EntityId.of(10), transactionType))
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void shouldPersistEntityNftTransactionWhenDisabled() {
+        var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setEntityNftTransactions(false);
+        assertThat(persistProperties.shouldPersistEntityNftTransaction(EntityId.of(10), TransactionType.TOKENUPDATE))
+                .isFalse();
+    }
+
+    @Test
+    void shouldPersistEntityNftTransactionWhenEntityIdIsEmpty() {
+        var persistProperties = new EntityProperties.PersistProperties(SYSTEM_ENTITY);
+        persistProperties.setEntityNftTransactions(true);
+        assertThat(persistProperties.shouldPersistEntityNftTransaction(null, TransactionType.TOKENUPDATE))
+                .isFalse();
     }
 
     @ParameterizedTest
