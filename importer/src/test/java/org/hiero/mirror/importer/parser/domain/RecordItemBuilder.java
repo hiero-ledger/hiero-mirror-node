@@ -104,6 +104,8 @@ import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.RealmID;
 import com.hederahashgraph.api.proto.java.RegisteredNodeCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeDeleteTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeUpdateTransactionBody;
 import com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.RoyaltyFee;
@@ -914,6 +916,25 @@ public class RecordItemBuilder {
                         .setMirrorNode(RegisteredServiceEndpoint.MirrorNodeEndpoint.getDefaultInstance()));
 
         return new Builder<>(TransactionType.REGISTEREDNODECREATE, builder).receipt(r -> r.setRegisteredNodeId(id()));
+    }
+
+    public Builder<RegisteredNodeUpdateTransactionBody.Builder> registeredNodeUpdate() {
+        final var builder = RegisteredNodeUpdateTransactionBody.newBuilder()
+                .setRegisteredNodeId(id())
+                .setAdminKey(key())
+                .setDescription(StringValue.of(text(8)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setRequiresTls(true)
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(STATUS)));
+        return new Builder<>(TransactionType.REGISTEREDNODEUPDATE, builder);
+    }
+
+    public Builder<RegisteredNodeDeleteTransactionBody.Builder> registeredNodeDelete() {
+        final var builder = RegisteredNodeDeleteTransactionBody.newBuilder().setRegisteredNodeId(id());
+        return new Builder<>(TransactionType.REGISTEREDNODEDELETE, builder);
     }
 
     public void reset() {

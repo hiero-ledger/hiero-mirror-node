@@ -74,9 +74,11 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                     .build();
 
             node.setTimestampRange(Range.closedOpen(node.getTimestampLower(), nodeDelete.getConsensusTimestamp()));
+            node.setAssociatedRegisteredNodes(null); // Migration runs before V1.118.1, column doesn't exist yet
             historyNodes.add(node);
             historyNodes.add(Node.builder()
                     .adminKey(node.getAdminKey())
+                    .associatedRegisteredNodes(null)
                     .createdTimestamp(node.getCreatedTimestamp())
                     .declineReward(false)
                     .deleted(true)
@@ -91,6 +93,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                             .getNodeUpdate()
                             .getAdminKey()
                             .toByteArray())
+                    .associatedRegisteredNodes(null)
                     .createdTimestamp(node.getCreatedTimestamp())
                     .declineReward(false)
                     .deleted(false)
@@ -215,6 +218,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeCreate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(nodeCreateRecordItem.getConsensusTimestamp())
                 .declineReward(false)
                 .deleted(false)
@@ -228,6 +232,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeUpdate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(nodeUpdateRecordItem.getConsensusTimestamp())
                 .declineReward(false)
                 .deleted(false)
@@ -244,6 +249,7 @@ class FixNodeTransactionsMigrationTest extends ImporterIntegrationTest {
                         .getNodeUpdate()
                         .getAdminKey()
                         .toByteArray())
+                .associatedRegisteredNodes(null)
                 .createdTimestamp(null)
                 .declineReward(false)
                 .deleted(false)

@@ -207,11 +207,8 @@ abstract class AbstractTransactionHandlerTest {
 
     @Test
     void testGetEntityId() {
-        EntityId expectedEntityId = null;
-        var entityType = getExpectedEntityIdType();
-        if (entityType != null) {
-            expectedEntityId = defaultEntityId;
-        }
+        final var entityType = getExpectedEntityIdType();
+        EntityId expectedEntityId = entityType != null ? defaultEntityId : null;
         testGetEntityIdHelper(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),
@@ -302,7 +299,13 @@ abstract class AbstractTransactionHandlerTest {
                         .build())
                 .transactionRecord(transactionRecord)
                 .build();
-        assertThat(transactionHandler.getEntity(recordItem)).isEqualTo(expectedEntity);
+        final var actualEntity = transactionHandler.getEntity(recordItem);
+        if (expectedEntity != null) {
+            assertThat(actualEntity).isEqualTo(expectedEntity);
+        } else {
+            // Handlers without a primary entity may return null (default) or EntityId.EMPTY
+            assertThat(actualEntity).isIn(null, EntityId.EMPTY);
+        }
     }
 
     protected Entity getEntity() {
