@@ -27,6 +27,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractLog[]} contractLogs
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
+   * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
    */
   constructor(
     contractResult,
@@ -34,7 +35,8 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     ethTransaction,
     contractLogs = null,
     contractStateChanges = null,
-    fileData = null
+    fileData = null,
+    convertToHbar = true
   ) {
     super(contractResult);
 
@@ -82,7 +84,17 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
     if (!_.isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
-      this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
+
+      // Handle value/amount conversion based on convertToHbar parameter
+      // After migration, DB contains weibar values
+      if (convertToHbar) {
+        // Convert from weibar to tinybar for backward compatibility
+        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value);
+      } else {
+        // Return raw weibar values from DB
+        this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
+      }
+
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && _.isEmpty(contractResult.errorMessage)) {
@@ -96,9 +108,22 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (!_.isNil(ethTransaction.gasLimit)) {
         this.gas_limit = ethTransaction.gasLimit;
       }
-      this.gas_price = utils.toHexStringQuantity(ethTransaction.gasPrice);
-      this.max_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxFeePerGas);
-      this.max_priority_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxPriorityFeePerGas);
+
+      // Convert gas fields based on convertToHbar parameter
+      if (convertToHbar) {
+        // Convert from weibar to tinybar for backward compatibility
+        this.gas_price = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.gasPrice);
+        this.max_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.maxFeePerGas);
+        this.max_priority_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(
+          ethTransaction.maxPriorityFeePerGas
+        );
+      } else {
+        // Return raw weibar values from DB
+        this.gas_price = utils.toHexStringQuantity(ethTransaction.gasPrice);
+        this.max_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxFeePerGas);
+        this.max_priority_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxPriorityFeePerGas);
+      }
+
       this.nonce = ethTransaction.nonce;
       this.r = utils.toHexStringNonQuantity(ethTransaction.signatureR);
       this.s = utils.toHexStringNonQuantity(ethTransaction.signatureS);
@@ -117,6 +142,51 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
     }
+  }
+
+  /**
+   * Converts weibar byte array to tinybar BigInt
+   * Divides by 10,000,000,000 (WEIBARS_TO_TINYBARS)
+   * @param {Buffer|null} weibarBytes
+   * @returns {BigInt|null}
+   */
+  static _convertWeibarToTinybar(weibarBytes) {
+    if (_.isNil(weibarBytes) || weibarBytes.length === 0) {
+      return null;
+    }
+
+    const weibar = BigInt(utils.addHexPrefix(Buffer.from(weibarBytes).toString('hex')));
+    const divisor = 10_000_000_000n;
+    return weibar / divisor;
+  }
+
+  /**
+   * Converts weibar byte array to hex string after converting to tinybar
+   * @param {Buffer|null} weibarBytes
+   * @returns {string|null}
+   */
+  static _convertWeibarBytesToHex(weibarBytes) {
+    if (_.isNil(weibarBytes) || weibarBytes.length === 0) {
+      return null;
+    }
+
+    const tinybar = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarBytes);
+    if (tinybar === null) {
+      return null;
+    }
+
+    // Convert tinybar BigInt to hex bytes
+    let hex = tinybar.toString(16);
+    if (hex === '0') {
+      return '0x0';
+    }
+
+    // Ensure even length for proper hex encoding
+    if (hex.length % 2 !== 0) {
+      hex = '0' + hex;
+    }
+
+    return utils.toHexStringQuantity(Buffer.from(hex, 'hex'));
   }
 }
 
