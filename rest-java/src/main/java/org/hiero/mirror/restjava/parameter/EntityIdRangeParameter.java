@@ -51,4 +51,12 @@ public record EntityIdRangeParameter(RangeOperator operator, Long value) impleme
             default -> throw new IllegalArgumentException("Invalid entity ID");
         };
     }
+
+    public long getInclusiveValue() {
+        return switch (operator) {
+            case GT -> value + 1;
+            case LT -> value - 1;
+            default -> value;
+        };
+    }
 }

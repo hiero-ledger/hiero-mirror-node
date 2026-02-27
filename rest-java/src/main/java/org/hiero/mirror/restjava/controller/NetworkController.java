@@ -6,11 +6,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
+import com.google.common.collect.ImmutableSortedMap;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.hederahashgraph.api.proto.java.SignedTransaction;
 import com.hederahashgraph.api.proto.java.Transaction;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
@@ -19,18 +22,27 @@ import org.hiero.mirror.rest.model.FeeEstimateResponse;
 import org.hiero.mirror.rest.model.FeeExtra;
 import org.hiero.mirror.rest.model.NetworkExchangeRateSetResponse;
 import org.hiero.mirror.rest.model.NetworkFeesResponse;
+import org.hiero.mirror.rest.model.NetworkNode;
+import org.hiero.mirror.rest.model.NetworkNodesResponse;
 import org.hiero.mirror.rest.model.NetworkStakeResponse;
+import org.hiero.mirror.restjava.common.Constants;
+import org.hiero.mirror.restjava.common.LinkFactory;
+import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.common.SupplyType;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.mapper.ExchangeRateMapper;
 import org.hiero.mirror.restjava.mapper.FeeScheduleMapper;
+import org.hiero.mirror.restjava.mapper.NetworkNodeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkStakeMapper;
 import org.hiero.mirror.restjava.mapper.NetworkSupplyMapper;
+import org.hiero.mirror.restjava.parameter.RequestParameter;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.FileService;
 import org.hiero.mirror.restjava.service.NetworkService;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -47,6 +59,8 @@ import org.springframework.web.bind.annotation.RestController;
 final class NetworkController {
 
     static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
+    private static final Function<NetworkNode, Map<String, String>> NETWORK_NODE_EXTRACTOR =
+            node -> ImmutableSortedMap.of(Constants.NODE_ID, node.getNodeId().toString());
 
     static {
         final var feeExtra = new FeeExtra();
@@ -77,9 +91,11 @@ final class NetworkController {
     private final ExchangeRateMapper exchangeRateMapper;
     private final FeeScheduleMapper feeScheduleMapper;
     private final FileService fileService;
+    private final LinkFactory linkFactory;
     private final NetworkService networkService;
     private final NetworkStakeMapper networkStakeMapper;
     private final NetworkSupplyMapper networkSupplyMapper;
+    private final NetworkNodeMapper networkNodeMapper;
 
     @GetMapping("/exchangerate")
     NetworkExchangeRateSetResponse getExchangeRate(
@@ -138,5 +154,25 @@ final class NetworkController {
         }
 
         return ResponseEntity.ok(networkSupplyMapper.map(networkSupply));
+    }
+
+    @GetMapping("/nodes")
+    ResponseEntity<NetworkNodesResponse> getNodes(@RequestParameter NetworkNodeRequest request) {
+        if (request.getFileId().operator() != RangeOperator.EQ) {
+            throw new IllegalArgumentException("Only equality operator is supported for file.id");
+        }
+        final var networkNodeRows = networkService.getNetworkNodes(request);
+        final var limit = request.getEffectiveLimit();
+
+        final var networkNodes = networkNodeMapper.map(networkNodeRows);
+
+        final var sort = Sort.by(request.getOrder(), Constants.NODE_ID);
+        final var pageable = PageRequest.of(0, limit, sort);
+        final var links = linkFactory.create(networkNodes, pageable, NETWORK_NODE_EXTRACTOR);
+
+        var response = new NetworkNodesResponse();
+        response.setNodes(networkNodes);
+        response.setLinks(links);
+        return ResponseEntity.ok(response);
     }
 }

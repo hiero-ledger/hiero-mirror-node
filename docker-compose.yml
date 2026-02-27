@@ -217,6 +217,7 @@ configs:
         location ~ "^/api/v1/accounts/(\d+\.){0,2}(\d+|(0x)?[A-Fa-f0-9]{40}|(?:[A-Z2-7]{8})*(?:[A-Z2-7]{2}|[A-Z2-7]{4,5}|[A-Z2-7]{7,8}))/hooks/(0|[1-9]\d*)/storage$" { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/exchangerate { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/fees { proxy_pass http://rest_java_host$$request_uri; }
+        location = /api/v1/network/nodes { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/stake { proxy_pass http://rest_java_host$$request_uri; }
         location = /api/v1/network/supply { proxy_pass http://rest_java_host$$request_uri; }
         location ~ "^/api/v1/topics/(\d+\.){0,2}\d+$" { proxy_pass http://rest_java_host$$request_uri; }

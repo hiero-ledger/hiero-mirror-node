@@ -3,13 +3,26 @@
   "setup": {},
   "url": "/api/v1/network/nodes?file.id=101&file.id=102",
   "responseStatus": 400,
-  "responseJson": {
-    "_status": {
-      "messages": [
-        {
-          "message": "Only a single instance is supported for file.id"
-        }
-      ]
+  "responseJsonMatrix": {
+    "js": {
+      "_status": {
+        "messages": [
+          {
+            "message": "Only a single instance is supported for file.id"
+          }
+        ]
+      }
+    },
+    "java": {
+      "_status": {
+        "messages": [
+          {
+            "data": null,
+            "detail": "Only a single instance is supported for file.id",
+            "message": "Bad Request"
+          }
+        ]
+      }
     }
   }
 }

@@ -14,6 +14,7 @@ import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.Links;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
@@ -31,6 +32,92 @@ final class LinkFactoryImpl implements LinkFactory {
 
     private static final Links DEFAULT_LINKS = new Links();
 
+    private static RangeOperator getOperator(Direction order, boolean exclusive) {
+        return switch (order) {
+            case ASC -> exclusive ? RangeOperator.GT : RangeOperator.GTE;
+            case DESC -> exclusive ? RangeOperator.LT : RangeOperator.LTE;
+        };
+    }
+
+    private static boolean isSameDirection(Direction order, String value) {
+        var normalized = value.toLowerCase();
+        return switch (order) {
+            case ASC -> normalized.startsWith("gt:") || normalized.startsWith("gte:");
+            case DESC -> normalized.startsWith("lt:") || normalized.startsWith("lte:");
+        };
+    }
+
+    private static boolean containsEq(List<String> values) {
+        for (var value : values) {
+            if (hasEq(value)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean hasEq(String value) {
+        var normalized = value.toLowerCase();
+        return normalized.startsWith("eq:")
+                || (!normalized.startsWith("gt:")
+                        && !normalized.startsWith("gte:")
+                        && !normalized.startsWith("lt:")
+                        && !normalized.startsWith("lte:"));
+    }
+
+    /**
+     * Checks if the query parameters would create an empty range (e.g., gt:4 AND lt:5). This happens when the
+     * pagination link would exclude all remaining results.
+     * <p>
+     * Note: This operates on HTTP query parameter strings since LinkFactory works at the HTTP level. The
+     * EntityIdRangeParameter parsing happens earlier in the service layer, but by this point we need to check the
+     * combined query params (original + newly added pagination bounds).
+     */
+    private static boolean isEmptyRange(
+            Sort.@Nullable Order primarySort, LinkedMultiValueMap<String, String> queryParams) {
+        if (primarySort == null) {
+            return false;
+        }
+
+        var primaryField = primarySort.getProperty();
+
+        var values = queryParams.get(primaryField);
+        if (values == null || values.isEmpty()) {
+            return false;
+        }
+
+        // Compute the effective range bounds from all query parameters
+        var lower = Long.MIN_VALUE;
+        var upper = Long.MAX_VALUE;
+
+        for (var value : values) {
+            var normalized = value.toLowerCase();
+
+            try {
+                // Extract the numeric value and update bounds
+                if (normalized.startsWith("gt:")) {
+                    long val = Long.parseLong(value.substring(3)) + 1; // gt:4 → gte:5
+                    lower = Math.max(lower, val);
+                } else if (normalized.startsWith("gte:")) {
+                    long val = Long.parseLong(value.substring(4));
+                    lower = Math.max(lower, val);
+                } else if (normalized.startsWith("lt:")) {
+                    long val = Long.parseLong(value.substring(3)) - 1; // lt:5 → lte:4
+                    upper = Math.min(upper, val);
+                } else if (normalized.startsWith("lte:")) {
+                    long val = Long.parseLong(value.substring(4));
+                    upper = Math.min(upper, val);
+                }
+            } catch (NumberFormatException e) {
+                // Skip invalid values
+            }
+        }
+
+        // If upper < lower, the range is empty (e.g., gt:4 AND lt:5)
+        return upper < lower;
+    }
+
     @Override
     public <T> Links create(List<T> items, Pageable pageable, Function<T, Map<String, String>> extractor) {
         if (CollectionUtils.isEmpty(items) || pageable.getPageSize() > items.size()) {
@@ -45,10 +132,17 @@ final class LinkFactoryImpl implements LinkFactory {
         var request = servletRequestAttributes.getRequest();
         var lastItem = Objects.requireNonNull(CollectionUtils.lastElement(items));
         var nextLink = createNextLink(lastItem, pageable, extractor, request);
+
+        // If nextLink is null, it means the pagination range would be empty - no more results
+        if (nextLink == null) {
+            return DEFAULT_LINKS;
+        }
+
         servletRequestAttributes.getResponse().setHeader(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink));
         return new Links().next(nextLink);
     }
 
+    @org.jspecify.annotations.Nullable
     private <T> String createNextLink(
             T lastItem, Pageable pageable, Function<T, Map<String, String>> extractor, HttpServletRequest request) {
         var sortOrders = pageable.getSort();
@@ -61,6 +155,13 @@ final class LinkFactoryImpl implements LinkFactory {
 
         addParamMapToQueryParams(paramsMap, paginationParamsMap, order, queryParams);
         addExtractedParamsToQueryParams(sortOrders, paginationParamsMap, order, queryParams);
+
+        // Check if the pagination would create an empty range (e.g., gt:4 AND lt:5 with no values in between)
+        // If so, return null to indicate no more results
+        if (isEmptyRange(primarySort, queryParams)) {
+            return null;
+        }
+
         builder.queryParams(queryParams);
         return builder.toUriString();
     }
@@ -120,39 +221,5 @@ final class LinkFactoryImpl implements LinkFactory {
             var value = paginationParamsMap.get(key);
             queryParams.add(key, getOperator(order, exclusive) + ":" + value);
         }
-    }
-
-    private static RangeOperator getOperator(Direction order, boolean exclusive) {
-        return switch (order) {
-            case ASC -> exclusive ? RangeOperator.GT : RangeOperator.GTE;
-            case DESC -> exclusive ? RangeOperator.LT : RangeOperator.LTE;
-        };
-    }
-
-    private static boolean isSameDirection(Direction order, String value) {
-        var normalized = value.toLowerCase();
-        return switch (order) {
-            case ASC -> normalized.startsWith("gt:") || normalized.startsWith("gte:");
-            case DESC -> normalized.startsWith("lt:") || normalized.startsWith("lte:");
-        };
-    }
-
-    private static boolean containsEq(List<String> values) {
-        for (var value : values) {
-            if (hasEq(value)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean hasEq(String value) {
-        var normalized = value.toLowerCase();
-        return normalized.startsWith("eq:")
-                || (!normalized.startsWith("gt:")
-                        && !normalized.startsWith("gte:")
-                        && !normalized.startsWith("lt:")
-                        && !normalized.startsWith("lte:"));
     }
 }

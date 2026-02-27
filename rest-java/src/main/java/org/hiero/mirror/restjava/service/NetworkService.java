@@ -2,11 +2,16 @@
 
 package org.hiero.mirror.restjava.service;
 
+import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
+import org.hiero.mirror.restjava.dto.NetworkNodeDto;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
 
 public interface NetworkService {
     NetworkStake getLatestNetworkStake();
+
+    List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request);
 
     NetworkSupply getSupply(Bound timestamp);
 }
