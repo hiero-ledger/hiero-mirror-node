@@ -26,7 +26,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.web3.evm.exception.PrecompileNotSupportedException;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.exception.InvalidInputException;
-import org.hiero.mirror.web3.exception.InvalidRequestHeaderException;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -48,6 +47,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -137,8 +137,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler
-    private ResponseEntity<?> invalidRequestHeaderException(
-            final InvalidRequestHeaderException e, final WebRequest request) {
+    private ResponseEntity<?> httpClientErrorException(final HttpClientErrorException e, final WebRequest request) {
         return handleExceptionInternal(e, null, null, NOT_ACCEPTABLE, request);
     }
 

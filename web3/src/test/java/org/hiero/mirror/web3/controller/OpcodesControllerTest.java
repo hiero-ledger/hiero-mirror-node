@@ -6,7 +6,7 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
-import static org.hiero.mirror.web3.controller.AcceptEncodingInterceptor.MISSING_GZIP_HEADER_MESSAGE;
+import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -56,7 +56,6 @@ import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.config.OpcodeWebConfig;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
@@ -95,7 +94,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -107,7 +105,6 @@ import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.util.StringUtils;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
-@Import({OpcodeWebConfig.class, AcceptEncodingInterceptor.class})
 @WebMvcTest(controllers = OpcodesController.class)
 class OpcodesControllerTest {
 
