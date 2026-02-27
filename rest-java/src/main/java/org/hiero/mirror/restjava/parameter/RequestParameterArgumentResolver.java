@@ -86,9 +86,6 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         // Validate - same as Spring's validation
         binder.validate();
 
-        // Check for unknown query parameters and add to binding result
-        addUnknownParameterErrors(metadata, webRequest, binder);
-
         // Throw BindException if there are validation errors (same as Spring)
         if (binder.getBindingResult().hasErrors()) {
             throw new BindException(binder.getBindingResult());
@@ -211,28 +208,6 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
         // Add to property values - WebDataBinder will handle type conversion
         Object valueToSet = isMultiValue ? paramValues : paramValues[0];
         propertyValues.add(field.getName(), valueToSet);
-    }
-
-    /**
-     * Validates that all query parameters in the request are known (defined in the DTO). Adds errors to the binding
-     * result for any unknown parameters.
-     */
-    private void addUnknownParameterErrors(
-            BindingMetadata metadata, NativeWebRequest webRequest, WebDataBinder binder) {
-        Map<String, String[]> allParams = webRequest.getParameterMap();
-
-        // Collect all known parameter names from annotations, falling back to field name if no explicit name is set
-        final var knownParams = metadata.queryParams.entrySet().stream()
-                .map(e -> extractName(
-                        e.getKey(), e.getValue().value(), e.getValue().name()))
-                .toList();
-
-        // Check for unknown parameters and add errors
-        for (final var paramName : allParams.keySet()) {
-            if (!knownParams.contains(paramName)) {
-                binder.getBindingResult().reject("unknown.parameter", "Unknown query parameter: " + paramName);
-            }
-        }
     }
 
     /**
