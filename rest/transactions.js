@@ -25,6 +25,7 @@ import {
 } from './model';
 
 import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
+import EntityTransaction from './model/entityTransaction.js';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -512,11 +513,38 @@ const getTransactionTimestampsQuery = (
     resultTypeQuery,
     transactionTypeQuery
   );
-  const transactionOnlyQuery = `select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
-                                from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause}
-                                order by ${Transaction.getFullName(
-                                  Transaction.CONSENSUS_TIMESTAMP
-                                )} ${order} ${limitQuery}`;
+
+  const entityQuery = accountQuery
+    ? `${accountQuery.replace(/ctl\.entity_id/g, `${EntityTransaction.ENTITY_ID}`)}`
+    : '';
+
+  const nftTransfersUnion = accountQuery
+    ? `union all
+       (select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
+        from ${Transaction.tableName} as ${Transaction.tableAlias}
+        where ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} in (
+          select ${EntityTransaction.CONSENSUS_TIMESTAMP}
+          from ${EntityTransaction.tableName}
+          where ${entityQuery}
+        ))`
+    : '';
+
+  const transactionOnlyQuery = `
+    select ${
+      accountQuery
+        ? `distinct on (${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)}, ${Transaction.getFullName(
+            Transaction.PAYER_ACCOUNT_ID
+          )})`
+        : ''
+    }
+        ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)},
+        ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}
+    from (
+        (select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
+         from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause})
+        ${nftTransfersUnion}
+    ) as ${Transaction.tableAlias}
+    order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery}`;
 
   if (creditDebitQuery || accountQuery) {
     const cryptoTransferQuery = getTransferDistinctTimestampsQuery(
@@ -569,7 +597,6 @@ const getTransactionTimestampsQuery = (
         order by consensus_timestamp ${order}
             ${limitQuery}`;
   }
-
   return transactionOnlyQuery;
 };
 

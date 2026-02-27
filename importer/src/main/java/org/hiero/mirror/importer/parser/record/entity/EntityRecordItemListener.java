@@ -78,13 +78,16 @@ public class EntityRecordItemListener implements RecordItemListener {
 
     @Override
     public void onItem(RecordItem recordItem) throws ImporterException {
-        recordItem.setEntityTransactionPredicate(entityProperties.getPersist()::shouldPersistEntityTransaction);
-        recordItem.setContractTransactionPredicate(
-                entityId -> entityProperties.getPersist().isContractTransaction());
-
         int transactionTypeValue = recordItem.getTransactionType();
         TransactionType transactionType = TransactionType.of(transactionTypeValue);
         TransactionHandler transactionHandler = transactionHandlerFactory.get(transactionType);
+
+        recordItem.setEntityTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityTransaction(entityId));
+        recordItem.setEntityNftTransactionPredicate(
+                entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, transactionType));
+        recordItem.setContractTransactionPredicate(
+                entityId -> entityProperties.getPersist().isContractTransaction());
 
         long consensusTimestamp = recordItem.getConsensusTimestamp();
         EntityId entityId;
@@ -578,6 +581,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             recordItem.addEntityId(receiverId);
             recordItem.addEntityId(senderId);
             recordItem.addEntityId(entityTokenId);
+
+            recordItem.addNftTransactionEntityId(receiverId);
+            recordItem.addNftTransactionEntityId(senderId);
 
             transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
             syntheticContractLogService.create(

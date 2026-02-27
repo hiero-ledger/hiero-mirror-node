@@ -50,6 +50,8 @@ public class EntityProperties {
 
         private boolean entityHistory = true;
 
+        private boolean entityNftTransactions = true;
+
         /**
          * A set of entity ids to exclude from entity_transaction table
          */
@@ -128,6 +130,18 @@ public class EntityProperties {
 
         public boolean shouldPersistEntityTransaction(EntityId entityId) {
             return entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
+        }
+
+        public boolean shouldPersistEntityNftTransaction(EntityId entityId, TransactionType transactionType) {
+            if (!entityNftTransactions || EntityId.isEmpty(entityId)) {
+                return false;
+            }
+
+            return transactionType == TransactionType.CRYPTOTRANSFER
+                    || transactionType == TransactionType.TOKENMINT
+                    || transactionType == TransactionType.TOKENBURN
+                    || transactionType == TransactionType.TOKENWIPE
+                    || transactionType == TransactionType.TOKENUPDATE;
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {

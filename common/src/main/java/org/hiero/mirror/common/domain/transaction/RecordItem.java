@@ -98,6 +98,10 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private Map<Long, ContractTransaction> contractTransactions;
 
+    @NonFinal
+    @Setter
+    private Predicate<EntityId> entityNftTransactionPredicate;
+
     @Getter(AccessLevel.NONE)
     @NonFinal
     private EntityTransaction.EntityTransactionBuilder entityTransactionBuilder;
@@ -195,6 +199,20 @@ public class RecordItem implements StreamItem {
             return;
         }
 
+        addEntityIdUnconditionally(entityId);
+    }
+
+    public void addNftTransactionEntityId(EntityId entityId) {
+        if (entityNftTransactionPredicate == null
+                || !entityNftTransactionPredicate.test(entityId)
+                || entityId.equals(payerAccountId)) {
+            return;
+        }
+
+        addEntityIdUnconditionally(entityId);
+    }
+
+    private void addEntityIdUnconditionally(EntityId entityId) {
         if (entityTransactionBuilder == null) {
             entityTransactionBuilder = EntityTransaction.builder()
                     .consensusTimestamp(consensusTimestamp)
