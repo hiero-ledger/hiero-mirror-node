@@ -105,7 +105,24 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
     }
 
     private Collection<EntityTransaction> getExpectedEntityNftTransactions(RecordItem recordItem) {
-        return getEntities(recordItem).stream()
+        // Entity NFT transactions are only added for sender/receiver of each NFT transfer
+        var payerAccountId = recordItem.getPayerAccountId();
+        var entityIds = new HashSet<EntityId>();
+
+        for (var tokenTransferList : recordItem.getTransactionRecord().getTokenTransferListsList()) {
+            for (var nftTransfer : tokenTransferList.getNftTransfersList()) {
+                var senderId = EntityId.of(nftTransfer.getSenderAccountID());
+                var receiverId = EntityId.of(nftTransfer.getReceiverAccountID());
+                if (!senderId.equals(payerAccountId)) {
+                    entityIds.add(senderId);
+                }
+                if (!receiverId.equals(payerAccountId)) {
+                    entityIds.add(receiverId);
+                }
+            }
+        }
+
+        return entityIds.stream()
                 .filter(entityId ->
                         entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId, recordItem))
                 .map(e -> TestUtils.toEntityTransaction(e, recordItem))
