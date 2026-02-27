@@ -2,31 +2,29 @@
 
 package org.hiero.mirror.restjava.mapper;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
+import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.rest.model.NetworkNode;
+import org.hiero.mirror.rest.model.ServiceEndpoint;
 import org.hiero.mirror.rest.model.TimestampRange;
 import org.hiero.mirror.rest.model.TimestampRangeNullable;
-import org.hiero.mirror.restjava.converter.StringToServiceEndpointConverter;
-import org.hiero.mirror.restjava.converter.StringToServiceEndpointListConverter;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
-@Mapper(
-        config = MapperConfiguration.class,
-        imports = {StringToServiceEndpointConverter.class, StringToServiceEndpointListConverter.class})
+@Mapper(config = MapperConfiguration.class)
 public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, NetworkNode> {
 
     @Override
-    @Mapping(
-            target = "grpcProxyEndpoint",
-            expression = "java(StringToServiceEndpointConverter.INSTANCE.convert(row.grpcProxyEndpointJson()))")
+    @Mapping(target = "grpcProxyEndpoint", expression = "java(parseServiceEndpoint(row.grpcProxyEndpointJson()))")
     @Mapping(target = "nodeCertHash", qualifiedByName = "mapNodeCertHash")
-    @Mapping(
-            target = "serviceEndpoints",
-            expression = "java(StringToServiceEndpointListConverter.INSTANCE.convert(row.serviceEndpointsJson()))")
+    @Mapping(target = "serviceEndpoints", expression = "java(parseServiceEndpointList(row.serviceEndpointsJson()))")
     @Mapping(target = "stakingPeriod", qualifiedByName = "mapStakingPeriod")
     @Mapping(target = "timestamp", expression = "java(mapTimestampRange(row))")
     NetworkNode map(NetworkNodeDto row);
@@ -63,5 +61,27 @@ public interface NetworkNodeMapper extends CollectionMapper<NetworkNodeDto, Netw
         return new TimestampRangeNullable()
                 .from(DomainUtils.toTimestamp(from))
                 .to(DomainUtils.toTimestamp(from + (86400L * DomainUtils.NANOS_PER_SECOND)));
+    }
+
+    default ServiceEndpoint parseServiceEndpoint(String json) {
+        if (json == null || json.isEmpty()) {
+            return null;
+        }
+        try {
+            return ObjectToStringSerializer.OBJECT_MAPPER.readValue(json, ServiceEndpoint.class);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse service endpoint", e);
+        }
+    }
+
+    default List<ServiceEndpoint> parseServiceEndpointList(String json) {
+        if (json == null || json.isEmpty()) {
+            return Collections.emptyList();
+        }
+        try {
+            return ObjectToStringSerializer.OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to parse service endpoints", e);
+        }
     }
 }

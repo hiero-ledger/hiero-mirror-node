@@ -6,12 +6,10 @@ import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.Range;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
@@ -19,7 +17,6 @@ import org.hiero.mirror.restjava.config.NetworkProperties;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.dto.NetworkSupply;
-import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
 import org.hiero.mirror.restjava.repository.AccountBalanceRepository;
 import org.hiero.mirror.restjava.repository.EntityRepository;
 import org.hiero.mirror.restjava.repository.NetworkNodeRepository;
@@ -85,70 +82,50 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request) {
-        // fileId has a default value of 102, so it's always present
         final var fileId = request.getFileId().value();
-        // Use effective limit (capped at MAX_LIMIT) to match rest module behavior
         final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeId();
-
-        final var equalitySet = new HashSet<Long>();
-        final var rangeSet = new HashSet<EntityIdRangeParameter>();
-        nodeIdParams.forEach(p -> {
-            if (RangeOperator.EQ.equals(p.operator())) {
-                equalitySet.add(p.value());
-            } else {
-                rangeSet.add(p);
-            }
-        });
-
-        final var rangeBounds = combineOverlappingRanges(rangeSet);
         final var orderDirection = request.getOrder().name();
 
-        // If both equality and range filters are present, validate overlap
-        final Long[] nodeIds;
-        if (!equalitySet.isEmpty() && !rangeSet.isEmpty()) {
-            // Both equal and range filters are present - filter equality IDs to those within range
-            final var idsInRange = equalitySet.stream()
-                    .filter(nodeId -> nodeId >= rangeBounds.getMinimum() && nodeId <= rangeBounds.getMaximum())
-                    .toArray(Long[]::new);
+        final Set<Long> nodeIds = new HashSet<>();
+        long lowerBound = 0L;
+        long upperBound = Long.MAX_VALUE;
 
-            if (idsInRange.length == 0) {
-                return List.of(); // No overlap between equality and range filters
+        for (final var nodeIdParam : nodeIdParams) {
+            if (nodeIdParam.operator() == RangeOperator.EQ) {
+                nodeIds.add(nodeIdParam.value());
+            } else if (nodeIdParam.hasLowerBound()) {
+                lowerBound = Math.max(lowerBound, nodeIdParam.getInclusiveValue());
+            } else if (nodeIdParam.hasUpperBound()) {
+                upperBound = Math.min(upperBound, nodeIdParam.getInclusiveValue());
             }
-            nodeIds = idsInRange;
-        } else {
-            nodeIds = equalitySet.isEmpty() ? new Long[0] : equalitySet.toArray(Long[]::new);
         }
 
-        return networkNodeRepository.findNetworkNodes(
-                fileId, nodeIds, rangeBounds.getMinimum(), rangeBounds.getMaximum(), orderDirection, limit);
-    }
-
-    private Range<Long> combineOverlappingRanges(Collection<EntityIdRangeParameter> rangeSet) {
-
-        if (rangeSet.isEmpty()) {
-            return Range.of(0L, Long.MAX_VALUE);
-        }
-
-        // Calculate lower bound: max of (value+1 for GT, value for GTE) — most restrictive lower bound
-        Long lowerBound = rangeSet.stream()
-                .filter(x -> x.operator() == RangeOperator.GTE || x.operator() == RangeOperator.GT)
-                .map(x -> x.operator() == RangeOperator.GT ? x.value() + 1 : x.value())
-                .max(Comparator.naturalOrder())
-                .orElse(0L);
-
-        // Calculate upper bound: min of (value-1 for LT, value for LTE) — most restrictive upper bound
-        Long upperBound = rangeSet.stream()
-                .filter(x -> x.operator() == RangeOperator.LTE || x.operator() == RangeOperator.LT)
-                .map(x -> x.operator() == RangeOperator.LT ? x.value() - 1 : x.value())
-                .min(Comparator.naturalOrder())
-                .orElse(Long.MAX_VALUE);
-
-        // Validate that the range is not empty (e.g., gt:4 AND lt:5)
         if (lowerBound > upperBound) {
             throw new IllegalArgumentException("Invalid range for : node.id");
         }
 
-        return Range.of(lowerBound, upperBound);
+        final Long[] nodeIdArray;
+        if (!nodeIds.isEmpty()) {
+            if (lowerBound > 0L || upperBound < Long.MAX_VALUE) {
+                final var filteredNodeIds = new HashSet<Long>();
+                for (final var nodeId : nodeIds) {
+                    if (nodeId >= lowerBound && nodeId <= upperBound) {
+                        filteredNodeIds.add(nodeId);
+                    }
+                }
+                if (filteredNodeIds.isEmpty()) {
+                    return List.of();
+                }
+                nodeIdArray = filteredNodeIds.toArray(Long[]::new);
+            } else {
+                nodeIdArray = nodeIds.toArray(Long[]::new);
+            }
+        } else {
+            nodeIdArray = new Long[0];
+        }
+
+        return networkNodeRepository.findNetworkNodes(
+                fileId, nodeIdArray, lowerBound, upperBound, orderDirection, limit);
     }
 }

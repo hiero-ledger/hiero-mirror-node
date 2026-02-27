@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.restjava.dto;
 
-import org.jspecify.annotations.Nullable;
+import org.jspecify.annotations.NullUnmarked;
 
 /**
  * Record-based projection representing a network node query result from the database. Spring Data JPA maps query column
@@ -11,24 +11,25 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Parameter order matches the SQL SELECT clause order (alphabetically sorted by alias name).
  */
+@NullUnmarked
 public record NetworkNodeDto(
-        byte @Nullable [] adminKey,
-        @Nullable Boolean declineReward,
-        @Nullable String description,
-        @Nullable Long endConsensusTimestamp,
-        @Nullable Long fileId,
-        @Nullable String grpcProxyEndpointJson,
-        @Nullable Long maxStake,
-        @Nullable String memo,
-        @Nullable Long minStake,
-        @Nullable Long nodeAccountId,
-        byte @Nullable [] nodeCertHash,
-        @Nullable Long nodeId,
-        @Nullable String publicKey,
-        @Nullable Long rewardRateStart,
-        @Nullable String serviceEndpointsJson,
-        @Nullable Long stake,
-        @Nullable Long stakeNotRewarded,
-        @Nullable Long stakeRewarded,
-        @Nullable Long stakingPeriod,
-        @Nullable Long startConsensusTimestamp) {}
+        byte[] adminKey,
+        Boolean declineReward,
+        String description,
+        Long endConsensusTimestamp,
+        Long fileId,
+        String grpcProxyEndpointJson,
+        Long maxStake,
+        String memo,
+        Long minStake,
+        Long nodeAccountId,
+        byte[] nodeCertHash,
+        Long nodeId,
+        String publicKey,
+        Long rewardRateStart,
+        String serviceEndpointsJson,
+        Long stake,
+        Long stakeNotRewarded,
+        Long stakeRewarded,
+        Long stakingPeriod,
+        Long startConsensusTimestamp) {}
