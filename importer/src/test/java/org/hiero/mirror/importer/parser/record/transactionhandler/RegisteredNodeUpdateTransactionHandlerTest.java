@@ -34,9 +34,7 @@ final class RegisteredNodeUpdateTransactionHandlerTest extends AbstractTransacti
 
     @Test
     void testGetEntity() {
-        assertThat(transactionHandler.getEntity(
-                        recordItemBuilder.registeredNodeUpdate().build()))
-                .isEqualTo(EntityId.EMPTY);
+        assertThat(transactionHandler.getEntity(null)).isNull();
     }
 
     @Test

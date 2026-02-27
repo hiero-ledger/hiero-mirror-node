@@ -9,7 +9,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -34,9 +33,7 @@ final class RegisteredNodeDeleteTransactionHandlerTest extends AbstractTransacti
 
     @Test
     void testGetEntity() {
-        assertThat(transactionHandler.getEntity(
-                        recordItemBuilder.registeredNodeDelete().build()))
-                .isEqualTo(EntityId.EMPTY);
+        assertThat(transactionHandler.getEntity(null)).isNull();
     }
 
     @Test

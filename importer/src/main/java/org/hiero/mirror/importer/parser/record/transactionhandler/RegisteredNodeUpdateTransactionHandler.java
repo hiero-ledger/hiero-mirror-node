@@ -6,7 +6,6 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -18,11 +17,6 @@ final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNod
 
     RegisteredNodeUpdateTransactionHandler(EntityListener entityListener) {
         super(entityListener);
-    }
-
-    @Override
-    public EntityId getEntity(RecordItem recordItem) {
-        return EntityId.EMPTY;
     }
 
     @Override

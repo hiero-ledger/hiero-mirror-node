@@ -299,13 +299,7 @@ abstract class AbstractTransactionHandlerTest {
                         .build())
                 .transactionRecord(transactionRecord)
                 .build();
-        final var actualEntity = transactionHandler.getEntity(recordItem);
-        if (expectedEntity != null) {
-            assertThat(actualEntity).isEqualTo(expectedEntity);
-        } else {
-            // Handlers without a primary entity may return null (default) or EntityId.EMPTY
-            assertThat(actualEntity).isIn(null, EntityId.EMPTY);
-        }
+        assertThat(transactionHandler.getEntity(recordItem)).isEqualTo(expectedEntity);
     }
 
     protected Entity getEntity() {

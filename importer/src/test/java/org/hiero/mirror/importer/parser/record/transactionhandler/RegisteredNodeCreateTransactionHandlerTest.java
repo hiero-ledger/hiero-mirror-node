@@ -34,9 +34,7 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
 
     @Test
     void testGetEntity() {
-        assertThat(transactionHandler.getEntity(
-                        recordItemBuilder.registeredNodeCreate().build()))
-                .isEqualTo(EntityId.EMPTY);
+        assertThat(transactionHandler.getEntity(null)).isNull();
     }
 
     @Test
@@ -67,13 +65,9 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
                     .returns(consensusTimestamp, RegisteredNode::getCreatedTimestamp)
                     .returns(false, RegisteredNode::isDeleted);
 
-            if (nodeCreate.hasAdminKey()) {
-                assertThat(registeredNode.getAdminKey())
-                        .isEqualTo(nodeCreate.getAdminKey().toByteArray());
-            }
-            if (!nodeCreate.getDescription().isEmpty()) {
-                assertThat(registeredNode.getDescription()).isEqualTo(nodeCreate.getDescription());
-            }
+            assertThat(registeredNode.getAdminKey())
+                    .isEqualTo(nodeCreate.getAdminKey().toByteArray());
+            assertThat(registeredNode.getDescription()).isEqualTo(nodeCreate.getDescription());
             assertThat(registeredNode.getServiceEndpoints()).hasSize(3).allMatch(e -> e.getPort() > 0);
         }));
 

@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import com.google.common.collect.Range;
 import jakarta.inject.Named;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
@@ -15,11 +14,6 @@ final class RegisteredNodeDeleteTransactionHandler extends AbstractRegisteredNod
 
     RegisteredNodeDeleteTransactionHandler(EntityListener entityListener) {
         super(entityListener);
-    }
-
-    @Override
-    public EntityId getEntity(RecordItem recordItem) {
-        return EntityId.EMPTY;
     }
 
     @Override
