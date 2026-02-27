@@ -207,11 +207,8 @@ abstract class AbstractTransactionHandlerTest {
 
     @Test
     void testGetEntityId() {
-        EntityId expectedEntityId = null;
-        var entityType = getExpectedEntityIdType();
-        if (entityType != null) {
-            expectedEntityId = defaultEntityId;
-        }
+        final var entityType = getExpectedEntityIdType();
+        EntityId expectedEntityId = entityType != null ? defaultEntityId : null;
         testGetEntityIdHelper(
                 getDefaultTransactionBody().build(),
                 getDefaultTransactionRecord().build(),
