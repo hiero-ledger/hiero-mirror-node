@@ -17,6 +17,7 @@
       "_status": {
         "messages": [
           {
+            "data": null,
             "detail": "Only a single instance is supported for file.id",
             "message": "Bad Request"
           }

@@ -29,15 +29,23 @@
       "_status": {
         "messages": [
           {
+            "data": null,
+            "detail": null,
             "message": "Invalid parameter: file.id"
           },
           {
+            "data": null,
+            "detail": null,
             "message": "Invalid parameter: node.id"
           },
           {
+            "data": null,
+            "detail": null,
             "message": "Invalid parameter: limit"
           },
           {
+            "data": null,
+            "detail": null,
             "message": "Invalid parameter: order"
           }
         ]

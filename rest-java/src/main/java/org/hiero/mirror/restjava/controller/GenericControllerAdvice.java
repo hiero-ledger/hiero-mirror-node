@@ -8,7 +8,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.web.context.request.RequestAttributes.SCOPE_REQUEST;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,6 +21,7 @@ import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.rest.model.ErrorStatus;
 import org.hiero.mirror.rest.model.ErrorStatusMessagesInner;
 import org.hiero.mirror.restjava.RestJavaProperties;
+import org.hiero.mirror.restjava.parameter.RequestParameterArgumentResolver;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.context.MessageSource;
@@ -64,6 +64,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
     private final MessageSource messageSource = new ErrorMessageSource();
     private final RestJavaProperties properties;
+    private final RequestParameterArgumentResolver parameterResolver;
 
     @Bean
     @SuppressWarnings("java:S5122")
@@ -141,6 +142,7 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
 
         Error errorResponse =
                 switch (ex) {
+                    case BindException e -> bindExceptionResponse(e);
                     case Errors errors -> errorResponse(errors.getAllErrors());
                     case MethodValidationResult errors -> errorResponse(errors.getAllErrors());
                     default -> {
@@ -156,6 +158,15 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, headers, statusCode);
     }
 
+    private Error bindExceptionResponse(BindException e) {
+        Object target = e.getTarget();
+        var messages = e.getBindingResult().getAllErrors().stream()
+                .map(error -> formatBindingErrorMessage(error, target))
+                .toList();
+        var errorStatus = new ErrorStatus().messages(messages);
+        return new Error().status(errorStatus);
+    }
+
     private Error errorResponse(List<? extends MessageSourceResolvable> errors) {
         var messages = errors.stream().map(this::formatErrorMessage).toList();
         var errorStatus = new ErrorStatus().messages(messages);
@@ -163,52 +174,43 @@ class GenericControllerAdvice extends ResponseEntityExceptionHandler {
     }
 
     private Error errorResponse(final String message, final String detail) {
-        var errorMessage = new ErrorMessage();
+        var errorMessage = new ErrorStatusMessagesInner();
+        errorMessage.setDetail(detail);
         errorMessage.setMessage(message);
-        if (StringUtils.isNotBlank(detail)) {
-            errorMessage.setDetail(detail);
-        }
         var errorStatus = new ErrorStatus().addMessagesItem(errorMessage);
         return new Error().status(errorStatus);
     }
 
+    private ErrorStatusMessagesInner formatBindingErrorMessage(MessageSourceResolvable error, Object target) {
+        var detail = error.getDefaultMessage();
+        if (error instanceof FieldError fieldError) {
+            detail = "Invalid parameter: " + getParameterName(fieldError, target);
+        } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
+            detail = messageSource.getMessage(resolvable, Locale.getDefault());
+        }
+
+        return new ErrorStatusMessagesInner().message(detail);
+    }
+
+    private String getParameterName(FieldError fieldError, Object target) {
+        if (target == null) {
+            return fieldError.getField();
+        }
+        return parameterResolver.getParameterName(target.getClass(), fieldError.getField());
+    }
+
     private ErrorStatusMessagesInner formatErrorMessage(MessageSourceResolvable error) {
-        var message = error.getDefaultMessage();
+        var detail = error.getDefaultMessage();
 
         if (error instanceof FieldError fieldError) {
-            // Convert field name from camelCase to dot notation (e.g., nodeId -> node.id)
-            var paramName = camelCaseToParameterName(fieldError.getField());
-            message = "Invalid parameter: " + paramName;
+            detail = fieldError.getField() + " field " + fieldError.getDefaultMessage();
         } else if (error instanceof DefaultMessageSourceResolvable resolvable && !(error instanceof ObjectError)) {
-            message = messageSource.getMessage(resolvable, Locale.getDefault());
+            detail = messageSource.getMessage(resolvable, Locale.getDefault());
         }
 
-        // Return error in rest module format: { "message": "..." }
-        // Don't set detail or data fields to match Node.js behavior
-        return new ErrorMessage().message(message);
-    }
-
-    private String camelCaseToParameterName(String fieldName) {
-        // Convert camelCase to dot notation: nodeId -> node.id, fileId -> file.id
-        return fieldName.replaceAll("([a-z])([A-Z])", "$1.$2").toLowerCase();
-    }
-
-    // Subclass that overrides nullable getters with @JsonInclude(NON_NULL) so that unset
-    // fields are omitted from the serialized error response, matching the JS module behavior.
-    @JsonInclude(JsonInclude.Include.NON_NULL)
-    private static class ErrorMessage extends ErrorStatusMessagesInner {
-
-        @Override
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public String getData() {
-            return super.getData();
-        }
-
-        @Override
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        public String getDetail() {
-            return super.getDetail();
-        }
+        return new ErrorStatusMessagesInner()
+                .message(BAD_REQUEST.getReasonPhrase())
+                .detail(detail);
     }
 
     private static class ErrorMessageSource extends StaticMessageSource {

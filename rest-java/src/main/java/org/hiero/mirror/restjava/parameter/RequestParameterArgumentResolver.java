@@ -211,6 +211,36 @@ public class RequestParameterArgumentResolver implements HandlerMethodArgumentRe
     }
 
     /**
+     * Gets the parameter name for a field from cached metadata. Returns the annotation name if present, otherwise the
+     * field name.
+     */
+    public String getParameterName(Class<?> dtoClass, String fieldName) {
+        final var metadata = getMetadata(dtoClass);
+
+        // Check query params
+        for (final var entry : metadata.queryParams.entrySet()) {
+            if (entry.getKey().getName().equals(fieldName)) {
+                return extractName(
+                        entry.getKey(),
+                        entry.getValue().value(),
+                        entry.getValue().name());
+            }
+        }
+
+        // Check path params
+        for (final var entry : metadata.pathParams.entrySet()) {
+            if (entry.getKey().getName().equals(fieldName)) {
+                return extractName(
+                        entry.getKey(),
+                        entry.getValue().value(),
+                        entry.getValue().name());
+            }
+        }
+
+        return fieldName;
+    }
+
+    /**
      * Metadata about parameter bindings for a DTO class. Cached to avoid reflection on every request. Immutable record
      * for thread safety.
      */
