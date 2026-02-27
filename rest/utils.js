@@ -207,6 +207,25 @@ const isValidValueIgnoreCase = (value, validValues) => validValues.includes(valu
 const lowerCaseQueryValue = (queryValue) => (typeof queryValue === 'string' ? queryValue.toLowerCase() : queryValue);
 
 /**
+ * Parses the hbar query parameter
+ * @param {string|undefined} hbarParam
+ * @returns {boolean} true if conversion to hbar/tinybar is requested, false for weibar
+ */
+const parseHbarParam = (hbarParam) => {
+  if (hbarParam === undefined || hbarParam === null) {
+    return true; // Default to true for backward compatibility
+  }
+
+  if (typeof hbarParam === 'string') {
+    const lower = hbarParam.toLowerCase();
+    if (lower === 'true') return true;
+    if (lower === 'false') return false;
+  }
+
+  throw new InvalidArgumentError(`Invalid hbar parameter value: ${hbarParam}. Must be 'true' or 'false'`);
+};
+
+/**
  * Validate input parameters for the rest apis
  * @param {String} param Parameter to be validated
  * @param {String} opAndVal operator:value to be validated
@@ -1835,6 +1854,7 @@ export {
   parseAccountIdQueryParam,
   parseBalanceQueryParam,
   parseBooleanValue,
+  parseHbarParam,
   parseHexStr,
   getEffectiveMaxLimit,
   parseInteger,

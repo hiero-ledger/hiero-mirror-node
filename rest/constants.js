@@ -31,6 +31,7 @@ const filterKeys = {
   ENTITY_PUBLICKEY: 'publickey',
   FILE_ID: 'file.id',
   FROM: 'from',
+  HBAR: 'hbar',
   ID_OR_ALIAS_OR_EVM_ADDRESS: 'idOrAliasOrEvmAddress',
   INDEX: 'index',
   INTERNAL: 'internal',
