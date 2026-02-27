@@ -84,7 +84,7 @@ final class NetworkServiceImpl implements NetworkService {
     public List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request) {
         final var fileId = request.getFileId().value();
         final var limit = request.getEffectiveLimit();
-        final var nodeIdParams = request.getNodeId();
+        final var nodeIdParams = request.getNodeIds();
         final var orderDirection = request.getOrder().name();
 
         final Set<Long> nodeIds = new HashSet<>();

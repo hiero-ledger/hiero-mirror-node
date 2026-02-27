@@ -34,7 +34,7 @@ public class NetworkNodeRequest {
 
     @RestJavaQueryParam(name = NODE_ID, required = false)
     @Builder.Default
-    private List<EntityIdRangeParameter> nodeId = List.of();
+    private List<EntityIdRangeParameter> nodeIds = List.of();
 
     @RestJavaQueryParam(name = LIMIT, defaultValue = "10")
     @Min(1)
