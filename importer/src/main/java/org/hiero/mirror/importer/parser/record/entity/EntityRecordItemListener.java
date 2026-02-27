@@ -599,6 +599,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             recordItem.addEntityId(senderId);
             recordItem.addEntityId(entityTokenId);
 
+            recordItem.addNftTransactionEntityId(receiverId);
+            recordItem.addNftTransactionEntityId(senderId);
+
             transferNftOwnership(consensusTimestamp, serialNumber, entityTokenId, receiverId);
             syntheticContractLogService.create(
                     new TransferIndexedContractLog(recordItem, entityTokenId, senderId, receiverId, serialNumber));

@@ -141,15 +141,27 @@ public class RecordItem implements StreamItem {
     }
 
     public void addEntityId(EntityId entityId) {
-        boolean shouldPersist = false;
-
-        if (entityTransactionPredicate != null && entityTransactionPredicate.test(entityId)) {
-            shouldPersist = true;
-        } else if (entityNftTransactionPredicate != null && entityNftTransactionPredicate.test(entityId)) {
-            shouldPersist = true;
+        if (entityTransactionPredicate == null || !entityTransactionPredicate.test(entityId)) {
+            return;
         }
 
-        if (!shouldPersist) {
+        if (entityTransactionBuilder == null) {
+            entityTransactionBuilder = EntityTransaction.builder()
+                    .consensusTimestamp(consensusTimestamp)
+                    .payerAccountId(payerAccountId)
+                    .result(getTransactionStatus())
+                    .type(transactionType);
+        }
+
+        getEntityTransactions().computeIfAbsent(entityId.getId(), id -> entityTransactionBuilder
+                .entityId(id)
+                .build());
+    }
+
+    public void addNftTransactionEntityId(EntityId entityId) {
+        if (entityNftTransactionPredicate == null
+                || !entityNftTransactionPredicate.test(entityId)
+                || entityId.equals(payerAccountId)) {
             return;
         }
 
