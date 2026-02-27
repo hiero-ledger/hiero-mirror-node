@@ -6,8 +6,6 @@ import com.swirlds.state.spi.ReadableKVState;
 import com.swirlds.state.spi.WritableKVStateBase;
 import java.util.Iterator;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
-import org.hiero.mirror.web3.common.ContractCallContext;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("deprecation")
@@ -19,8 +17,11 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
             @NonNull final String serviceName,
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore) {
-        super(stateId, serviceName, new ForwardingWritableKVStateBase<>(stateId), (ConcurrentHashMap<K, V>)
-                ContractCallContext.get().getReadCacheState(stateId));
+        super(
+                stateId,
+                serviceName,
+                new ForwardingWritableKVStateBase<>(stateId),
+                new ForwardingReadableKVStateBase<>(stateId));
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 

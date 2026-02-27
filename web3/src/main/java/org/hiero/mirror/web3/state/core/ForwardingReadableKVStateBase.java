@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.web3.state.keyvalue;
+package org.hiero.mirror.web3.state.core;
 
 import com.google.common.collect.ForwardingConcurrentMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -14,6 +14,8 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  */
 public class ForwardingReadableKVStateBase<K, V> extends ForwardingConcurrentMap<K, V> {
 
+    private static final ConcurrentMap<Object, Object> EMPTY_MAP = new ConcurrentHashMap<>();
+
     private final int stateId;
 
     public ForwardingReadableKVStateBase(final int stateId) {
@@ -26,9 +28,9 @@ public class ForwardingReadableKVStateBase<K, V> extends ForwardingConcurrentMap
      */
     @Override
     protected ConcurrentMap<K, V> delegate() {
-        if (ContractCallContext.isInitialized()) {
-            return (ConcurrentMap<K, V>) ContractCallContext.get().getReadCacheState(stateId);
+        if (!ContractCallContext.isInitialized()) {
+            return (ConcurrentMap<K, V>) EMPTY_MAP;
         }
-        return new ConcurrentHashMap<>();
+        return (ConcurrentMap<K, V>) ContractCallContext.get().getReadCacheState(stateId);
     }
 }
