@@ -22,9 +22,9 @@ begin
     end if;
 
     next_from := to_timestamp(next_from_ns / one_sec_in_ns);
-    while next_from <= current_timestamp + ${partitionTimeInterval}::interval loop
+    while next_from <= current_timestamp + ${balancePartitionTimeInterval}::interval loop
         partition_name := format('%I_p%s', table_name, to_char(next_from, 'YYYY_MM'));
-        next_to := next_from + ${partitionTimeInterval}::interval;
+        next_to := next_from + ${balancePartitionTimeInterval}::interval;
         next_to_ns := extract(epoch from next_to) * one_sec_in_ns;
         -- create partition
         execute format('create table %I partition of %I for values from (%L) to (%L)',

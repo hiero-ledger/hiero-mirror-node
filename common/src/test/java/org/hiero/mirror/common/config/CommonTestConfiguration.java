@@ -55,6 +55,7 @@ public class CommonTestConfiguration {
         var placeholders = ImmutableMap.<String, String>builder()
                 .put("api-password", "mirror_api_pass")
                 .put("api-user", "mirror_api")
+                .put("balancePartitionTimeInterval", "'10 years'")
                 .put("db-name", "mirror_node")
                 .put("db-user", "mirror_importer")
                 .put("hashShardCount", "6")

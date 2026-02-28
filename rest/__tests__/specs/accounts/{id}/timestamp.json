@@ -8,7 +8,7 @@
   "matrix": "bindTimestampRangeMatrix.js",
   "setup": {
     "features": {
-      "fakeTime": "2009-06-19T23:40:00Z"
+      "fakeTime": "2009-11-19T23:40:00Z"
     },
     "accounts": [
       {
@@ -329,7 +329,7 @@
     "bindTimestampRange=true": {
       "transactions": [],
       "links": {
-        "next": "/api/v1/accounts/0.0.8?timestamp=gt:1234567890.000000006&timestamp=lt:1240270800.020000001"
+        "next": "/api/v1/accounts/0.0.8?timestamp=gt:1234567890.000000006&timestamp=lt:1253490000.020000001"
       }
     }
   }
