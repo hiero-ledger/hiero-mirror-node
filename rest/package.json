@@ -29,7 +29,7 @@
     "express-openapi-validator": "5.6.2",
     "extend": "3.0.2",
     "extensionless": "2.0.6",
-    "ioredis": "5.9.3",
+    "ioredis": "5.10.0",
     "ip-anonymize": "0.1.0",
     "js-yaml": "4.1.1",
     "json-bigint": "1.0.0",
