@@ -23,7 +23,7 @@ extra.apply {
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.33.5")
+    set("protobufVersion", "4.34.0")
     set("springGrpcVersion", "1.0.1")
     set("tuweniVersion", "2.3.1")
 }
@@ -74,7 +74,7 @@ dependencies {
         api("org.apache.tuweni:tuweni-units:$tuweniVersion")
         api("org.apache.velocity:velocity-engine-core:2.4.1")
         api("org.gaul:s3proxy:3.0.0")
-        api("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
+        api("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
         api("org.hyperledger.besu:secp256k1:0.8.2")
         api("org.hyperledger.besu:besu-datatypes:$besuVersion")
         api("org.hyperledger.besu:evm:$besuVersion")
@@ -84,7 +84,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.2")
+        api("software.amazon.awssdk:bom:2.42.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }
