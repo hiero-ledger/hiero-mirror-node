@@ -50,7 +50,7 @@ public class EntityProperties {
 
         private boolean entityHistory = true;
 
-        private boolean entityNftTransactions = true;
+        private boolean entityNftTransactions = false;
 
         /**
          * A set of entity ids to exclude from entity_transaction table
