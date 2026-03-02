@@ -44,22 +44,8 @@
         "type": "14"
       },
       {
-        "consensus_timestamp": "1234567890000000001",
-        "entity_id": "0.0.1500",
-        "payer_account_id": "0.0.8",
-        "result": 22,
-        "type": "14"
-      },
-      {
         "consensus_timestamp": "1234567890000000003",
         "entity_id": "0.0.2001",
-        "payer_account_id": "0.0.8",
-        "result": 22,
-        "type": "37"
-      },
-      {
-        "consensus_timestamp": "1234567890000000003",
-        "entity_id": "0.0.1500",
         "payer_account_id": "0.0.8",
         "result": 22,
         "type": "37"
@@ -72,22 +58,8 @@
         "type": "38"
       },
       {
-        "consensus_timestamp": "1234567890000000005",
-        "entity_id": "0.0.1500",
-        "payer_account_id": "0.0.8",
-        "result": 22,
-        "type": "38"
-      },
-      {
         "consensus_timestamp": "1234567890000000007",
         "entity_id": "0.0.2001",
-        "payer_account_id": "0.0.8",
-        "result": 22,
-        "type": "39"
-      },
-      {
-        "consensus_timestamp": "1234567890000000007",
-        "entity_id": "0.0.1500",
         "payer_account_id": "0.0.8",
         "result": 22,
         "type": "39"
@@ -101,21 +73,14 @@
       },
       {
         "consensus_timestamp": "1234567890000000009",
-        "entity_id": "0.0.1500",
+        "entity_id": "0.0.1001",
         "payer_account_id": "0.0.8",
         "result": 22,
         "type": "36"
       },
       {
         "consensus_timestamp": "1234567890000000013",
-        "entity_id": "0.0.2001",
-        "payer_account_id": "0.0.2001",
-        "result": 22,
-        "type": "36"
-      },
-      {
-        "consensus_timestamp": "1234567890000000013",
-        "entity_id": "0.0.1500",
+        "entity_id": "0.0.1001",
         "payer_account_id": "0.0.2001",
         "result": 22,
         "type": "36"
