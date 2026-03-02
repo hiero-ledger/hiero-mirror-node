@@ -5,7 +5,6 @@ import anonymize from 'ip-anonymize';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import JSONBigFactory from 'json-bigint';
-import * as math from 'mathjs';
 import pg from 'pg';
 import pgRange, {Range} from 'pg-range';
 import {format} from 'sql-formatter';
@@ -1158,11 +1157,11 @@ const encodeBinary = (buffer, encoding) => {
 
 /**
  *
- * @param {String} num Nullable number
- * @returns {Any} representation of math.bignumber value of parameter or null if null
+ * @param {number} num Nullable number
+ * @returns {string} String representation of a number or null if null
  */
 const getNullableNumber = (num) => {
-  return _.isNil(num) ? null : `${num}`;
+  return num != null && num != undefined ? `${num}` : null;
 };
 
 /**
@@ -1373,7 +1372,7 @@ const formatComparator = (comparator) => {
         comparator.value = parseBooleanValue(comparator.value);
         break;
       case constants.filterKeys.LIMIT:
-        comparator.value = math.min(Number(comparator.value), getEffectiveMaxLimit());
+        comparator.value = Math.min(Number(comparator.value), getEffectiveMaxLimit());
         break;
       case constants.filterKeys.NODE_ID:
       case constants.filterKeys.NONCE:

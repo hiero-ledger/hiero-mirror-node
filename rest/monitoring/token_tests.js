@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import * as math from 'mathjs';
 import config from './config';
 
 import {
@@ -18,6 +17,7 @@ import {
   getUrl,
   hasEmptyList,
   testRunner,
+  incrementTimestamp,
 } from './utils';
 
 const tokensPath = '/tokens';
@@ -350,7 +350,7 @@ const getTokenBalancesWithTimestampParam = async (server) => {
 
   const {timestamp} = resp;
 
-  const minusOne = math.subtract(math.bignumber(timestamp), math.bignumber(1));
+  const minusOne = incrementTimestamp(timestamp, -1n);
   url = getUrl(server, tokenBalancesPath(tokenId), {
     timestamp: [`gt:${minusOne.toString()}`],
     limit: 1,
