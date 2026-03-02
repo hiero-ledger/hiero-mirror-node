@@ -6,7 +6,6 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -41,8 +40,7 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
         final long consensusTimestamp = recordItem.getConsensusTimestamp();
 
         final var adminKey = nodeCreate.hasAdminKey() ? nodeCreate.getAdminKey().toByteArray() : null;
-        final var description =
-                StringUtils.isNotBlank(nodeCreate.getDescription()) ? nodeCreate.getDescription() : null;
+        final var description = nodeCreate.getDescription();
 
         final var endpointList = nodeCreate.getServiceEndpointList();
         final int size = endpointList.size();

@@ -800,13 +800,17 @@ public class DomainBuilder {
 
     public DomainWrapper<RegisteredNode, RegisteredNode.RegisteredNodeBuilder<?, ?>> registeredNode() {
         final long timestamp = timestamp();
+        final long nodeId = number();
         final var builder = RegisteredNode.builder()
                 .adminKey(key())
                 .createdTimestamp(timestamp)
                 .deleted(false)
-                .description("node-" + number())
-                .registeredNodeId(number())
+                .description("node-" + nodeId)
+                .registeredNodeId(nodeId)
                 .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                                .build())
                         .ipAddress("127.0.0.1")
                         .port(443)
                         .requiresTls(true)
