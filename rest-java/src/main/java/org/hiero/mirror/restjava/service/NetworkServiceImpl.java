@@ -6,6 +6,7 @@ import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -105,7 +106,7 @@ final class NetworkServiceImpl implements NetworkService {
             throw new IllegalArgumentException("Invalid range for : node.id");
         }
 
-        final Long[] nodeIdArray;
+        final Collection<Long> nodeIdCollection;
         if (!nodeIds.isEmpty()) {
             if (lowerBound > 0L || upperBound < Long.MAX_VALUE) {
                 final var filteredNodeIds = new HashSet<Long>();
@@ -117,15 +118,15 @@ final class NetworkServiceImpl implements NetworkService {
                 if (filteredNodeIds.isEmpty()) {
                     return List.of();
                 }
-                nodeIdArray = filteredNodeIds.toArray(Long[]::new);
+                nodeIdCollection = filteredNodeIds;
             } else {
-                nodeIdArray = nodeIds.toArray(Long[]::new);
+                nodeIdCollection = nodeIds;
             }
         } else {
-            nodeIdArray = new Long[0];
+            nodeIdCollection = null;
         }
 
         return networkNodeRepository.findNetworkNodes(
-                fileId, nodeIdArray, lowerBound, upperBound, orderDirection, limit);
+                fileId, nodeIdCollection, lowerBound, upperBound, orderDirection, limit);
     }
 }

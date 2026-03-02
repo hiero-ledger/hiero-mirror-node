@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.repository;
 
+import java.util.Collection;
 import java.util.List;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.restjava.dto.NetworkNodeDto;
@@ -11,11 +12,11 @@ import org.springframework.data.repository.CrudRepository;
 public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, AddressBookEntry.Id> {
 
     /**
-     * Unified query that handles optional nodeIds[] parameters. Performance is maintained through conditional SQL that
-     * PostgreSQL optimizes efficiently.
+     * Unified query that handles optional nodeIds collection parameters. Performance is maintained through conditional
+     * SQL that PostgreSQL optimizes efficiently.
      *
      * @param fileId         File ID for filtering address book (defaults to 102)
-     * @param nodeIds        Optional array of node IDs for IN clause (use empty array to skip)
+     * @param nodeIds        Optional collection of node IDs for IN clause (use empty collection to skip)
      * @param minNodeId      Minimum node ID for range filter (inclusive)
      * @param maxNodeId      Maximum node ID for range filter (inclusive)
      * @param orderDirection Sort direction ('ASC' or 'DESC')
@@ -92,7 +93,7 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
               on abe.node_id = ns.node_id
             left join node_info n
               on abe.node_id = n.node_id
-            where (coalesce(array_length(:nodeIds, 1), 0) = 0 or abe.node_id = any(:nodeIds))
+            where (:nodeIds is null or abe.node_id in (:nodeIds))
               and abe.node_id >= :minNodeId
               and abe.node_id <= :maxNodeId
             order by
@@ -101,5 +102,5 @@ public interface NetworkNodeRepository extends CrudRepository<AddressBookEntry, 
             limit :limit
             """, nativeQuery = true)
     List<NetworkNodeDto> findNetworkNodes(
-            Long fileId, Long[] nodeIds, long minNodeId, long maxNodeId, String orderDirection, int limit);
+            Long fileId, Collection<Long> nodeIds, long minNodeId, long maxNodeId, String orderDirection, int limit);
 }
