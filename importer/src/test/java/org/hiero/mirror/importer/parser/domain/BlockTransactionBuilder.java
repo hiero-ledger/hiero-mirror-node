@@ -70,7 +70,6 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.Topic;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -943,15 +942,10 @@ public class BlockTransactionBuilder {
                 Collections.emptyList());
     }
 
-    private TransactionResult transactionResult(RecordItem recordItem) {
-        var transactionRecord = recordItem.getTransactionRecord();
-        var timestamp = timestamp(recordItem.getConsensusTimestamp());
-        return transactionResult(transactionRecord, timestamp).build();
-    }
+    private TransactionResult transactionResult(final RecordItem recordItem) {
+        final var transactionRecord = recordItem.getTransactionRecord();
+        final var builder = TransactionResult.newBuilder();
 
-    private TransactionResult.Builder transactionResult(
-            TransactionRecord transactionRecord, Timestamp consensusTimestamp) {
-        var builder = TransactionResult.newBuilder();
         if (transactionRecord.hasParentConsensusTimestamp()) {
             builder.setParentConsensusTimestamp(transactionRecord.getParentConsensusTimestamp());
         }
@@ -963,10 +957,13 @@ public class BlockTransactionBuilder {
                 .addAllAutomaticTokenAssociations(transactionRecord.getAutomaticTokenAssociationsList())
                 .addAllTokenTransferLists(transactionRecord.getTokenTransferListsList())
                 .addAllAssessedCustomFees(transactionRecord.getAssessedCustomFeesList())
-                .setConsensusTimestamp(consensusTimestamp)
+                .setCongestionPricingMultiplier(recordItem.getCongestionPricingMultiplier())
+                .setConsensusTimestamp(timestamp(recordItem.getConsensusTimestamp()))
+                .setHighVolumePricingMultiplier(transactionRecord.getHighVolumePricingMultiplier())
                 .setTransferList(transactionRecord.getTransferList())
                 .setTransactionFeeCharged(transactionRecord.getTransactionFee())
-                .setStatus(transactionRecord.getReceipt().getStatus());
+                .setStatus(transactionRecord.getReceipt().getStatus())
+                .build();
     }
 
     private static EvmTransactionResult fromContractResult(ContractFunctionResult contractResult) {

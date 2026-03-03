@@ -1745,6 +1745,7 @@ public class RecordItemBuilder {
         private TransactionRecord.Builder defaultTransactionRecord() {
             var nodeAccountId = transactionBodyWrapper.getNodeAccountID();
             var transactionRecordBuilder = TransactionRecord.newBuilder()
+                    .setHighVolumePricingMultiplier(random.nextLong(Long.MAX_VALUE))
                     .setMemoBytes(ByteString.copyFromUtf8(transactionBodyWrapper.getMemo()))
                     .setTransactionFee(transactionBodyWrapper.getTransactionFee())
                     .setTransferList(TransferList.newBuilder()
