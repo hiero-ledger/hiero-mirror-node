@@ -3,11 +3,13 @@
 package org.hiero.mirror.monitor.health;
 
 import jakarta.inject.Named;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.DefaultUriBuilderFactory;
+import org.springframework.web.util.UriUtils;
 
 @Named
 final class PrometheusApiClient {
@@ -42,9 +44,10 @@ final class PrometheusApiClient {
     }
 
     PrometheusQueryResponse query(final String query) {
+        final var encodedQuery = UriUtils.encodeQuery(query, StandardCharsets.UTF_8);
         return prometheusClient
                 .get()
-                .uri(builder -> builder.queryParam("query", query).build())
+                .uri(builder -> builder.queryParam("query", encodedQuery).build())
                 .retrieve()
                 .body(PrometheusQueryResponse.class);
     }

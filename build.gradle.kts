@@ -16,15 +16,16 @@ plugins {
 
 // Can't use typed variable syntax due to Dependabot limitations
 extra.apply {
-    set("assertj.version", "3.27.7") // Temporary until next Spring Boot
     set("besuVersion", "25.2.2")
-    set("blockNodeVersion", "0.24.2")
-    set("consensusNodeVersion", "0.71.0")
+    set("blockNodeVersion", "0.27.0")
+    set("consensusNodeVersion", "0.71.1")
     set("grpcVersion", "1.79.0")
+    set("jackson-2-bom.version", "2.21.1") // Temporary until next Spring Boot
+    set("jackson-bom.version", "3.1.0") // Temporary until next Spring Boot
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.33.5")
+    set("protobufVersion", "4.34.0")
     set("springGrpcVersion", "1.0.1")
     set("tuweniVersion", "2.3.1")
 }
@@ -50,13 +51,14 @@ dependencies {
         api("com.bucket4j:bucket4j-core:8.10.1")
         api("com.google.guava:guava:33.5.0-jre")
         api("com.google.protobuf:protobuf-java:$protobufVersion")
-        api("com.graphql-java-generator:graphql-java-client-runtime:4.0")
+        api("com.graphql-java-generator:graphql-java-client-runtime:4.0.2")
         api("com.graphql-java:graphql-java-extended-scalars:24.0")
         api("com.graphql-java:graphql-java-extended-validation:24.0")
+        api("com.hedera.cryptography:hedera-cryptography-wraps:3.6.0")
         api("com.hedera.hashgraph:app:$consensusNodeVersion")
         api("com.hedera.hashgraph:app-service-entity-id-impl:$consensusNodeVersion")
-        api("com.hedera.hashgraph:hedera-protobuf-java-api:$consensusNodeVersion")
-        api("com.hedera.hashgraph:sdk:2.66.0")
+        api("com.hedera.hashgraph:hedera-protobuf-java-api:0.72.0-rc.1")
+        api("com.hedera.hashgraph:sdk:2.67.0")
         api("com.ongres.scram:client:2.1")
         api("commons-beanutils:commons-beanutils:1.11.0")
         api("commons-io:commons-io:2.21.0")
@@ -65,7 +67,6 @@ dependencies {
         api("io.github.mweirauch:micrometer-jvm-extras:0.2.2")
         api("io.grpc:grpc-bom:$grpcVersion")
         api("io.hypersistence:hypersistence-utils-hibernate-71:3.15.2")
-        api("io.projectreactor:reactor-core-micrometer:1.2.12")
         api("jakarta.inject:jakarta.inject-api:2.0.1")
         api("net.java.dev.jna:jna:5.18.1")
         api("org.apache.commons:commons-collections4:4.5.0")
@@ -85,7 +86,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.41.29")
+        api("software.amazon.awssdk:bom:2.42.4")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

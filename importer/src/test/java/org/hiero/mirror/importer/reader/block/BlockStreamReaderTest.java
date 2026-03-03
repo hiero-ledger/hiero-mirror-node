@@ -31,6 +31,7 @@ import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.util.Lists;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
@@ -60,6 +61,9 @@ public final class BlockStreamReaderTest {
                     .name(BlockFile.getFilename(7, true))
                     .previousHash(
                             "e11e44567f5ca4ae23b75467b75d83c8880d0888f5c4154f08b8f221bf269b2e4f3f1686e8dcb9694beaaf287313b0fb")
+                    .rawHash(
+                            Hex.decode(
+                                    "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a"))
                     .roundStart(179L)
                     .roundEnd(213L)
                     .version(BlockStreamReader.VERSION)
@@ -75,6 +79,9 @@ public final class BlockStreamReaderTest {
                     .name(BlockFile.getFilename(8, true))
                     .previousHash(
                             "8b98440b3fa8b13d9d7f82e92ceb246c9707cf6c11ba38997385e7ea1097f06d752736753fe40b9ff06096211a11066a")
+                    .rawHash(
+                            Hex.decode(
+                                    "78ef36dc7c7cb57cfb212966b768a0fbc9b0f5045574c6b3bfa0cccdcef9401b7edda1cf05ada60dedd7e0b435e0d81d"))
                     .roundStart(214L)
                     .roundEnd(248L)
                     .version(BlockStreamReader.VERSION)
@@ -90,6 +97,9 @@ public final class BlockStreamReaderTest {
                     .name(BlockFile.getFilename(16, true))
                     .previousHash(
                             "449c52f8efe0e284aac3a0961efb2403a7337a0fc519c1b5231a07ce6d3eae9e9b9d8809782202a5fd40048ddd533098")
+                    .rawHash(
+                            Hex.decode(
+                                    "c61a2439f0754008932fe10155ce2c61b32457d6ec30e632a71eafeeef44b1df64b1cfd966c6325c0c5766431f5441f9"))
                     .roundStart(493L)
                     .roundEnd(527L)
                     .version(BlockStreamReader.VERSION)

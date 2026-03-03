@@ -37,6 +37,7 @@ import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
@@ -75,7 +76,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         final var blockFile = blockFileBuilder.build();
         final var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
-        blockFile.setHash(context.getBlockRootHashDigest().digest());
+        blockFile.setRawHash(context.getBlockRootHashDigest().digest());
+        blockFile.setHash(Hex.encodeHexString(blockFile.getRawHash()));
 
         if (!items.isEmpty()) {
             blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());

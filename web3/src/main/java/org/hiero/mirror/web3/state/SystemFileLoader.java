@@ -3,8 +3,9 @@
 package org.hiero.mirror.web3.state;
 
 import static com.hedera.services.utils.EntityIdUtils.toEntityId;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE_MODULARIZED;
-import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME_MODULARIZED;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_MANAGER_SYSTEM_FILE;
+import static org.hiero.mirror.web3.evm.config.EvmConfiguration.CACHE_NAME;
 
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.CurrentAndNextFeeSchedule;
@@ -32,7 +33,6 @@ import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -40,21 +40,42 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
 
 @Named
+@NullMarked
 @CustomLog
-@RequiredArgsConstructor
 public class SystemFileLoader {
 
     private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
+    private final FileID exchangeRateFileId;
+    private final FileID feeSchedulesFileId;
+    private final CacheManager exchangeRatesCacheManager;
+    private final CacheManager defaultSystemFileCacheManager;
+
+    public SystemFileLoader(
+            final EvmProperties properties,
+            final FileDataRepository fileDataRepository,
+            final SystemEntity systemEntity,
+            @Qualifier(CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE) final CacheManager exchangeRatesCacheManager,
+            @Qualifier(CACHE_MANAGER_SYSTEM_FILE) final CacheManager defaultSystemFileCacheManager) {
+        this.properties = properties;
+        this.fileDataRepository = fileDataRepository;
+        this.systemEntity = systemEntity;
+        this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
+        this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
+        this.exchangeRatesCacheManager = exchangeRatesCacheManager;
+        this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
+    }
 
     private final V0490FileSchema fileSchema = new V0490FileSchema();
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
@@ -68,22 +89,43 @@ public class SystemFileLoader {
     @Getter(lazy = true)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
-    @Cacheable(
-            cacheManager = CACHE_MANAGER_SYSTEM_FILE_MODULARIZED,
-            cacheNames = CACHE_NAME_MODULARIZED,
-            key = "#key",
-            unless = "#result == null")
-    public @Nullable File load(@NonNull FileID key, long consensusTimestamp) {
-        var systemFile = getSystemFiles().get(key);
+    /**
+     * Load system file by id and consensus timestamp. Uses a cache manager chosen by file id:
+     * exchange rate file uses {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE}
+     * (e.g. longer TTL); other system files use
+     * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_SYSTEM_FILE}.
+     */
+    public @Nullable File load(FileID fileId, long consensusTimestamp) {
+        final var cacheKey = new CacheKey(fileId, consensusTimestamp);
+        final var cache = getCacheForFileId(fileId);
+        if (cache == null) {
+            return loadFromDB(fileId, consensusTimestamp);
+        }
+        // Try to return the value from the cache
+        var file = cache.get(cacheKey, File.class);
+        if (file != null) {
+            return file;
+        }
+
+        // The value was not in cache -> try to load from DB
+        var result = loadFromDB(fileId, consensusTimestamp);
+        if (result != null) {
+            cache.put(cacheKey, result);
+        }
+        return result;
+    }
+
+    private @Nullable File loadFromDB(FileID fileId, long consensusTimestamp) {
+        var systemFile = getSystemFiles().get(fileId);
         if (systemFile == null) {
             return null;
         }
 
-        return loadWithRetry(key, consensusTimestamp, systemFile);
+        return loadWithRetry(fileId, consensusTimestamp, systemFile);
     }
 
-    public boolean isSystemFile(final FileID key) {
-        return getSystemFiles().containsKey(key);
+    public boolean isSystemFile(final FileID fileId) {
+        return getSystemFiles().containsKey(fileId);
     }
 
     /**
@@ -107,8 +149,9 @@ public class SystemFileLoader {
                     .map(fileData -> {
                         try {
                             var bytes = Bytes.wrap(fileData.getFileData());
-                            if (systemFile.codec != null) {
-                                systemFile.codec().parse(bytes.toReadableSequentialData());
+                            var codec = systemFile.codec;
+                            if (codec != null) {
+                                codec.parse(bytes.toReadableSequentialData());
                             }
                             return File.newBuilder().contents(bytes).fileId(key).build();
                         } catch (ParseException e) {
@@ -193,5 +236,22 @@ public class SystemFileLoader {
         return builder.build().toByteArray();
     }
 
-    private record SystemFile(File genesisFile, Codec<?> codec) {}
+    /**
+     * Returns the cache for the given file id: exchange rate file and fee schedule file use the
+     * exchange-rates cache manager (longer TTL). Other system files use the default manager.
+     *
+     * @param fileId the file id
+     * @return the cache for this file id, or null if the manager has no such cache
+     */
+    private @Nullable Cache getCacheForFileId(FileID fileId) {
+        final var isExchangeRate = fileId.equals(exchangeRateFileId);
+        final var isFeeSchedule = fileId.equals(feeSchedulesFileId);
+        final var useExchangeRatesManager = isExchangeRate || isFeeSchedule;
+        final var manager = useExchangeRatesManager ? exchangeRatesCacheManager : defaultSystemFileCacheManager;
+        return manager.getCache(CACHE_NAME);
+    }
+
+    private record SystemFile(File genesisFile, @Nullable Codec<?> codec) {}
+
+    private record CacheKey(FileID fileId, long timestamp) {}
 }

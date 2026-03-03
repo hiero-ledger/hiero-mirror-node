@@ -121,34 +121,6 @@ const cryptoTransferType = {
   DEBIT: 'debit',
 };
 
-const cloudProviders = {
-  S3: 'S3',
-  GCP: 'GCP',
-};
-
-const defaultCloudProviderEndpoints = {
-  [cloudProviders.S3]: 'https://s3.amazonaws.com',
-  [cloudProviders.GCP]: 'https://storage.googleapis.com',
-};
-
-const networks = {
-  DEMO: 'DEMO',
-  MAINNET: 'MAINNET',
-  TESTNET: 'TESTNET',
-  PREVIEWNET: 'PREVIEWNET',
-  OTHER: 'OTHER',
-};
-
-const defaultBucketNames = {
-  [networks.DEMO]: 'hedera-demo-streams',
-  [networks.MAINNET]: 'hedera-mainnet-streams',
-  [networks.TESTNET]: 'hedera-testnet-streams-2024-02',
-  [networks.PREVIEWNET]: 'hedera-preview-testnet-streams',
-  [networks.OTHER]: null,
-};
-
-const recordStreamPrefix = 'recordstreams/record';
-
 const tokenTypeFilter = {
   ALL: 'all',
   FUNGIBLE_COMMON: 'fungible_common',
@@ -211,19 +183,14 @@ export {
   ZERO_UINT256,
   apiPrefix,
   characterEncoding,
-  cloudProviders,
   contentTypeHeader,
   cryptoTransferType,
-  defaultBucketNames,
-  defaultCloudProviderEndpoints,
   entityTypes,
   filterKeys,
   httpStatusCodes,
   keyTypes,
-  networks,
   orderFilterValues,
   queryParamOperators,
-  recordStreamPrefix,
   requestIdLabel,
   requestPathLabel,
   requestStartTime,

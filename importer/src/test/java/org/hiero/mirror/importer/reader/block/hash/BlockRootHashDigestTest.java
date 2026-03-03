@@ -10,6 +10,7 @@ import com.hedera.hapi.block.stream.output.protoc.BlockFooter;
 import com.hedera.hapi.block.stream.output.protoc.BlockHeader;
 import com.hedera.hapi.block.stream.protoc.BlockItem;
 import com.hederahashgraph.api.proto.java.Timestamp;
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.jupiter.api.Test;
 
 final class BlockRootHashDigestTest {
@@ -41,7 +42,8 @@ final class BlockRootHashDigestTest {
         // then
         assertThat(actual)
                 .isEqualTo(
-                        "9c84abc8b725bc38f73b86b207ede3b9eb6772c49dd87191100d0108305e5b4db6e0eabea7fcf39f16baf8921bf1dc20");
+                        Hex.decode(
+                                "9c84abc8b725bc38f73b86b207ede3b9eb6772c49dd87191100d0108305e5b4db6e0eabea7fcf39f16baf8921bf1dc20"));
     }
 
     @Test

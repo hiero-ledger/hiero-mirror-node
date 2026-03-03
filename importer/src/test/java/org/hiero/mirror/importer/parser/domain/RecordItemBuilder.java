@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hederahashgraph.api.proto.java.CustomFee.FeeCase.FIXED_FEE;
+import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.STATUS;
+import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.SUBSCRIBE_STREAM;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ECDSA;
@@ -101,6 +103,10 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.RealmID;
+import com.hederahashgraph.api.proto.java.RegisteredNodeCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeDeleteTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeUpdateTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.RoyaltyFee;
 import com.hederahashgraph.api.proto.java.SchedulableTransactionBody;
@@ -160,6 +166,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -875,10 +882,6 @@ public class RecordItemBuilder {
                 .setFungibleTokenType(tokenId());
     }
 
-    public Builder<UtilPrngTransactionBody.Builder> prng() {
-        return prng(0);
-    }
-
     public Builder<UtilPrngTransactionBody.Builder> prng(int range) {
         var builder = UtilPrngTransactionBody.newBuilder().setRange(range);
         var transactionBodyBuilder = new Builder<>(TransactionType.UTILPRNG, builder);
@@ -890,6 +893,48 @@ public class RecordItemBuilder {
                 r.setPrngNumber(random.nextInt());
             }
         });
+    }
+
+    public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
+        final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
+                .setAdminKey(key())
+                .setDescription(text(8))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setRequiresTls(true)
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(STATUS)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(16))
+                        .setPort(port())
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(SUBSCRIBE_STREAM)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setMirrorNode(RegisteredServiceEndpoint.MirrorNodeEndpoint.getDefaultInstance()));
+
+        return new Builder<>(TransactionType.REGISTEREDNODECREATE, builder).receipt(r -> r.setRegisteredNodeId(id()));
+    }
+
+    public Builder<RegisteredNodeUpdateTransactionBody.Builder> registeredNodeUpdate() {
+        final var builder = RegisteredNodeUpdateTransactionBody.newBuilder()
+                .setRegisteredNodeId(id())
+                .setAdminKey(key())
+                .setDescription(StringValue.of(text(8)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setRequiresTls(true)
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(STATUS)));
+        return new Builder<>(TransactionType.REGISTEREDNODEUPDATE, builder);
+    }
+
+    public Builder<RegisteredNodeDeleteTransactionBody.Builder> registeredNodeDelete() {
+        final var builder = RegisteredNodeDeleteTransactionBody.newBuilder().setRegisteredNodeId(id());
+        return new Builder<>(TransactionType.REGISTEREDNODEDELETE, builder);
     }
 
     public void reset() {
@@ -1360,7 +1405,7 @@ public class RecordItemBuilder {
         return accountAmount(accountId.toAccountID(), amount);
     }
 
-    private AccountAmount accountAmount(AccountID accountID, long amount) {
+    public AccountAmount accountAmount(AccountID accountID, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(accountID)
                 .setAmount(amount)
@@ -1443,10 +1488,6 @@ public class RecordItemBuilder {
         return fileId;
     }
 
-    private long id() {
-        return id.incrementAndGet();
-    }
-
     public Key key() {
         if (id() % 2 == 0) {
             return Key.newBuilder().setECDSASecp256K1(bytes(KEY_LENGTH_ECDSA)).build();
@@ -1476,6 +1517,14 @@ public class RecordItemBuilder {
                 .setStake(stake)
                 .setStakeNotRewarded(TINYBARS_IN_ONE_HBAR)
                 .setStakeRewarded(stake - TINYBARS_IN_ONE_HBAR);
+    }
+
+    private long id() {
+        return id.incrementAndGet();
+    }
+
+    private int port() {
+        return (int) ((id() % 65535) + 1);
     }
 
     private ServiceEndpoint serviceEndpoint() {
@@ -1633,13 +1682,28 @@ public class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
+            var contractLogs = parseContractLogs(transactionRecordInstance);
+
             return recordItemBuilder
                     .contractTransactionPredicate(contractTransactionPredicate)
                     .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
+                    .contractLogs(contractLogs)
                     .build();
+        }
+
+        private List<ContractLoginfo> parseContractLogs(TransactionRecord record) {
+            if (record.hasContractCallResult()) {
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
+                        .toList());
+            }
+            if (record.hasContractCreateResult()) {
+                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
+                        .toList());
+            }
+            return Collections.emptyList();
         }
 
         public Builder<T> clearIncrementer() {

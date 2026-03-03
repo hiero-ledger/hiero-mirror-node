@@ -482,6 +482,8 @@ abstract class AbstractStreamFileProviderTest {
     private FileCopier createBlockStreamFileCopier() {
         targetRootPath = blockStreamTargetRootPath;
         final var toPath = importerProperties.getNetwork() + "/block";
-        return createFileCopier(Path.of("data", "blockstreams"), toPath);
+        final var fileCopier = createFileCopier(Path.of("data", "blockstreams"), toPath);
+        fileCopier.setIgnoreNonZeroRealmShard(true);
+        return fileCopier;
     }
 }

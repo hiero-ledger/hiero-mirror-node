@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":common"))
     implementation("com.esaulpaugh:headlong")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-csv")
+    implementation("com.hedera.cryptography:hedera-cryptography-wraps")
     implementation("commons-io:commons-io")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
     implementation("io.grpc:grpc-protobuf")
@@ -46,7 +47,16 @@ dependencies {
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
-    protobuf("org.hiero.block:block-node-protobuf-sources:$blockNodeVersion")
+    protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion") {
+        sourceSets {
+            main {
+                proto {
+                    // remove when block node releases compatible protobuf sources artifact
+                    exclude("block-node/api/proof_service.proto")
+                }
+            }
+        }
+    }
     runtimeOnly("com.github.luben:zstd-jni")
     runtimeOnly("io.grpc:grpc-netty")
     testImplementation(project(path = ":common", configuration = "testClasses"))

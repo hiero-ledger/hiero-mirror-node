@@ -63,6 +63,7 @@ class AirdropsReadableKVStateTest {
     void setup() {
         domainBuilder = new DomainBuilder();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
+        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
     }
 
     @Test

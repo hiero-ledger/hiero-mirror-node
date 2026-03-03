@@ -462,12 +462,8 @@ paths:
     post:
       summary: Invoke a smart contract
       description:
-        Returns a result from EVM execution such as cost-free execution of read-only smart contract queries, gas estimation, and transient simulation of read-write operations. If the `estimate` field is set to true gas estimation is executed. However, gas estimation only supports the `latest` block.
-        When `estimate` is false, it can process calls against the `earliest` block and specific historical blocks when a hexadecimal or decimal block number is provided in the `block` field for `eth_call` operations.
-        [Link to Supported/Unsupported Operations Table](https://github.com/hiero-ledger/hiero-mirror-node/blob/main/docs/web3/README.md#supported/unsupported-operations)
-
-        The operations types which are not currently supported should return 501 error status.
-
+        Returns a result from EVM execution such as cost-free execution of read-only smart contract queries, gas estimation, and transient simulation of read-write operations. If the `estimate` field is set to true gas estimation is executed.
+        This API can process calls against the `latest` block or specific historical blocks when a hexadecimal or decimal block number is provided in the `block` field.
       operationId: contractCall
       requestBody:
         required: true
@@ -1479,7 +1475,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.149.0-SNAPSHOT
+  version: 0.150.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -3983,6 +3979,9 @@ components:
         - NODEDELETE
         - NODESTAKEUPDATE
         - NODEUPDATE
+        - REGISTEREDNODECREATE
+        - REGISTEREDNODEDELETE
+        - REGISTEREDNODEUPDATE
         - SCHEDULECREATE
         - SCHEDULEDELETE
         - SCHEDULESIGN
@@ -4224,7 +4223,9 @@ components:
         valid_start_timestamp:
           $ref: "#/components/schemas/Timestamp"
       example:
-        batch_key: "0xae8bebf1c9fa0f309356e48057f6047af7cde63037d0509d16ddc3b20e085158bfdf14d15345c1b18b199b72fed4dead"
+        batch_key:
+          _type: "ED25519"
+          key: "7934a257a6144fabc8fbdeeaa5810662adb89e7b6978ace46a74fdb2d12bd4b2"
         bytes: null
         charged_tx_fee: 7
         consensus_timestamp: "1234567890.000000007"

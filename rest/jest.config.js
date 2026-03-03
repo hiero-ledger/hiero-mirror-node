@@ -6,7 +6,6 @@ const config = {
   coverageDirectory: 'build/coverage/',
   coveragePathIgnorePatterns: [
     '<rootDir>/build/',
-    '<rootDir>/check-state-proof/',
     '<rootDir>/monitoring/',
     '<rootDir>/node_modules/',
     '<rootDir>/__tests__/',
@@ -19,6 +18,7 @@ const config = {
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/build/', '/node_modules/'],
   testRegex: '/__tests__/.*\\.test\\.js$',
+  transformIgnorePatterns: ['/node_modules/(?!(lodash-es)/)'],
   verbose: true,
 };
 

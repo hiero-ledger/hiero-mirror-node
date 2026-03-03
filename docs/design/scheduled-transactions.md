@@ -199,50 +199,6 @@ transaction APIs JSON response:
 }
 ```
 
-### State Proof
-
-Add an optional boolean `scheduled` parameter to `/api/v1/transactions/:id/stateproof` with a default of false.
-
-### List Schedules
-
-GET `/api/v1/schedules`
-
-```json
-{
-  "schedules": [
-    {
-      "admin_key": {
-        "_type": "ProtobufEncoded",
-        "key": "7b2233222c2233222c2233227d"
-      },
-      "consensus_timestamp": "1234567890.000000001",
-      "creator_account_id": "0.0.100",
-      "deleted": false,
-      "executed_timestamp": "1234567890.000000002",
-      "memo": "Created per council decision dated 1/21/21",
-      "payer_account_id": "0.0.101",
-      "schedule_id": "0.0.102",
-      "signatures": [
-        {
-          "consensus_timestamp": "1234567890.000000001",
-          "public_key_prefix": "H0vpig==",
-          "signature": "0o0gC7p9SPUH4UD6Yiirp/Kf+LKj8qjuuFdC3AU87HE="
-        },
-        {
-          "consensus_timestamp": "1234567890.000000002",
-          "public_key_prefix": "GvxuXg==",
-          "signature": "w9mHyHQpTrlbLfn9NrBlZiMxV2mvLvNEw1hoeAECtcA="
-        }
-      ],
-      "transaction_body": "KcyxTMX2XFL+t0KSsB1S/c8t5kXTlLU3BGgNttEy7Gw="
-    }
-  ],
-  "links": {
-    "next": null
-  }
-}
-```
-
 #### Optional Filters
 
 - `/api/v1/schedules?account.id=0.0.8` - All schedule transactions for the matching creator account.
