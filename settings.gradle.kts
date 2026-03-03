@@ -14,6 +14,8 @@ include(":importer")
 
 include(":monitor")
 
+include(":pinger")
+
 include(":protobuf")
 
 include(":rest")

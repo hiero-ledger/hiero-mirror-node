@@ -27,6 +27,7 @@ jobs:
           - grpc
           - importer
           - monitor
+          - pinger
           - rest
           - rest-java
           - rest-monitor

@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: pinger
+
+
+# Environment variables to add to the container. The value can either be a string or an EnvVarSource. Evaluated as a template.
+env:
+  GOGC: "25"
+  GOMEMLIMIT: 10MiB
+  HIERO_MIRROR_PINGER_NETWORK: "other"
+  HIERO_MIRROR_PINGER_REST: "http://{{ .Release.Name }}-rest:80"
+
+fullnameOverride: ""
+
+image:
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+  registry: gcr.io
+  repository: mirrornode/hedera-mirror-pinger
+  tag: ""  # Defaults to the chart's app version
+
+labels: {}
+
+livenessProbe:
+  exec:
+    command: ["/healthcheck", "live"]
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 5
+
+nameOverride: ""
+
+nodeSelector: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+priorityClassName: ""
+
+readinessProbe:
+  exec:
+    command: ["/healthcheck", "ready"]
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 5
+
+replicas: 1
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 20Mi
+  requests:
+    cpu: 500m
+    memory: 20Mi
+
+revisionHistoryLimit: 3
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: [ALL]
+  readOnlyRootFilesystem: true
+
+terminationGracePeriodSeconds: 60
+
+tolerations: []
+
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 10%
+    maxUnavailable: 25%

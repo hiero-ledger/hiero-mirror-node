@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-description = "Mirror Node Rosetta API"
+description = "Hiero Mirror Pinger"
 
 plugins {
     id("docker-conventions")
@@ -8,6 +8,6 @@ plugins {
 }
 
 go {
-    pkg = "./app/..."
+    pkg = "./..."
     version = "1.26.0"
 }

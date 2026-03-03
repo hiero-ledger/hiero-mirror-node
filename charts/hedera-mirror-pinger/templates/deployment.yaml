@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {{ toYaml .Values.annotations | nindent 4 }}
+  labels: {{ include "hedera-mirror-pinger.labels" . | nindent 4 }}
+  name: {{ include "hedera-mirror-pinger.fullname" . }}
+  namespace: {{ include "hedera-mirror-pinger.namespace" . }}
+spec:
+  {{- if .Values.replicas }}
+  replicas: {{ .Values.replicas }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  selector:
+    matchLabels: {{ include "hedera-mirror-pinger.selectorLabels" . | nindent 6 }}
+  strategy: {{ toYaml .Values.updateStrategy | nindent 4 }}
+  template:
+    metadata:
+      labels: {{ include "hedera-mirror-pinger.selectorLabels" . | nindent 8 }}
+    spec:
+      affinity: {{ toYaml .Values.affinity | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          env:
+            {{- range $name, $value := mergeOverwrite .Values.env .Values.global.env }}
+            - name: {{ $name }}
+            {{- if kindIs "string" $value }}
+              value: {{ tpl $value $ | quote }}
+            {{- else }}
+            {{- tpl (toYaml $value) $ | nindent 14 }}
+            {{- end }}
+            {{- end }}
+          {{ $image := mergeOverwrite .Values.image .Values.global.image -}}
+          image: "{{ $image.registry }}/{{ $image.repository }}:{{ $image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ $image.pullPolicy }}
+          livenessProbe: {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe: {{ toYaml .Values.readinessProbe | nindent 12 }}
+          resources: {{ toYaml .Values.resources | nindent 12 }}
+          securityContext: {{ toYaml .Values.securityContext | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      imagePullSecrets: {{ toYaml .Values.image.pullSecrets | nindent 8 }}
+      nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      securityContext: {{ toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      tolerations: {{ toYaml .Values.tolerations | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
