@@ -15,7 +15,6 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
-import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -182,12 +181,6 @@ final class BlockStreamVerifier {
                 ? blockProof.getSignedBlockProof()
                 : blockProof.getBlockStateProof().getSignedBlockProof();
         final byte[] signature = toBytes(tssSignedBlockProof.getBlockSignature());
-        if (signature.length == DigestAlgorithm.SHA_384.getSize()) {
-            // Signature is the SHA-384 hash of the root hash when TSS isn't enabled. Will remove the shortcut in a
-            // future release when testing with a network without TSS is no longer needed
-            return;
-        }
-
         tssVerifier.verify(blockFile.getIndex(), hash, signature);
     }
 

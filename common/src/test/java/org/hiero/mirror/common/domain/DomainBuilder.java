@@ -180,7 +180,6 @@ public class DomainBuilder {
                 .loadEnd(timestamp + 1)
                 .loadStart(timestamp)
                 .name(name)
-                .nodeId(number())
                 .timeOffset(0);
         return new DomainWrapperImpl<>(builder, builder::build);
     }
