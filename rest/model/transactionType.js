@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {invert, isString} from 'lodash-es';
 import {InvalidArgumentError} from '../errors';
 
 const protoToName = {
@@ -69,15 +69,15 @@ const custom = {};
 
 const UNKNOWN = 'UNKNOWN';
 
-const protoToCustom = _.invert(custom);
-const nameToProto = _.invert(protoToName);
+const protoToCustom = invert(custom);
+const nameToProto = invert(protoToName);
 
 const getName = (protoId) => {
   return protoToCustom[protoId] || protoToName[protoId] || UNKNOWN;
 };
 
 const getProtoId = (name) => {
-  if (!_.isString(name)) {
+  if (!isString(name)) {
     throw new InvalidArgumentError(`Invalid argument ${name} is not a string`);
   }
 
@@ -96,7 +96,7 @@ const getProtoId = (name) => {
 };
 
 const isValid = (name) => {
-  if (!_.isString(name)) {
+  if (!isString(name)) {
     return false;
   }
 

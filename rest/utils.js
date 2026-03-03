@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {includes, isEmpty, isNil, join} from 'lodash-es';
 import anonymize from 'ip-anonymize';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
@@ -21,7 +21,7 @@ import {EvmAddressType, userLimitLabel} from './constants';
 const JSONBig = JSONBigFactory({useNativeBigInt: true});
 
 const responseLimit = config.response.limit;
-const resultSuccess = _.join(TransactionResult.getSuccessProtoIds(), ', ');
+const resultSuccess = join(TransactionResult.getSuccessProtoIds(), ', ');
 
 const opsMap = {
   lt: ' < ',
@@ -273,7 +273,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isValidEthHashOrHederaHash(val) && op === constants.queryParamOperators.eq;
       break;
     case constants.filterKeys.BLOCK_NUMBER:
-      ret = (isPositiveLong(val, true) || isHexPositiveInt(val, true)) && _.includes(basicOperators, op);
+      ret = (isPositiveLong(val, true) || isHexPositiveInt(val, true)) && includes(basicOperators, op);
       break;
     case constants.filterKeys.CONTRACT_ID:
       ret = isValidContractIdQueryParam(op, val);
@@ -331,7 +331,7 @@ const filterValidityChecks = (param, op, val) => {
       ret = isPositiveLong(val);
       break;
     case constants.filterKeys.SLOT:
-      ret = isValidSlot(val) && _.includes(basicOperators, op);
+      ret = isValidSlot(val) && includes(basicOperators, op);
       break;
     case constants.filterKeys.SPENDER_ID:
       ret = EntityId.isValidEntityId(val);
@@ -420,7 +420,7 @@ const isValidContractIdQueryParam = (op, val) => {
 };
 
 const isValidUserFileId = (val) => {
-  return !_.isNil(val) && val !== '' && EntityId.parse(val).num > 1000;
+  return !isNil(val) && val !== '' && EntityId.parse(val).num > 1000;
 };
 
 /**
@@ -555,7 +555,7 @@ const parseParams = (paramValues, processValue, processQuery, allowMultiple) => 
   const equalValues = new Set();
   for (const paramValue of paramValues) {
     const opAndValue = parseOperatorAndValueFromQueryParam(paramValue);
-    if (_.isNil(opAndValue)) {
+    if (isNil(opAndValue)) {
       continue;
     }
     const processedValue = processValue(opAndValue.value);
@@ -564,7 +564,7 @@ const parseParams = (paramValues, processValue, processQuery, allowMultiple) => 
       equalValues.add(processedValue);
     } else {
       const queryAndValues = processQuery(opAndValue.op, processedValue);
-      if (!_.isNil(queryAndValues)) {
+      if (!isNil(queryAndValues)) {
         partialQueries.push(queryAndValues[0]);
         if (queryAndValues[1]) {
           values.push(...queryAndValues[1]);
@@ -946,7 +946,7 @@ const nowInNs = () => BigInt(Date.now()) * constants.NANOSECONDS_PER_MILLISECOND
  * @return {String} Seconds since epoch (seconds.nnnnnnnnn format)
  */
 const nsToSecNs = (ns, sep = '.') => {
-  if (_.isNil(ns)) {
+  if (isNil(ns)) {
     return null;
   }
 
@@ -989,7 +989,7 @@ const getFirstDayOfMonth = (secNs, delta = 0) => {
  * @return {String} (seconds.nnnnnnnnn format)
  */
 const incrementTimestampByOneDay = (ns) => {
-  if (_.isNil(ns)) {
+  if (isNil(ns)) {
     return null;
   }
 
@@ -1005,7 +1005,7 @@ const randomString = async (length) => {
 };
 
 const addHexPrefix = (hexData) => {
-  if (_.isEmpty(hexData)) {
+  if (isEmpty(hexData)) {
     return constants.HEX_PREFIX;
   }
 
@@ -1019,7 +1019,7 @@ const addHexPrefix = (hexData) => {
  * @returns {String|null}
  */
 const toUint256 = (val) => {
-  if (_.isNil(val)) {
+  if (isNil(val)) {
     return null;
   }
 
@@ -1046,7 +1046,7 @@ const toHexString = (value, addPrefix = false, padLength = undefined) => {
     encoded = value.toString(16);
   } else if (typeof value === 'string' && hexStrPattern.test(value)) {
     encoded = value;
-  } else if (_.isEmpty(value)) {
+  } else if (isEmpty(value)) {
     return constants.HEX_PREFIX;
   } else if (Array.isArray(value)) {
     encoded = Buffer.from(value).toString('hex');
@@ -1095,12 +1095,12 @@ const IMMUTABLE_SENTINEL_KEY = '3200';
  * @return {Object} Key object - with type decoration for primitive keys, if detected
  */
 const encodeKey = (key) => {
-  if (_.isNil(key)) {
+  if (isNil(key)) {
     return null;
   }
 
   // check for empty case to support differentiation between empty and null keys
-  const keyHex = _.isEmpty(key) ? '' : toHexString(key);
+  const keyHex = isEmpty(key) ? '' : toHexString(key);
   if (keyHex === IMMUTABLE_SENTINEL_KEY) {
     return null;
   }
@@ -1152,7 +1152,7 @@ const encodeBinary = (buffer, encoding) => {
     charEncoding = constants.characterEncoding.UTF8;
   }
 
-  return _.isNil(buffer) ? null : buffer.toString(charEncoding);
+  return isNil(buffer) ? null : buffer.toString(charEncoding);
 };
 
 /**
@@ -1254,7 +1254,7 @@ const buildComparatorFilter = (name, filter) => {
  * @returns {BigInt} nnnnnnnnnnnnnnnnnnn format
  */
 const calculateExpiryTimestamp = (autoRenewPeriod, createdTimestamp, expirationTimestamp) => {
-  return _.isNil(expirationTimestamp) && !_.isNil(createdTimestamp) && !_.isNil(autoRenewPeriod)
+  return isNil(expirationTimestamp) && !isNil(createdTimestamp) && !isNil(autoRenewPeriod)
     ? BigInt(createdTimestamp) + BigInt(autoRenewPeriod) * constants.AUTO_RENEW_PERIOD_MULTIPLE
     : expirationTimestamp;
 };
@@ -1428,12 +1428,12 @@ const formatComparator = (comparator) => {
  * @return {[]|{token_id: string, balance: Number}[]}
  */
 const parseTokenBalances = (tokenBalances) => {
-  if (_.isNil(tokenBalances)) {
+  if (isNil(tokenBalances)) {
     return [];
   }
 
   return tokenBalances
-    .filter((x) => !_.isNil(x.token_id))
+    .filter((x) => !isNil(x.token_id))
     .map((tokenBalance) => {
       const {token_id: tokenId, balance} = tokenBalance;
       return {
@@ -1546,7 +1546,7 @@ const getPoolClass = () => {
  * @returns {Object|null}
  */
 const getStakingPeriod = (stakingPeriod) => {
-  if (_.isNil(stakingPeriod)) {
+  if (isNil(stakingPeriod)) {
     return null;
   } else {
     const stakingPeriodStart = BigInt(stakingPeriod) + 1n;
