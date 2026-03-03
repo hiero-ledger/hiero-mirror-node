@@ -9,7 +9,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 
 ## Goals
 
-- Enhance the database schema to store registered node information
+- Enhance the database schema to store registered node and associated registered node information
 - Ingest `RegisteredNodeCreate`, `RegisteredNodeUpdate`, and `RegisteredNodeDelete` transactions
 - Ingest the new `associated_registered_node` field in `NodeCreate` and `NodeUpdate` transactions
 - Expose registered node information via REST APIs
@@ -19,7 +19,6 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 ### Database
 
 - Add new tables `registered_node` and `registered_node_history`
-
   ```sql
   create table if not exists registered_node
   (
@@ -107,11 +106,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   ```java
   @Data
   @Entity
-  public class RegisteredNodeHistory extends AbstractRegisteredNode {
-  }
+  public class RegisteredNodeHistory extends AbstractRegisteredNode {}
   ```
 
-- Add `RegisteredServiceEndpoint` class, `BlockNodeEndpoint`, `BlockNodeApi` enum, `MirrorNodeEndpoint`,
+- Add `RegisteredServiceEndpoint` class, `BlockNodeEndpoint` class, `BlockNodeApi` enum, `MirrorNodeEndpoint` class,
   and `RpcRelayEndpoint` class
 
   ```java
@@ -155,26 +153,24 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   default void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {}
   ```
 
-- Override and implement `onRegisteredNode()` in `SqlEntityListener`. Implement merge logic to preserve existing
-  in-memory values for any unchanged properties
+- Implement `onRegisteredNode()` in `SqlEntityListener`. Implement merge logic to preserve existing in-memory values for
+  any unchanged properties
 
 #### Transaction Handlers
 
 - Add the following transaction handlers
-
   - `RegistredNodeCreateTransactionHandler` for `RegisteredNodeCreate` transactions
   - `RegistredNodeUpdateTransactionHandler` for `RegisteredNodeUpdate` transactions
   - `RegistredNodeDeleteTransactionHandler` for `RegisteredNodeDelete` transactions
 
 - Update `NodeCreateTransactionHandler` and `NodeUpdateTransactionHandler` to handle the new
-  `associated_registered_node` field in the corresponding transaction
+  `associated_registered_node` field in the corresponding transaction body
 
 ### REST API
 
 #### Endpoints
 
 - Add `/api/v1/network/registered-nodes`
-
   ```json
   {
     "registered_nodes": [
@@ -220,7 +216,6 @@ is `asc`
     occurrence is allowed. The `eq` operator can't mix with other operators.
 
 - Add `/api/v1/network/registered-nodes/{id}`
-
   ```json
   {
     "admin_key": {
@@ -303,3 +298,9 @@ tests.
 ### K6 Tests
 
 Add K6 test cases for the two endpoints: `/api/v1/network/registered-nodes` and `/api/v1/network/registered-nodes/{id}`.
+
+
+## Open Issues
+
+- Should the response of `/api/v1/network/registered-nodes` and `/api/v1/network/registered-nodes/{id}` include a
+  `node_id` to identify the consensus node a registered node is associated with?
