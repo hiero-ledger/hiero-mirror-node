@@ -47,6 +47,7 @@ class NodeCreateTransactionHandler extends AbstractNodeTransactionHandler {
         return Node.builder()
                 .accountId(accountId)
                 .adminKey(key)
+                .associatedRegisteredNodes(nodeCreate.getAssociatedRegisteredNodeList())
                 .createdTimestamp(consensusTimestamp)
                 .declineReward(nodeCreate.getDeclineReward())
                 .deleted(false)
