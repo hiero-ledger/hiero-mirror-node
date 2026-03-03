@@ -210,10 +210,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   Query parameters
 
   - `limit` - The maximum number of registered nodes to return in the response
-  - `order` - The direction to sort the items by the registered node id in the response. Can be `asc` or `desc, default
-is `asc`
+  - `order` - The direction to sort the items by the registered node id in the response. Can be `asc` or `desc`, default
+    is `asc`
   - `registered-node.id` - The registered node id. Supports `eq`, `gt`, `gte`, `lt`, and `lte` operators. Only one
-    occurrence is allowed. The `eq` operator can't mix with other operators.
+    occurrence is allowed. The `eq` operator can't mix with other operators
 
 - Add `/api/v1/network/registered-nodes/{id}`
   ```json
