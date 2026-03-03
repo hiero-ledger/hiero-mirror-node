@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
 import base32 from './base32';
 import {getResponseLimit} from './config';
 import * as constants from './constants';

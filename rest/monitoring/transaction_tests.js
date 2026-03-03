@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {filter, map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -87,9 +87,9 @@ const getTransactionsWithAccountCheck = async (server) => {
   const transaction = transactions[0];
   const transfers = mergeArrays(transaction.transfers, transaction.token_transfers);
 
-  const highestAccount = _.max(
-    _.map(
-      _.filter(transfers, (xfer) => xfer.amount > 0),
+  const highestAccount = max(
+    map(
+      filter(transfers, (xfer) => xfer.amount > 0),
       (xfer) => xfer.account
     )
   );

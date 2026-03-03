@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isNil, last} from 'lodash-es';
 import BaseController from './baseController';
 import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';
 import {InvalidArgumentError} from '../errors';
@@ -32,7 +32,7 @@ class NetworkController extends BaseController {
     let fileIdSpecified = false;
 
     for (const filter of filters) {
-      if (_.isNil(filter)) {
+      if (isNil(filter)) {
         continue;
       }
 
@@ -108,11 +108,11 @@ class NetworkController extends BaseController {
     };
 
     if (response.nodes.length === limit) {
-      const lastRow = _.last(response.nodes);
-      const last = {
+      const lastRow = last(response.nodes);
+      const lastValue = {
         [filterKeys.NODE_ID]: lastRow.node_id,
       };
-      response.links.next = utils.getPaginationLink(req, false, last, order);
+      response.links.next = utils.getPaginationLink(req, false, lastValue, order);
     }
 
     res.locals[responseDataLabel] = response;

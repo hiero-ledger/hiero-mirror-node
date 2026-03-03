@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isNil, last} from 'lodash-es';
 
 import balances from './balances';
 import {getResponseLimit} from './config';
@@ -227,7 +227,7 @@ const extractSqlFromTokenRequest = (query, params, filters, conditions) => {
  * @returns {string|String}
  */
 const formatTokenMetadata = (metadata) => {
-  return _.isNil(metadata) ? EMPTY_STRING : utils.encodeBase64(metadata);
+  return isNil(metadata) ? EMPTY_STRING : utils.encodeBase64(metadata);
 };
 
 /**
@@ -1031,7 +1031,7 @@ const getNftTransferHistoryRequest = async (req, res) => {
   const {rows: transactions} = await pool.queryQuietly(query, params);
 
   response.transactions = transactions.map(formatNftTransactionHistoryRow);
-  const anchorTimestamp = _.last(response.transactions)?.consensus_timestamp ?? 0;
+  const anchorTimestamp = last(response.transactions)?.consensus_timestamp ?? 0;
   response.links.next = utils.getPaginationLink(
     req,
     response.transactions.length !== limit,

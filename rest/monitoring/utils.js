@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {has, isEmpty} from 'lodash-es';
 import log4js from 'log4js';
 import parseDuration from 'parse-duration';
 import prettyMilliseconds from 'pretty-ms';
@@ -282,7 +282,7 @@ const checkMandatoryParams = (elements, option) => {
   const element = Array.isArray(elements) ? elements[0] : elements;
   const {params, message} = option;
   for (let index = 0; index < params.length; index += 1) {
-    if (!_.has(element, params[index])) {
+    if (!has(element, params[index])) {
       return {
         passed: false,
         message: `${message}: ${params[index]}`,
@@ -296,7 +296,7 @@ const checkMandatoryParams = (elements, option) => {
 const checkRespDataFreshness = (resp, option) => {
   const {timestamp, threshold, message} = option;
   const ts = timestamp(Array.isArray(resp) ? resp[0] : resp);
-  const secs = !_.isEmpty(ts) ? ts.split('.')[0] : 0;
+  const secs = !isEmpty(ts) ? ts.split('.')[0] : 0;
   const currSecs = Math.floor(new Date().getTime() / 1000);
   const delta = currSecs - secs;
   if (delta > threshold) {

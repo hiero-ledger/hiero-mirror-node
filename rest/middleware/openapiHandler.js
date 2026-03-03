@@ -3,7 +3,7 @@
 import OpenApiValidator from 'express-openapi-validator';
 import fs from 'fs';
 import yaml from 'js-yaml';
-import _ from 'lodash';
+import {isNumber, isString, isUndefined} from 'lodash-es';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 
@@ -22,7 +22,7 @@ const OPEN_API_PARAMETER_LOCATION = '#/components/parameters/';
  * @param {Number} apiVersion
  */
 const isInValidVersionRange = (apiVersion) => {
-  if (!_.isNumber(apiVersion)) {
+  if (!isNumber(apiVersion)) {
     return false;
   }
 
@@ -51,7 +51,7 @@ const getOpenApiSpecObject = (apiVersion) => {
  * Get the YAML file of the open api spec for the v1 rest api
  */
 const getV1OpenApiFile = (apiVersion) => {
-  if (_.isUndefined(v1OpenApiFile)) {
+  if (isUndefined(v1OpenApiFile)) {
     const openApiSpecPath = path.resolve(process.cwd(), getSpecPath(apiVersion));
     v1OpenApiFile = fs.readFileSync(openApiSpecPath, 'utf8');
   }
@@ -63,7 +63,7 @@ const getV1OpenApiFile = (apiVersion) => {
  * Get the YAML object of the open api spec for the v1 rest api
  */
 const getV1OpenApiObject = () => {
-  if (_.isUndefined(v1OpenApiDocument)) {
+  if (isUndefined(v1OpenApiDocument)) {
     v1OpenApiDocument = getOpenApiSpecObject(1);
   }
 
@@ -76,7 +76,7 @@ const getV1OpenApiObject = () => {
  * @returns {Map<string, Array<{parameterName, defaultValue}>>}
  */
 const getOpenApiMap = () => {
-  if (_.isUndefined(openApiMap)) {
+  if (isUndefined(openApiMap)) {
     const openApiObject = getV1OpenApiObject();
     const map = new Map();
     Object.keys(openApiObject.paths).forEach((path) => {
@@ -112,7 +112,7 @@ const getOpenApiParameters = (path, openApiObject) => {
       .map((p) => {
         const parameterName = p.name;
         let defaultValue = p.schema?.default;
-        if (defaultValue !== undefined && !_.isString(defaultValue)) {
+        if (defaultValue !== undefined && !isString(defaultValue)) {
           // Convert all values to strings
           defaultValue = '' + defaultValue;
         }

@@ -85,6 +85,8 @@ import org.hiero.mirror.common.domain.job.ReconciliationJob;
 import org.hiero.mirror.common.domain.job.ReconciliationStatus;
 import org.hiero.mirror.common.domain.node.Node;
 import org.hiero.mirror.common.domain.node.NodeHistory;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -795,6 +797,27 @@ public class DomainBuilder {
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
+    public DomainWrapper<RegisteredNode, RegisteredNode.RegisteredNodeBuilder<?, ?>> registeredNode() {
+        final long timestamp = timestamp();
+        final long nodeId = number();
+        final var builder = RegisteredNode.builder()
+                .adminKey(key())
+                .createdTimestamp(timestamp)
+                .deleted(false)
+                .description("node-" + nodeId)
+                .registeredNodeId(nodeId)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                                .build())
+                        .ipAddress("127.0.0.1")
+                        .port(443)
+                        .requiresTls(true)
+                        .build()))
+                .timestampRange(Range.atLeast(timestamp));
+        return new DomainWrapperImpl<>(builder, builder::build);
+    }
+
     public DomainWrapper<NodeStake, NodeStake.NodeStakeBuilder> nodeStake() {
         long maxStake = 50_000_000_000L * TINYBARS_IN_ONE_HBAR / 26L;
         long stake = number() * TINYBARS_IN_ONE_HBAR;
@@ -1159,9 +1182,11 @@ public class DomainBuilder {
     public DomainWrapper<Transaction, Transaction.TransactionBuilder> transaction() {
         var builder = Transaction.builder()
                 .chargedTxFee(10000000L)
+                .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
                 .highVolume(false)
+                .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()
