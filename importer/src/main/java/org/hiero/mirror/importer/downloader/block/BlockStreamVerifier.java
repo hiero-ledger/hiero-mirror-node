@@ -25,7 +25,6 @@ import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.data.util.Version;
 
 @Named
 @NullMarked
@@ -34,7 +33,6 @@ final class BlockStreamVerifier {
     private static final String EMPTY_HASH = Strings.repeat("0", 96);
 
     private final BlockFileTransformer blockFileTransformer;
-    private final BlockProperties blockProperties;
     private final BlockStateProofHasher blockStateProofHasher;
     private final CutoverService cutoverService;
     private final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser;
@@ -47,7 +45,6 @@ final class BlockStreamVerifier {
 
     public BlockStreamVerifier(
             final BlockFileTransformer blockFileTransformer,
-            final BlockProperties blockProperties,
             final BlockStateProofHasher blockStateProofHasher,
             final CutoverService cutoverService,
             final LedgerIdPublicationTransactionParser ledgerIdPublicationTransactionParser,
@@ -55,7 +52,6 @@ final class BlockStreamVerifier {
             final StreamFileNotifier streamFileNotifier,
             final TssVerifier tssVerifier) {
         this.blockFileTransformer = blockFileTransformer;
-        this.blockProperties = blockProperties;
         this.blockStateProofHasher = blockStateProofHasher;
         this.cutoverService = cutoverService;
         this.ledgerIdPublicationTransactionParser = ledgerIdPublicationTransactionParser;
@@ -150,17 +146,6 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(final BlockFile blockFile) {
-        final var consensusNodeVersion = blockFile.getBlockHeader().getSoftwareVersion();
-        final var version = new Version(
-                consensusNodeVersion.getMajor(), consensusNodeVersion.getMinor(), consensusNodeVersion.getPatch());
-        if (version.isLessThan(blockProperties.getCompatibleRootHashConsensusNodeVersion())) {
-            // Set both hash and previousHash to all 0s to pass parser validation, will remove in a future release
-            // when running against old consensus node releases is no longer needed
-            blockFile.setHash(EMPTY_HASH);
-            blockFile.setPreviousHash(EMPTY_HASH);
-            return;
-        }
-
         getExpectedPreviousHash().ifPresent(expected -> {
             if (!blockFile.getPreviousHash().contentEquals(expected)) {
                 throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");

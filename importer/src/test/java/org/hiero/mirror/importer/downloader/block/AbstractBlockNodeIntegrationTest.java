@@ -73,7 +73,6 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
         var blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
-                blockProperties,
                 mock(BlockStateProofHasher.class),
                 cutoverService,
                 mock(LedgerIdPublicationTransactionParser.class),

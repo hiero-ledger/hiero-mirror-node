@@ -41,7 +41,6 @@ import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransactionParser;
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
@@ -54,8 +53,6 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -86,7 +83,6 @@ final class BlockStreamVerifierTest {
                 mock(BlockProperties.class), mock(RecordDownloaderProperties.class), recordFileRepository));
         verifier = new BlockStreamVerifier(
                 blockFileTransformer,
-                new BlockProperties(new ImporterProperties()),
                 blockStateProofHasher,
                 cutoverService,
                 ledgerIdPublicationTransactionParser,
@@ -316,42 +312,6 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
         assertThat(cutoverService.getLastRecordFile()).get().returns(previous.getIndex(), RecordFile::getIndex);
-    }
-
-    @ParameterizedTest
-    @CsvSource(textBlock = """
-            0, 71, 0, rc.1
-            0, 71, 0,
-            """)
-    void hashMismatchIgnoredWithNewRootHashAlgorithm(
-            final int major, final int minor, final int patch, final String pre) {
-        // given
-        final var previous = getRecordFile();
-        when(recordFileRepository.findLatest()).thenReturn(Optional.of(previous));
-        final var blockFile = getBlockFile(previous);
-        final var versionBuilder =
-                SemanticVersion.newBuilder().setMajor(major).setMinor(minor).setPatch(patch);
-        if (pre != null) {
-            versionBuilder.setPre(pre);
-        }
-
-        final var version = versionBuilder.build();
-        blockFile.setBlockHeader(BlockHeader.newBuilder()
-                .setSoftwareVersion(version)
-                .setHapiProtoVersion(version)
-                .build());
-        blockFile.setPreviousHash(sha384Hash());
-
-        // when
-        verifier.verify(blockFile);
-
-        // then
-
-        verify(blockFileTransformer).transform(blockFile);
-        verifyNoInteractions(blockStateProofHasher);
-        verify(recordFileRepository).findLatest();
-        verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
-        assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
     }
 
     @Test
