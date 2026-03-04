@@ -478,6 +478,43 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     }
 
     @Test
+    void cryptoCreateWithDelegationAddress() {
+        // given
+        var delegationAddress = EVM_ADDRESS;
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
+                .build();
+        var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(entityRepository.findById(EntityId.of(accountId).getId()))
+                .get()
+                .returns(delegationAddress, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoCreateWithoutDelegationAddress() {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(b -> b.setMemo("just set a memo without delegation address"))
+                .build();
+        var accountId = recordItem.getTransactionRecord().getReceipt().getAccountID();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(entityRepository.findById(EntityId.of(accountId).getId()))
+                .get()
+                .returns(null, Entity::getDelegationAddress);
+    }
+
+    @Test
     void cryptoDeleteAllowance() {
         // given
         var delegatingSpender = EntityId.of(recordItemBuilder.accountId()).getId();
