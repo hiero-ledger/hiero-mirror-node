@@ -19,6 +19,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 ### Database
 
 - Add new tables `registered_node` and `registered_node_history`
+
   ```sql
   create table if not exists registered_node
   (
@@ -28,11 +29,14 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       description            varchar(100)    null,
       registered_node_id     bigint          not null,
       service_endpoints      jsonb           null,
-      timestamp_range        int8range       not null
+      timestamp_range        int8range       not null,
+      type                   smallint        not null default 0
   );
 
   alter table if exists registered_node
       add constraint registered_node__pk primary key (registered_node_id);
+  create index if not exists registered_node__type_node_id
+      on registered_node (type, registered_node_id) where deleted is false;
 
   create table if not exists registered_node_history
   (
@@ -43,7 +47,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       on registered_node_history (registered_node_id, lower(timestamp_range));
   ```
 
-  Note `service_endpoints` is the JSON serialization of the list of `RegisteredServiceEndpoint` objects.
+  Note that `service_endpoints` is the JSON serialization of the list of `RegisteredServiceEndpoint` objects.
 
 - Add new column `associated_registered_nodes` to `node` and `node_history` tables
   ```sql
@@ -75,6 +79,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   @Upsertable(history = true)
   public abstract class AbstractRegisteredNode implements History {
 
+      public static final short TYPE_BLOCK_NODE = 0;
+      public static final short TYPE_MIRROR_NODE = 2;
+      public static final short TYPE_RPC_RELAY = 4;
+
       private byte[] adminKey;
 
       @Column(updatable = false)
@@ -92,8 +100,12 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       private List<RegisteredServiceEndpoint> serviceEndpoints;
 
       private Range<Long> timestampRange;
+
+      private short type;
   }
   ```
+
+  Note a registered node's type is the aggregation of all service endpoint's type, defined by the constants.
 
 - Add `RegisteredNode` class and `RegisteredNodeHistory` class
 
@@ -159,9 +171,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 #### Transaction Handlers
 
 - Add the following transaction handlers
-  - `RegistredNodeCreateTransactionHandler` for `RegisteredNodeCreate` transactions
-  - `RegistredNodeUpdateTransactionHandler` for `RegisteredNodeUpdate` transactions
-  - `RegistredNodeDeleteTransactionHandler` for `RegisteredNodeDelete` transactions
+
+  - `RegisteredNodeCreateTransactionHandler` for `RegisteredNodeCreate` transactions
+  - `RegisteredNodeUpdateTransactionHandler` for `RegisteredNodeUpdate` transactions
+  - `RegisteredNodeDeleteTransactionHandler` for `RegisteredNodeDelete` transactions
 
 - Update `NodeCreateTransactionHandler` and `NodeUpdateTransactionHandler` to handle the new
   `associated_registered_node` field in the corresponding transaction body
@@ -171,6 +184,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 #### Endpoints
 
 - Add `/api/v1/network/registered-nodes`
+
   ```json
   {
     "registered_nodes": [
@@ -182,6 +196,39 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
         "created_timestamp": "1586567700.453054001",
         "description": "alpha",
         "registered_node_id": 1,
+        "service_endpoints": [
+          {
+            "block_node": {
+              "endpoint_api": "STATUS"
+            },
+            "domain_name": "block1.alpha.com",
+            "ip_address": null,
+            "mirror_node": null,
+            "port": 40840,
+            "require_tls": false,
+            "rpc_relay": null
+          },
+          {
+            "block_node": {
+              "endpoint_api": "SUBSCRIBE_STREAM"
+            },
+            "domain_name": null,
+            "ip_address": "191.91.239.79",
+            "mirror_node": null,
+            "port": 40842,
+            "require_tls": true,
+            "rpc_relay": null
+          },
+          {
+            "block_node": null,
+            "domain_name": "mirrornode.alpha.com",
+            "ip_address": null,
+            "mirror_node": {},
+            "port": 80,
+            "require_tls": false,
+            "rpc_relay": null
+          }
+        ],
         "timestamp": {
           "from": "1586567700.453054001",
           "to": null
@@ -195,6 +242,17 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
         "created_timestamp": "1586567999.453000201",
         "description": "romeo",
         "registered_node_id": 2,
+        "service_endpoints": [
+          {
+            "block_node": null,
+            "domain_name": "mirrornode.romeo.com",
+            "ip_address": null,
+            "mirror_node": {},
+            "port": 80,
+            "require_tls": false,
+            "rpc_relay": null
+          }
+        ],
         "timestamp": {
           "from": "1586567999.453000201",
           "to": null
@@ -214,56 +272,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
     is `asc`
   - `registered-node.id` - The registered node id. Supports `eq`, `gt`, `gte`, `lt`, and `lte` operators. Only one
     occurrence is allowed. The `eq` operator can't mix with other operators
-
-- Add `/api/v1/network/registered-nodes/{id}`
-  ```json
-  {
-    "admin_key": {
-      "_type": "ProtobufEncoded",
-      "key": "421050820e1485acdd59726088e0e4a2130ebbbb70009f640ad95c78dd5a7b38"
-    },
-    "created_timestamp": "1586567700.453054001",
-    "description": "alpha",
-    "registered_node_id": 1,
-    "service_endpoints": [
-      {
-        "block_node": {
-          "endpoint_api": "STATUS"
-        },
-        "domain_name": "block1.sample.domain.com",
-        "ip_address": null,
-        "mirror_node": null,
-        "port": 40840,
-        "require_tls": false,
-        "rpc_relay": null
-      },
-      {
-        "block_node": {
-          "endpoint_api": "SUBSCRIBE_STREAM"
-        },
-        "domain_name": null,
-        "ip_address": "191.91.239.79",
-        "mirror_node": null,
-        "port": 40842,
-        "require_tls": true,
-        "rpc_relay": null
-      },
-      {
-        "block_node": null,
-        "domain_name": "mirrornode.sample.domain.com",
-        "ip_address": null,
-        "mirror_node": {},
-        "port": 80,
-        "require_tls": false,
-        "rpc_relay": null
-      }
-    ],
-    "timestamp": {
-      "from": "1586567700.453054001",
-      "to": null
-    }
-  }
-  ```
+  - `type` - The type of service provided by the registered node. Supports `BLOCK_NODE`, `MIRROR_NODE`, and `RPC_RELAY`.
+    Only supports the `eq` operator and only one occurrence is allowed
 
 - Update response of `/api/v1/network/nodes`
 
@@ -292,13 +302,15 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 
 ### Acceptance Tests
 
-The new registered node transactions must be signed by privileged accounts, which prevents the addition of acceptance
-tests.
+Initially the new registered node transactions must be signed by privileged accounts, which prevents the addition of
+acceptance tests.
 
 ### K6 Tests
 
-Add K6 test cases for the two endpoints: `/api/v1/network/registered-nodes` and `/api/v1/network/registered-nodes/{id}`.
+Add K6 test cases for the new endpoint `/api/v1/network/registered-nodes`
 
+- list registered nodes with all types
+- list registered nodes with `type=BLOCK_NODE`
 
 ## Open Issues
 
