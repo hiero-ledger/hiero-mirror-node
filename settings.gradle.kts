@@ -20,8 +20,6 @@ include(":rest")
 
 include(":rest-java")
 
-include(":rest:check-state-proof")
-
 include(":rest:monitoring")
 
 include(":rosetta")

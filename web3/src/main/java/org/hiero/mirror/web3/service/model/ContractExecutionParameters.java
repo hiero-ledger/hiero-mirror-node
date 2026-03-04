@@ -23,4 +23,9 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final Address sender;
     private final TracerType tracerType = TracerType.OPERATION;
     private final long value;
+
+    @Override
+    public Bytes getEthereumData() {
+        throw new UnsupportedOperationException("getEthereumData");
+    }
 }

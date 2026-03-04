@@ -20,7 +20,7 @@ import org.hiero.mirror.monitor.util.Utility;
 public class ConsensusSubmitMessageTransactionSupplier implements TransactionSupplier<TopicMessageSubmitTransaction> {
 
     @Min(1)
-    private long maxTransactionFee = 1_000_000;
+    private long maxTransactionFee = 4_000_000;
 
     @NotNull
     private String message = StringUtils.EMPTY;

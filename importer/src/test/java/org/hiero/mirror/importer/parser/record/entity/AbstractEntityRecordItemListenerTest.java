@@ -478,7 +478,6 @@ public abstract class AbstractEntityRecordItemListenerTest extends ImporterInteg
                 .loadEnd(System.currentTimeMillis())
                 .loadStart(System.currentTimeMillis())
                 .name(filename)
-                .nodeId(0L)
                 .previousHash("")
                 .build();
     }

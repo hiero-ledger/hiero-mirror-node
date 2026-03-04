@@ -242,7 +242,7 @@ public class ContractFeature extends BaseContractFeature {
     @And("the mirror node REST API should indicate not found when using evm address to retrieve as a contract")
     public void verifyMirrorAPIContractNotFoundResponse() {
         try {
-            mirrorClient.getContractInfo(create2ChildContractEvmAddress);
+            mirrorClient.getContractInfoWithNotFound(create2ChildContractEvmAddress);
             fail("Did not expect to find contract at EVM address");
         } catch (HttpClientErrorException e) {
             assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());

@@ -3,7 +3,6 @@
 import BaseService from './baseService';
 import {AddressBook, AddressBookEntry, AddressBookServiceEndpoint, Node, NetworkNode, NodeStake} from '../model';
 import {OrderSpec} from '../sql';
-import EntityId from '../entityId';
 
 /**
  * Network node business model
@@ -68,35 +67,6 @@ class NetworkNodeService extends BaseService {
     left join ${Node.tableAlias} on ${AddressBookEntry.getFullName(AddressBookEntry.NODE_ID)} =
       ${Node.getFullName(Node.NODE_ID)}`;
 
-  static unreleasedSupplyAccounts = (column) =>
-    EntityId.systemEntity.unreleasedSupplyAccounts
-      .map((range) => {
-        const from = range.from.getEncodedId();
-        const to = range.to.getEncodedId();
-
-        if (from === to) {
-          return `${column} = ${from}`;
-        } else {
-          return `(${column} >= ${from} and ${column} <= ${to})`;
-        }
-      })
-      .join(' or ');
-
-  static networkSupplyQuery = `
-      select coalesce(sum(balance), 0) as unreleased_supply, coalesce(max(balance_timestamp), 0) as consensus_timestamp
-      from entity
-      where ${NetworkNodeService.unreleasedSupplyAccounts('id')}`;
-
-  getNetworkSupplyByTimestampQuery = (conditions) => `
-      with account_balances as (
-          select distinct on (account_id) balance, consensus_timestamp
-          from account_balance ab
-          where ${conditions} and (${NetworkNodeService.unreleasedSupplyAccounts('account_id')})
-          order by account_id asc, consensus_timestamp desc
-      )
-      select coalesce(sum(balance), 0) as unreleased_supply, max(consensus_timestamp) as consensus_timestamp
-      from account_balances`;
-
   getNetworkNodes = async (whereConditions, whereParams, order, limit) => {
     const [query, params] = this.getNetworkNodesWithFiltersQuery(whereConditions, whereParams, order, limit);
 
@@ -115,16 +85,6 @@ class NetworkNodeService extends BaseService {
     ].join('\n');
 
     return [query, params];
-  };
-
-  getSupply = async (conditions, params) => {
-    let query = NetworkNodeService.networkSupplyQuery;
-
-    if (conditions.length > 0) {
-      query = this.getNetworkSupplyByTimestampQuery(conditions.join(' and '));
-    }
-
-    return await super.getSingleRow(query, params);
   };
 }
 

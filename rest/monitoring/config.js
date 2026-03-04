@@ -2,7 +2,7 @@
 
 import extend from 'extend';
 import fs from 'fs';
-import _ from 'lodash';
+import {has} from 'lodash-es';
 import logger from './logger';
 import path from 'path';
 import {fileURLToPath} from 'url';
@@ -18,7 +18,6 @@ const REQUIRED_FIELDS = [
   'block.freshnessThreshold',
   'block.intervalMultiplier',
   'network.intervalMultiplier',
-  'stateproof.intervalMultiplier',
   'transaction.freshnessThreshold',
   'transaction.intervalMultiplier',
   'topic.freshnessThreshold',
@@ -55,7 +54,7 @@ if (!loaded) {
   }
 
   for (const field of REQUIRED_FIELDS) {
-    if (!_.has(config, field)) {
+    if (!has(config, field)) {
       throw new Error(`required field "${field}" not found in any configuration file`);
     }
   }

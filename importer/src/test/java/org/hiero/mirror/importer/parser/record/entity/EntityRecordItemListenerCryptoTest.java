@@ -73,7 +73,6 @@ import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.repository.ContractRepository;
 import org.hiero.mirror.importer.repository.CryptoAllowanceRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.NftAllowanceRepository;
@@ -93,7 +92,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 
 @RequiredArgsConstructor
-class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
+final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListenerTest {
 
     private static final long INITIAL_BALANCE = 1000L;
     private static final EntityId accountId1 = DOMAIN_BUILDER.entityNum(1001);
@@ -102,7 +101,6 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     private static final ByteString ALIAS_KEY = DomainUtils.fromBytes(UtilityTest.ALIAS_ECDSA_SECP256K1);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
-    private final ContractRepository contractRepository;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
     private final HookRepository hookRepository;
     private final NftAllowanceRepository nftAllowanceRepository;
@@ -124,6 +122,29 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
     void after() {
         entityProperties.getPersist().setEntityTransactions(false);
         entityProperties.getPersist().setItemizedTransfers(false);
+    }
+
+    @ParameterizedTest
+    @CsvSource(textBlock = """
+            false, 1
+            true, 100
+            """)
+    void cryptoTransferHighVolume(final boolean highVolume, final long highVolumePricingMultiplier) {
+        // given
+        var recordItem = recordItemBuilder
+                .cryptoTransfer()
+                .transactionBodyWrapper(b -> b.setHighVolume(highVolume))
+                .record(r -> r.setHighVolumePricingMultiplier(highVolumePricingMultiplier))
+                .build();
+
+        // when
+        parseRecordItemAndCommit(recordItem);
+
+        // then
+        assertThat(transactionRepository.findById(recordItem.getConsensusTimestamp()))
+                .get()
+                .returns(highVolume, t -> t.getHighVolume())
+                .returns(highVolumePricingMultiplier, t -> t.getHighVolumePricingMultiplier());
     }
 
     @Test
@@ -1838,8 +1859,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // when
@@ -1858,7 +1878,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(recordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),
                 () -> assertFalse(dbHook.getDeleted()));
@@ -1880,8 +1900,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
 
         // Extract hook details from the transaction
         var hookId = hookCreationDetails.getHookId();
-        var contractId =
-                EntityId.of(hookCreationDetails.getLambdaEvmHook().getSpec().getContractId());
+        var contractId = EntityId.of(hookCreationDetails.getEvmHook().getSpec().getContractId());
         var adminKey = hookCreationDetails.getAdminKey();
 
         // Assert after creation
@@ -1897,7 +1916,7 @@ class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemListene
                 () -> assertEquals(contractId, dbHook.getContractId()),
                 () -> assertArrayEquals(adminKey.toByteArray(), dbHook.getAdminKey()),
                 () -> assertEquals(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK, dbHook.getExtensionPoint()),
-                () -> assertEquals(HookType.LAMBDA, dbHook.getType()),
+                () -> assertEquals(HookType.EVM, dbHook.getType()),
                 () -> assertEquals(EntityId.of(accountId).getId(), dbHook.getOwnerId()),
                 () -> assertEquals(
                         createAccountWithHooksRecordItem.getConsensusTimestamp(), dbHook.getCreatedTimestamp()),

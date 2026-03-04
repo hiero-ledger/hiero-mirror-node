@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.validation.constraints.AssertTrue;
@@ -15,6 +16,7 @@ import org.hiero.mirror.web3.utils.BytecodeUtils;
 import org.hiero.mirror.web3.validation.Hex;
 
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ContractCallRequest {
 
     public static final int ADDRESS_LENGTH = 40;

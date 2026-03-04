@@ -165,6 +165,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         return ContractDebugParameters.builder()
                 .block(blockType)
                 .callData(getCallData(ethTransaction, contractResult))
+                .ethereumData(getEthereumData(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
@@ -218,6 +219,15 @@ public class OpcodeServiceImpl implements OpcodeService {
                 .orElse(contractResult.getFunctionParameters());
 
         return Optional.ofNullable(callData).map(Bytes::of).orElse(Bytes.EMPTY);
+    }
+
+    private Bytes getEthereumData(Optional<EthereumTransaction> transaction) {
+        return transaction
+                .map(ethereumTransaction -> {
+                    final var data = ethereumTransaction.getData();
+                    return data != null ? Bytes.wrap(data) : null;
+                })
+                .orElse(null);
     }
 
     private Address getEntityAddress(Entity entity) {

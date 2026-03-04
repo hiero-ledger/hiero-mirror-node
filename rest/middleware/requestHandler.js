@@ -3,12 +3,20 @@
 import httpContext from 'express-http-context';
 import qs from 'qs';
 
+import config from '../config';
 import {httpStatusCodes, requestIdLabel, requestStartTime} from '../constants';
 import {lowerCaseQueryValue, randomString} from '../utils';
 
 const queryCanonicalizationMap = {
   order: lowerCaseQueryValue,
   result: lowerCaseQueryValue,
+};
+
+const queryOptions = {
+  arrayLimit: config.query.maxRepeatedQueryParameters,
+  depth: 1,
+  strictDepth: true,
+  throwOnLimitExceeded: true,
 };
 
 const requestLogger = async (req, res) => {
@@ -43,7 +51,7 @@ const requestQueryParser = (queryString) => {
   };
 
   // parse first to benefit from qs query handling
-  const parsedQueryString = qs.parse(queryString);
+  const parsedQueryString = qs.parse(queryString, queryOptions);
 
   const caseInsensitiveQueryString = {};
   for (const [key, value] of Object.entries(parsedQueryString)) {

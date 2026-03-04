@@ -7,12 +7,16 @@ import com.google.common.collect.Range;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
+import java.util.Collections;
+import java.util.List;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.UpsertColumn;
@@ -37,6 +41,10 @@ public abstract class AbstractNode implements History {
     private Boolean declineReward;
 
     private boolean deleted;
+
+    @Builder.Default
+    @JsonSerialize(using = ListToStringSerializer.class)
+    private List<Long> associatedRegisteredNodes = Collections.emptyList();
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)

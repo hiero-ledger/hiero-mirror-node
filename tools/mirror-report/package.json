@@ -7,7 +7,7 @@
     "url": "https://github.com/hiero-ledger/hiero-mirror-node/issues"
   },
   "dependencies": {
-    "commander": "14.0.2",
+    "commander": "14.0.3",
     "json-bigint": "1.0.0"
   },
   "description": "Generates a report showing an account's hbar transfers",
@@ -42,7 +42,7 @@
   },
   "scripts": {
     "start": "node ./index.js",
-    "test": "node --experimental-specifier-resolution=node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "type": "module",
   "version": "0.1.6"

@@ -25,6 +25,7 @@ import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.Nft;
@@ -43,6 +44,7 @@ import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.exception.ImporterException;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.context.annotation.Primary;
@@ -146,6 +148,11 @@ public class CompositeEntityListener implements EntityListener {
     }
 
     @Override
+    public void onLedger(final Ledger ledger) throws ImporterException {
+        onEach(EntityListener::onLedger, ledger);
+    }
+
+    @Override
     public void onLiveHash(LiveHash liveHash) throws ImporterException {
         onEach(EntityListener::onLiveHash, liveHash);
     }
@@ -183,6 +190,11 @@ public class CompositeEntityListener implements EntityListener {
     @Override
     public void onPrng(Prng prng) {
         onEach(EntityListener::onPrng, prng);
+    }
+
+    @Override
+    public void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {
+        onEach(EntityListener::onRegisteredNode, registeredNode);
     }
 
     @Override

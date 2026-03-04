@@ -86,6 +86,34 @@ final class ContractTransformerTest extends AbstractTransformerTest {
                     .clearFunctionParameters()
                     .clearGas());
 
+    private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
+            TransactionRecord.Builder recordBuilder) {
+        if (recordBuilder.hasContractCallResult()) {
+            return Optional.of(recordBuilder.getContractCallResultBuilder());
+        }
+
+        if (recordBuilder.hasContractCreateResult()) {
+            return Optional.of(recordBuilder.getContractCreateResultBuilder());
+        }
+
+        return Optional.empty();
+    }
+
+    private static Stream<Arguments> provideContractIds() {
+        var contractId = recordItemBuilder.contractId();
+        var encoded = contractId.toBuilder()
+                .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
+                .build();
+        var create2EvmAddress = contractId.toBuilder()
+                .setEvmAddress(recordItemBuilder.evmAddress().getValue())
+                .build();
+
+        return Stream.of(
+                Arguments.of("plain", contractId, contractId),
+                Arguments.of("encoded evm address", encoded, contractId),
+                Arguments.of("create2 evm address", create2EvmAddress, contractId));
+    }
+
     @Test
     void contractCall() {
         // given
@@ -919,32 +947,197 @@ final class ContractTransformerTest extends AbstractTransformerTest {
         });
     }
 
-    private static Optional<ContractFunctionResult.Builder> contractResultBuilder(
-            TransactionRecord.Builder recordBuilder) {
-        if (recordBuilder.hasContractCallResult()) {
-            return Optional.of(recordBuilder.getContractCallResultBuilder());
-        }
+    @Test
+    void multipleHookExecutionChildTransactions() {
+        // given
+        // A parent transaction (e.g., CryptoTransfer) with 3 hook execution children
+        // two contracts with storage changes
+        // - contract A
+        //   - slot 1 RW by the first hook execution
+        //   - slot 1 RW by the third hook execution
+        //   - slot 2 read then deleted by the second hook execution
+        // - contract B
+        //   - slot 1 read by the first hook execution
+        //   - slot 1 read by the second hook execution
+        //   - slot 2 RW by the second hook execution
+        var contractIdA = recordItemBuilder.contractId();
+        var contractASlot1 = recordItemBuilder.slot();
+        var contractASlot1Values = List.of(
+                recordItemBuilder.nonZeroBytes(8),
+                recordItemBuilder.nonZeroBytes(10),
+                recordItemBuilder.nonZeroBytes(12));
+        var contractASlot2 = recordItemBuilder.slot();
+        var contractASlot2Value = recordItemBuilder.nonZeroBytes(12);
+        var contractIdB = recordItemBuilder.contractId();
+        var contractBSlot1 = recordItemBuilder.slot();
+        var contractBSlot1Value = recordItemBuilder.nonZeroBytes(16);
+        var contractBSlot2 = recordItemBuilder.slot();
+        var contractBSlot2Values = List.of(recordItemBuilder.nonZeroBytes(10), recordItemBuilder.nonZeroBytes(16));
 
-        if (recordBuilder.hasContractCreateResult()) {
-            return Optional.of(recordBuilder.getContractCreateResultBuilder());
-        }
-
-        return Optional.empty();
-    }
-
-    private static Stream<Arguments> provideContractIds() {
-        var contractId = recordItemBuilder.contractId();
-        var encoded = contractId.toBuilder()
-                .setEvmAddress(DomainUtils.fromBytes(DomainUtils.toEvmAddress(contractId)))
+        // statechanges only have the final values
+        var stateChanges = StateChanges.newBuilder()
+                .addStateChanges(
+                        contractStorageMapUpdateChange(contractIdA, contractASlot1, contractASlot1Values.getLast()))
+                .addStateChanges(contractStorageMapDeleteChange(contractIdA, contractASlot2))
+                .addStateChanges(
+                        contractStorageMapUpdateChange(contractIdB, contractBSlot2, contractBSlot2Values.getLast()))
                 .build();
-        var create2EvmAddress = contractId.toBuilder()
-                .setEvmAddress(recordItemBuilder.evmAddress().getValue())
+
+        // Parent transaction (CryptoTransfer that triggers hooks)
+        var parentRecordItem =
+                recordItemBuilder.cryptoTransfer().customize(this::finalize).build();
+        var parentBlockTransaction = blockTransactionBuilder
+                .cryptoTransfer(parentRecordItem)
+                .stateChanges(s -> s.add(stateChanges))
+                .build();
+        var parentConsensusTimestamp = parentRecordItem.getTransactionRecord().getConsensusTimestamp();
+
+        // Hook execution 1
+        var hookExec1ContractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractIdA)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractASlot1)
+                                .setValueRead(contractASlot1Values.get(0))
+                                .setValueWritten(BytesValue.of(contractASlot1Values.get(1)))))
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractIdB)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractBSlot1)
+                                .setValueRead(contractBSlot1Value)))
+                .build();
+        var hookExec1RecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .sidecarRecords(records ->
+                        customizeSidecarRecords(records, true, b -> b.setStateChanges(hookExec1ContractStateChanges)))
+                .recordItem(r -> r.transactionIndex(1))
+                .customize(this::finalize)
+                .build();
+        var hookExec1BlockTransaction = blockTransactionBuilder
+                .contractCall(hookExec1RecordItem, true)
+                .previous(parentBlockTransaction)
+                .traceData(traceDataList -> updateEvmTraceData(traceDataList, b -> {
+                    var slotUsage1 = ContractSlotUsage.newBuilder()
+                            .setContractId(contractIdA)
+                            .setWrittenSlotKeys(WrittenSlotKeys.newBuilder()
+                                    .addKeys(contractASlot1)
+                                    .build())
+                            .addSlotReads(
+                                    SlotRead.newBuilder().setIndex(0).setReadValue(contractASlot1Values.getFirst()))
+                            .build();
+                    var slotUsage2 = ContractSlotUsage.newBuilder()
+                            .setContractId(contractIdB)
+                            .addSlotReads(
+                                    SlotRead.newBuilder().setKey(contractBSlot1).setReadValue(contractBSlot1Value))
+                            .build();
+                    b.addContractSlotUsages(slotUsage1).addContractSlotUsages(slotUsage2);
+                }))
                 .build();
 
-        return Stream.of(
-                Arguments.of("plain", contractId, contractId),
-                Arguments.of("encoded evm address", encoded, contractId),
-                Arguments.of("create2 evm address", create2EvmAddress, contractId));
+        // Hook execution 2
+        var hookExec2ContractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractIdA)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractASlot2)
+                                .setValueRead(contractASlot2Value)
+                                .setValueWritten(BytesValue.getDefaultInstance())))
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractIdB)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractBSlot1)
+                                .setValueRead(contractBSlot1Value))
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractBSlot2)
+                                .setValueRead(contractBSlot2Values.getFirst())
+                                .setValueWritten(BytesValue.of(contractBSlot2Values.getLast()))))
+                .build();
+        var hookExec2RecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .sidecarRecords(records ->
+                        customizeSidecarRecords(records, true, b -> b.setStateChanges(hookExec2ContractStateChanges)))
+                .recordItem(r -> r.transactionIndex(2))
+                .customize(this::finalize)
+                .build();
+        var hookExec2BlockTransaction = blockTransactionBuilder
+                .contractCall(hookExec2RecordItem, true)
+                .previous(hookExec1BlockTransaction)
+                .traceData(traceDataList -> updateEvmTraceData(traceDataList, b -> {
+                    var slotUsage1 = ContractSlotUsage.newBuilder()
+                            .setContractId(contractIdA)
+                            .setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(contractASlot2))
+                            .addSlotReads(SlotRead.newBuilder().setIndex(0).setReadValue(contractASlot2Value))
+                            .build();
+                    var slotUsage2 = ContractSlotUsage.newBuilder()
+                            .setContractId(contractIdB)
+                            .setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(contractBSlot2))
+                            .addSlotReads(
+                                    SlotRead.newBuilder().setKey(contractBSlot1).setReadValue(contractBSlot1Value))
+                            .addSlotReads(
+                                    SlotRead.newBuilder().setIndex(0).setReadValue(contractBSlot2Values.getFirst()))
+                            .build();
+                    b.addContractSlotUsages(slotUsage1).addContractSlotUsages(slotUsage2);
+                }))
+                .build();
+
+        // Hook execution 3
+        var hookExec3ContractStateChanges = ContractStateChanges.newBuilder()
+                .addContractStateChanges(ContractStateChange.newBuilder()
+                        .setContractId(contractIdA)
+                        .addStorageChanges(StorageChange.newBuilder()
+                                .setSlot(contractASlot1)
+                                .setValueRead(contractASlot1Values.get(1))
+                                .setValueWritten(BytesValue.of(contractASlot1Values.getLast()))))
+                .build();
+        var hookExec3RecordItem = recordItemBuilder
+                .contractCall()
+                .record(EXPLICIT_CONTRACT_RESULT_CUSTOMIZER)
+                .record(r -> r.setParentConsensusTimestamp(parentConsensusTimestamp))
+                .sidecarRecords(records ->
+                        customizeSidecarRecords(records, true, b -> b.setStateChanges(hookExec3ContractStateChanges)))
+                .recordItem(r -> r.transactionIndex(3))
+                .customize(this::finalize)
+                .build();
+        var hookExec3BlockTransaction = blockTransactionBuilder
+                .contractCall(hookExec3RecordItem, true)
+                .previous(hookExec2BlockTransaction)
+                .traceData(traceDataList -> updateEvmTraceData(traceDataList, b -> {
+                    var slotUsage1 = ContractSlotUsage.newBuilder()
+                            .setContractId(contractIdA)
+                            .setWrittenSlotKeys(WrittenSlotKeys.newBuilder().addKeys(contractASlot1))
+                            .addSlotReads(SlotRead.newBuilder().setIndex(0).setReadValue(contractASlot1Values.get(1)))
+                            .build();
+                    b.addContractSlotUsages(slotUsage1);
+                }))
+                .build();
+
+        // Link hook execution siblings via nextSibling
+        hookExec1BlockTransaction.setNextSibling(hookExec2BlockTransaction);
+        hookExec2BlockTransaction.setNextSibling(hookExec3BlockTransaction);
+
+        var blockFile = blockFileBuilder
+                .items(List.of(
+                        parentBlockTransaction,
+                        hookExec1BlockTransaction,
+                        hookExec2BlockTransaction,
+                        hookExec3BlockTransaction))
+                .build();
+
+        // when
+        var recordFile = blockFileTransformer.transform(blockFile);
+
+        // then
+        var expected = List.of(parentRecordItem, hookExec1RecordItem, hookExec2RecordItem, hookExec3RecordItem);
+        assertRecordFile(recordFile, blockFile, items -> {
+            assertRecordItems(items, expected);
+            var expectedParentItems = ListUtils.union(
+                    Collections.nCopies(1, null), Collections.nCopies(items.size() - 1, items.getFirst()));
+            assertThat(items).map(RecordItem::getParent).containsExactlyElementsOf(expectedParentItems);
+        });
     }
 
     @SafeVarargs

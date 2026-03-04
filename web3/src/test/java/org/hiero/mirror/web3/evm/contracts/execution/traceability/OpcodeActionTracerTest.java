@@ -443,19 +443,6 @@ class OpcodeActionTracerTest {
     }
 
     @Test
-    @DisplayName("should not record gas requirement of precompile call with null output")
-    void shouldNotRecordGasRequirementWhenPrecompileCallHasNullOutput() {
-        // Given
-        frame = setupInitialFrame(tracerOptions);
-
-        // When
-        final Opcode opcode = executePrecompileOperation(frame, GAS_REQUIREMENT, Bytes.EMPTY);
-
-        // Then
-        assertThat(opcode.gasCost()).isZero();
-    }
-
-    @Test
     @DisplayName("should not record revert reason of precompile call with no revert reason")
     void shouldNotRecordRevertReasonWhenPrecompileCallHasNoRevertReason() {
         // Given
@@ -682,7 +669,13 @@ class OpcodeActionTracerTest {
         } else {
             tracer.traceContextReEnter(frame);
         }
-        tracer.tracePrecompileCall(frame, gasRequirement, output);
+
+        // Simulate gas consumption by the precompile before tracing the result.
+        // In a real EVM execution, the precompile consumes gas before tracePrecompileResult
+        REMAINING_GAS.set(REMAINING_GAS.get() - gasRequirement);
+        frame.setGasRemaining(REMAINING_GAS.get());
+
+        tracer.tracePrecompileResult(frame, com.hedera.hapi.streams.ContractActionType.CALL);
         if (frame.getState() == COMPLETED_SUCCESS || frame.getState() == COMPLETED_FAILED) {
             tracer.traceContextExit(frame);
         }

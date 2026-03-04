@@ -10,13 +10,13 @@ import org.hiero.mirror.test.e2e.acceptance.client.ContractClient.NodeNameEnum;
 import org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum;
 import org.junit.jupiter.api.Tag;
 import org.junit.platform.suite.api.IncludeEngines;
-import org.junit.platform.suite.api.SelectClasspathResource;
+import org.junit.platform.suite.api.SelectPackages;
 import org.junit.platform.suite.api.Suite;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @Suite
 @IncludeEngines("cucumber")
-@SelectClasspathResource("features")
+@SelectPackages("features")
 @SpringBootTest(properties = "spring.main.banner-mode=off")
 @CucumberContextConfiguration
 @SuppressWarnings("java:S2187") // Ignore no tests in file warning

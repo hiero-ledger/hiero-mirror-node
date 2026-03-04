@@ -11,7 +11,7 @@ new REST APIs for hooks and hook storage.
 
 - Enhance the database schema to store hook information and hook storage data
 - Ingest hook creation, update, and deletion transactions from the record stream
-- Ingest hook storage updates via `LambdaSStoreTransactionBody` transactions and sidecars
+- Ingest hook storage updates via `HookStoreTransactionBody` transactions and sidecars
 - Expose hook information via new REST APIs for account hooks and hook storage
 - Support efficient querying and pagination of hooks by owner and timestamp
 - Track hook usage in transactions for audit and analytics purposes
@@ -31,7 +31,7 @@ The HIP-1195 implementation follows the established mirror node architecture pat
 
 The implementation supports dual ingestion paths for hook storage updates:
 
-- **Primary**: Direct `LambdaSStoreTransactionBody` transactions
+- **Primary**: Direct `HookStoreTransactionBody` transactions
 - **Secondary**: Hook storage updates via transaction record sidecars
 
 ## Background
@@ -79,7 +79,7 @@ Response format:
         "from": "1726874345.123456789",
         "to": null
       },
-      "type": "LAMBDA"
+      "type": "EVM"
     }
   ],
   "links": {
@@ -177,7 +177,7 @@ Create new tables to store hook information with history support:
 
 ```sql
 -- add_hooks_support.sql
-create type hook_type as enum ('LAMBDA');
+create type hook_type as enum ('EVM');
 create type hook_extension_point as enum ('ACCOUNT_ALLOWANCE_HOOK');
 
 -- Main hook table (current state)
@@ -189,7 +189,7 @@ create table if not exists hook
     owner_id            bigint                not null,
     timestamp_range     int8range,
     extension_point     hook_extension_point  not null default 'ACCOUNT_ALLOWANCE_HOOK',
-    type                hook_type             not null default 'LAMBDA',
+    type                hook_type             not null default 'EVM',
     deleted             boolean               not null default false,
     admin_key           bytea,
 
@@ -373,15 +373,15 @@ for each hookDetails in transactionBody.hookCreationDetailsList:
     create Hook entity with:
         - composite ID (owner_id, hook_id) from transaction
         - extension point from protobuf enum
-        - hook type (LAMBDA)
+        - hook type (EVM)
         - admin key if present
         - contract_id
         - deleted = false
     save Hook via entityListener
 
-    // Process initial storage updates from LambdaEvmHook.storage_updates
-    if (hookDetails.type == LAMBDA && hookDetails.lambdaEvmHook.storage_updates is not empty):
-        for each storageUpdate in hookDetails.lambdaEvmHook.storage_updates:
+    // Process initial storage updates from EvmHook.storage_updates
+    if (hookDetails.type == EVM && hookDetails.evmHook.storage_updates is not empty):
+        for each storageUpdate in hookDetails.evmHook.storage_updates:
             // Create historical change record for initial storage
             create HookStorageChange entity with:
                 - composite ID (hook_id, owner_id, storageUpdate.slot, consensus_timestamp)
@@ -626,14 +626,14 @@ Feature: Hook Management
     Given I create a contract for hook
     When I update <owner_type> to add hooks:
       | type   | extension_point        |
-      | LAMBDA | ACCOUNT_ALLOWANCE_HOOK |
+      | EVM    | ACCOUNT_ALLOWANCE_HOOK |
     And the mirror node processes the transactions
     And I query mirror node REST API for <owner_type> hooks
-    Then the response contains 1 hook with type "LAMBDA"
+    Then the response contains 1 hook with type "EVM"
     When I perform a CryptoTransfer that triggers hook execution for <owner_type>
     And the mirror node processes the transactions
     Then I verify mirror node receives 1 ContractCall transaction to address '0.0.365'
-    And I query mirror node REST API to get storage for <owner_type> hook 'LAMBDA'
+    And I query mirror node REST API to get storage for <owner_type> hook 'EVM'
     Then I receive storage entries
     When I successfully update <owner_type> to delete hooks
     And I successfully delete the hook contracts

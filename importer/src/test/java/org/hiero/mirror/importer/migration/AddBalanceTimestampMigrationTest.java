@@ -11,20 +11,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
 import org.assertj.core.api.IterableAssert;
+import org.assertj.core.api.ListAssert;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.token.TokenAccount;
 import org.hiero.mirror.common.domain.token.TokenAccountHistory;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.EnabledIfV1;
-import org.hiero.mirror.importer.repository.EntityHistoryRepository;
-import org.hiero.mirror.importer.repository.EntityRepository;
-import org.hiero.mirror.importer.repository.TokenAccountHistoryRepository;
-import org.hiero.mirror.importer.repository.TokenAccountRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.context.TestPropertySource;
 
 @DisableRepeatableSqlMigration
@@ -33,11 +31,6 @@ import org.springframework.test.context.TestPropertySource;
 @Tag("migration")
 @TestPropertySource(properties = "spring.flyway.target=1.87.1")
 class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
-
-    private final EntityRepository entityRepository;
-    private final EntityHistoryRepository entityHistoryRepository;
-    private final TokenAccountRepository tokenAccountRepository;
-    private final TokenAccountHistoryRepository tokenAccountHistoryRepository;
 
     private static final String REVERT_DDL = """
         alter table entity drop column balance_timestamp;
@@ -61,32 +54,32 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
         runMigration();
 
         // then
-        assertThat(entityRepository.findAll()).isEmpty();
-        assertThat(entityHistoryRepository.findAll()).isEmpty();
-        assertThat(tokenAccountRepository.findAll()).isEmpty();
-        assertThat(tokenAccountHistoryRepository.findAll()).isEmpty();
+        assertThat(findAllEntities()).isEmpty();
+        assertThat(findAllEntityHistories()).isEmpty();
+        assertThat(findAllTokenAccounts()).isEmpty();
+        assertThat(findAllTokenAccountHistories()).isEmpty();
     }
 
     @Test
     void migrateNoRecordFile() {
         // given
-        var entity =
+        final var entity =
                 domainBuilder.entity().customize(e -> e.balanceTimestamp(null)).get();
         persistEntities(entity);
 
-        var entityHistory = domainBuilder
+        final var entityHistory = domainBuilder
                 .entityHistory()
                 .customize(e -> e.balanceTimestamp(null))
                 .get();
         persistEntityHistories(entityHistory);
 
-        var tokenAccount = domainBuilder
+        final var tokenAccount = domainBuilder
                 .tokenAccount()
                 .customize(t -> t.balanceTimestamp(null))
                 .get();
         persistTokenAccounts(tokenAccount);
 
-        var tokenAccountHistory = domainBuilder
+        final var tokenAccountHistory = domainBuilder
                 .tokenAccountHistory()
                 .customize(t -> t.balanceTimestamp(null))
                 .get();
@@ -109,33 +102,33 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
     void migrate() {
         // given
         persistRecordFile(domainBuilder.recordFile().get());
-        var latestRecordFile = domainBuilder.recordFile().get();
+        final var latestRecordFile = domainBuilder.recordFile().get();
         persistRecordFile(latestRecordFile);
 
-        var entity = domainBuilder.entity().get();
-        var entity2 = domainBuilder.entity().get();
+        final var entity = domainBuilder.entity().get();
+        final var entity2 = domainBuilder.entity().get();
         // entity with null balance will not have balance timestamp set
-        var entity3 = domainBuilder
+        final var entity3 = domainBuilder
                 .entity()
                 .customize(e -> e.balance(null).balanceTimestamp(null))
                 .get();
         persistEntities(entity, entity2, entity3);
 
-        var entityHistory = domainBuilder.entityHistory().get();
-        var entityHistory2 = domainBuilder.entityHistory().get();
+        final var entityHistory = domainBuilder.entityHistory().get();
+        final var entityHistory2 = domainBuilder.entityHistory().get();
         // entity history with null balance will not have balance timestamp set
-        var entityHistory3 = domainBuilder
+        final var entityHistory3 = domainBuilder
                 .entityHistory()
                 .customize(e -> e.balance(null).balanceTimestamp(null))
                 .get();
         persistEntityHistories(entityHistory, entityHistory2, entityHistory3);
 
-        var tokenAccount = domainBuilder.tokenAccount().get();
-        var tokenAccount2 = domainBuilder.tokenAccount().get();
+        final var tokenAccount = domainBuilder.tokenAccount().get();
+        final var tokenAccount2 = domainBuilder.tokenAccount().get();
         persistTokenAccounts(tokenAccount, tokenAccount2);
 
-        var tokenAccountHistory = domainBuilder.tokenAccountHistory().get();
-        var tokenAccountHistory2 = domainBuilder.tokenAccountHistory().get();
+        final var tokenAccountHistory = domainBuilder.tokenAccountHistory().get();
+        final var tokenAccountHistory2 = domainBuilder.tokenAccountHistory().get();
         persistTokenAccountHistories(tokenAccountHistory, tokenAccountHistory2);
 
         // when
@@ -164,41 +157,57 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
     }
 
     private IterableAssert<Entity> assertEntities() {
-        return assertThat(entityRepository.findAll())
+        return assertThat(findAllEntities())
                 .usingRecursiveFieldByFieldElementComparatorOnFields("id", "balance", "balanceTimestamp", "deleted");
     }
 
-    private IterableAssert<EntityHistory> assertEntityHistories() {
-        return assertThat(entityHistoryRepository.findAll())
+    private ListAssert<EntityHistory> assertEntityHistories() {
+        return assertThat(findAllEntityHistories())
                 .usingRecursiveFieldByFieldElementComparatorOnFields("id", "balance", "balanceTimestamp", "deleted");
     }
 
-    private IterableAssert<TokenAccount> assertTokenAccounts() {
-        return assertThat(tokenAccountRepository.findAll())
+    private ListAssert<TokenAccount> assertTokenAccounts() {
+        return assertThat(findAllTokenAccounts())
                 .usingRecursiveFieldByFieldElementComparatorOnFields(
                         "accountId", "balance", "balanceTimestamp", "tokenId");
     }
 
-    private IterableAssert<TokenAccountHistory> assertTokenAccountHistories() {
-        return assertThat(tokenAccountHistoryRepository.findAll())
+    private ListAssert<TokenAccountHistory> assertTokenAccountHistories() {
+        return assertThat(findAllTokenAccountHistories())
                 .usingRecursiveFieldByFieldElementComparatorOnFields(
                         "accountId", "balance", "balanceTimestamp", "tokenId");
     }
 
     private void persistEntities(Entity... entities) {
-        for (var entity : entities) {
-            persistEntity(entity);
+        for (final var entity : entities) {
+            jdbcOperations.update(
+                    "insert into entity (id, num, realm, shard, balance, deleted, timestamp_range) values (?, ?, ?, ?, ?, ?, ?::int8range)",
+                    entity.getId(),
+                    entity.getNum(),
+                    entity.getRealm(),
+                    entity.getShard(),
+                    entity.getBalance(),
+                    entity.getDeleted(),
+                    PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()));
         }
     }
 
     private void persistEntityHistories(EntityHistory... entityHistories) {
-        for (var history : entityHistories) {
-            persistEntityHistory(history);
+        for (final var history : entityHistories) {
+            jdbcOperations.update(
+                    "insert into entity_history (id, num, realm, shard, balance, deleted, timestamp_range) values (?, ?, ?, ?, ?, ?, ?::int8range)",
+                    history.getId(),
+                    history.getNum(),
+                    history.getRealm(),
+                    history.getShard(),
+                    history.getBalance(),
+                    history.getDeleted(),
+                    PostgreSQLGuavaRangeType.INSTANCE.asString(history.getTimestampRange()));
         }
     }
 
     private void persistTokenAccounts(TokenAccount... tokenAccounts) {
-        for (var tokenAccount : tokenAccounts) {
+        for (final var tokenAccount : tokenAccounts) {
             jdbcOperations.update(
                     "insert into token_account (account_id, balance, created_timestamp, timestamp_range, token_id)"
                             + " values"
@@ -212,7 +221,7 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
     }
 
     private void persistTokenAccountHistories(TokenAccountHistory... tokenAccountHistories) {
-        for (var tokenAccountHistory : tokenAccountHistories) {
+        for (final var tokenAccountHistory : tokenAccountHistories) {
             jdbcOperations.update(
                     "insert into token_account_history (account_id, balance, created_timestamp, timestamp_range, token_id)"
                             + " values"
@@ -224,4 +233,41 @@ class AddBalanceTimestampMigrationTest extends AbstractStakingMigrationTest {
                     tokenAccountHistory.getTokenId());
         }
     }
+
+    private List<EntityHistory> findAllEntityHistories() {
+        return jdbcOperations.query(
+                "select id, balance, balance_timestamp, deleted from entity_history",
+                (rs, rowNum) -> EntityHistory.builder()
+                        .id(rs.getLong("id"))
+                        .balance((Long) rs.getObject("balance"))
+                        .balanceTimestamp((Long) rs.getObject("balance_timestamp"))
+                        .deleted(rs.getBoolean("deleted"))
+                        .build());
+    }
+
+    private List<TokenAccount> findAllTokenAccounts() {
+        return jdbcOperations.query(
+                "select account_id, balance, balance_timestamp, token_id from token_account", tokenAccountMapper);
+    }
+
+    private List<TokenAccountHistory> findAllTokenAccountHistories() {
+        return jdbcOperations.query(
+                "select account_id, balance, balance_timestamp, token_id from token_account_history",
+                tokenAccountHistoryMapper);
+    }
+
+    private final RowMapper<TokenAccount> tokenAccountMapper = (rs, rowNum) -> TokenAccount.builder()
+            .accountId(rs.getLong("account_id"))
+            .balance(rs.getLong("balance"))
+            .balanceTimestamp((Long) rs.getObject("balance_timestamp"))
+            .tokenId(rs.getLong("token_id"))
+            .build();
+
+    private final RowMapper<TokenAccountHistory> tokenAccountHistoryMapper =
+            (rs, rowNum) -> TokenAccountHistory.builder()
+                    .accountId(rs.getLong("account_id"))
+                    .balance(rs.getLong("balance"))
+                    .balanceTimestamp((Long) rs.getObject("balance_timestamp"))
+                    .tokenId(rs.getLong("token_id"))
+                    .build();
 }

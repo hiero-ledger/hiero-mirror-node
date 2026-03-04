@@ -6,13 +6,16 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.CONTRACT_EXECUTION_EXCE
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.util.CommonUtils.instant;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
+import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_ACCEPTABLE;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,7 +30,6 @@ import com.google.common.collect.ImmutableSortedMap;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
 import com.hedera.hapi.node.contract.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.Key;
-import io.github.bucket4j.Bucket;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
@@ -59,6 +61,7 @@ import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
+import org.hiero.mirror.web3.exception.ThrottleException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
@@ -72,6 +75,7 @@ import org.hiero.mirror.web3.service.RecordFileServiceImpl;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
+import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
@@ -86,9 +90,11 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -98,7 +104,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.util.StringUtils;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith({MockitoExtension.class, SpringExtension.class})
 @WebMvcTest(controllers = OpcodesController.class)
 class OpcodesControllerTest {
 
@@ -115,8 +121,8 @@ class OpcodesControllerTest {
     @MockitoBean
     private ContractDebugService contractDebugService;
 
-    @MockitoBean(name = "rateLimitBucket")
-    private Bucket rateLimitBucket;
+    @MockitoBean
+    private ThrottleManager throttleManager;
 
     @MockitoBean
     private TransactionRepository transactionRepository;
@@ -236,6 +242,7 @@ class OpcodesControllerTest {
     private MockHttpServletRequestBuilder opcodesRequest(final String transactionIdOrHash) {
         return get(OPCODES_URI, transactionIdOrHash)
                 .accept(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.ACCEPT_ENCODING, "gzip")
                 .contentType(MediaType.APPLICATION_JSON);
     }
 
@@ -245,7 +252,6 @@ class OpcodesControllerTest {
 
     @BeforeEach
     void setUp() {
-        when(rateLimitBucket.tryConsume(anyLong())).thenReturn(true);
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
@@ -291,6 +297,7 @@ class OpcodesControllerTest {
                         provider.hasEthTransaction()
                                 ? Bytes.of(ethTransaction.getCallData())
                                 : Bytes.of(contractResult.getFunctionParameters()))
+                .ethereumData(provider.hasEthTransaction() ? Bytes.of(ethTransaction.getData()) : null)
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 
@@ -484,8 +491,6 @@ class OpcodesControllerTest {
                 "0.0.1234-1-123456789-", // dash after nanos
             })
     void callInvalidTransactionIdOrHash(final String transactionIdOrHash) throws Exception {
-        when(rateLimitBucket.tryConsume(1)).thenReturn(true);
-
         final var expectedMessage = StringUtils.hasText(transactionIdOrHash)
                 ? "Unsupported ID format: '%s'".formatted(transactionIdOrHash)
                 : "Missing transaction ID or hash";
@@ -493,6 +498,24 @@ class OpcodesControllerTest {
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains(expectedMessage)));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"deflate", "identity", "br", ""})
+    void rejectsWhenAcceptEncodingIsNotGzip(final String acceptEncoding) throws Exception {
+        final TransactionIdOrHashParameter transactionIdOrHash = setUp(TransactionProviderEnum.CONTRACT_CALL);
+        final String param = transactionIdOrHash instanceof TransactionHashParameter(Bytes hash)
+                ? hash.toHexString()
+                : Builder.transactionIdString(
+                        ((TransactionIdParameter) transactionIdOrHash).payerAccountId(),
+                        ((TransactionIdParameter) transactionIdOrHash).validStart());
+
+        mockMvc.perform(get(OPCODES_URI, param)
+                        .header(HttpHeaders.ACCEPT_ENCODING, acceptEncoding)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotAcceptable())
+                .andExpect(responseBody(
+                        new GenericErrorResponse(NOT_ACCEPTABLE.getReasonPhrase(), MISSING_GZIP_HEADER_MESSAGE)));
     }
 
     @ParameterizedTest
@@ -511,7 +534,9 @@ class OpcodesControllerTest {
             assertThat(callServiceParametersCaptor.getValue()).isEqualTo(expectedCallServiceParameters.get());
         }
 
-        when(rateLimitBucket.tryConsume(1)).thenReturn(false);
+        doThrow(new ThrottleException("Requests per second rate limit exceeded."))
+                .when(throttleManager)
+                .throttleOpcodeRequest();
         mockMvc.perform(opcodesRequest(transactionIdOrHash))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(responseBody(new GenericErrorResponse(
@@ -540,7 +565,8 @@ class OpcodesControllerTest {
                         .accept(MediaType.APPLICATION_JSON)
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Origin", "https://example.com")
-                        .header("Access-Control-Request-Method", "GET"))
+                        .header("Access-Control-Request-Method", "GET")
+                        .header(HttpHeaders.ACCEPT_ENCODING, "gzip"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "*"))
                 .andExpect(header().string("Access-Control-Allow-Methods", "GET,HEAD,POST"));

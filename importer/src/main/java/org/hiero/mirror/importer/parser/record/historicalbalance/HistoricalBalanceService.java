@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.parser.record.historicalbalance;
 
-import static org.hiero.mirror.common.domain.balance.AccountBalanceFile.INVALID_NODE_ID;
 import static org.hiero.mirror.importer.parser.AbstractStreamFileParser.STREAM_PARSE_DURATION_METRIC_NAME;
 
 import com.google.common.base.Stopwatch;
@@ -163,7 +162,6 @@ public class HistoricalBalanceService {
                         .loadStart(loadStart)
                         .loadEnd(loadEnd)
                         .name(filename)
-                        .nodeId(INVALID_NODE_ID)
                         .synthetic(true)
                         .build();
                 accountBalanceFileRepository.save(accountBalanceFile);

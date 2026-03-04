@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.viewmodel;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Strings;
 
@@ -13,6 +14,7 @@ public record BlockType(String name, long number) {
     private static final String HEX_PREFIX = "0x";
     private static final String NEGATIVE_NUMBER_PREFIX = "-";
 
+    @JsonCreator
     public static BlockType of(final String value) {
         if (StringUtils.isEmpty(value)) {
             return LATEST;

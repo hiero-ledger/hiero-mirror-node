@@ -10,6 +10,7 @@ import com.hedera.hapi.node.base.Timestamp;
 import com.hederahashgraph.api.proto.java.Key.KeyCase;
 import java.time.Instant;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -71,5 +72,41 @@ class UtilsTest {
         // Then
         assertThat(result.seconds()).isEqualTo(expectedEpochSecond);
         assertThat(result.nanos()).isEqualTo(expectedNano);
+    }
+
+    @Test
+    void toFileIDMapsShardRealmNumToFileID() {
+        final var entityId = EntityId.of(0L, 0L, 111L);
+
+        final var fileId = Utils.toFileID(entityId);
+
+        assertThat(fileId).isNotNull();
+        assertThat(fileId.shardNum()).isEqualTo(0);
+        assertThat(fileId.realmNum()).isEqualTo(0);
+        assertThat(fileId.fileNum()).isEqualTo(111);
+    }
+
+    @Test
+    void toFileIDWithNonZeroShardAndRealm() {
+        final var entityId = EntityId.of(1L, 2L, 112L);
+
+        final var fileId = Utils.toFileID(entityId);
+
+        assertThat(fileId).isNotNull();
+        assertThat(fileId.shardNum()).isEqualTo(1);
+        assertThat(fileId.realmNum()).isEqualTo(2);
+        assertThat(fileId.fileNum()).isEqualTo(112);
+    }
+
+    @Test
+    void toFileIDWithZeroEntityId() {
+        final var entityId = EntityId.EMPTY;
+
+        final var fileId = Utils.toFileID(entityId);
+
+        assertThat(fileId).isNotNull();
+        assertThat(fileId.shardNum()).isEqualTo(0);
+        assertThat(fileId.realmNum()).isEqualTo(0);
+        assertThat(fileId.fileNum()).isEqualTo(0);
     }
 }

@@ -26,7 +26,6 @@ import com.hederahashgraph.api.proto.java.ContractFunctionResult;
 import com.hederahashgraph.api.proto.java.ContractID;
 import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.EvmTransactionResult;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionReceipt;
 import java.util.ArrayList;
@@ -34,6 +33,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
+import org.hiero.mirror.common.domain.transaction.ContractSlotId;
+import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.StateChangeContext.SlotValue;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -46,19 +47,22 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    public void transform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
-        var transactionBody = blockTransactionTransformation.getTransactionBody();
-        var transactionResult = blockTransaction.getTransactionResult();
-        var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var recordBuilder = blockTransactionTransformation
+    public void transform(final BlockTransactionTransformation blockTransactionTransformation) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var transactionBody = blockTransactionTransformation.getTransactionBody();
+        final var transactionResult = blockTransaction.getTransactionResult();
+        final var recordItemBuilder = blockTransactionTransformation
                 .recordItemBuilder()
+                .congestionPricingMultiplier(transactionResult.getCongestionPricingMultiplier());
+        final var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
+        var recordBuilder = recordItemBuilder
                 .transactionRecordBuilder()
                 .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
                 .setConsensusTimestamp(transactionResult.getConsensusTimestamp())
+                .setHighVolumePricingMultiplier(transactionResult.getHighVolumePricingMultiplier())
                 .setMemo(transactionBody.getMemo())
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())
@@ -100,7 +104,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
     }
 
     private SlotValue resolveIndexedSlotValue(
-            BlockTransaction blockTransaction, ContractID contractId, int index, List<ByteString> writtenSlotKeys) {
+            BlockTransaction blockTransaction, ContractSlotId slotId, int index, List<ByteString> writtenSlotKeys) {
         if (index < 0) {
             return null;
         }
@@ -110,24 +114,22 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             if (index >= writtenSlotKeys.size()) {
                 return null;
             }
-
-            var slotKey = normalize(SlotKey.newBuilder()
-                    .setContractID(contractId)
-                    .setKey(writtenSlotKeys.get(index))
-                    .build());
-            return new SlotValue(slotKey.getKey(), blockTransaction.getValueWritten(slotKey));
+            final var contractSlotKey = normalize(new ContractSlotKey(slotId, writtenSlotKeys.get(index)));
+            return new SlotValue(contractSlotKey.key(), blockTransaction.getValueWritten(contractSlotKey));
         } else {
             // implicit, get it from statechanges
-            return blockTransaction.getStateChangeContext().getContractStorageChange(contractId, index);
+            return blockTransaction.getStateChangeContext().getContractStorageChange(slotId, index);
         }
     }
 
     private void transformEvmTraceData(
             BlockTransaction blockTransaction,
             ContractFunctionResult.Builder contractResultBuilder,
-            RecordItem.RecordItemBuilder recordItemBuilder) {
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            EvmTransactionResult evmTransactionResult) {
         transformEvmTransactionLogs(contractResultBuilder, blockTransaction.getEvmTraceData());
-        transformSidecarRecords(blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder);
+        transformSidecarRecords(
+                blockTransaction, contractResultBuilder.getContractID(), recordItemBuilder, evmTransactionResult);
     }
 
     private void transformSmartContractResult(BlockTransactionTransformation transformation) {
@@ -188,7 +190,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
                     .setGas(internalCallContext.getGas());
         }
 
-        transformEvmTraceData(blockTransaction, contractResultbuilder, transformation.recordItemBuilder());
+        transformEvmTraceData(
+                blockTransaction, contractResultbuilder, transformation.recordItemBuilder(), evmTransactionResult);
     }
 
     private void transformEvmTransactionLogs(
@@ -270,12 +273,25 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             BlockTransaction blockTransaction,
             ContractSlotUsage contractSlotUsage,
             List<ContractStateChange> contractStateChanges,
-            Map<SlotKey, ByteString> contractStorageReads) {
+            Map<ContractSlotKey, ByteString> contractStorageReads,
+            EvmTransactionResult evmTransactionResult) {
         var contractId = contractSlotUsage.getContractId();
+        var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
+        final var slotId = ContractSlotId.of(
+                contractId, evmTransactionResult.hasExecutedHookId() ? evmTransactionResult.getExecutedHookId() : null);
+
+        // Invalid state: hook system contract without executed hook
+        if (slotId == null) {
+            Utility.handleRecoverableError(
+                    "Hook system contract {} storage referenced without executed hook at {}",
+                    contractId,
+                    blockTransaction.getConsensusTimestamp());
+            return;
+        }
+
         var missingIndices = new ArrayList<Integer>();
         boolean missingValueWritten = false;
         var storageChanges = new ArrayList<StorageChange>();
-        var writtenSlotKeys = contractSlotUsage.getWrittenSlotKeys().getKeysList();
 
         for (var slotRead : contractSlotUsage.getSlotReadsList()) {
             ByteString slot = null;
@@ -283,7 +299,7 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             var storageChangeBuilder = StorageChange.newBuilder().setValueRead(valueRead);
             if (slotRead.getIdentifierCase() == SlotRead.IdentifierCase.INDEX) {
                 int index = slotRead.getIndex();
-                var slotValue = resolveIndexedSlotValue(blockTransaction, contractId, index, writtenSlotKeys);
+                var slotValue = resolveIndexedSlotValue(blockTransaction, slotId, index, writtenSlotKeys);
                 if (slotValue != null) {
                     slot = slotValue.slot();
                     if (slotValue.valueWritten() != null) {
@@ -303,11 +319,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
             }
 
             if (slot != null) {
-                var slotKey = normalize(SlotKey.newBuilder()
-                        .setContractID(contractId)
-                        .setKey(slot)
-                        .build());
-                contractStorageReads.put(slotKey, valueRead);
+                final var contractSlotKey = new ContractSlotKey(slotId, slot);
+                contractStorageReads.put(contractSlotKey, valueRead);
             }
         }
 
@@ -337,7 +350,8 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
     private void transformContractStateChanges(
             BlockTransaction blockTransaction,
             EvmTraceData evmTraceData,
-            List<TransactionSidecarRecord> sidecarRecords) {
+            List<TransactionSidecarRecord> sidecarRecords,
+            EvmTransactionResult evmTransactionResult) {
         if (evmTraceData == null || evmTraceData.getContractSlotUsagesList().isEmpty()) {
             return;
         }
@@ -347,10 +361,15 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
         // and the map stores the resolved slot key. The constructed map is stored in BlockTransaction and due to
         // the fact the transactions are processed in descending order by consensus timestamp, a preceding transaction
         // can resolve the value it writes to a storage slot by looking for the value read in subsequent transactions
-        var contractStorageReads = new HashMap<SlotKey, ByteString>();
+        var contractStorageReads = new HashMap<ContractSlotKey, ByteString>();
 
         for (var contractSlotUsage : evmTraceData.getContractSlotUsagesList()) {
-            transformContractSlotUsage(blockTransaction, contractSlotUsage, contractStateChanges, contractStorageReads);
+            transformContractSlotUsage(
+                    blockTransaction,
+                    contractSlotUsage,
+                    contractStateChanges,
+                    contractStorageReads,
+                    evmTransactionResult);
         }
 
         if (!contractStateChanges.isEmpty()) {
@@ -367,14 +386,17 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
     }
 
     private void transformSidecarRecords(
-            BlockTransaction blockTransaction, ContractID contractId, RecordItem.RecordItemBuilder recordItemBuilder) {
+            BlockTransaction blockTransaction,
+            ContractID contractId,
+            RecordItem.RecordItemBuilder recordItemBuilder,
+            EvmTransactionResult evmTransactionResult) {
         var consensusTimestamp = blockTransaction.getTransactionResult().getConsensusTimestamp();
         var evmTraceData = blockTransaction.getEvmTraceData();
         var sidecarRecords = new ArrayList<TransactionSidecarRecord>();
 
         transformContractActions(consensusTimestamp, evmTraceData, sidecarRecords);
         transformContractBytecode(blockTransaction, consensusTimestamp, contractId, evmTraceData, sidecarRecords);
-        transformContractStateChanges(blockTransaction, evmTraceData, sidecarRecords);
+        transformContractStateChanges(blockTransaction, evmTraceData, sidecarRecords, evmTransactionResult);
 
         recordItemBuilder.sidecarRecords(sidecarRecords);
     }

@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.domain.entity.EntityId;
 import org.junit.platform.launcher.LauncherSession;
 import org.junit.platform.launcher.LauncherSessionListener;
 import org.junit.platform.launcher.TestExecutionListener;
@@ -30,6 +29,7 @@ public class GlobalTestSetup implements LauncherSessionListener {
                 var commonProperties = CommonProperties.getInstance();
                 updateAddressBook(commonProperties, "mainnet");
                 updateAddressBook(commonProperties, "testnet");
+                updateAddressBook(commonProperties, "testnet-1767117600294393897");
                 updateAddressBook(commonProperties, "test-v1");
                 updateAddressBook(commonProperties, "test-v6-4n.bin");
                 updateAddressBook(commonProperties, "test-v6-sidecar-4n.bin");
@@ -52,7 +52,11 @@ public class GlobalTestSetup implements LauncherSessionListener {
                     "^\\d+.\\d+.", String.format("%d.%d.", commonProperties.getShard(), commonProperties.getRealm()));
             var nodeAddressBuilder = nodeAddress.toBuilder().setMemo(ByteString.copyFromUtf8(accountStr));
             if (nodeAddressBuilder.hasNodeAccountId()) {
-                nodeAddressBuilder.setNodeAccountId(EntityId.of(accountStr).toAccountID());
+                final var nodeAccountId = nodeAddressBuilder.getNodeAccountId().toBuilder()
+                        .setRealmNum(commonProperties.getRealm())
+                        .setShardNum(commonProperties.getShard())
+                        .build();
+                nodeAddressBuilder.setNodeAccountId(nodeAccountId);
             }
 
             builder.addNodeAddress(nodeAddressBuilder);

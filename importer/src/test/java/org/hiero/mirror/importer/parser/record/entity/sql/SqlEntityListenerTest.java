@@ -41,6 +41,8 @@ import org.hiero.mirror.common.domain.hook.HookStorage;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.hook.HookType;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.ServiceEndpoint;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
@@ -85,6 +87,7 @@ import org.hiero.mirror.importer.repository.FileDataRepository;
 import org.hiero.mirror.importer.repository.HookRepository;
 import org.hiero.mirror.importer.repository.HookStorageChangeRepository;
 import org.hiero.mirror.importer.repository.HookStorageRepository;
+import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.hiero.mirror.importer.repository.LiveHashRepository;
 import org.hiero.mirror.importer.repository.NetworkFreezeRepository;
 import org.hiero.mirror.importer.repository.NetworkStakeRepository;
@@ -93,6 +96,7 @@ import org.hiero.mirror.importer.repository.NftRepository;
 import org.hiero.mirror.importer.repository.NodeRepository;
 import org.hiero.mirror.importer.repository.NodeStakeRepository;
 import org.hiero.mirror.importer.repository.PrngRepository;
+import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 import org.hiero.mirror.importer.repository.ScheduleRepository;
 import org.hiero.mirror.importer.repository.StakingRewardTransferRepository;
 import org.hiero.mirror.importer.repository.TokenAccountRepository;
@@ -142,6 +146,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private final HookRepository hookRepository;
     private final HookStorageChangeRepository hookStorageChangeRepository;
     private final HookStorageRepository hookStorageRepository;
+    private final LedgerRepository ledgerRepository;
     private final LiveHashRepository liveHashRepository;
     private final NetworkFreezeRepository networkFreezeRepository;
     private final NetworkStakeRepository networkStakeRepository;
@@ -149,6 +154,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
     private final NftAllowanceRepository nftAllowanceRepository;
     private final NodeRepository nodeRepository;
     private final NodeStakeRepository nodeStakeRepository;
+    private final RegisteredNodeRepository registeredNodeRepository;
     private final ParserContext parserContext;
     private final PrngRepository prngRepository;
     private final ScheduleRepository scheduleRepository;
@@ -1075,6 +1081,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         entityUpdate.setAutoRenewAccountId(101L);
         entityUpdate.setAutoRenewPeriod(30L);
         entityUpdate.setDeclineReward(true);
+        entityUpdate.setDelegationAddress(domainBuilder.bytes(20));
         entityUpdate.setExpirationTimestamp(500L);
         entityUpdate.setKey(domainBuilder.thresholdKey(2, 1));
         entityUpdate.setMaxAutomaticTokenAssociations(40);
@@ -1319,6 +1326,42 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         // then
         assertThat(fileDataRepository.findAll()).containsExactlyInAnyOrder(fileData1, fileData2);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {1, 2})
+    void onLedger(int commitIndex) {
+        // given
+        // Note in reality, there should be only one network and exactly one successful LedgerIdPublish transaction.
+        // The focus of the test is the correctness of the listener and upsert SQL
+        var ledgerAUpdate1 = domainBuilder.ledger().get();
+        var ledgerBUpdate1 = domainBuilder.ledger().get();
+
+        // when
+        sqlEntityListener.onLedger(ledgerAUpdate1);
+        sqlEntityListener.onLedger(ledgerBUpdate1);
+
+        // then
+        if (commitIndex > 1) {
+            completeFileAndCommit();
+            assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate1, ledgerBUpdate1);
+        }
+
+        // when
+        var ledgerAUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerAUpdate1.getLedgerId()))
+                .get();
+        var ledgerBUpdate2 = domainBuilder
+                .ledger()
+                .customize(l -> l.ledgerId(ledgerBUpdate1.getLedgerId()))
+                .get();
+        sqlEntityListener.onLedger(ledgerAUpdate2);
+        sqlEntityListener.onLedger(ledgerBUpdate2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(ledgerRepository.findAll()).containsExactlyInAnyOrder(ledgerAUpdate2, ledgerBUpdate2);
     }
 
     @Test
@@ -2023,6 +2066,149 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         assertThat(nodeRepository.findAll()).containsExactly(nodeUpdate);
         assertThat(findHistory(Node.class)).isEmpty();
+    }
+
+    @Test
+    void onRegisteredNode() {
+        // given
+        var registeredNode1 = domainBuilder.registeredNode().get();
+        var registeredNode2 = domainBuilder.registeredNode().get();
+
+        // when
+        sqlEntityListener.onRegisteredNode(registeredNode1);
+        sqlEntityListener.onRegisteredNode(registeredNode2);
+        completeFileAndCommit();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactlyInAnyOrder(registeredNode1, registeredNode2);
+    }
+
+    @Test
+    void onRegisteredNodeMerge() {
+        // given
+        var registeredNodeCreate = domainBuilder.registeredNode().get();
+        var registeredNodeUpdate = RegisteredNode.builder()
+                .registeredNodeId(registeredNodeCreate.getRegisteredNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
+
+        // when
+        sqlEntityListener.onRegisteredNode(registeredNodeCreate);
+        sqlEntityListener.onRegisteredNode(registeredNodeUpdate);
+        completeFileAndCommit();
+
+        registeredNodeCreate.setTimestampUpper(registeredNodeUpdate.getTimestampLower());
+        var registeredNodeUpdateExpected = registeredNodeCreate.toBuilder()
+                .timestampRange(registeredNodeUpdate.getTimestampRange())
+                .build();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactly(registeredNodeUpdateExpected);
+        assertThat(findHistory(RegisteredNode.class)).containsExactly(registeredNodeCreate);
+    }
+
+    @Test
+    void onRegisteredNodeMergeWithDelete() {
+        // given
+        var registeredNodeCreate = domainBuilder.registeredNode().get();
+        var registeredNodeDelete = RegisteredNode.builder()
+                .deleted(true)
+                .registeredNodeId(registeredNodeCreate.getRegisteredNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
+
+        // when
+        sqlEntityListener.onRegisteredNode(registeredNodeCreate);
+        sqlEntityListener.onRegisteredNode(registeredNodeDelete);
+        completeFileAndCommit();
+
+        registeredNodeCreate.setTimestampUpper(registeredNodeDelete.getTimestampLower());
+        var registeredNodeDeleteExpected = registeredNodeCreate.toBuilder()
+                .deleted(true)
+                .timestampRange(registeredNodeDelete.getTimestampRange())
+                .build();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactly(registeredNodeDeleteExpected);
+        assertThat(findHistory(RegisteredNode.class)).containsExactly(registeredNodeCreate);
+    }
+
+    @Test
+    void onRegisteredNodeHistory() {
+        // given
+        final var registeredNodeCreate = domainBuilder.registeredNode().get();
+        final var registeredNodeUpdate = registeredNodeCreate.toBuilder()
+                .adminKey(domainBuilder.key())
+                .createdTimestamp(null)
+                .description("updated")
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.builder()
+                                .endpointApi(RegisteredServiceEndpoint.BlockNodeApi.STATUS)
+                                .build())
+                        .ipAddress("192.168.1.1")
+                        .port(8080)
+                        .requiresTls(false)
+                        .build()))
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
+        final var registeredNodeDelete = RegisteredNode.builder()
+                .deleted(true)
+                .registeredNodeId(registeredNodeCreate.getRegisteredNodeId())
+                .timestampRange(domainBuilder.timestampRange())
+                .build();
+        final var registeredNodeDeleteExpected = registeredNodeUpdate.toBuilder()
+                .createdTimestamp(registeredNodeCreate.getCreatedTimestamp())
+                .deleted(true)
+                .timestampRange(registeredNodeDelete.getTimestampRange())
+                .build();
+
+        // when the registered node is created
+        sqlEntityListener.onRegisteredNode(registeredNodeCreate);
+        completeFileAndCommit();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactly(registeredNodeCreate);
+        assertThat(findHistory(RegisteredNode.class)).isEmpty();
+
+        // when the registered node is updated
+        final var mergedUpdate = registeredNodeCreate.toBuilder().build();
+        mergedUpdate.setTimestampUpper(registeredNodeUpdate.getTimestampLower());
+        sqlEntityListener.onRegisteredNode(registeredNodeUpdate);
+        completeFileAndCommit();
+
+        registeredNodeUpdate.setCreatedTimestamp(registeredNodeCreate.getCreatedTimestamp());
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactly(registeredNodeUpdate);
+        assertThat(findHistory(RegisteredNode.class)).containsExactly(mergedUpdate);
+
+        final var mergedUpdate2 = registeredNodeUpdate.toBuilder().build();
+        mergedUpdate2.setTimestampUpper(registeredNodeDelete.getTimestampLower());
+
+        // when the registered node is deleted
+        sqlEntityListener.onRegisteredNode(registeredNodeDelete);
+        completeFileAndCommit();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactlyInAnyOrder(registeredNodeDeleteExpected);
+        assertThat(findHistory(RegisteredNode.class)).containsExactlyInAnyOrder(mergedUpdate, mergedUpdate2);
+    }
+
+    @Test
+    void onRegisteredNodePartialUpdate() {
+        // given
+        final var registeredNodeUpdate = domainBuilder
+                .registeredNode()
+                .customize(r -> r.createdTimestamp(null))
+                .get();
+
+        // when
+        sqlEntityListener.onRegisteredNode(registeredNodeUpdate);
+        completeFileAndCommit();
+
+        // then
+        assertThat(registeredNodeRepository.findAll()).containsExactly(registeredNodeUpdate);
+        assertThat(findHistory(RegisteredNode.class)).isEmpty();
     }
 
     @Test
@@ -3753,7 +3939,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         var expectedPrevious = hookDelete.toBuilder().build();
         expectedPrevious.setTimestampUpper(hookCreate.getTimestampLower() + 1);
         expectedPrevious.setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK);
-        expectedPrevious.setType(HookType.LAMBDA);
+        expectedPrevious.setType(HookType.EVM);
         assertThat(hookRepository.findAll()).containsExactly(hookCreate);
         assertThat(findHistory(Hook.class)).containsExactly(expectedPrevious);
     }
@@ -3785,7 +3971,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3822,7 +4008,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
             var expectedDelete = hookDelete.toBuilder()
                     .deleted(true)
                     .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                    .type(HookType.LAMBDA)
+                    .type(HookType.EVM)
                     .timestampRange(Range.atLeast(deletedTimestamp))
                     .build();
             // Merge Changes
@@ -3857,7 +4043,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookCreate2 = hookCreate.toBuilder()
@@ -3908,7 +4094,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .deleted(false)
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3917,7 +4103,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedHookDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         if (commitIndex > 1) {
@@ -3953,7 +4139,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         // when
@@ -3979,7 +4165,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then
         var expectedDelete = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
         expectedDelete.setTimestampUpper(createdTimestamp + 101);
 
@@ -4010,7 +4196,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
                 .hookId(hookId)
                 .ownerId(ownerId)
                 .timestampRange(Range.atLeast(createdTimestamp))
-                .type(HookType.LAMBDA)
+                .type(HookType.EVM)
                 .build();
 
         var hookDelete = Hook.builder()
@@ -4060,7 +4246,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
         // then - hook should be persisted with default values for missing fields
         var expectedHook = hookDelete.toBuilder()
                 .extensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK) // database default
-                .type(HookType.LAMBDA) // database default
+                .type(HookType.EVM) // database default
                 .build();
 
         assertThat(hookRepository.findAll()).containsExactly(expectedHook);

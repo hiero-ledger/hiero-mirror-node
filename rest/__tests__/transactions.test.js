@@ -337,10 +337,12 @@ describe('formatTransactionRows', () => {
     const expectedFormat = [
       {
         assessed_custom_fees: undefined,
+        batch_key: null,
         bytes: 'bytes',
         consensus_timestamp: '0.000000001',
         charged_tx_fee: 5,
         entity_id: '0.0.98',
+        high_volume: false,
         max_custom_fees: [],
         max_fee: '33',
         memo_base64: null,
@@ -367,10 +369,12 @@ describe('formatTransactionRows', () => {
       },
       {
         assessed_custom_fees: undefined,
+        batch_key: null,
         bytes: 'bytes',
         consensus_timestamp: '0.000000002',
         charged_tx_fee: 5,
         entity_id: '0.0.100',
+        high_volume: false,
         max_custom_fees: [],
         max_fee: '33',
         memo_base64: null,
@@ -424,6 +428,7 @@ const getTransactionIdQuery = (extraConditions, entityKeys, isTransactionHash = 
       t.charged_tx_fee,
       t.consensus_timestamp,
       t.entity_id,
+      t.high_volume,
       t.inner_transactions,
       t.max_custom_fees,
       t.max_fee,

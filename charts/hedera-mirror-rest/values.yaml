@@ -311,7 +311,7 @@ test:
     pullPolicy: IfNotPresent
     pullSecrets: []
     repository: bats/bats
-    tag: 1.11.1
+    tag: 1.13.0
   priorityClassName: ""
 
 tolerations: []

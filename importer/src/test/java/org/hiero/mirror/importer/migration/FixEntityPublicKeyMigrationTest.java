@@ -4,25 +4,29 @@ package org.hiero.mirror.importer.migration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.google.common.collect.Range;
+import io.hypersistence.utils.hibernate.type.range.guava.PostgreSQLGuavaRangeType;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.FileUtils;
-import org.hiero.mirror.common.domain.entity.AbstractEntity;
+import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityHistory;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.repository.EntityRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.ApplicationContextInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.test.context.ContextConfiguration;
 
 @ContextConfiguration(initializers = FixEntityPublicKeyMigrationTest.Initializer.class)
@@ -32,57 +36,66 @@ import org.springframework.test.context.ContextConfiguration;
 @Tag("migration")
 class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
 
-    private final EntityRepository entityRepository;
+    private static final RowMapper<MigrationEntity> rowMapper = rowMapper(MigrationEntity.class);
 
     @Test
     void empty() {
         runMigration();
-        assertThat(entityRepository.findAll()).isEmpty();
-        assertThat(findHistory(EntityHistory.class)).isEmpty();
+        assertThat(findAllEntities()).isEmpty();
+        assertThat(findAllHistory()).isEmpty();
     }
 
     @Test
     void noChange() {
         // given
-        var entity1 = domainBuilder.entity().persist();
+        var entity1 = toMigrationEntity(domainBuilder.entity().get());
         // entity created with 1/2 threshold key so in database public key is already null
-        var entity2 = domainBuilder
+        var entity2 = toMigrationEntity(domainBuilder
                 .entity()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
-                .persist();
-        // history table
-        var entityHistory1 = domainBuilder.entityHistory().persist();
-        // history of an entity created with 1/2 threshold key so in database public key is already null
-        var entityHistory2 = domainBuilder
+                .get());
+
+        var entityHistory1 =
+                toMigrationEntityHistory(domainBuilder.entityHistory().get());
+        var entityHistory2 = toMigrationEntityHistory(domainBuilder
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1)).publicKey(null))
-                .persist();
+                .get());
+
+        persistEntity(entity1);
+        persistEntity(entity2);
+        persistHistory(entityHistory1);
+        persistHistory(entityHistory2);
 
         // when
         runMigration();
 
         // then
-        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2);
-        assertThat(findHistory(EntityHistory.class)).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
+        assertThat(findAllEntities()).containsExactlyInAnyOrder(entity1, entity2);
+        assertThat(findAllHistory()).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
     }
 
     @Test
     void shouldClearOldKey() {
-        // given old public key stays after key gets changed to 1/2 threshold key
-        var entity = domainBuilder
+        // given
+        var entity = toMigrationEntity(domainBuilder
                 .entity()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
                         // must call after key() to override the side effect
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
-                .persist();
-        var entityHistory = domainBuilder
+                .get());
+
+        var entityHistory = toMigrationEntityHistory(domainBuilder
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.thresholdKey(2, 1))
                         // must call after key() to override the side effect
                         .publicKey(domainBuilder.text(12))
                         .type(EntityType.CONTRACT))
-                .persist();
+                .get());
+
+        persistEntity(entity);
+        persistHistory(entityHistory);
 
         // when
         runMigration();
@@ -90,25 +103,30 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         // then
         entity.setPublicKey(null);
         entityHistory.setPublicKey(null);
-        assertThat(entityRepository.findAll()).containsExactly(entity);
-        assertThat(findHistory(EntityHistory.class)).containsExactly(entityHistory);
+        assertThat(findAllEntities()).containsExactly(entity);
+        assertThat(findAllHistory()).containsExactly(entityHistory);
     }
 
     @Test
     void shouldHaveNonNullPublicKey() {
         // given entities should have a non-null public key however it's null in db - one with primitive key, the other
         // with a key list of one primitive key
-        var entity1 = domainBuilder.entity().customize(e -> e.publicKey(null)).persist();
-        var entity2 = domainBuilder
+        var entity1 = toMigrationEntity(
+                domainBuilder.entity().customize(e -> e.publicKey(null)).get());
+        var entity2 = toMigrationEntity(domainBuilder
                 .entity()
                 .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
-                .persist();
-        var entityHistory1 =
-                domainBuilder.entityHistory().customize(e -> e.publicKey(null)).persist();
-        var entityHistory2 = domainBuilder
+                .get());
+        var entityHistory1 = toMigrationEntityHistory(
+                domainBuilder.entityHistory().customize(e -> e.publicKey(null)).get());
+        var entityHistory2 = toMigrationEntityHistory(domainBuilder
                 .entityHistory()
                 .customize(e -> e.key(domainBuilder.keyList(1)).publicKey(null))
-                .persist();
+                .get());
+        persistEntity(entity1);
+        persistEntity(entity2);
+        persistHistory(entityHistory1);
+        persistHistory(entityHistory2);
 
         // when
         runMigration();
@@ -116,18 +134,95 @@ class FixEntityPublicKeyMigrationTest extends ImporterIntegrationTest {
         // then
         var entities = List.of(entity1, entity2, entityHistory1, entityHistory2);
         entities.forEach(e -> e.setPublicKey(DomainUtils.getPublicKey(e.getKey())));
-        // sanity check
-        assertThat(entities).map(AbstractEntity::getPublicKey).doesNotContainNull();
-        assertThat(entityRepository.findAll()).containsExactlyInAnyOrder(entity1, entity2);
-        assertThat(findHistory(EntityHistory.class)).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
+
+        assertThat(findAllEntities()).containsExactlyInAnyOrder(entity1, entity2);
+        assertThat(findAllHistory()).containsExactlyInAnyOrder(entityHistory1, entityHistory2);
     }
 
     @SneakyThrows
     private void runMigration() {
-        String migrationFilepath =
+        final var migrationFilepath =
                 isV1() ? "v1/V1.106.0__fix_entity_public_key.sql" : "v2/V2.11.0__fix_entity_public_key.sql";
-        var file = TestUtils.getResource("db/migration/" + migrationFilepath);
+        final var file = TestUtils.getResource("db/migration/" + migrationFilepath);
         jdbcOperations.execute(FileUtils.readFileToString(file, StandardCharsets.UTF_8));
+    }
+
+    private void persistEntity(MigrationEntity entity) {
+        jdbcOperations.update(
+                "INSERT INTO entity (id, num, realm, shard, created_timestamp, timestamp_range, type, key, public_key) VALUES (?, ?, ?, ?, ?, ?::int8range, ?::entity_type, ?, ?)",
+                entity.getId(),
+                entity.getNum(),
+                entity.getRealm(),
+                entity.getShard(),
+                entity.getCreatedTimestamp(),
+                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                entity.getType().name(),
+                entity.getKey(),
+                entity.getPublicKey());
+    }
+
+    private void persistHistory(MigrationEntity entity) {
+        jdbcOperations.update(
+                "INSERT INTO entity_history (id, num, realm, shard, created_timestamp, timestamp_range, type, key, public_key) VALUES (?, ?, ?, ?, ?, ?::int8range, ?::entity_type, ?, ?)",
+                entity.getId(),
+                entity.getNum(),
+                entity.getRealm(),
+                entity.getShard(),
+                entity.getCreatedTimestamp(),
+                PostgreSQLGuavaRangeType.INSTANCE.asString(entity.getTimestampRange()),
+                entity.getType().name(),
+                entity.getKey(),
+                entity.getPublicKey());
+    }
+
+    private List<MigrationEntity> findAllEntities() {
+        return jdbcOperations.query("SELECT * FROM entity", rowMapper);
+    }
+
+    private List<MigrationEntity> findAllHistory() {
+        return jdbcOperations.query("SELECT * FROM entity_history", rowMapper);
+    }
+
+    private MigrationEntity toMigrationEntity(Entity e) {
+        return MigrationEntity.builder()
+                .id(e.getId())
+                .num(e.getNum())
+                .realm(e.getRealm())
+                .shard(e.getShard())
+                .createdTimestamp(e.getCreatedTimestamp())
+                .timestampRange(e.getTimestampRange())
+                .type(e.getType())
+                .key(e.getKey())
+                .publicKey(e.getPublicKey())
+                .build();
+    }
+
+    private MigrationEntity toMigrationEntityHistory(EntityHistory e) {
+        return MigrationEntity.builder()
+                .id(e.getId())
+                .num(e.getNum())
+                .realm(e.getRealm())
+                .shard(e.getShard())
+                .createdTimestamp(e.getCreatedTimestamp())
+                .timestampRange(e.getTimestampRange())
+                .type(e.getType())
+                .key(e.getKey())
+                .publicKey(e.getPublicKey())
+                .build();
+    }
+
+    @Data
+    @Builder
+    private static class MigrationEntity {
+        private Long id;
+        private Long num;
+        private Long realm;
+        private Long shard;
+        private Long createdTimestamp;
+        private Range<Long> timestampRange;
+        private EntityType type;
+        private byte[] key;
+        private String publicKey;
     }
 
     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {

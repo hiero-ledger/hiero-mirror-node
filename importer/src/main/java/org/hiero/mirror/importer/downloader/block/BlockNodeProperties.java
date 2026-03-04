@@ -16,24 +16,33 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
             .thenComparing(BlockNodeProperties::getHost)
-            .thenComparing(BlockNodeProperties::getPort);
+            .thenComparing(BlockNodeProperties::getStatusPort)
+            .thenComparing(BlockNodeProperties::getStreamingPort);
 
     @NotBlank
     private String host;
 
-    @Max(65535)
-    @Min(0)
-    private int port = 40840;
-
     @Min(0)
     private int priority = 0;
+
+    @Max(65535)
+    @Min(0)
+    private int statusPort = 40840;
+
+    @Max(65535)
+    @Min(0)
+    private int streamingPort = 40840;
 
     @Override
     public int compareTo(BlockNodeProperties other) {
         return COMPARATOR.compare(this, other);
     }
 
-    public String getEndpoint() {
-        return host + ":" + port;
+    public String getStatusEndpoint() {
+        return host + ":" + statusPort;
+    }
+
+    public String getStreamingEndpoint() {
+        return host + ":" + streamingPort;
     }
 }

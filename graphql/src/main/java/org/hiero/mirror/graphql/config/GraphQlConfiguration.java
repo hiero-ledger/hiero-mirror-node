@@ -19,8 +19,8 @@ import graphql.validation.schemawiring.ValidationSchemaWiring;
 import java.util.function.Consumer;
 import org.hiero.mirror.graphql.scalar.GraphQlDuration;
 import org.hiero.mirror.graphql.scalar.GraphQlTimestamp;
-import org.springframework.boot.autoconfigure.graphql.GraphQlSourceBuilderCustomizer;
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.boot.graphql.autoconfigure.GraphQlSourceBuilderCustomizer;
+import org.springframework.boot.jackson2.autoconfigure.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.graphql.execution.RuntimeWiringConfigurer;
@@ -68,6 +68,7 @@ class GraphQlConfiguration {
 
     // Configure JSON parsing limits to reject malicious input
     @Bean
+    @SuppressWarnings("removal")
     Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
         return builder -> {
             var streamReadConstraints = StreamReadConstraints.builder()

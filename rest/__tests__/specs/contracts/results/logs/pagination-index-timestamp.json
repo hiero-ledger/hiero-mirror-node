@@ -62,7 +62,8 @@
         "consensus_timestamp": 1639010102000000000,
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
-        "entity_id": "0.0.8"
+        "entity_id": "0.0.8",
+        "high_volume": false
       }
     ]
   },

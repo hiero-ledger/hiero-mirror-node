@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.RandomUtils;
 import org.awaitility.Durations;
 import org.hiero.mirror.common.domain.contract.ContractState;
 import org.hiero.mirror.common.domain.entity.Entity;
@@ -36,7 +37,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.caffeine.CaffeineCache;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
-import org.testcontainers.shaded.org.apache.commons.lang3.RandomUtils;
 
 @RequiredArgsConstructor
 final class ContractStateServiceTest extends Web3IntegrationTest {

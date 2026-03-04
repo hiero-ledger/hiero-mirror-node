@@ -16,6 +16,7 @@ class Transaction {
   static CHARGED_TX_FEE = `charged_tx_fee`;
   static CONSENSUS_TIMESTAMP = `consensus_timestamp`;
   static ENTITY_ID = `entity_id`;
+  static HIGH_VOLUME = `high_volume`;
   static INITIAL_BALANCE = `initial_balance`;
   static INNER_TRANSACTIONS = `inner_transactions`;
   static MAX_FEE = `max_fee`;
@@ -46,6 +47,7 @@ class Transaction {
     this.chargedTxFee = transaction.charged_tx_fee;
     this.consensusTimestamp = transaction.consensus_timestamp;
     this.entityId = transaction.entity_id;
+    this.highVolume = transaction.high_volume;
     this.initialBalance = transaction.initial_balance;
     this.innerTransactions = transaction.inner_transactions;
     this.maxCustomFees = new CustomFeeLimits(transaction.max_custom_fees).fees;

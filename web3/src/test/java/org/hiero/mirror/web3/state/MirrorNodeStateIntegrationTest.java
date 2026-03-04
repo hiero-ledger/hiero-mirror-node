@@ -9,7 +9,7 @@ import static com.hedera.node.app.records.schemas.V0490BlockRecordSchema.RUNNING
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.BYTECODE_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V0490ContractSchema.STORAGE_STATE_ID;
 import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STATES_STATE_ID;
-import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.LAMBDA_STORAGE_STATE_ID;
+import static com.hedera.node.app.service.contract.impl.schemas.V065ContractSchema.EVM_HOOK_STORAGE_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0490EntityIdSchema.ENTITY_ID_STATE_ID;
 import static com.hedera.node.app.service.entityid.impl.schemas.V0590EntityIdSchema.ENTITY_COUNTS_STATE_ID;
 import static com.hedera.node.app.service.file.impl.schemas.V0490FileSchema.FILES_STATE_ID;
@@ -136,7 +136,7 @@ final class MirrorNodeStateIntegrationTest extends Web3IntegrationTest {
                 BYTECODE_STATE_ID, ReadableKVState.class,
                 STORAGE_STATE_ID, ReadableKVState.class,
                 EVM_HOOK_STATES_STATE_ID, ReadableKVState.class,
-                LAMBDA_STORAGE_STATE_ID, ReadableKVState.class);
+                EVM_HOOK_STORAGE_STATE_ID, ReadableKVState.class);
         verifyServiceDataSources(states, ContractService.NAME, contractServiceDataSources);
 
         // EntityIdService

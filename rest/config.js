@@ -7,7 +7,7 @@ import parseDuration from 'parse-duration';
 import path from 'path';
 import {fileURLToPath} from 'url';
 
-import {cloudProviders, defaultBucketNames, NANOSECONDS_PER_MILLISECOND, networks} from './constants';
+import {NANOSECONDS_PER_MILLISECOND} from './constants';
 import {InvalidConfigError} from './errors';
 import configureLogger from './logger';
 
@@ -147,31 +147,6 @@ function parseDbPoolConfig() {
   });
 }
 
-function parseStateProofStreamsConfig() {
-  const {stateproof} = getConfig();
-  if (!stateproof || !stateproof.enabled) {
-    return;
-  }
-
-  const {streams: streamsConfig} = stateproof;
-  if (!Object.values(networks).includes(streamsConfig.network)) {
-    throw new InvalidConfigError(`unknown network ${streamsConfig.network}`);
-  }
-
-  if (!streamsConfig.bucketName) {
-    streamsConfig.bucketName = defaultBucketNames[streamsConfig.network];
-  }
-
-  if (!streamsConfig.bucketName) {
-    // the default for network 'OTHER' is null, throw err if it's not configured
-    throw new InvalidConfigError('stateproof.streams.bucketName must be set');
-  }
-
-  if (!Object.values(cloudProviders).includes(streamsConfig.cloudProvider)) {
-    throw new InvalidConfigError(`unsupported object storage service provider ${streamsConfig.cloudProvider}`);
-  }
-}
-
 const parseDurationConfig = (name, value) => {
   const ms = parseDuration(value);
   if (!ms) {
@@ -198,16 +173,6 @@ const parseQueryConfig = () => {
     );
   }
   durationQueryConfigKeys.forEach((key) => (query[`${key}Ns`] = parseDurationConfig(`query.${key}`, query[key])));
-};
-
-const parseNetworkConfig = () => {
-  const currencyFormat = getConfig().network.currencyFormat;
-  if (currencyFormat) {
-    const validValues = ['BOTH', 'HBARS', 'TINYBARS'];
-    if (!validValues.includes(currencyFormat)) {
-      throw new InvalidConfigError(`invalid currencyFormat ${currencyFormat}`);
-    }
-  }
 };
 
 const parseCommon = () => {
@@ -259,9 +224,7 @@ if (!loaded) {
   load(process.env.CONFIG_PATH, configName);
   loadEnvironment();
   parseDbPoolConfig();
-  parseNetworkConfig();
   parseQueryConfig();
-  parseStateProofStreamsConfig();
   parseUsersConfig();
   parseCommon();
   loaded = true;

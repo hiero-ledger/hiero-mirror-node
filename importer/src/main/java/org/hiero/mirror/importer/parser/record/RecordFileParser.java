@@ -30,8 +30,7 @@ import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.hiero.mirror.importer.repository.StreamFileRepository;
 import org.hiero.mirror.importer.util.Utility;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.transaction.annotation.Transactional;
 
 @Named
@@ -98,14 +97,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
      */
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@recordParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@recordParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(RecordFile recordFile) {
         try {
@@ -117,14 +113,11 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     @Override
     @Retryable(
-            backoff =
-                    @Backoff(
-                            delayExpression = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
-                            maxDelayExpression = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
-                            multiplierExpression = "#{@recordParserProperties.getRetry().getMultiplier()}"),
-            retryFor = Throwable.class,
-            noRetryFor = OutOfMemoryError.class,
-            maxAttemptsExpression = "#{@recordParserProperties.getRetry().getMaxAttempts()}")
+            delayString = "#{@recordParserProperties.getRetry().getMinBackoff().toMillis()}",
+            excludes = OutOfMemoryError.class,
+            maxDelayString = "#{@recordParserProperties.getRetry().getMaxBackoff().toMillis()}",
+            maxRetriesString = "#{@recordParserProperties.getRetry().getMaxAttempts() - 1}",
+            multiplierString = "#{@recordParserProperties.getRetry().getMultiplier()}")
     @Transactional(timeoutString = "#{@recordParserProperties.getTransactionTimeout().toSeconds()}")
     public synchronized void parse(List<RecordFile> recordFiles) {
         try {

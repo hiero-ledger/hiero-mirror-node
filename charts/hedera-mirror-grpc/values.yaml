@@ -91,6 +91,8 @@ gateway:
             service: com.hedera.mirror.api.proto.NetworkService
         - method:
             service: grpc.reflection.v1alpha.ServerReflection
+        - method:
+            service: grpc.reflection.v1.ServerReflection
   target:
     group: ""
     kind: Service
@@ -136,6 +138,7 @@ ingress:
         - "/com.hedera.mirror.api.proto.ConsensusService"
         - "/com.hedera.mirror.api.proto.NetworkService"
         - "/grpc.reflection.v1alpha.ServerReflection"
+        - "/grpc.reflection.v1.ServerReflection"
   tls:
     enabled: false
     secretName: ""

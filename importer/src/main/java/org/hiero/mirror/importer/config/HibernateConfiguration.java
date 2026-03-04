@@ -7,7 +7,7 @@ import static org.hibernate.cfg.JdbcSettings.STATEMENT_INSPECTOR;
 import java.util.Map;
 import org.hibernate.resource.jdbc.spi.StatementInspector;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.autoconfigure.orm.jpa.HibernatePropertiesCustomizer;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 

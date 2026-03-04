@@ -35,16 +35,22 @@ public class Transaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] batchKey;
 
+    private Long chargedTxFee;
+
+    private Long congestionPricingMultiplier;
+
     @Id
     private Long consensusTimestamp;
-
-    private Long chargedTxFee;
 
     private EntityId entityId;
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ErrataType errata;
+
+    private Boolean highVolume;
+
+    private Long highVolumePricingMultiplier;
 
     private Integer index;
 

@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.test.e2e.acceptance.steps;
 
-import static org.aspectj.runtime.internal.Conversions.intValue;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_FOR_ETH_CALL;
 import static org.hiero.mirror.test.e2e.acceptance.client.TokenClient.TokenNameEnum.FUNGIBLE_KYC_UNFROZEN_FOR_ETH_CALL;
@@ -37,7 +36,11 @@ import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMet
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.STATE_UPDATE_N_TIMES_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.UPDATE_COUNTER_SELECTOR;
 import static org.hiero.mirror.test.e2e.acceptance.steps.CallFeature.ContractMethods.WIPE_TOKEN_GET_TOTAL_SUPPLY_AND_BALANCE;
-import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.*;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asAddress;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asByteArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.asLongArray;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.nextBytes;
+import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.to32BytesString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,9 +66,6 @@ import org.hiero.mirror.test.e2e.acceptance.client.TokenClient;
 import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.ExpandedAccountId;
 import org.hiero.mirror.test.e2e.acceptance.util.TestUtil;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
-import org.springframework.web.client.HttpClientErrorException;
 
 @CustomLog
 @RequiredArgsConstructor
@@ -448,12 +448,12 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(results.get(0)) + 1)
+        assertThat(results.get(0).add(BigInteger.ONE))
                 .as("BalanceBefore + amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(results.get(2)) + 1L)
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).add(BigInteger.ONE))
                 .as("totalSupplyBefore + amount = totalSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
     @Then("I mint NFT token and get the total supply and balance")
@@ -472,12 +472,12 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(results.get(0)) + 1)
+        assertThat(results.get(0).add(BigInteger.ONE))
                 .as("BalanceBefore + amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(results.get(2)) + 1)
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).add(BigInteger.ONE))
                 .as("totalSupplyBefore + amount = totaSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
     @Then("I burn FUNGIBLE token and get the total supply and balance")
@@ -494,18 +494,14 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(intValue(results.get(0)) - 1L))
+        assertThat(results.get(0).subtract(BigInteger.ONE))
                 .as("BalanceBefore - amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(intValue(results.get(2)) - 1L))
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).subtract(BigInteger.ONE))
                 .as("totalSupplyBefore - amount = totalSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
-    @Retryable(
-            retryFor = {HttpClientErrorException.class},
-            backoff = @Backoff(delayExpression = "#{@acceptanceTestProperties.backOffPeriod.toMillis()}"),
-            maxAttemptsExpression = "#{@acceptanceTestProperties.maxRetries}")
     @Then("I burn NFT and get the total supply and balance")
     public void ethCallBurnNftTokenGetTotalSupplyAndBalanceOfTreasury() {
         var data = encodeData(
@@ -520,12 +516,12 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(results.get(0)) - 1)
+        assertThat(results.get(0).subtract(BigInteger.ONE))
                 .as("BalanceBefore - amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(results.get(2)) - 1)
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).subtract(BigInteger.ONE))
                 .as("totalSupplyBefore - amount = totalSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
     @Then("I wipe FUNGIBLE token and get the total supply and balance")
@@ -542,12 +538,12 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(intValue(results.get(0)) - 1L))
+        assertThat(results.get(0).subtract(BigInteger.ONE))
                 .as("BalanceBefore - amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(intValue(results.get(2)) - 1L))
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).subtract(BigInteger.ONE))
                 .as("totalSupplyBefore - amount = totaSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
     @Then("I wipe NFT and get the total supply and balance")
@@ -564,12 +560,12 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(results.get(0)) - 1)
+        assertThat(results.get(0).subtract(BigInteger.ONE))
                 .as("BalanceBefore - amount = balanceAfter")
-                .isEqualTo(intValue(results.get(1)));
-        assertThat(intValue(results.get(2)) - 1)
+                .isEqualTo(results.get(1));
+        assertThat(results.get(2).subtract(BigInteger.ONE))
                 .as("totalSupplyBefore - amount = totalSupplyAfter")
-                .isEqualTo(intValue(results.get(3)));
+                .isEqualTo(results.get(3));
     }
 
     @Then("I pause {string} token, unpause and get the status of the token")
@@ -704,15 +700,13 @@ public class CallFeature extends AbstractFeature {
         var results = response.getResultAsListDecimal();
         assertThat(results).isNotNull().hasSize(4);
 
-        assertThat(intValue(results.get(0)))
+        assertThat(results.get(0))
                 .as("allowance before transfer should equal the amount")
                 .isZero();
-        assertThat(intValue(results.get(1)) + 1)
+        assertThat(results.get(1).add(BigInteger.ONE))
                 .as("balance before + amount should equal the balance after")
-                .isEqualTo(intValue(results.get(3)));
-        assertThat(intValue(results.get(2)))
-                .as("allowance after transfer should be 0")
-                .isZero();
+                .isEqualTo(results.get(3));
+        assertThat(results.get(2)).as("allowance after transfer should be 0").isZero();
     }
 
     @Then("I approve a NFT token and transfer it")

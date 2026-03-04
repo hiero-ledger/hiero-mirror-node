@@ -10,6 +10,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.hedera.hashgraph.sdk.AccountDeleteTransaction;
+import com.hedera.hashgraph.sdk.Hbar;
 import com.hedera.hashgraph.sdk.TopicId;
 import jakarta.validation.ConstraintViolationException;
 import java.time.Duration;
@@ -30,8 +31,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-class ConfigurableTransactionGeneratorTest {
+final class ConfigurableTransactionGeneratorTest {
 
+    private static final long MAX_TRANSACTION_FEE = 500;
     private static final int MEMO_SIZE = 32;
     private static final int SAMPLE_SIZE = 10_000;
     private static final String TOPIC_ID = "0.0.1000";
@@ -46,7 +48,7 @@ class ConfigurableTransactionGeneratorTest {
         properties.setRecordPercent(1);
         properties.setMaxMemoLength(MEMO_SIZE);
         properties.setName("test");
-        properties.setProperties(Map.of("topicId", TOPIC_ID));
+        properties.setProperties(Map.of("maxtransactionfee", String.valueOf(MAX_TRANSACTION_FEE), "topicId", TOPIC_ID));
         properties.setTps(100_000);
         properties.setType(TransactionType.CONSENSUS_SUBMIT_MESSAGE);
         var monitorProperties = new MonitorProperties();
@@ -207,9 +209,12 @@ class ConfigurableTransactionGeneratorTest {
                 .hasFieldOrPropertyWithValue("receipt", true)
                 .hasFieldOrPropertyWithValue("sendRecord", true)
                 .hasFieldOrPropertyWithValue("transaction.topicId", TopicId.fromString(TOPIC_ID))
-                .satisfies(r -> assertThat(r.getTransaction().getTransactionMemo())
-                        .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
-                        .hasSize(MEMO_SIZE)));
+                .extracting(PublishRequest::getTransaction)
+                .satisfies(
+                        t -> assertThat(t.getTransactionMemo())
+                                .containsPattern(Pattern.compile("\\d+ Monitor test on \\w+"))
+                                .hasSize(MEMO_SIZE),
+                        t -> assertThat(t.getMaxTransactionFee()).isEqualTo(Hbar.fromTinybars(MAX_TRANSACTION_FEE))));
     }
 
     @ParameterizedTest

@@ -13,9 +13,9 @@ import com.google.protobuf.UnsafeByteOperations;
 import com.hedera.services.stream.proto.HashObject;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.ContractID;
+import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.KeyList;
-import com.hederahashgraph.api.proto.java.SlotKey;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TokenID;
 import java.io.IOException;
@@ -34,6 +34,7 @@ import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.domain.transaction.ContractSlotKey;
 import org.hiero.mirror.common.exception.InvalidEntityException;
 import org.hiero.mirror.common.exception.ProtobufException;
 import org.jspecify.annotations.Nullable;
@@ -307,16 +308,14 @@ public class DomainUtils {
         return fromEvmAddress(Bytes.concat(padding, evmAddress));
     }
 
-    public static SlotKey normalize(SlotKey slotKey) {
-        var key = slotKey.getKey();
+    public static ContractSlotKey normalize(ContractSlotKey slotKey) {
+        var key = slotKey.key();
         var normalizedBytes = DomainUtils.trim(DomainUtils.toBytes(key));
         if (normalizedBytes.length == key.size()) {
             return slotKey;
         }
 
-        return slotKey.toBuilder()
-                .setKey(DomainUtils.fromBytes(normalizedBytes))
-                .build();
+        return new ContractSlotKey(slotKey.slotId(), DomainUtils.fromBytes(normalizedBytes));
     }
 
     public static byte[] trim(final byte[] data) {
@@ -362,6 +361,53 @@ public class DomainUtils {
         final var trimmed = trim(value);
 
         return trimmed == value ? data : BytesValue.of(trimmed);
+    }
+
+    /**
+     * Compares a contract log's topics and data to the given byte arrays (trim-aware, no allocation).
+     */
+    public static boolean contractLogTopicsAndDataMatches(
+            ContractLoginfo log, byte[] topic0, byte[] topic1, byte[] topic2, byte[] topic3, byte[] data) {
+        var topicList = log.getTopicList();
+        int topicCount = topicList.size();
+        return trimmedByteStringEquals(topicCount > 0 ? topicList.get(0) : null, topic0)
+                && trimmedByteStringEquals(topicCount > 1 ? topicList.get(1) : null, topic1)
+                && trimmedByteStringEquals(topicCount > 2 ? topicList.get(2) : null, topic2)
+                && trimmedByteStringEquals(topicCount > 3 ? topicList.get(3) : null, topic3)
+                && trimmedByteStringEquals(log.getData(), data);
+    }
+
+    /**
+     * Compares ByteString to byte[] trim-aware (leading zeros in ByteString skipped), without allocating.
+     */
+    private static boolean trimmedByteStringEquals(ByteString bs, byte[] arr) {
+        if (bs == null && arr == null) {
+            return true;
+        } else if (bs == null || arr == null) {
+            return false;
+        }
+
+        if (bs.isEmpty()) {
+            return arr.length == 0;
+        }
+        int start = 0;
+        int n = bs.size();
+        while (start < n && bs.byteAt(start) == 0) {
+            start++;
+        }
+        int trimmedLen = n - start;
+        if (trimmedLen == 0) {
+            return arr.length == 0;
+        }
+        if (trimmedLen != arr.length) {
+            return false;
+        }
+        for (int i = 0; i < arr.length; i++) {
+            if (bs.byteAt(start + i) != arr[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static byte[] toEvmAddress(ContractID contractId) {

@@ -44,6 +44,7 @@ import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.beanutils.BeanUtilsBean;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStream;
 import org.bouncycastle.util.encoders.Hex;
 import org.gaul.s3proxy.S3Proxy;
 import org.gaul.shaded.org.eclipse.jetty.util.component.AbstractLifeCycle;
@@ -317,5 +318,20 @@ public class TestUtils {
         byte[] hashBytes = new byte[size];
         RANDOM.nextBytes(hashBytes);
         return hashBytes;
+    }
+
+    @SneakyThrows
+    public static byte[] zstd(final byte[] data) {
+        try (final var bos = new ByteArrayOutputStream()) {
+            try (final var zos = ZstdCompressorOutputStream.builder()
+                    .setCloseFrameOnFlush(true)
+                    .setOutputStream(bos)
+                    .get()) {
+                zos.write(data);
+                zos.finish();
+            }
+
+            return bos.toByteArray();
+        }
     }
 }

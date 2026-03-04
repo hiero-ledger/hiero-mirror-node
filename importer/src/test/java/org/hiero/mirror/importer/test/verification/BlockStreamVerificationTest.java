@@ -366,7 +366,7 @@ final class BlockStreamVerificationTest {
             try {
                 var filePath = RECORD_FILE_PATH_TEMPLATE.formatted(node.getNodeAccountId(), filename);
                 var streamFilename = StreamFilename.from(filePath);
-                var streamFile = streamFileProvider.get(node, streamFilename).block();
+                var streamFile = streamFileProvider.get(streamFilename).block();
                 recordFile = recordFileReader.read(streamFile);
                 if (recordFile.getSidecarCount() > 0) {
                     getSidecars(streamFilename, recordFile, node);
@@ -389,7 +389,7 @@ final class BlockStreamVerificationTest {
 
     private Mono<SidecarFile> getSidecar(ConsensusNode node, StreamFilename recordFilename, SidecarFile sidecar) {
         final var sidecarFilename = StreamFilename.from(recordFilename, sidecar.getName());
-        return streamFileProvider.get(node, sidecarFilename).map(streamFileData -> {
+        return streamFileProvider.get(sidecarFilename).map(streamFileData -> {
             sidecarFileReader.read(sidecar, streamFileData);
 
             if (!Arrays.equals(sidecar.getHash(), sidecar.getActualHash())) {

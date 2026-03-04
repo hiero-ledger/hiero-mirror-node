@@ -60,24 +60,23 @@ public class StreamFilename implements Comparable<StreamFilename> {
         EPOCH = from("1970-01-01T00_00_00Z.rcd");
     }
 
+    private final String bucketFilePath;
     private final String compressor;
     private final StreamType.Extension extension;
     private final String filename;
+    private final FileType fileType;
+    private final String fullExtension;
+    private final Instant instant;
     private final String pathSeparator;
-
-    // Relative path to directory containing filename, utilizing pathSeparator
-    private final String path;
-    // The computed file system or bucket relative path for this stream file
-    private final String filePath;
+    private final String sidecarId;
+    private final StreamType streamType;
 
     @EqualsAndHashCode.Include
     private final String filenameWithoutCompressor;
 
-    private final FileType fileType;
-    private final String fullExtension;
-    private final Instant instant;
-    private final String sidecarId;
-    private final StreamType streamType;
+    // Relative path to directory containing filename, utilizing pathSeparator
+    private final String path;
+
     private final long timestamp = System.currentTimeMillis();
 
     private StreamFilename(String path, String filename, String pathSeparator) {
@@ -85,7 +84,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
         this.filename = filename;
         this.path = path;
 
-        TypeInfo typeInfo = extractTypeInfo(filename);
+        final var typeInfo = extractTypeInfo(filename);
         this.compressor = typeInfo.compressor;
         this.extension = typeInfo.extension;
         this.fileType = typeInfo.fileType;
@@ -110,12 +109,13 @@ public class StreamFilename implements Comparable<StreamFilename> {
             builder.append(SIDECAR_FOLDER);
             builder.append(this.pathSeparator);
         }
-        builder.append(this.filename);
-        this.filePath = builder.toString();
+        builder.append(streamType.toBucketFilename(this.filename));
+        this.bucketFilePath = builder.toString();
     }
 
-    public static StreamFilename from(long blockNumber) {
-        return from(BlockFile.getFilename(blockNumber, true));
+    public static StreamFilename from(final String path, final long blockNumber) {
+        final var filename = BlockFile.getFilename(blockNumber, true);
+        return from(path, filename, S3StreamFileProvider.SEPARATOR);
     }
 
     public static StreamFilename from(String filePath) {
@@ -252,7 +252,7 @@ public class StreamFilename implements Comparable<StreamFilename> {
     }
 
     public boolean isNodeId() {
-        return !filePath.contains(streamType.getPath());
+        return !bucketFilePath.contains(streamType.getPath());
     }
 
     @Override

@@ -21,6 +21,7 @@ public class CompositeEthereumTransactionParser implements EthereumTransactionPa
     private final LegacyEthereumTransactionParser legacyEthereumTransactionParser;
     private final Eip2930EthereumTransactionParser eip2930EthereumTransactionParser;
     private final Eip1559EthereumTransactionParser eip1559EthereumTransactionParser;
+    private final Eip7702EthereumTransactionParser eip7702EthereumTransactionParser;
 
     @Override
     public EthereumTransaction decode(byte[] transactionBytes) {
@@ -63,6 +64,8 @@ public class CompositeEthereumTransactionParser implements EthereumTransactionPa
             return eip2930EthereumTransactionParser;
         } else if (legacyRlpItemByte == Eip1559EthereumTransactionParser.EIP1559_TYPE_BYTE) {
             return eip1559EthereumTransactionParser;
+        } else if (legacyRlpItemByte == Eip7702EthereumTransactionParser.EIP7702_TYPE_BYTE) {
+            return eip7702EthereumTransactionParser;
         }
         throw new InvalidDatasetException("Unsupported Ethereum transaction data type");
     }

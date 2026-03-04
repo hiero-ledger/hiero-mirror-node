@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.parser.domain;
 
 import static com.hederahashgraph.api.proto.java.CustomFee.FeeCase.FIXED_FEE;
+import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.STATUS;
+import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.SUBSCRIBE_STREAM;
 import static com.hederahashgraph.api.proto.java.TokenType.FUNGIBLE_COMMON;
 import static com.hederahashgraph.api.proto.java.TokenType.NON_FUNGIBLE_UNIQUE;
 import static org.hiero.mirror.common.domain.DomainBuilder.KEY_LENGTH_ECDSA;
@@ -21,13 +23,15 @@ import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.Int32Value;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.StringValue;
+import com.hedera.hapi.node.hooks.legacy.EvmHook;
 import com.hedera.hapi.node.hooks.legacy.EvmHookSpec;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageSlot;
+import com.hedera.hapi.node.hooks.legacy.EvmHookStorageUpdate;
 import com.hedera.hapi.node.hooks.legacy.HookCreationDetails;
 import com.hedera.hapi.node.hooks.legacy.HookExtensionPoint;
-import com.hedera.hapi.node.hooks.legacy.LambdaEvmHook;
-import com.hedera.hapi.node.hooks.legacy.LambdaSStoreTransactionBody;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageSlot;
-import com.hedera.hapi.node.hooks.legacy.LambdaStorageUpdate;
+import com.hedera.hapi.node.hooks.legacy.HookStoreTransactionBody;
+import com.hedera.hapi.node.tss.legacy.LedgerIdNodeContribution;
+import com.hedera.hapi.node.tss.legacy.LedgerIdPublicationTransactionBody;
 import com.hedera.services.stream.proto.CallOperationType;
 import com.hedera.services.stream.proto.ContractAction;
 import com.hedera.services.stream.proto.ContractActionType;
@@ -99,6 +103,10 @@ import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropRecord;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
 import com.hederahashgraph.api.proto.java.RealmID;
+import com.hederahashgraph.api.proto.java.RegisteredNodeCreateTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeDeleteTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredNodeUpdateTransactionBody;
+import com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.RoyaltyFee;
 import com.hederahashgraph.api.proto.java.SchedulableTransactionBody;
@@ -158,6 +166,7 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalUnit;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -550,7 +559,7 @@ public class RecordItemBuilder {
         return HookCreationDetails.newBuilder()
                 .setExtensionPoint(HookExtensionPoint.ACCOUNT_ALLOWANCE_HOOK)
                 .setHookId(1L)
-                .setLambdaEvmHook(LambdaEvmHook.newBuilder()
+                .setEvmHook(EvmHook.newBuilder()
                         .setSpec(EvmHookSpec.newBuilder().setContractId(contractId()))
                         .build())
                 .setAdminKey(key());
@@ -794,6 +803,23 @@ public class RecordItemBuilder {
         return new Builder<>(TransactionType.FREEZE, builder);
     }
 
+    public Builder<LedgerIdPublicationTransactionBody.Builder> ledgerIdPublication() {
+        final var builder = LedgerIdPublicationTransactionBody.newBuilder()
+                .setHistoryProofVerificationKey(bytes(64))
+                .setLedgerId(bytes(32))
+                .addNodeContributions(LedgerIdNodeContribution.newBuilder()
+                        .setHistoryProofKey(bytes(64))
+                        .setNodeId(id())
+                        .setWeight(id())
+                        .build())
+                .addNodeContributions(LedgerIdNodeContribution.newBuilder()
+                        .setHistoryProofKey(bytes(64))
+                        .setNodeId(id())
+                        .setWeight(id())
+                        .build());
+        return new Builder<>(TransactionType.LEDGERIDPUBLICATION, builder);
+    }
+
     public Builder<NodeCreateTransactionBody.Builder> nodeCreate() {
         var builder = NodeCreateTransactionBody.newBuilder()
                 .setAccountId(accountId())
@@ -856,10 +882,6 @@ public class RecordItemBuilder {
                 .setFungibleTokenType(tokenId());
     }
 
-    public Builder<UtilPrngTransactionBody.Builder> prng() {
-        return prng(0);
-    }
-
     public Builder<UtilPrngTransactionBody.Builder> prng(int range) {
         var builder = UtilPrngTransactionBody.newBuilder().setRange(range);
         var transactionBodyBuilder = new Builder<>(TransactionType.UTILPRNG, builder);
@@ -871,6 +893,48 @@ public class RecordItemBuilder {
                 r.setPrngNumber(random.nextInt());
             }
         });
+    }
+
+    public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
+        final var builder = RegisteredNodeCreateTransactionBody.newBuilder()
+                .setAdminKey(key())
+                .setDescription(text(8))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setRequiresTls(true)
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(STATUS)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(16))
+                        .setPort(port())
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(SUBSCRIBE_STREAM)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setMirrorNode(RegisteredServiceEndpoint.MirrorNodeEndpoint.getDefaultInstance()));
+
+        return new Builder<>(TransactionType.REGISTEREDNODECREATE, builder).receipt(r -> r.setRegisteredNodeId(id()));
+    }
+
+    public Builder<RegisteredNodeUpdateTransactionBody.Builder> registeredNodeUpdate() {
+        final var builder = RegisteredNodeUpdateTransactionBody.newBuilder()
+                .setRegisteredNodeId(id())
+                .setAdminKey(key())
+                .setDescription(StringValue.of(text(8)))
+                .addServiceEndpoint(RegisteredServiceEndpoint.newBuilder()
+                        .setIpAddress(bytes(4))
+                        .setPort(port())
+                        .setRequiresTls(true)
+                        .setBlockNode(RegisteredServiceEndpoint.BlockNodeEndpoint.newBuilder()
+                                .setEndpointApi(STATUS)));
+        return new Builder<>(TransactionType.REGISTEREDNODEUPDATE, builder);
+    }
+
+    public Builder<RegisteredNodeDeleteTransactionBody.Builder> registeredNodeDelete() {
+        final var builder = RegisteredNodeDeleteTransactionBody.newBuilder().setRegisteredNodeId(id());
+        return new Builder<>(TransactionType.REGISTEREDNODEDELETE, builder);
     }
 
     public void reset() {
@@ -1276,20 +1340,20 @@ public class RecordItemBuilder {
         };
     }
 
-    public Builder<LambdaSStoreTransactionBody.Builder> lambdaSStore() {
-        var slotUpdate = LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+    public Builder<HookStoreTransactionBody.Builder> hookStore() {
+        var slotUpdate = EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(slot())
                         .setValue(bytes(32))
                         .build());
 
-        var slotUpdate2 = LambdaStorageUpdate.newBuilder()
-                .setStorageSlot(LambdaStorageSlot.newBuilder()
+        var slotUpdate2 = EvmHookStorageUpdate.newBuilder()
+                .setStorageSlot(EvmHookStorageSlot.newBuilder()
                         .setKey(slot())
                         .setValue(bytes(32))
                         .build());
 
-        var body = LambdaSStoreTransactionBody.newBuilder()
+        var body = HookStoreTransactionBody.newBuilder()
                 .setHookId(HookId.newBuilder()
                         .setHookId(id())
                         .setEntityId(HookEntityId.newBuilder()
@@ -1299,7 +1363,7 @@ public class RecordItemBuilder {
                 .addStorageUpdates(slotUpdate)
                 .addStorageUpdates(slotUpdate2);
 
-        return new Builder<>(TransactionType.LAMBDA_SSTORE, body);
+        return new Builder<>(TransactionType.HOOKSTORE, body);
     }
 
     public ByteString bytes(int length) {
@@ -1341,7 +1405,7 @@ public class RecordItemBuilder {
         return accountAmount(accountId.toAccountID(), amount);
     }
 
-    private AccountAmount accountAmount(AccountID accountID, long amount) {
+    public AccountAmount accountAmount(AccountID accountID, long amount) {
         return AccountAmount.newBuilder()
                 .setAccountID(accountID)
                 .setAmount(amount)
@@ -1424,10 +1488,6 @@ public class RecordItemBuilder {
         return fileId;
     }
 
-    private long id() {
-        return id.incrementAndGet();
-    }
-
     public Key key() {
         if (id() % 2 == 0) {
             return Key.newBuilder().setECDSASecp256K1(bytes(KEY_LENGTH_ECDSA)).build();
@@ -1457,6 +1517,14 @@ public class RecordItemBuilder {
                 .setStake(stake)
                 .setStakeNotRewarded(TINYBARS_IN_ONE_HBAR)
                 .setStakeRewarded(stake - TINYBARS_IN_ONE_HBAR);
+    }
+
+    private long id() {
+        return id.incrementAndGet();
+    }
+
+    private int port() {
+        return (int) ((id() % 65535) + 1);
     }
 
     private ServiceEndpoint serviceEndpoint() {
@@ -1614,13 +1682,28 @@ public class RecordItemBuilder {
             transactionRecord.clearTransactionID().clearConsensusTimestamp();
             transactionBodyWrapper.clearTransactionID();
 
+            var contractLogs = parseContractLogs(transactionRecordInstance);
+
             return recordItemBuilder
                     .contractTransactionPredicate(contractTransactionPredicate)
                     .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
+                    .contractLogs(contractLogs)
                     .build();
+        }
+
+        private List<ContractLoginfo> parseContractLogs(TransactionRecord record) {
+            if (record.hasContractCallResult()) {
+                return new ArrayList<>(transactionRecord.getContractCallResult().getLogInfoList().stream()
+                        .toList());
+            }
+            if (record.hasContractCreateResult()) {
+                return new ArrayList<>(transactionRecord.getContractCreateResult().getLogInfoList().stream()
+                        .toList());
+            }
+            return Collections.emptyList();
         }
 
         public Builder<T> clearIncrementer() {
@@ -1710,6 +1793,7 @@ public class RecordItemBuilder {
         private TransactionRecord.Builder defaultTransactionRecord() {
             var nodeAccountId = transactionBodyWrapper.getNodeAccountID();
             var transactionRecordBuilder = TransactionRecord.newBuilder()
+                    .setHighVolumePricingMultiplier(random.nextLong(Long.MAX_VALUE))
                     .setMemoBytes(ByteString.copyFromUtf8(transactionBodyWrapper.getMemo()))
                     .setTransactionFee(transactionBodyWrapper.getTransactionFee())
                     .setTransferList(TransferList.newBuilder()

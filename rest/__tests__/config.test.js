@@ -5,8 +5,7 @@ import {jest} from '@jest/globals';
 import os from 'os';
 import path from 'path';
 import yaml from 'js-yaml';
-import _ from 'lodash';
-import {cloudProviders, defaultBucketNames, networks} from '../constants';
+import _ from 'lodash-es';
 
 let tempDir;
 const custom = {
@@ -245,125 +244,6 @@ describe('Override query config', () => {
   });
 });
 
-describe('Override stateproof config', () => {
-  const customConfig = (stateproofConfig) => ({
-    hiero: {
-      mirror: {
-        rest: {
-          stateproof: stateproofConfig,
-        },
-      },
-    },
-  });
-
-  const getExpectedStreamsConfig = (override) => {
-    // the default without network
-    const streamsConfig = {
-      network: networks.DEMO,
-      cloudProvider: 'S3',
-      region: 'us-east-1',
-      accessKey: null,
-      endpointOverride: null,
-      gcpProjectId: null,
-      httpOptions: {
-        connectTimeout: 2000,
-        timeout: 5000,
-      },
-      maxRetries: 3,
-      secretKey: null,
-    };
-    Object.assign(streamsConfig, override);
-    if (!streamsConfig.bucketName) {
-      streamsConfig.bucketName = defaultBucketNames[streamsConfig.network];
-    }
-    return streamsConfig;
-  };
-
-  const testSpecs = [
-    {
-      name: 'by default stateproof should be disabled',
-      enabled: false,
-    },
-    {
-      name: 'when stateproof enabled with no streams section the default should be populated',
-      enabled: true,
-      expectThrow: false,
-    },
-    ..._.values(_.omit(networks, networks.OTHER)).map((network) => {
-      return {
-        name: `when stateproof enabled with just streams network set to ${network} other fields should get default`,
-        enabled: true,
-        override: {network},
-        expectThrow: false,
-      };
-    }),
-    {
-      name: 'when override all allowed fields',
-      enabled: true,
-      override: {
-        network: networks.DEMO,
-        cloudProvider: cloudProviders.GCP,
-        endpointOverride: 'https://alternative.object.storage.service',
-        region: 'us-east-west-3',
-        gpProjectId: 'sampleProject',
-        accessKey: 'FJHGRY',
-        secretKey: 'IRPLKGJUIEOR=FweGR',
-        bucketName: 'override-alternative-streams',
-      },
-      expectThrow: false,
-    },
-    {
-      name: 'when network is OTHER and bucketName is set',
-      enabled: true,
-      override: {network: networks.OTHER, bucketName: 'other-streams'},
-      expectThrow: false,
-    },
-    {
-      name: 'with unsupported network',
-      enabled: true,
-      override: {network: 'unknown'},
-      expectThrow: true,
-    },
-    {
-      name: 'with invalid cloudProvider',
-      enabled: true,
-      override: {network: networks.OTHER, cloudProvider: 'invalid'},
-      expectThrow: true,
-    },
-    {
-      name: 'with OTHER network but bucketName set to null',
-      enabled: true,
-      override: {network: networks.OTHER, bucketName: null},
-      expectThrow: true,
-    },
-    {
-      name: 'with OTHER network but bucketName set to empty',
-      enabled: true,
-      override: {network: networks.OTHER, bucketName: ''},
-      expectThrow: true,
-    },
-  ];
-
-  testSpecs.forEach((testSpec) => {
-    test(testSpec.name, async () => {
-      const stateproof = {enabled: testSpec.enabled};
-      stateproof.streams = testSpec.override ? testSpec.override : {};
-
-      if (!testSpec.expectThrow) {
-        const config = await loadCustomConfig(customConfig(stateproof));
-        if (testSpec.enabled) {
-          expect(config.rest.stateproof.enabled).toBeTruthy();
-          expect(config.rest.stateproof.streams).toEqual(getExpectedStreamsConfig(testSpec.override));
-        } else {
-          expect(config.rest.stateproof.enabled).toBeFalsy();
-        }
-      } else {
-        await expect(loadCustomConfig(customConfig(stateproof))).rejects.toThrow();
-      }
-    });
-  });
-});
-
 describe('Override db pool config', () => {
   const customConfig = (poolConfig) => ({
     hiero: {
@@ -431,58 +311,6 @@ describe('Override db pool config', () => {
         if (expected) {
           expect(config.rest.db.pool).toEqual(expected);
         }
-      } else {
-        await expect(loadCustomConfig(customConfig(override))).rejects.toThrow();
-      }
-    });
-  });
-});
-
-describe('Override network currencyFormat config', () => {
-  const customConfig = (networkCurrencyFormatConfig) => ({
-    hiero: {
-      mirror: {
-        rest: {
-          network: {
-            currencyFormat: networkCurrencyFormatConfig,
-          },
-        },
-      },
-    },
-  });
-
-  const testSpecs = [
-    {
-      name: 'unspecified value should be valid',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat BOTH',
-      override: 'BOTH',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat HBARS',
-      override: 'HBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat TINYBARS',
-      override: 'TINYBARS',
-      expectThrow: false,
-    },
-    {
-      name: 'override with currencyFormat INVALID',
-      override: 'INVALID',
-      expectThrow: true,
-    },
-  ];
-
-  testSpecs.forEach((testSpec) => {
-    const {name, override, expectThrow} = testSpec;
-    test(name, async () => {
-      if (!expectThrow) {
-        await loadCustomConfig(customConfig(override));
       } else {
         await expect(loadCustomConfig(customConfig(override))).rejects.toThrow();
       }

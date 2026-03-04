@@ -24,14 +24,15 @@
     ],
     "transactions": [
       {
-        "batch_key": "4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+        "batch_key": "1220bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee",
         "charged_tx_fee": 7,
         "payerAccountId": "0.0.8",
         "nodeAccountId": "0.0.3",
         "consensus_timestamp": "1565779444711927001",
         "name": "CRYPTOUPDATEACCOUNT",
         "type": "15",
-        "entity_id": "0.0.8"
+        "entity_id": "0.0.8",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 0,
@@ -42,7 +43,8 @@
         "nonce": 1,
         "type": 22,
         "valid_start_timestamp": "1565779444711927000",
-        "entity_id": "0.0.200"
+        "entity_id": "0.0.200",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 7,
@@ -52,7 +54,8 @@
         "name": "CRYPTOUPDATEACCOUNT",
         "nonce": 1,
         "type": "15",
-        "entity_id": "0.0.8"
+        "entity_id": "0.0.8",
+        "high_volume": false
       },
       {
         "charged_tx_fee": 7,
@@ -62,7 +65,8 @@
         "name": "CRYPTOCREATEACCOUNT",
         "nonce": 1,
         "type": 11,
-        "entity_id": "0.0.900"
+        "entity_id": "0.0.900",
+        "high_volume": false
       },
       {
         "name": "CONSENSUSSUBMITMESSAGE",
@@ -169,6 +173,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927005",
             "entity_id": null,
+            "high_volume": false,
             "max_custom_fees": [
               {
                 "account_id": "0.0.8",
@@ -225,6 +230,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -265,6 +271,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -300,11 +307,15 @@
             "valid_start_timestamp": "1565779444.711927002"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -345,6 +356,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -390,6 +402,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -430,6 +443,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -485,6 +499,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779500.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -530,6 +545,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927005",
             "entity_id": null,
+            "high_volume": false,
             "max_custom_fees": [
               {
                 "account_id": "0.0.8",
@@ -586,6 +602,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927004",
             "entity_id": "0.0.900",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -626,6 +643,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927003",
             "entity_id": "0.0.8",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -661,11 +679,15 @@
             "valid_start_timestamp": "1565779444.711927002"
           },
           {
-            "batch_key": "0x4a5ad514f0957fa170a676210c9bdbddf3bc9519702cf915fa6767a40463b96f",
+            "batch_key": {
+              "_type": "ED25519",
+              "key": "bfc9d4a344389324119eed485eb3a875b1e5a54bd189d2fd5ad88ce1d3473dee"
+            },
             "bytes": "Ynl0ZXM=",
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779444.711927001",
             "entity_id": "0.0.8",
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -706,6 +728,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779400.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -751,6 +774,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779333.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -791,6 +815,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779209.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_fee": "33",
             "max_custom_fees": [],
             "memo_base64": null,
@@ -831,6 +856,7 @@
             "charged_tx_fee": 7,
             "consensus_timestamp": "1565779111.711927001",
             "entity_id": null,
+            "high_volume": false,
             "max_custom_fees": [],
             "max_fee": "33",
             "memo_base64": null,

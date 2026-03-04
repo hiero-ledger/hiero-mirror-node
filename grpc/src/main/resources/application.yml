@@ -12,12 +12,6 @@ hiero:
         statementTimeout: 10000
         username: mirror_grpc
       port: 5600
-grpc:
-  server:
-    enableKeepAlive: true
-    keepAliveTime: 5m
-    permitKeepAliveTime: 90s
-    port: ${hiero.mirror.grpc.port}
 logging:
   level:
     root: warn
@@ -36,7 +30,7 @@ management:
         liveness:
           include: ping
         readiness:
-          include: db, grpc, grpcChannel, ping, redis
+          include: db, grpc, ping, redis
   endpoints:
     web:
       exposure:
@@ -74,6 +68,17 @@ spring:
       maximum-pool-size: 50
       minimum-idle: 4
       validation-timeout: 3000
+  grpc:
+    server:
+      health:
+        enabled: false
+      keep-alive:
+        max-idle: 10m
+        permit-time: 90s
+        time: 5m
+      max-inbound-message-size: 1024B
+      max-inbound-metadata-size: 2048B
+      port: ${hiero.mirror.grpc.port}
   jpa:
     database: PostgreSQL
   lifecycle:
@@ -84,3 +89,6 @@ spring:
         refresh:
           period: 60s
     timeout: 5s
+  threads:
+    virtual:
+      enabled: true

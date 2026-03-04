@@ -92,7 +92,8 @@
         "consensus_start": 167654000123439,
         "consensus_end": 167654000123449,
         "hash": "f292e5624f6f4cf8c134c9",
-        "entity_id": "5001"
+        "entity_id": "5001",
+        "high_volume": false
       },
       {
         "gas_used": 50000000,
@@ -100,7 +101,8 @@
         "consensus_start": 167654000123450,
         "consensus_end": 167654000123460,
         "hash": "6ceecd8bb224da491",
-        "entity_id": "5001"
+        "entity_id": "5001",
+        "high_volume": false
       },
       {
         "gas_used": 50000000,
@@ -108,7 +110,8 @@
         "consensus_start": 167654000123461,
         "consensus_end": 167654000123470,
         "hash": "e19f4a235bee1e6bb19258b",
-        "entity_id": "5002"
+        "entity_id": "5002",
+        "high_volume": false
       }
     ],
     "transactions": [
@@ -143,17 +146,20 @@
       {
         "file_data": [12, 11, 10, 9, 8, 7, 255],
         "consensus_timestamp": "987654000123000",
-        "entity_id": "5001"
+        "entity_id": "5001",
+        "high_volume": false
       },
       {
         "file_data": [16, 28],
         "consensus_timestamp": "987654000123005",
-        "entity_id": "5002"
+        "entity_id": "5002",
+        "high_volume": false
       },
       {
         "file_data": [128],
         "consensus_timestamp": "987654000123010",
         "entity_id": "5001",
+        "high_volume": false,
         "transaction_type": 16
       }
     ]

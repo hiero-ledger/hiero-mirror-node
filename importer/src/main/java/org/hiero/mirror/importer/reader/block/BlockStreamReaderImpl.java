@@ -37,10 +37,12 @@ import lombok.CustomLog;
 import lombok.Setter;
 import lombok.Value;
 import lombok.experimental.NonFinal;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -58,7 +60,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 .bytes(bytes)
                 .loadStart(blockStream.loadStart())
                 .name(blockStream.filename())
-                .nodeId(blockStream.nodeId())
                 .size(size)
                 .version(VERSION);
 
@@ -75,7 +76,8 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         final var blockFile = blockFileBuilder.build();
         final var items = blockFile.getItems();
         blockFile.setCount((long) items.size());
-        blockFile.setHash(context.getBlockRootHashDigest().digest());
+        blockFile.setRawHash(context.getBlockRootHashDigest().digest());
+        blockFile.setHash(Hex.encodeHexString(blockFile.getRawHash()));
 
         if (!items.isEmpty()) {
             blockFile.setConsensusStart(items.getFirst().getConsensusTimestamp());
@@ -193,8 +195,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                         .transactionResult(transactionResult)
                         .transactionOutputs(Collections.unmodifiableMap(transactionOutputs))
                         .build();
-                context.getBlockFile().item(blockTransaction);
                 context.setLastBlockTransaction(blockTransaction, signedTransactionInfo.userTransactionInBatch());
+
+                final var blockFileBuilder = context.getBlockFile();
+                blockFileBuilder.item(blockTransaction);
+                if (blockTransaction.getTransactionBody().hasLedgerIdPublication() && blockTransaction.isSuccessful()) {
+                    blockFileBuilder.lastLedgerIdPublicationTransaction(blockTransaction);
+                }
             }
         } catch (InvalidProtocolBufferException e) {
             throw new InvalidStreamFileException(
@@ -235,6 +242,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @NonFinal
         @Nullable
         private BlockTransaction lastUserTransactionInBatch;
+
+        @NonFinal
+        @Nullable
+        private BlockTransaction lastChildTransaction;
 
         @NonFinal
         @Nullable
@@ -308,6 +319,25 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                     lastUserTransactionInBatch.setNextInBatch(lastBlockTransaction);
                 }
                 lastUserTransactionInBatch = lastBlockTransaction;
+            }
+
+            // Link child transactions (e.g., hook executions) that share the same parent for intermediate
+            // contract storage changes. This uses the nextSibling chain to enable storage resolution
+            // for hook execution child transactions triggered by a parent transaction (e.g., crypto transfer)
+            if (lastChildTransaction != null
+                    && lastBlockTransaction.getParentConsensusTimestamp() != null
+                    && lastBlockTransaction
+                            .getParentConsensusTimestamp()
+                            .equals(lastChildTransaction.getParentConsensusTimestamp())) {
+                lastChildTransaction.setNextSibling(lastBlockTransaction);
+            }
+
+            // Track the last child transaction for linking siblings with the same parent
+            if (lastBlockTransaction.getParentConsensusTimestamp() != null) {
+                lastChildTransaction = lastBlockTransaction;
+            } else {
+                // Reset when we encounter a non-child transaction
+                lastChildTransaction = null;
             }
 
             this.lastBlockTransaction = lastBlockTransaction;

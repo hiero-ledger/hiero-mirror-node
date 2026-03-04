@@ -6,5 +6,5 @@ import io.grpc.ManagedChannelBuilder;
 
 interface ManagedChannelBuilderProvider {
 
-    ManagedChannelBuilder<?> get(BlockNodeProperties blockNodeProperties);
+    ManagedChannelBuilder<?> get(String host, int port);
 }

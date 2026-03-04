@@ -4,7 +4,7 @@ package org.hiero.mirror.monitor.health;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.monitor.health.ReleaseHealthIndicator.DEPENDENCY_NOT_READY;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 import io.fabric8.kubernetes.api.model.ConditionBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
@@ -14,6 +14,7 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -21,8 +22,8 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.Status;
 import reactor.core.publisher.Flux;
 import reactor.test.StepVerifier;
 import uk.org.webcompere.systemstubs.environment.EnvironmentVariables;
@@ -46,11 +47,12 @@ class ReleaseHealthIndicatorTest {
 
     private KubernetesMockServer server;
     private ReleaseHealthIndicator healthIndicator;
+    private MeterRegistry meterRegistry = mock(MeterRegistry.class);
 
     @BeforeEach
     void setUp() {
         var client = server.createClient().inNamespace("test");
-        healthIndicator = new ReleaseHealthIndicator(client, properties);
+        healthIndicator = new ReleaseHealthIndicator(client, properties, meterRegistry);
         properties.setEnabled(true);
         server.clearExpectations();
     }
@@ -240,13 +242,6 @@ class ReleaseHealthIndicatorTest {
                 .thenRequest(2)
                 .expectNext(Health.up().build(), Health.down().build())
                 .verifyComplete();
-    }
-
-    @Test
-    void sameMono() {
-        var first = healthIndicator.health();
-        var second = healthIndicator.health();
-        assertEquals(first, second);
     }
 
     private GenericKubernetesResource helmRelease(List<ConditionBuilder> conditions) {

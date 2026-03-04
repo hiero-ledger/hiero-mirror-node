@@ -1,14 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-grpc:
-  client:
-    GLOBAL:
-      negotiationType: plaintext
-    local:
-      address: in-process:local
-  server:
-    enableKeepAlive: false
-    inProcessName: local
 hiero:
   mirror:
     grpc:

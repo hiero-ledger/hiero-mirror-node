@@ -163,31 +163,3 @@ describe('validateExtractNetworkNodesQuery throw', () => {
     });
   });
 });
-
-describe('convertToCurrencyFormat', () => {
-  it.each`
-    tinycoins                | currencyFormat | expected
-    ${'1234567890000'}       | ${'BOTH'}      | ${'12345.67890000'}
-    ${'1234567890000'}       | ${null}        | ${'12345.67890000'}
-    ${'0'}                   | ${'BOTH'}      | ${'0.00000000'}
-    ${'42'}                  | ${'BOTH'}      | ${'0.00000042'}
-    ${'987654321098765432'}  | ${'BOTH'}      | ${'9876543210.98765432'}
-    ${'5000000000000000000'} | ${null}        | ${'50000000000.00000000'}
-    ${'1234567890000'}       | ${'HBARS'}     | ${'12345'}
-    ${'0'}                   | ${'HBARS'}     | ${'0'}
-    ${'42'}                  | ${'HBARS'}     | ${'0'}
-    ${'987654321098765432'}  | ${'HBARS'}     | ${'9876543210'}
-    ${'5000000000000000000'} | ${'HBARS'}     | ${'50000000000'}
-    ${'1234567890123'}       | ${'TINYBARS'}  | ${'1234567890123'}
-    ${'0'}                   | ${'TINYBARS'}  | ${'0'}
-    ${'42'}                  | ${'TINYBARS'}  | ${'42'}
-    ${'987654321098765432'}  | ${'TINYBARS'}  | ${'987654321098765432'}
-    ${'5000000000000000000'} | ${'TINYBARS'}  | ${'5000000000000000000'}
-    ${''}                    | ${undefined}   | ${'0.00000000'}
-    ${undefined}             | ${undefined}   | ${'0.00000000'}
-    ${undefined}             | ${'HBARS'}     | ${'0'}
-    ${undefined}             | ${'TINYBARS'}  | ${'0'}
-  `('verifies "$currencyFormat" on $tinycoins expecting $expected', ({tinycoins, currencyFormat, expected}) => {
-    expect(networkCtrl.convertToCurrencyFormat(tinycoins, currencyFormat)).toEqual(expected);
-  });
-});

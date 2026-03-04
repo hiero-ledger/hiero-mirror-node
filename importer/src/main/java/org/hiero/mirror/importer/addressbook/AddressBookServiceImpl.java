@@ -54,7 +54,7 @@ import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.CollectionUtils;
 
@@ -542,17 +542,19 @@ public class AddressBookServiceImpl implements AddressBookService {
     private FileData getInitialAddressBookFileData() {
         byte[] addressBookBytes;
 
-        // retrieve bootstrap address book from filesystem or classpath
         try {
             Path initialAddressBook = importerProperties.getInitialAddressBook();
             if (initialAddressBook != null) {
                 log.info("Loading bootstrap address book from {}", initialAddressBook);
                 addressBookBytes = Files.readAllBytes(initialAddressBook);
             } else {
-                var resourcePath = String.format("/addressbook/%s", importerProperties.getNetwork());
-                log.info("Loading bootstrap address book from {}", resourcePath);
-                Resource resource = new ClassPathResource(resourcePath, getClass());
-                addressBookBytes = resource.getInputStream().readAllBytes();
+                final var resourcePath = resolveBootstrapAddressBookResourcePath();
+                log.info("Loading bootstrap address book from classpath:/{}", resourcePath);
+
+                final var resource = new ClassPathResource(resourcePath);
+                try (var in = resource.getInputStream()) {
+                    addressBookBytes = in.readAllBytes();
+                }
             }
 
             log.info("Loaded bootstrap address book of {} B", addressBookBytes.length);
@@ -562,6 +564,64 @@ public class AddressBookServiceImpl implements AddressBookService {
 
         return new FileData(
                 0L, addressBookBytes, systemEntity.addressBookFile102(), TransactionType.FILECREATE.getProtoId());
+    }
+
+    private String resolveBootstrapAddressBookResourcePath() throws IOException {
+        final var targetNanos = getTargetNanos();
+        final var network = importerProperties.getNetwork();
+        final var prefix = network + "-";
+
+        final var resolver =
+                new PathMatchingResourcePatternResolver(Thread.currentThread().getContextClassLoader());
+        final var resources = resolver.getResources("classpath*:/addressbook/" + prefix + "*");
+
+        long bestTs = -1L;
+        String bestPath = null;
+
+        for (var resource : resources) {
+            final var filename = resource.getFilename();
+            final var timestamp = parseTimestampedFilename(filename, prefix);
+
+            if (timestamp <= targetNanos && timestamp > bestTs) {
+                bestTs = timestamp;
+                bestPath = "addressbook/" + filename;
+            }
+        }
+
+        if (bestPath != null) {
+            log.info(
+                    "Selected timestamped bootstrap address book '{}' (chosenTs={} targetTs={})",
+                    bestPath,
+                    bestTs,
+                    targetNanos);
+            return bestPath;
+        }
+
+        String plain = "addressbook/" + network;
+        log.info(
+                "Selected default bootstrap address book '{}' (no timestamped file <= targetTs={})",
+                plain,
+                targetNanos);
+
+        return plain;
+    }
+
+    private long getTargetNanos() {
+        var start = importerProperties.getStartDate();
+        return DomainUtils.convertToNanosMax(start != null ? start : Instant.now());
+    }
+
+    private static long parseTimestampedFilename(String filename, String prefix) {
+        final var timestampPart = filename.substring(prefix.length());
+        if (timestampPart.isBlank() || !timestampPart.chars().allMatch(Character::isDigit)) {
+            return -1;
+        }
+
+        try {
+            return Long.parseLong(timestampPart);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     /**

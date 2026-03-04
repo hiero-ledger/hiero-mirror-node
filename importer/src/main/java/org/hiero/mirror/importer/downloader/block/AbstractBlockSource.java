@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.downloader.block;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
+import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.importer.downloader.CommonDownloaderProperties;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.reader.block.BlockStreamReader;
@@ -23,6 +24,7 @@ abstract class AbstractBlockSource implements BlockSource {
     protected final BlockStreamReader blockStreamReader;
     protected final BlockStreamVerifier blockStreamVerifier;
     protected final CommonDownloaderProperties commonDownloaderProperties;
+    protected final CutoverService cutoverService;
     protected final Logger log = LoggerFactory.getLogger(getClass());
     protected final BlockProperties properties;
 
@@ -53,9 +55,9 @@ abstract class AbstractBlockSource implements BlockSource {
     }
 
     private long getNextBlockNumber() {
-        return blockStreamVerifier
-                .getLastBlockFile()
-                .map(BlockFile::getIndex)
+        return cutoverService
+                .getLastRecordFile()
+                .map(RecordFile::getIndex)
                 .map(v -> v + 1)
                 .or(() -> Optional.ofNullable(
                         commonDownloaderProperties.getImporterProperties().getStartBlockNumber()))

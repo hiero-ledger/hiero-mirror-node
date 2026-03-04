@@ -1,3 +1,0 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
-
-exports[`RecordStreamObject truncated buffer 1`] = `"Error reading byte array, expect 32-byte data got 28-byte"`;

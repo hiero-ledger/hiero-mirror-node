@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isEmpty, isNil, last, range} from 'lodash-es';
 
 import {InvalidArgumentError} from '../errors';
 import * as utils from '../utils';
@@ -30,10 +30,10 @@ class BaseController {
     fullName,
     start = existingParams.length + 1
   ) => {
-    if (!_.isNil(invalues) && !_.isEmpty(invalues)) {
+    if (!isNil(invalues) && !isEmpty(invalues)) {
       // add the condition 'c.id in ()'
       existingParams.push(...invalues);
-      const positions = _.range(invalues.length)
+      const positions = range(invalues.length)
         .map((position) => position + start)
         .map((position) => `$${position}`);
       existingConditions.push(`${fullName} in (${positions})`);
@@ -139,7 +139,7 @@ class BaseController {
     } else if (primary.hasEqual()) {
       filters = [primary.equal, primary.lower, primary.upper, secondary.lower, secondary.equal, secondary.upper];
     }
-    return filters.filter((f) => !_.isNil(f));
+    return filters.filter((f) => !isNil(f));
   }
 
   /**
@@ -160,7 +160,7 @@ class BaseController {
       // if secondary has upper bound, the primary filter should be < ?
       {filter: primary.upper, newOperator: secondary.hasUpper() ? utils.opsMap.lt : null},
     ]
-      .filter((f) => !_.isNil(f.filter))
+      .filter((f) => !isNil(f.filter))
       .map((f) => ({...f.filter, operator: f.newOperator || f.filter.operator}));
   }
 
@@ -199,7 +199,7 @@ class BaseController {
       return null;
     }
 
-    const lastRow = _.last(rows);
+    const lastRow = last(rows);
     const lastValues = {};
     if (primaryBound.hasBound() || primaryBound.isEmpty()) {
       // the primary param has bound or no primary param at all

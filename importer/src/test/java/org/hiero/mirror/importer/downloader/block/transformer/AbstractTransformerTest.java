@@ -27,7 +27,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     private static final Version HAPI_VERSION = new Version(0, 57, 0);
     private static final RecursiveComparisonConfiguration RECORD_ITEMS_COMPARISON_CONFIG =
             RecursiveComparisonConfiguration.builder()
-                    .withIgnoredFields("parent", "previous", "transactionBody", "signatureMap")
+                    .withIgnoredFields("parent", "hookParent", "previous", "transactionBody", "signatureMap")
                     .withEqualsForType(Object::equals, TransactionRecord.class)
                     .withEqualsForType(Object::equals, TransactionSidecarRecord.class)
                     .build();
@@ -64,7 +64,6 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                 .returns(null, RecordFile::getLogsBloom)
                 .returns(null, RecordFile::getMetadataHash)
                 .returns(blockFile.getName(), RecordFile::getName)
-                .returns(blockFile.getNodeId(), RecordFile::getNodeId)
                 .returns(blockFile.getPreviousHash(), RecordFile::getPreviousHash)
                 .returns(blockFile.getRoundEnd(), RecordFile::getRoundEnd)
                 .returns(blockFile.getRoundStart(), RecordFile::getRoundStart)
@@ -92,6 +91,9 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     protected void finalize(RecordItemBuilder.Builder<?> builder) {
         builder.contractTransactionPredicate(null)
                 .entityTransactionPredicate(null)
-                .recordItem(r -> r.blockstream(true).hapiVersion(HAPI_VERSION));
+                .recordItem(r -> r.congestionPricingMultiplier(
+                                recordItemBuilder.accountId().getAccountNum())
+                        .blockstream(true)
+                        .hapiVersion(HAPI_VERSION));
     }
 }

@@ -7,6 +7,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,11 +26,13 @@ import org.hiero.mirror.grpc.exception.EntityNotFoundException;
 import org.hiero.mirror.grpc.listener.TopicListener;
 import org.hiero.mirror.grpc.repository.EntityRepository;
 import org.hiero.mirror.grpc.retriever.TopicMessageRetriever;
+import org.jspecify.annotations.Nullable;
 import org.springframework.validation.annotation.Validated;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.SignalType;
-import reactor.retry.Repeat;
+import reactor.core.scheduler.Schedulers;
+import reactor.util.repeat.RepeatSpec;
 
 @Named
 @CustomLog
@@ -57,10 +60,21 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         log.info("Subscribing to topic: {}", filter);
         TopicContext topicContext = new TopicContext(filter);
 
-        Flux<TopicMessage> flux = topicMessageRetriever
-                .retrieve(filter, true)
-                .concatWith(Flux.defer(() -> incomingMessages(topicContext))) // Defer creation until query complete
-                .filter(t -> t.compareTo(topicContext.getLast()) > 0); // Ignore duplicates
+        Flux<TopicMessage> historical = topicMessageRetriever.retrieve(filter, true);
+        Flux<TopicMessage> live = Flux.defer(() -> incomingMessages(topicContext));
+
+        // Safety Check - Polls missing messages after 1s if we are stuck with no data
+        Flux<TopicMessage> safetyCheck = Mono.delay(Duration.ofSeconds(1L))
+                .filter(_ -> !topicContext.isComplete())
+                .flatMapMany(_ -> missingMessages(topicContext, null))
+                .subscribeOn(Schedulers.boundedElastic());
+
+        Flux<TopicMessage> flux = historical
+                .concatWith(Flux.merge(safetyCheck, live).takeUntilOther(pastEndTime(topicContext)))
+                .filter(t -> {
+                    TopicMessage last = topicContext.getLast();
+                    return last == null || t.getSequenceNumber() > last.getSequenceNumber();
+                });
 
         if (filter.getEndTime() != null) {
             flux = flux.takeWhile(t -> t.getConsensusTimestamp() < filter.getEndTime());
@@ -103,10 +117,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         long startTime = last != null ? last.getConsensusTimestamp() + 1 : filter.getStartTime();
         var newFilter = filter.toBuilder().limit(limit).startTime(startTime).build();
 
-        return topicListener
-                .listen(newFilter)
-                .takeUntilOther(pastEndTime(topicContext))
-                .concatMap(t -> missingMessages(topicContext, t));
+        return topicListener.listen(newFilter).concatMap(t -> missingMessages(topicContext, t));
     }
 
     private Flux<Object> pastEndTime(TopicContext topicContext) {
@@ -115,8 +126,8 @@ public class TopicMessageServiceImpl implements TopicMessageService {
         }
 
         return Flux.empty()
-                .repeatWhen(Repeat.create(r -> !topicContext.isComplete(), Long.MAX_VALUE)
-                        .fixedBackoff(grpcProperties.getEndTimeInterval()));
+                .repeatWhen(RepeatSpec.create(r -> !topicContext.isComplete(), Long.MAX_VALUE)
+                        .withFixedDelay(grpcProperties.getEndTimeInterval()));
     }
 
     /**
@@ -124,22 +135,28 @@ public class TopicMessageServiceImpl implements TopicMessageService {
      * incoming flow catches up and receives the next message for the topic, it will fill in any missing messages from
      * when it was down.
      */
-    private Flux<TopicMessage> missingMessages(TopicContext topicContext, TopicMessage current) {
-        if (topicContext.isNext(current)) {
+    private Flux<TopicMessage> missingMessages(TopicContext topicContext, @Nullable TopicMessage current) {
+        final var last = topicContext.getLast();
+
+        // Safety check triggered
+        if (current == null) {
+            long startTime = last != null
+                    ? last.getConsensusTimestamp() + 1
+                    : topicContext.getFilter().getStartTime();
+            var gapFilter =
+                    topicContext.getFilter().toBuilder().startTime(startTime).build();
+            log.info("Safety check triggering gap recovery query with filter {}", gapFilter);
+            return topicMessageRetriever.retrieve(gapFilter, false);
+        }
+
+        if (last == null || topicContext.isNext(current)) {
             return Flux.just(current);
         }
 
-        TopicMessage last = topicContext.getLast();
         long numMissingMessages = current.getSequenceNumber() - last.getSequenceNumber() - 1;
 
-        // fail fast on out of order messages
-        if (numMissingMessages < -1) {
-            throw new IllegalStateException(
-                    String.format("Encountered out of order missing messages, last: %s, current: %s", last, current));
-        }
-
         // ignore duplicate message already processed by larger subscribe context
-        if (numMissingMessages == -1) {
+        if (numMissingMessages <= -1) {
             log.debug("Encountered duplicate missing message to be ignored, last: {}, current: {}", last, current);
             return Flux.empty();
         }
@@ -165,7 +182,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
 
         private final AtomicLong count;
         private final TopicMessageFilter filter;
-        private final AtomicReference<TopicMessage> last;
+        private final AtomicReference<@Nullable TopicMessage> last;
         private final long startTime;
         private final Stopwatch stopwatch;
         private final EntityId topicId;
@@ -179,7 +196,7 @@ public class TopicMessageServiceImpl implements TopicMessageService {
             this.topicId = filter.getTopicId();
         }
 
-        private TopicMessage getLast() {
+        private @Nullable TopicMessage getLast() {
             return last.get();
         }
 

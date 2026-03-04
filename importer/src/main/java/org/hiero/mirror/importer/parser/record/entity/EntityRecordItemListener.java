@@ -14,7 +14,6 @@ import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -74,6 +73,7 @@ public class EntityRecordItemListener implements RecordItemListener {
     private final TransactionHandlerFactory transactionHandlerFactory;
     private final SyntheticContractLogService syntheticContractLogService;
     private final SyntheticContractResultService syntheticContractResultService;
+    private final TransferEventsGenerator transferEventsGenerator;
 
     @Override
     public void onItem(RecordItem recordItem) throws ImporterException {
@@ -158,22 +158,25 @@ public class EntityRecordItemListener implements RecordItemListener {
         log.debug("Storing transaction: {}", transaction);
     }
 
-    private Transaction buildTransaction(EntityId entityId, RecordItem recordItem) {
-        TransactionBody body = recordItem.getTransactionBody();
-        TransactionRecord txRecord = recordItem.getTransactionRecord();
+    private Transaction buildTransaction(final EntityId entityId, final RecordItem recordItem) {
+        final var body = recordItem.getTransactionBody();
+        final var txRecord = recordItem.getTransactionRecord();
 
-        Long validDurationSeconds = body.hasTransactionValidDuration()
+        final var validDurationSeconds = body.hasTransactionValidDuration()
                 ? body.getTransactionValidDuration().getSeconds()
                 : null;
         // transactions in stream always have valid node account id.
-        var nodeAccount = EntityId.of(body.getNodeAccountID());
-        var transactionId = body.getTransactionID();
+        final var nodeAccount = EntityId.of(body.getNodeAccountID());
+        final var transactionId = body.getTransactionID();
 
         // build transaction
-        Transaction transaction = new Transaction();
+        final var transaction = new Transaction();
         transaction.setChargedTxFee(txRecord.getTransactionFee());
+        transaction.setCongestionPricingMultiplier(recordItem.getCongestionPricingMultiplier());
         transaction.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         transaction.setEntityId(entityId);
+        transaction.setHighVolume(body.getHighVolume());
+        transaction.setHighVolumePricingMultiplier(txRecord.getHighVolumePricingMultiplier());
         transaction.setIndex(recordItem.getTransactionIndex());
         transaction.setInitialBalance(0L);
         transaction.setMaxCustomFees(getMaxCustomFees(body, recordItem));
@@ -392,7 +395,6 @@ public class EntityRecordItemListener implements RecordItemListener {
                 || recordItem.getTransactionType() == TransactionType.TOKENWIPE.getProtoId();
         boolean isMint = recordItem.getTransactionType() == TransactionType.TOKENMINT.getProtoId()
                 || recordItem.getTransactionType() == TransactionType.TOKENCREATION.getProtoId();
-        boolean isSingleTransfer = tokenTransferCount == 2;
 
         for (int i = 0; i < tokenTransferCount; i++) {
             AccountAmount accountAmount = tokenTransfers.get(i);
@@ -420,9 +422,9 @@ public class EntityRecordItemListener implements RecordItemListener {
             }
 
             logTokenEvents(recordItem, tokenId, isWipeOrBurn, isMint, accountId, amount);
-
-            logTokenTransfers(recordItem, tokenId, tokenTransfers, isSingleTransfer, i, accountId, amount);
         }
+
+        transferEventsGenerator.generate(recordItem, tokenId, tokenTransfers);
     }
 
     private boolean isApprovalNftTransfer(NftTransfer nftTransfer, TokenID tokenId, TransactionBody body) {
@@ -460,23 +462,6 @@ public class EntityRecordItemListener implements RecordItemListener {
             EntityId receiverId = amount > 0 ? accountId : EntityId.EMPTY;
             syntheticContractLogService.create(
                     new TransferContractLog(recordItem, tokenId, senderId, receiverId, Math.abs(amount)));
-        }
-    }
-
-    private void logTokenTransfers(
-            RecordItem recordItem,
-            EntityId tokenId,
-            List<AccountAmount> tokenTransfers,
-            boolean isSingleTransfer,
-            int i,
-            EntityId accountId,
-            long amount) {
-        if (isSingleTransfer && amount > 0) {
-            EntityId senderId = i == 0
-                    ? EntityId.of(tokenTransfers.get(1).getAccountID())
-                    : EntityId.of(tokenTransfers.get(0).getAccountID());
-            syntheticContractLogService.create(
-                    new TransferContractLog(recordItem, tokenId, senderId, accountId, amount));
         }
     }
 

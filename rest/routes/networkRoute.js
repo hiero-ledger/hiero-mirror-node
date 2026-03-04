@@ -10,7 +10,6 @@ const router = extendExpress(express.Router());
 
 const resource = 'network';
 router.getExt('/nodes', NetworkController.getNetworkNodes);
-router.getExt('/supply', NetworkController.getSupply);
 
 export default {
   resource,

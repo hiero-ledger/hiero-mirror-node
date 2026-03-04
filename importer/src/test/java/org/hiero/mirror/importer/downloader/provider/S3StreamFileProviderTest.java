@@ -26,11 +26,6 @@ class S3StreamFileProviderTest extends AbstractStreamFileProviderTest {
         return SEPARATOR;
     }
 
-    @Override
-    protected String targetRootPath() {
-        return properties.getBucketName();
-    }
-
     @BeforeEach
     @Override
     void setup() {
@@ -42,8 +37,10 @@ class S3StreamFileProviderTest extends AbstractStreamFileProviderTest {
                 .forcePathStyle(true)
                 .region(Region.of(properties.getRegion()))
                 .build();
-        streamFileProvider = new S3StreamFileProvider(commonProperties, properties, s3AsyncClient);
+        streamFileProvider = new S3StreamFileProvider(blockProperties, commonProperties, properties, s3AsyncClient);
         s3Proxy = TestUtils.startS3Proxy(dataPath);
+        blockStreamTargetRootPath = blockProperties.getBucketName();
+        targetRootPath = properties.getBucketName();
     }
 
     @AfterEach

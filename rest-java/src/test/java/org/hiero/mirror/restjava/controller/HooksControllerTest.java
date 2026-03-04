@@ -117,7 +117,7 @@ final class HooksControllerTest extends ControllerTest {
 
             // then
             assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
-            assertThat(actual.getHeaders()).doesNotContainKey(HttpHeaders.LINK);
+            assertThat(actual.getHeaders().containsHeader(HttpHeaders.LINK)).isFalse();
         }
 
         @Test
@@ -179,7 +179,7 @@ final class HooksControllerTest extends ControllerTest {
             // then
             assertThat(actual.getBody()).isNotNull().isEqualTo(expectedResponse);
             assertThat(actual.getBody().getHooks()).hasSize(limit);
-            assertThat(actual.getHeaders()).containsEntry(HttpHeaders.LINK, List.of(LINK_HEADER.formatted(nextLink)));
+            assertThat(actual.getHeaders().containsHeaderValue(HttpHeaders.LINK, LINK_HEADER.formatted(nextLink)));
         }
 
         @ParameterizedTest

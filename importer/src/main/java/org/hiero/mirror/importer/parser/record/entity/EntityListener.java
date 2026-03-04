@@ -20,6 +20,7 @@ import org.hiero.mirror.common.domain.file.FileData;
 import org.hiero.mirror.common.domain.hook.Hook;
 import org.hiero.mirror.common.domain.hook.HookStorageChange;
 import org.hiero.mirror.common.domain.node.Node;
+import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.common.domain.token.CustomFee;
 import org.hiero.mirror.common.domain.token.Nft;
@@ -38,6 +39,7 @@ import org.hiero.mirror.common.domain.transaction.Prng;
 import org.hiero.mirror.common.domain.transaction.StakingRewardTransfer;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionSignature;
+import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.exception.ImporterException;
 
 /**
@@ -81,6 +83,8 @@ public interface EntityListener {
 
     default void onHookStorageChange(HookStorageChange storageChange) throws ImporterException {}
 
+    default void onLedger(Ledger ledger) throws ImporterException {}
+
     default void onLiveHash(LiveHash liveHash) throws ImporterException {}
 
     default void onNetworkFreeze(NetworkFreeze networkFreeze) {}
@@ -96,6 +100,8 @@ public interface EntityListener {
     default void onNodeStake(NodeStake nodeStake) throws ImporterException {}
 
     default void onPrng(Prng prng) {}
+
+    default void onRegisteredNode(RegisteredNode registeredNode) throws ImporterException {}
 
     default void onSchedule(Schedule schedule) throws ImporterException {}
 

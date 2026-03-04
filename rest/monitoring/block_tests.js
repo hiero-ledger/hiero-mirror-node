@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-import config from './config';
+import {map, max} from 'lodash-es';
 
 import {
   checkAPIResponseError,
@@ -18,7 +17,6 @@ import {
 
 const blocksPath = '/blocks';
 const resource = 'block';
-const resourceLimit = config[resource].limit || DEFAULT_LIMIT;
 const jsonRespKey = 'blocks';
 const mandatoryParams = [
   'count',
@@ -58,7 +56,7 @@ const getSingleBlockById = async (server) => {
     return {url, ...result};
   }
 
-  const highestBlock = _.max(_.map(blocks, (block) => block.number));
+  const highestBlock = max(map(blocks, (block) => block.number));
   url = getUrl(server, `${blocksPath}/${highestBlock}`);
   const singleBlock = await fetchAPIResponse(url);
 

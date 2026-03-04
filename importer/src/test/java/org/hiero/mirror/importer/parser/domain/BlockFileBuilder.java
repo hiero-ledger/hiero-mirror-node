@@ -54,7 +54,6 @@ public class BlockFileBuilder {
                 .items(blockTransactions)
                 .loadStart(System.currentTimeMillis())
                 .name(filename)
-                .nodeId(domainBuilder.number())
                 .node(domainBuilder.text(10))
                 .previousHash(DomainUtils.bytesToHex(previousHash))
                 .roundEnd(blockNumber + 1)

@@ -45,7 +45,7 @@ class RuntimeHintsConfiguration {
                             .registerType(
                                     TypeReference.of(b.getBeanClassName()),
                                     MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                                    MemberCategory.DECLARED_FIELDS,
+                                    MemberCategory.ACCESS_DECLARED_FIELDS,
                                     MemberCategory.INVOKE_PUBLIC_METHODS));
         }
 
@@ -58,7 +58,7 @@ class RuntimeHintsConfiguration {
             final var scanner = new ClassPathScanningCandidateComponentProvider(false);
             scanner.addIncludeFilter(new AssignableTypeFilter(GeneratedMessageLite.class));
             scanner.findCandidateComponents(Transaction.class.getPackageName()).forEach(b -> hints.reflection()
-                    .registerType(TypeReference.of(b.getBeanClassName()), MemberCategory.DECLARED_FIELDS));
+                    .registerType(TypeReference.of(b.getBeanClassName()), MemberCategory.ACCESS_DECLARED_FIELDS));
         }
 
         /**
@@ -74,7 +74,7 @@ class RuntimeHintsConfiguration {
                             .registerType(
                                     TypeReference.of(b.getBeanClassName()),
                                     MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                                    MemberCategory.DECLARED_FIELDS,
+                                    MemberCategory.ACCESS_DECLARED_FIELDS,
                                     MemberCategory.INVOKE_PUBLIC_METHODS));
         }
     }

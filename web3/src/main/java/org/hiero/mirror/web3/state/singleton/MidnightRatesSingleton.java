@@ -4,23 +4,38 @@ package org.hiero.mirror.web3.state.singleton;
 
 import static com.hedera.node.app.fees.schemas.V0490FeeSchema.MIDNIGHT_RATES_STATE_ID;
 
+import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import jakarta.inject.Named;
 import lombok.SneakyThrows;
+import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
+import org.hiero.mirror.web3.state.SystemFileLoader;
+import org.hiero.mirror.web3.state.Utils;
 
 @Named
 final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
 
+    private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
+
     private final ExchangeRateSet cachedExchangeRateSet;
+    private final SystemFileLoader systemFileLoader;
+    private final FileID exchangeRateFileId;
 
     @SneakyThrows
-    public MidnightRatesSingleton(final EvmProperties evmProperties) {
+    public MidnightRatesSingleton(
+            final EvmProperties evmProperties,
+            final SystemFileLoader systemFileLoader,
+            final SystemEntity systemEntity) {
         V0490FileSchema fileSchema = new V0490FileSchema();
         this.cachedExchangeRateSet = ExchangeRateSet.PROTOBUF.parse(
                 fileSchema.genesisExchangeRates(evmProperties.getVersionedConfiguration()));
+        this.systemFileLoader = systemFileLoader;
+        this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
     }
 
     @Override
@@ -36,6 +51,31 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
     @SneakyThrows
     @Override
     public ExchangeRateSet get() {
-        return cachedExchangeRateSet;
+        final var context = ContractCallContext.get();
+        long timestamp = context.getTimestamp().orElse(Utils.getCurrentTimestamp());
+        // Round the timestamp down to the nearest hour. The file is updated every hour; all timestamps
+        // in that hour use the same file, so round here to reduce DB calls and cache entries.
+        timestamp = roundDownToHour(timestamp);
+
+        // Return result from the transaction cache if possible to avoid unnecessary calls to the DB
+        // and protobuf parsing. The result will be correct since the record file timestamp will be
+        // consistent throughout the transaction execution.
+        final var cache = context.getReadCacheState(getStateId());
+        final var cached = cache.get(timestamp);
+        if (cached instanceof ExchangeRateSet rates) {
+            return rates;
+        }
+
+        final var file = systemFileLoader.load(exchangeRateFileId, timestamp);
+        final var rates = file != null ? ExchangeRateSet.PROTOBUF.parse(file.contents()) : cachedExchangeRateSet;
+        cache.put(timestamp, rates);
+        return rates;
+    }
+
+    /**
+     * Rounds the given consensus timestamp (nanoseconds) down to the start of the hour (e.g. 00:00, 01:00, 02:00).
+     */
+    private long roundDownToHour(long consensusTimestampNanos) {
+        return (consensusTimestampNanos / NANOS_PER_HOUR) * NANOS_PER_HOUR;
     }
 }
