@@ -6,8 +6,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
+import com.hedera.hapi.node.base.Transaction;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,12 +80,11 @@ final class NetworkController {
             consumes = {"application/protobuf", "application/x-protobuf"},
             value = "/fees")
     FeeEstimateResponse estimateFees(
-            @RequestBody byte[] body,
+            @RequestBody @NotNull byte[] body,
             @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
         try {
-            final var pbjTxn =
-                    com.hedera.hapi.node.base.Transaction.PROTOBUF.parse(body != null ? Bytes.wrap(body) : Bytes.EMPTY);
-            return toResponse(feeEstimationService.estimateFees(pbjTxn, mode));
+            final var transaction = Transaction.PROTOBUF.parse(Bytes.wrap(body));
+            return toResponse(feeEstimationService.estimateFees(transaction, mode));
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         }
@@ -115,16 +116,18 @@ final class NetworkController {
         return ResponseEntity.ok(networkSupplyMapper.map(networkSupply));
     }
 
-    private static FeeEstimateResponse toResponse(FeeResult r) {
+    private static FeeEstimateResponse toResponse(FeeResult feeResult) {
         return new FeeEstimateResponse()
-                .node(new FeeEstimate().base(r.getNodeBaseFeeTinycents()).extras(toExtras(r.getNodeExtraDetails())))
+                .node(new FeeEstimate()
+                        .base(feeResult.getNodeBaseFeeTinycents())
+                        .extras(toExtras(feeResult.getNodeExtraDetails())))
                 .network(new FeeEstimateNetwork()
-                        .multiplier(r.getNetworkMultiplier())
-                        .subtotal(r.getNetworkTotalTinycents()))
+                        .multiplier(feeResult.getNetworkMultiplier())
+                        .subtotal(feeResult.getNetworkTotalTinycents()))
                 .service(new FeeEstimate()
-                        .base(r.getServiceBaseFeeTinycents())
-                        .extras(toExtras(r.getServiceExtraDetails())))
-                .total(r.totalTinycents());
+                        .base(feeResult.getServiceBaseFeeTinycents())
+                        .extras(toExtras(feeResult.getServiceExtraDetails())))
+                .total(feeResult.totalTinycents());
     }
 
     private static List<FeeExtra> toExtras(List<FeeResult.FeeDetail> details) {
@@ -132,19 +135,19 @@ final class NetworkController {
             return List.of();
         }
         final var extras = new ArrayList<FeeExtra>(details.size());
-        for (var d : details) {
-            extras.add(toExtra(d));
+        for (var detail : details) {
+            extras.add(toExtra(detail));
         }
         return extras;
     }
 
-    private static FeeExtra toExtra(FeeResult.FeeDetail d) {
+    private static FeeExtra toExtra(FeeResult.FeeDetail detail) {
         return new FeeExtra()
-                .charged(d.charged())
-                .count(d.used())
-                .feePerUnit(d.perUnit())
-                .included(d.included())
-                .name(d.name())
-                .subtotal(d.perUnit() * d.charged());
+                .charged(detail.charged())
+                .count(detail.used())
+                .feePerUnit(detail.perUnit())
+                .included(detail.included())
+                .name(detail.name())
+                .subtotal(detail.perUnit() * detail.charged());
     }
 }

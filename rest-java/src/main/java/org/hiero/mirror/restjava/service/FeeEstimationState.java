@@ -36,17 +36,20 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.base.crypto.Hash;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("NullableProblems")
-final class FeeEstimationState implements State {
+public final class FeeEstimationState implements State {
 
     private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
     private final Map<String, ReadableStates> readableStatesCache = new ConcurrentHashMap<>();
 
     @SuppressWarnings("unchecked")
-    FeeEstimationState(Bytes simpleFeeBytes) {
-        var midnightRates = ExchangeRateSet.newBuilder()
+    public FeeEstimationState(Bytes simpleFeeBytes, SystemEntity systemEntity) {
+        // Fake exchange rate — not used by calculateIntrinsic(); FeeService requires a non-null entry during
+        // initialization.
+        final var midnightRates = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
                         .centEquiv(12)
                         .hbarEquiv(1)
@@ -60,21 +63,26 @@ final class FeeEstimationState implements State {
                 .build();
         addSingleton(FeeService.NAME, V0490FeeSchema.MIDNIGHT_RATES_STATE_ID, midnightRates);
 
-        var addressBook = NodeAddressBook.newBuilder()
+        // Fake address book — only the shape matters for fee calculation; contents are not read at runtime.
+        final var addressBook = NodeAddressBook.newBuilder()
                 .nodeAddress(NodeAddress.newBuilder()
                         .nodeId(0)
                         .nodeAccountId(AccountID.newBuilder().accountNum(3).build())
                         .stake(1)
                         .build())
                 .build();
-        var bytes = NodeAddressBook.PROTOBUF.toBytes(addressBook);
-        var file = File.newBuilder().contents(bytes).build();
-        var fileId = FileID.newBuilder().fileNum(102).build();
-        var files = (Map<FileID, File>) states.computeIfAbsent(FileService.NAME, _ -> new ConcurrentHashMap<>())
+        final var bytes = NodeAddressBook.PROTOBUF.toBytes(addressBook);
+        final var file = File.newBuilder().contents(bytes).build();
+        final var fileId102 = FileID.newBuilder()
+                .fileNum(systemEntity.addressBookFile102().getNum())
+                .build();
+        final var files = (Map<FileID, File>) states.computeIfAbsent(FileService.NAME, _ -> new ConcurrentHashMap<>())
                 .computeIfAbsent(V0490FileSchema.FILES_STATE_ID, _ -> new ConcurrentHashMap<>());
-        files.put(fileId, file);
+        files.put(fileId102, file);
         files.put(
-                FileID.newBuilder().fileNum(113).build(),
+                FileID.newBuilder()
+                        .fileNum(systemEntity.simpleFeeScheduleFile().getNum())
+                        .build(),
                 File.newBuilder().contents(simpleFeeBytes).build());
 
         addSingleton(
@@ -95,14 +103,14 @@ final class FeeEstimationState implements State {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public ReadableStates getReadableStates(String serviceName) {
         return readableStatesCache.computeIfAbsent(serviceName, s -> {
-            var serviceStates = states.get(s);
+            final var serviceStates = states.get(s);
             if (serviceStates == null) {
                 return new LenientReadableStates(Map.of());
             }
-            Map<Integer, Object> wrapped = new HashMap<>();
+            final var wrapped = new HashMap<Integer, Object>();
             for (var entry : serviceStates.entrySet()) {
-                int stateId = entry.getKey();
-                Object state = entry.getValue();
+                final var stateId = entry.getKey();
+                final var state = entry.getValue();
                 if (state instanceof Map map) {
                     wrapped.put(stateId, new InMemoryReadableKVState<>(stateId, map));
                 } else if (state instanceof AtomicReference ref) {
@@ -138,7 +146,7 @@ final class FeeEstimationState implements State {
         @Override
         @SuppressWarnings("unchecked")
         public <K, V> InMemoryReadableKVState<K, V> get(int stateId) {
-            var state = stateMap.get(stateId);
+            final var state = stateMap.get(stateId);
             if (state != null) {
                 return (InMemoryReadableKVState<K, V>) state;
             }
@@ -148,7 +156,7 @@ final class FeeEstimationState implements State {
         @Override
         @SuppressWarnings("unchecked")
         public <T> ReadableSingletonStateBase<T> getSingleton(int stateId) {
-            var state = stateMap.get(stateId);
+            final var state = stateMap.get(stateId);
             if (state != null) {
                 return (ReadableSingletonStateBase<T>) state;
             }
@@ -158,7 +166,7 @@ final class FeeEstimationState implements State {
         @Override
         @SuppressWarnings("unchecked")
         public <E> InMemoryReadableQueueState<E> getQueue(int stateId) {
-            var state = stateMap.get(stateId);
+            final var state = stateMap.get(stateId);
             if (state != null) {
                 return (InMemoryReadableQueueState<E>) state;
             }

@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.service;
 
 import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import jakarta.inject.Named;
@@ -42,6 +43,20 @@ final class FileServiceImpl implements FileService {
     @Override
     public SystemFile<CurrentAndNextFeeSchedule> getFeeSchedule(Bound timestamp) {
         return getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
+    }
+
+    @Override
+    public Bytes getSimpleFeeScheduleBytes() {
+        final var entityId = systemEntity.simpleFeeScheduleFile();
+        try {
+            return retryTemplate
+                    .execute(() -> fileDataRepository
+                            .getFileAtTimestamp(entityId.getId(), 0L, Long.MAX_VALUE)
+                            .map(fd -> Bytes.wrap(fd.getFileData())))
+                    .orElseThrow(() -> new EntityNotFoundException("File %s not found".formatted(entityId)));
+        } catch (RetryException e) {
+            throw new EntityNotFoundException("File %s not found".formatted(entityId), e);
+        }
     }
 
     /*

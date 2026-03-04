@@ -5,6 +5,7 @@ package org.hiero.mirror.restjava.controller;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
@@ -18,6 +19,7 @@ import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Set;
@@ -53,6 +55,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
@@ -549,6 +552,7 @@ final class NetworkControllerTest extends ControllerTest {
         @ValueSource(strings = {"protobuf", "x-protobuf"})
         void success(String mediaType) {
             // given
+            seedFeeSchedule();
             final var transaction = transaction();
 
             // when
@@ -560,12 +564,20 @@ final class NetworkControllerTest extends ControllerTest {
                     .retrieve()
                     .body(FeeEstimateResponse.class);
 
-            // then
-            assertThat(actual).isNotNull();
-            assertThat(actual.getNode()).isNotNull();
-            assertThat(actual.getNetwork()).isNotNull();
-            assertThat(actual.getService()).isNotNull();
-            assertThat(actual.getTotal()).isNotNull();
+            // then — verify every mapped field is correctly populated
+            final var nodeBase = actual.getNode().getBase();
+            final var networkMultiplier = actual.getNetwork().getMultiplier();
+            // node: base fee is positive; CryptoTransfer with 0 signatures has no extras
+            assertThat(nodeBase).isPositive();
+            assertThat(actual.getNode().getExtras()).isEqualTo(List.of());
+            // network: multiplier is positive; subtotal = node.base × multiplier
+            assertThat(networkMultiplier).isPositive();
+            assertThat(actual.getNetwork().getSubtotal()).isEqualTo(nodeBase * networkMultiplier);
+            // service: CryptoTransfer has no service fee and no extras
+            assertThat(actual.getService().getBase()).isZero();
+            assertThat(actual.getService().getExtras()).isEqualTo(List.of());
+            // total = node.base + network.subtotal (no service fee)
+            assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
         }
 
         @Test
@@ -639,6 +651,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void invalidSignedTransaction() {
             // given
+            seedFeeSchedule();
             final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
             final var transaction = Transaction.newBuilder()
                     .setSignedTransactionBytes(bytes)
@@ -673,6 +686,24 @@ final class NetworkControllerTest extends ControllerTest {
                             .body(FeeEstimateResponse.class),
                     HttpClientErrorException.UnsupportedMediaType.class,
                     "Content-Type 'application/json' is not supported");
+        }
+
+        private void seedFeeSchedule() {
+            try (final var in = new ClassPathResource(
+                            "genesis/simpleFeesSchedules.json", V0490FileSchema.class.getClassLoader())
+                    .getInputStream()) {
+                final var pbjFeeSchedule = V0490FileSchema.parseSimpleFeesSchedules(in.readAllBytes());
+                final var feeBytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                        .toBytes(pbjFeeSchedule)
+                        .toByteArray();
+                domainBuilder
+                        .fileData()
+                        .customize(f ->
+                                f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
+                        .persist();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         private byte[] transaction() {
