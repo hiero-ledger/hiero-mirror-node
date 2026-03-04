@@ -494,8 +494,7 @@ class OpcodeActionTracerTest {
         // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
-                .isEqualTo(getAbiEncodedRevertReason(Bytes.of(contractActionWithRevert.getResultData()))
-                        .toHexString());
+                .isEqualTo(getAbiEncodedRevertReason(contractActionWithRevert.getResultData()));
     }
 
     @Test
@@ -523,9 +522,8 @@ class OpcodeActionTracerTest {
         // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
-                .isEqualTo(getAbiEncodedRevertReason(Bytes.of(
-                                ResponseCodeEnum.INVALID_ACCOUNT_ID.name().getBytes()))
-                        .toHexString());
+                .isEqualTo(getAbiEncodedRevertReason(
+                        ResponseCodeEnum.INVALID_ACCOUNT_ID.name().getBytes()));
     }
 
     @Test
@@ -535,9 +533,9 @@ class OpcodeActionTracerTest {
         final var contractActionNoRevert = getContractActionNoRevert();
         final var contractActionWithRevert =
                 contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-        contractActionWithRevert.setResultData(
-                getAbiEncodedRevertReason(Bytes.of(INVALID_OPERATION.name().getBytes()))
-                        .toArray());
+        contractActionWithRevert.setResultData(Bytes.fromHexString(
+                        getAbiEncodedRevertReason(INVALID_OPERATION.name().getBytes()))
+                .toArray());
 
         frame = setupInitialFrame(
                 tracerOptions, CONTRACT_ADDRESS, MESSAGE_CALL, contractActionNoRevert, contractActionWithRevert);

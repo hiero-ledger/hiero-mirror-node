@@ -11,14 +11,12 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 
 @UtilityClass
 public class BytesDecoder {
 
     // Error(string)
-    private static final String ERROR_FUNCTION_SELECTOR_HEX = "0x08c379a0";
-    private static final Bytes ERROR_FUNCTION_SELECTOR = Bytes.fromHexString(ERROR_FUNCTION_SELECTOR_HEX);
+    private static final String ERROR_FUNCTION_SELECTOR_HEX = "08c379a0";
     private static final int ERROR_FUNCTION_SELECTOR_LENGTH = 4;
     private static final ABIType<Tuple> STRING_DECODER = TypeFactory.create("(string)");
 
@@ -47,38 +45,80 @@ public class BytesDecoder {
         return StringUtils.EMPTY;
     }
 
-    public static Bytes getAbiEncodedRevertReason(final String revertReason) {
+    /**
+     * Returns an ABI-encoded revert reason as a hex string with "0x" prefix.
+     * If the input is already ABI-encoded, returns it as-is.
+     * Otherwise, encodes the input string as an Error(string) ABI call.
+     *
+     * @param revertReason the revert reason (plain text or hex string)
+     * @return the ABI-encoded revert reason as hex string with "0x" prefix
+     */
+    public static String getAbiEncodedRevertReason(final String revertReason) {
         if (revertReason == null || revertReason.isEmpty()) {
-            return Bytes.EMPTY;
+            return HEX_PREFIX;
         }
         if (revertReason.startsWith(HEX_PREFIX)) {
-            return getAbiEncodedRevertReason(Bytes.fromHexString(revertReason));
+            String hex = revertReason.substring(2);
+            if (hex.isEmpty()) {
+                return HEX_PREFIX;
+            }
+            if (isAbiEncodedErrorString(revertReason)) {
+                return revertReason;
+            }
+            try {
+                byte[] bytes = Hex.decodeHex(hex);
+                if (bytes.length == 0) {
+                    return HEX_PREFIX;
+                }
+                return getAbiEncodedRevertReasonFromBytes(bytes);
+            } catch (DecoderException e) {
+                return getAbiEncodedRevertReasonFromPlainText(revertReason);
+            }
         }
-        return getAbiEncodedRevertReason(Bytes.of(revertReason.getBytes()));
+        return getAbiEncodedRevertReasonFromPlainText(revertReason);
     }
 
-    public static Bytes getAbiEncodedRevertReason(final Bytes revertReason) {
-        if (revertReason == null || revertReason.isEmpty()) {
-            return Bytes.EMPTY;
+    /**
+     * Returns an ABI-encoded revert reason as a hex string with "0x" prefix.
+     *
+     * @param revertReasonBytes the revert reason as raw bytes
+     * @return the ABI-encoded revert reason as hex string with "0x" prefix
+     */
+    public static String getAbiEncodedRevertReason(final byte[] revertReasonBytes) {
+        if (revertReasonBytes == null || revertReasonBytes.length == 0) {
+            return HEX_PREFIX;
         }
-        if (isAbiEncodedErrorString(revertReason)) {
-            return revertReason;
+        String hexString = HEX_PREFIX + Hex.encodeHexString(revertReasonBytes);
+        if (isAbiEncodedErrorString(hexString)) {
+            return hexString;
         }
-        String revertReasonPlain = new String(revertReason.toArray());
-        return Bytes.concatenate(
-                ERROR_FUNCTION_SELECTOR, Bytes.wrapByteBuffer(STRING_DECODER.encode(Tuple.from(revertReasonPlain))));
+        return getAbiEncodedRevertReasonFromBytes(revertReasonBytes);
+    }
+
+    private static String getAbiEncodedRevertReasonFromBytes(final byte[] bytes) {
+        String revertReasonPlain = new String(bytes);
+        return getAbiEncodedRevertReasonFromPlainText(revertReasonPlain);
+    }
+
+    private static String getAbiEncodedRevertReasonFromPlainText(final String plainText) {
+        byte[] selectorBytes;
+        try {
+            selectorBytes = Hex.decodeHex(ERROR_FUNCTION_SELECTOR_HEX);
+        } catch (DecoderException e) {
+            return HEX_PREFIX;
+        }
+        byte[] encodedMessage = STRING_DECODER.encode(Tuple.from(plainText)).array();
+        byte[] result = new byte[selectorBytes.length + encodedMessage.length];
+        System.arraycopy(selectorBytes, 0, result, 0, selectorBytes.length);
+        System.arraycopy(encodedMessage, 0, result, selectorBytes.length, encodedMessage.length);
+        return HEX_PREFIX + Hex.encodeHexString(result);
     }
 
     private static boolean isAbiEncodedErrorString(final String revertReasonHex) {
         if (revertReasonHex == null || revertReasonHex.isEmpty()) {
             return false;
         }
-        String lowerHex = revertReasonHex.toLowerCase();
-        return lowerHex.startsWith(ERROR_FUNCTION_SELECTOR_HEX);
-    }
-
-    private static boolean isAbiEncodedErrorString(final Bytes revertReason) {
-        return revertReason != null
-                && revertReason.commonPrefixLength(ERROR_FUNCTION_SELECTOR) == ERROR_FUNCTION_SELECTOR.size();
+        String hex = revertReasonHex.startsWith(HEX_PREFIX) ? revertReasonHex.substring(2) : revertReasonHex;
+        return hex.toLowerCase().startsWith(ERROR_FUNCTION_SELECTOR_HEX);
     }
 }

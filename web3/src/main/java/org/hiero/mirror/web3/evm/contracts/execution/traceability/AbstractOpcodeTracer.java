@@ -123,10 +123,12 @@ public abstract class AbstractOpcodeTracer {
         if (trimmedReason.size() <= Integer.BYTES) {
             final var responseCode = ResponseCodeEnum.forNumber(trimmedReason.toInt());
             if (responseCode != null) {
-                return BytesDecoder.getAbiEncodedRevertReason(responseCode.name());
+                String hexResult = BytesDecoder.getAbiEncodedRevertReason(responseCode.name());
+                return Bytes.fromHexString(hexResult);
             }
         }
 
-        return BytesDecoder.getAbiEncodedRevertReason(revertReason);
+        String hexResult = BytesDecoder.getAbiEncodedRevertReason(revertReason.toArray());
+        return Bytes.fromHexString(hexResult);
     }
 }

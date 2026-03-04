@@ -3,8 +3,8 @@
 package org.hiero.mirror.web3.convert;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
-import org.apache.tuweni.bytes.Bytes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -41,16 +41,16 @@ class BytesDecoderTest {
             """)
     @ParameterizedTest
     void getAbiEncodedRevertReason(String input, String output) {
-        assertThat(BytesDecoder.getAbiEncodedRevertReason(input)).isEqualTo(Bytes.fromHexString(output));
+        assertThat(BytesDecoder.getAbiEncodedRevertReason(input)).isEqualTo(output);
     }
 
     @Test
     void getAbiEncodedRevertReasonWithNullString() {
-        assertThat(BytesDecoder.getAbiEncodedRevertReason((String) null)).isEqualTo(Bytes.EMPTY);
+        assertThat(BytesDecoder.getAbiEncodedRevertReason((String) null)).isEqualTo(HEX_PREFIX);
     }
 
     @Test
     void getAbiEncodedRevertReasonWithNullBytes() {
-        assertThat(BytesDecoder.getAbiEncodedRevertReason((Bytes) null)).isEqualTo(Bytes.EMPTY);
+        assertThat(BytesDecoder.getAbiEncodedRevertReason((byte[]) null)).isEqualTo(HEX_PREFIX);
     }
 }
