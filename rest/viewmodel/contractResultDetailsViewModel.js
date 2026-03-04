@@ -89,7 +89,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       // After migration, DB contains weibar values
       if (convertToHbar) {
         // Convert from weibar to tinybar for backward compatibility
-        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value);
+        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value, true);
       } else {
         // Return raw weibar values from DB
         this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
@@ -148,45 +148,125 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * Converts weibar byte array to tinybar BigInt
    * Divides by 10,000,000,000 (WEIBARS_TO_TINYBARS)
    * @param {Buffer|null} weibarBytes
+   * @param {boolean} signed - If true, interpret as signed (two's complement)
    * @returns {BigInt|null}
    */
-  static _convertWeibarToTinybar(weibarBytes) {
-    if (_.isNil(weibarBytes) || weibarBytes.length === 0) {
+  static _convertWeibarToTinybar(weibarBytes, signed = false) {
+    if (!weibarBytes || weibarBytes.length === 0) {
       return null;
     }
-
-    const weibar = BigInt(utils.addHexPrefix(Buffer.from(weibarBytes).toString('hex')));
+    // Ensure Buffer
+    let input;
+    if (Buffer.isBuffer(weibarBytes)) {
+      input = weibarBytes;
+    } else {
+      let hexString = weibarBytes.replace('0x', '');
+      // Pad to even length (Buffer.from requires even number of hex chars)
+      if (hexString.length % 2 !== 0) {
+        hexString = '0' + hexString;
+      }
+      input = Buffer.from(hexString, 'hex');
+    }
+    // ---- Step 1: Java BigInteger constructor behavior ----
+    let value;
+    if (signed) {
+      // Interpret as two's complement (like new BigInteger(bytes))
+      value = this._bytesToSignedBigInt(input);
+    } else {
+      // Interpret as unsigned (like new BigInteger(1, bytes))
+      value = BigInt('0x' + input.toString('hex'));
+    }
+    // ---- Step 2: divide (truncates toward zero like Java) ----
     const divisor = 10_000_000_000n;
-    return weibar / divisor;
+    // WEIBARS_TO_TINYBARS_BIGINT
+    return value / divisor;
   }
 
-  /**
-   * Converts weibar byte array to hex string after converting to tinybar
-   * @param {Buffer|null} weibarBytes
-   * @returns {string|null}
-   */
-  static _convertWeibarBytesToHex(weibarBytes) {
-    if (_.isNil(weibarBytes) || weibarBytes.length === 0) {
-      return null;
+  static _bytesToSignedBigInt(buffer) {
+    if (buffer.length === 0) {
+      return 0n;
     }
 
-    const tinybar = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarBytes);
-    if (tinybar === null) {
-      return null;
+    const hex = buffer.toString('hex');
+    let value = BigInt('0x' + hex);
+
+    const bits = BigInt(buffer.length * 8);
+    const signBit = 1n << (bits - 1n);
+
+    if (value & signBit) {
+      value -= 1n << bits;
     }
 
-    // Convert tinybar BigInt to hex bytes
-    let hex = tinybar.toString(16);
-    if (hex === '0') {
-      return '0x0';
+    return value;
+  }
+
+  static _bigIntToMinimalTwosComplementBytes(value) {
+    if (value === 0n) {
+      return Buffer.from([0]);
     }
 
-    // Ensure even length for proper hex encoding
-    if (hex.length % 2 !== 0) {
+    const negative = value < 0n;
+
+    if (!negative) {
+      let hex = value.toString(16);
+      if (hex.length % 2) {
+        hex = '0' + hex;
+      }
+
+      let bytes = Buffer.from(hex, 'hex');
+
+      if (bytes[0] & 0x80) {
+        bytes = Buffer.concat([Buffer.from([0]), bytes]);
+      }
+
+      return bytes;
+    }
+
+    let abs = -value;
+    let hex = abs.toString(16);
+    if (hex.length % 2) {
       hex = '0' + hex;
     }
 
-    return utils.toHexStringQuantity(Buffer.from(hex, 'hex'));
+    let bytes = Buffer.from(hex, 'hex');
+
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = ~bytes[i] & 0xff;
+    }
+
+    for (let i = bytes.length - 1; i >= 0; i--) {
+      bytes[i]++;
+      if (bytes[i] <= 0xff) {
+        break;
+      }
+      bytes[i] = 0;
+    }
+
+    if (!(bytes[0] & 0x80)) {
+      bytes = Buffer.concat([Buffer.from([0xff]), bytes]);
+    }
+
+    return bytes;
+  }
+
+  /**
+   * Converts weibar bytes to hex string, converting to tinybar in the process
+   * @param {Buffer|null} weibarBytes
+   * @returns {string|null} Hex string representation of tinybar value
+   */
+  static _convertWeibarBytesToHex(weibarBytes) {
+    if (isNil(weibarBytes) || weibarBytes.length === 0) {
+      return '0x';
+    }
+
+    const tinybarBigInt = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarBytes, false);
+    if (tinybarBigInt === null) {
+      return '0x';
+    }
+
+    // Convert tinybar BigInt to minimal two's complement bytes, then to hex string
+    const tinybarBytes = ContractResultDetailsViewModel._bigIntToMinimalTwosComplementBytes(tinybarBigInt);
+    return utils.toHexStringQuantity(tinybarBytes);
   }
 }
 

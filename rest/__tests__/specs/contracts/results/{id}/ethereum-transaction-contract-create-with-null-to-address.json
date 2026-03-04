@@ -54,8 +54,8 @@
         "consensus_timestamp": 167654000123456,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
         "payer_account_id": "8001",
-        "value": "0x0077359400",
-        "_value_description": "2000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00",
+        "value": "0x0001158e460913d00000",
+        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
         "to_address": null
       }
     ]

@@ -104,32 +104,32 @@
         "consensus_timestamp": 167654000123456,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
         "payer_account_id": "8001",
-        "value": "0x0077359400",
-        "_value_description": "2000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00"
+        "value": "0x0001158e460913d00000",
+        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
       },
       {
         "call_data": "0x0707",
         "consensus_timestamp": 167654000123457,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6393",
         "payer_account_id": "8001",
-        "value": "0x00B2D05E00",
-        "_value_description": "3000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00"
+        "value": "0x0001A055690D9DB80000",
+        "_value_description": "3000000000 tinybars = 30000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
       },
       {
         "call_data": "0x0808",
         "consensus_timestamp": 167654000123458,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6394",
         "payer_account_id": "8001",
-        "value": "0x00EE6B2800",
-        "_value_description": "4000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00"
+        "value": "0x0022B1C8C1227A00000",
+        "_value_description": "4000000000 tinybars = 40000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
       },
       {
         "call_data": "0x0909",
         "consensus_timestamp": 167654000123459,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6395",
         "payer_account_id": "8001",
-        "value": "0x0012A05F200",
-        "_value_description": "5000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00"
+        "value": "0x002B5E3AF16B1880000",
+        "_value_description": "5000000000 tinybars = 50000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00"
       }
     ]
   },

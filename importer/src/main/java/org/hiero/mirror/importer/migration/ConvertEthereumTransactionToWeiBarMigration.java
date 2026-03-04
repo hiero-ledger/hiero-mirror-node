@@ -15,7 +15,7 @@ import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
 
 @Named
-public class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJavaMigration {
+final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJavaMigration {
 
     private static final String SELECT_TRANSACTIONS_SQL =
             "select consensus_timestamp, data from ethereum_transaction order by consensus_timestamp";
@@ -46,7 +46,7 @@ public class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJav
 
     @Override
     public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.23.0") : MigrationVersion.fromVersion("1.118.0");
+        return v2 ? MigrationVersion.fromVersion("2.23.3") : MigrationVersion.fromVersion("1.118.3");
     }
 
     @Override
