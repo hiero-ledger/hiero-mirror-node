@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {map, max} from 'lodash-es';
 import config from './config';
 
 import {
@@ -39,7 +39,7 @@ const getScheduleById = async (server) => {
     return {url, ...result};
   }
 
-  const scheduleId = _.max(_.map(schedules, (schedule) => schedule.schedule_id));
+  const scheduleId = max(map(schedules, (schedule) => schedule.schedule_id));
   url = getUrl(server, `${schedulesPath}/${scheduleId}`);
   const schedule = await fetchAPIResponse(url);
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isNil, range} from 'lodash-es';
 
 import {Cache} from './cache';
 import config from './config';
@@ -125,7 +125,7 @@ const createCryptoTransferList = (cryptoTransferList) => {
     return {
       account: EntityId.parse(accountId).toString(),
       amount,
-      is_approval: _.isNil(is_approval) ? false : is_approval,
+      is_approval: isNil(is_approval) ? false : is_approval,
     };
   });
 };
@@ -147,7 +147,7 @@ const createTokenTransferList = (tokenTransferList) => {
       token_id: EntityId.parse(tokenId).toString(),
       account: EntityId.parse(accountId).toString(),
       amount,
-      is_approval: _.isNil(is_approval) ? false : is_approval,
+      is_approval: isNil(is_approval) ? false : is_approval,
     };
   });
 };
@@ -231,7 +231,7 @@ const getStakingRewardTimestamps = (transactions) => {
   return transactions
     .filter(
       (transaction) =>
-        !_.isNil(transaction.crypto_transfer_list) &&
+        !isNil(transaction.crypto_transfer_list) &&
         transaction.crypto_transfer_list.some(
           (cryptoTransfer) => cryptoTransfer.entity_id === EntityId.systemEntity.stakingRewardAccount.getEncodedId()
         )
@@ -263,7 +263,7 @@ const getStakingRewardTransferList = async (stakingRewardTimestamps) => {
     return [];
   }
 
-  const positions = _.range(1, stakingRewardTimestamps.length + 1).map((position) => `$${position}`);
+  const positions = range(1, stakingRewardTimestamps.length + 1).map((position) => `$${position}`);
   const query = `
       select ${StakingRewardTransfer.CONSENSUS_TIMESTAMP},
              json_agg(json_build_object(

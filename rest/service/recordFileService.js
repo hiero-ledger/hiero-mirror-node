@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-
 import BaseService from './baseService';
 import config from '../config';
 import {RecordFile} from '../model';
@@ -80,7 +78,7 @@ class RecordFileService extends BaseService {
   async getRecordFileBlockDetailsFromTimestamp(timestamp) {
     const row = await super.getSingleRow(RecordFileService.recordFileBlockDetailsFromTimestampQuery, [timestamp]);
 
-    return _.isNull(row) ? null : new RecordFile(row);
+    return row === null ? null : new RecordFile(row);
   }
 
   /**
@@ -133,7 +131,7 @@ class RecordFileService extends BaseService {
   async getRecordFileBlockDetailsFromIndex(index) {
     const row = await super.getSingleRow(RecordFileService.recordFileBlockDetailsFromIndexQuery, [index]);
 
-    return _.isNull(row) ? null : new RecordFile(row);
+    return row === null ? null : new RecordFile(row);
   }
 
   /**
@@ -145,7 +143,7 @@ class RecordFileService extends BaseService {
   async getRecordFileBlockDetailsFromHash(hash) {
     const row = await super.getSingleRow(RecordFileService.recordFileBlockDetailsFromHashQuery, [`${hash}%`]);
 
-    return _.isNull(row) ? null : new RecordFile(row);
+    return row === null ? null : new RecordFile(row);
   }
 
   async getBlocks(filters) {

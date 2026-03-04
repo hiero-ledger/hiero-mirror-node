@@ -80,3 +80,13 @@ updates:
     package-ecosystem: "npm"
     schedule:
       interval: "weekly"
+
+  - directory: "/tools/bootstrap"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
+    schedule:
+      interval: "weekly"

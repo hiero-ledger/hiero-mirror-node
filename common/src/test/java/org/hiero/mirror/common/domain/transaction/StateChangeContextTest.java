@@ -8,6 +8,7 @@ import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_I
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NFTS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_NODES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_PENDING_AIRDROPS_VALUE;
+import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_REGISTERED_NODES_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_ROSTER_STATE_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOKENS_VALUE;
 import static com.hedera.hapi.block.stream.output.protoc.StateIdentifier.STATE_ID_TOPICS_VALUE;
@@ -48,10 +49,12 @@ import com.hederahashgraph.api.proto.java.NftID;
 import com.hederahashgraph.api.proto.java.Node;
 import com.hederahashgraph.api.proto.java.PendingAirdropId;
 import com.hederahashgraph.api.proto.java.PendingAirdropValue;
+import com.hederahashgraph.api.proto.java.RegisteredNode;
 import com.hederahashgraph.api.proto.java.Token;
 import com.hederahashgraph.api.proto.java.Topic;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.LongStream;
 import org.hiero.mirror.common.domain.topic.TopicMessage;
 import org.hiero.mirror.common.util.CommonUtils;
 import org.hiero.mirror.common.util.DomainUtils;
@@ -368,6 +371,46 @@ final class StateChangeContextTest {
         assertThat(actual).containsExactly(Optional.of(3000L), Optional.of(2000L), Optional.empty());
         assertThat(context.trackPendingFungibleAirdrop(getPendingAirdropId(), 200L))
                 .isEmpty();
+    }
+
+    @Test
+    void registeredNodeId() {
+        // given
+        final var registeredNodeStateChanges = LongStream.range(1, 3)
+                .boxed()
+                .map(id -> MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setNodeIdKey(NodeId.newBuilder().setId(id)))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setRegisteredNodeValue(
+                                        RegisteredNode.newBuilder().setRegisteredNodeId(id)))
+                        .build())
+                .map(mapUpdateChange -> StateChange.newBuilder()
+                        .setMapUpdate(mapUpdateChange)
+                        .setStateId(STATE_ID_REGISTERED_NODES_VALUE)
+                        .build())
+                .toList();
+        final var otherStateChange = StateChange.newBuilder()
+                .setMapUpdate(MapUpdateChange.newBuilder()
+                        .setKey(MapChangeKey.newBuilder()
+                                .setNodeIdKey(NodeId.newBuilder().setId(1L)))
+                        .setValue(MapChangeValue.newBuilder()
+                                .setNodeValue(Node.newBuilder().setNodeId(1L)))
+                        .build())
+                .setStateId(STATE_ID_NODES_VALUE)
+                .build();
+        final var stateChanges = StateChanges.newBuilder()
+                .addAllStateChanges(registeredNodeStateChanges)
+                .addStateChanges(otherStateChange)
+                .build();
+
+        // when
+        final var context = new StateChangeContext(List.of(stateChanges));
+        final var actual = List.of(
+                context.getNewRegisteredNodeId(), context.getNewRegisteredNodeId(), context.getNewRegisteredNodeId());
+
+        // then
+        assertThat(actual).containsExactly(Optional.of(2L), Optional.of(1L), Optional.empty());
     }
 
     @Test

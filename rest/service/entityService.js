@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isEmpty, isNil} from 'lodash-es';
 
 import AccountAlias from '../accountAlias';
 import BaseService from './baseService';
@@ -41,7 +41,7 @@ class EntityService extends BaseService {
   async getAccountFromAlias(accountAlias) {
     const rows = await super.getRows(EntityService.entityFromAliasQuery, [accountAlias.alias]);
 
-    if (_.isEmpty(rows)) {
+    if (isEmpty(rows)) {
       return null;
     } else if (rows.length > 1) {
       logger.error(`Incorrect db state: ${rows.length} alive entities matching alias ${accountAlias}`);
@@ -58,7 +58,7 @@ class EntityService extends BaseService {
    */
   async isValidAccount(accountId) {
     const entity = await super.getSingleRow(EntityService.entityExistenceQuery, [accountId]);
-    return !_.isNil(entity);
+    return !isNil(entity);
   }
 
   /**
@@ -69,7 +69,7 @@ class EntityService extends BaseService {
    */
   async getAccountIdFromAlias(accountAlias, requireResult = true) {
     const entity = await this.getAccountFromAlias(accountAlias);
-    if (_.isNil(entity)) {
+    if (isNil(entity)) {
       if (requireResult) {
         throw new NotFoundError(EntityService.missingAccountAlias);
       }

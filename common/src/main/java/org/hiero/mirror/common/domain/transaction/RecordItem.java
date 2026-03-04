@@ -70,8 +70,9 @@ public class RecordItem implements StreamItem {
     private final long consensusTimestamp;
 
     private final boolean blockstream;
-    private final RecordItem parent;
+    private final Long congestionPricingMultiplier;
     private final RecordItem hookParent;
+    private final RecordItem parent;
     private final EntityId payerAccountId;
     private final RecordItem previous;
     private final SignatureMap signatureMap;
