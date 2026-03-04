@@ -54,6 +54,7 @@ import lombok.RequiredArgsConstructor;
 import org.assertj.core.api.Condition;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.IterableAssert;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.contract.Contract;
 import org.hiero.mirror.common.domain.entity.AbstractCryptoAllowance.Id;
 import org.hiero.mirror.common.domain.entity.AbstractEntity;
@@ -993,6 +994,102 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                         .get()
                         .returns(1L, Entity::getStakedNodeId)
                         .returns(expectedStakePeriodStart, Entity::getStakePeriodStart));
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressUpdatedWhenPresent() {
+        // given - entity with existing delegation address
+        var newAddress = Hex.decode("aabb00112233445566778899aabbccddeeff0011");
+        var account = domainBuilder
+                .entity()
+                .customize(e -> e.delegationAddress(EVM_ADDRESS))
+                .persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+
+        // when - CryptoUpdate with new delegation address
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(newAddress)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then - delegation address is updated to the new one
+        assertThat(entityRepository.findById(account.getId())).get().returns(newAddress, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressSetWhenPreviouslyNull() {
+        // given - entity with null delegation address
+        var account =
+                domainBuilder.entity().customize(e -> e.delegationAddress(null)).persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+
+        // when - CryptoUpdate with a delegation address
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(EVM_ADDRESS)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then - delegation address is set
+        assertThat(entityRepository.findById(account.getId())).get().returns(EVM_ADDRESS, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressSetToZeroAddress() {
+        // given - entity with existing non-null delegation address
+        var zeroAddress = Hex.decode("0000000000000000000000000000000000000000");
+        var account = domainBuilder
+                .entity()
+                .customize(e -> e.delegationAddress(EVM_ADDRESS))
+                .persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+
+        // when - CryptoUpdate setting delegation address to zero address
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(b ->
+                        b.setAccountIDToUpdate(protoAccountId).setDelegationAddress(DomainUtils.fromBytes(zeroAddress)))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then - zero address is persisted, not treated as null/clear
+        assertThat(entityRepository.findById(account.getId())).get().returns(zeroAddress, Entity::getDelegationAddress);
+    }
+
+    @Test
+    void cryptoUpdateDelegationAddressPreservedWhenNotInBody() {
+        // given - entity with existing delegation address
+        var account = domainBuilder
+                .entity()
+                .customize(e -> e.delegationAddress(EVM_ADDRESS))
+                .persist();
+        var protoAccountId = account.toEntityId().toAccountID();
+
+        // when - CryptoUpdate that does NOT set delegation address
+        var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
+        var recordItem = recordItemBuilder
+                .cryptoUpdate()
+                .transactionBody(
+                        b -> b.setAccountIDToUpdate(protoAccountId).setMemo(StringValue.of("just a memo update")))
+                .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
+                .record(r -> r.setTransactionID(transactionId))
+                .build();
+        parseRecordItemAndCommit(recordItem);
+
+        // then - existing delegation address is preserved
+        assertThat(entityRepository.findById(account.getId())).get().returns(EVM_ADDRESS, Entity::getDelegationAddress);
     }
 
     @Test
