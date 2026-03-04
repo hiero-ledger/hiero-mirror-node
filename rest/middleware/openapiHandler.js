@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import OpenApiValidator from 'express-openapi-validator';
 import fs from 'fs';
 import yaml from 'js-yaml';
 import {isNumber, isString, isUndefined} from 'lodash-es';
@@ -144,8 +143,9 @@ const serveSwaggerDocs = (app) => {
   app.use(`/api/v1/${config.openapi.swaggerUIPath}`, swaggerUi.serve, swaggerUi.setup(getV1OpenApiObject(), options));
 };
 
-const openApiValidator = (app) => {
+const openApiValidator = async (app) => {
   const validateResponses = isTestEnv() ? {allErrors: true} : false;
+  const {default: OpenApiValidator} = await import('express-openapi-validator');
   app.use(
     OpenApiValidator.middleware({
       apiSpec: path.resolve(process.cwd(), getSpecPath(1)),

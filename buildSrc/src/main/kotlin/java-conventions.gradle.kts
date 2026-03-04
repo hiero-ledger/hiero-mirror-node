@@ -46,7 +46,6 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    // Disable dangling-doc-comments due to graphql-gradle-plugin-project #25
     // Disable deprecation due to OpenAPI using deprecated Jackson2 in generated code
     // Disable serial and this-escape warnings due to errors in generated code
     // Disable rawtypes and unchecked due to Spring AOT generated configuration
@@ -55,7 +54,7 @@ tasks.withType<JavaCompile>().configureEach {
             "-parameters",
             "-Werror",
             "-Xlint:all",
-            "-Xlint:-dangling-doc-comments,-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
+            "-Xlint:-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
     options.encoding = "UTF-8"
