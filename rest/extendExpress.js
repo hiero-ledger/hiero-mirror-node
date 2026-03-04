@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import assert from 'assert';
-
 // Credits to @awaitjs/express
 // The function extends an express app / router and provides `getExt` and `useExt` so the handler / middleware doesn't
 // have to call next(). `getExt` and `useExt` only need to be used for our handlers and middlewares.
@@ -9,8 +7,6 @@ const extendExpress = (app) => {
   const methods = ['get', 'use'];
   for (const method of methods) {
     app[`${method}Ext`] = function () {
-      const fn = arguments[arguments.length - 1];
-      assert.ok(typeof fn === 'function', `Last argument to "${method}" must be a function`);
       const args = wrapArgs(arguments);
       return app[method].apply(app, args);
     };

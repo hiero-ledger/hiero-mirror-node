@@ -15,6 +15,7 @@ configurations.all {
 
 dependencies {
     val blockNodeVersion: String by rootProject.extra
+    val protobufVersion: String by rootProject.extra
 
     implementation(platform("software.amazon.awssdk:bom"))
     implementation(project(":common"))
@@ -62,6 +63,7 @@ dependencies {
     testImplementation(project(path = ":common", configuration = "testClasses"))
     testImplementation("com.asarkar.grpc:grpc-test")
     testImplementation("com.github.vertical-blank:sql-formatter")
+    testImplementation("com.google.protobuf:protobuf-java-util:$protobufVersion")
     testImplementation("commons-beanutils:commons-beanutils")
     testImplementation("io.grpc:grpc-inprocess")
     testImplementation("io.grpc:grpc-netty")
