@@ -24,9 +24,7 @@ import {isTestEnv} from './utils';
 import {
   authHandler,
   handleError,
-  metricsHandler,
   openApiValidator,
-  recordIpAndEndpoint,
   requestLogger,
   requestQueryParser,
   responseCacheCheckHandler,
@@ -63,7 +61,7 @@ app.set('query parser', requestQueryParser);
 
 serveSwaggerDocs(app);
 if (openApiValidatorEnabled || isTestEnv()) {
-  openApiValidator(app);
+  await openApiValidator(app);
 }
 
 // middleware functions, Prior to v0.5 define after sets
@@ -89,6 +87,7 @@ app.useExt(authHandler);
 
 // metrics middleware
 if (config.metrics.enabled) {
+  const {metricsHandler} = await import('./middleware/metricsHandler');
   app.useExt(metricsHandler());
 }
 
@@ -135,11 +134,6 @@ app.getExt(`${apiPrefix}/topics/messages/:consensusTimestamp`, topicmessage.getM
 // transactions routes
 app.getExt(`${apiPrefix}/transactions`, transactions.getTransactions);
 app.getExt(`${apiPrefix}/transactions/:transactionIdOrHash`, transactions.getTransactionsByIdOrHash);
-
-// record ip metrics if enabled
-if (config.metrics.ipMetrics) {
-  app.useExt(recordIpAndEndpoint);
-}
 
 // response data handling middleware
 app.useExt(responseHandler);

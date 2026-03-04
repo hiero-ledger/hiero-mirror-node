@@ -2,7 +2,6 @@
 
 export {authHandler} from './authHandler.js';
 export {handleError} from './httpErrorHandler';
-export * from './metricsHandler';
 export {openApiValidator, serveSwaggerDocs} from './openapiHandler';
 export * from './requestHandler';
 export {
