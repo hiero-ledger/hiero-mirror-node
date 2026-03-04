@@ -556,6 +556,7 @@ public class RecordItemBuilder {
                 .setReceiverSigRequired(false)
                 .setShardID(SHARD_ID)
                 .addHookCreationDetails(hookCreationDetails())
+                .setDelegationAddress(ByteString.EMPTY)
                 .setStakedNodeId(1L);
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
     }

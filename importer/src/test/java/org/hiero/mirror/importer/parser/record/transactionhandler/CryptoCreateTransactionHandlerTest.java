@@ -314,6 +314,39 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
         verify(evmHookHandler).process(eq(recordItem), anyLong(), eq(List.of()), eq(List.of()));
     }
 
+    @Test
+    void updateDelegationAddress() {
+        var delegationAddress = UtilityTest.EVM_ADDRESS;
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(tb -> tb.setDelegationAddress(DomainUtils.fromBytes(delegationAddress)))
+                .build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertEntity(accountId, recordItem.getConsensusTimestamp())
+                .returns(delegationAddress, Entity::getDelegationAddress);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void missingDelegationAddress() {
+        var recordItem = recordItemBuilder.cryptoCreate().build();
+        var transaction = transaction(recordItem);
+        var accountId =
+                EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());
+
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        assertEntity(accountId, recordItem.getConsensusTimestamp()).returns(null, Entity::getDelegationAddress);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
     private ObjectAssert<Entity> assertEntity(EntityId accountId, long timestamp) {
         verify(entityListener).onEntity(entityCaptor.capture());
         return assertThat(entityCaptor.getValue())
