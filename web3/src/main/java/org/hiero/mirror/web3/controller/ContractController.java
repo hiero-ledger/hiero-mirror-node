@@ -4,12 +4,12 @@ package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidParametersException;
 import org.hiero.mirror.web3.service.ContractExecutionService;
@@ -61,10 +61,8 @@ class ContractController {
         } else {
             receiver = Address.fromHexString(request.getTo());
         }
-        Bytes data;
-        try {
-            data = request.getData() != null ? Bytes.fromHexString(request.getData()) : Bytes.EMPTY;
-        } catch (Exception e) {
+        String data = (request.getData() != null && !request.getData().isEmpty()) ? request.getData() : HEX_PREFIX;
+        if (!isValidHexString(data)) {
             throw new InvalidParametersException(
                     "data field '%s' contains invalid odd length characters".formatted(request.getData()));
         }
@@ -91,5 +89,24 @@ class ContractController {
             throw new InvalidParametersException(
                     "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
         }
+    }
+
+    private boolean isValidHexString(String hexString) {
+        if (hexString == null || hexString.isEmpty()) {
+            return false;
+        }
+        String hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
+        if (hex.isEmpty()) {
+            return true;
+        }
+        if (hex.length() % 2 != 0) {
+            return false;
+        }
+        for (char c : hex.toCharArray()) {
+            if (!Character.isDigit(c) && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')) {
+                return false;
+            }
+        }
+        return true;
     }
 }

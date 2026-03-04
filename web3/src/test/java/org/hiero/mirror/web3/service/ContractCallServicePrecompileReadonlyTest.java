@@ -1032,7 +1032,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
             final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(Bytes.fromHexString(functionCall.encodeFunctionCall()))
+                .callData(functionCall.encodeFunctionCall())
                 .callType(CallServiceParameters.CallType.ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)

@@ -91,8 +91,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     protected void verifyOpcodeTracerCall(
             final String callData, final ContractFunctionProviderRecord functionProvider) {
         setOpcodeEndpoint();
-        final var callDataBytes = Bytes.fromHexString(callData);
-        final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
+        final var debugParameters = getDebugParameters(functionProvider, callData);
 
         if (functionProvider.expectedErrorMessage() != null) {
             verifyThrowingOpcodeTracerCall(debugParameters, functionProvider);
@@ -109,8 +108,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                 .contractAddress(Address.fromHexString(contract.getContractAddress()))
                 .build();
 
-        final var callDataBytes = Bytes.fromHexString(callData);
-        final var debugParameters = getDebugParameters(functionProvider, callDataBytes);
+        final var debugParameters = getDebugParameters(functionProvider, callData);
 
         if (functionProvider.expectedErrorMessage() != null) {
             verifyThrowingOpcodeTracerCall(debugParameters, functionProvider);
@@ -131,8 +129,8 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         .contractCallResult()
                         .toByteArray())
                 .isEqualTo(Bytes.EMPTY.toArray());
-        assertThat(BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(Bytes.fromHexString(
-                        actual.transactionProcessingResult().functionResult().errorMessage())))
+        assertThat(BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(
+                        actual.transactionProcessingResult().functionResult().errorMessage()))
                 .isEqualTo(function.expectedErrorMessage());
         assertThat(actual.opcodes().size()).isNotZero();
         assertThat(toHumanReadableMessage(actual.opcodes().getLast().reason()))
@@ -215,7 +213,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                                 .memory(opcode.memory())
                                 .storage(opcode.storage()))
                         .toList())
-                .returnValue(Bytes.fromHexString(result.contractCallResult()).toHexString());
+                .returnValue(result.contractCallResult());
     }
 
     private Address entityAddress(Entity entity) {

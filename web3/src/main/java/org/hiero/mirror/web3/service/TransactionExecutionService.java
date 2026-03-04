@@ -10,6 +10,7 @@ import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
@@ -35,8 +36,9 @@ import java.util.List;
 import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -80,7 +82,8 @@ public class TransactionExecutionService {
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
                 && params.getEthereumData() != null
-                && !params.getEthereumData().isEmpty()) {
+                && !params.getEthereumData().isEmpty()
+                && !params.getEthereumData().equals(HEX_PREFIX)) {
             transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
@@ -146,10 +149,10 @@ public class TransactionExecutionService {
             if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
                 var processingResult = new EvmTransactionResult(status, result);
 
-                final var errorMessage = processingResult.getErrorMessage().orElse(Bytes.EMPTY);
-                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
+                final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
+                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessageHex);
                 throw new MirrorEvmTransactionException(
-                        status, detail, errorMessage.toHexString(), processingResult, childTransactionErrors);
+                        status, detail, errorMessageHex, processingResult, childTransactionErrors);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
@@ -173,8 +176,7 @@ public class TransactionExecutionService {
             final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
-                        .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getCallData().toArrayUnsafe()))
+                        .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getCallData())))
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
@@ -192,8 +194,8 @@ public class TransactionExecutionService {
                                 .evmAddress(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
                                         params.getReceiver().toArrayUnsafe()))
                                 .build())
-                        .functionParameters(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getCallData().toArrayUnsafe()))
+                        .functionParameters(
+                                com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getCallData())))
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
@@ -203,8 +205,7 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
-                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getEthereumData().toArrayUnsafe()))
+                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getEthereumData())))
                         .maxGasAllowance(Long.MAX_VALUE)
                         .build())
                 .transactionFee(CONTRACT_CREATE_TX_FEE)
@@ -222,7 +223,8 @@ public class TransactionExecutionService {
         if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
-        final long nonce = populateEthTxData(params.getEthereumData().toArray()).nonce();
+        final long nonce =
+                populateEthTxData(hexToBytes(params.getEthereumData())).nonce();
         final var senderId = getSenderAccountIDAsNum(params.getSender());
         final var account = accountReadableKVState.get(senderId);
         if (account != null && account.ethereumNonce() != nonce) {
@@ -319,5 +321,17 @@ public class TransactionExecutionService {
         }
 
         return childTransactionErrors != null ? childTransactionErrors : List.of();
+    }
+
+    private byte[] hexToBytes(String hexString) {
+        if (hexString == null || hexString.isEmpty() || hexString.equals(HEX_PREFIX)) {
+            return new byte[0];
+        }
+        String hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
+        try {
+            return Hex.decodeHex(hex);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
+        }
     }
 }

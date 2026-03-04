@@ -9,6 +9,7 @@ import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -44,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
@@ -294,9 +296,12 @@ class OpcodesControllerTest {
                                 : contractResult.getAmount())
                 .callData(
                         provider.hasEthTransaction()
-                                ? Bytes.of(ethTransaction.getCallData())
-                                : Bytes.of(contractResult.getFunctionParameters()))
-                .ethereumData(provider.hasEthTransaction() ? Bytes.of(ethTransaction.getData()) : null)
+                                ? HEX_PREFIX + Hex.encodeHexString(ethTransaction.getCallData())
+                                : HEX_PREFIX + Hex.encodeHexString(contractResult.getFunctionParameters()))
+                .ethereumData(
+                        provider.hasEthTransaction()
+                                ? HEX_PREFIX + Hex.encodeHexString(ethTransaction.getData())
+                                : HEX_PREFIX)
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 
@@ -614,12 +619,7 @@ class OpcodesControllerTest {
                                     .memory(opcode.memory())
                                     .storage(opcode.storage()))
                             .toList())
-                    .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
-                                    .functionResult()
-                                    .contractCallResult()
-                                    .toByteArray()))
-                            .map(Bytes::toHexString)
-                            .orElse(Bytes.EMPTY.toHexString()));
+                    .returnValue(result.transactionProcessingResult().contractCallResult());
         }
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(

@@ -279,19 +279,19 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
+            final String dataHex, final Address receiver, final Address payerAddress, final long value) {
+        return getContractExecutionParameters(dataHex, receiver, payerAddress, value, ETH_CALL);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data,
+            final String dataHex,
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
             final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(data)
+                .callData(dataHex)
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
@@ -309,7 +309,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address payerAddress,
             final long value) {
         return getContractExecutionParameters(
-                Bytes.fromHexString(functionCall.encodeFunctionCall()),
+                functionCall.encodeFunctionCall(),
                 Address.fromHexString(contract.getContractAddress()),
                 payerAddress,
                 value);
@@ -757,10 +757,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected ContractDebugParameters getDebugParameters(
-            final ContractFunctionProviderRecord functionProvider, final Bytes callDataBytes) {
+            final ContractFunctionProviderRecord functionProvider, final String callDataHex) {
         return ContractDebugParameters.builder()
                 .block(functionProvider.block())
-                .callData(callDataBytes)
+                .callData(callDataHex)
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(functionProvider.contractAddress())
@@ -782,7 +782,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) {
         return getContractExecutionParameters(
-                Bytes.fromHexString(functionCall.encodeFunctionCall()),
+                functionCall.encodeFunctionCall(),
                 Address.fromHexString(contract.getContractAddress()),
                 testWeb3jService.getSender(),
                 value);

@@ -8,6 +8,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -88,9 +89,7 @@ class TransactionExecutionServiceTest {
     private TransactionExecutionService transactionExecutionService;
 
     private static Stream<Arguments> provideCallData() {
-        return Stream.of(
-                Arguments.of(org.apache.tuweni.bytes.Bytes.EMPTY),
-                Arguments.of(org.apache.tuweni.bytes.Bytes.fromHexString(NestedCalls.BINARY)));
+        return Stream.of(Arguments.of("0x"), Arguments.of(NestedCalls.BINARY));
     }
 
     @BeforeEach
@@ -140,7 +139,7 @@ class TransactionExecutionServiceTest {
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(SUCCESS);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, senderAddress);
 
         // When
         var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
@@ -196,7 +195,7 @@ class TransactionExecutionServiceTest {
         when(childTransactionReceipt.status()).thenReturn(childResponseCode);
         when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -250,7 +249,7 @@ class TransactionExecutionServiceTest {
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionReceipt.status()).thenReturn(responseCode);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         if (responseCode != SUCCESS) {
@@ -301,7 +300,7 @@ class TransactionExecutionServiceTest {
                         any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -309,10 +308,9 @@ class TransactionExecutionServiceTest {
                 .hasMessageContaining(ResponseCodeEnum.INVALID_ACCOUNT_ID.name());
     }
 
-    // NestedCalls.BINARY
     @ParameterizedTest
     @MethodSource("provideCallData")
-    void testExecuteContractCreateSuccess(org.apache.tuweni.bytes.Bytes callData) {
+    void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
         ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
 
@@ -339,7 +337,7 @@ class TransactionExecutionServiceTest {
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(SUCCESS);
 
-        var callServiceParameters = buildServiceParams(true, callData, Address.ZERO);
+        var callServiceParameters = buildServiceParams(true, callDataHex, Address.ZERO);
 
         // When
         var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
@@ -351,18 +349,15 @@ class TransactionExecutionServiceTest {
     }
 
     private CallServiceParameters buildServiceParams(
-            boolean isContractCreate, org.apache.tuweni.bytes.Bytes callData, final Address senderAddress) {
-        return buildServiceParams(isContractCreate, callData, senderAddress, CallType.ETH_CALL);
+            boolean isContractCreate, String callDataHex, final Address senderAddress) {
+        return buildServiceParams(isContractCreate, callDataHex, senderAddress, CallType.ETH_CALL);
     }
 
     private CallServiceParameters buildServiceParams(
-            boolean isContractCreate,
-            org.apache.tuweni.bytes.Bytes callData,
-            final Address senderAddress,
-            CallType callType) {
+            boolean isContractCreate, String callDataHex, final Address senderAddress, CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(callData)
+                .callData(callDataHex)
                 .callType(callType)
                 .gas(DEFAULT_GAS)
                 .gasPrice(0L)
@@ -420,7 +415,7 @@ class TransactionExecutionServiceTest {
                 when(accountReadableKVState.get(any())).thenReturn(mock(Account.class));
             }
 
-            var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+            var callServiceParameters = buildServiceParams(false, HEX_PREFIX, senderAddress);
 
             // Then
             assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -461,7 +456,7 @@ class TransactionExecutionServiceTest {
 
             when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
-            final var params = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, sender, callType);
+            final var params = buildServiceParams(false, HEX_PREFIX, sender, callType);
             final var result = transactionExecutionService.execute(params, DEFAULT_GAS);
             // Then
             assertThat(result).isNotNull();
@@ -500,7 +495,7 @@ class TransactionExecutionServiceTest {
 
             when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
-            final var params = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, sender);
+            final var params = buildServiceParams(false, HEX_PREFIX, sender);
             // Then
             assertThatThrownBy(() -> transactionExecutionService.execute(params, DEFAULT_GAS))
                     .isInstanceOf(MirrorEvmTransactionException.class)

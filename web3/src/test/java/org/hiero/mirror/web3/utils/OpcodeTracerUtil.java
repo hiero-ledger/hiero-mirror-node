@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.utils;
 
 import java.util.Comparator;
 import lombok.experimental.UtilityClass;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
 
@@ -14,7 +13,7 @@ public class OpcodeTracerUtil {
     public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false);
 
     public static String toHumanReadableMessage(final String solidityError) {
-        return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(Bytes.fromHexString(solidityError));
+        return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(solidityError);
     }
 
     public static Comparator<Long> gasComparator() {
