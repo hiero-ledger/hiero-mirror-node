@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isEmpty, isNil, last, range} from 'lodash-es';
 
 import BaseController from './baseController';
 import Bound from './bound';
@@ -122,7 +122,7 @@ const extractSqlFromContractFilters = async (filters) => {
     // add the condition 'e.id in ()'
     const start = params.length + 1; // start is the next positional index
     params.push(...contractIdInValues);
-    const positions = _.range(contractIdInValues.length)
+    const positions = range(contractIdInValues.length)
       .map((position) => position + start)
       .map((position) => `$${position}`);
     conditions.push(`${contractIdFullName} in (${positions})`);
@@ -552,7 +552,7 @@ class ContractController extends BaseController {
   getContractLogsLowerFilters = (bounds) => {
     let filters = this.getLowerFilters(bounds);
 
-    if (!_.isEmpty(filters)) {
+    if (!isEmpty(filters)) {
       return filters;
     }
 
@@ -564,7 +564,7 @@ class ContractController extends BaseController {
       filters = [timestampBound.equal, indexBound.lower, indexBound.equal, indexBound.upper];
     }
 
-    return filters.filter((f) => !_.isNil(f));
+    return filters.filter((f) => !isNil(f));
   };
 
   /**
@@ -751,7 +751,7 @@ class ContractController extends BaseController {
       contracts: rows.map((row) => formatContractRow(row, ContractViewModel)),
       links: {},
     };
-    const lastRow = _.last(response.contracts);
+    const lastRow = last(response.contracts);
     const lastContractId = lastRow !== undefined ? lastRow.contract_id : null;
     response.links.next = utils.getPaginationLink(
       req,
@@ -874,7 +874,7 @@ class ContractController extends BaseController {
     }
 
     response.results = rows.map((row) => new ContractResultViewModel(row));
-    const lastRow = _.last(response.results);
+    const lastRow = last(response.results);
     const lastContractResultTimestamp = lastRow.timestamp;
     response.links.next = utils.getPaginationLink(
       req,
@@ -968,7 +968,7 @@ class ContractController extends BaseController {
 
     let nextLink = null;
     if (state.length) {
-      const lastRow = _.last(state);
+      const lastRow = last(state);
       const lastSlot = lastRow.slot;
       nextLink = utils.getPaginationLink(
         req,
@@ -1018,7 +1018,7 @@ class ContractController extends BaseController {
       fileData = await FileDataService.getLatestFileDataContents(ethTransaction.callDataId, {whereQuery: []});
     }
 
-    if (_.isNil(contractResults[0].callResult)) {
+    if (isNil(contractResults[0].callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTimestamp returning partial content`);
@@ -1094,7 +1094,7 @@ class ContractController extends BaseController {
     );
 
     const isEnd = response.results.length !== limit;
-    const lastRow = _.last(response.results);
+    const lastRow = last(response.results);
     const lastContractResultTimestamp = !isEnd ? lastRow.timestamp : next;
     response.links.next = utils.getPaginationLink(
       req,
@@ -1190,7 +1190,7 @@ class ContractController extends BaseController {
       convertToHbar
     );
 
-    if (_.isNil(contractResult.callResult)) {
+    if (isNil(contractResult.callResult)) {
       // set 206 partial response
       res.locals.statusCode = httpStatusCodes.PARTIAL_CONTENT.code;
       logger.debug(`getContractResultsByTransactionId returning partial content`);
@@ -1265,7 +1265,7 @@ class ContractController extends BaseController {
     const actions = rows.map((row) => new ContractActionViewModel(row));
     let nextLink = null;
     if (actions.length) {
-      const lastRow = _.last(actions);
+      const lastRow = last(actions);
       const lastIndex = lastRow.index;
       nextLink = utils.getPaginationLink(
         req,

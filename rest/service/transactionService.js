@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
-
 import BaseService from './baseService';
-import {orderFilterValues} from '../constants';
 import {EthereumTransaction, Transaction, TransactionResult} from '../model';
-import {OrderSpec} from '../sql';
 import TransactionId from '../transactionId';
 import config from '../config';
 
 const {maxTransactionConsensusTimestampRangeNs} = config.query;
 const successTransactionResult = TransactionResult.getProtoId('SUCCESS');
+
 /**
  * Transaction retrieval business logic
  */
@@ -90,27 +87,6 @@ class TransactionService extends BaseService {
     const rows = await super.getRows(query, params);
     return rows.map((row) => new Transaction(row));
   }
-
-  getExcludeTransactionResultsCondition = (excludeTransactionResults, params) => {
-    if (_.isNil(excludeTransactionResults)) {
-      return '';
-    }
-
-    if (!Array.isArray(excludeTransactionResults)) {
-      excludeTransactionResults = [excludeTransactionResults];
-    }
-
-    if (excludeTransactionResults.length === 0) {
-      return '';
-    }
-
-    const positions = excludeTransactionResults.reduce((previous, current) => {
-      const length = params.push(current);
-      previous.push(`$${length}`);
-      return previous;
-    }, []);
-    return ` and ${Transaction.RESULT} not in (${positions})`;
-  };
 }
 
 export default new TransactionService();

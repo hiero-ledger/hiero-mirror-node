@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import _ from 'lodash-es';
 
 import AccountAlias from '../accountAlias';
 import {getAllAccountAliases, invalidBase32Strs} from './testutils';

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {camelCase, mapKeys} from 'lodash-es';
 
 class ContractAction {
   static tableAlias = 'cact';
@@ -30,7 +30,7 @@ class ContractAction {
   constructor(contractAction) {
     Object.assign(
       this,
-      _.mapKeys(contractAction, (v, k) => _.camelCase(k))
+      mapKeys(contractAction, (v, k) => camelCase(k))
     );
   }
 

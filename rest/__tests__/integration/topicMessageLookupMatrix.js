@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import _ from 'lodash-es';
 
 const applyMatrix = (spec) => {
   return [false, true].map((value) => {

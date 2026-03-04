@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash';
+import {isEmpty, isNil} from 'lodash-es';
 
 import ContractLogResultsViewModel from './contractResultLogViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
@@ -43,12 +43,12 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.block_hash = utils.addHexPrefix(recordFile?.hash);
     this.block_number = recordFile?.index ?? null;
     this.hash = utils.toHexStringNonQuantity(contractResult.transactionHash);
-    if (!_.isNil(contractLogs)) {
+    if (!isNil(contractLogs)) {
       this.logs = contractLogs.map((contractLog) => new ContractLogResultsViewModel(contractLog));
     }
     this.result = TransactionResult.getName(contractResult.transactionResult);
     this.transaction_index = contractResult.transactionIndex;
-    if (!_.isNil(contractStateChanges)) {
+    if (!isNil(contractStateChanges)) {
       this.state_changes = contractStateChanges.map((csc) => new ContractResultStateChangeViewModel(csc));
     }
     const isTransactionSuccessful = ContractResultDetailsViewModel._SUCCESS_PROTO_IDS.includes(
@@ -57,12 +57,12 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.status = isTransactionSuccessful
       ? ContractResultDetailsViewModel._SUCCESS_RESULT
       : ContractResultDetailsViewModel._FAIL_RESULT;
-    if (!_.isEmpty(contractResult.failedInitcode)) {
+    if (!isEmpty(contractResult.failedInitcode)) {
       this.failed_initcode = utils.toHexStringNonQuantity(contractResult.failedInitcode);
     } else if (
       this.status === ContractResultDetailsViewModel._FAIL_RESULT &&
-      !_.isNil(ethTransaction) &&
-      !_.isEmpty(ethTransaction.callData)
+      !isNil(ethTransaction) &&
+      !isEmpty(ethTransaction.callData)
     ) {
       this.failed_initcode = utils.toHexStringNonQuantity(ethTransaction.callData);
     } else {
@@ -82,7 +82,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     this.v = null;
     this.nonce = null;
 
-    if (!_.isNil(ethTransaction)) {
+    if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
 
       // Handle value/amount conversion based on convertToHbar parameter
@@ -97,15 +97,15 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
-      if (!isTransactionSuccessful && _.isEmpty(contractResult.errorMessage)) {
+      if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {
         this.error_message = this.result;
       }
 
-      if (!_.isNil(contractResult.senderId)) {
+      if (!isNil(contractResult.senderId)) {
         this.from = EntityId.parse(contractResult.senderId).toEvmAddress();
       }
 
-      if (!_.isNil(ethTransaction.gasLimit)) {
+      if (!isNil(ethTransaction.gasLimit)) {
         this.gas_limit = ethTransaction.gasLimit;
       }
 
@@ -136,9 +136,9 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
           ? BigInt(utils.toHexStringNonQuantity(ethTransaction.signatureV))
           : ethTransaction.recoveryId;
 
-      if (!_.isEmpty(ethTransaction.callData)) {
+      if (!isEmpty(ethTransaction.callData)) {
         this.function_parameters = utils.toHexStringNonQuantity(ethTransaction.callData);
-      } else if (!contractResult.functionParameters.length && !_.isNil(fileData)) {
+      } else if (!contractResult.functionParameters.length && !isNil(fileData)) {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
     }
