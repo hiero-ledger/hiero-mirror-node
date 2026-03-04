@@ -28,6 +28,7 @@ import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.time.Instant;
@@ -176,7 +177,7 @@ public class TransactionExecutionService {
             final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
-                        .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getCallData())))
+                        .initcode(Bytes.wrap(hexToBytes(params.getCallData())))
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
@@ -191,11 +192,9 @@ public class TransactionExecutionService {
                         .contractID(ContractID.newBuilder()
                                 .shardNum(commonProperties.getShard())
                                 .realmNum(commonProperties.getRealm())
-                                .evmAddress(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                        params.getReceiver().toArrayUnsafe()))
+                                .evmAddress(Bytes.wrap(params.getReceiver().toArrayUnsafe()))
                                 .build())
-                        .functionParameters(
-                                com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getCallData())))
+                        .functionParameters(Bytes.wrap(hexToBytes(params.getCallData())))
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
@@ -205,7 +204,7 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
-                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(hexToBytes(params.getEthereumData())))
+                        .ethereumData(Bytes.wrap(hexToBytes(params.getEthereumData())))
                         .maxGasAllowance(Long.MAX_VALUE)
                         .build())
                 .transactionFee(CONTRACT_CREATE_TX_FEE)
@@ -237,7 +236,7 @@ public class TransactionExecutionService {
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
-                .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(address.toArrayUnsafe()))
+                .value(Bytes.wrap(address.toArrayUnsafe()))
                 .build();
     }
 

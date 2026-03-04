@@ -101,17 +101,8 @@ public class BytesDecoder {
     }
 
     private static String getAbiEncodedRevertReasonFromPlainText(final String plainText) {
-        byte[] selectorBytes;
-        try {
-            selectorBytes = Hex.decodeHex(ERROR_FUNCTION_SELECTOR_HEX);
-        } catch (DecoderException e) {
-            return HEX_PREFIX;
-        }
         byte[] encodedMessage = STRING_DECODER.encode(Tuple.from(plainText)).array();
-        byte[] result = new byte[selectorBytes.length + encodedMessage.length];
-        System.arraycopy(selectorBytes, 0, result, 0, selectorBytes.length);
-        System.arraycopy(encodedMessage, 0, result, selectorBytes.length, encodedMessage.length);
-        return HEX_PREFIX + Hex.encodeHexString(result);
+        return HEX_PREFIX + ERROR_FUNCTION_SELECTOR_HEX + Hex.encodeHexString(encodedMessage);
     }
 
     private static boolean isAbiEncodedErrorString(final String revertReasonHex) {
