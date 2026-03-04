@@ -47,7 +47,7 @@ var (
 	CurrencyHbar = &types.Currency{
 		Symbol:   currencySymbol,
 		Decimals: currencyDecimals,
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"issuer": Blockchain,
 		},
 	}

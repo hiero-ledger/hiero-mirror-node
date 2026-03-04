@@ -38,7 +38,7 @@ func TestToRosettaPeers(t *testing.T) {
 	assert.ElementsMatch(t, expectedRosettaPeers(), actual)
 }
 
-func newDummyPeer(nodeId string, metadata map[string]interface{}) *types.Peer {
+func newDummyPeer(nodeId string, metadata map[string]any) *types.Peer {
 	return &types.Peer{
 		PeerID:   nodeId,
 		Metadata: metadata,
@@ -53,8 +53,8 @@ func newDummyAddressBookEntry(nodeId int64, accountId int64, endpoints []string)
 	}
 }
 
-func dummyMetadata(accountId string, endpoints []string) map[string]interface{} {
-	return map[string]interface{}{
+func dummyMetadata(accountId string, endpoints []string) map[string]any {
+	return map[string]any{
 		"account_id": accountId,
 		"endpoints":  endpoints,
 	}

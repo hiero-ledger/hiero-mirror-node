@@ -3,6 +3,8 @@
 package errors
 
 import (
+	"maps"
+
 	"github.com/coinbase/rosetta-sdk-go/types"
 )
 
@@ -103,10 +105,8 @@ var (
 
 func AddErrorDetails(err *types.Error, key, description string) *types.Error {
 	clone := *err
-	clone.Details = make(map[string]interface{})
-	for k, v := range err.Details {
-		clone.Details[k] = v
-	}
+	clone.Details = make(map[string]any)
+	maps.Copy(clone.Details, err.Details)
 	clone.Details[key] = description
 	return &clone
 }

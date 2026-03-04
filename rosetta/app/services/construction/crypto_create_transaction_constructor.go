@@ -80,7 +80,7 @@ func (c *cryptoCreateTransactionConstructor) Parse(_ context.Context, transactio
 	if err != nil {
 		return nil, nil, errors.ErrInvalidAccount
 	}
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 	operation := types.Operation{
 		AccountId: payer,
 		Amount:    &amount,

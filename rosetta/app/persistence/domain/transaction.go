@@ -29,7 +29,7 @@ type ItemizedTransfer struct {
 
 type ItemizedTransferSlice []ItemizedTransfer
 
-func (i *ItemizedTransferSlice) Scan(value interface{}) error {
+func (i *ItemizedTransferSlice) Scan(value any) error {
 	bytes, ok := value.([]byte)
 	if !ok {
 		return errors.New(fmt.Sprint("Failed to unmarshal JSONB value", value))

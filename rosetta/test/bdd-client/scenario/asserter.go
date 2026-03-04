@@ -15,7 +15,7 @@ type asserter struct {
 }
 
 // Errorf is used by the called assertion to report an error
-func (a *asserter) Errorf(format string, args ...interface{}) {
+func (a *asserter) Errorf(format string, args ...any) {
 	a.err = fmt.Errorf(format, args...)
 }
 
@@ -90,7 +90,7 @@ func assertTransactionOpCount(expected int, op compareOp) assertTransactionFunc 
 	}
 }
 
-func assertTransactionMetadataAndType(expected string, expectedType interface{}) assertTransactionFunc {
+func assertTransactionMetadataAndType(expected string, expectedType any) assertTransactionFunc {
 	return func(t *asserter, transaction *types.Transaction) {
 		metadata := transaction.Metadata
 		if !assert.Contains(t, metadata, expected) {
@@ -100,7 +100,7 @@ func assertTransactionMetadataAndType(expected string, expectedType interface{})
 	}
 }
 
-func assertTransactionMetadata(key string, value interface{}) assertTransactionFunc {
+func assertTransactionMetadata(key string, value any) assertTransactionFunc {
 	return func(t *asserter, transaction *types.Transaction) {
 		metadata := transaction.Metadata
 		if !assert.Contains(t, metadata, key) {

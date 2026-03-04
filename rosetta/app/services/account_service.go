@@ -63,7 +63,7 @@ func (a *AccountAPIService) AccountBalance(
 		return nil, rErr
 	}
 
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 	if accountId.HasAlias() && accountIdString != "" {
 		metadata["account_id"] = accountIdString
 	}

@@ -77,7 +77,7 @@ func TestNewAmountFailure(t *testing.T) {
 				Value: "1",
 				Currency: &types.Currency{
 					Symbol: CurrencyHbar.Symbol,
-					Metadata: map[string]interface{}{
+					Metadata: map[string]any{
 						"issuer": "group",
 					},
 				},

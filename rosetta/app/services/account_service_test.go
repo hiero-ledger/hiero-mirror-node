@@ -73,7 +73,7 @@ func expectedAccountBalanceResponse(customizers ...func(*rTypes.AccountBalanceRe
 				Currency: types.CurrencyHbar,
 			},
 		},
-		Metadata: map[string]interface{}{},
+		Metadata: map[string]any{},
 	}
 	for _, customizer := range customizers {
 		if customizer != nil {
@@ -95,7 +95,7 @@ func expectedAllAccountBalancesResponse(response *rTypes.AccountBalanceResponse)
 	}
 }
 
-func accountBalanceResponseMetadata(metadata map[string]interface{}) func(*rTypes.AccountBalanceResponse) {
+func accountBalanceResponseMetadata(metadata map[string]any) func(*rTypes.AccountBalanceResponse) {
 	return func(response *rTypes.AccountBalanceResponse) {
 		response.Metadata = metadata
 	}
@@ -124,7 +124,7 @@ func (suite *accountServiceSuite) SetupTest() {
 
 func (suite *accountServiceSuite) TestAccountBalance() {
 	publicKey := utils.MustMarshal(utils.Ed25519PublicKey())
-	metadataCustomizer := accountBalanceResponseMetadata(map[string]interface{}{
+	metadataCustomizer := accountBalanceResponseMetadata(map[string]any{
 		"public_key": tools.SafeAddHexPrefix(hex.EncodeToString(publicKey)),
 	})
 	tests := []struct {
@@ -194,8 +194,8 @@ func (suite *accountServiceSuite) TestAliasAccountBalance() {
 	publicKey := utils.MustMarshal(utils.Ed25519PublicKey())
 	alias := tools.SafeAddHexPrefix(hex.EncodeToString(publicKey))
 	accountIdMetadataCustomizer := accountBalanceResponseMetadata(
-		map[string]interface{}{"account_id": accountId})
-	fullMetadataCustomizer := accountBalanceResponseMetadata(map[string]interface{}{
+		map[string]any{"account_id": accountId})
+	fullMetadataCustomizer := accountBalanceResponseMetadata(map[string]any{
 		"account_id": accountId,
 		"public_key": alias,
 	})

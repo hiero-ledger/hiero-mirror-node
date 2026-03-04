@@ -88,8 +88,8 @@ func addDecodeHooks(c *mapstructure.DecoderConfig) {
 	c.DecodeHook = mapstructure.ComposeDecodeHookFunc(hooks...)
 }
 
-func accountIdDecodeHook(from, to reflect.Type, data interface{}) (interface{}, error) {
-	if to != reflect.TypeOf(hiero.AccountID{}) {
+func accountIdDecodeHook(from, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeFor[hiero.AccountID]() {
 		return data, nil
 	}
 
@@ -100,8 +100,8 @@ func accountIdDecodeHook(from, to reflect.Type, data interface{}) (interface{}, 
 	}
 }
 
-func privateKeyDecodeHook(from, to reflect.Type, data interface{}) (interface{}, error) {
-	if to != reflect.TypeOf(hiero.PrivateKey{}) {
+func privateKeyDecodeHook(from, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeFor[hiero.PrivateKey]() {
 		return data, nil
 	}
 

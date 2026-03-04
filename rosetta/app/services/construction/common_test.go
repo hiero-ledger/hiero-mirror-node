@@ -49,14 +49,14 @@ func TestCompareCurrency(t *testing.T) {
 			currencyA: &rTypes.Currency{
 				Symbol:   "foobar",
 				Decimals: 12,
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta1": 1,
 				},
 			},
 			currencyB: &rTypes.Currency{
 				Symbol:   "foobar",
 				Decimals: 12,
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta1": 1,
 				},
 			},
@@ -80,22 +80,22 @@ func TestCompareCurrency(t *testing.T) {
 		{
 			name: "DifferentMetadata",
 			currencyA: &rTypes.Currency{
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta1": 1,
 				}},
 			currencyB: &rTypes.Currency{
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta2": 1,
 				}},
 		},
 		{
 			name: "DifferentMetadataValue",
 			currencyA: &rTypes.Currency{
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta1": 1,
 				}},
 			currencyB: &rTypes.Currency{
-				Metadata: map[string]interface{}{
+				Metadata: map[string]any{
 					"meta1": 2,
 				}},
 		},
@@ -179,26 +179,26 @@ func TestParseOperationMetadataWithValidate(t *testing.T) {
 
 	var tests = []struct {
 		name        string
-		metadatas   []map[string]interface{}
+		metadatas   []map[string]any
 		expectError bool
 	}{
 		{
 			name: "Success",
-			metadatas: []map[string]interface{}{{
+			metadatas: []map[string]any{{
 				"name":  name,
 				"value": value,
 			}},
 		},
 		{
 			name: "SuccessMultiple",
-			metadatas: []map[string]interface{}{
+			metadatas: []map[string]any{
 				{"name": name},
 				{"value": value},
 			},
 		},
 		{
 			name: "SuccessMultipleHonorLast",
-			metadatas: []map[string]interface{}{
+			metadatas: []map[string]any{
 				{
 					"name":  "bad",
 					"value": 50,
@@ -211,7 +211,7 @@ func TestParseOperationMetadataWithValidate(t *testing.T) {
 		},
 		{
 			name: "MissingField",
-			metadatas: []map[string]interface{}{
+			metadatas: []map[string]any{
 				{"value": value},
 			},
 			expectError: true,
@@ -251,7 +251,7 @@ func TestParseOperationMetadataWithoutValidate(t *testing.T) {
 		Value: 0,
 	}
 
-	metadata := map[string]interface{}{
+	metadata := map[string]any{
 		"name": name,
 	}
 

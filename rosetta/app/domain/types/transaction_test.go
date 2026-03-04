@@ -44,7 +44,7 @@ func expectedTransaction() *types.Transaction {
 				Amount:              &types.Amount{Value: "400", Currency: CurrencyHbar},
 			},
 		},
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"entity_id": entityId.String(),
 			"memo":      "transfer",
 		},

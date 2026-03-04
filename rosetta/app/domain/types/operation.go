@@ -9,7 +9,7 @@ type Operation struct {
 	AccountId AccountId
 	Amount    Amount
 	Index     int64
-	Metadata  map[string]interface{}
+	Metadata  map[string]any
 	Status    string
 	Type      string
 }

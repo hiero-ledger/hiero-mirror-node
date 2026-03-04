@@ -27,7 +27,7 @@ func (abe *AddressBookEntries) ToRosetta() []*types.Peer {
 	for i, e := range abe.Entries {
 		peers[i] = &types.Peer{
 			PeerID: fmt.Sprintf("%d", e.NodeId),
-			Metadata: map[string]interface{}{
+			Metadata: map[string]any{
 				"account_id": e.AccountId.String(),
 				"endpoints":  e.Endpoints,
 			},

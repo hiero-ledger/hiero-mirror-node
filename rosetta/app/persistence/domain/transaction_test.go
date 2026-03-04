@@ -37,7 +37,7 @@ func TestItemizedTransferSliceScan(t *testing.T) {
 }
 
 func TestItemizedTransferSliceScanThrows(t *testing.T) {
-	inputs := []interface{}{
+	inputs := []any{
 		"not byte array",
 		[]byte(`[{"amount": -20, "entity_id": 101, "is_approval": true]`), // invalid json string
 	}

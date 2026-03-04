@@ -189,7 +189,7 @@ func (c *constructionAPIService) ConstructionParse(
 		return nil, err
 	}
 
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 	memo, _ := hiero.TransactionGetTransactionMemo(transaction)
 	if memo != "" {
 		metadata[types.MetadataKeyMemo] = memo
@@ -301,7 +301,7 @@ func (c *constructionAPIService) ConstructionPreprocess(
 		requiredPublicKeys = append(requiredPublicKeys, &rTypes.AccountIdentifier{Address: signer.String()})
 	}
 
-	options := make(map[string]interface{})
+	options := make(map[string]any)
 	if len(request.Metadata) != 0 {
 		options = request.Metadata
 	}
@@ -367,7 +367,7 @@ func (c *constructionAPIService) ConstructionSubmit(
 	}, nil
 }
 
-func (c *constructionAPIService) getTransactionNodeAccountId(metadata map[string]interface{}) (
+func (c *constructionAPIService) getTransactionNodeAccountId(metadata map[string]any) (
 	emptyAccountId hiero.AccountID, nilErr *rTypes.Error,
 ) {
 	value, ok := metadata[metadataKeyNodeAccountId]
@@ -390,7 +390,7 @@ func (c *constructionAPIService) getTransactionNodeAccountId(metadata map[string
 	return nodeAccountId, nilErr
 }
 
-func (c *constructionAPIService) getTransactionTimestampProperty(metadata map[string]interface{}) (
+func (c *constructionAPIService) getTransactionTimestampProperty(metadata map[string]any) (
 	validDurationSeconds, validStartNanos int64, err *rTypes.Error,
 ) {
 	if _, ok := metadata[metadataKeyValidUntilNanos]; ok {
@@ -464,7 +464,7 @@ func (c *constructionAPIService) getOperationSlice(operations []*rTypes.Operatio
 	return operationSlice, nil
 }
 
-func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.AccountId, accountMapMetadata interface{}) (
+func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.AccountId, accountMapMetadata any) (
 	zero hiero.AccountID,
 	_ *rTypes.Error,
 ) {
@@ -488,7 +488,7 @@ func (c *constructionAPIService) getSdkPayerAccountId(payerAccountId types.Accou
 
 	var payer hiero.AccountID
 	payerAlias := payerAccountId.String()
-	for _, aliasMap := range strings.Split(accountMap, ",") {
+	for aliasMap := range strings.SplitSeq(accountMap, ",") {
 		if !strings.HasPrefix(aliasMap, payerAlias) {
 			continue
 		}
@@ -537,7 +537,7 @@ func (c *constructionAPIService) getRandomNodeAccountId() (hiero.AccountID, *rTy
 	return nodeAccountIds[index.Int64()], nil
 }
 
-func (c *constructionAPIService) getIntMetadataValue(metadata map[string]interface{}, metadataKey string) (int64, *rTypes.Error) {
+func (c *constructionAPIService) getIntMetadataValue(metadata map[string]any, metadataKey string) (int64, *rTypes.Error) {
 	var metadataValue int64
 	if metadata != nil && metadata[metadataKey] != nil {
 		value, ok := metadata[metadataKey].(string)
@@ -556,7 +556,7 @@ func (c *constructionAPIService) getIntMetadataValue(metadata map[string]interfa
 
 func (c *constructionAPIService) resolveAccountAliases(
 	ctx context.Context,
-	options map[string]interface{},
+	options map[string]any,
 ) (emptyResult string, nilErr *rTypes.Error) {
 	if options[optionKeyAccountAliases] == nil {
 		return
@@ -572,7 +572,7 @@ func (c *constructionAPIService) resolveAccountAliases(
 	}
 
 	var accountMap []string
-	for _, accountAlias := range strings.Split(accountAliases, ",") {
+	for accountAlias := range strings.SplitSeq(accountAliases, ",") {
 		accountId, err := types.NewAccountIdFromString(accountAlias, c.systemShard, c.systemRealm)
 		if err != nil {
 			return emptyResult, errors.ErrInvalidAccount
@@ -618,7 +618,7 @@ func NewConstructionAPIService(
 		} else {
 			// Workaround for offline mode, create client without mirror network to skip the blocking initial network
 			// address book update
-			clientConfig := []byte(fmt.Sprintf("{\"network\": \"%s\"}", network))
+			clientConfig := fmt.Appendf(nil, "{\"network\": \"%s\"}", network)
 			sdkClient, err = hiero.ClientFromConfig(clientConfig)
 		}
 	}
@@ -695,7 +695,7 @@ func updateTransaction(transaction hiero.TransactionInterface, updaters ...updat
 	return nil
 }
 
-func transactionSetMemo(memo interface{}) updater {
+func transactionSetMemo(memo any) updater {
 	return func(transaction hiero.TransactionInterface) *rTypes.Error {
 		if memo == nil {
 			return nil
