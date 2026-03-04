@@ -81,14 +81,14 @@
         "consensus_timestamp": "987654000123456",
         "hash": "0x985602030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
         "chain_id": "0x012a",
-        "max_fee_per_gas": "0x40",
-        "max_priority_fee_per_gas": "0x15",
+        "max_fee_per_gas": "0x9502F90000",
+        "max_priority_fee_per_gas": "0x30E4F9B400",
         "payer_account_id": 5000,
         "signature_r": "0xb5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9",
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 4,
-        "value": ["0x1e"]
+        "value": ["0x45D964B800"]
       }
     ]
   },
