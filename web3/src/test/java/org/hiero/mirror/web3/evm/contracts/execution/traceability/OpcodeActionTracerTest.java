@@ -132,9 +132,9 @@ class OpcodeActionTracerTest {
     private MessageFrame frame;
 
     // EVM data for capture
-    private UInt256[] stackItems;
-    private Bytes[] wordsInMemory;
-    private Map<UInt256, UInt256> updatedStorage;
+    private String[] stackItems;
+    private String[] wordsInMemory;
+    private Map<String, String> updatedStorage;
     private TxStorageUsage txStorageUsage;
 
     @BeforeAll
@@ -439,7 +439,7 @@ class OpcodeActionTracerTest {
         assertThat(opcode.memory()).isEmpty();
         assertThat(opcode.storage()).isEmpty();
         assertThat(opcode.reason())
-                .isEqualTo(frame.getRevertReason().map(Bytes::toString).orElse(null));
+                .isEqualTo(frame.getRevertReason().map(Bytes::toHexString).orElse(null));
     }
 
     @Test
@@ -468,7 +468,7 @@ class OpcodeActionTracerTest {
         // Then
         assertThat(opcode.reason())
                 .isNotEmpty()
-                .isEqualTo(frame.getRevertReason().map(Bytes::toString).orElseThrow());
+                .isEqualTo(frame.getRevertReason().map(Bytes::toHexString).orElseThrow());
     }
 
     @Test
@@ -715,10 +715,10 @@ class OpcodeActionTracerTest {
         return messageFrame;
     }
 
-    private Map<UInt256, UInt256> setupStorageForCapture() {
-        final Map<UInt256, UInt256> storage = ImmutableSortedMap.of(
-                UInt256.ZERO, UInt256.ONE,
-                UInt256.ONE, UInt256.ONE);
+    private Map<String, String> setupStorageForCapture() {
+        final Map<String, String> storage = ImmutableSortedMap.of(
+                UInt256.ZERO.toHexString(), UInt256.ONE.toHexString(),
+                UInt256.ONE.toHexString(), UInt256.ONE.toHexString());
         final var storageAccesses = new ArrayList<StorageAccesses>();
         final var nestedStorageAccesses = new ArrayList<StorageAccess>();
 
@@ -737,7 +737,7 @@ class OpcodeActionTracerTest {
         return storage;
     }
 
-    private UInt256[] setupStackForCapture(final MessageFrame frame) {
+    private String[] setupStackForCapture(final MessageFrame frame) {
         final UInt256[] stack = new UInt256[] {
             UInt256.fromHexString("0x01"), UInt256.fromHexString("0x02"), UInt256.fromHexString("0x03")
         };
@@ -746,10 +746,10 @@ class OpcodeActionTracerTest {
             frame.pushStackItem(stackItem);
         }
 
-        return stack;
+        return new String[] {stack[0].toHexString(), stack[1].toHexString(), stack[2].toHexString()};
     }
 
-    private Bytes[] setupMemoryForCapture(final MessageFrame frame) {
+    private String[] setupMemoryForCapture(final MessageFrame frame) {
         final Bytes[] words = new Bytes[] {
             Bytes.fromHexString("0x01", 32), Bytes.fromHexString("0x02", 32), Bytes.fromHexString("0x03", 32)
         };
@@ -758,7 +758,7 @@ class OpcodeActionTracerTest {
             frame.writeMemory(i * 32, 32, words[i]);
         }
 
-        return words;
+        return new String[] {words[0].toHexString(), words[1].toHexString(), words[2].toHexString()};
     }
 
     private MessageFrame buildMessageFrameFromAction(ContractAction action) {

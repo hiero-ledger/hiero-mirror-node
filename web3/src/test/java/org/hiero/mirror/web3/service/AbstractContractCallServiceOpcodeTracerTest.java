@@ -19,7 +19,6 @@ import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.balance.AccountBalance;
@@ -212,16 +211,9 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                                 .op(opcode.op())
                                 .pc(opcode.pc())
                                 .reason(opcode.reason())
-                                .stack(opcode.stack().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .memory(opcode.memory().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .storage(opcode.storage().entrySet().stream()
-                                        .collect(Collectors.toMap(
-                                                entry -> entry.getKey().toHexString(),
-                                                entry -> entry.getValue().toHexString()))))
+                                .stack(opcode.stack())
+                                .memory(opcode.memory())
+                                .storage(opcode.storage()))
                         .toList())
                 .returnValue(Bytes.fromHexString(result.contractCallResult()).toHexString());
     }

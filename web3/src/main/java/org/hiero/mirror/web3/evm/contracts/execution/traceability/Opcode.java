@@ -5,7 +5,6 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import java.util.List;
 import java.util.Map;
 import lombok.Builder;
-import org.apache.tuweni.bytes.Bytes;
 
 @Builder
 public record Opcode(
@@ -14,7 +13,7 @@ public record Opcode(
         long gas,
         long gasCost,
         int depth,
-        List<Bytes> stack,
-        List<Bytes> memory,
-        Map<Bytes, Bytes> storage,
+        List<String> stack,
+        List<String> memory,
+        Map<String, String> storage,
         String reason) {}

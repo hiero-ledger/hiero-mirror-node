@@ -8,11 +8,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
@@ -21,43 +18,45 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    protected final List<Bytes> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
 
         int size = frame.memoryWordSize();
-        var memory = new ArrayList<Bytes>(size);
+        var memory = new ArrayList<String>(size);
         for (int i = 0; i < size; i++) {
-            memory.add(frame.readMemory(i * 32L, 32));
+            memory.add(frame.readMemory(i * 32L, 32).toHexString());
         }
 
         return memory;
     }
 
-    protected final List<Bytes> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected final List<String> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
 
         int size = frame.stackSize();
-        var stack = new ArrayList<Bytes>(size);
+        var stack = new ArrayList<String>(size);
         for (int i = 0; i < size; ++i) {
-            stack.add(frame.getStackItem(size - 1 - i));
+            stack.add(frame.getStackItem(size - 1 - i).toHexString());
         }
 
         return stack;
     }
 
-    protected Map<Bytes, Bytes> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected Map<String, String> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
             var worldUpdater = frame.getWorldUpdater();
-            while (worldUpdater.parentUpdater().isPresent()) {
-                worldUpdater = worldUpdater.parentUpdater().get();
+            var parent = worldUpdater.parentUpdater().orElse(null);
+            while (parent != null) {
+                worldUpdater = parent;
+                parent = worldUpdater.parentUpdater().orElse(null);
             }
 
             if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
@@ -71,35 +70,38 @@ public abstract class AbstractOpcodeTracer {
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
                     .accesses();
-            return updates.stream()
-                    .flatMap(storageAccesses ->
-                            storageAccesses.accesses().stream()) // Properly flatten the nested structure
-                    .collect(Collectors.toMap(
-                            e -> Bytes.wrap(e.key().toArray()),
-                            e -> Bytes.wrap(
-                                    e.writtenValue() != null
-                                            ? e.writtenValue().toArray()
-                                            : e.value().toArray()),
-                            (v1, v2) -> v1, // in case of duplicates, keep the first value
-                            TreeMap::new));
+            Map<String, String> result = new TreeMap<>();
+            for (var storageAccesses : updates) {
+                for (var access : storageAccesses.accesses()) {
+                    var key = access.key().toHexString();
+                    if (!result.containsKey(key)) {
+                        var value = access.writtenValue() != null
+                                ? access.writtenValue().toHexString()
+                                : access.value().toHexString();
+                        result.put(key, value);
+                    }
+                }
+            }
+            return result;
 
         } catch (final ModificationNotAllowedException e) {
             return Collections.emptyMap();
         }
     }
 
-    protected final Optional<Bytes> getRevertReasonFromContractActions(final ContractCallContext context) {
+    protected final Bytes getRevertReasonFromContractActions(final ContractCallContext context) {
         final var contractActions = context.getContractActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
-            return Optional.empty();
+            return null;
         }
 
-        return contractActions.stream()
-                .filter(ContractAction::hasRevertReason)
-                .map(action -> Bytes.of(action.getResultData()))
-                .map(this::formatRevertReason)
-                .findFirst();
+        for (var action : contractActions) {
+            if (action.hasRevertReason()) {
+                return formatRevertReason(Bytes.of(action.getResultData()));
+            }
+        }
+        return null;
     }
 
     /**

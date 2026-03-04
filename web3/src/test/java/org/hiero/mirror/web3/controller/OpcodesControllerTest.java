@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.tuple.Triple;
@@ -611,16 +610,9 @@ class OpcodesControllerTest {
                                     .op(opcode.op())
                                     .pc(opcode.pc())
                                     .reason(opcode.reason())
-                                    .stack(opcode.stack().stream()
-                                            .map(Bytes::toHexString)
-                                            .toList())
-                                    .memory(opcode.memory().stream()
-                                            .map(Bytes::toHexString)
-                                            .toList())
-                                    .storage(opcode.storage().entrySet().stream()
-                                            .collect(Collectors.toMap(
-                                                    entry -> entry.getKey().toHexString(),
-                                                    entry -> entry.getValue().toHexString()))))
+                                    .stack(opcode.stack())
+                                    .memory(opcode.memory())
+                                    .storage(opcode.storage()))
                             .toList())
                     .returnValue(Optional.ofNullable(Bytes.wrap(result.transactionProcessingResult()
                                     .functionResult()
@@ -667,17 +659,13 @@ class OpcodesControllerTest {
                             2,
                             options.isStack()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "000000000000000000000000000000000000000000000000000000004700d305"),
-                                            Bytes.fromHexString(
-                                                    "00000000000000000000000000000000000000000000000000000000000000a7"))
+                                            "0x000000000000000000000000000000000000000000000000000000004700d305",
+                                            "0x00000000000000000000000000000000000000000000000000000000000000a7")
                                     : Collections.emptyList(),
                             options.isMemory()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "4e487b7100000000000000000000000000000000000000000000000000000000"),
-                                            Bytes.fromHexString(
-                                                    "0000001200000000000000000000000000000000000000000000000000000000"))
+                                            "0x4e487b7100000000000000000000000000000000000000000000000000000000",
+                                            "0x0000001200000000000000000000000000000000000000000000000000000000")
                                     : Collections.emptyList(),
                             Collections.emptySortedMap(),
                             null),
@@ -689,17 +677,13 @@ class OpcodesControllerTest {
                             2,
                             options.isStack()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "000000000000000000000000000000000000000000000000000000004700d305"),
-                                            Bytes.fromHexString(
-                                                    "00000000000000000000000000000000000000000000000000000000000000a7"))
+                                            "0x000000000000000000000000000000000000000000000000000000004700d305",
+                                            "0x00000000000000000000000000000000000000000000000000000000000000a7")
                                     : Collections.emptyList(),
                             options.isMemory()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "4e487b7100000000000000000000000000000000000000000000000000000000"),
-                                            Bytes.fromHexString(
-                                                    "0000001200000000000000000000000000000000000000000000000000000000"))
+                                            "0x4e487b7100000000000000000000000000000000000000000000000000000000",
+                                            "0x0000001200000000000000000000000000000000000000000000000000000000")
                                     : Collections.emptyList(),
                             Collections.emptySortedMap(),
                             "0x4e487b710000000000000000000000000000000000000000000000000000000000000012"),
@@ -711,24 +695,18 @@ class OpcodesControllerTest {
                             1,
                             options.isStack()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "000000000000000000000000000000000000000000000000000000000135b7d0"),
-                                            Bytes.fromHexString(
-                                                    "00000000000000000000000000000000000000000000000000000000000000a0"))
+                                            "0x000000000000000000000000000000000000000000000000000000000135b7d0",
+                                            "0x00000000000000000000000000000000000000000000000000000000000000a0")
                                     : Collections.emptyList(),
                             options.isMemory()
                                     ? List.of(
-                                            Bytes.fromHexString(
-                                                    "0000000000000000000000000000000000000000000000000000000000000000"),
-                                            Bytes.fromHexString(
-                                                    "0000000000000000000000000000000000000000000000000000000000000000"))
+                                            "0x0000000000000000000000000000000000000000000000000000000000000000",
+                                            "0x0000000000000000000000000000000000000000000000000000000000000000")
                                     : Collections.emptyList(),
                             options.isStorage()
                                     ? ImmutableSortedMap.of(
-                                            Bytes.fromHexString(
-                                                    "0000000000000000000000000000000000000000000000000000000000000000"),
-                                            Bytes.fromHexString(
-                                                    "0000000000000000000000000000000000000000000000000000000000000014"))
+                                            "0x0000000000000000000000000000000000000000000000000000000000000000",
+                                            "0x0000000000000000000000000000000000000000000000000000000000000014")
                                     : Collections.emptySortedMap(),
                             null));
         }

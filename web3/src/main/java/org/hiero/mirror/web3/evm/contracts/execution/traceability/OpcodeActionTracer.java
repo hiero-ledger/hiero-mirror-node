@@ -12,7 +12,6 @@ import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -49,8 +48,8 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var stack = captureStack(frame, options);
         final var storage = captureStorage(frame, options);
 
-        context.addOpcodes(
-                createOpcode(frame, operationResult.getGasCost(), frame.getRevertReason(), stack, memory, storage));
+        context.addOpcodes(createOpcode(
+                frame, operationResult.getGasCost(), frame.getRevertReason().orElse(null), stack, memory, storage));
     }
 
     @Override
@@ -91,7 +90,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
-                : frame.getRevertReason();
+                : frame.getRevertReason().orElse(null);
 
         context.addOpcodes(createOpcode(
                 frame,
@@ -107,10 +106,10 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     private Opcode createOpcode(
             final MessageFrame frame,
             final long gasCost,
-            final Optional<Bytes> revertReason,
-            final List<Bytes> stack,
-            final List<Bytes> memory,
-            final Map<Bytes, Bytes> storage) {
+            final Bytes revertReason,
+            final List<String> stack,
+            final List<String> memory,
+            final Map<String, String> storage) {
         return Opcode.builder()
                 .pc(frame.getPC())
                 .op(
@@ -123,7 +122,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                 .stack(stack)
                 .memory(memory)
                 .storage(storage)
-                .reason(revertReason.map(Bytes::toString).orElse(null))
+                .reason(revertReason != null ? revertReason.toHexString() : null)
                 .build();
     }
 

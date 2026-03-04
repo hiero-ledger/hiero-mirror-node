@@ -10,7 +10,6 @@ import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -131,16 +130,9 @@ public class OpcodeServiceImpl implements OpcodeService {
                                 .op(opcode.op())
                                 .pc(opcode.pc())
                                 .reason(opcode.reason())
-                                .stack(opcode.stack().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .memory(opcode.memory().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .storage(opcode.storage().entrySet().stream()
-                                        .collect(Collectors.toMap(
-                                                entry -> entry.getKey().toHexString(),
-                                                entry -> entry.getValue().toHexString()))))
+                                .stack(opcode.stack())
+                                .memory(opcode.memory())
+                                .storage(opcode.storage()))
                         .toList())
                 .returnValue(Optional.ofNullable(Bytes.fromHexString(
                                 result.transactionProcessingResult().contractCallResult()))
