@@ -82,7 +82,7 @@ jobs:
         run: gcloud auth configure-docker gcr.io,marketplace.gcr.io
 
       - name: Build
-        if: matrix.project != 'rest' && matrix.project != 'rest-monitor' && matrix.project != 'rosetta'
+        if: matrix.project != 'rest' && matrix.project != 'rest-monitor' && matrix.project != 'rosetta' && matrix.project != 'pinger'
         run: ./gradlew :${{matrix.project}}:build -x test
 
       - name: Setup QEMU

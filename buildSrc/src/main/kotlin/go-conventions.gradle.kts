@@ -77,3 +77,8 @@ listOf(tasks.dependencyCheckAggregate, tasks.dependencyCheckAnalyze).forEach {
         doFirst { dependencyCheck { analyzers { pathToGo = go.goBin.toString() } } }
     }
 }
+
+tasks.withType<Go>().configureEach {
+    val goBinDir = go.goBin.parentFile.absolutePath
+    environment("PATH", "${goBinDir}:${System.getenv("PATH")}")
+}
