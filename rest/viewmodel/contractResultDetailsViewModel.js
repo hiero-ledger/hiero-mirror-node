@@ -8,6 +8,7 @@ import ContractResultViewModel from './contractResultViewModel';
 import EntityId from '../entityId';
 import {TransactionResult} from '../model';
 import * as utils from '../utils';
+import {WEIBARS_TO_TINYBARS} from '../constants';
 
 /**
  * Contract result details view model
@@ -177,9 +178,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       value = BigInt('0x' + input.toString('hex'));
     }
     // ---- Step 2: divide (truncates toward zero like Java) ----
-    const divisor = 10_000_000_000n;
-    // WEIBARS_TO_TINYBARS_BIGINT
-    return value / divisor;
+    return value / WEIBARS_TO_TINYBARS;
   }
 
   static _bytesToSignedBigInt(buffer) {
