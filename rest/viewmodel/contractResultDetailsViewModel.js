@@ -85,17 +85,6 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
     if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
-
-      // Handle value/amount conversion based on convertToHbar parameter
-      // After migration, DB contains weibar values
-      if (convertToHbar) {
-        // Convert from weibar to tinybar for backward compatibility
-        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value, true);
-      } else {
-        // Return raw weibar values from DB
-        this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
-      }
-
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {
@@ -110,9 +99,11 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
         this.gas_limit = ethTransaction.gasLimit;
       }
 
-      // Convert gas fields based on convertToHbar parameter
+      // Handle all weibar/tinybar conversions based on convertToHbar parameter
+      // After migration, DB contains weibar values
       if (convertToHbar) {
         // Convert from weibar to tinybar for backward compatibility
+        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value, true);
         this.gas_price = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.gasPrice);
         this.max_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.maxFeePerGas);
         this.max_priority_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(
@@ -120,6 +111,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
         );
       } else {
         // Return raw weibar values from DB
+        this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
         this.gas_price = utils.toHexStringQuantity(ethTransaction.gasPrice);
         this.max_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxFeePerGas);
         this.max_priority_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxPriorityFeePerGas);
