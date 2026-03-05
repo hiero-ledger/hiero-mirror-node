@@ -192,7 +192,7 @@ const getAccountBalanceTimestampRange = async (tsQuery, tsParams) => {
   }
 
   const upper = rows[0].consensus_timestamp;
-  const lower = utils.getFirstDayOfMonth(upper);
+  const lower = utils.getFirstDayOfMonth(upper, -6);
   return {lower, upper};
 };
 
@@ -261,15 +261,15 @@ const getOptimizedTimestampRange = (tsQuery, tsParams) => {
     return {};
   }
 
-  // The optimized range of [lower, upper] should overlap with at most two months, with the exception that when upper
-  // is more than 1 month in the future, the range may cover more months. Since the partition maintenance job will
-  // create at most one monthly partition ahead, it's unnecessary to adjust the upper bound.
+  // The optimized range of [lower, upper] should overlap with at most two partitions, with the exception that when upper
+  // is more than 6 months in the future, the range may cover more months. Since the partition maintenance job will
+  // create at most one 6 month partition ahead, it's unnecessary to adjust the upper bound.
   // With the assumption that the data in db is in sync with the network, in other words, the balance information is
   // update-to-date as of NOW in wall clock, the algorithm below sets lower bound to
   //   max(lowerBound from user, first day of the month before the month min(now, upperBound) is in)
   const nowInNs = utils.nowInNs();
   const effectiveUpperBound = utils.bigIntMin(upperBound, nowInNs);
-  const optimalLowerBound = utils.getFirstDayOfMonth(effectiveUpperBound, -1);
+  const optimalLowerBound = utils.getFirstDayOfMonth(effectiveUpperBound, -6);
   lowerBound = utils.bigIntMax(lowerBound, optimalLowerBound);
 
   return {lowerBound, upperBound, neParams};
