@@ -6,18 +6,19 @@
 FROM --platform=$BUILDPLATFORM golang:1.26.0-alpine3.23 AS builder
 
 WORKDIR /src
-RUN apk add --no-cache ca-certificates git
+
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION=development
+ENV CGO_ENABLED=0
+
+RUN apk add --no-cache ca-certificates
 
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 
 COPY . .
-
-ARG TARGETOS
-ARG TARGETARCH
-ARG VERSION=development
-ENV CGO_ENABLED=0
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \

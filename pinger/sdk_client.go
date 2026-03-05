@@ -12,18 +12,20 @@ func newClient(cfg config) (*hiero.Client, error) {
 	var err error
 
 	switch cfg.network {
-	case "testnet":
-		client = hiero.ClientForTestnet()
-	case "previewnet":
-		client = hiero.ClientForPreviewnet()
-	case "mainnet":
-		client = hiero.ClientForMainnet()
 	case "other":
 		netmap, err := buildNetworkFromMirrorNodes(context.Background(), cfg.mirrorRest)
 		if err != nil {
 			return nil, err
 		}
 		client = hiero.ClientForNetwork(netmap)
+
+	case "testnet", "previewnet", "mainnet":
+		c, err := hiero.ClientForName(cfg.network)
+		if err != nil {
+			return nil, err
+		}
+		client = c
+
 	default:
 		return nil, fmt.Errorf("unknown network %q (testnet|previewnet|mainnet|other)", cfg.network)
 	}
