@@ -9,13 +9,12 @@ import config from '../config';
 import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION} from './globalSetup';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
-import {GenericContainer, PullPolicy} from 'testcontainers';
-import {RedisContainer} from '@testcontainers/redis';
+import {GenericContainer, PullPolicy, Wait} from 'testcontainers';
 
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
 
-const REDIS_IMAGE = 'redis:7.2';
+const REDIS_IMAGE = 'gcr.io/mirrornode/redis:8.2.2';
 
 const restJavaContainers = new Map();
 
@@ -82,7 +81,13 @@ const initializeContainers = async () => {
   await createPool(connectionParams);
 };
 
-const startRedisContainer = async () => new RedisContainer(REDIS_IMAGE).withStartupTimeout(20000).start();
+const startRedisContainer = async () =>
+  new GenericContainer(REDIS_IMAGE)
+    .withEnvironment({ALLOW_EMPTY_PASSWORD: 'yes'})
+    .withExposedPorts(6379)
+    .withStartupTimeout(20000)
+    .withWaitStrategy(Wait.forLogMessage('Ready to accept connections'))
+    .start();
 
 const startRestJavaContainer = async () => {
   let container = restJavaContainers.get(workerId);
