@@ -4,7 +4,7 @@ package org.hiero.mirror.importer.migration;
 
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
-import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -25,18 +25,18 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
             + "value = :value where consensus_timestamp = :consensusTimestamp";
 
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
-    private final EthereumTransactionParser ethereumTransactionParser;
+    private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
     private final boolean v2;
 
     ConvertEthereumTransactionToWeiBarMigration(
             Environment environment,
             ImporterProperties importerProperties,
             ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
-            EthereumTransactionParser ethereumTransactionParser) {
+            ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider) {
         super(importerProperties.getMigration());
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
         this.jdbcOperationsProvider = jdbcOperationsProvider;
-        this.ethereumTransactionParser = ethereumTransactionParser;
+        this.ethereumTransactionParserProvider = ethereumTransactionParserProvider;
     }
 
     @Override
@@ -46,7 +46,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
 
     @Override
     public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.23.3") : MigrationVersion.fromVersion("1.118.3");
+        return v2 ? MigrationVersion.fromVersion("2.24.0") : MigrationVersion.fromVersion("1.119.0");
     }
 
     @Override
@@ -54,19 +54,22 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
         var count = new AtomicLong(0);
         var stopwatch = Stopwatch.createStarted();
         final var jdbcOperations = jdbcOperationsProvider.getObject();
+        final var parser = ethereumTransactionParserProvider.getObject();
 
         jdbcOperations.query(SELECT_TRANSACTIONS_SQL, rs -> {
             var consensusTimestamp = rs.getLong(1);
             var data = rs.getBytes(2);
-            var parsed = ethereumTransactionParser.decode(data);
-            jdbcOperations.update(
-                    UPDATE_SQL,
-                    Map.of(
-                            "consensusTimestamp", consensusTimestamp,
-                            "gasPrice", parsed.getGasPrice(),
-                            "maxFeePerGas", parsed.getMaxFeePerGas(),
-                            "maxPriorityFeePerGas", parsed.getMaxPriorityFeePerGas(),
-                            "value", parsed.getValue()));
+            var parsed = parser.decode(data);
+
+            // Use HashMap to allow null values (Map.of() doesn't allow nulls)
+            var params = new HashMap<String, Object>();
+            params.put("consensusTimestamp", consensusTimestamp);
+            params.put("gasPrice", parsed.getGasPrice());
+            params.put("maxFeePerGas", parsed.getMaxFeePerGas());
+            params.put("maxPriorityFeePerGas", parsed.getMaxPriorityFeePerGas());
+            params.put("value", parsed.getValue());
+
+            jdbcOperations.update(UPDATE_SQL, params);
             count.incrementAndGet();
         });
 
