@@ -68,7 +68,7 @@ func buildNetworkFromMirrorNodes(ctx context.Context, mirrorBase string) (map[st
 		if n.NodeAccountID == "" {
 			continue
 		}
-		nodeID, err := hiero.AccountIDFromString(n.NodeAccountID)
+		nodeAccountId, err := hiero.AccountIDFromString(n.NodeAccountID)
 		if err != nil {
 			continue
 		}
@@ -84,7 +84,7 @@ func buildNetworkFromMirrorNodes(ctx context.Context, mirrorBase string) (map[st
 			}
 
 			addr := net.JoinHostPort(host, fmt.Sprintf("%d", ep.Port))
-			network[addr] = nodeID
+			network[addr] = nodeAccountId
 		}
 	}
 

@@ -32,7 +32,7 @@ dependencies:
     name: hedera-mirror-pinger
     repository: file://../hedera-mirror-pinger
     tags: [go]
-    version: ">=0.18.0-0"
+    version: ">=0.150.0-0"
   - alias: postgresql
     condition: postgresql.enabled
     name: postgresql-ha

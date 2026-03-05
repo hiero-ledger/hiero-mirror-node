@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+
 package main
 
 import (
@@ -24,8 +26,11 @@ func main() {
 	case "live":
 		fi, err := os.Stat("/tmp/alive")
 		if err != nil {
-			os.Exit(0)
+			// Missing/invalid heartbeat file => not alive
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
 		}
+
 		age := time.Since(fi.ModTime())
 		if age > 2*time.Minute {
 			fmt.Fprintln(os.Stderr, "heartbeat stale")

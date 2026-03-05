@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
+var Version = "development"
+
 func main() {
+	log.Printf("pinger starting (version=%s)", Version)
 	cfg, err := loadConfig()
 	if err != nil {
 		log.Fatalf("config error: %v", err)
@@ -41,7 +44,9 @@ func main() {
 	}
 
 	// Mark readiness for exec probe (creates /tmp/ready)
-	_ = os.WriteFile("/tmp/ready", []byte("ok\n"), 0644)
+	if err := os.WriteFile("/tmp/ready", []byte("ok\n"), 0o644); err != nil {
+		log.Fatalf("failed to create readiness file /tmp/ready: %v", err)
+	}
 
 	log.Printf("Starting transfer ticker: every %s, %d tinybar from %s -> %s on %s",
 		cfg.interval, cfg.amountTinybar, cfg.operatorID, cfg.toAccountID, cfg.network)

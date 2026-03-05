@@ -15,12 +15,6 @@ func submitWithRetry(ctx context.Context, client *hiero.Client, cfg config) erro
 		return fmt.Errorf("invalid destination id: %w", err)
 	}
 
-	buildTx := func() *hiero.TransferTransaction {
-		return hiero.NewTransferTransaction().
-			AddHbarTransfer(client.GetOperatorAccountID(), hiero.HbarFromTinybar(-cfg.amountTinybar)).
-			AddHbarTransfer(toID, hiero.HbarFromTinybar(cfg.amountTinybar))
-	}
-
 	var lastErr error
 	attempts := cfg.maxRetries + 1
 
@@ -30,9 +24,11 @@ func submitWithRetry(ctx context.Context, client *hiero.Client, cfg config) erro
 		}
 
 		start := time.Now()
-		tx := buildTx()
+		cryptoTransfer := hiero.NewTransferTransaction().
+			AddHbarTransfer(client.GetOperatorAccountID(), hiero.HbarFromTinybar(-cfg.amountTinybar)).
+			AddHbarTransfer(toID, hiero.HbarFromTinybar(cfg.amountTinybar))
 
-		resp, err := tx.Execute(client)
+		resp, err := cryptoTransfer.Execute(client)
 		if err == nil {
 			receipt, rerr := resp.GetReceipt(client)
 			if rerr == nil {
@@ -63,9 +59,5 @@ func submitWithRetry(ctx context.Context, client *hiero.Client, cfg config) erro
 
 func backoff(base time.Duration, attempt int) time.Duration {
 	d := base * time.Duration(1<<(attempt-1))
-	max := 30 * time.Second
-	if d > max {
-		return max
-	}
-	return d
+	return min(d, 30 * time.Second)
 }
