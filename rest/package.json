@@ -76,10 +76,12 @@
   },
   "baseUrlPath": "/api/v1",
   "overrides": {
+    "@tootallnate/once": "3.0.1",
     "glob": "13.0.6",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "3.14.2"
     },
+    "multer": "2.1.1",
     "swagger-stats": {
       "path-to-regexp": "6.3.0",
       "send": "0.19.2"
