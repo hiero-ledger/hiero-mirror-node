@@ -49,7 +49,12 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var storage = captureStorage(frame, options);
 
         context.addOpcodes(createOpcode(
-                frame, operationResult.getGasCost(), frame.getRevertReason().orElse(null), stack, memory, storage));
+                frame,
+                operationResult.getGasCost(),
+                frame.getRevertReason().map(Bytes::toHexString).orElse(null),
+                stack,
+                memory,
+                storage));
     }
 
     @Override
@@ -90,7 +95,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
 
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
-                : frame.getRevertReason().orElse(null);
+                : frame.getRevertReason().map(Bytes::toHexString).orElse(null);
 
         context.addOpcodes(createOpcode(
                 frame,
@@ -106,7 +111,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     private Opcode createOpcode(
             final MessageFrame frame,
             final long gasCost,
-            final Bytes revertReason,
+            final String revertReason,
             final List<String> stack,
             final List<String> memory,
             final Map<String, String> storage) {
@@ -122,7 +127,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                 .stack(stack)
                 .memory(memory)
                 .storage(storage)
-                .reason(revertReason != null ? revertReason.toHexString() : null)
+                .reason(revertReason)
                 .build();
     }
 

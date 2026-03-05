@@ -114,14 +114,14 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
-        final Address recipientAddress = result.recipient();
+        final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
         if (recipientAddress != null && !recipientAddress.equals(ADDRESS_ZERO)) {
             recipientEntity =
                     commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
         }
 
-        String address = ADDRESS_ZERO.toHexString();
+        var address = ADDRESS_ZERO.toHexString();
         String contractId = null;
         if (recipientEntity != null) {
             address = getEntityAddress(recipientEntity).toHexString();
@@ -129,15 +129,15 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         final var txnResult = result.transactionProcessingResult();
-        String returnValue = txnResult != null ? txnResult.contractCallResult() : HEX_PREFIX;
+        var returnValue = txnResult != null ? txnResult.contractCallResult() : HEX_PREFIX;
         if (returnValue == null || returnValue.isEmpty()) {
             returnValue = HEX_PREFIX;
         }
 
-        var resultOpcodes = result.opcodes();
-        var opcodes = new ArrayList<Opcode>(resultOpcodes != null ? resultOpcodes.size() : 0);
+        final var resultOpcodes = result.opcodes();
+        final var opcodes = new ArrayList<Opcode>(resultOpcodes != null ? resultOpcodes.size() : 0);
         if (resultOpcodes != null) {
-            for (var opcode : resultOpcodes) {
+            for (final var opcode : resultOpcodes) {
                 opcodes.add(new Opcode()
                         .depth(opcode.depth())
                         .gas(opcode.gas())
@@ -162,16 +162,16 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private ContractDebugParameters buildCallServiceParameters(
             Long consensusTimestamp, Transaction transaction, EthereumTransaction ethTransaction) {
-        final ContractResult contractResult = contractResultRepository
+        final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
 
-        BlockType blockType = recordFileService
+        final var blockType = recordFileService
                 .findByTimestamp(consensusTimestamp)
                 .map(recordFile -> BlockType.of(recordFile.getIndex().toString()))
                 .orElse(BlockType.LATEST);
 
-        final int transactionType = transaction != null ? transaction.getType() : TransactionType.UNKNOWN.getProtoId();
+        final var transactionType = transaction != null ? transaction.getType() : TransactionType.UNKNOWN.getProtoId();
 
         return ContractDebugParameters.builder()
                 .block(blockType)
@@ -186,7 +186,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private Address getSenderAddress(ContractResult contractResult) {
-        Address address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
         return address != null ? address : ADDRESS_ZERO;
     }
 
@@ -196,10 +196,10 @@ public class OpcodeServiceImpl implements OpcodeService {
             if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
                 return ADDRESS_ZERO;
             }
-            Address address =
+            final var address =
                     Address.fromHexString(HEX_PREFIX + Hex.encodeHexString(ethereumTransaction.getToAddress()));
             if (ConversionUtils.isLongZero(address)) {
-                Entity entity =
+                final var entity =
                         commonEntityAccessor.get(address, Optional.empty()).orElse(null);
                 if (entity != null) {
                     return getEntityAddress(entity);
@@ -212,7 +212,7 @@ public class OpcodeServiceImpl implements OpcodeService {
             return ADDRESS_ZERO;
         }
         final var contractId = EntityId.of(contractResult.getContractId());
-        Address address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
         return address != null ? address : ADDRESS_ZERO;
     }
 
@@ -231,7 +231,7 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private String getCallData(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
-        byte[] callData = ethereumTransaction != null
+        final var callData = ethereumTransaction != null
                 ? ethereumTransaction.getCallData()
                 : contractResult.getFunctionParameters();
         return callData != null ? HEX_PREFIX + Hex.encodeHexString(callData) : HEX_PREFIX;
@@ -241,7 +241,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         if (ethereumTransaction == null) {
             return HEX_PREFIX;
         }
-        byte[] data = ethereumTransaction.getData();
+        final var data = ethereumTransaction.getData();
         return data != null ? HEX_PREFIX + Hex.encodeHexString(data) : HEX_PREFIX;
     }
 

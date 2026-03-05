@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.convert.BytesDecoder.validateHexString;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -61,11 +62,16 @@ class ContractController {
         } else {
             receiver = Address.fromHexString(request.getTo());
         }
-        String data = (request.getData() != null && !request.getData().isEmpty()) ? request.getData() : HEX_PREFIX;
-        if (!isValidHexString(data)) {
+
+        String data;
+        try {
+            validateHexString(request.getData());
+            data = request.getData() != null ? request.getData() : HEX_PREFIX;
+        } catch (final Exception e) {
             throw new InvalidParametersException(
                     "data field '%s' contains invalid odd length characters".formatted(request.getData()));
         }
+
         final var isStaticCall = false;
         final var callType = request.isEstimate() ? ETH_ESTIMATE_GAS : ETH_CALL;
         final var block = request.getBlock();
@@ -89,24 +95,5 @@ class ContractController {
             throw new InvalidParametersException(
                     "gas field must be less than or equal to %d".formatted(evmProperties.getMaxGasLimit()));
         }
-    }
-
-    private boolean isValidHexString(String hexString) {
-        if (hexString == null || hexString.isEmpty()) {
-            return false;
-        }
-        String hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
-        if (hex.isEmpty()) {
-            return true;
-        }
-        if (hex.length() % 2 != 0) {
-            return false;
-        }
-        for (char c : hex.toCharArray()) {
-            if (!Character.isDigit(c) && (c < 'a' || c > 'f') && (c < 'A' || c > 'F')) {
-                return false;
-            }
-        }
-        return true;
     }
 }

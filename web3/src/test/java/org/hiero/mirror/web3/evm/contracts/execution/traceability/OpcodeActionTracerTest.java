@@ -59,7 +59,6 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.common.ContractCallContext;
-import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -122,9 +121,6 @@ class OpcodeActionTracerTest {
 
     @Mock
     private MutableAccount recipientAccount;
-
-    @Mock
-    private EvmProperties evmProperties;
 
     // Transient test data
     private OpcodeActionTracer tracer;
@@ -494,7 +490,7 @@ class OpcodeActionTracerTest {
         // Then
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
-                .isEqualTo(getAbiEncodedRevertReason(contractActionWithRevert.getResultData()));
+                .isEqualTo(getAbiEncodedRevertReason(new String(contractActionWithRevert.getResultData())));
     }
 
     @Test
@@ -523,7 +519,7 @@ class OpcodeActionTracerTest {
         assertThat(opcodeForPrecompileCall.reason())
                 .isNotEmpty()
                 .isEqualTo(getAbiEncodedRevertReason(
-                        ResponseCodeEnum.INVALID_ACCOUNT_ID.name().getBytes()));
+                        new String(ResponseCodeEnum.INVALID_ACCOUNT_ID.name().getBytes())));
     }
 
     @Test
@@ -533,8 +529,8 @@ class OpcodeActionTracerTest {
         final var contractActionNoRevert = getContractActionNoRevert();
         final var contractActionWithRevert =
                 contractAction(1, 1, CallOperationType.OP_CALL, REVERT_REASON.getNumber(), HTS_PRECOMPILE_ADDRESS);
-        contractActionWithRevert.setResultData(Bytes.fromHexString(
-                        getAbiEncodedRevertReason(INVALID_OPERATION.name().getBytes()))
+        contractActionWithRevert.setResultData(Bytes.fromHexString(getAbiEncodedRevertReason(
+                        new String(INVALID_OPERATION.name().getBytes())))
                 .toArray());
 
         frame = setupInitialFrame(

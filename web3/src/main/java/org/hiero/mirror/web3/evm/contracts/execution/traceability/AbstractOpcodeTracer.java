@@ -2,6 +2,9 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static org.hiero.mirror.web3.convert.BytesDecoder.startsWithErrorSelector;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.ArrayList;
@@ -9,7 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import org.apache.tuweni.bytes.Bytes;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
@@ -70,12 +73,12 @@ public abstract class AbstractOpcodeTracer {
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
                     .accesses();
-            Map<String, String> result = new TreeMap<>();
-            for (var storageAccesses : updates) {
-                for (var access : storageAccesses.accesses()) {
-                    var key = access.key().toHexString();
+            final var result = new TreeMap<String, String>();
+            for (final var storageAccesses : updates) {
+                for (final var access : storageAccesses.accesses()) {
+                    final var key = access.key().toHexString();
                     if (!result.containsKey(key)) {
-                        var value = access.writtenValue() != null
+                        final var value = access.writtenValue() != null
                                 ? access.writtenValue().toHexString()
                                 : access.value().toHexString();
                         result.put(key, value);
@@ -89,7 +92,7 @@ public abstract class AbstractOpcodeTracer {
         }
     }
 
-    protected final Bytes getRevertReasonFromContractActions(final ContractCallContext context) {
+    protected final String getRevertReasonFromContractActions(final ContractCallContext context) {
         final var contractActions = context.getContractActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
@@ -98,7 +101,7 @@ public abstract class AbstractOpcodeTracer {
 
         for (var action : contractActions) {
             if (action.hasRevertReason()) {
-                return formatRevertReason(Bytes.of(action.getResultData()));
+                return formatRevertReason(action.getResultData());
             }
         }
         return null;
@@ -108,27 +111,52 @@ public abstract class AbstractOpcodeTracer {
      * Formats the revert reason to be consistent with the revert reason format in the EVM. <a
      * href="https://besu.hyperledger.org/23.10.2/private-networks/how-to/send-transactions/revert-reason#revert-reason-format">...</a>
      *
-     * @param revertReason the revert reason
-     * @return the formatted revert reason
+     * @param revertReason the revert reason as byte array
+     * @return the formatted revert reason as hex string
      */
-    protected final Bytes formatRevertReason(final Bytes revertReason) {
-        if (revertReason == null || revertReason.isZero()) {
-            return Bytes.EMPTY;
+    protected final String formatRevertReason(final byte[] revertReason) {
+        if (revertReason == null || revertReason.length == 0 || isZero(revertReason)) {
+            return HEX_PREFIX;
         }
 
-        // covers an edge case where the reason in the contract actions is a response code number (as a plain string)
-        // so we convert this number to an ABI-encoded string of the corresponding response code name,
-        // to at least give some relevant information to the user in the valid EVM format
-        final var trimmedReason = revertReason.trimLeadingZeros();
-        if (trimmedReason.size() <= Integer.BYTES) {
-            final var responseCode = ResponseCodeEnum.forNumber(trimmedReason.toInt());
+        if (startsWithErrorSelector(revertReason)) {
+            return HEX_PREFIX + Hex.toHexString(revertReason);
+        }
+
+        final int firstNonZero = findFirstNonZero(revertReason);
+        final int trimmedLength = revertReason.length - firstNonZero;
+        if (trimmedLength <= Integer.BYTES) {
+            final var responseCode = ResponseCodeEnum.forNumber(toInt(revertReason, firstNonZero));
             if (responseCode != null) {
-                String hexResult = BytesDecoder.getAbiEncodedRevertReason(responseCode.name());
-                return Bytes.fromHexString(hexResult);
+                return BytesDecoder.getAbiEncodedRevertReason(responseCode.name());
             }
         }
 
-        String hexResult = BytesDecoder.getAbiEncodedRevertReason(revertReason.toArray());
-        return Bytes.fromHexString(hexResult);
+        return BytesDecoder.getAbiEncodedRevertReason(new String(revertReason));
+    }
+
+    private boolean isZero(final byte[] bytes) {
+        for (byte b : bytes) {
+            if (b != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int findFirstNonZero(final byte[] bytes) {
+        int index = 0;
+        while (index < bytes.length && bytes[index] == 0) {
+            index++;
+        }
+        return index;
+    }
+
+    private int toInt(final byte[] bytes, final int offset) {
+        int result = 0;
+        for (int i = offset; i < bytes.length; i++) {
+            result = (result << 8) | (bytes[i] & 0xFF);
+        }
+        return result;
     }
 }

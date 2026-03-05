@@ -46,11 +46,6 @@ class BytesDecoderTest {
 
     @Test
     void getAbiEncodedRevertReasonWithNullString() {
-        assertThat(BytesDecoder.getAbiEncodedRevertReason((String) null)).isEqualTo(HEX_PREFIX);
-    }
-
-    @Test
-    void getAbiEncodedRevertReasonWithNullBytes() {
-        assertThat(BytesDecoder.getAbiEncodedRevertReason((byte[]) null)).isEqualTo(HEX_PREFIX);
+        assertThat(BytesDecoder.getAbiEncodedRevertReason(null)).isEqualTo(HEX_PREFIX);
     }
 }

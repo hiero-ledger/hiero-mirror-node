@@ -14,10 +14,7 @@ import org.hyperledger.besu.datatypes.Address;
 @Builder
 public class ContractExecutionParameters implements CallServiceParameters {
     private final BlockType block;
-
-    @Builder.Default
-    private final String callData = HEX_PREFIX;
-
+    private final String callData;
     private final CallType callType;
     private final long gas;
     private final long gasPrice;
