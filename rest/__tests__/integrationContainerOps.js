@@ -15,7 +15,7 @@ import {RedisContainer} from '@testcontainers/redis';
 const {db: defaultDbConfig} = config;
 const Pool = getPoolClass();
 
-const REDIS_IMAGE = 'redis:7.2';
+const REDIS_IMAGE = 'gcr.io/mirrornode/redis:7.4';
 
 const restJavaContainers = new Map();
 
