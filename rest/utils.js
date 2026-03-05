@@ -314,6 +314,9 @@ const filterValidityChecks = (param, op, val) => {
     case constants.filterKeys.FROM:
       ret = EntityId.isValidEntityId(val, true, constants.EvmAddressType.NO_SHARD_REALM);
       break;
+    case constants.filterKeys.HBAR:
+      ret = isValidBooleanOpAndValue(op, val);
+      break;
     case constants.filterKeys.INDEX:
       ret = isNumeric(val) && val >= 0;
       break;
