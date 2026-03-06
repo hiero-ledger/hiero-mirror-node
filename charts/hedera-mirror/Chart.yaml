@@ -27,6 +27,12 @@ dependencies:
     repository: file://../hedera-mirror-monitor
     tags: [java]
     version: ">=0.18.0-0"
+  - alias: pinger
+    condition: pinger.enabled
+    name: hedera-mirror-pinger
+    repository: file://../hedera-mirror-pinger
+    tags: [go]
+    version: ">=0.150.0-0"
   - alias: postgresql
     condition: postgresql.enabled
     name: postgresql-ha

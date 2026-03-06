@@ -92,10 +92,10 @@ func expectedTransaction(accountId types.AccountId, entityId *domain.EntityId, h
 				Amount:              hbarAmount.ToRosetta(),
 			},
 		},
-		Metadata: map[string]interface{}{},
+		Metadata: map[string]any{},
 	}
 	if entityId != nil {
-		response.Metadata = map[string]interface{}{"entity_id": entityId.String()}
+		response.Metadata = map[string]any{"entity_id": entityId.String()}
 	}
 
 	return response

@@ -20,8 +20,9 @@ public class RedisTestConfiguration {
     @ServiceConnection("redis")
     GenericContainer<?> redis() {
         var logger = LoggerFactory.getLogger("RedisContainer");
-        return new GenericContainer<>(DockerImageName.parse("redis:7.4"))
+        return new GenericContainer<>(DockerImageName.parse("gcr.io/mirrornode/redis:8.2.2"))
                 .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*\\n", 1))
+                .withEnv("ALLOW_EMPTY_PASSWORD", "yes")
                 .withExposedPorts(6379)
                 .withLogConsumer(new Slf4jLogConsumer(logger, true));
     }

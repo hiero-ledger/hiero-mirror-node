@@ -35,7 +35,7 @@
     "log4js": "6.9.1",
     "negotiator": "1.0.0",
     "parse-duration": "2.1.5",
-    "pg": "8.19.0",
+    "pg": "8.20.0",
     "pg-range": "1.1.2",
     "prom-client": "14.2.0",
     "qs": "6.15.0",
@@ -49,18 +49,17 @@
   },
   "devDependencies": {
     "@testcontainers/postgresql": "11.12.0",
-    "@testcontainers/redis": "11.12.0",
     "cross-env": "10.1.0",
     "crypto-random-string": "5.0.0",
     "jest": "30.2.0",
     "jest-extended": "7.0.0",
     "jest-junit": "16.0.0",
-    "node-flywaydb": "3.0.7",
     "nodemon": "3.1.14",
     "pg-format": "1.0.4",
-    "pgsql-parser": "17.9.11",
-    "sinon": "21.0.1",
-    "supertest": "7.2.2"
+    "pgsql-parser": "17.9.12",
+    "sinon": "21.0.2",
+    "supertest": "7.2.2",
+    "tar": "7.5.10"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
@@ -81,12 +80,12 @@
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "3.14.2"
     },
+    "multer": "2.1.1",
     "swagger-stats": {
       "path-to-regexp": "6.3.0",
       "send": "0.19.2"
     },
-    "test-exclude": "7.0.1",
-    "xml2js": "0.6.2"
+    "test-exclude": "7.0.1"
   },
   "bundleDependencies": true
 }

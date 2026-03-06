@@ -37,6 +37,7 @@ jobs:
           - grpc
           - importer
           - monitor
+          - pinger
           - rest
           - rest-java
           - rosetta
@@ -49,6 +50,8 @@ jobs:
           - project: common
             schema: v2
           - project: monitor
+            schema: v2
+          - project: pinger
             schema: v2
           - project: rosetta
             schema: v2
