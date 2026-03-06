@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
-import org.hiero.mirror.importer.repository.NodeRepository;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 
 @Named
@@ -21,7 +20,6 @@ import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 public class BlockNodeDiscoveryService {
 
     public static final int TIER_ONE_REGISTERED_NODE_PRIORITY = 0;
-    private final NodeRepository nodeRepository;
     private final RegisteredNodeRepository registeredNodeRepository;
 
     /**
@@ -29,13 +27,7 @@ public class BlockNodeDiscoveryService {
      */
     public List<BlockNodeProperties> discover() {
         try {
-            final var registeredNodeIds = nodeRepository.findAllAssociatedRegisteredNodeIds();
-            if (registeredNodeIds.isEmpty()) {
-                return Collections.emptyList();
-            }
-
-            final var registeredNodes =
-                    registeredNodeRepository.findAllByRegisteredNodeIdInAndDeletedFalse(registeredNodeIds);
+            final var registeredNodes = registeredNodeRepository.findAllByDeletedFalse();
 
             final List<BlockNodeProperties> propertiesList = new ArrayList<>(registeredNodes.size());
             for (final var node : registeredNodes) {
@@ -58,6 +50,7 @@ public class BlockNodeDiscoveryService {
             return Optional.empty();
         }
 
+        RegisteredServiceEndpoint publishEndpoint = null;
         RegisteredServiceEndpoint statusEndpoint = null;
         RegisteredServiceEndpoint streamEndpoint = null;
         for (final var endpoint : endpoints) {
@@ -69,21 +62,26 @@ public class BlockNodeDiscoveryService {
                 statusEndpoint = endpoint;
             } else if (api == BlockNodeApi.SUBSCRIBE_STREAM && streamEndpoint == null) {
                 streamEndpoint = endpoint;
+            } else if (api == BlockNodeApi.PUBLISH && publishEndpoint == null) {
+                publishEndpoint = endpoint;
             }
-            if (statusEndpoint != null && streamEndpoint != null) break;
+            if (statusEndpoint != null && streamEndpoint != null && publishEndpoint != null) break;
         }
-        if (statusEndpoint == null || streamEndpoint == null) {
+        if (statusEndpoint == null || streamEndpoint == null || publishEndpoint == null) {
             return Optional.empty();
         }
 
+        final var publishHost = extractHost(publishEndpoint);
         final var statusHost = extractHost(statusEndpoint);
         final var streamHost = extractHost(streamEndpoint);
-        if (statusHost == null || streamHost == null) {
+        if (publishHost == null || statusHost == null || streamHost == null) {
             return Optional.empty();
         }
 
         final var props = new BlockNodeProperties();
         props.setHost(statusHost);
+        props.setPublishHost(publishHost);
+        props.setPublishPort(publishEndpoint.getPort());
         props.setStatusHost(statusHost);
         props.setStatusPort(statusEndpoint.getPort());
         props.setStreamingHost(streamHost);

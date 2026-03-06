@@ -46,4 +46,27 @@ final class BlockNodePropertiesTest {
         assertThat(properties.getStatusEndpoint()).isEqualTo("status.example.com:40840");
         assertThat(properties.getStreamingEndpoint()).isEqualTo("stream.example.com:40841");
     }
+
+    @Test
+    void getPublishEndpoint() {
+        var properties = new BlockNodeProperties();
+        properties.setHost("localhost");
+        properties.setPublishPort(40842);
+        assertThat(properties.getPublishEndpoint()).isEqualTo("localhost:40842");
+    }
+
+    @Test
+    void getEffectivePublishHostUsesPublishHostWhenSet() {
+        final var properties = new BlockNodeProperties();
+        properties.setHost("default.example.com");
+        properties.setPublishHost("publish.example.com");
+        assertThat(properties.getEffectivePublishHost()).isEqualTo("publish.example.com");
+    }
+
+    @Test
+    void getEffectivePublishHostFallsBackToHostWhenPublishHostNotSet() {
+        final var properties = new BlockNodeProperties();
+        properties.setHost("default.example.com");
+        assertThat(properties.getEffectivePublishHost()).isEqualTo("default.example.com");
+    }
 }
