@@ -30,13 +30,13 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       registered_node_id     bigint          not null,
       service_endpoints      jsonb           null,
       timestamp_range        int8range       not null,
-      type                   smallint        not null default 0
+      type                   smallint[]      not null
   );
 
   alter table if exists registered_node
       add constraint registered_node__pk primary key (registered_node_id);
-  create index if not exists registered_node__type_node_id
-      on registered_node (type, registered_node_id) where deleted is false;
+  create index if not exists registered_node__type
+      on registered_node using gin (type) where deleted is false;
 
   create table if not exists registered_node_history
   (
@@ -80,8 +80,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   public abstract class AbstractRegisteredNode implements History {
 
       public static final short TYPE_BLOCK_NODE = 0;
-      public static final short TYPE_MIRROR_NODE = 2;
-      public static final short TYPE_RPC_RELAY = 4;
+      public static final short TYPE_MIRROR_NODE = 1;
+      public static final short TYPE_RPC_RELAY = 2;
 
       private byte[] adminKey;
 
@@ -101,7 +101,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 
       private Range<Long> timestampRange;
 
-      private short type;
+      @JsonSerialize(using = ListToStringSerializer.class)
+      private List<Short> type = Collectitons.emptyList();
   }
   ```
 
@@ -206,7 +207,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             "mirror_node": null,
             "port": 40840,
             "require_tls": false,
-            "rpc_relay": null
+            "rpc_relay": null,
+            "type": "BLOCK_NODE"
           },
           {
             "block_node": {
@@ -217,7 +219,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             "mirror_node": null,
             "port": 40842,
             "require_tls": true,
-            "rpc_relay": null
+            "rpc_relay": null,
+            "type": "BLOCK_NODE"
           },
           {
             "block_node": null,
@@ -226,7 +229,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             "mirror_node": {},
             "port": 80,
             "require_tls": false,
-            "rpc_relay": null
+            "rpc_relay": null,
+            "type": "MIRROR_NODE"
           }
         ],
         "timestamp": {
@@ -250,7 +254,8 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
             "mirror_node": {},
             "port": 80,
             "require_tls": false,
-            "rpc_relay": null
+            "rpc_relay": null,
+            "type": "MIRROR_NODE"
           }
         ],
         "timestamp": {
@@ -260,7 +265,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       }
     ],
     "links": {
-      "next": "/api/v1/network/registered-nodes?limit=2&registered-node.id=gt:2"
+      "next": "/api/v1/network/registered-nodes?limit=2&registerednode.id=gt:2"
     }
   }
   ```
@@ -270,7 +275,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   - `limit` - The maximum number of registered nodes to return in the response
   - `order` - The direction to sort the items by the registered node id in the response. Can be `asc` or `desc`, default
     is `asc`
-  - `registered-node.id` - The registered node id. Supports `eq`, `gt`, `gte`, `lt`, and `lte` operators. Only one
+  - `registerednode.id` - The registered node id. Supports `eq`, `gt`, `gte`, `lt`, and `lte` operators. Only one
     occurrence is allowed. The `eq` operator can't mix with other operators
   - `type` - The type of service provided by the registered node. Supports `BLOCK_NODE`, `MIRROR_NODE`, and `RPC_RELAY`.
     Only supports the `eq` operator and only one occurrence is allowed
@@ -311,8 +316,3 @@ Add K6 test cases for the new endpoint `/api/v1/network/registered-nodes`
 
 - list registered nodes with all types
 - list registered nodes with `type=BLOCK_NODE`
-
-## Open Issues
-
-- Should the response of `/api/v1/network/registered-nodes` and `/api/v1/network/registered-nodes/{id}` include a
-  `node_id` to identify the consensus node a registered node is associated with?
