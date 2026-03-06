@@ -90,11 +90,6 @@ public abstract class AbstractOpcodeTracer {
 
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
-                if (context.getStorageAccesses() != null
-                        && context.getStorageAccesses().equals(storageAccesses.accesses())) {
-                    continue;
-                }
-
                 for (final var access : storageAccesses.accesses()) {
                     final var hexCache = ContractCallContext.get().getHexCache();
                     final var key = hexCache.computeIfAbsent(access.key(), Bytes::toHexString);
@@ -105,8 +100,6 @@ public abstract class AbstractOpcodeTracer {
                         result.put(key, value);
                     }
                 }
-
-                context.setStorageAccesses(storageAccesses.accesses());
             }
             return result;
 

@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
-import com.hedera.node.app.service.contract.impl.state.StorageAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -77,9 +76,6 @@ public class ContractCallContext {
 
     @Setter
     private RootProxyWorldUpdater rootProxyWorldUpdater;
-
-    @Setter
-    private List<StorageAccess> storageAccesses;
 
     private final Map<Bytes, String> hexCache = new HashMap<>();
 
