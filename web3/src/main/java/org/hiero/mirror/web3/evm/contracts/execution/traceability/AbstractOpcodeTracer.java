@@ -5,11 +5,12 @@ package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 import static org.hiero.mirror.web3.convert.BytesDecoder.startsWithErrorSelector;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -23,24 +24,13 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    /**
-     * Self-cleaning LRU: when full, the least recently used entry is evicted on insert.
-     */
     private static final int HEX_CACHE_MAX_SIZE = 1600;
 
-    private final Map<Bytes, String> hexCache = new LruHexCache();
-
-    private static final class LruHexCache extends LinkedHashMap<Bytes, String> {
-        LruHexCache() {
-            super((int) Math.ceil(HEX_CACHE_MAX_SIZE / 0.75f) + 1, 0.75f, true);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        protected boolean removeEldestEntry(Map.Entry eldest) {
-            return size() > HEX_CACHE_MAX_SIZE;
-        }
-    }
+    private final Map<Bytes, String> hexCache = Caffeine.newBuilder()
+            .maximumSize(HEX_CACHE_MAX_SIZE)
+            .expireAfterAccess(Duration.ofMinutes(5))
+            .build(Bytes::toHexString)
+            .asMap();
 
     protected final List<String> captureMemory(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isMemory()) {
