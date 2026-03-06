@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
@@ -26,10 +27,12 @@ public abstract class AbstractOpcodeTracer {
             return Collections.emptyList();
         }
 
+        final var hexCache = ContractCallContext.get().getHexCache();
         int size = frame.memoryWordSize();
         var memory = new ArrayList<String>(size);
         for (int i = 0; i < size; i++) {
-            memory.add(frame.readMemory(i * 32L, 32).toHexString());
+            var word = frame.readMemory(i * 32L, 32);
+            memory.add(hexCache.computeIfAbsent(word, Bytes::toHexString));
         }
 
         return memory;
@@ -40,10 +43,12 @@ public abstract class AbstractOpcodeTracer {
             return Collections.emptyList();
         }
 
+        final var hexCache = ContractCallContext.get().getHexCache();
         int size = frame.stackSize();
         var stack = new ArrayList<String>(size);
         for (int i = 0; i < size; ++i) {
-            stack.add(frame.getStackItem(size - 1 - i).toHexString());
+            var item = frame.getStackItem(size - 1 - i);
+            stack.add(hexCache.computeIfAbsent(item, Bytes::toHexString));
         }
 
         return stack;
@@ -55,35 +60,53 @@ public abstract class AbstractOpcodeTracer {
         }
 
         try {
-            var worldUpdater = frame.getWorldUpdater();
-            var parent = worldUpdater.parentUpdater().orElse(null);
-            while (parent != null) {
-                worldUpdater = parent;
-                parent = worldUpdater.parentUpdater().orElse(null);
+            var context = ContractCallContext.get();
+
+            if (context.getRootProxyWorldUpdater() == null) {
+
+                var worldUpdater = frame.getWorldUpdater();
+                var parent = worldUpdater.parentUpdater().orElse(null);
+                while (parent != null) {
+                    worldUpdater = parent;
+                    parent = worldUpdater.parentUpdater().orElse(null);
+                }
+
+                if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
+                    // The storage updates are kept only in the RootProxyWorldUpdater.
+                    // If we don't have one -> something unexpected happened and an attempt to
+                    // get the storage changes from a ProxyWorldUpdater would result in a
+                    // NullPointerException, so in this case just return an empty map.
+                    return Collections.emptyMap();
+                }
+
+                context.setRootProxyWorldUpdater(rootProxyWorldUpdater);
             }
 
-            if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
-                // The storage updates are kept only in the RootProxyWorldUpdater.
-                // If we don't have one -> something unexpected happened and an attempt to
-                // get the storage changes from a ProxyWorldUpdater would result in a
-                // NullPointerException, so in this case just return an empty map.
-                return Collections.emptyMap();
-            }
+            final var rootProxyWorldUpdater = context.getRootProxyWorldUpdater();
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
                     .accesses();
+
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
+                if (context.getStorageAccesses() != null
+                        && context.getStorageAccesses().equals(storageAccesses.accesses())) {
+                    continue;
+                }
+
                 for (final var access : storageAccesses.accesses()) {
-                    final var key = access.key().toHexString();
+                    final var hexCache = ContractCallContext.get().getHexCache();
+                    final var key = hexCache.computeIfAbsent(access.key(), Bytes::toHexString);
                     if (!result.containsKey(key)) {
                         final var value = access.writtenValue() != null
-                                ? access.writtenValue().toHexString()
-                                : access.value().toHexString();
+                                ? hexCache.computeIfAbsent(access.writtenValue(), Bytes::toHexString)
+                                : hexCache.computeIfAbsent(access.value(), Bytes::toHexString);
                         result.put(key, value);
                     }
                 }
+
+                context.setStorageAccesses(storageAccesses.accesses());
             }
             return result;
 

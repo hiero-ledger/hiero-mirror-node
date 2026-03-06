@@ -3,6 +3,8 @@
 package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
+import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
+import com.hedera.node.app.service.contract.impl.state.StorageAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +18,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
+import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
@@ -71,6 +74,14 @@ public class ContractCallContext {
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
+
+    @Setter
+    private RootProxyWorldUpdater rootProxyWorldUpdater;
+
+    @Setter
+    private List<StorageAccess> storageAccesses;
+
+    private final Map<Bytes, String> hexCache = new HashMap<>();
 
     private ContractCallContext() {}
 
