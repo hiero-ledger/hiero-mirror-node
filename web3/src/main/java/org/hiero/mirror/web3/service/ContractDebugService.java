@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import jakarta.validation.Valid;
+import java.util.ArrayList;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -50,6 +51,7 @@ public class ContractDebugService extends ContractCallService {
         ContractCallContext ctx = ContractCallContext.get();
         ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
         ctx.setOpcodeTracerOptions(opcodeTracerOptions);
+        ctx.setOpcodes(new ArrayList<>((int) Math.min(params.getGas() / 3, 500_000)));
         ctx.setContractActions(
                 contractActionRepository.findFailedSystemActionsByConsensusTimestamp(params.getConsensusTimestamp()));
         final var ethCallTxnResult = callContract(params, ctx);

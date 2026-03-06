@@ -758,9 +758,10 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
 
     protected ContractDebugParameters getDebugParameters(
             final ContractFunctionProviderRecord functionProvider, final String callDataHex) {
+        final var hexWithoutPrefix = callDataHex.startsWith(HEX_PREFIX) ? callDataHex.substring(2) : callDataHex;
         return ContractDebugParameters.builder()
                 .block(functionProvider.block())
-                .callData(callDataHex)
+                .callDataBytes(Hex.decode(hexWithoutPrefix))
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(functionProvider.contractAddress())

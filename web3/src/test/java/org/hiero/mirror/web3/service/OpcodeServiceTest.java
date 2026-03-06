@@ -569,8 +569,7 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
-        opcodesResponse.getOpcodes().forEach(opcode -> assertThat(opcode.getGasCost())
-                .isNotNull());
+        opcodesResponse.opcodes().forEach(opcode -> assertThat(opcode.gasCost()).isNotNull());
     }
 
     @ParameterizedTest

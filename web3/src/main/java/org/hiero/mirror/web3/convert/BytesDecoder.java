@@ -9,7 +9,6 @@ import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.abi.TypeFactory;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 
 @UtilityClass
@@ -17,8 +16,7 @@ public class BytesDecoder {
 
     // Error(string)
     private static final String ERROR_FUNCTION_SELECTOR = "0x08c379a0";
-    private static final byte[] ERROR_SELECTOR =
-            Bytes.fromHexString(ERROR_FUNCTION_SELECTOR).toArray();
+    private static final byte[] ERROR_SELECTOR = {(byte) 0x08, (byte) 0xc3, (byte) 0x79, (byte) 0xa0};
     private static final ABIType<Tuple> STRING_DECODER = TypeFactory.create("(string)");
 
     public static String maybeDecodeSolidityErrorStringToReadableMessage(final String revertReason) {
@@ -57,7 +55,7 @@ public class BytesDecoder {
 
         final var encodedMessage =
                 STRING_DECODER.encode(Tuple.from(revertReason)).array();
-        return ERROR_FUNCTION_SELECTOR + Bytes.of(encodedMessage).toUnprefixedHexString();
+        return ERROR_FUNCTION_SELECTOR + Hex.toHexString(encodedMessage);
     }
 
     public static boolean startsWithErrorSelector(final byte[] bytes) {
@@ -97,14 +95,12 @@ public class BytesDecoder {
             throw new IllegalArgumentException("Invalid odd-length hex binary representation");
         }
 
-        byte[] out = new byte[len >> 1];
-        for (int i = 0, j = 0; j < len; i++) {
-            int high = Character.digit(hex.charAt(j++), 16);
-            int low = Character.digit(hex.charAt(j++), 16);
+        for (int j = 0; j < len; j += 2) {
+            int high = Character.digit(hex.charAt(j), 16);
+            int low = Character.digit(hex.charAt(j + 1), 16);
             if (high == -1 || low == -1) {
                 throw new IllegalArgumentException("Invalid hex character in: " + hexString);
             }
-            out[i] = (byte) ((high << 4) | low);
         }
     }
 }

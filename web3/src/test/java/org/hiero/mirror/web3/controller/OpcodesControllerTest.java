@@ -9,7 +9,6 @@ import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.controller.OpcodesController.MISSING_GZIP_HEADER_MESSAGE;
 import static org.hiero.mirror.web3.utils.Constants.OPCODES_URI;
 import static org.hiero.mirror.web3.utils.TransactionProviderEnum.entityAddress;
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -45,14 +44,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.tuweni.bytes.Bytes;
 import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
-import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
@@ -60,6 +57,7 @@ import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
@@ -294,14 +292,11 @@ class OpcodesControllerTest {
                         provider.hasEthTransaction()
                                 ? new BigInteger(ethTransaction.getValue()).longValue()
                                 : contractResult.getAmount())
-                .callData(
+                .callDataBytes(
                         provider.hasEthTransaction()
-                                ? HEX_PREFIX + Hex.encodeHexString(ethTransaction.getCallData())
-                                : HEX_PREFIX + Hex.encodeHexString(contractResult.getFunctionParameters()))
-                .ethereumData(
-                        provider.hasEthTransaction()
-                                ? HEX_PREFIX + Hex.encodeHexString(ethTransaction.getData())
-                                : HEX_PREFIX)
+                                ? ethTransaction.getCallData()
+                                : contractResult.getFunctionParameters())
+                .ethereumDataBytes(provider.hasEthTransaction() ? ethTransaction.getData() : new byte[0])
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 
@@ -586,40 +581,27 @@ class OpcodesControllerTest {
             return "%s-%d-%d".formatted(payerAccountId, validStart.getEpochSecond(), validStart.getNano());
         }
 
-        private static OpcodesResponse opcodesResponse(
+        private static OpcodesResponseDto opcodesResponse(
                 final OpcodesProcessingResult result, final CommonEntityAccessor commonEntityAccessor) {
-            return new OpcodesResponse()
-                    .address(
-                            result.recipient().equals(Address.ZERO)
-                                    ? Address.ZERO.toHexString()
-                                    : commonEntityAccessor
-                                            .get(result.recipient(), Optional.empty())
-                                            .map(TransactionProviderEnum::entityAddress)
-                                            .map(Address::toHexString)
-                                            .orElse(null))
-                    .contractId(
-                            result.recipient().equals(Address.ZERO)
-                                    ? null
-                                    : commonEntityAccessor
-                                            .get(result.recipient(), Optional.empty())
-                                            .map(Entity::toEntityId)
-                                            .map(EntityId::toString)
-                                            .orElse(null))
-                    .failed(!result.transactionProcessingResult().isSuccessful())
-                    .gas(result.transactionProcessingResult().gasUsed())
-                    .opcodes(result.opcodes().stream()
-                            .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
-                                    .depth(opcode.depth())
-                                    .gas(opcode.gas())
-                                    .gasCost(opcode.gasCost())
-                                    .op(opcode.op())
-                                    .pc(opcode.pc())
-                                    .reason(opcode.reason())
-                                    .stack(opcode.stack())
-                                    .memory(opcode.memory())
-                                    .storage(opcode.storage()))
-                            .toList())
-                    .returnValue(result.transactionProcessingResult().contractCallResult());
+            return new OpcodesResponseDto(
+                    result.recipient().equals(Address.ZERO)
+                            ? Address.ZERO.toHexString()
+                            : commonEntityAccessor
+                                    .get(result.recipient(), Optional.empty())
+                                    .map(TransactionProviderEnum::entityAddress)
+                                    .map(Address::toHexString)
+                                    .orElse(null),
+                    result.recipient().equals(Address.ZERO)
+                            ? null
+                            : commonEntityAccessor
+                                    .get(result.recipient(), Optional.empty())
+                                    .map(Entity::toEntityId)
+                                    .map(EntityId::toString)
+                                    .orElse(null),
+                    !result.transactionProcessingResult().isSuccessful(),
+                    result.transactionProcessingResult().gasUsed(),
+                    result.opcodes(),
+                    result.transactionProcessingResult().contractCallResult());
         }
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(

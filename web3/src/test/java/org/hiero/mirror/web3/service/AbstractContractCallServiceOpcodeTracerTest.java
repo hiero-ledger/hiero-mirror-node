@@ -25,12 +25,12 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.tableusage.EndpointContext;
-import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -154,7 +154,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodesResponse(
-            final OpcodesResponse opcodesResponse, final OpcodeTracerOptions options, final Address recipient) {
+            final OpcodesResponseDto opcodesResponse, final OpcodeTracerOptions options, final Address recipient) {
         assertThat(opcodesResponse)
                 .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
@@ -162,7 +162,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodesResponseWithExpectedReturnValue(
-            final OpcodesResponse opcodesResponse,
+            final OpcodesResponseDto opcodesResponse,
             final OpcodeTracerOptions options,
             final String expectedReturnValue,
             final Address recipient) {
@@ -171,49 +171,36 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
         assertThat(contextCaptor.getOpcodeTracerOptions()).isEqualTo(options);
 
-        assertThat(opcodesResponse.getFailed()).isFalse();
-        assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
+        assertThat(opcodesResponse.failed()).isFalse();
+        assertThat(opcodesResponse.returnValue()).isEqualTo(expectedReturnValue);
         // This assures that nested transactions are also being tracked
-        assertThat(opcodesResponse.getOpcodes().stream()
-                        .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
+        assertThat(opcodesResponse.opcodes().stream()
+                        .filter(o -> o.op().equals(CALL_OPCODE_NAME))
                         .count())
                 .isGreaterThan(0);
     }
 
-    private OpcodesResponse expectedOpcodesResponse(
+    private OpcodesResponseDto expectedOpcodesResponse(
             final EvmTransactionResult result, final List<Opcode> opcodes, final Address recipient) {
-        return new OpcodesResponse()
-                .address(
-                        recipient.equals(Address.ZERO)
-                                ? Address.ZERO.toHexString()
-                                : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
-                                        .map(this::entityAddress)
-                                        .map(Address::toHexString)
-                                        .orElse(null))
-                .contractId(
-                        recipient.equals(Address.ZERO)
-                                ? null
-                                : commonEntityAccessor
-                                        .get(recipient, Optional.empty())
-                                        .map(Entity::toEntityId)
-                                        .map(EntityId::toString)
-                                        .orElse(null))
-                .failed(!result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS))
-                .gas(result.gasUsed())
-                .opcodes(opcodes.stream()
-                        .map(opcode -> new org.hiero.mirror.rest.model.Opcode()
-                                .depth(opcode.depth())
-                                .gas(opcode.gas())
-                                .gasCost(opcode.gasCost())
-                                .op(opcode.op())
-                                .pc(opcode.pc())
-                                .reason(opcode.reason())
-                                .stack(opcode.stack())
-                                .memory(opcode.memory())
-                                .storage(opcode.storage()))
-                        .toList())
-                .returnValue(result.contractCallResult());
+        return new OpcodesResponseDto(
+                recipient.equals(Address.ZERO)
+                        ? Address.ZERO.toHexString()
+                        : commonEntityAccessor
+                                .get(recipient, Optional.empty())
+                                .map(this::entityAddress)
+                                .map(Address::toHexString)
+                                .orElse(null),
+                recipient.equals(Address.ZERO)
+                        ? null
+                        : commonEntityAccessor
+                                .get(recipient, Optional.empty())
+                                .map(Entity::toEntityId)
+                                .map(EntityId::toString)
+                                .orElse(null),
+                !result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS),
+                result.gasUsed(),
+                opcodes,
+                result.contractCallResult());
     }
 
     private Address entityAddress(Entity entity) {

@@ -82,9 +82,8 @@ public class TransactionExecutionService {
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
-                && params.getEthereumData() != null
-                && !params.getEthereumData().isEmpty()
-                && !params.getEthereumData().equals(HEX_PREFIX)) {
+                && debugParams.getEthereumDataBytes() != null
+                && debugParams.getEthereumDataBytes().length > 0) {
             transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
@@ -177,7 +176,7 @@ public class TransactionExecutionService {
             final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
-                        .initcode(Bytes.wrap(hexToBytes(params.getCallData())))
+                        .initcode(Bytes.wrap(getCallDataBytes(params)))
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
@@ -194,7 +193,7 @@ public class TransactionExecutionService {
                                 .realmNum(commonProperties.getRealm())
                                 .evmAddress(Bytes.wrap(params.getReceiver().toArrayUnsafe()))
                                 .build())
-                        .functionParameters(Bytes.wrap(hexToBytes(params.getCallData())))
+                        .functionParameters(Bytes.wrap(getCallDataBytes(params)))
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
@@ -204,7 +203,7 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
-                        .ethereumData(Bytes.wrap(hexToBytes(params.getEthereumData())))
+                        .ethereumData(Bytes.wrap(params.getEthereumDataBytes()))
                         .maxGasAllowance(Long.MAX_VALUE)
                         .build())
                 .transactionFee(CONTRACT_CREATE_TX_FEE)
@@ -222,8 +221,7 @@ public class TransactionExecutionService {
         if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
-        final long nonce =
-                populateEthTxData(hexToBytes(params.getEthereumData())).nonce();
+        final long nonce = populateEthTxData(params.getEthereumDataBytes()).nonce();
         final var senderId = getSenderAccountIDAsNum(params.getSender());
         final var account = accountReadableKVState.get(senderId);
         if (account != null && account.ethereumNonce() != nonce) {
@@ -320,6 +318,13 @@ public class TransactionExecutionService {
         }
 
         return childTransactionErrors != null ? childTransactionErrors : List.of();
+    }
+
+    private byte[] getCallDataBytes(CallServiceParameters params) {
+        if (params instanceof ContractDebugParameters debugParams && debugParams.getCallDataBytes() != null) {
+            return debugParams.getCallDataBytes();
+        }
+        return hexToBytes(params.getCallData());
     }
 
     private byte[] hexToBytes(String hexString) {
