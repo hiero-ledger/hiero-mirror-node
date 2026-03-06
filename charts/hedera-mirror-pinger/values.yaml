@@ -20,6 +20,12 @@ env:
 
 fullnameOverride: ""
 
+global:
+  env: {}
+  image: {}
+  namespaceOverride: ""
+  podAnnotations: {}
+
 image:
   pullPolicy: IfNotPresent
   pullSecrets: []
