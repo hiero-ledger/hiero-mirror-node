@@ -94,7 +94,7 @@ jobs:
           driver-opts: network=host
           buildkitd-config-inline: |
             [registry."docker.io"]
-              mirrors = ["https://hub.mirror.docker.lat.ope.eng.hashgraph.io"]
+              mirrors = ["${{vars.DOCKER_IO_PROXY}}"]
           version: latest
 
       - name: Build and push images
@@ -198,7 +198,7 @@ jobs:
           driver-opts: network=host
           buildkitd-config-inline: |
             [registry."docker.io"]
-              mirrors = ["https://hub.mirror.docker.lat.ope.eng.hashgraph.io"]
+              mirrors = ["${{vars.DOCKER_IO_PROXY}}"]
 
       - name: Build images
         run: ./release.sh "${TAG}"
