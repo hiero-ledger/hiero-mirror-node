@@ -3,8 +3,8 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -83,7 +83,7 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
-        when(blockNodeDiscoveryService.discover()).thenReturn(List.of());
+        lenient().when(blockNodeDiscoveryService.discover()).thenReturn(List.of());
         return new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,

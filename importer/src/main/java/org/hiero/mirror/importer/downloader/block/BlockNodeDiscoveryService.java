@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -13,12 +14,9 @@ import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.importer.repository.NodeRepository;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
-import org.jspecify.annotations.NullMarked;
-import org.springframework.stereotype.Service;
 
-@Service
+@Named
 @CustomLog
-@NullMarked
 @RequiredArgsConstructor
 public class BlockNodeDiscoveryService {
 
@@ -60,45 +58,50 @@ public class BlockNodeDiscoveryService {
             return Optional.empty();
         }
 
-        final var statusEndpoint = findBlockNodeEndpoint(endpoints, BlockNodeApi.STATUS);
-        final var streamEndpoint = findBlockNodeEndpoint(endpoints, BlockNodeApi.SUBSCRIBE_STREAM);
-
-        if (statusEndpoint.isEmpty() || streamEndpoint.isEmpty()) {
+        RegisteredServiceEndpoint statusEndpoint = null;
+        RegisteredServiceEndpoint streamEndpoint = null;
+        for (final var endpoint : endpoints) {
+            if (endpoint.getBlockNode() == null) {
+                continue;
+            }
+            final var api = endpoint.getBlockNode().getEndpointApi();
+            if (api == BlockNodeApi.STATUS && statusEndpoint == null) {
+                statusEndpoint = endpoint;
+            } else if (api == BlockNodeApi.SUBSCRIBE_STREAM && streamEndpoint == null) {
+                streamEndpoint = endpoint;
+            }
+            if (statusEndpoint != null && streamEndpoint != null) break;
+        }
+        if (statusEndpoint == null || streamEndpoint == null) {
             return Optional.empty();
         }
 
-        final var statusHost = toHost(statusEndpoint.get());
-        final var streamHost = toHost(streamEndpoint.get());
-
-        if (statusHost.isEmpty() || streamHost.isEmpty()) {
+        final var statusHost = extractHost(statusEndpoint);
+        final var streamHost = extractHost(streamEndpoint);
+        if (statusHost == null || streamHost == null) {
             return Optional.empty();
         }
 
         final var props = new BlockNodeProperties();
-        props.setHost(statusHost.get());
-        props.setStatusHost(statusHost.get());
-        props.setStatusPort(statusEndpoint.get().getPort());
-        props.setStreamingHost(streamHost.get());
-        props.setStreamingPort(streamEndpoint.get().getPort());
+        props.setHost(statusHost);
+        props.setStatusHost(statusHost);
+        props.setStatusPort(statusEndpoint.getPort());
+        props.setStreamingHost(streamHost);
+        props.setStreamingPort(streamEndpoint.getPort());
 
         return Optional.of(props);
     }
 
-    private static Optional<RegisteredServiceEndpoint> findBlockNodeEndpoint(
-            List<RegisteredServiceEndpoint> endpoints, BlockNodeApi api) {
-        return endpoints.stream()
-                .filter(e ->
-                        e.getBlockNode() != null && api.equals(e.getBlockNode().getEndpointApi()))
-                .findFirst();
-    }
+    private static String extractHost(RegisteredServiceEndpoint endpoint) {
+        final var domainName = endpoint.getDomainName();
+        if (domainName != null && !domainName.isBlank()) {
+            return domainName.trim();
+        }
 
-    private static Optional<String> toHost(RegisteredServiceEndpoint endpoint) {
-        if (endpoint.getDomainName() != null && !endpoint.getDomainName().isBlank()) {
-            return Optional.of(endpoint.getDomainName().trim());
+        final var ipAddress = endpoint.getIpAddress();
+        if (ipAddress != null && !ipAddress.isBlank()) {
+            return ipAddress.trim();
         }
-        if (endpoint.getIpAddress() != null && !endpoint.getIpAddress().isBlank()) {
-            return Optional.of(endpoint.getIpAddress().trim());
-        }
-        return Optional.empty();
+        return null;
     }
 }
