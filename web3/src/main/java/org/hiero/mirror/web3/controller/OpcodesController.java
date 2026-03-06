@@ -5,7 +5,7 @@ package org.hiero.mirror.web3.controller;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
@@ -59,7 +59,7 @@ class OpcodesController {
         validateAcceptEncodingHeader(acceptEncoding);
         throttleManager.throttleOpcodeRequest();
 
-        final var options = new OpcodeTracerOptions(stack, memory, storage);
+        final var options = new OpcodeProperties(stack, memory, storage);
         return opcodeService.processOpcodeCall(transactionIdOrHash, options);
     }
 

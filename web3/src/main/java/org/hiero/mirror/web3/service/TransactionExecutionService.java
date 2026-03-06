@@ -146,7 +146,7 @@ public class TransactionExecutionService {
         } else {
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
-            if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
+            if (ContractCallContext.get().getOpcodeProperties() == null) {
                 var processingResult = new EvmTransactionResult(status, result);
 
                 final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
@@ -291,7 +291,7 @@ public class TransactionExecutionService {
     }
 
     private ActionSidecarContentTracer[] getOperationTracers() {
-        return ContractCallContext.get().getOpcodeTracerOptions() != null
+        return ContractCallContext.get().getOpcodeProperties() != null
                 ? new ActionSidecarContentTracer[] {opcodeActionTracer}
                 : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }

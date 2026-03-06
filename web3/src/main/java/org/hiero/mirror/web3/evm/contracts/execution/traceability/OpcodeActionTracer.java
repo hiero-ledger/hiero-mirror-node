@@ -43,18 +43,14 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
 
-        final var options = context.getOpcodeTracerOptions();
+        final var options = context.getOpcodeProperties();
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
         final var storage = captureStorage(frame, options);
 
-        context.addOpcodes(createOpcode(
-                frame,
-                operationResult.getGasCost(),
-                frame.getRevertReason().map(Bytes::toHexString).orElse(null),
-                stack,
-                memory,
-                storage));
+        final var revertReasonBytes = frame.getRevertReason().orElse(null);
+        final String reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
+        context.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
     @Override
@@ -93,9 +89,10 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var context = ContractCallContext.get();
         final var gasCost = context.getGasRemaining() - frame.getRemainingGas();
 
-        final var revertReason = isCallToSystemContracts(frame, systemContracts)
+        final var frameRevertReason = frame.getRevertReason().orElse(null);
+        final String revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
-                : frame.getRevertReason().map(Bytes::toHexString).orElse(null);
+                : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
         context.addOpcodes(createOpcode(
                 frame,

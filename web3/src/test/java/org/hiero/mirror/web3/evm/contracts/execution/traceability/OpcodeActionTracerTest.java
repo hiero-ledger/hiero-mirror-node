@@ -124,7 +124,7 @@ class OpcodeActionTracerTest {
 
     // Transient test data
     private OpcodeActionTracer tracer;
-    private OpcodeTracerOptions tracerOptions;
+    private OpcodeProperties tracerOptions;
     private MessageFrame frame;
 
     // EVM data for capture
@@ -175,7 +175,7 @@ class OpcodeActionTracerTest {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        tracerOptions = new OpcodeTracerOptions(false, false, false);
+        tracerOptions = new OpcodeProperties(false, false, false);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
     }
 
@@ -683,16 +683,16 @@ class OpcodeActionTracerTest {
         return expectedOpcode;
     }
 
-    private MessageFrame setupInitialFrame(final OpcodeTracerOptions options) {
+    private MessageFrame setupInitialFrame(final OpcodeProperties options) {
         return setupInitialFrame(options, CONTRACT_ADDRESS, MESSAGE_CALL);
     }
 
     private MessageFrame setupInitialFrame(
-            final OpcodeTracerOptions options,
+            final OpcodeProperties options,
             final Address recipientAddress,
             final MessageFrame.Type type,
             final ContractAction... contractActions) {
-        contractCallContext.setOpcodeTracerOptions(options);
+        contractCallContext.setOpcodeProperties(options);
         contractCallContext.setContractActions(Lists.newArrayList(contractActions));
         EXECUTED_FRAMES.set(0);
 

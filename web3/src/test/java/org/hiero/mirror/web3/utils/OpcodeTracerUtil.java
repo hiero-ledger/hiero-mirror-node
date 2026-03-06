@@ -5,12 +5,12 @@ package org.hiero.mirror.web3.utils;
 import java.util.Comparator;
 import lombok.experimental.UtilityClass;
 import org.hiero.mirror.web3.convert.BytesDecoder;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 
 @UtilityClass
 public class OpcodeTracerUtil {
 
-    public static final OpcodeTracerOptions OPTIONS = new OpcodeTracerOptions(false, false, false);
+    public static final OpcodeProperties OPTIONS = new OpcodeProperties(false, false, false);
 
     public static String toHumanReadableMessage(final String solidityError) {
         return BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage(solidityError);

@@ -56,7 +56,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
@@ -148,18 +148,18 @@ class OpcodesControllerTest {
     private ArgumentCaptor<ContractDebugParameters> callServiceParametersCaptor;
 
     @Captor
-    private ArgumentCaptor<OpcodeTracerOptions> tracerOptionsCaptor;
+    private ArgumentCaptor<OpcodeProperties> tracerOptionsCaptor;
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
-        final List<OpcodeTracerOptions> tracerOptions = List.of(
-                new OpcodeTracerOptions(true, true, true),
-                new OpcodeTracerOptions(false, true, true),
-                new OpcodeTracerOptions(true, false, true),
-                new OpcodeTracerOptions(true, true, false),
-                new OpcodeTracerOptions(false, false, true),
-                new OpcodeTracerOptions(false, true, false),
-                new OpcodeTracerOptions(true, false, false),
-                new OpcodeTracerOptions(false, false, false));
+        final List<OpcodeProperties> tracerOptions = List.of(
+                new OpcodeProperties(true, true, true),
+                new OpcodeProperties(false, true, true),
+                new OpcodeProperties(true, false, true),
+                new OpcodeProperties(true, true, false),
+                new OpcodeProperties(false, false, true),
+                new OpcodeProperties(false, true, false),
+                new OpcodeProperties(true, false, false),
+                new OpcodeProperties(false, false, false));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -218,11 +218,11 @@ class OpcodesControllerTest {
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final TransactionIdOrHashParameter parameter) {
-        return opcodesRequest(parameter, new OpcodeTracerOptions());
+        return opcodesRequest(parameter, new OpcodeProperties());
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(
-            final TransactionIdOrHashParameter parameter, final OpcodeTracerOptions options) {
+            final TransactionIdOrHashParameter parameter, final OpcodeProperties options) {
         final String transactionIdOrHash =
                 switch (parameter) {
                     case TransactionHashParameter hashParameter ->
@@ -255,7 +255,7 @@ class OpcodesControllerTest {
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
                     final ContractDebugParameters params = invocation.getArgument(0);
-                    final OpcodeTracerOptions options = invocation.getArgument(1);
+                    final OpcodeProperties options = invocation.getArgument(1);
                     final var result = Builder.successfulOpcodesProcessingResult(params, options);
                     opcodesResultCaptor.set(result);
                     return result;
@@ -354,7 +354,7 @@ class OpcodesControllerTest {
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(context -> {
-                    final OpcodeTracerOptions options = context.getArgument(1);
+                    final OpcodeProperties options = context.getArgument(1);
                     opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(
                             options,
                             entityAddress(providerEnum.getContractEntity().get())));
@@ -374,7 +374,7 @@ class OpcodesControllerTest {
     @ParameterizedTest
     @MethodSource("transactionsWithDifferentTracerOptions")
     void callWithDifferentCombinationsOfTracerOptions(
-            final TransactionProviderEnum providerEnum, OpcodeTracerOptions options) throws Exception {
+            final TransactionProviderEnum providerEnum, OpcodeProperties options) throws Exception {
 
         final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
@@ -605,7 +605,7 @@ class OpcodesControllerTest {
         }
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(
-                final ContractDebugParameters params, final OpcodeTracerOptions options) {
+                final ContractDebugParameters params, final OpcodeProperties options) {
             final Address recipient = params != null ? params.getReceiver() : Address.ZERO;
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
@@ -619,7 +619,7 @@ class OpcodesControllerTest {
         }
 
         private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(
-                final OpcodeTracerOptions options, final Address recipient) {
+                final OpcodeProperties options, final Address recipient) {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
                     opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
@@ -631,7 +631,7 @@ class OpcodesControllerTest {
                     opcodes);
         }
 
-        private static List<Opcode> opcodes(final OpcodeTracerOptions options) {
+        private static List<Opcode> opcodes(final OpcodeProperties options) {
             return Arrays.asList(
                     new Opcode(
                             1273,

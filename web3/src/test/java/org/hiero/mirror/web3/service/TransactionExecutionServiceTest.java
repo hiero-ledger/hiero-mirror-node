@@ -36,7 +36,7 @@ import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -112,7 +112,7 @@ class TransactionExecutionServiceTest {
     @ValueSource(strings = "0x0000000000000000000000000000000000000000")
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
-        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+        ContractCallContext.get().setOpcodeProperties(new OpcodeProperties());
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -312,7 +312,7 @@ class TransactionExecutionServiceTest {
     @MethodSource("provideCallData")
     void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
-        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+        ContractCallContext.get().setOpcodeProperties(new OpcodeProperties());
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);

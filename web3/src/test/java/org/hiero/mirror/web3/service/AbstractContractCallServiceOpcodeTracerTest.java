@@ -29,7 +29,7 @@ import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
@@ -154,22 +154,22 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodesResponse(
-            final OpcodesResponseDto opcodesResponse, final OpcodeTracerOptions options, final Address recipient) {
+            final OpcodesResponseDto opcodesResponse, final OpcodeProperties options, final Address recipient) {
         assertThat(opcodesResponse)
                 .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeTracerOptions()).isEqualTo(options);
+        assertThat(contextCaptor.getOpcodeProperties()).isEqualTo(options);
     }
 
     protected void verifyOpcodesResponseWithExpectedReturnValue(
             final OpcodesResponseDto opcodesResponse,
-            final OpcodeTracerOptions options,
+            final OpcodeProperties options,
             final String expectedReturnValue,
             final Address recipient) {
         assertThat(opcodesResponse)
                 .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeTracerOptions()).isEqualTo(options);
+        assertThat(contextCaptor.getOpcodeProperties()).isEqualTo(options);
 
         assertThat(opcodesResponse.failed()).isFalse();
         assertThat(opcodesResponse.returnValue()).isEqualTo(expectedReturnValue);

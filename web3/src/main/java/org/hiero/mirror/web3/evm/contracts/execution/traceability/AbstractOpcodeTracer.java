@@ -9,6 +9,7 @@ import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -22,12 +23,29 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
+    /**
+     * Self-cleaning LRU: when full, the least recently used entry is evicted on insert.
+     */
+    private static final int HEX_CACHE_MAX_SIZE = 1600;
+
+    private final Map<Bytes, String> hexCache = new LruHexCache();
+
+    private static final class LruHexCache extends LinkedHashMap<Bytes, String> {
+        LruHexCache() {
+            super((int) Math.ceil(HEX_CACHE_MAX_SIZE / 0.75f) + 1, 0.75f, true);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        protected boolean removeEldestEntry(Map.Entry eldest) {
+            return size() > HEX_CACHE_MAX_SIZE;
+        }
+    }
+
+    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
-
-        final var hexCache = ContractCallContext.get().getHexCache();
         int size = frame.memoryWordSize();
         var memory = new ArrayList<String>(size);
         for (int i = 0; i < size; i++) {
@@ -38,12 +56,11 @@ public abstract class AbstractOpcodeTracer {
         return memory;
     }
 
-    protected final List<String> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected final List<String> captureStack(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
 
-        final var hexCache = ContractCallContext.get().getHexCache();
         int size = frame.stackSize();
         var stack = new ArrayList<String>(size);
         for (int i = 0; i < size; ++i) {
@@ -54,7 +71,7 @@ public abstract class AbstractOpcodeTracer {
         return stack;
     }
 
-    protected Map<String, String> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected Map<String, String> captureStorage(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
@@ -88,10 +105,13 @@ public abstract class AbstractOpcodeTracer {
                     .getTxStorageUsage(true)
                     .accesses();
 
+            if (updates.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {
-                    final var hexCache = ContractCallContext.get().getHexCache();
                     final var key = hexCache.computeIfAbsent(access.key(), Bytes::toHexString);
                     if (!result.containsKey(key)) {
                         final var value = access.writtenValue() != null

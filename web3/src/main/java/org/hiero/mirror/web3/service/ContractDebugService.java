@@ -10,7 +10,7 @@ import java.util.Optional;
 import lombok.CustomLog;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.repository.ContractActionRepository;
@@ -47,10 +47,10 @@ public class ContractDebugService extends ContractCallService {
     }
 
     public OpcodesProcessingResult processOpcodeCall(
-            final @Valid ContractDebugParameters params, final OpcodeTracerOptions opcodeTracerOptions) {
+            final @Valid ContractDebugParameters params, final OpcodeProperties opcodeProperties) {
         ContractCallContext ctx = ContractCallContext.get();
         ctx.setTimestamp(Optional.of(params.getConsensusTimestamp() - 1));
-        ctx.setOpcodeTracerOptions(opcodeTracerOptions);
+        ctx.setOpcodeProperties(opcodeProperties);
         ctx.setOpcodes(new ArrayList<>((int) Math.min(params.getGas() / 3, 500_000)));
         ctx.setContractActions(
                 contractActionRepository.findFailedSystemActionsByConsensusTimestamp(params.getConsensusTimestamp()));

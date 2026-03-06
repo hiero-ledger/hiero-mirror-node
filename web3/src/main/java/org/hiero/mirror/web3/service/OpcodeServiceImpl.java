@@ -29,7 +29,7 @@ import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
@@ -61,7 +61,7 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     @Override
     public OpcodesResponseDto processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
+            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeProperties options) {
         final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter);
         return ContractCallContext.run(ctx -> {
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);

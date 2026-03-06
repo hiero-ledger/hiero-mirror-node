@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.common;
 
 import com.hedera.hapi.node.state.common.EntityNumber;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,11 +16,10 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 
@@ -42,13 +40,7 @@ public class ContractCallContext {
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
-    private List<ContractAction> contractActions = List.of();
-
-    @Setter
-    private OpcodeTracerOptions opcodeTracerOptions;
-
-    @Setter
-    private List<Opcode> opcodes = new ArrayList<>();
+    private OpcodeProperties opcodeProperties = new OpcodeProperties();
 
     @Setter
     private CallServiceParameters callServiceParameters;
@@ -66,18 +58,10 @@ public class ContractCallContext {
     private boolean isBalanceCall;
 
     @Setter
-    private long gasRemaining;
-
-    @Setter
     private long gasRequirement;
 
     @Setter
     private Supplier<RecordFile> blockSupplier = () -> null;
-
-    @Setter
-    private RootProxyWorldUpdater rootProxyWorldUpdater;
-
-    private final Map<Bytes, String> hexCache = new HashMap<>();
 
     private ContractCallContext() {}
 
@@ -118,12 +102,44 @@ public class ContractCallContext {
         return callServiceParameters.getGasPrice() > 0 || callServiceParameters.getValue() > 0;
     }
 
+    public List<ContractAction> getContractActions() {
+        return opcodeProperties.getContractActions();
+    }
+
+    public void setContractActions(List<ContractAction> contractActions) {
+        opcodeProperties.setContractActions(contractActions);
+    }
+
+    public List<Opcode> getOpcodes() {
+        return opcodeProperties.getOpcodes();
+    }
+
+    public void setOpcodes(List<Opcode> opcodes) {
+        opcodeProperties.setOpcodes(opcodes);
+    }
+
+    public long getGasRemaining() {
+        return opcodeProperties.getGasRemaining();
+    }
+
+    public void setGasRemaining(long gasRemaining) {
+        opcodeProperties.setGasRemaining(gasRemaining);
+    }
+
+    public RootProxyWorldUpdater getRootProxyWorldUpdater() {
+        return opcodeProperties.getRootProxyWorldUpdater();
+    }
+
+    public void setRootProxyWorldUpdater(RootProxyWorldUpdater rootProxyWorldUpdater) {
+        opcodeProperties.setRootProxyWorldUpdater(rootProxyWorldUpdater);
+    }
+
     public void reset() {
         writeCache.clear();
     }
 
     public void addOpcodes(Opcode opcode) {
-        opcodes.add(opcode);
+        opcodeProperties.getOpcodes().add(opcode);
     }
 
     public boolean useHistorical() {
