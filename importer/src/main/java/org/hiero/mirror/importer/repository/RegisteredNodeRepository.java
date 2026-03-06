@@ -2,7 +2,11 @@
 
 package org.hiero.mirror.importer.repository;
 
+import java.util.Collection;
+import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.springframework.data.repository.CrudRepository;
 
-public interface RegisteredNodeRepository extends CrudRepository<RegisteredNode, Long> {}
+public interface RegisteredNodeRepository extends CrudRepository<RegisteredNode, Long> {
+    List<RegisteredNode> findAllByRegisteredNodeIdInAndDeletedFalse(Collection<Long> registeredNodeIds);
+}

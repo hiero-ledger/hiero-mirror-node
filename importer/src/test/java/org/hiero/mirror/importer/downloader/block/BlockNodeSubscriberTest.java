@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -64,6 +65,9 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
     @Mock
     private CutoverService cutoverService;
 
+    @Mock(strictness = LENIENT)
+    private BlockNodeDiscoveryService blockNodeDiscoveryService;
+
     private BlockNodeSubscriber blockNodeSubscriber;
     private CommonDownloaderProperties commonDownloaderProperties;
     private Map<String, Server> servers;
@@ -81,12 +85,14 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[0]),
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2])));
+        doReturn(List.of()).when(blockNodeDiscoveryService).discover();
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
     }
@@ -132,6 +138,86 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         }));
         verify(blockStreamVerifier).verify(any());
         verify(cutoverService).getLastRecordFile();
+    }
+
+    @Test
+    void getWithMergeAndDeduplication(Resources resources) {
+        // given: config has test1, discovery returns test1 (dup) and test2 (new) - merge, dedupe by streaming endpoint
+        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        final var configNode = blockNodeProperties(0, SERVER_NAMES[0]);
+        blockProperties.setNodes(List.of(configNode));
+        final var discovered1 =
+                blockNodeProperties(1, SERVER_NAMES[0]); // same streaming endpoint test1:40840 as config
+        final var discovered2 = blockNodeProperties(2, SERVER_NAMES[1]); // different streaming endpoint test2:40840
+        doReturn(List.of(discovered1, discovered2))
+                .when(blockNodeDiscoveryService)
+                .discover();
+        blockNodeSubscriber = new BlockNodeSubscriber(
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                cutoverService,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeDiscoveryService,
+                blockProperties,
+                meterRegistry);
+        // merged: config (test1:40840) wins over discovered1, discovered2 (test2:40840) added = 2 nodes
+        assertThat(blockNodeSubscriber.hasBlockNodes()).isTrue();
+        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(Optional.of(RecordFile.builder().index(5L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
+        doNothing().when(blockStreamVerifier).verify(any());
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+        startServer(
+                SERVER_NAMES[1],
+                resources,
+                serverStatusResponse(7, 7),
+                ResponsesOrError.fromResponses(fullBlockResponses(7)));
+
+        blockNodeSubscriber.get();
+
+        verify(blockStreamReader).read(any());
+    }
+
+    @Test
+    void getWithAutoDiscovery(Resources resources) {
+        // given: auto-discovery enabled, discovery returns a node
+        final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        var discoveredProps = blockNodeProperties(0, SERVER_NAMES[0]);
+        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).discover();
+        blockNodeSubscriber = new BlockNodeSubscriber(
+                blockStreamReader,
+                blockStreamVerifier,
+                commonDownloaderProperties,
+                cutoverService,
+                InProcessManagedChannelBuilderProvider.INSTANCE,
+                blockNodeDiscoveryService,
+                blockProperties,
+                meterRegistry);
+        doReturn(new BlockFile()).when(blockStreamReader).read(any());
+        doReturn(Optional.of(RecordFile.builder().index(5L).build()))
+                .when(cutoverService)
+                .getLastRecordFile();
+        doNothing().when(blockStreamVerifier).verify(any());
+        startServer(
+                SERVER_NAMES[0],
+                resources,
+                serverStatusResponse(6, 6),
+                ResponsesOrError.fromResponses(fullBlockResponses(6)));
+
+        // when
+        blockNodeSubscriber.get();
+
+        // then: uses discovered node
+        verify(blockStreamReader).read(any());
+        verify(blockNodeDiscoveryService).discover();
     }
 
     @Test

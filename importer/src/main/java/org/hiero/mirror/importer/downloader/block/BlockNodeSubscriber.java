@@ -6,7 +6,9 @@ import io.grpc.stub.BlockingClientCall;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.inject.Named;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
@@ -28,11 +30,13 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
             final CommonDownloaderProperties commonDownloaderProperties,
             final CutoverService cutoverService,
             final ManagedChannelBuilderProvider channelBuilderProvider,
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockProperties properties,
             final MeterRegistry meterRegistry) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
         executor = Executors.newSingleThreadExecutor();
-        nodes = properties.getNodes().stream()
+        List<BlockNodeProperties> nodeProps = resolveBlockNodes(blockNodeDiscoveryService, properties);
+        nodes = nodeProps.stream()
                 .map(blockNodeProperties -> new BlockNode(
                         channelBuilderProvider,
                         this::drainGrpcBuffer,
@@ -41,6 +45,32 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
                         meterRegistry))
                 .sorted()
                 .toList();
+    }
+
+    /**
+     * Merges config nodes with tier1 discovered nodes. Deduplication is by streaming endpoint:
+     * two BlockNodeProperties are the same if their streaming endpoints are equal.
+     * Config nodes take precedence when duplicates exist.
+     */
+    private static List<BlockNodeProperties> resolveBlockNodes(
+            BlockNodeDiscoveryService discoveryService, BlockProperties properties) {
+        Map<String, BlockNodeProperties> byStreamingEndpoint = new LinkedHashMap<>();
+
+        for (final var node : properties.getNodes()) {
+            byStreamingEndpoint.put(node.getStreamingEndpoint(), node);
+        }
+        if (properties.isAutoDiscoveryEnabled()) {
+            for (final var node : discoveryService.discover()) {
+                byStreamingEndpoint.putIfAbsent(node.getStreamingEndpoint(), node);
+            }
+        }
+
+        return new ArrayList<>(byStreamingEndpoint.values());
+    }
+
+    @Override
+    public boolean hasBlockNodes() {
+        return !nodes.isEmpty();
     }
 
     @Override

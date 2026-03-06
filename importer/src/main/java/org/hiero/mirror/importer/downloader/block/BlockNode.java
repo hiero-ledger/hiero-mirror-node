@@ -74,16 +74,21 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry) {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
+        final var statusHost = properties.getEffectiveStatusHost();
+        final var streamingHost = properties.getEffectiveStreamingHost();
+        final boolean sameEndpoint =
+                statusHost.equals(streamingHost) && properties.getStatusPort() == properties.getStreamingPort();
+
         this.statusChannel = channelBuilderProvider
-                .get(properties.getHost(), properties.getStatusPort())
+                .get(statusHost, properties.getStatusPort())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
 
-        if (properties.getStatusPort() == properties.getStreamingPort()) {
+        if (sameEndpoint) {
             this.streamingChannel = this.statusChannel;
         } else {
             this.streamingChannel = channelBuilderProvider
-                    .get(properties.getHost(), properties.getStreamingPort())
+                    .get(streamingHost, properties.getStreamingPort())
                     .maxInboundMessageSize(maxInboundMessageSize)
                     .build();
         }
@@ -202,6 +207,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return this;
     }
 
+    /**
+     * If number of failed connections surpass maxAttempts a readmit time(cooldown period)
+     * is enforced before the specific node can be called again
+     */
     private void onError() {
         errorsMetric.increment();
         if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {

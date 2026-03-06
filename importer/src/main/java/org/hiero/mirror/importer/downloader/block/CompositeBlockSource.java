@@ -56,7 +56,7 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
-                if (properties.getNodes().isEmpty()) {
+                if (!blockNodeSubscriberSourceHealth.getSource().hasBlockNodes()) {
                     yield blockFileSourceHealth;
                 }
 

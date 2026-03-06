@@ -4,6 +4,7 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -67,11 +68,11 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockProperties = new BlockProperties(importerProperties);
         blockProperties.setEnabled(true);
         blockProperties.setNodes(nodes);
-        boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
+        final boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
         final var cutoverService =
                 new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
-        var blockStreamVerifier = new BlockStreamVerifier(
+        final var blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 mock(BlockStateProofHasher.class),
                 cutoverService,
@@ -79,14 +80,17 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 meterRegistry,
                 streamFileNotifier,
                 mock(TssVerifier.class));
-        var channelBuilderProvider =
+        final var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
+        final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
+        when(blockNodeDiscoveryService.discover()).thenReturn(List.of());
         return new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 channelBuilderProvider,
+                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
     }

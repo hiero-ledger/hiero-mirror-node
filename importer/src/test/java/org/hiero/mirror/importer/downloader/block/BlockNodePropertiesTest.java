@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
-class BlockNodePropertiesTest {
+final class BlockNodePropertiesTest {
 
     @Test
     void getStatusEndpoint() {
@@ -33,5 +33,17 @@ class BlockNodePropertiesTest {
         assertThat(properties.getStatusEndpoint()).isEqualTo("localhost:40840");
         assertThat(properties.getStreamingEndpoint()).isEqualTo("localhost:40841");
         assertThat(properties.getStatusPort()).isNotEqualTo(properties.getStreamingPort());
+    }
+
+    @Test
+    void differentHostsForStatusAndStreaming() {
+        final var properties = new BlockNodeProperties();
+        properties.setHost("status.example.com");
+        properties.setStatusHost("status.example.com");
+        properties.setStatusPort(40840);
+        properties.setStreamingHost("stream.example.com");
+        properties.setStreamingPort(40841);
+        assertThat(properties.getStatusEndpoint()).isEqualTo("status.example.com:40840");
+        assertThat(properties.getStreamingEndpoint()).isEqualTo("stream.example.com:40841");
     }
 }
