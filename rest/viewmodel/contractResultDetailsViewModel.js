@@ -138,37 +138,33 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
   }
 
   /**
-   * Converts weibar byte array to tinybar BigInt
+   * Converts weibar value to tinybar BigInt
    * Divides by 10,000,000,000 (WEIBARS_TO_TINYBARS)
-   * @param {Buffer|null} weibarBytes
+   * @param {Buffer|string|null} weibarValue - Buffer or hex string representation of weibar
    * @param {boolean} signed - If true, interpret as signed (two's complement)
    * @returns {BigInt|null}
    */
-  static _convertWeibarToTinybar(weibarBytes, signed = false) {
-    if (!weibarBytes || weibarBytes.length === 0) {
+  static _convertWeibarToTinybar(weibarValue, signed = false) {
+    if (!weibarValue || weibarValue.length === 0) {
       return null;
     }
-    // Ensure Buffer
-    let input;
-    if (Buffer.isBuffer(weibarBytes)) {
-      input = weibarBytes;
-    } else {
-      let hexString = weibarBytes.replace('0x', '');
-      // Pad to even length (Buffer.from requires even number of hex chars)
-      if (hexString.length % 2 !== 0) {
-        hexString = '0' + hexString;
-      }
-      input = Buffer.from(hexString, 'hex');
-    }
+
     // ---- Step 1: Java BigInteger constructor behavior ----
     let value;
     if (signed) {
       // Interpret as two's complement (like new BigInteger(bytes))
-      value = this._bytesToSignedBigInt(input);
+      const weibarBytes = Buffer.isBuffer(weibarValue)
+        ? weibarValue
+        : Buffer.from(weibarValue.replace('0x', ''), 'hex');
+      value = this._bytesToSignedBigInt(weibarBytes);
     } else {
       // Interpret as unsigned (like new BigInteger(1, bytes))
-      value = BigInt('0x' + input.toString('hex'));
+      const weibarHex = `0x${
+        Buffer.isBuffer(weibarValue) ? weibarValue.toString('hex') : weibarValue.replace('0x', '')
+      }`;
+      value = BigInt(weibarHex);
     }
+
     // ---- Step 2: divide (truncates toward zero like Java) ----
     return value / WEIBARS_TO_TINYBARS;
   }
@@ -178,86 +174,27 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       return 0n;
     }
 
-    const hex = buffer.toString('hex');
-    let value = BigInt('0x' + hex);
-
-    const bits = BigInt(buffer.length * 8);
-    const signBit = 1n << (bits - 1n);
-
-    if (value & signBit) {
-      value -= 1n << bits;
-    }
-
-    return value;
-  }
-
-  static _bigIntToMinimalTwosComplementBytes(value) {
-    if (value === 0n) {
-      return Buffer.from([0]);
-    }
-
-    const negative = value < 0n;
-
-    if (!negative) {
-      let hex = value.toString(16);
-      if (hex.length % 2) {
-        hex = '0' + hex;
-      }
-
-      let bytes = Buffer.from(hex, 'hex');
-
-      if (bytes[0] & 0x80) {
-        bytes = Buffer.concat([Buffer.from([0]), bytes]);
-      }
-
-      return bytes;
-    }
-
-    let abs = -value;
-    let hex = abs.toString(16);
-    if (hex.length % 2) {
-      hex = '0' + hex;
-    }
-
-    let bytes = Buffer.from(hex, 'hex');
-
-    for (let i = 0; i < bytes.length; i++) {
-      bytes[i] = ~bytes[i] & 0xff;
-    }
-
-    for (let i = bytes.length - 1; i >= 0; i--) {
-      bytes[i]++;
-      if (bytes[i] <= 0xff) {
-        break;
-      }
-      bytes[i] = 0;
-    }
-
-    if (!(bytes[0] & 0x80)) {
-      bytes = Buffer.concat([Buffer.from([0xff]), bytes]);
-    }
-
-    return bytes;
+    const value = BigInt(`0x${buffer.toString('hex')}`);
+    return buffer[0] & 0x80 ? value - (1n << BigInt(buffer.length * 8)) : value;
   }
 
   /**
    * Converts weibar bytes to hex string, converting to tinybar in the process
-   * @param {Buffer|null} weibarBytes
+   * @param {Buffer|string|null} weibarValue - Buffer or hex string representation of weibar
    * @returns {string|null} Hex string representation of tinybar value
    */
-  static _convertWeibarBytesToHex(weibarBytes) {
-    if (isNil(weibarBytes) || weibarBytes.length === 0) {
+  static _convertWeibarBytesToHex(weibarValue) {
+    if (isNil(weibarValue) || weibarValue.length === 0) {
       return '0x';
     }
 
-    const tinybarBigInt = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarBytes, false);
+    const tinybarBigInt = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarValue, false);
     if (tinybarBigInt === null) {
       return '0x';
     }
 
-    // Convert tinybar BigInt to minimal two's complement bytes, then to hex string
-    const tinybarBytes = ContractResultDetailsViewModel._bigIntToMinimalTwosComplementBytes(tinybarBigInt);
-    return utils.toHexStringQuantity(tinybarBytes);
+    // Gas prices are always unsigned, so direct conversion to hex
+    return utils.toHexStringQuantity(tinybarBigInt);
   }
 }
 

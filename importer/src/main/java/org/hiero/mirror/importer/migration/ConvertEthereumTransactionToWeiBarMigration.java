@@ -5,10 +5,8 @@ package org.hiero.mirror.importer.migration;
 import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import lombok.Data;
+import java.util.concurrent.atomic.AtomicLong;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
@@ -24,9 +22,9 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
     private static final String SELECT_TRANSACTIONS_SQL =
             "select consensus_timestamp, data from ethereum_transaction order by consensus_timestamp";
 
-    private static final String UPDATE_SQL = "update ethereum_transaction set gas_price = :gasPrice, "
-            + "max_fee_per_gas = :maxFeePerGas, max_priority_fee_per_gas = :maxPriorityFeePerGas, "
-            + "value = :value where consensus_timestamp = :consensusTimestamp";
+    private static final String UPDATE_SQL = "update ethereum_transaction set gas_price = ?, "
+            + "max_fee_per_gas = ?, max_priority_fee_per_gas = ?, "
+            + "value = ? where consensus_timestamp = ?";
 
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
@@ -59,65 +57,70 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
         final var jdbcOperations = jdbcOperationsProvider.getObject();
         final var parser = ethereumTransactionParserProvider.getObject();
 
-        // Track total count across batches
-        var totalCountWrapper = new int[] {0};
+        // Track total count and failed count across batches
+        var totalCount = new AtomicLong(0);
+        var failedCount = new AtomicLong(0);
 
         // Process transactions in batches to avoid memory issues
         var updates = new ArrayList<TransactionUpdate>(BATCH_SIZE);
         jdbcOperations.query(SELECT_TRANSACTIONS_SQL, rs -> {
             var consensusTimestamp = rs.getLong(1);
             var data = rs.getBytes(2);
-            var parsed = parser.decode(data);
 
-            updates.add(new TransactionUpdate(
-                    consensusTimestamp,
-                    parsed.getGasPrice(),
-                    parsed.getMaxFeePerGas(),
-                    parsed.getMaxPriorityFeePerGas(),
-                    parsed.getValue()));
+            try {
+                var parsed = parser.decode(data);
 
-            // Flush batch when it reaches BATCH_SIZE
-            if (updates.size() >= BATCH_SIZE) {
-                totalCountWrapper[0] += batchUpdate(jdbcOperations, updates);
-                updates.clear();
+                updates.add(new TransactionUpdate(
+                        consensusTimestamp,
+                        parsed.getGasPrice(),
+                        parsed.getMaxFeePerGas(),
+                        parsed.getMaxPriorityFeePerGas(),
+                        parsed.getValue()));
+
+                // Flush batch when it reaches BATCH_SIZE
+                if (updates.size() >= BATCH_SIZE) {
+                    totalCount.addAndGet(batchUpdate(jdbcOperations, updates));
+                    updates.clear();
+                }
+            } catch (Exception e) {
+                failedCount.incrementAndGet();
+                log.warn(
+                        "Failed to decode ethereum transaction at consensus timestamp {}: {}",
+                        consensusTimestamp,
+                        e.getMessage());
             }
         });
 
         // Flush any remaining updates
         if (!updates.isEmpty()) {
-            totalCountWrapper[0] += batchUpdate(jdbcOperations, updates);
+            totalCount.addAndGet(batchUpdate(jdbcOperations, updates));
         }
 
         log.info(
                 "Successfully converted gas and value fields from tinybar to weibar for {} ethereum transactions in {}",
-                totalCountWrapper[0],
+                totalCount.get(),
                 stopwatch);
+        if (failedCount.get() > 0) {
+            log.warn("Failed to decode {} ethereum transactions due to invalid RLP data", failedCount.get());
+        }
     }
 
-    private int batchUpdate(NamedParameterJdbcOperations jdbcOperations, List<TransactionUpdate> updates) {
-        var batchParams = updates.stream()
-                .map(update -> {
-                    Map<String, Object> params = new HashMap<>();
-                    params.put("consensusTimestamp", update.consensusTimestamp);
-                    params.put("gasPrice", update.gasPrice);
-                    params.put("maxFeePerGas", update.maxFeePerGas);
-                    params.put("maxPriorityFeePerGas", update.maxPriorityFeePerGas);
-                    params.put("value", update.value);
-                    return params;
-                })
-                .toArray(Map[]::new);
+    private int batchUpdate(NamedParameterJdbcOperations namedJdbcOperations, List<TransactionUpdate> updates) {
+        // Get underlying JdbcOperations for more efficient batch update
+        var jdbcOperations = namedJdbcOperations.getJdbcOperations();
 
-        jdbcOperations.batchUpdate(UPDATE_SQL, batchParams);
+        jdbcOperations.batchUpdate(UPDATE_SQL, updates, BATCH_SIZE, (ps, update) -> {
+            ps.setBytes(1, update.gasPrice);
+            ps.setBytes(2, update.maxFeePerGas);
+            ps.setBytes(3, update.maxPriorityFeePerGas);
+            ps.setBytes(4, update.value);
+            ps.setLong(5, update.consensusTimestamp);
+        });
+
         log.debug("Batch updated {} ethereum transactions", updates.size());
         return updates.size();
     }
 
-    @Data
-    private static class TransactionUpdate {
-        private final long consensusTimestamp;
-        private final byte[] gasPrice;
-        private final byte[] maxFeePerGas;
-        private final byte[] maxPriorityFeePerGas;
-        private final byte[] value;
-    }
+    private record TransactionUpdate(
+            long consensusTimestamp, byte[] gasPrice, byte[] maxFeePerGas, byte[] maxPriorityFeePerGas, byte[] value) {}
 }
