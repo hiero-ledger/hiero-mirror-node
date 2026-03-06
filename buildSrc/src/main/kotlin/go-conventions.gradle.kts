@@ -30,7 +30,19 @@ val goClean =
         projectDir.resolve("coverage.txt").delete()
     }
 
-tasks.register<Go>("fix") { args("fix", "./...") }
+val gitDiff =
+    tasks.register<Exec>("gitDiff") {
+        // Fail the build if go fix actually modified tracked files
+        commandLine("git", "diff", "--exit-code")
+    }
+
+tasks.register<Go>("fix") {
+    args("fix", "./...")
+    // go1.26.0 bug causes exit=1 even when no changes (prints "files updated")
+    // https://github.com/golang/go/issues/77482
+    isIgnoreExitValue = true
+    finalizedBy(gitDiff)
+}
 
 tasks.register<Go>("fmt") {
     args("fmt", "./...")
@@ -76,4 +88,10 @@ listOf(tasks.dependencyCheckAggregate, tasks.dependencyCheckAnalyze).forEach {
         dependsOn("setup")
         doFirst { dependencyCheck { analyzers { pathToGo = go.goBin.toString() } } }
     }
+}
+
+// Ensure the Gradle-installed Go is on PATH for nested tools that exec "go"
+tasks.withType<Go>().configureEach {
+    val goBinDir = go.goBin.parentFile.absolutePath
+    environment("PATH", "${goBinDir}:${System.getenv("PATH")}")
 }

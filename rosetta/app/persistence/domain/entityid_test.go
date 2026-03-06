@@ -43,7 +43,7 @@ func TestEntityIdIsNotZero(t *testing.T) {
 func TestEntityIdScan(t *testing.T) {
 	var tests = []struct {
 		name     string
-		value    interface{}
+		value    any
 		expected *EntityId
 	}{
 		{

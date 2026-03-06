@@ -24,5 +24,8 @@
     "strip-ansi": "7.1.2",
     "wrap-ansi": "9.0.2"
   },
+  "overrides": {
+    "@tootallnate/once": "3.0.1"
+  },
   "type": "module"
 }
