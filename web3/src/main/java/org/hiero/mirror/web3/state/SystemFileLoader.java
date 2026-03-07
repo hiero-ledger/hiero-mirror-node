@@ -61,6 +61,17 @@ public class SystemFileLoader {
     private final FileID feeSchedulesFileId;
     private final CacheManager exchangeRatesCacheManager;
     private final CacheManager defaultSystemFileCacheManager;
+    private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
+            .maxRetries(9)
+            .predicate(e -> e instanceof InvalidFileException)
+            .build());
+
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
+    private final byte[] mockAddressBook = createMockAddressBook();
+
+    @Getter(lazy = true)
+    private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     public SystemFileLoader(
             final EvmProperties properties,
@@ -77,22 +88,10 @@ public class SystemFileLoader {
         this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
     }
 
-    private final V0490FileSchema fileSchema = new V0490FileSchema();
-    private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
-            .maxRetries(9)
-            .predicate(e -> e instanceof InvalidFileException)
-            .build());
-
-    @Getter(lazy = true, value = AccessLevel.PRIVATE)
-    private final byte[] mockAddressBook = createMockAddressBook();
-
-    @Getter(lazy = true)
-    private final Map<FileID, SystemFile> systemFiles = loadAll();
-
     /**
-     * Load system file by id and consensus timestamp. Uses a cache manager chosen by file id:
-     * exchange rate file uses {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE}
-     * (e.g. longer TTL); other system files use
+     * Load system file by id and consensus timestamp. Uses a cache manager chosen by file id: exchange rate file uses
+     * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE} (e.g. longer
+     * TTL); other system files use
      * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_SYSTEM_FILE}.
      */
     public @Nullable File load(FileID fileId, long consensusTimestamp) {
@@ -181,7 +180,7 @@ public class SystemFileLoader {
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
-                        load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRates(configuration)),
+                        load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRatesBytes(configuration)),
                         ExchangeRateSet.PROTOBUF),
                 new SystemFile(
                         load(systemEntity.networkPropertyFile(), fileSchema.genesisNetworkProperties(configuration)),
@@ -237,8 +236,8 @@ public class SystemFileLoader {
     }
 
     /**
-     * Returns the cache for the given file id: exchange rate file and fee schedule file use the
-     * exchange-rates cache manager (longer TTL). Other system files use the default manager.
+     * Returns the cache for the given file id: exchange rate file and fee schedule file use the exchange-rates cache
+     * manager (longer TTL). Other system files use the default manager.
      *
      * @param fileId the file id
      * @return the cache for this file id, or null if the manager has no such cache
