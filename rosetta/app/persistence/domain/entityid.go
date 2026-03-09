@@ -39,7 +39,7 @@ func (e *EntityId) IsZero() bool {
 	return e.EncodedId == 0
 }
 
-func (e *EntityId) Scan(value interface{}) error {
+func (e *EntityId) Scan(value any) error {
 	encodedId, ok := value.(int64)
 	if !ok {
 		return fmt.Errorf("failed to unmarshal EntityId value %v", value)
@@ -58,7 +58,7 @@ func (e *EntityId) String() string {
 }
 
 func (e EntityId) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("%d", e.EncodedId)), nil
+	return fmt.Appendf(nil, "%d", e.EncodedId), nil
 }
 
 func (e *EntityId) UnmarshalJSON(data []byte) error {

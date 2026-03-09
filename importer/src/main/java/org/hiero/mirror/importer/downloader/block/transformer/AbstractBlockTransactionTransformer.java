@@ -47,19 +47,22 @@ abstract class AbstractBlockTransactionTransformer implements BlockTransactionTr
 
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
-    public void transform(BlockTransactionTransformation blockTransactionTransformation) {
-        var blockTransaction = blockTransactionTransformation.blockTransaction();
-        var transactionBody = blockTransactionTransformation.getTransactionBody();
-        var transactionResult = blockTransaction.getTransactionResult();
-        var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
-        var recordBuilder = blockTransactionTransformation
+    public void transform(final BlockTransactionTransformation blockTransactionTransformation) {
+        final var blockTransaction = blockTransactionTransformation.blockTransaction();
+        final var transactionBody = blockTransactionTransformation.getTransactionBody();
+        final var transactionResult = blockTransaction.getTransactionResult();
+        final var recordItemBuilder = blockTransactionTransformation
                 .recordItemBuilder()
+                .congestionPricingMultiplier(transactionResult.getCongestionPricingMultiplier());
+        final var receiptBuilder = TransactionReceipt.newBuilder().setStatus(transactionResult.getStatus());
+        var recordBuilder = recordItemBuilder
                 .transactionRecordBuilder()
                 .addAllAssessedCustomFees(transactionResult.getAssessedCustomFeesList())
                 .addAllAutomaticTokenAssociations(transactionResult.getAutomaticTokenAssociationsList())
                 .addAllPaidStakingRewards(transactionResult.getPaidStakingRewardsList())
                 .addAllTokenTransferLists(transactionResult.getTokenTransferListsList())
                 .setConsensusTimestamp(transactionResult.getConsensusTimestamp())
+                .setHighVolumePricingMultiplier(transactionResult.getHighVolumePricingMultiplier())
                 .setMemo(transactionBody.getMemo())
                 .setReceipt(receiptBuilder)
                 .setTransactionFee(transactionResult.getTransactionFeeCharged())

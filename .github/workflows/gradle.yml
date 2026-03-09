@@ -37,6 +37,7 @@ jobs:
           - grpc
           - importer
           - monitor
+          - pinger
           - rest
           - rest-java
           - rosetta
@@ -50,6 +51,8 @@ jobs:
             schema: v2
           - project: monitor
             schema: v2
+          - project: pinger
+            schema: v2
           - project: rosetta
             schema: v2
           - project: test
@@ -57,7 +60,7 @@ jobs:
     timeout-minutes: 40 # increase it from 20 minutes since some jobs often run longer on self-hosted runners
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
           egress-policy: audit
 
@@ -93,7 +96,7 @@ jobs:
     runs-on: hiero-mirror-node-linux-large
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
           egress-policy: audit
 

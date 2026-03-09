@@ -42,19 +42,19 @@ jobs:
           - BLOCK
     timeout-minutes: 50
     env:
-      BLOCK_NODE_CHART_VERSION: v0.27.0
-      CONSENSUS_VERSION: v0.72.0-alpha.2
+      BLOCK_NODE_CHART_VERSION: v0.28.0
+      CONSENSUS_VERSION: v0.72.0-rc.1
       HELM_RELEASE_NAME: mirror-1
       SOLO_CLUSTER_NAME: test
       SOLO_NAMESPACE: mirror
       SOLO_CLUSTER_SETUP_NAMESPACE: solo
       SOLO_DEPLOYMENT: solo-deployment
-      SOLO_VERSION: v0.56.0
+      SOLO_VERSION: v0.59.1
     permissions:
       pull-requests: read
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
           egress-policy: audit
 
@@ -64,7 +64,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.branch || '' }}
 
       - name: Setup Node
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 24
 

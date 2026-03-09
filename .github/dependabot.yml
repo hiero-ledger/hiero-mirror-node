@@ -90,3 +90,13 @@ updates:
     package-ecosystem: "gomod"
     schedule:
       interval: "weekly"
+
+  - directory: "/pinger"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 10
+    package-ecosystem: "gomod"
+    schedule:
+      interval: "weekly"

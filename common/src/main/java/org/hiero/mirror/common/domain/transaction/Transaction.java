@@ -35,10 +35,12 @@ public class Transaction implements Persistable<Long> {
     @ToString.Exclude
     private byte[] batchKey;
 
+    private Long chargedTxFee;
+
+    private Long congestionPricingMultiplier;
+
     @Id
     private Long consensusTimestamp;
-
-    private Long chargedTxFee;
 
     private EntityId entityId;
 
@@ -47,6 +49,8 @@ public class Transaction implements Persistable<Long> {
     private ErrataType errata;
 
     private Boolean highVolume;
+
+    private Long highVolumePricingMultiplier;
 
     private Integer index;
 
