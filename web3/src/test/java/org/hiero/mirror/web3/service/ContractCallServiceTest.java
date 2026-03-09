@@ -61,7 +61,6 @@ import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hiero.mirror.web3.web3j.generated.ERCTestContract;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
-import org.hiero.mirror.web3.web3j.generated.NestedState;
 import org.hiero.mirror.web3.web3j.generated.State;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.BeforeEach;
@@ -665,7 +664,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     @Test
     void estimateGasForStateChangeCall() {
         // Given
-        final var contract = testWeb3jService.deploy(NestedState::deploy);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
 
         // When
         final var functionCall = contract.send_writeToStorageSlot("test2", BigInteger.ZERO);
@@ -677,7 +676,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     @Test
     void estimateGasForCreate2ContractDeploy() {
         // Given
-        final var contract = testWeb3jService.deploy(NestedState::deploy);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
 
         // When
         final var functionCall = contract.send_deployViaCreate2();
@@ -694,7 +693,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, senderAddress);
-        final var actualGas = 751990L;
+        final var actualGas = 1413995L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -712,7 +711,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var serviceParameters = testWeb3jService.serviceParametersForTopLevelContractCreate(
                 contract.getContractBinary(), ETH_ESTIMATE_GAS, Address.ZERO);
-        final var actualGas = 751990L;
+        final var actualGas = 1413995L;
 
         // When
         final var result = contractExecutionService.processCall(serviceParameters);
@@ -744,7 +743,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     @Test
     void nestedContractStateChangesWork() throws Exception {
         // Given
-        final var contract = testWeb3jService.deploy(NestedState::deploy);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var stateContract = testWeb3jService.deploy(State::deploy);
         meterRegistry.clear();
 
@@ -760,7 +759,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     @Test
     void contractCreationWorks() throws Exception {
         // Given
-        final var contract = testWeb3jService.deploy(NestedState::deploy);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
         meterRegistry.clear();
 
         // When
@@ -793,7 +792,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
     void stateChangeWorksWithDynamicEthCall() throws Exception {
         // Given
         final var gasUsedBeforeExecution = getGasUsedBeforeExecution(ETH_CALL);
-        final var contract = testWeb3jService.deploy(NestedState::deploy);
+        final var contract = testWeb3jService.deploy(EthCall::deploy);
         meterRegistry.clear();
         final var newState = "newState";
 

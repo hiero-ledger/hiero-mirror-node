@@ -6,7 +6,9 @@ import {IHederaTokenService} from "./IHederaTokenService.sol";
 
 contract EthCall is HederaTokenService {
 
+    uint256 salt = 1234;
     string constant storageData = "test";
+    string public emptyStorageData = "";
 
     // Public pure function without arguments that multiplies two numbers (e.g. return 2*2)
     function multiplySimpleNumbers() public pure returns (uint) {
@@ -33,6 +35,12 @@ contract EthCall is HederaTokenService {
         require(balance > 0, "Failed to update recipient balance");
     }
 
+    // External function that has an argument for test value that will be written to contract storage slot
+    function writeToStorageSlot(string memory _value) payable external returns (string memory){
+        emptyStorageData = _value;
+        return emptyStorageData;
+    }
+
     // External view function that retrieves the hbar balance of a given account
     function getAccountBalance(address _owner) external view returns (uint) {
         return _owner.balance;
@@ -52,5 +60,37 @@ contract EthCall is HederaTokenService {
 
     function testRevert() external pure {
         revert('Custom revert message');
+    }
+
+    function nestedCall(string memory s, address _state) external returns (string memory) {
+        return State(_state).changeState(s);
+    }
+
+    function deployContract(string memory s) external returns (string memory) {
+        State deployedContract = new State();
+        string memory newState = deployedContract.changeState(s);
+        deployedContract.changeCallerState(newState);
+        return emptyStorageData;
+    }
+
+    function deployViaCreate2() external returns (address) {
+        State newContract = new State{salt: bytes32(salt)}();
+
+        return address(newContract);
+    }
+}
+
+contract State {
+    string public state = "";
+
+    function changeState(string memory s) external returns (string memory) {
+        state = s;
+        return state;
+    }
+
+    function changeCallerState(string memory s) external returns (string memory) {
+        EthCall caller = EthCall(msg.sender);
+        caller.writeToStorageSlot(string(abi.encodePacked(s, state)));
+        return s;
     }
 }

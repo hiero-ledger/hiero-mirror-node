@@ -62,6 +62,7 @@ public class SystemFileLoader {
     private final CacheManager exchangeRatesCacheManager;
     private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
+    private final File genesisNetworkProperties;
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
             .maxRetries(9)
             .predicate(e -> e instanceof InvalidFileException)
@@ -86,6 +87,9 @@ public class SystemFileLoader {
         this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
         this.exchangeRatesCacheManager = exchangeRatesCacheManager;
         this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
+        this.genesisNetworkProperties = load(
+                systemEntity.networkPropertyFile(),
+                fileSchema.genesisNetworkProperties(properties.getVersionedConfiguration()));
     }
 
     /**
@@ -95,11 +99,17 @@ public class SystemFileLoader {
      * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_SYSTEM_FILE}.
      */
     public @Nullable File load(FileID fileId, long consensusTimestamp) {
+        // Skip database for network properties so that CN props can't override MN props and cause it to break.
+        if (genesisNetworkProperties.fileId().equals(fileId)) {
+            return genesisNetworkProperties;
+        }
+
         final var cacheKey = new CacheKey(fileId, consensusTimestamp);
         final var cache = getCacheForFileId(fileId);
         if (cache == null) {
             return loadFromDB(fileId, consensusTimestamp);
         }
+
         // Try to return the value from the cache
         var file = cache.get(cacheKey, File.class);
         if (file != null) {
@@ -182,9 +192,7 @@ public class SystemFileLoader {
                 new SystemFile(
                         load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRatesBytes(configuration)),
                         ExchangeRateSet.PROTOBUF),
-                new SystemFile(
-                        load(systemEntity.networkPropertyFile(), fileSchema.genesisNetworkProperties(configuration)),
-                        null),
+                new SystemFile(genesisNetworkProperties, null),
                 new SystemFile(load(systemEntity.hapiPermissionFile(), Bytes.EMPTY), null),
                 new SystemFile(
                         load(
