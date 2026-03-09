@@ -46,7 +46,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var options = context.getOpcodeProperties();
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
-        final var storage = captureStorage(frame, options);
+        final var storage = captureStorage(frame, options, context);
 
         final var revertReasonBytes = frame.getRevertReason().orElse(null);
         final String reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;

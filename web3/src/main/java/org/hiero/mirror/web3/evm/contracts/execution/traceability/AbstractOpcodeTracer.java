@@ -6,6 +6,7 @@ import static org.hiero.mirror.web3.convert.BytesDecoder.startsWithErrorSelector
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.time.Duration;
@@ -26,11 +27,10 @@ public abstract class AbstractOpcodeTracer {
 
     private static final int HEX_CACHE_MAX_SIZE = 1600;
 
-    private final Map<Bytes, String> hexCache = Caffeine.newBuilder()
+    private final LoadingCache<Bytes, String> hexCache = Caffeine.newBuilder()
             .maximumSize(HEX_CACHE_MAX_SIZE)
             .expireAfterAccess(Duration.ofMinutes(5))
-            .build(Bytes::toHexString)
-            .asMap();
+            .build(Bytes::toHexString);
 
     protected final List<String> captureMemory(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isMemory()) {
@@ -40,7 +40,7 @@ public abstract class AbstractOpcodeTracer {
         var memory = new ArrayList<String>(size);
         for (int i = 0; i < size; i++) {
             var word = frame.readMemory(i * 32L, 32);
-            memory.add(hexCache.computeIfAbsent(word, Bytes::toHexString));
+            memory.add(hexCache.get(word, Bytes::toHexString));
         }
 
         return memory;
@@ -55,20 +55,19 @@ public abstract class AbstractOpcodeTracer {
         var stack = new ArrayList<String>(size);
         for (int i = 0; i < size; ++i) {
             var item = frame.getStackItem(size - 1 - i);
-            stack.add(hexCache.computeIfAbsent(item, Bytes::toHexString));
+            stack.add(hexCache.get(item, Bytes::toHexString));
         }
 
         return stack;
     }
 
-    protected Map<String, String> captureStorage(final MessageFrame frame, final OpcodeProperties options) {
+    protected Map<String, String> captureStorage(
+            final MessageFrame frame, final OpcodeProperties options, final ContractCallContext context) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
-            var context = ContractCallContext.get();
-
             if (context.getRootProxyWorldUpdater() == null) {
 
                 var worldUpdater = frame.getWorldUpdater();
@@ -102,11 +101,11 @@ public abstract class AbstractOpcodeTracer {
             final var result = new TreeMap<String, String>();
             for (final var storageAccesses : updates) {
                 for (final var access : storageAccesses.accesses()) {
-                    final var key = hexCache.computeIfAbsent(access.key(), Bytes::toHexString);
+                    final var key = hexCache.get(access.key(), Bytes::toHexString);
                     if (!result.containsKey(key)) {
                         final var value = access.writtenValue() != null
-                                ? hexCache.computeIfAbsent(access.writtenValue(), Bytes::toHexString)
-                                : hexCache.computeIfAbsent(access.value(), Bytes::toHexString);
+                                ? hexCache.get(access.writtenValue(), Bytes::toHexString)
+                                : hexCache.get(access.value(), Bytes::toHexString);
                         result.put(key, value);
                     }
                 }
