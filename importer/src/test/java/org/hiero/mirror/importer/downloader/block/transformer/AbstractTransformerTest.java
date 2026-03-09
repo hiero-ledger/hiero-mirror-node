@@ -59,6 +59,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                 .returns(hapiProtoVersion.getPatch(), RecordFile::getHapiVersionPatch)
                 .returns(blockFile.getHash(), RecordFile::getHash)
                 .returns(blockFile.getIndex(), RecordFile::getIndex)
+                .returns(blockFile.getLastWrappedRecordBlockHash(), RecordFile::getLastWrappedRecordBlockHash)
                 .returns(null, RecordFile::getLoadEnd)
                 .returns(blockFile.getLoadStart(), RecordFile::getLoadStart)
                 .returns(null, RecordFile::getLogsBloom)

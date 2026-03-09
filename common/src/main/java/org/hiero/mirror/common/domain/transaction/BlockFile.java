@@ -65,6 +65,8 @@ public final class BlockFile implements StreamFile<BlockTransaction> {
     @ToString.Exclude
     private BlockTransaction lastLedgerIdPublicationTransaction;
 
+    private String lastWrappedRecordBlockHash;
+
     private Long loadEnd;
 
     private Long loadStart;

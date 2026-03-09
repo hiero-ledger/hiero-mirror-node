@@ -78,6 +78,8 @@ public class RecordFile implements StreamFile<RecordItem> {
     @Transient
     private List<RecordItem> items = List.of();
 
+    private String lastWrappedRecordBlockHash;
+
     private Long loadEnd;
 
     private Long loadStart;

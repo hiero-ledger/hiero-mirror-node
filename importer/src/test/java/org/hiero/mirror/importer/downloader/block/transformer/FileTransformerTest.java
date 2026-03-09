@@ -8,19 +8,19 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-class FileTransformerTest extends AbstractTransformerTest {
+final class FileTransformerTest extends AbstractTransformerTest {
 
     @Test
     void fileCreateTransform() {
         // given
-        var expectedRecordItem =
+        final var expectedRecordItem =
                 recordItemBuilder.fileCreate().customize(this::finalize).build();
-        var blockTransaction =
+        final var blockTransaction =
                 blockTransactionBuilder.fileCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
 
         // when
-        var recordFile = blockFileTransformer.transform(blockFile);
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
@@ -29,17 +29,18 @@ class FileTransformerTest extends AbstractTransformerTest {
     @Test
     void fileCreateTransformWhenStatusIsNotSuccess() {
         // given
-        var expectedRecordItem = recordItemBuilder
+        final var expectedRecordItem = recordItemBuilder
                 .fileCreate()
                 .receipt(r -> r.clearFileID().setStatus(ResponseCodeEnum.AUTHORIZATION_FAILED))
                 .customize(this::finalize)
                 .build();
-        var blockTransaction =
+        final var blockTransaction =
                 blockTransactionBuilder.fileCreate(expectedRecordItem).build();
-        var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+        final var blockFile = blockFileBuilder.items(List.of(blockTransaction)).build();
+        blockFile.setLastWrappedRecordBlockHash(recordItemBuilder.text(96));
 
         // when
-        var recordFile = blockFileTransformer.transform(blockFile);
+        final var recordFile = blockFileTransformer.transform(blockFile);
 
         // then
         assertRecordFile(recordFile, blockFile, items -> assertThat(items).containsExactly(expectedRecordItem));
