@@ -56,8 +56,6 @@ Note: The diagram amends the block streams data flow with block node support
 ```java
 public class BlockNodeProperties {
     private String host;
-    private String publishHost;
-    private int publishPort;
     private String statusHost;
     private int statusPort;
     private String streamingHost;
@@ -66,9 +64,9 @@ public class BlockNodeProperties {
 }
 ```
 
-The `publishPort` is used for the block node publish API, `statusPort` for the status API, and `streamingPort` for the
-streaming API. All ports default to 40840 initially. When `publishHost`, `statusHost`, or `streamingHost` are set, they
-override `host` for their respective endpoints.
+The `host` is the primary host, used for status when `statusHost` is not set, and for streaming when `streamingHost`
+is not set. `statusPort` is used for the status API and `streamingPort` for the streaming API. All ports default to 40840
+initially. When `statusHost` or `streamingHost` are set, they override `host` for their respective endpoints.
 
 When picking a block node to stream block items from, a block node with higher `priority` is always tried first. Block
 nodes with the same `priority` are tried with the order in the configuration. `priority` can't be negative and 0 is the

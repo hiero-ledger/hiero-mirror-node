@@ -48,25 +48,20 @@ final class BlockNodePropertiesTest {
     }
 
     @Test
-    void getPublishEndpoint() {
+    void hostUsedForStatusWhenStatusHostNotSet() {
         var properties = new BlockNodeProperties();
-        properties.setHost("localhost");
-        properties.setPublishPort(40842);
-        assertThat(properties.getPublishEndpoint()).isEqualTo("localhost:40842");
+        properties.setHost("default.example.com");
+        properties.setStatusPort(40840);
+        assertThat(properties.getEffectiveStatusHost()).isEqualTo("default.example.com");
+        assertThat(properties.getStatusEndpoint()).isEqualTo("default.example.com:40840");
     }
 
     @Test
-    void getEffectivePublishHostUsesPublishHostWhenSet() {
-        final var properties = new BlockNodeProperties();
+    void hostUsedForStreamingWhenStreamingHostNotSet() {
+        var properties = new BlockNodeProperties();
         properties.setHost("default.example.com");
-        properties.setPublishHost("publish.example.com");
-        assertThat(properties.getEffectivePublishHost()).isEqualTo("publish.example.com");
-    }
-
-    @Test
-    void getEffectivePublishHostFallsBackToHostWhenPublishHostNotSet() {
-        final var properties = new BlockNodeProperties();
-        properties.setHost("default.example.com");
-        assertThat(properties.getEffectivePublishHost()).isEqualTo("default.example.com");
+        properties.setStreamingPort(40841);
+        assertThat(properties.getEffectiveStreamingHost()).isEqualTo("default.example.com");
+        assertThat(properties.getStreamingEndpoint()).isEqualTo("default.example.com:40841");
     }
 }

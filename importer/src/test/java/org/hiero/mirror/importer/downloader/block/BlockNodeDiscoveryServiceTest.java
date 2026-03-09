@@ -44,13 +44,6 @@ final class BlockNodeDiscoveryServiceTest {
                                 .build(),
                         RegisteredServiceEndpoint.builder()
                                 .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.PUBLISH)
-                                        .build())
-                                .domainName("publish.example.com")
-                                .port(40842)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
                                         .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
                                         .build())
                                 .ipAddress("192.168.1.10")
@@ -66,16 +59,17 @@ final class BlockNodeDiscoveryServiceTest {
         assertThat(result).hasSize(1);
         final var props = result.getFirst();
         assertThat(props.getPriority()).isZero();
-        assertThat(props.getPublishHost()).isEqualTo("publish.example.com");
-        assertThat(props.getPublishPort()).isEqualTo(40842);
+        assertThat(props.getHost()).isEqualTo("status.example.com");
         assertThat(props.getStatusHost()).isEqualTo("status.example.com");
         assertThat(props.getStatusPort()).isEqualTo(40840);
         assertThat(props.getStreamingHost()).isEqualTo("192.168.1.10");
         assertThat(props.getStreamingPort()).isEqualTo(40841);
+        assertThat(props.isStatusApiRequireTls()).isFalse();
+        assertThat(props.isStreamingApiRequireTls()).isFalse();
     }
 
     @Test
-    void discoverExcludesNodeWithoutPublishApi() {
+    void discoverSetsRequireTlsFromStatusAndStreamingEndpoints() {
         final var registeredNode = RegisteredNode.builder()
                 .registeredNodeId(100L)
                 .deleted(false)
@@ -86,6 +80,7 @@ final class BlockNodeDiscoveryServiceTest {
                                         .build())
                                 .domainName("status.example.com")
                                 .port(40840)
+                                .requiresTls(true)
                                 .build(),
                         RegisteredServiceEndpoint.builder()
                                 .blockNode(BlockNodeEndpoint.builder()
@@ -93,7 +88,55 @@ final class BlockNodeDiscoveryServiceTest {
                                         .build())
                                 .ipAddress("192.168.1.10")
                                 .port(40841)
+                                .requiresTls(true)
                                 .build()))
+                .build();
+
+        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+
+        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
+        final var result = service.discover();
+
+        assertThat(result).hasSize(1);
+        final var props = result.getFirst();
+        assertThat(props.isStatusApiRequireTls()).isTrue();
+        assertThat(props.isStreamingApiRequireTls()).isTrue();
+    }
+
+    @Test
+    void discoverExcludesNodeWithoutStatusApi() {
+        final var registeredNode = RegisteredNode.builder()
+                .registeredNodeId(100L)
+                .deleted(false)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .ipAddress("192.168.1.10")
+                        .port(40841)
+                        .build()))
+                .build();
+
+        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+
+        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
+        final var result = service.discover();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void discoverExcludesNodeWithoutStreamApi() {
+        final var registeredNode = RegisteredNode.builder()
+                .registeredNodeId(100L)
+                .deleted(false)
+                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("status.example.com")
+                        .port(40840)
+                        .build()))
                 .build();
 
         when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));

@@ -50,7 +50,6 @@ public class BlockNodeDiscoveryService {
             return Optional.empty();
         }
 
-        RegisteredServiceEndpoint publishEndpoint = null;
         RegisteredServiceEndpoint statusEndpoint = null;
         RegisteredServiceEndpoint streamEndpoint = null;
         for (final var endpoint : endpoints) {
@@ -62,28 +61,25 @@ public class BlockNodeDiscoveryService {
                 statusEndpoint = endpoint;
             } else if (api == BlockNodeApi.SUBSCRIBE_STREAM && streamEndpoint == null) {
                 streamEndpoint = endpoint;
-            } else if (api == BlockNodeApi.PUBLISH && publishEndpoint == null) {
-                publishEndpoint = endpoint;
             }
-            if (statusEndpoint != null && streamEndpoint != null && publishEndpoint != null) break;
+            if (statusEndpoint != null && streamEndpoint != null) break;
         }
-        if (statusEndpoint == null || streamEndpoint == null || publishEndpoint == null) {
+        if (statusEndpoint == null || streamEndpoint == null) {
             return Optional.empty();
         }
 
-        final var publishHost = extractHost(publishEndpoint);
         final var statusHost = extractHost(statusEndpoint);
         final var streamHost = extractHost(streamEndpoint);
-        if (publishHost == null || statusHost == null || streamHost == null) {
+        if (statusHost == null || streamHost == null) {
             return Optional.empty();
         }
 
         final var props = new BlockNodeProperties();
         props.setHost(statusHost);
-        props.setPublishHost(publishHost);
-        props.setPublishPort(publishEndpoint.getPort());
+        props.setStatusApiRequireTls(statusEndpoint.isRequiresTls());
         props.setStatusHost(statusHost);
         props.setStatusPort(statusEndpoint.getPort());
+        props.setStreamingApiRequireTls(streamEndpoint.isRequiresTls());
         props.setStreamingHost(streamHost);
         props.setStreamingPort(streamEndpoint.getPort());
 

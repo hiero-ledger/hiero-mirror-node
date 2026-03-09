@@ -33,7 +33,7 @@ public class BlockProperties {
     @NotNull
     private Duration cutoverThreshold = Duration.ofSeconds(8);
 
-    private boolean autoDiscoveryEnabled = false;
+    private boolean autoDiscoveryEnabled = true;
 
     private boolean enabled = false;
 

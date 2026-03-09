@@ -4,39 +4,35 @@ package org.hiero.mirror.importer.downloader.block;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import java.util.Comparator;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.validation.annotation.Validated;
 
-/**
- * Configuration for a block node. Supports both static configuration (single host for status, publish and streaming)
- * and configuration through discovered endpoints where status, publish and subscribe_stream may have different hosts.
- */
 @Data
 @Validated
 public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
-            .thenComparing(BlockNodeProperties::getEffectivePublishHost)
             .thenComparing(BlockNodeProperties::getEffectiveStatusHost)
             .thenComparing(BlockNodeProperties::getEffectiveStreamingHost)
-            .thenComparing(BlockNodeProperties::getPublishPort)
             .thenComparing(BlockNodeProperties::getStatusPort)
             .thenComparing(BlockNodeProperties::getStreamingPort);
 
+    /**
+     * Primary host for status and streaming. Used when statusHost or streamingHost are not set.
+     */
+    @NotBlank
     private String host;
 
     @Min(0)
     private int priority = 0;
 
-    private String publishHost;
+    private boolean statusApiRequireTls;
 
-    @Max(65535)
-    @Min(0)
-    private int publishPort = 40840;
-
+    private boolean streamingApiRequireTls;
     private String statusHost;
 
     @Max(65535)
@@ -54,20 +50,12 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
         return COMPARATOR.compare(this, other);
     }
 
-    public String getEffectivePublishHost() {
-        return StringUtils.isNotBlank(publishHost) ? publishHost : host;
-    }
-
     public String getEffectiveStatusHost() {
         return StringUtils.isNotBlank(statusHost) ? statusHost : host;
     }
 
     public String getEffectiveStreamingHost() {
         return StringUtils.isNotBlank(streamingHost) ? streamingHost : host;
-    }
-
-    public String getPublishEndpoint() {
-        return getEffectivePublishHost() + ":" + publishPort;
     }
 
     public String getStatusEndpoint() {
