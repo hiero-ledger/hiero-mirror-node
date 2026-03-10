@@ -300,8 +300,9 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
         final var registeredNodeId2 = domainBuilder.id();
         final var recordItem = recordItemBuilder
                 .nodeUpdate()
-                .transactionBody(b ->
-                        b.addAssociatedRegisteredNode(registeredNodeId1).addAssociatedRegisteredNode(registeredNodeId2))
+                .transactionBody(b -> b.getAssociatedRegisteredNodeListBuilder()
+                        .addAssociatedRegisteredNode(registeredNodeId1)
+                        .addAssociatedRegisteredNode(registeredNodeId2))
                 .build();
         final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         final var timestamp = recordItem.getConsensusTimestamp() - 1;
