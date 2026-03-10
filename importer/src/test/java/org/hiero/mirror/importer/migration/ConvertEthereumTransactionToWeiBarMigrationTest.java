@@ -11,24 +11,26 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
-import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.util.TestPropertyValues;
+import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.ContextConfiguration;
 
 /**
  * Tests for {@link ConvertEthereumTransactionToWeiBarMigration}.
  * This migration re-parses RLP data from the ethereum_transaction table to convert
  * gas and value fields from tinybar (incorrect) to weibar (correct).
  */
+@ContextConfiguration(initializers = ConvertEthereumTransactionToWeiBarMigrationTest.Initializer.class)
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
-@EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
-@TestPropertySource(properties = "spring.flyway.target=1.119.0")
 class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegrationTest {
 
     private final ConvertEthereumTransactionToWeiBarMigration migration;
@@ -181,5 +183,15 @@ class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegratio
         private byte[] signatureS;
         private Integer type;
         private byte[] value;
+    }
+
+    static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+
+        @Override
+        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+            var environment = configurableApplicationContext.getEnvironment();
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.5.2" : "1.119.0";
+            TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
+        }
     }
 }
