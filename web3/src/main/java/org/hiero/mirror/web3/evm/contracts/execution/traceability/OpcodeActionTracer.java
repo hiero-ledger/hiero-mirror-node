@@ -44,6 +44,12 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
 
+        // Reset the balance call flag after BALANCE opcode completes
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            context.setBalanceCall(false);
+        }
+
         final var options = context.getOpcodeTracerOptions();
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
