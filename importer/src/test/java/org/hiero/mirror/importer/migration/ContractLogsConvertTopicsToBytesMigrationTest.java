@@ -16,17 +16,21 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.io.FileUtils;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
+import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.test.context.TestPropertySource;
 
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
+@EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
+@TestPropertySource(properties = "spring.flyway.target=1.51.1")
 class ContractLogsConvertTopicsToBytesMigrationTest extends ImporterIntegrationTest {
 
     @Value("classpath:db/migration/v1/V1.51.2__contract_logs_convert_topics_to_bytes.sql")
