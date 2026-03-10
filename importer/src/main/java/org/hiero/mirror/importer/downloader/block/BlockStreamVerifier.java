@@ -13,6 +13,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -149,7 +150,7 @@ final class BlockStreamVerifier {
                 }
             } else {
                 // First block after cutover
-                blockFile.setLastWrappedRecordBlockHash(blockFile.getPreviousHash());
+                blockFile.setPreviousWrappedRecordBlockHash(Hex.decode(blockFile.getPreviousHash()));
                 blockFile.setPreviousHash(previousHash);
             }
         });

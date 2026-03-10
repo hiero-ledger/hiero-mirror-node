@@ -146,7 +146,7 @@ final class BlockStreamVerifierTest {
         when(recordFileRepository.findLatest()).thenReturn(Optional.of(lastRecordFile));
         final var blockFile = withBlockNumber(getBlockFile(null).toBuilder(), lastRecordFile.getIndex() + 1)
                 .build();
-        final var expectedLastWrappedRecordBlockHash = blockFile.getPreviousHash();
+        final var expectedPreviousWrappedRecordBlockHash = Hex.decode(blockFile.getPreviousHash());
 
         // when
         verifier.verify(blockFile);
@@ -155,7 +155,7 @@ final class BlockStreamVerifierTest {
         verify(blockFileTransformer).transform(assertArg(actual -> assertThat(actual)
                 .isEqualTo(blockFile)
                 .returns(lastRecordFile.getHash(), BlockFile::getPreviousHash)
-                .returns(expectedLastWrappedRecordBlockHash, BlockFile::getLastWrappedRecordBlockHash)));
+                .returns(expectedPreviousWrappedRecordBlockHash, BlockFile::getPreviousWrappedRecordBlockHash)));
         verifyNoInteractions(blockStateProofHasher);
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
         verify(recordFileRepository).findLatest();

@@ -78,8 +78,6 @@ public class RecordFile implements StreamFile<RecordItem> {
     @Transient
     private List<RecordItem> items = List.of();
 
-    private String lastWrappedRecordBlockHash;
-
     private Long loadEnd;
 
     private Long loadStart;
@@ -98,6 +96,9 @@ public class RecordFile implements StreamFile<RecordItem> {
     @JsonProperty("prev_hash")
     @ToString.Exclude
     private String previousHash;
+
+    @ToString.Exclude
+    private byte[] previousWrappedRecordBlockHash;
 
     private Long roundEnd;
 
