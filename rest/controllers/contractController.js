@@ -1031,8 +1031,7 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData,
-      convertToHbar
+      fileData
     );
   };
 

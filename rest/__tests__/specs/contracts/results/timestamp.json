@@ -104,7 +104,8 @@
         "/api/v1/contracts/results?timestamp=eq:987654.000123456",
         "/api/v1/contracts/results?timestamp=gt:200000.000123456&timestamp=lt:999999.000123456",
         "/api/v1/contracts/results?timestamp=gte:987654.000123456&timestamp=lte:987654.000123456",
-        "/api/v1/contracts/results?timestamp=ne:187654.000123456"
+        "/api/v1/contracts/results?timestamp=ne:187654.000123456",
+        "/api/v1/contracts/results?timestamp=987654.000123456&hbar=true"
       ],
       "responseStatus": 200,
       "responseJson": {
