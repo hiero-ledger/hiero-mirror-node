@@ -30,6 +30,9 @@ public class SystemEntity {
     private final EntityId feeScheduleFile = toEntityId(111L);
 
     @Getter(lazy = true)
+    private final EntityId simpleFeeScheduleFile = toEntityId(113L);
+
+    @Getter(lazy = true)
     private final EntityId networkAdminFeeAccount = toEntityId(98L);
 
     @Getter(lazy = true)

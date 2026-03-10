@@ -92,6 +92,10 @@ public class EvmProperties {
     private final VersionedConfiguration versionedConfiguration =
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
+    private boolean createSimpleFeeSchedule = true;
+
+    private boolean simpleFeesEnabled = true;
+
     private boolean validatePayerBalance = false;
 
     public SemanticVersion getSemanticEvmVersion() {
@@ -153,6 +157,8 @@ public class EvmProperties {
         props.put("contracts.throttle.throttleByGas", "false");
         props.put("contracts.systemContract.scheduleService.scheduleCall.enabled", "true");
         props.put("executor.disableThrottles", "true");
+        props.put("fees.createSimpleFeeSchedule", String.valueOf(createSimpleFeeSchedule));
+        props.put("fees.simpleFeesEnabled", String.valueOf(simpleFeesEnabled));
         props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
         props.put("jumboTransactions.allowedHederaFunctionalities", "ContractCall,ContractCreate,EthereumTransaction");

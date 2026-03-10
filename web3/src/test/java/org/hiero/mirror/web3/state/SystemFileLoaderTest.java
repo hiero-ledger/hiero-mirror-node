@@ -115,6 +115,16 @@ class SystemFileLoaderTest {
     }
 
     @Test
+    void loadSimpleFeeSchedule() throws Exception {
+        var fileId = fileId(systemEntity.simpleFeeScheduleFile());
+        var file = systemFileLoader.load(fileId, getCurrentTimestamp());
+        assertFile(file, fileId);
+        var simpleFeeSchedule = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF.parse(file.contents());
+        assertThat(simpleFeeSchedule).isNotNull().isNotEqualTo(org.hiero.hapi.support.fees.FeeSchedule.DEFAULT);
+        assertThat(simpleFeeSchedule.services()).isNotNull().hasSizeGreaterThanOrEqualTo(1);
+    }
+
+    @Test
     void loadExchangeRate() throws Exception {
         var fileId = fileId(systemEntity.exchangeRateFile());
         var file = systemFileLoader.load(fileId, getCurrentTimestamp());
@@ -232,6 +242,26 @@ class SystemFileLoaderTest {
     }
 
     @Test
+    void loadSimpleFeesWithRetrySuccessfully() {
+        var fileId = fileId(systemEntity.simpleFeeScheduleFile());
+        var expected = getFile(fileId, fileSchema.genesisSimpleFeesSchedules(configuration));
+        var entityId = toEntityId(fileId).getId();
+        assertFile(expected, fileId);
+        when(fileDataRepository.getFileAtTimestamp(eq(entityId), anyLong()))
+                .thenReturn(Optional.of(FileData.builder()
+                        .fileData(expected.contents().toByteArray())
+                        .build()));
+
+        final var actual = systemFileLoader.load(fileId, 250L);
+
+        assertThat(actual)
+                .isNotNull()
+                .returns(expected.contents(), File::contents)
+                .returns(fileId, File::fileId);
+        verify(fileDataRepository, times(1)).getFileAtTimestamp(eq(entityId), anyLong());
+    }
+
+    @Test
     void loadWithIncorrectShardAndRealm() {
         var fileId = FileID.newBuilder()
                 .shardNum(commonProperties.getShard() + 1)
@@ -289,6 +319,7 @@ class SystemFileLoaderTest {
         "102, true",
         "111, true",
         "112, true",
+        "113, true",
         "121, true",
         "122, true",
         "123, true",

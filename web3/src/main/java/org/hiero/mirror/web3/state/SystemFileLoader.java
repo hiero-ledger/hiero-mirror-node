@@ -34,6 +34,7 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -59,6 +60,7 @@ public class SystemFileLoader {
     private final SystemEntity systemEntity;
     private final FileID exchangeRateFileId;
     private final FileID feeSchedulesFileId;
+    private final FileID simpleFeeSchedulesFileId;
     private final CacheManager exchangeRatesCacheManager;
     private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
@@ -85,6 +87,7 @@ public class SystemFileLoader {
         this.systemEntity = systemEntity;
         this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
         this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
+        this.simpleFeeSchedulesFileId = Utils.toFileID(systemEntity.simpleFeeScheduleFile());
         this.exchangeRatesCacheManager = exchangeRatesCacheManager;
         this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
         this.genesisNetworkProperties = load(
@@ -190,6 +193,11 @@ public class SystemFileLoader {
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
                 new SystemFile(
+                        load(
+                                systemEntity.simpleFeeScheduleFile(),
+                                fileSchema.genesisSimpleFeesSchedules(configuration)),
+                        FeeSchedule.PROTOBUF),
+                new SystemFile(
                         load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRatesBytes(configuration)),
                         ExchangeRateSet.PROTOBUF),
                 new SystemFile(genesisNetworkProperties, null),
@@ -253,7 +261,8 @@ public class SystemFileLoader {
     private @Nullable Cache getCacheForFileId(FileID fileId) {
         final var isExchangeRate = fileId.equals(exchangeRateFileId);
         final var isFeeSchedule = fileId.equals(feeSchedulesFileId);
-        final var useExchangeRatesManager = isExchangeRate || isFeeSchedule;
+        final var isSimpleFeeSchedule = fileId.equals(simpleFeeSchedulesFileId);
+        final var useExchangeRatesManager = isExchangeRate || isFeeSchedule || isSimpleFeeSchedule;
         final var manager = useExchangeRatesManager ? exchangeRatesCacheManager : defaultSystemFileCacheManager;
         return manager.getCache(CACHE_NAME);
     }

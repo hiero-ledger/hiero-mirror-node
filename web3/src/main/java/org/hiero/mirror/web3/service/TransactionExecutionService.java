@@ -58,6 +58,7 @@ public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
     private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
+    private static final long CONTRACT_CREATE_TX_FEE_SIMPLE_FEES = 1_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
@@ -171,6 +172,8 @@ public class TransactionExecutionService {
 
     private TransactionBody buildContractCreateTransactionBody(
             final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
+        final long txFee =
+                evmProperties.isSimpleFeesEnabled() ? CONTRACT_CREATE_TX_FEE_SIMPLE_FEES : CONTRACT_CREATE_TX_FEE;
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
                         .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
@@ -178,7 +181,7 @@ public class TransactionExecutionService {
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEE)
+                .transactionFee(txFee)
                 .build();
     }
 
@@ -201,13 +204,15 @@ public class TransactionExecutionService {
     }
 
     private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
+        final var txFee =
+                evmProperties.isSimpleFeesEnabled() ? CONTRACT_CREATE_TX_FEE_SIMPLE_FEES : CONTRACT_CREATE_TX_FEE;
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
                         .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
                                 params.getEthereumData().toArrayUnsafe()))
                         .maxGasAllowance(Long.MAX_VALUE)
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEE)
+                .transactionFee(txFee)
                 .build();
 
         patchSenderNonce(params);
