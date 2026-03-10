@@ -13,7 +13,6 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
 import com.swirlds.state.spi.ReadableKVState;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -84,12 +83,6 @@ class MapWritableKVStateTest {
     void testReadFromDataSourceReturnsCorrectValue() {
         when(readableKVState.get(accountID)).thenReturn(account);
         assertThat(mapWritableKVState.readFromDataSource(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testIterateFromDataSourceReturnsEmptyIterator() {
-        when(readableKVState.keys()).thenReturn(Collections.emptyIterator());
-        assertThat(mapWritableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

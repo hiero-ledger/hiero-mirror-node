@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer;
 
-import static java.lang.invoke.MethodType.methodType;
 import static org.awaitility.Awaitility.await;
 import static org.springframework.data.util.Predicates.negate;
 
@@ -15,12 +14,7 @@ import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.lang.invoke.LambdaMetafactory;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
@@ -29,7 +23,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,7 +31,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
@@ -92,39 +84,6 @@ public class TestUtils {
 
     public Instant asStartOfEpochDay(long epochDay) {
         return LocalDate.ofEpochDay(epochDay).atStartOfDay().toInstant(ZoneOffset.UTC);
-    }
-
-    /**
-     * Dynamically lookup method references for every getter in object with the given return type
-     */
-    @SuppressWarnings("unchecked")
-    public static <O, R> Collection<Supplier<R>> gettersByType(O object, Class<?> returnType) {
-        MethodHandles.Lookup lookup = MethodHandles.lookup();
-        Class<?> objectClass = object.getClass();
-        Collection<Supplier<R>> getters = new ArrayList<>();
-
-        for (var m : objectClass.getDeclaredMethods()) {
-            try {
-                if (Modifier.isStatic(m.getModifiers()) || !Modifier.isPublic(m.getModifiers())) {
-                    continue;
-                }
-                MethodType type = MethodType.methodType(returnType, objectClass);
-                MethodHandle handle = lookup.unreflect(m);
-                if (!handle.type().equals(type)) {
-                    continue;
-                }
-
-                MethodType functionType = handle.type();
-                final var callSite = LambdaMetafactory.metafactory(
-                        lookup, "apply", methodType(Function.class), functionType.erase(), handle, functionType);
-                var function = (Function<O, R>) callSite.getTarget().invokeExact();
-                getters.add(() -> function.apply(object));
-            } catch (Throwable t) {
-                throw new RuntimeException(t);
-            }
-        }
-
-        return getters;
     }
 
     public static File getResource(String path) {

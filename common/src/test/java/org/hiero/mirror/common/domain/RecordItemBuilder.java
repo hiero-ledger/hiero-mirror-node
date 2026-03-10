@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.domain;
+package org.hiero.mirror.common.domain;
 
 import static com.hederahashgraph.api.proto.java.CustomFee.FeeCase.FIXED_FEE;
 import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.STATUS;
@@ -171,6 +171,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -179,7 +180,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
@@ -189,16 +189,13 @@ import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties.PersistProperties;
-import org.hiero.mirror.importer.util.Utility;
+import org.hiero.mirror.common.util.TestUtils;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.log.Log;
 import org.hyperledger.besu.evm.log.LogTopic;
@@ -231,12 +228,15 @@ public class RecordItemBuilder {
     private final SecureRandom random = new SecureRandom();
     private final Map<GeneratedMessage, EntityState> state = new ConcurrentHashMap<>();
 
-    @Getter
-    private final PersistProperties persistProperties =
-            new PersistProperties(new SystemEntity(CommonProperties.getInstance()));
-
     private final CommonProperties commonProperties;
     private final SystemEntity systemEntity;
+    private final Set<EntityId> entityTransactionExclusion;
+
+    @Setter
+    private boolean contractTransaction = true;
+
+    @Setter
+    private boolean entityTransactions = false;
 
     @Setter
     private Instant now = Instant.now();
@@ -245,6 +245,11 @@ public class RecordItemBuilder {
     public RecordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         this.commonProperties = commonProperties;
         this.systemEntity = systemEntity;
+        this.entityTransactionExclusion = Set.of(
+                systemEntity.feeCollectionAccount(),
+                systemEntity.networkAdminFeeAccount(),
+                systemEntity.nodeRewardAccount(),
+                systemEntity.stakingRewardAccount());
         // Dynamically lookup method references for every transaction body builder in this class
         Collection<Supplier<Builder<?>>> suppliers = TestUtils.gettersByType(this, Builder.class);
         suppliers.forEach(s -> builders.put(s.get().type, s));
@@ -1565,7 +1570,7 @@ public class RecordItemBuilder {
     }
 
     public Timestamp timestamp(TemporalUnit unit) {
-        return Utility.instantToTimestamp(now.plus(id(), unit));
+        return instantToTimestamp(now.plus(id(), unit));
     }
 
     public TokenID tokenId() {
@@ -1608,6 +1613,17 @@ public class RecordItemBuilder {
         }
     }
 
+    private static Instant convertToInstant(Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
+
+    private static Timestamp instantToTimestamp(Instant instant) {
+        return Timestamp.newBuilder()
+                .setSeconds(instant.getEpochSecond())
+                .setNanos(instant.getNano())
+                .build();
+    }
+
     public class Builder<T extends GeneratedMessage.Builder<T>> {
 
         private static final BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> NOOP_INCREMENTER =
@@ -1621,8 +1637,9 @@ public class RecordItemBuilder {
         private final AccountID payerAccountId;
         private final RecordItem.RecordItemBuilder recordItemBuilder;
 
-        private Predicate<EntityId> entityTransactionPredicate = persistProperties::shouldPersistEntityTransaction;
-        private Predicate<EntityId> contractTransactionPredicate = e -> persistProperties.isContractTransaction();
+        private Predicate<EntityId> entityTransactionPredicate = entityId ->
+                entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
+        private Predicate<EntityId> contractTransactionPredicate = e -> contractTransaction;
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = NOOP_INCREMENTER;
         private boolean useTransactionBodyBytesAndSigMap;
 
@@ -1814,8 +1831,8 @@ public class RecordItemBuilder {
                 return transactionBodyWrapper.getTransactionID();
             }
 
-            var instant = Utility.convertToInstant(transactionRecord.getConsensusTimestamp());
-            var validStart = Utility.instantToTimestamp(instant.minusNanos(10));
+            var instant = convertToInstant(transactionRecord.getConsensusTimestamp());
+            var validStart = instantToTimestamp(instant.minusNanos(10));
             return TransactionID.newBuilder()
                     .setAccountID(payerAccountId)
                     .setTransactionValidStart(validStart)

@@ -780,11 +780,6 @@ class TokenReadableKVStateTest {
         assertThat(tokenReadableKVState.size()).isZero();
     }
 
-    @Test
-    void iterateReturnsEmptyIterator() {
-        assertThat(tokenReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
-    }
-
     private void setupToken(Optional<Long> timestamp) {
         setupToken(timestamp, mock(EntityId.class));
     }

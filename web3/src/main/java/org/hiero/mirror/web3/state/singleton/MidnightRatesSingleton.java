@@ -33,7 +33,7 @@ final class MidnightRatesSingleton implements SingletonState<ExchangeRateSet> {
             final SystemEntity systemEntity) {
         V0490FileSchema fileSchema = new V0490FileSchema();
         this.cachedExchangeRateSet = ExchangeRateSet.PROTOBUF.parse(
-                fileSchema.genesisExchangeRates(evmProperties.getVersionedConfiguration()));
+                fileSchema.genesisExchangeRatesBytes(evmProperties.getVersionedConfiguration()));
         this.systemFileLoader = systemFileLoader;
         this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
     }
