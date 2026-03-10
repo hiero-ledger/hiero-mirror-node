@@ -155,6 +155,7 @@ public class EvmProperties {
         props.put("executor.disableThrottles", "true");
         props.put("hedera.realm", String.valueOf(CommonProperties.getInstance().getRealm()));
         props.put("hedera.shard", String.valueOf(CommonProperties.getInstance().getShard()));
+        props.put("jumboTransactions.allowedHederaFunctionalities", "ContractCall,ContractCreate,EthereumTransaction");
         props.put("ledger.id", Bytes.wrap(getNetwork().getLedgerId()).toHexString());
         props.put("nodes.gossipFqdnRestricted", "false");
         // The following 3 properties are needed to deliberately fail conditions in upstream to avoid paying rewards to
@@ -162,7 +163,6 @@ public class EvmProperties {
         props.put("nodes.nodeRewardsEnabled", "true");
         props.put("nodes.preserveMinNodeRewardBalance", "true");
         props.put("nodes.minNodeRewardBalance", String.valueOf(Long.MAX_VALUE));
-
         props.put("tss.hintsEnabled", "false");
         props.put("tss.historyEnabled", "false");
         props.putAll(properties); // Allow user defined properties to override the defaults
