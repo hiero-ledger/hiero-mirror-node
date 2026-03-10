@@ -11,10 +11,12 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.importer.DisableRepeatableSqlMigration;
+import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestPropertySource;
 
 /**
  * Tests for {@link ConvertEthereumTransactionToWeiBarMigration}.
@@ -23,8 +25,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
  */
 @DisablePartitionMaintenance
 @DisableRepeatableSqlMigration
+@EnabledIfV1
 @RequiredArgsConstructor
 @Tag("migration")
+@TestPropertySource(properties = "spring.flyway.target=1.119.0")
 class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegrationTest {
 
     private final ConvertEthereumTransactionToWeiBarMigration migration;

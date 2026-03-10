@@ -109,7 +109,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
         // Get underlying JdbcOperations for more efficient batch update
         var jdbcOperations = namedJdbcOperations.getJdbcOperations();
 
-        jdbcOperations.batchUpdate(UPDATE_SQL, updates, BATCH_SIZE, (ps, update) -> {
+        jdbcOperations.batchUpdate(UPDATE_SQL, updates, updates.size(), (ps, update) -> {
             ps.setBytes(1, update.gasPrice);
             ps.setBytes(2, update.maxFeePerGas);
             ps.setBytes(3, update.maxPriorityFeePerGas);
