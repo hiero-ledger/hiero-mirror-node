@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.config;
+package org.hiero.mirror.restjava.service.fee;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import java.util.HashMap;
-import java.util.Map;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
@@ -16,8 +13,5 @@ import org.springframework.validation.annotation.Validated;
 public class FeeProperties {
 
     @NotBlank
-    private String cacheSpec = "expireAfterWrite=10m";
-
-    @NotNull
-    private Map<String, String> intrinsicProperties = new HashMap<>(Map.of("fees.simpleFeesEnabled", "true"));
+    private String cacheSpec = "expireAfterWrite=10m,maximumSize=10,recordStats";
 }

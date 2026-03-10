@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.restjava.config;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.CaffeineSpec;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
 import com.hedera.node.app.config.ConfigProviderImpl;
@@ -15,14 +12,18 @@ import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.restjava.jooq.DomainRecordMapperProvider;
-import org.hiero.mirror.restjava.service.FeeEstimationState;
-import org.hiero.mirror.restjava.service.FileService;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
+import org.hiero.mirror.restjava.service.fee.FeeProperties;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.jooq.autoconfigure.DefaultConfigurationCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.support.FormattingConversionService;
@@ -33,8 +34,11 @@ import org.springframework.http.converter.protobuf.ProtobufHttpMessageConverter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 
 @Configuration
+@EnableCaching
 @RequiredArgsConstructor
 class RestJavaConfiguration {
+
+    private static final Map<String, String> INTRINSIC_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
 
     private final FormattingConversionService mvcConversionService;
 
@@ -45,19 +49,21 @@ class RestJavaConfiguration {
     }
 
     @Bean
-    LoadingCache<String, StandaloneFeeCalculator> intrinsicFeeCalculatorCache(
-            FeeProperties feeProperties, FileService fileService, SystemEntity systemEntity) {
-        return Caffeine.from(CaffeineSpec.parse(feeProperties.getCacheSpec())).build(k -> {
-            final var bytes = fileService.getSimpleFeeScheduleBytes();
-            final var state = new FeeEstimationState(bytes, systemEntity);
-            final var intrinsicProperties = feeProperties.getIntrinsicProperties();
-            final var properties = TransactionExecutors.Properties.newBuilder()
-                    .state(state)
-                    .appProperties(intrinsicProperties)
-                    .build();
-            final var config = new ConfigProviderImpl(false, null, intrinsicProperties).getConfiguration();
-            return new StandaloneFeeCalculatorImpl(state, properties, new AppEntityIdFactory(config));
-        });
+    StandaloneFeeCalculator standaloneFeeCalculator(FeeEstimationState feeEstimationState) {
+        final var properties = TransactionExecutors.Properties.newBuilder()
+                .state(feeEstimationState)
+                .appProperties(INTRINSIC_PROPERTIES)
+                .build();
+        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
+        return new StandaloneFeeCalculatorImpl(feeEstimationState, properties, new AppEntityIdFactory(config));
+    }
+
+    @Bean
+    CacheManager feeCacheManager(FeeProperties feeProperties) {
+        final var cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Set.of("simpleFeeSchedule"));
+        cacheManager.setCacheSpecification(feeProperties.getCacheSpec());
+        return cacheManager;
     }
 
     @Bean

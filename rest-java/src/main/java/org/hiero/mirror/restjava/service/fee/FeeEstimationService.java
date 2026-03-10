@@ -1,26 +1,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.service;
+package org.hiero.mirror.restjava.service.fee;
 
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.node.app.fees.StandaloneFeeCalculator;
 import com.hedera.pbj.runtime.ParseException;
 import jakarta.inject.Named;
+import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.fees.FeeResult;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 
 @Named
+@RequiredArgsConstructor
 public final class FeeEstimationService {
 
-    private static final String CACHE_KEY = "intrinsic";
-
-    private final LoadingCache<String, StandaloneFeeCalculator> calculatorCache;
-
-    FeeEstimationService(LoadingCache<String, StandaloneFeeCalculator> calculatorCache) {
-        this.calculatorCache = calculatorCache;
-    }
+    private final StandaloneFeeCalculator calculator;
 
     public FeeResult estimateFees(Transaction transaction, FeeEstimateMode mode) {
         if (mode == FeeEstimateMode.STATE) {
@@ -40,8 +35,7 @@ public final class FeeEstimationService {
             } else {
                 throw new IllegalArgumentException("Transaction must contain body bytes or signed transaction bytes");
             }
-            // wait for CN team to add support bodyBytes directly in calculateIntrinsic() (avoids re-wrapping)
-            return calculatorCache.get(CACHE_KEY).calculateIntrinsic(pbjTxn);
+            return calculator.calculateIntrinsic(pbjTxn);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {

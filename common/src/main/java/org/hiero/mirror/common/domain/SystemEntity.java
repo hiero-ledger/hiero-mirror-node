@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain;
 
+import java.util.Set;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Accessors;
@@ -52,6 +53,10 @@ public class SystemEntity {
 
     @Getter(lazy = true)
     private final EntityId treasuryAccount = toEntityId(2L);
+
+    @Getter(lazy = true)
+    private final Set<EntityId> entityTransactionExclusionDefault =
+            Set.of(feeCollectionAccount(), networkAdminFeeAccount(), nodeRewardAccount(), stakingRewardAccount());
 
     private EntityId toEntityId(long num) {
         return EntityId.of(commonProperties.getShard(), commonProperties.getRealm(), num);

@@ -5,7 +5,6 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.protobuf.ByteString;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.SignatureMap;
@@ -15,7 +14,6 @@ import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.fees.StandaloneFeeCalculator;
 import com.hedera.node.app.fees.StandaloneFeeCalculatorImpl;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
@@ -24,6 +22,7 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.Extra;
@@ -33,7 +32,8 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
-import org.hiero.mirror.restjava.config.FeeProperties;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -43,8 +43,9 @@ import org.springframework.core.io.ClassPathResource;
 @RequiredArgsConstructor
 final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
+    private static final Map<String, String> INTRINSIC_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
+
     private final FeeEstimationService service;
-    private final FeeProperties feeProperties;
     private final FileService fileService;
     private final RecordItemBuilder recordItemBuilder;
     private final SystemEntity systemEntity;
@@ -191,17 +192,14 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     @Test
     void loadsSimpleFeeScheduleFromDatabase() {
         // given
-        final var intrinsicProperties = feeProperties.getIntrinsicProperties();
-        final var bytes = fileService.getSimpleFeeScheduleBytes();
-        final var state = new FeeEstimationState(bytes, systemEntity);
+        final var state = new FeeEstimationState(systemEntity, fileService);
         final var properties = TransactionExecutors.Properties.newBuilder()
                 .state(state)
-                .appProperties(intrinsicProperties)
+                .appProperties(INTRINSIC_PROPERTIES)
                 .build();
-        final var config = new ConfigProviderImpl(false, null, intrinsicProperties).getConfiguration();
+        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
         final var calculator = new StandaloneFeeCalculatorImpl(state, properties, new AppEntityIdFactory(config));
-        final var cache = Caffeine.newBuilder().<String, StandaloneFeeCalculator>build(_ -> calculator);
-        final var freshService = new FeeEstimationService(cache);
+        final var freshService = new FeeEstimationService(calculator);
 
         // when
         final var result = freshService.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC);

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.restjava.service;
+package org.hiero.mirror.restjava.service.fee;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.FileID;
@@ -14,11 +14,9 @@ import com.hedera.hapi.node.transaction.ExchangeRate;
 import com.hedera.hapi.node.transaction.ExchangeRateSet;
 import com.hedera.node.app.fees.FeeService;
 import com.hedera.node.app.fees.schemas.V0490FeeSchema;
-import com.hedera.node.app.service.file.FileService;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
 import com.hedera.node.app.throttle.CongestionThrottleService;
 import com.hedera.node.app.throttle.schemas.V0490CongestionThrottleSchema;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.swirlds.state.State;
 import com.swirlds.state.StateChangeListener;
 import com.swirlds.state.spi.ReadableKVStateBase;
@@ -26,6 +24,7 @@ import com.swirlds.state.spi.ReadableQueueStateBase;
 import com.swirlds.state.spi.ReadableSingletonStateBase;
 import com.swirlds.state.spi.ReadableStates;
 import com.swirlds.state.spi.WritableStates;
+import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,54 +35,75 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import org.hiero.base.crypto.Hash;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.restjava.service.Bound;
+import org.hiero.mirror.restjava.service.FileService;
 import org.jspecify.annotations.Nullable;
 
+@Named
 @SuppressWarnings("NullableProblems")
 public final class FeeEstimationState implements State {
 
+    private static final String CN_FILE_SERVICE_NAME = com.hedera.node.app.service.file.FileService.NAME;
+
     private final Map<String, Map<Integer, Object>> states = new ConcurrentHashMap<>();
     private final Map<String, ReadableStates> readableStatesCache = new ConcurrentHashMap<>();
+    private final Map<FileID, File> staticFiles = new ConcurrentHashMap<>();
+    private final FileID simpleFeeFileId;
+    private final SystemEntity systemEntity;
+    private final FileService fileService;
 
-    @SuppressWarnings("unchecked")
-    public FeeEstimationState(Bytes simpleFeeBytes, SystemEntity systemEntity) {
-        // Fake exchange rate — not used by calculateIntrinsic(); FeeService requires a non-null entry during
-        // initialization.
+    public FeeEstimationState(SystemEntity systemEntity, FileService fileService) {
+        this.systemEntity = systemEntity;
+        this.fileService = fileService;
+        final var simpleFeeEntityId = systemEntity.simpleFeeScheduleFile();
+        this.simpleFeeFileId = FileID.newBuilder()
+                .shardNum(simpleFeeEntityId.getShard())
+                .realmNum(simpleFeeEntityId.getRealm())
+                .fileNum(simpleFeeEntityId.getNum())
+                .build();
+
         final var midnightRates = ExchangeRateSet.newBuilder()
                 .currentRate(ExchangeRate.newBuilder()
                         .centEquiv(12)
                         .hbarEquiv(1)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(Long.MAX_VALUE))
+                        .expirationTime(TimestampSeconds.newBuilder()
+                                .seconds(Long.MAX_VALUE)
+                                .build())
                         .build())
                 .nextRate(ExchangeRate.newBuilder()
                         .centEquiv(15)
                         .hbarEquiv(1)
-                        .expirationTime(TimestampSeconds.newBuilder().seconds(Long.MAX_VALUE))
+                        .expirationTime(TimestampSeconds.newBuilder()
+                                .seconds(Long.MAX_VALUE)
+                                .build())
                         .build())
                 .build();
         addSingleton(FeeService.NAME, V0490FeeSchema.MIDNIGHT_RATES_STATE_ID, midnightRates);
 
-        // Fake address book — only the shape matters for fee calculation; contents are not read at runtime.
+        final var nodeAccountId = AccountID.newBuilder()
+                .shardNum(systemEntity.addressBookFile102().getShard())
+                .realmNum(systemEntity.addressBookFile102().getRealm())
+                .accountNum(3)
+                .build();
         final var addressBook = NodeAddressBook.newBuilder()
                 .nodeAddress(NodeAddress.newBuilder()
                         .nodeId(0)
-                        .nodeAccountId(AccountID.newBuilder().accountNum(3).build())
+                        .nodeAccountId(nodeAccountId)
                         .stake(1)
                         .build())
                 .build();
-        final var bytes = NodeAddressBook.PROTOBUF.toBytes(addressBook);
-        final var file = File.newBuilder().contents(bytes).build();
         final var fileId102 = FileID.newBuilder()
+                .shardNum(systemEntity.addressBookFile102().getShard())
+                .realmNum(systemEntity.addressBookFile102().getRealm())
                 .fileNum(systemEntity.addressBookFile102().getNum())
                 .build();
-        final var files = (Map<FileID, File>) states.computeIfAbsent(FileService.NAME, _ -> new ConcurrentHashMap<>())
-                .computeIfAbsent(V0490FileSchema.FILES_STATE_ID, _ -> new ConcurrentHashMap<>());
-        files.put(fileId102, file);
-        files.put(
-                FileID.newBuilder()
-                        .fileNum(systemEntity.simpleFeeScheduleFile().getNum())
-                        .build(),
-                File.newBuilder().contents(simpleFeeBytes).build());
+        staticFiles.put(
+                fileId102,
+                File.newBuilder()
+                        .contents(NodeAddressBook.PROTOBUF.toBytes(addressBook))
+                        .build());
 
         addSingleton(
                 CongestionThrottleService.NAME,
@@ -102,6 +122,9 @@ public final class FeeEstimationState implements State {
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public ReadableStates getReadableStates(String serviceName) {
+        if (CN_FILE_SERVICE_NAME.equals(serviceName)) {
+            return new LenientReadableStates(Map.of(V0490FileSchema.FILES_STATE_ID, new FileReadableKVState()));
+        }
         return readableStatesCache.computeIfAbsent(serviceName, s -> {
             final var serviceStates = states.get(s);
             if (serviceStates == null) {
@@ -145,10 +168,10 @@ public final class FeeEstimationState implements State {
 
         @Override
         @SuppressWarnings("unchecked")
-        public <K, V> InMemoryReadableKVState<K, V> get(int stateId) {
+        public <K, V> ReadableKVStateBase<K, V> get(int stateId) {
             final var state = stateMap.get(stateId);
             if (state != null) {
-                return (InMemoryReadableKVState<K, V>) state;
+                return (ReadableKVStateBase<K, V>) state;
             }
             return new InMemoryReadableKVState<>(stateId, Map.of());
         }
@@ -203,7 +226,6 @@ public final class FeeEstimationState implements State {
         }
     }
 
-    @SuppressWarnings("DataFlowIssue")
     private static final class InMemoryReadableSingletonState<T> extends ReadableSingletonStateBase<T> {
         private final AtomicReference<T> backingRef;
 
@@ -234,6 +256,30 @@ public final class FeeEstimationState implements State {
         @Override
         protected Iterator<E> iterateOnDataSource() {
             return Collections.unmodifiableCollection(backingQueue).iterator();
+        }
+    }
+
+    private final class FileReadableKVState extends ReadableKVStateBase<FileID, File> {
+
+        FileReadableKVState() {
+            super(V0490FileSchema.FILES_STATE_ID, "state." + V0490FileSchema.FILES_STATE_ID);
+        }
+
+        @Override
+        protected @Nullable File readFromDataSource(FileID fileId) {
+            if (simpleFeeFileId.equals(fileId)) {
+                final var schedule =
+                        fileService.getSimpleFeeSchedule(Bound.EMPTY).data();
+                return File.newBuilder()
+                        .contents(FeeSchedule.PROTOBUF.toBytes(schedule))
+                        .build();
+            }
+            return staticFiles.get(fileId);
+        }
+
+        @Override
+        public long size() {
+            return staticFiles.size() + 1L;
         }
     }
 }

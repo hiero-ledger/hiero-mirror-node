@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.restjava.dto.SystemFile;
 
 public interface FileService {
@@ -13,5 +13,5 @@ public interface FileService {
 
     SystemFile<CurrentAndNextFeeSchedule> getFeeSchedule(Bound timestamp);
 
-    Bytes getSimpleFeeScheduleBytes();
+    SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp);
 }
