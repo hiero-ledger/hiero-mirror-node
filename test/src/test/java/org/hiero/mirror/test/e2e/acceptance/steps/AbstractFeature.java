@@ -69,10 +69,11 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
         final var fee = useCurrentFee ? exchangeRates.getCurrentRate() : exchangeRates.getNextRate();
         final var hbarPriceInCents = (double) fee.getCentEquivalent() / fee.getHbarEquivalent();
         final var tokenCreateUsdInCents = 100;
-        final var signatureUsdInCents = 5;
-        // create token requires 1 usd in fees
-        // create token with custom fees requires 2 usd in fees
-        // usdInCents / hbarPriceInCents = amount of hbars equal to 1 usd. Increment that number with 1 for safety and
+        final var signatureUsdInCents = 6;
+        // create token requires 1 usd + 0.1 usd per signature processing in fees
+        // create token with custom fees requires 2 usd + 0.1 usd per signature processing in fees
+        // (tokenCreateUsdInCents + signatureUsdInCents) / hbarPriceInCents = amount of hbars equal to 1.06 usd.
+        // Increment that number with 1 for safety and
         // multiply that number with 10 ^ 8 to convert hbar to tinybar
         return (long) (((tokenCreateUsdInCents + signatureUsdInCents) * usdFee / hbarPriceInCents + 1) * 100000000);
     }
