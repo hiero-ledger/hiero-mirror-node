@@ -45,7 +45,6 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -133,6 +132,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -1234,7 +1234,7 @@ public class DomainBuilder {
     }
 
     public byte[] bloomFilter() {
-        return bytes(LogsBloomAggregator.BYTE_SIZE);
+        return bytes(LogsBloomFilter.BYTE_SIZE);
     }
 
     // Helper methods

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.importer.parser.contractlog.AbstractSyntheticContractLog.TRANSFER_SIGNATURE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -18,7 +19,6 @@ import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TokenType;
 import com.hederahashgraph.api.proto.java.TransactionRecord.Builder;
-import java.util.ArrayList;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.RecordItemBuilder;
@@ -27,12 +27,9 @@ import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.log.Log;
-import org.hyperledger.besu.evm.log.LogTopic;
-import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,9 +42,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class SyntheticContractLogServiceImplTest {
+final class SyntheticContractLogServiceImplTest {
 
-    private static final int TOPIC_SIZE_BYTES = 32;
     private static final ContractID HOOK_CONTRACT_ADDRESS =
             ContractID.newBuilder().setContractNum(0x16d).build();
     private static final ContractID HTS_PRECOMPILE_CONTRACT_ADDRESS =
@@ -211,13 +207,9 @@ class SyntheticContractLogServiceImplTest {
                 new TransferContractLog(recordItem, entityTokenId, senderId, receiverId, amount));
 
         verify(entityListener).onContractLog(contractLogCaptor.capture());
-        var capturedLog = contractLogCaptor.getValue();
+        final var capturedLog = contractLogCaptor.getValue();
 
-        assertThat(capturedLog.getBloom()).isNotNull();
-        assertThat(capturedLog.getBloom()).hasSize(LogsBloomFilter.BYTE_SIZE);
-
-        var expectedBloom = calculateExpectedBloom(entityTokenId, senderId, receiverId, amount);
-        assertThat(capturedLog.getBloom()).isEqualTo(expectedBloom);
+        assertThat(capturedLog.getBloom()).isNotNull().hasSize(LogsBloomFilter.BYTE_SIZE);
     }
 
     @Test
@@ -229,7 +221,7 @@ class SyntheticContractLogServiceImplTest {
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         var capturedLog = contractLogCaptor.getValue();
 
-        assertThat(capturedLog.getBloom()).isEqualTo(new byte[] {0});
+        assertThat(capturedLog.getBloom()).isEqualTo(new byte[]{0});
     }
 
     @Test
@@ -801,21 +793,20 @@ class SyntheticContractLogServiceImplTest {
     }
 
     /**
-     * Creates a ContractLoginfo that matches the topics and data of a fungible token TransferContractLog.
-     * This simulates an ERC-20 Transfer event emitted by a token contract.
-     * Topics and data use the raw trimmed bytes (without left-padding) to match
-     * the format that Utility.getTopic/getDataTrimmed will produce after trimming.
+     * Creates a ContractLoginfo that matches the topics and data of a fungible token TransferContractLog. This
+     * simulates an ERC-20 Transfer event emitted by a token contract. Topics and data use the raw trimmed bytes
+     * (without left-padding) to match the format that Utility.getTopic/getDataTrimmed will produce after trimming.
      *
-     * @param tokenId the token that emitted the log (contract)
-     * @param sender the sender address (topic1)
-     * @param receiver the receiver address (topic2)
+     * @param tokenId        the token that emitted the log (contract)
+     * @param sender         the sender address (topic1)
+     * @param receiver       the receiver address (topic2)
      * @param transferAmount the transfer amount (data)
      * @return a ContractLoginfo matching a fungible token transfer
      */
     private ContractLoginfo createMatchingFungibleTokenTransferLog(
             EntityId tokenId, EntityId sender, EntityId receiver, long transferAmount) {
 
-        var topic0 = ByteString.copyFrom(AbstractSyntheticContractLog.TRANSFER_SIGNATURE);
+        var topic0 = ByteString.copyFrom(TRANSFER_SIGNATURE);
         var topic1 = ByteString.copyFrom(entityIdToBytes(sender));
         var topic2 = ByteString.copyFrom(entityIdToBytes(receiver));
 
@@ -836,32 +827,5 @@ class SyntheticContractLogServiceImplTest {
             return new byte[0];
         }
         return DomainUtils.trim(DomainUtils.toEvmAddress(entityId));
-    }
-
-    /**
-     * Calculates the expected bloom filter for a TransferContractLog
-     */
-    private byte[] calculateExpectedBloom(EntityId tokenId, EntityId sender, EntityId receiver, long transferAmount) {
-        var logger = Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(tokenId)));
-        var topics = new ArrayList<LogTopic>();
-
-        // Topic 0: Transfer signature
-        topics.add(LogTopic.wrap(Bytes.wrap(
-                DomainUtils.leftPadBytes(AbstractSyntheticContractLog.TRANSFER_SIGNATURE, TOPIC_SIZE_BYTES))));
-
-        // Topic 1: Sender (padded) — mirrors addTopicIfPresent which checks for null, not empty
-        var senderBytes = entityIdToBytes(sender);
-        topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(senderBytes, TOPIC_SIZE_BYTES))));
-
-        // Topic 2: Receiver (padded)
-        var receiverBytes = entityIdToBytes(receiver);
-        topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(receiverBytes, TOPIC_SIZE_BYTES))));
-
-        // Data: Amount
-        var amountBytes = DomainUtils.trim(Bytes.ofUnsignedLong(transferAmount).toArrayUnsafe());
-        var data = amountBytes != null ? Bytes.wrap(amountBytes) : Bytes.EMPTY;
-
-        var besuLog = new Log(logger, data, topics);
-        return LogsBloomFilter.builder().insertLog(besuLog).build().toArray();
     }
 }

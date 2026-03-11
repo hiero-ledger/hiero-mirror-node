@@ -33,7 +33,6 @@ dependencies {
     testImplementation("org.hyperledger.besu:besu-datatypes")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.hyperledger.besu:evm")
     testImplementation("org.springframework:spring-web")
     testImplementation("org.springframework.boot:spring-boot-starter-data-redis-test")
     testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")

@@ -184,22 +184,16 @@ import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.common.util.TestUtils;
-import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.log.Log;
-import org.hyperledger.besu.evm.log.LogTopic;
-import org.hyperledger.besu.evm.log.LogsBloomFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
@@ -259,6 +253,17 @@ public class RecordItemBuilder {
     // Intended for use only in unit tests
     public RecordItemBuilder() {
         this(CommonProperties.getInstance(), new SystemEntity(CommonProperties.getInstance()));
+    }
+
+    private static Instant convertToInstant(Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
+
+    private static Timestamp instantToTimestamp(Instant instant) {
+        return Timestamp.newBuilder()
+                .setSeconds(instant.getEpochSecond())
+                .setNanos(instant.getNano())
+                .build();
     }
 
     public Supplier<Builder<?>> lookup(TransactionType type) {
@@ -433,13 +438,13 @@ public class RecordItemBuilder {
 
     @SuppressWarnings("deprecation")
     public ContractFunctionResult.Builder contractFunctionResult(ContractID contractId) {
-        var logsBloomAggregator = new LogsBloomAggregator();
+        var logsBloomFilter = new LogsBloomFilter();
         var contractLogInfos = List.of(contractLoginfo(contractId), contractLoginfo(contractId()));
-        contractLogInfos.forEach(loginfo -> logsBloomAggregator.aggregate(DomainUtils.toBytes(loginfo.getBloom())));
+        contractLogInfos.forEach(loginfo -> logsBloomFilter.or(DomainUtils.toBytes(loginfo.getBloom())));
 
         return ContractFunctionResult.newBuilder()
                 .setAmount(5_000L)
-                .setBloom(DomainUtils.fromBytes(logsBloomAggregator.getBloom()))
+                .setBloom(DomainUtils.fromBytes(logsBloomFilter.toArrayUnsafe()))
                 .setContractCallResult(bytes(16))
                 .setContractID(contractId)
                 .addContractNonces(ContractNonceInfo.newBuilder()
@@ -1418,14 +1423,13 @@ public class RecordItemBuilder {
     }
 
     private ByteString bloomFor(ContractID contractId, List<ByteString> topics) {
-        var address = Address.wrap(
-                Bytes.wrap(Hex.decode(StringUtils.leftPad(Long.toHexString(contractId.getContractNum()), 40, '0'))));
-        var logTopics = topics.stream()
-                .map(topic -> LogTopic.wrap(Bytes.wrap(DomainUtils.toBytes(topic))))
-                .toList();
-        var log = new Log(address, Bytes.EMPTY, logTopics);
-        return DomainUtils.fromBytes(
-                LogsBloomFilter.builder().insertLog(log).build().toArray());
+        boolean hasAddress =
+                contractId != null && !ContractID.getDefaultInstance().equals(contractId);
+        final var evmAddress = hasAddress ? DomainUtils.toEvmAddress(contractId) : null;
+        final var logsBloomFilter = new LogsBloomFilter();
+        logsBloomFilter.insertAddress(evmAddress);
+        topics.forEach(logsBloomFilter::insertTopic);
+        return logsBloomFilter.toByteString();
     }
 
     private TransactionSidecarRecord.Builder contractActions() {
@@ -1611,17 +1615,6 @@ public class RecordItemBuilder {
         boolean isCreated() {
             return created.get();
         }
-    }
-
-    private static Instant convertToInstant(Timestamp timestamp) {
-        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
-    }
-
-    private static Timestamp instantToTimestamp(Instant instant) {
-        return Timestamp.newBuilder()
-                .setSeconds(instant.getEpochSecond())
-                .setNanos(instant.getNano())
-                .build();
     }
 
     public class Builder<T extends GeneratedMessage.Builder<T>> {
