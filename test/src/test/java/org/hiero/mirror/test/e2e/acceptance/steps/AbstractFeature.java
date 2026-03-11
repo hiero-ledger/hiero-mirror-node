@@ -73,10 +73,8 @@ public abstract class AbstractFeature extends EncoderDecoderFacade {
         final var surchargeForSmartContractCallUsdInCents = 20;
         // we use at maximum 6 hardcoded keys in the tests, and we need 1 cent for each signature processing
         final var signatureUsdInCentsBuffer = 6;
-        // create token requires 1 usd + 0.1 usd per signature processing in fees
-        // create token with custom fees requires 2 usd + 0.1 usd per signature processing in fees
-        // (tokenCreateUsdInCents + signatureUsdInCentsBuffer) / hbarPriceInCents = amount of hbars equal to 1.20 usd.
-        // Increment that number with 1 for safety and
+        // create token requires 1 usd + 0.20 usd surcharge + 0.1 usd per signature processing in fees
+        // create token with custom fees requires 2 usd + 0.40 usd surcharge  0.1 usd per signature processing in fees
         // multiply that number with 10 ^ 8 to convert hbar to tinybar
         return (long) ((((tokenCreateUsdInCents + surchargeForSmartContractCallUsdInCents) * usdFee
                                 + signatureUsdInCentsBuffer)
