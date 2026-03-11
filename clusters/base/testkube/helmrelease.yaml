@@ -24,6 +24,10 @@ spec:
     cleanupOnFail: true
     crds: CreateReplace
   values:
+    preUpgradeHook:
+      image:
+        repository: bitnamilegacy/kubectl
+        tag: v1.28.2
     testkube-api:
       cliIngress:
         enabled: false
@@ -46,12 +50,13 @@ spec:
     testkube-operator:
       preUpgrade:
         image:
-          repository: bitnamilegacy/kubectl
-        priorityClassName: high
+          repository: rancher/kubectl
+          tag: v1.28.2
       priorityClassName: high
       proxy:
         image:
-          repository: quay.io/brancz/kube-rbac-proxy
+          registry: quay.io
+          repository: brancz/kube-rbac-proxy
           tag: v0.8.0
       resources:
         limits:
