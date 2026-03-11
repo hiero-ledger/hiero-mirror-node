@@ -335,7 +335,10 @@ class CryptoCreateTransactionHandlerTest extends AbstractTransactionHandlerTest 
 
     @Test
     void missingDelegationAddress() {
-        var recordItem = recordItemBuilder.cryptoCreate().build();
+        var recordItem = recordItemBuilder
+                .cryptoCreate()
+                .transactionBody(tb -> tb.setDelegationAddress(ByteString.EMPTY))
+                .build();
         var transaction = transaction(recordItem);
         var accountId =
                 EntityId.of(recordItem.getTransactionRecord().getReceipt().getAccountID());

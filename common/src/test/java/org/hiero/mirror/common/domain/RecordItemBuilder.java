@@ -547,6 +547,7 @@ public class RecordItemBuilder {
                 .setAlias(bytes(20))
                 .setAutoRenewPeriod(duration(30))
                 .setDeclineReward(true)
+                .setDelegationAddress(bytes(20))
                 .setInitialBalance(10_000_000_000_000L)
                 .setKey(key())
                 .setMaxAutomaticTokenAssociations(2)
@@ -556,7 +557,6 @@ public class RecordItemBuilder {
                 .setReceiverSigRequired(false)
                 .setShardID(SHARD_ID)
                 .addHookCreationDetails(hookCreationDetails())
-                .setDelegationAddress(ByteString.EMPTY)
                 .setStakedNodeId(1L);
         return new Builder<>(TransactionType.CRYPTOCREATEACCOUNT, builder).receipt(r -> r.setAccountID(accountId()));
     }
