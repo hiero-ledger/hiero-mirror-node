@@ -862,27 +862,21 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
             })
     class WithSimpleFeesEnabled {
 
-        @ParameterizedTest
-        @ValueSource(booleans = {true, false})
+        @Test
         void createFungibleTokenWithSimpleFees() throws Exception {
             // Given
             final var value = 10000L * 100_000_000_000L;
             final var sender = accountEntityWithSufficientBalancePersist();
 
-            accountBalanceRecordsPersist(sender);
-
             final var contract = testWeb3jService.deploy(ModificationPrecompileTestContract::deploy);
-
             testWeb3jService.setValue(value);
-
             testWeb3jService.setSender(toAddress(sender.toEntityId()).toHexString());
 
             final var treasuryAccount = accountEntityPersist();
-
             final var token = populateHederaToken(
                     contract.getContractAddress(), TokenTypeEnum.FUNGIBLE_COMMON, treasuryAccount.toEntityId());
             final var initialTokenSupply = BigInteger.valueOf(10L);
-            final var decimalPlacesSupportedByToken = BigInteger.valueOf(10L); // e.g. 1.0123456789
+            final var decimalPlacesSupportedByToken = BigInteger.valueOf(10L);
 
             // When
             final var functionCall =
