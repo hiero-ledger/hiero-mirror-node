@@ -27,7 +27,6 @@ spec:
     preUpgradeHook:
       image:
         repository: bitnamilegacy/kubectl
-        tag: v1.28.2
     testkube-api:
       cliIngress:
         enabled: false
@@ -50,8 +49,7 @@ spec:
     testkube-operator:
       preUpgrade:
         image:
-          repository: rancher/kubectl
-          tag: v1.28.2
+          repository: bitnamilegacy/kubectl
       priorityClassName: high
       proxy:
         image:
