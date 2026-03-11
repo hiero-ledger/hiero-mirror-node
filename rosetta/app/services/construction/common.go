@@ -5,6 +5,7 @@ package construction
 import (
 	"encoding/json"
 	"github.com/hiero-ledger/hiero-mirror-node/rosetta/app/interfaces"
+	"maps"
 	"reflect"
 
 	rTypes "github.com/coinbase/rosetta-sdk-go/types"
@@ -85,15 +86,13 @@ func isZeroAccountId(accountId hiero.AccountID) bool {
 
 func parseOperationMetadata(
 	validate *validator.Validate,
-	out interface{},
-	metadatas ...map[string]interface{},
+	out any,
+	metadatas ...map[string]any,
 ) *rTypes.Error {
-	metadata := make(map[string]interface{})
+	metadata := make(map[string]any)
 
 	for _, m := range metadatas {
-		for k, v := range m {
-			metadata[k] = v
-		}
+		maps.Copy(metadata, m)
 	}
 
 	data, err := json.Marshal(metadata)

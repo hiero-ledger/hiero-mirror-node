@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import {includes, isEmpty, isNil, join} from 'lodash-es';
-import anonymize from 'ip-anonymize';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import JSONBigFactory from 'json-bigint';
 import pg from 'pg';
 import pgRange, {Range} from 'pg-range';
-import {format} from 'sql-formatter';
 import util from 'util';
 
 import * as constants from './constants';
@@ -1445,15 +1443,6 @@ const parseTokenBalances = (tokenBalances) => {
 
 const isTestEnv = () => process.env.NODE_ENV === 'test';
 
-/**
- * Masks the given IP based on Google Analytics standards
- * @param {String} ip the IP address from the req object.
- * @returns {String} The masked IP address
- */
-const ipMask = (ip) => {
-  return anonymize(ip, 24, 48);
-};
-
 const recordQuery = (() => {
   let func;
   return async (callerInfo, query) => {
@@ -1497,6 +1486,7 @@ const getPoolClass = () => {
 
       if (traceEnabled) {
         startTime = Date.now();
+        const {format} = await import('sql-formatter');
         const prettyQuery = format(query, {language: 'postgresql'});
         logger.trace(
           `${callerInfo.function} (${callerInfo.file}:${
@@ -1810,7 +1800,6 @@ export {
   getStakingPeriod,
   gtGte,
   incrementTimestampByOneDay,
-  ipMask,
   isByteRange,
   isNonNegativeInt32,
   isPositiveLong,

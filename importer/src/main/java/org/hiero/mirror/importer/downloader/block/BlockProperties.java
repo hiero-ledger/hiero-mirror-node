@@ -14,7 +14,6 @@ import org.hiero.mirror.common.domain.transaction.BlockSourceType;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.downloader.block.tss.LedgerProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.data.util.Version;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
@@ -27,9 +26,6 @@ public class BlockProperties {
     private final ImporterProperties importerProperties;
 
     private String bucketName;
-
-    @NotNull
-    private Version compatibleRootHashConsensusNodeVersion = Version.parse("0.72.0");
 
     private Boolean cutover;
 

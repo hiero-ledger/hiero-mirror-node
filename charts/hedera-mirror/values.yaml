@@ -147,6 +147,9 @@ nameOverride: mirror
 networkPolicy:
   enabled: false
 
+pinger:
+  enabled: false
+
 postgresql:
   enabled: true
   metrics:

@@ -14,16 +14,18 @@ import org.junit.jupiter.api.Test;
 import org.skyscreamer.jsonassert.JSONAssert;
 import org.skyscreamer.jsonassert.JSONCompareMode;
 
-class TransactionTest {
+final class TransactionTest {
 
     private static final String EXPECTED_JSON_TEMPLATE = """
                     {
                       "batch_key": null,
+                      "congestion_pricing_multiplier": 1,
                       "consensus_timestamp": 1684791152000000000,
                       "charged_tx_fee": 1,
                       "entity_id": 2,
                       "errata": "INSERT",
                       "high_volume": true,
+                      "high_volume_pricing_multiplier": 2,
                       "index":4,
                       "inner_transactions": null,
                       "initial_balance": 5,
@@ -196,11 +198,13 @@ class TransactionTest {
 
     private Transaction getTransaction() {
         var transaction = new Transaction();
+        transaction.setCongestionPricingMultiplier(1L);
         transaction.setConsensusTimestamp(1684791152000000000L);
         transaction.setChargedTxFee(1L);
         transaction.setEntityId(EntityId.of(2L));
         transaction.setErrata(ErrataType.INSERT);
         transaction.setHighVolume(true);
+        transaction.setHighVolumePricingMultiplier(2L);
         transaction.setIndex(4);
         transaction.setInitialBalance(5L);
         transaction.setMaxCustomFees(new byte[][] {{0x1, 0x2}, {0xa, 0xb}});

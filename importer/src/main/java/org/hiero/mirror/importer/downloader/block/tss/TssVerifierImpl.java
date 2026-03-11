@@ -8,13 +8,16 @@ import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.importer.downloader.block.BlockProperties;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
 import org.hiero.mirror.importer.repository.LedgerRepository;
 import org.jspecify.annotations.NullMarked;
 
+@CustomLog
 @Named
 @NullMarked
 @RequiredArgsConstructor
@@ -36,6 +39,15 @@ final class TssVerifierImpl implements TssVerifier {
     public void verify(final long blockNumber, final byte[] message, final byte[] signature) {
         final var ledgerId = getLedger().getLedgerId();
         if (!TSS.verifyTSS(ledgerId, signature, message)) {
+            if (log.isDebugEnabled()) {
+                log.debug(
+                        "Failed to verify TSS signature for block {}: ledgerId={}, message={}, signature={}",
+                        blockNumber,
+                        Hex.encodeHexString(ledgerId),
+                        Hex.encodeHexString(message),
+                        Hex.encodeHexString(signature));
+            }
+
             throw new SignatureVerificationException("TSS signature verification failed for block " + blockNumber);
         }
     }

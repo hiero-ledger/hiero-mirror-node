@@ -1089,29 +1089,6 @@ describe('utils validateReq', () => {
   });
 });
 
-describe('Utils ipMask tests', () => {
-  test('Verify ipV4', () => {
-    const maskedIp = utils.ipMask('12.214.31.144');
-    expect(maskedIp).toStrictEqual('12.214.31.0');
-  });
-  test('Verify ipV6', () => {
-    const maskedIp = utils.ipMask('2001:0db8:85a3:a13c:0000:8a2e:0370:7334');
-    expect(maskedIp).toStrictEqual('2001:db8:85a3::');
-  });
-  test('Verify ipV6 short form back', () => {
-    const maskedIp = utils.ipMask('1::');
-    expect(maskedIp).toStrictEqual('1::');
-  });
-  test('Verify ipV6 short form front', () => {
-    const maskedIp = utils.ipMask('::ffff');
-    expect(maskedIp).toStrictEqual('::');
-  });
-  test('Verify ipV6 dual', () => {
-    const maskedIp = utils.ipMask('2001:db8:3333:4444:5555:6666:1.2.3.4');
-    expect(maskedIp).toStrictEqual('2001:db8:3333::0.0.0.0');
-  });
-});
-
 const hexPrefix = '0x';
 describe('Utils toHexString tests', () => {
   const byteArray = [1, 2, 0xab];

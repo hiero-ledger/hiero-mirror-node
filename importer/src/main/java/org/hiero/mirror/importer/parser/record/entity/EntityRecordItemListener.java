@@ -14,7 +14,6 @@ import com.hederahashgraph.api.proto.java.SignaturePair;
 import com.hederahashgraph.api.proto.java.TokenID;
 import com.hederahashgraph.api.proto.java.TokenTransferList;
 import com.hederahashgraph.api.proto.java.TransactionBody;
-import com.hederahashgraph.api.proto.java.TransactionRecord;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -159,23 +158,25 @@ public class EntityRecordItemListener implements RecordItemListener {
         log.debug("Storing transaction: {}", transaction);
     }
 
-    private Transaction buildTransaction(EntityId entityId, RecordItem recordItem) {
-        TransactionBody body = recordItem.getTransactionBody();
-        TransactionRecord txRecord = recordItem.getTransactionRecord();
+    private Transaction buildTransaction(final EntityId entityId, final RecordItem recordItem) {
+        final var body = recordItem.getTransactionBody();
+        final var txRecord = recordItem.getTransactionRecord();
 
-        Long validDurationSeconds = body.hasTransactionValidDuration()
+        final var validDurationSeconds = body.hasTransactionValidDuration()
                 ? body.getTransactionValidDuration().getSeconds()
                 : null;
         // transactions in stream always have valid node account id.
-        var nodeAccount = EntityId.of(body.getNodeAccountID());
-        var transactionId = body.getTransactionID();
+        final var nodeAccount = EntityId.of(body.getNodeAccountID());
+        final var transactionId = body.getTransactionID();
 
         // build transaction
-        Transaction transaction = new Transaction();
+        final var transaction = new Transaction();
         transaction.setChargedTxFee(txRecord.getTransactionFee());
+        transaction.setCongestionPricingMultiplier(recordItem.getCongestionPricingMultiplier());
         transaction.setConsensusTimestamp(recordItem.getConsensusTimestamp());
         transaction.setEntityId(entityId);
         transaction.setHighVolume(body.getHighVolume());
+        transaction.setHighVolumePricingMultiplier(txRecord.getHighVolumePricingMultiplier());
         transaction.setIndex(recordItem.getTransactionIndex());
         transaction.setInitialBalance(0L);
         transaction.setMaxCustomFees(getMaxCustomFees(body, recordItem));

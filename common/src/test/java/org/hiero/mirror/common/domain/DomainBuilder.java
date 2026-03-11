@@ -1182,9 +1182,11 @@ public class DomainBuilder {
     public DomainWrapper<Transaction, Transaction.TransactionBuilder> transaction() {
         var builder = Transaction.builder()
                 .chargedTxFee(10000000L)
+                .congestionPricingMultiplier(id())
                 .consensusTimestamp(timestamp())
                 .entityId(entityId())
                 .highVolume(false)
+                .highVolumePricingMultiplier(1L)
                 .index(transactionIndex())
                 .initialBalance(10000000L)
                 .itemizedTransfer(List.of(ItemizedTransfer.builder()
