@@ -44,7 +44,15 @@ spec:
           cpu: 100m
           memory: 128Mi
     testkube-operator:
+      preUpgrade:
+        image:
+          repository: bitnamilegacy/kubectl
+        priorityClassName: high
       priorityClassName: high
+      proxy:
+        image:
+          repository: quay.io/brancz/kube-rbac-proxy
+          tag: v0.8.0
       resources:
         limits:
           cpu: 100m
