@@ -13,31 +13,11 @@ import com.hedera.services.utils.EntityIdUtils;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.math.BigInteger;
 import org.hiero.mirror.common.domain.entity.Entity;
-import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.schedule.Schedule;
 import org.hiero.mirror.web3.service.AbstractContractCallServiceHistoricalTest;
 import org.hyperledger.besu.datatypes.Address;
 import org.web3j.tuples.generated.Tuple2;
 
 abstract class AbstractContractCallScheduleTest extends AbstractContractCallServiceHistoricalTest {
-
-    protected Entity scheduleEntityPersist() {
-        return domainBuilder
-                .entity()
-                .customize(e -> e.type(EntityType.SCHEDULE))
-                .persist();
-    }
-
-    protected Schedule schedulePersist(
-            final Entity scheduleEntity, final Entity payerAccount, final byte[] transactionBody) {
-        return domainBuilder
-                .schedule()
-                .customize(e -> e.scheduleId(scheduleEntity.toEntityId().getId())
-                        .transactionBody(transactionBody)
-                        .payerAccountId(payerAccount.toEntityId())
-                        .creatorAccountId(payerAccount.toEntityId()))
-                .persist();
-    }
 
     protected byte[] buildDefaultScheduleTransactionBody(final Entity sender, final Entity receiver) {
         final long transferAmount = 100L;
