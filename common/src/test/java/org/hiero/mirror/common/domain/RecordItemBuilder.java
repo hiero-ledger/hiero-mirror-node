@@ -44,6 +44,7 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
+import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
@@ -850,6 +851,9 @@ public class RecordItemBuilder {
                 .addGossipEndpoint(gossipEndpoint())
                 .setGrpcCertificateHash(BytesValue.of(bytes(48)))
                 .setNodeId(id())
+                .setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                        .addAssociatedRegisteredNode(id())
+                        .addAssociatedRegisteredNode(id()))
                 .addServiceEndpoint(serviceEndpoint());
         return new Builder<>(TransactionType.NODEUPDATE, builder);
     }
