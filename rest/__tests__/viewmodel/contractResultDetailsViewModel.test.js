@@ -203,6 +203,35 @@ describe('ContractResultDetailsViewModel', () => {
       expect(viewModel.max_priority_fee_per_gas).toBe('0x76be5e6c00'); // Raw weibar
     });
 
+    test('converts tinybar to weibar when convertToHbar=false and ethTransaction=null', () => {
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult, // amount: 20 tinybars
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        false // convertToHbar
+      );
+
+      // 20 tinybars * 10,000,000,000 = 200,000,000,000 weibar
+      expect(viewModel.amount).toBe(200_000_000_000n);
+    });
+
+    test('leaves amount as tinybar when convertToHbar=true and ethTransaction=null', () => {
+      const viewModel = new ContractResultDetailsViewModel(
+        mockContractResult, // amount: 20 tinybars
+        mockRecordFile,
+        null, // no ethTransaction
+        [],
+        [],
+        null,
+        true // convertToHbar
+      );
+
+      expect(viewModel.amount).toBe(20); // tinybars from contractResult.amount
+    });
+
     test('defaults to convertToHbar=true when not specified', () => {
       const viewModel = new ContractResultDetailsViewModel(
         mockContractResult,

@@ -190,7 +190,7 @@ class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegratio
         @Override
         public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
             var environment = configurableApplicationContext.getEnvironment();
-            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.5.2" : "1.119.0";
+            String version = environment.acceptsProfiles(Profiles.of("v2")) ? "2.24.0" : "1.119.0";
             TestPropertyValues.of("spring.flyway.target=" + version).applyTo(environment);
         }
     }

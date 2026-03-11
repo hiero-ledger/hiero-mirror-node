@@ -48,7 +48,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
 
     @Override
     public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.24.0") : MigrationVersion.fromVersion("1.119.0");
+        return v2 ? MigrationVersion.fromVersion("2.24.1") : MigrationVersion.fromVersion("1.119.1");
     }
 
     @Override
