@@ -317,7 +317,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         // when/then
         assertThatThrownBy(() -> networkService.getNetworkNodes(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Invalid range for : node.id");
+                .hasMessage("Invalid range provided for node.id");
     }
 
     @Test

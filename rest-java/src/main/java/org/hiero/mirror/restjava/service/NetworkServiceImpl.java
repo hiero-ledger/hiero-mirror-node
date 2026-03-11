@@ -26,6 +26,8 @@ import org.hiero.mirror.restjava.repository.NetworkStakeRepository;
 @RequiredArgsConstructor
 final class NetworkServiceImpl implements NetworkService {
 
+    private static final Long[] EMPTY_NODE_ID_ARRAY = new Long[0];
+
     private final AccountBalanceRepository accountBalanceRepository;
     private final EntityRepository entityRepository;
     private final NetworkStakeRepository networkStakeRepository;
@@ -102,7 +104,7 @@ final class NetworkServiceImpl implements NetworkService {
         }
 
         if (lowerBound > upperBound) {
-            throw new IllegalArgumentException("Invalid range for : node.id");
+            throw new IllegalArgumentException("Invalid range provided for node.id");
         }
 
         final Long[] nodeIdArray;
@@ -122,7 +124,7 @@ final class NetworkServiceImpl implements NetworkService {
                 nodeIdArray = nodeIds.toArray(Long[]::new);
             }
         } else {
-            nodeIdArray = new Long[0];
+            nodeIdArray = EMPTY_NODE_ID_ARRAY;
         }
 
         return networkNodeRepository.findNetworkNodes(
