@@ -65,6 +65,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                 .returns(null, RecordFile::getMetadataHash)
                 .returns(blockFile.getName(), RecordFile::getName)
                 .returns(blockFile.getPreviousHash(), RecordFile::getPreviousHash)
+                .returns(blockFile.getPreviousWrappedRecordBlockHash(), RecordFile::getPreviousWrappedRecordBlockHash)
                 .returns(blockFile.getRoundEnd(), RecordFile::getRoundEnd)
                 .returns(blockFile.getRoundStart(), RecordFile::getRoundStart)
                 .returns(0, RecordFile::getSidecarCount)

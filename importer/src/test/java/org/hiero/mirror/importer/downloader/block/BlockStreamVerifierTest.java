@@ -48,7 +48,9 @@ import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
+import org.hiero.mirror.importer.reader.record.ProtoRecordFileReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -133,6 +135,31 @@ final class BlockStreamVerifierTest {
         verify(tssVerifier).setLedger(ledger);
         verify(tssVerifier).verify(eq(0L), any(), any());
         verify(recordFileRepository).findLatest();
+        assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
+    }
+
+    @Test
+    void verifyWhenCutover() {
+        // given
+        final var lastRecordFile = getRecordFile();
+        lastRecordFile.setVersion(ProtoRecordFileReader.VERSION);
+        when(recordFileRepository.findLatest()).thenReturn(Optional.of(lastRecordFile));
+        final var blockFile = withBlockNumber(getBlockFile(null).toBuilder(), lastRecordFile.getIndex() + 1)
+                .build();
+        final var expectedPreviousWrappedRecordBlockHash = Hex.decode(blockFile.getPreviousHash());
+
+        // when
+        verifier.verify(blockFile);
+
+        // then
+        verify(blockFileTransformer).transform(assertArg(actual -> assertThat(actual)
+                .isEqualTo(blockFile)
+                .returns(lastRecordFile.getHash(), BlockFile::getPreviousHash)
+                .returns(expectedPreviousWrappedRecordBlockHash, BlockFile::getPreviousWrappedRecordBlockHash)));
+        verifyNoInteractions(blockStateProofHasher);
+        verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
+        verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile.getIndex()), any(), any());
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
     }
 
@@ -417,9 +444,10 @@ final class BlockStreamVerifierTest {
         long index = DomainUtils.convertToNanosMax(Instant.now());
         long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
         return RecordFile.builder()
+                .consensusStart(consensusStart)
                 .hash(sha384Hash())
                 .index(index)
-                .consensusStart(consensusStart)
+                .version(BlockStreamReader.VERSION)
                 .build();
     }
 

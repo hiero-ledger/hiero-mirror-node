@@ -59,7 +59,7 @@
     "pgsql-parser": "17.9.12",
     "sinon": "21.0.2",
     "supertest": "7.2.2",
-    "tar": "7.5.10"
+    "tar": "7.5.11"
   },
   "peerDependencies": {
     "ansi-regex": "6.2.2",
