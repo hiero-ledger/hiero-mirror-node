@@ -533,7 +533,10 @@ const getTransactionTimestampsQuery = (
           select ${EntityTransaction.CONSENSUS_TIMESTAMP}
           from ${EntityTransaction.tableName}
           where ${entityQuery} ${entityTimestampQuery ? ` and ${entityTimestampQuery}` : ''}
-        ) order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})`
+        ) 
+        ${transactionTypeQuery ? ` and ${transactionTypeQuery}` : ''}
+        ${resultTypeQuery ? ` and ${resultTypeQuery}` : ''}
+        order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})`
     : '';
 
   const transactionOnlyQuery = `
