@@ -3,7 +3,7 @@
 package org.hiero.mirror.importer.parser.record;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hiero.mirror.importer.parser.domain.RecordItemBuilder.DEFAULT_GAS_USED;
+import static org.hiero.mirror.common.domain.RecordItemBuilder.DEFAULT_GAS_USED;
 
 import com.hederahashgraph.api.proto.java.Timestamp;
 import java.util.Comparator;
@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.topic.StreamMessage;
@@ -22,7 +23,6 @@ import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.exception.ParserException;
 import org.hiero.mirror.importer.parser.domain.RecordFileBuilder;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.repository.ContractLogRepository;
 import org.hiero.mirror.importer.repository.CryptoTransferRepository;
 import org.hiero.mirror.importer.repository.EntityRepository;

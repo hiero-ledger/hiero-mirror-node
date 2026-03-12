@@ -48,7 +48,9 @@ import org.hiero.mirror.importer.downloader.record.RecordDownloaderProperties;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
 import org.hiero.mirror.importer.exception.SignatureVerificationException;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
+import org.hiero.mirror.importer.reader.record.ProtoRecordFileReader;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,12 +139,37 @@ final class BlockStreamVerifierTest {
     }
 
     @Test
+    void verifyWhenCutover() {
+        // given
+        final var lastRecordFile = getRecordFile();
+        lastRecordFile.setVersion(ProtoRecordFileReader.VERSION);
+        when(recordFileRepository.findLatest()).thenReturn(Optional.of(lastRecordFile));
+        final var blockFile = withBlockNumber(getBlockFile(null).toBuilder(), lastRecordFile.getIndex() + 1)
+                .build();
+        final var expectedPreviousWrappedRecordBlockHash = Hex.decode(blockFile.getPreviousHash());
+
+        // when
+        verifier.verify(blockFile);
+
+        // then
+        verify(blockFileTransformer).transform(assertArg(actual -> assertThat(actual)
+                .isEqualTo(blockFile)
+                .returns(lastRecordFile.getHash(), BlockFile::getPreviousHash)
+                .returns(expectedPreviousWrappedRecordBlockHash, BlockFile::getPreviousWrappedRecordBlockHash)));
+        verifyNoInteractions(blockStateProofHasher);
+        verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
+        verify(recordFileRepository).findLatest();
+        verify(tssVerifier).verify(eq(blockFile.getIndex()), any(), any());
+        assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
+    }
+
+    @Test
     void verifyWithEmptyDb() {
         // given
         when(recordFileRepository.findLatest()).thenReturn(Optional.empty());
-        long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
-        var ledgerIdPublicationTransactionBody = LedgerIdPublicationTransactionBody.getDefaultInstance();
-        var ledgerIdPublicationTransaction = BlockTransaction.builder()
+        final long consensusTimestamp = DomainUtils.convertToNanosMax(Instant.now());
+        final var ledgerIdPublicationTransactionBody = LedgerIdPublicationTransactionBody.getDefaultInstance();
+        final var ledgerIdPublicationTransaction = BlockTransaction.builder()
                 .transactionBody(TransactionBody.newBuilder()
                         .setLedgerIdPublication(ledgerIdPublicationTransactionBody)
                         .build())
@@ -154,9 +181,10 @@ final class BlockStreamVerifierTest {
         final var blockFile1 = getBlockFile(null).toBuilder()
                 .lastLedgerIdPublicationTransaction(ledgerIdPublicationTransaction)
                 .build();
+        final var expectedPreviousHash = blockFile1.getPreviousHash();
 
         // then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
 
         // when
         verifier.verify(blockFile1);
@@ -167,6 +195,9 @@ final class BlockStreamVerifierTest {
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile1)));
         verify(recordFileRepository).findLatest();
         verify(tssVerifier).verify(eq(blockFile1.getIndex()), any(), any());
+        assertThat(blockFile1)
+                .returns(expectedPreviousHash, BlockFile::getPreviousHash)
+                .returns(null, BlockFile::getPreviousWrappedRecordBlockHash);
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile1.getIndex(), RecordFile::getIndex);
 
         // given next block file
@@ -242,6 +273,7 @@ final class BlockStreamVerifierTest {
                                 .build())
                         .build())
                 .build();
+        final var expectedPreviousHash = blockFile.getPreviousHash();
         final byte[] currentRootHash = blockFile.getRawHash();
         final var merkelPaths = List.of(MerklePath.getDefaultInstance());
         final byte[] rootHash = TestUtils.generateRandomByteArray(48);
@@ -249,7 +281,7 @@ final class BlockStreamVerifierTest {
                 .thenReturn(rootHash);
 
         // then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
 
         // when
         verifier.verify(blockFile);
@@ -260,6 +292,9 @@ final class BlockStreamVerifierTest {
         verify(cutoverService).verified(assertArg(r -> assertRecordFile(r, blockFile)));
         verify(recordFileRepository).findLatest();
         verify(tssVerifier).verify(eq(blockFile.getIndex()), eq(rootHash), eq(signature));
+        assertThat(blockFile)
+                .returns(expectedPreviousHash, BlockFile::getPreviousHash)
+                .returns(null, BlockFile::getPreviousWrappedRecordBlockHash);
         assertThat(cutoverService.getLastRecordFile()).get().returns(blockFile.getIndex(), RecordFile::getIndex);
     }
 
@@ -271,7 +306,7 @@ final class BlockStreamVerifierTest {
         blockFile.setIndex(blockFile.getIndex() + 1);
 
         // then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
 
         // when, then
         clearInvocations(cutoverService);
@@ -285,7 +320,7 @@ final class BlockStreamVerifierTest {
         verifyNoInteractions(ledgerIdPublicationTransactionParser);
         verifyNoInteractions(tssVerifier);
         verify(recordFileRepository).findLatest();
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
     }
 
     @Test
@@ -365,7 +400,7 @@ final class BlockStreamVerifierTest {
         doThrow(exception).when(tssVerifier).verify(eq(blockNumber), any(), any());
 
         // then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
 
         // when, then
         assertThatThrownBy(() -> verifier.verify(blockFile)).isEqualTo(exception);
@@ -417,9 +452,10 @@ final class BlockStreamVerifierTest {
         long index = DomainUtils.convertToNanosMax(Instant.now());
         long consensusStart = DomainUtils.convertToNanosMax(Instant.now());
         return RecordFile.builder()
+                .consensusStart(consensusStart)
                 .hash(sha384Hash())
                 .index(index)
-                .consensusStart(consensusStart)
+                .version(BlockStreamReader.VERSION)
                 .build();
     }
 

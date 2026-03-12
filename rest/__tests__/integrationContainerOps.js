@@ -6,7 +6,7 @@ import os from 'os';
 import path from 'path';
 
 import config from '../config';
-import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH, FLYWAY_VERSION} from './globalSetup';
+import {FLYWAY_DATA_PATH, FLYWAY_EXE_PATH} from './globalSetup';
 import {getModuleDirname, isV2Schema} from './testutils';
 import {getPoolClass} from '../utils';
 import {GenericContainer, PullPolicy, Wait} from 'testcontainers';
@@ -118,49 +118,48 @@ const flywayMigrate = async (connectionParams) => {
   const {database, host, password, port, user} = connectionParams;
   logger.info(`Using flyway CLI to construct schema for jest worker ${workerId} on port ${port}`);
   const jdbcUrl = `jdbc:postgresql://${host}:${port}/${database}`;
-  const flywayConfigPath = path.join(FLYWAY_DATA_PATH, `config_worker_${workerId}.json`);
+  const flywayConfigPath = path.join(FLYWAY_DATA_PATH, `config_worker_${workerId}.toml`);
   const locations = getMigrationScriptLocation(schemaConfigs.locations);
 
-  const flywayConfigObject = {
-    flywayArgs: {
-      baselineOnMigrate: 'true',
-      baselineVersion: schemaConfigs.baselineVersion,
-      locations: `filesystem:${locations}`,
-      password: password,
-      'placeholders.api-password': defaultDbConfig.password,
-      'placeholders.api-user': defaultDbConfig.username,
-      'placeholders.db-name': database,
-      'placeholders.db-user': user,
-      'placeholders.hashShardCount': 2,
-      'placeholders.partitionStartDate': "'1970-01-01'",
-      'placeholders.partitionTimeInterval': "'10years'",
-      'placeholders.topicRunningHashV2AddedTimestamp': 0,
-      'placeholders.transactionHashLookbackInterval': "'60days'",
-      'placeholders.schema': 'public',
-      'placeholders.shardCount': 2,
-      'placeholders.tempSchema': 'temporary',
-      target: 'latest',
-      url: jdbcUrl,
-      user: user,
-    },
-    version: FLYWAY_VERSION,
-    downloads: {
-      storageDirectory: FLYWAY_DATA_PATH,
-    },
-  };
+  const flywayConfig = `
+[environments.default]
+url = "${jdbcUrl}"
+user = "${user}"
+password = "${password}"
+schemas = ["public"]
 
-  const flywayConfig = JSON.stringify(flywayConfigObject, null, 2);
+[flyway.placeholders]
+api-password = "${defaultDbConfig.password}"
+api-user = "${defaultDbConfig.username}"
+db-name = "${database}"
+db-user = "${user}"
+hashShardCount = 2
+partitionStartDate = "'1970-01-01'"
+partitionTimeInterval = "'10years'"
+topicRunningHashV2AddedTimestamp = 0
+transactionHashLookbackInterval = "'60days'"
+schema = "public"
+shardCount = 2
+tempSchema = "temporary"
 
+[flyway]
+locations = ["filesystem:${locations}"]
+baselineOnMigrate = true
+baselineVersion = "0"
+target = "latest"`;
+
+  fs.mkdirSync(FLYWAY_DATA_PATH, {recursive: true});
   fs.writeFileSync(flywayConfigPath, flywayConfig);
-  logger.info(`Added ${flywayConfigPath} to file system for flyway CLI`);
+  logger.info(`Executing flyway migrate with config ${flywayConfigPath}`);
 
   const maxRetries = 10;
   let retries = maxRetries;
   const retryMsDelay = 2000;
+  const command = `${FLYWAY_EXE_PATH} -configFiles="${flywayConfigPath}" migrate`;
 
   while (retries-- > 0) {
     try {
-      execSync(`node ${FLYWAY_EXE_PATH} -c "${flywayConfigPath}" migrate`, {stdio: 'inherit'});
+      execSync(command, {stdio: 'inherit'});
       logger.info(`Successfully executed all Flyway migrations for jest worker ${workerId}`);
       break;
     } catch (e) {
