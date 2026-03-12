@@ -110,14 +110,10 @@ final class NetworkServiceImpl implements NetworkService {
 
         final Long[] nodeIdArray;
         if (!nodeIds.isEmpty()) {
-            if (lowerBound > 0L || upperBound < Long.MAX_VALUE) {
-                final var range = Range.closed(lowerBound, upperBound);
-                nodeIdArray = nodeIds.stream().filter(range::contains).toArray(Long[]::new);
-                if (nodeIdArray.length == 0) {
-                    return List.of();
-                }
-            } else {
-                nodeIdArray = nodeIds.toArray(Long[]::new);
+            final var range = Range.closed(lowerBound, upperBound);
+            nodeIdArray = nodeIds.stream().filter(range::contains).toArray(Long[]::new);
+            if (nodeIdArray.length == 0) {
+                return List.of();
             }
         } else {
             nodeIdArray = EMPTY_NODE_ID_ARRAY;
