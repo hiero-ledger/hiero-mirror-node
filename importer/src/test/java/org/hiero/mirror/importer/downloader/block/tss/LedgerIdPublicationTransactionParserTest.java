@@ -6,9 +6,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
 
 final class LedgerIdPublicationTransactionParserTest {

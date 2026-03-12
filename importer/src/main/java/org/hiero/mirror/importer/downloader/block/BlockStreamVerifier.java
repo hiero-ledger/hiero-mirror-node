@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.downloader.block;
 
 import static org.hiero.mirror.common.util.DomainUtils.toBytes;
 
-import com.google.common.base.Strings;
 import com.hedera.hapi.block.stream.protoc.BlockProof;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -12,9 +11,9 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.inject.Named;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FilenameUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
@@ -23,14 +22,13 @@ import org.hiero.mirror.importer.downloader.block.tss.LedgerIdPublicationTransac
 import org.hiero.mirror.importer.downloader.block.tss.TssVerifier;
 import org.hiero.mirror.importer.exception.HashMismatchException;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
+import org.hiero.mirror.importer.reader.block.BlockStreamReader;
 import org.hiero.mirror.importer.reader.block.hash.BlockStateProofHasher;
 import org.jspecify.annotations.NullMarked;
 
 @Named
 @NullMarked
 final class BlockStreamVerifier {
-
-    private static final String EMPTY_HASH = Strings.repeat("0", 96);
 
     private final BlockFileTransformer blockFileTransformer;
     private final BlockStateProofHasher blockStateProofHasher;
@@ -107,10 +105,6 @@ final class BlockStreamVerifier {
         }
     }
 
-    private Optional<String> getExpectedPreviousHash() {
-        return cutoverService.getLastRecordFile().map(RecordFile::getHash);
-    }
-
     private void updateLedger(final BlockFile blockFile) {
         final var transaction = blockFile.getLastLedgerIdPublicationTransaction();
         if (blockFile.getIndex() != 0 || transaction == null) {
@@ -146,9 +140,18 @@ final class BlockStreamVerifier {
     }
 
     private void verifyHashChain(final BlockFile blockFile) {
-        getExpectedPreviousHash().ifPresent(expected -> {
-            if (!blockFile.getPreviousHash().contentEquals(expected)) {
-                throw new HashMismatchException(blockFile.getName(), expected, blockFile.getPreviousHash(), "Previous");
+        cutoverService.getLastRecordFile().ifPresent(lastRecordFile -> {
+            final boolean isLastRecordFile = lastRecordFile.getVersion() < BlockStreamReader.VERSION;
+            final var previousHash = lastRecordFile.getHash();
+            if (!isLastRecordFile) {
+                if (!blockFile.getPreviousHash().contentEquals(previousHash)) {
+                    throw new HashMismatchException(
+                            blockFile.getName(), previousHash, blockFile.getPreviousHash(), "Previous");
+                }
+            } else {
+                // First block after cutover
+                blockFile.setPreviousWrappedRecordBlockHash(Hex.decode(blockFile.getPreviousHash()));
+                blockFile.setPreviousHash(previousHash);
             }
         });
     }

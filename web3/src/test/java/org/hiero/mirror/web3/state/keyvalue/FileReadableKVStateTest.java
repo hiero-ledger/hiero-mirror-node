@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 import com.hedera.hapi.node.base.FileID;
 import com.hedera.hapi.node.state.file.File;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
@@ -186,10 +185,5 @@ class FileReadableKVStateTest {
     @Test
     void sizeIsAlwaysZero() {
         assertThat(fileReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateReturnsEmptyIterator() {
-        assertThat(fileReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 }
