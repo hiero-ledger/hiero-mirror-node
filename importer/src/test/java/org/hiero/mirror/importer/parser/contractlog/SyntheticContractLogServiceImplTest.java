@@ -221,7 +221,7 @@ final class SyntheticContractLogServiceImplTest {
         verify(entityListener).onContractLog(contractLogCaptor.capture());
         var capturedLog = contractLogCaptor.getValue();
 
-        assertThat(capturedLog.getBloom()).isEqualTo(new byte[]{0});
+        assertThat(capturedLog.getBloom()).isEqualTo(new byte[] {0});
     }
 
     @Test
