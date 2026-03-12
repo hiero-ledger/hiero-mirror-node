@@ -18,7 +18,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.flyway.autoconfigure.FlywayProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
@@ -51,7 +51,8 @@ public class CommonTestConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(name = "recordItemBuilder")
+    @ConditionalOnClass(name = "org.hyperledger.besu.evm.log.LogTopic")
+    // LogTopic is arbitrary we use it to load this bean only if besu is present in the classpath
     RecordItemBuilder recordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         return new RecordItemBuilder(commonProperties, systemEntity);
     }
