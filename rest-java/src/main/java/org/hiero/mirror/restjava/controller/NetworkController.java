@@ -7,14 +7,17 @@ import static org.hiero.mirror.restjava.common.Constants.APPLICATION_JSON;
 import static org.hiero.mirror.restjava.common.Constants.TIMESTAMP;
 
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.hederahashgraph.api.proto.java.SignedTransaction;
-import com.hederahashgraph.api.proto.java.Transaction;
+import com.hedera.hapi.node.base.Transaction;
+import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.fees.FeeResult;
 import org.hiero.mirror.rest.model.FeeEstimate;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.rest.model.FeeEstimateNetwork;
@@ -42,6 +45,7 @@ import org.hiero.mirror.restjava.parameter.TimestampParameter;
 import org.hiero.mirror.restjava.service.Bound;
 import org.hiero.mirror.restjava.service.FileService;
 import org.hiero.mirror.restjava.service.NetworkService;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
@@ -58,37 +62,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 final class NetworkController {
 
-    static final FeeEstimateResponse FEE_ESTIMATE_RESPONSE;
     private static final Function<NetworkNode, Map<String, String>> NETWORK_NODE_EXTRACTOR =
             node -> ImmutableSortedMap.of(Constants.NODE_ID, node.getNodeId().toString());
 
-    static {
-        final var feeExtra = new FeeExtra();
-        feeExtra.setCharged(1);
-        feeExtra.setCount(2);
-        feeExtra.setFeePerUnit(10_000L);
-        feeExtra.setIncluded(1);
-        feeExtra.setName("Test data");
-        feeExtra.setSubtotal(10_000L);
-
-        final var feeEstimate = new FeeEstimate();
-        feeEstimate.setBase(100_000L);
-        feeEstimate.setExtras(List.of(feeExtra));
-
-        final var network = new FeeEstimateNetwork();
-        network.setMultiplier(2);
-        network.setSubtotal(220_000L);
-
-        final var feeEstimateResponse = new FeeEstimateResponse();
-        feeEstimateResponse.setNotes(List.of("This API is not yet implemented and only returns stubbed test data"));
-        feeEstimateResponse.setNetwork(network);
-        feeEstimateResponse.setNode(feeEstimate);
-        feeEstimateResponse.setService(feeEstimate);
-        feeEstimateResponse.setTotal(440_000L);
-        FEE_ESTIMATE_RESPONSE = feeEstimateResponse;
-    }
-
     private final ExchangeRateMapper exchangeRateMapper;
+    private final FeeEstimationService feeEstimationService;
     private final FeeScheduleMapper feeScheduleMapper;
     private final FileService fileService;
     private final LinkFactory linkFactory;
@@ -119,15 +97,14 @@ final class NetworkController {
             consumes = {"application/protobuf", "application/x-protobuf"},
             value = "/fees")
     FeeEstimateResponse estimateFees(
-            @RequestBody Transaction transaction,
+            @RequestBody @NotNull byte[] body,
             @RequestParam(defaultValue = "INTRINSIC", required = false) FeeEstimateMode mode) {
         try {
-            SignedTransaction.parseFrom(transaction.getSignedTransactionBytes());
-        } catch (InvalidProtocolBufferException e) {
-            throw new IllegalArgumentException("Unable to parse SignedTransaction");
+            final var transaction = Transaction.PROTOBUF.parse(Bytes.wrap(body));
+            return toResponse(feeEstimationService.estimateFees(transaction, mode));
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Unable to parse transaction", e);
         }
-
-        return FEE_ESTIMATE_RESPONSE;
     }
 
     @GetMapping("/stake")
@@ -174,5 +151,40 @@ final class NetworkController {
         response.setNodes(networkNodes);
         response.setLinks(links);
         return ResponseEntity.ok(response);
+    }
+
+    private static FeeEstimateResponse toResponse(FeeResult feeResult) {
+        return new FeeEstimateResponse()
+                .node(new FeeEstimate()
+                        .base(feeResult.getNodeBaseFeeTinycents())
+                        .extras(toExtras(feeResult.getNodeExtraDetails())))
+                .network(new FeeEstimateNetwork()
+                        .multiplier(feeResult.getNetworkMultiplier())
+                        .subtotal(feeResult.getNetworkTotalTinycents()))
+                .service(new FeeEstimate()
+                        .base(feeResult.getServiceBaseFeeTinycents())
+                        .extras(toExtras(feeResult.getServiceExtraDetails())))
+                .total(feeResult.totalTinycents());
+    }
+
+    private static List<FeeExtra> toExtras(List<FeeResult.FeeDetail> details) {
+        if (details == null || details.isEmpty()) {
+            return List.of();
+        }
+        final var extras = new ArrayList<FeeExtra>(details.size());
+        for (var detail : details) {
+            extras.add(toExtra(detail));
+        }
+        return extras;
+    }
+
+    private static FeeExtra toExtra(FeeResult.FeeDetail detail) {
+        return new FeeExtra()
+                .charged(detail.charged())
+                .count(detail.used())
+                .feePerUnit(detail.perUnit())
+                .included(detail.included())
+                .name(detail.name())
+                .subtotal(detail.perUnit() * detail.charged());
     }
 }

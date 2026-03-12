@@ -3,7 +3,10 @@
 package org.hiero.mirror.restjava.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
+import com.hederahashgraph.api.proto.java.CryptoTransferTransactionBody;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRate;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
@@ -16,6 +19,7 @@ import com.hederahashgraph.api.proto.java.TimestampSeconds;
 import com.hederahashgraph.api.proto.java.Transaction;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import com.hederahashgraph.api.proto.java.TransactionFeeSchedule;
+import java.io.IOException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Set;
@@ -52,6 +56,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.HttpClientErrorException;
@@ -548,6 +553,7 @@ final class NetworkControllerTest extends ControllerTest {
         @ValueSource(strings = {"protobuf", "x-protobuf"})
         void success(String mediaType) {
             // given
+            seedFeeSchedule();
             final var transaction = transaction();
 
             // when
@@ -559,8 +565,38 @@ final class NetworkControllerTest extends ControllerTest {
                     .retrieve()
                     .body(FeeEstimateResponse.class);
 
-            // then
-            assertThat(actual).isNotNull().isEqualTo(NetworkController.FEE_ESTIMATE_RESPONSE);
+            // then — verify every mapped field is correctly populated
+            final var nodeBase = actual.getNode().getBase();
+            final var networkMultiplier = actual.getNetwork().getMultiplier();
+            // node: base fee is positive; CryptoTransfer with 0 signatures has no extras
+            assertThat(nodeBase).isPositive();
+            assertThat(actual.getNode().getExtras()).isEqualTo(List.of());
+            // network: multiplier is positive; subtotal = node.base × multiplier
+            assertThat(networkMultiplier).isPositive();
+            assertThat(actual.getNetwork().getSubtotal()).isEqualTo(nodeBase * networkMultiplier);
+            // service: CryptoTransfer has no service fee and no extras
+            assertThat(actual.getService().getBase()).isZero();
+            assertThat(actual.getService().getExtras()).isEqualTo(List.of());
+            // total = node.base + network.subtotal (no service fee)
+            assertThat(actual.getTotal()).isEqualTo(nodeBase + nodeBase * networkMultiplier);
+        }
+
+        @Test
+        void stateMode() {
+            // given
+            final var transaction = transaction();
+
+            // when / then
+            validateError(
+                    () -> restClient
+                            .post()
+                            .uri("?mode=STATE")
+                            .body(transaction)
+                            .contentType(MediaType.APPLICATION_PROTOBUF)
+                            .retrieve()
+                            .body(FeeEstimateResponse.class),
+                    HttpClientErrorException.BadRequest.class,
+                    "State-based fee estimation is not supported");
         }
 
         @Test
@@ -616,6 +652,7 @@ final class NetworkControllerTest extends ControllerTest {
         @Test
         void invalidSignedTransaction() {
             // given
+            seedFeeSchedule();
             final var bytes = DomainUtils.fromBytes(domainBuilder.bytes(100));
             final var transaction = Transaction.newBuilder()
                     .setSignedTransactionBytes(bytes)
@@ -623,16 +660,15 @@ final class NetworkControllerTest extends ControllerTest {
                     .toByteArray();
 
             // when / then
-            validateError(
-                    () -> restClient
+            assertThatThrownBy(() -> restClient
                             .post()
                             .uri("")
                             .body(transaction)
                             .contentType(MediaType.APPLICATION_PROTOBUF)
                             .retrieve()
-                            .body(FeeEstimateResponse.class),
-                    HttpClientErrorException.BadRequest.class,
-                    "Unable to parse SignedTransaction");
+                            .body(FeeEstimateResponse.class))
+                    .isInstanceOf(HttpClientErrorException.BadRequest.class)
+                    .hasMessageContaining("Unable to parse transaction");
         }
 
         @Test
@@ -653,9 +689,32 @@ final class NetworkControllerTest extends ControllerTest {
                     "Content-Type 'application/json' is not supported");
         }
 
+        private void seedFeeSchedule() {
+            try (final var in = new ClassPathResource(
+                            "genesis/simpleFeesSchedules.json", V0490FileSchema.class.getClassLoader())
+                    .getInputStream()) {
+                final var pbjFeeSchedule = V0490FileSchema.parseSimpleFeesSchedules(in.readAllBytes());
+                final var feeBytes = org.hiero.hapi.support.fees.FeeSchedule.PROTOBUF
+                        .toBytes(pbjFeeSchedule)
+                        .toByteArray();
+                domainBuilder
+                        .fileData()
+                        .customize(f ->
+                                f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
+                        .persist();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         private byte[] transaction() {
-            final var transactionBody =
-                    TransactionBody.newBuilder().setMemo("test").build().toByteString();
+            final var cryptoTransfer =
+                    CryptoTransferTransactionBody.newBuilder().build();
+            final var transactionBody = TransactionBody.newBuilder()
+                    .setMemo("test")
+                    .setCryptoTransfer(cryptoTransfer)
+                    .build()
+                    .toByteString();
             final var signedTransaction = SignedTransaction.newBuilder()
                     .setBodyBytes(transactionBody)
                     .build()
