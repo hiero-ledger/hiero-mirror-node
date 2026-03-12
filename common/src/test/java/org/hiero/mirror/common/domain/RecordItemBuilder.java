@@ -159,7 +159,6 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.hederahashgraph.api.proto.java.TransferList;
 import com.hederahashgraph.api.proto.java.UncheckedSubmitBody;
 import com.hederahashgraph.api.proto.java.UtilPrngTransactionBody;
-import jakarta.inject.Named;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -194,17 +193,12 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.common.util.TestUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
 import org.springframework.data.util.Version;
 
 /**
  * Generates typical protobuf request and response objects with all fields populated.
  */
-@Named
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class RecordItemBuilder {
+public final class RecordItemBuilder {
 
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final byte[] LONDON_RAW_TX = Hex.decode(
@@ -232,7 +226,6 @@ public class RecordItemBuilder {
     @Setter
     private Instant now = Instant.now();
 
-    @Autowired
     public RecordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         this.commonProperties = commonProperties;
         this.systemEntity = systemEntity;

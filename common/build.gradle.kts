@@ -30,7 +30,6 @@ dependencies {
     api("org.springframework.boot:spring-boot-starter-validation")
     api("org.web3j:core")
     testImplementation("jakarta.inject:jakarta.inject-api")
-    testImplementation("org.hyperledger.besu:besu-datatypes")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.junit.platform:junit-platform-launcher")
     testImplementation("org.springframework:spring-web")

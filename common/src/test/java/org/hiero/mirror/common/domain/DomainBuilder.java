@@ -1337,9 +1337,10 @@ public class DomainBuilder {
 
     public Timestamp protoTimestamp() {
         long timestamp = timestamp();
+        int nanos = Math.toIntExact(timestamp % DomainUtils.NANOS_PER_SECOND);
         return Timestamp.newBuilder()
                 .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
-                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
+                .setNanos(nanos)
                 .build();
     }
 
