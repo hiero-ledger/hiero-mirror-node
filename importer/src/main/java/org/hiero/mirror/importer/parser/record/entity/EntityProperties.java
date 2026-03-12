@@ -132,16 +132,8 @@ public class EntityProperties {
             return entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
         }
 
-        public boolean shouldPersistEntityNftTransaction(EntityId entityId, TransactionType transactionType) {
-            if (!entityNftTransactions || EntityId.isEmpty(entityId)) {
-                return false;
-            }
-
-            return transactionType == TransactionType.CRYPTOTRANSFER
-                    || transactionType == TransactionType.TOKENMINT
-                    || transactionType == TransactionType.TOKENBURN
-                    || transactionType == TransactionType.TOKENWIPE
-                    || transactionType == TransactionType.TOKENUPDATE;
+        public boolean shouldPersistEntityNftTransaction(EntityId entityId) {
+            return entityNftTransactions && !EntityId.isEmpty(entityId);
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {

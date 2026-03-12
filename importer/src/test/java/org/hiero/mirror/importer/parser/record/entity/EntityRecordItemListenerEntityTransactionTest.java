@@ -84,6 +84,7 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
         entityProperties.getPersist().setEntityTransactions(false);
         entityProperties.getPersist().setEntityNftTransactions(true);
         parseRecordItemAndCommit(recordItem);
+        System.out.println("Expected: " + getExpectedEntityNftTransactions(recordItem));
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(getExpectedEntityNftTransactions(recordItem));
     }
@@ -123,10 +124,7 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
         }
 
         return entityIds.stream()
-                .filter(entityId -> entityProperties
-                        .getPersist()
-                        .shouldPersistEntityNftTransaction(
-                                entityId, TransactionType.of(recordItem.getTransactionType())))
+                .filter(entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId))
                 .map(e -> TestUtils.toEntityTransaction(e, recordItem))
                 .toList();
     }
