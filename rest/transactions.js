@@ -16,6 +16,7 @@ import {
   AssessedCustomFee,
   CryptoTransfer,
   CustomFeeLimits,
+  EntityTransaction,
   NftTransfer,
   StakingRewardTransfer,
   TokenTransfer,
@@ -25,7 +26,6 @@ import {
 } from './model';
 
 import {AssessedCustomFeeViewModel, CustomFeeLimitsViewModel, NftTransferViewModel} from './viewmodel';
-import EntityTransaction from './model/entityTransaction.js';
 
 const SUCCESS_PROTO_IDS = TransactionResult.getSuccessProtoIds();
 
@@ -533,7 +533,7 @@ const getTransactionTimestampsQuery = (
           select ${EntityTransaction.CONSENSUS_TIMESTAMP}
           from ${EntityTransaction.tableName}
           where ${entityQuery} ${entityTimestampQuery ? ` and ${entityTimestampQuery}` : ''}
-        ))`
+        ) order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})`
     : '';
 
   const transactionOnlyQuery = `
@@ -548,7 +548,8 @@ const getTransactionTimestampsQuery = (
         ${Transaction.getFullName(Transaction.PAYER_ACCOUNT_ID)}
     from (
         (select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
-         from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause})
+         from ${Transaction.tableName} as ${Transaction.tableAlias} ${transactionWhereClause}
+         order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})
         ${nftTransfersUnion}
     ) as ${Transaction.tableAlias}
     order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery}`;

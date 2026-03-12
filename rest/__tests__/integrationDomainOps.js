@@ -650,20 +650,7 @@ const addEntity = async (defaults, custom) => {
   return entity;
 };
 
-const entityTransactionDefaults = {
-  consensus_timestamp: 1234567890000000001,
-  entity_id: null,
-  payer_account_id: null,
-  result: null,
-  type: null,
-};
-
 const addEntityTransaction = async (entityTransaction) => {
-  entityTransaction = {
-    ...entityTransactionDefaults,
-    ...entityTransaction,
-  };
-
   entityTransaction.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
   entityTransaction.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
 
