@@ -16,7 +16,7 @@ public interface AddressBookEntryRepository extends CrudRepository<AddressBookEn
     @Cacheable(
             cacheManager = ADDRESS_BOOK_ENTRY_CACHE,
             cacheNames = CACHE_NAME,
-            unless = "#result == null or #result.size() == 0")
+            unless = "@cacheHelper.isNullOrEmpty(#result)")
     @Query(value = """
         select abe.consensus_timestamp,
                abe.description,

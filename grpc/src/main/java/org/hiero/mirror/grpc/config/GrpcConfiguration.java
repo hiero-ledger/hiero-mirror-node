@@ -2,7 +2,7 @@
 
 package org.hiero.mirror.grpc.config;
 
-import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.netty.NettyServerBuilder;
 import java.util.concurrent.Executor;
 import org.hiero.mirror.grpc.GrpcProperties;
 import org.springframework.beans.factory.annotation.Qualifier;

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.graalvm.buildtools.gradle.dsl.GraalVMExtension
+import org.springframework.boot.gradle.tasks.run.BootRun
+
 plugins {
     id("com.gorylenko.gradle-git-properties")
     id("docker-conventions")
@@ -23,9 +26,12 @@ val imagePlatform: String by project
 val platform = imagePlatform.ifBlank { null }
 
 tasks.bootBuildImage {
+    cleanCache.set(true)
+    //    cleanCache = true TODO try this instead
+
     val env = System.getenv()
-    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
-    val image = "ghcr.io/${repo}/${project.name}"
+    //    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
+    val image = "docker.io/jesseswirldslabs/${project.name}"
 
     buildpacks =
         listOf(
@@ -40,17 +46,82 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}")
+        tags = listOf("${image}:${project.version}16")
     }
+
+    val existingBuildArgs = env.getOrDefault("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "")
+    val extraBuildArg =
+        "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider"
+    val nativeImageBuildArgs =
+        listOf(existingBuildArgs, extraBuildArg).filter { it.isNotBlank() }.joinToString(" ")
+
     environment =
         mapOf(
             "BP_HEALTH_CHECKER_ENABLED" to "true",
+            "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to nativeImageBuildArgs,
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",
             "BP_OCI_DESCRIPTION" to (project.description ?: ""),
             "BP_OCI_LICENSES" to "Apache-2.0",
             "BP_OCI_REF_NAME" to env.getOrDefault("GITHUB_REF_NAME", "main"),
             "BP_OCI_REVISION" to env.getOrDefault("GITHUB_SHA", ""),
-            "BP_OCI_SOURCE" to "https://github.com/${repo}",
+            "BP_OCI_SOURCE" to "https://github.com/hiero-ledger/hiero-mirror-node",
             "BP_OCI_VENDOR" to "Hiero",
         )
 }
+
+// Task must be ran with graal vm
+tasks.register<BootRun>("bootRunWithNativeAgent") {
+    group = "application"
+    description = "Run the Spring Boot app with the GraalVM Native Image tracing agent"
+
+    val bootRun = tasks.named<BootRun>("bootRun").get()
+
+    mainClass.set(bootRun.mainClass)
+    classpath = bootRun.classpath
+    args = bootRun.args
+    jvmArgs =
+        (bootRun.jvmArgs ?: emptyList()) +
+            listOf(
+                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}"
+            )
+
+    systemProperties.putAll(bootRun.systemProperties)
+    environment.putAll(bootRun.environment)
+    workingDir = bootRun.workingDir
+}
+
+plugins.withId("org.graalvm.buildtools.native") {
+    extensions.configure<GraalVMExtension>("graalvmNative") {
+        binaries {
+            named("main") {
+                buildArgs.add(
+                    "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider"
+                )
+            }
+        }
+    }
+}
+
+// TODO if above doesn't work, add this to where plugin being applied'
+// graalvmNative {
+//    binaries {
+//        named("main") {
+//
+// buildArgs.add("-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider")
+//        }
+//    }
+// }
+
+// todo when building boot image for grpc with
+//        rm -rf grpc/build
+//
+//
+//
+//                                                                1 < 19:04:19
+//    ./gradlew :grpc:clean :grpc:bootBuildImage --no-build-cache --info
+//        I get failures and seems i need to
+//    ./gradlew clean :protobuf:compileJava :grpc:compileJava --no-build-cache --rerun-tasks
+// --stacktrace
+
+// TODO to build do
+//    ./gradlew :grpc:bootBuildImage --rerun-tasks --no-build-cache
