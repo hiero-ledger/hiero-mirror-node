@@ -2,9 +2,9 @@
 
 package org.hiero.mirror.web3.state.core;
 
-import com.google.common.collect.ForwardingConcurrentMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import com.google.common.collect.ForwardingMap;
+import java.util.HashMap;
+import java.util.Map;
 import org.hiero.mirror.web3.common.ContractCallContext;
 
 /**
@@ -12,9 +12,9 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  * This allows singleton state beans to use per-request read caches, ensuring proper isolation
  * between concurrent requests.
  */
-public class ForwardingReadableKVStateBase<K, V> extends ForwardingConcurrentMap<K, V> {
+public class ForwardingReadableKVStateBase<K, V> extends ForwardingMap<K, V> {
 
-    private static final ConcurrentMap<Object, Object> EMPTY_MAP = new ConcurrentHashMap<>();
+    private static final Map<Object, Object> EMPTY_MAP = new HashMap<>();
 
     private final int stateId;
 
@@ -27,10 +27,10 @@ public class ForwardingReadableKVStateBase<K, V> extends ForwardingConcurrentMap
      * If the context is not initialized, returns a temporary empty map.
      */
     @Override
-    protected ConcurrentMap<K, V> delegate() {
+    protected Map<K, V> delegate() {
         if (!ContractCallContext.isInitialized()) {
-            return (ConcurrentMap<K, V>) EMPTY_MAP;
+            return (Map<K, V>) EMPTY_MAP;
         }
-        return (ConcurrentMap<K, V>) ContractCallContext.get().getReadCacheState(stateId);
+        return (Map<K, V>) ContractCallContext.get().getReadCacheState(stateId);
     }
 }
