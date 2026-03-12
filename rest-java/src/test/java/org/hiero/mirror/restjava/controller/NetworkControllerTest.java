@@ -264,10 +264,9 @@ final class NetworkControllerTest extends ControllerTest {
     final class FeesEndpointTest extends EndpointTest {
 
         private static final long CURRENT_RATE_EXPIRATION_NANOS = 1759951090L * DomainUtils.NANOS_PER_SECOND;
-        private long feeFileTimestampSeq = 0;
-
         private final EntityId feeFileId = systemEntity.feeScheduleFile();
         private final EntityId exchangeRateFileId = systemEntity.exchangeRateFile();
+        private long feeFileTimestampSeq = 0;
 
         @Override
         protected String getUrl() {
