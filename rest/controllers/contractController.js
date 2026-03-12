@@ -319,6 +319,8 @@ const getLastNonceParamValue = (query) => {
   return nonce;
 };
 
+const acceptedContractResultsByTimestampParameters = new Set([filterKeys.HBAR]);
+
 /**
  * Verify contractId meets entity id format
  */
@@ -360,7 +362,7 @@ const validateContractIdAndConsensusTimestampParam = (consensusTimestamp, contra
 const getAndValidateContractIdAndConsensusTimestampPathParams = async (req) => {
   const {consensusTimestamp, contractId} = req.params;
   validateContractIdAndConsensusTimestampParam(consensusTimestamp, contractId);
-  utils.validateReq(req);
+  utils.validateReq(req, acceptedContractResultsByTimestampParameters);
   const encodedContractId = await ContractService.computeContractIdFromString(contractId);
   return {contractId: encodedContractId, timestamp: utils.parseTimestampParam(consensusTimestamp)};
 };
@@ -1031,7 +1033,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
   };
 
