@@ -110,6 +110,7 @@ import org.hiero.mirror.importer.repository.TransactionHashRepository;
 import org.hiero.mirror.importer.repository.TransactionRepository;
 import org.hiero.mirror.importer.repository.TransactionSignatureRepository;
 import org.hiero.mirror.importer.util.Utility;
+import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -1096,6 +1097,7 @@ final class SqlEntityListenerTest extends ImporterIntegrationTest {
 
         var entityDelete = entityCreate.toEntityId().toEntity();
         entityDelete.setAlias(entityCreate.getAlias());
+        entityDelete.setDelegationAddress(Address.ZERO.toArrayUnsafe());
         entityDelete.setDeleted(true);
         entityDelete.setTimestampLower(entityCreate.getTimestampLower() + 2);
         entityDelete.setType(ACCOUNT);

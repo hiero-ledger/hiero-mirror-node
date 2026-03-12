@@ -1081,8 +1081,9 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         var transactionId = transactionId(account.toEntityId(), domainBuilder.timestamp());
         var recordItem = recordItemBuilder
                 .cryptoUpdate()
-                .transactionBody(
-                        b -> b.setAccountIDToUpdate(protoAccountId).setMemo(StringValue.of("just a memo update")))
+                .transactionBody(b -> b.setAccountIDToUpdate(protoAccountId)
+                        .setDelegationAddress(ByteString.EMPTY)
+                        .setMemo(StringValue.of("just a memo update")))
                 .transactionBodyWrapper(w -> w.setTransactionID(transactionId))
                 .record(r -> r.setTransactionID(transactionId))
                 .build();
