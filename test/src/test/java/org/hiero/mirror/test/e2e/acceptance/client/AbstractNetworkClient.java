@@ -89,7 +89,6 @@ abstract class AbstractNetworkClient implements Cleanable {
         return retryTemplate.execute(() -> querySupplier.get().execute(client));
     }
 
-    @SneakyThrows
     public TransactionId executeTransaction(Transaction<?> transaction, KeyList keyList, ExpandedAccountId payer) {
         if (payer != null) {
             transaction.setTransactionId(TransactionId.generate(payer.getAccountId()));
@@ -120,7 +119,8 @@ abstract class AbstractNetworkClient implements Cleanable {
                 var publicKeys = getSignatures(transaction);
                 log.error("Invalid signature for transaction {} signed with: {}", transaction, publicKeys);
             }
-            throw e;
+
+            throw new NetworkException("Failed to execute transaction", e);
         }
     }
 
@@ -165,7 +165,7 @@ abstract class AbstractNetworkClient implements Cleanable {
         log.debug("Transaction receipt: {}", receipt);
 
         if (receipt.status != Status.SUCCESS) {
-            throw new NetworkException("Transaction was unsuccessful: " + receipt);
+            throw new NetworkException("Transaction was unsuccessful: " + receipt, receipt.status);
         }
 
         return receipt;
