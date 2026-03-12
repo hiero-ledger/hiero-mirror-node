@@ -2,8 +2,9 @@
 
 package org.hiero.mirror.restjava.service;
 
-import com.google.protobuf.GeneratedMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.hedera.pbj.runtime.ParseException;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import jakarta.inject.Named;
@@ -12,10 +13,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
@@ -24,14 +27,16 @@ import org.springframework.util.function.ThrowingFunction;
 @CustomLog
 @Named
 @RequiredArgsConstructor
-final class FileServiceImpl implements FileService {
+class FileServiceImpl implements FileService {
 
     private final FileDataRepository fileDataRepository;
     private final SystemEntity systemEntity;
     private final RetryTemplate retryTemplate = new RetryTemplate(RetryPolicy.builder()
             .maxRetries(9)
             .predicate(e -> e instanceof InvalidProtocolBufferException
-                    || e.getCause() instanceof InvalidProtocolBufferException)
+                    || e instanceof ParseException
+                    || e.getCause() instanceof InvalidProtocolBufferException
+                    || e.getCause() instanceof ParseException)
             .build());
 
     @Override
@@ -44,12 +49,20 @@ final class FileServiceImpl implements FileService {
         return getSystemFile(systemEntity.feeScheduleFile(), timestamp, CurrentAndNextFeeSchedule::parseFrom);
     }
 
+    @Override
+    @Cacheable(cacheNames = "simpleFeeSchedule", cacheManager = "feeCacheManager", key = "'latest'")
+    public SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp) {
+        return getSystemFile(
+                systemEntity.simpleFeeScheduleFile(),
+                Bound.EMPTY,
+                data -> FeeSchedule.PROTOBUF.parseStrict(Bytes.wrap(data)));
+    }
+
     /*
      * Attempts to load and parse the system file at the given consensus timestamp. If it fails to parse, it might be an
      * incomplete or bad file. In that case, it will try earlier files until it finds one that is valid.
      */
-    private <T extends GeneratedMessage> SystemFile<T> getSystemFile(
-            EntityId entityId, Bound timestamp, ThrowingFunction<byte[], T> parser) {
+    private <T> SystemFile<T> getSystemFile(EntityId entityId, Bound timestamp, ThrowingFunction<byte[], T> parser) {
         final var lowerBound = timestamp.getAdjustedLowerRangeValue();
         final var upperBound = new AtomicLong(timestamp.adjustUpperBound());
         final var attempt = new AtomicInteger(0);

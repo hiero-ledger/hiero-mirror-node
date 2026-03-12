@@ -56,8 +56,8 @@ public interface FeeScheduleMapper {
             Sort.Direction order) {
 
         final var refTimestampNanos = getReferenceTimestampNanos(feeScheduleFile, bound);
-        final var feeSchedule = getEffectiveFeeSchedule(feeScheduleFile.protobuf(), refTimestampNanos);
-        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.protobuf(), refTimestampNanos);
+        final var feeSchedule = getEffectiveFeeSchedule(feeScheduleFile.data(), refTimestampNanos);
+        final var exchangeRate = getEffectiveExchangeRate(exchangeRateFile.data(), refTimestampNanos);
 
         return feeSchedule.getTransactionFeeScheduleList().stream()
                 .filter(s -> ENABLED_TRANSACTION_TYPES.containsKey(s.getHederaFunctionality()) && s.getFeesCount() > 0)
