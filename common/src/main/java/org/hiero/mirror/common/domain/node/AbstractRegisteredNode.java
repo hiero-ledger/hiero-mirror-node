@@ -14,6 +14,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -24,6 +25,11 @@ import org.hiero.mirror.common.domain.Upsertable;
 @SuperBuilder(toBuilder = true)
 @Upsertable(history = true)
 public abstract class AbstractRegisteredNode implements History {
+
+    public static final short TYPE_BLOCK_NODE = 0;
+    public static final short TYPE_GENERAL_SERVICE = 1;
+    public static final short TYPE_MIRROR_NODE = 2;
+    public static final short TYPE_RPC_RELAY = 3;
 
     @ToString.Exclude
     private byte[] adminKey;
@@ -43,4 +49,8 @@ public abstract class AbstractRegisteredNode implements History {
     private List<RegisteredServiceEndpoint> serviceEndpoints;
 
     private Range<Long> timestampRange;
+
+    // @Builder.Default
+    @JsonSerialize(using = ListToStringSerializer.class)
+    private List<Short> type;
 }

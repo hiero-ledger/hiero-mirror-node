@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.common.collect.Range;
 import com.google.protobuf.BoolValue;
+import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.NodeUpdateTransactionBody;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -300,8 +301,10 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
         final var registeredNodeId2 = domainBuilder.id();
         final var recordItem = recordItemBuilder
                 .nodeUpdate()
-                .transactionBody(b ->
-                        b.addAssociatedRegisteredNode(registeredNodeId1).addAssociatedRegisteredNode(registeredNodeId2))
+                .transactionBody(b -> b.setDeclineReward(BoolValue.of(true))
+                        .setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                                .addAssociatedRegisteredNode(registeredNodeId1)
+                                .addAssociatedRegisteredNode(registeredNodeId2)))
                 .build();
         final var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
         final var timestamp = recordItem.getConsensusTimestamp() - 1;

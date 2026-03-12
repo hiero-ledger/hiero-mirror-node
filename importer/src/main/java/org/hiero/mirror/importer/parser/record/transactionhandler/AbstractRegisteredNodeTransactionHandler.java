@@ -4,8 +4,11 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.mirror.common.domain.node.AbstractRegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -52,7 +55,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
             default -> Utility.handleRecoverableError("Invalid addressCase: {}", proto.getAddressCase());
         }
 
-        RegisteredServiceEndpoint.BlockNodeEndpoint blockNode = null;
+        BlockNodeEndpoint blockNode = null;
         MirrorNodeEndpoint mirrorNode = null;
         RpcRelayEndpoint rpcRelay = null;
         switch (proto.getEndpointTypeCase()) {
@@ -74,6 +77,25 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
                 .requiresTls(proto.getRequiresTls())
                 .rpcRelay(rpcRelay)
                 .build();
+    }
+
+    protected static List<Short> deriveTypesFromEndpoints(List<RegisteredServiceEndpoint> serviceEndpoints) {
+        if (serviceEndpoints == null || serviceEndpoints.isEmpty()) {
+            return List.of();
+        }
+        final var types = new ArrayList<Short>();
+        for (final var endpoint : serviceEndpoints) {
+            if (endpoint.getBlockNode() != null && !types.contains(AbstractRegisteredNode.TYPE_BLOCK_NODE)) {
+                types.add(AbstractRegisteredNode.TYPE_BLOCK_NODE);
+            }
+            if (endpoint.getMirrorNode() != null && !types.contains(AbstractRegisteredNode.TYPE_MIRROR_NODE)) {
+                types.add(AbstractRegisteredNode.TYPE_MIRROR_NODE);
+            }
+            if (endpoint.getRpcRelay() != null && !types.contains(AbstractRegisteredNode.TYPE_RPC_RELAY)) {
+                types.add(AbstractRegisteredNode.TYPE_RPC_RELAY);
+            }
+        }
+        return types;
     }
 
     private static BlockNodeApi toBlockNodeApi(

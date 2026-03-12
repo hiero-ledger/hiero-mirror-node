@@ -103,7 +103,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       private Range<Long> timestampRange;
 
       @JsonSerialize(using = ListToStringSerializer.class)
-      private List<Short> type = Collectitons.emptyList();
+      private List<Short> type = Collections.emptyList();
   }
   ```
 

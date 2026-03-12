@@ -57,6 +57,7 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
                 .registeredNodeId(receipt.getRegisteredNodeId())
                 .serviceEndpoints(serviceEndpoints)
                 .timestampRange(Range.atLeast(consensusTimestamp))
+                .type(deriveTypesFromEndpoints(serviceEndpoints))
                 .build();
     }
 }
