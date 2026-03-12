@@ -19,12 +19,13 @@ import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.DomainBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.domain.StreamFilename;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder.TransferType;
 import org.hiero.mirror.importer.test.performance.PerformanceProperties.SubType;
 import org.springframework.util.Assert;
 

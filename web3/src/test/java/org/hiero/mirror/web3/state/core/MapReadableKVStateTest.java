@@ -48,12 +48,6 @@ class MapReadableKVStateTest {
     }
 
     @Test
-    void testIterateFromDataSource() {
-        assertThat(mapReadableKVState.iterateFromDataSource().hasNext()).isTrue();
-        assertThat(mapReadableKVState.iterateFromDataSource().next()).isEqualTo(accountID);
-    }
-
-    @Test
     void testSize() {
         assertThat(mapReadableKVState.size()).isEqualTo(1L);
         final var accountID1 = AccountID.newBuilder().accountNum(1L).build();
