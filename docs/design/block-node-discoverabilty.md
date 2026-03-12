@@ -80,8 +80,9 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   public abstract class AbstractRegisteredNode implements History {
 
       public static final short TYPE_BLOCK_NODE = 0;
-      public static final short TYPE_MIRROR_NODE = 1;
-      public static final short TYPE_RPC_RELAY = 2;
+      public static final short TYPE_GENERAL_SERVICE = 1;
+      public static final short TYPE_MIRROR_NODE = 2;
+      public static final short TYPE_RPC_RELAY = 3;
 
       private byte[] adminKey;
 
@@ -131,6 +132,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
 
       private BlockNodeEndpoint blockNode;
       private String domainName;
+      private GeneralServiceEndpoint generalService;
       private String ipAddress;
       private MirrorNodeEndpoint mirrorNode;
       private int port;
@@ -148,6 +150,10 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
           SUBSCRIBE_STREAM,
           STATE_PROOF,
           UNRECOGNIZED
+      }
+
+      public static class GeneralServiceEndpoint {
+          private String description;
       }
 
       public static class MirrorNodeEndpoint {}
@@ -203,10 +209,11 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
               "endpoint_api": "STATUS"
             },
             "domain_name": "block1.alpha.com",
+            "general_service": null,
             "ip_address": null,
             "mirror_node": null,
             "port": 40840,
-            "require_tls": false,
+            "requires_tls": false,
             "rpc_relay": null,
             "type": "BLOCK_NODE"
           },
@@ -215,20 +222,22 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
               "endpoint_api": "SUBSCRIBE_STREAM"
             },
             "domain_name": null,
+            "general_service": null,
             "ip_address": "191.91.239.79",
             "mirror_node": null,
             "port": 40842,
-            "require_tls": true,
+            "requires_tls": true,
             "rpc_relay": null,
             "type": "BLOCK_NODE"
           },
           {
             "block_node": null,
             "domain_name": "mirrornode.alpha.com",
+            "general_service": null,
             "ip_address": null,
             "mirror_node": {},
             "port": 80,
-            "require_tls": false,
+            "requires_tls": false,
             "rpc_relay": null,
             "type": "MIRROR_NODE"
           }
@@ -250,10 +259,11 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
           {
             "block_node": null,
             "domain_name": "mirrornode.romeo.com",
+            "general_service": null,
             "ip_address": null,
             "mirror_node": {},
             "port": 80,
-            "require_tls": false,
+            "requires_tls": false,
             "rpc_relay": null,
             "type": "MIRROR_NODE"
           }
@@ -276,9 +286,9 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   - `order` - The direction to sort the items by the registered node id in the response. Can be `asc` or `desc`, default
     is `asc`
   - `registerednode.id` - The registered node id. Supports `eq`, `gt`, `gte`, `lt`, and `lte` operators. Only one
-    occurrence is allowed. The `eq` operator can't mix with other operators
-  - `type` - The type of service provided by the registered node. Supports `BLOCK_NODE`, `MIRROR_NODE`, and `RPC_RELAY`.
-    Only supports the `eq` operator and only one occurrence is allowed
+    occurrence of each operator is allowed. The `eq` operator can't mix with other operators
+  - `type` - The type of service provided by the registered node. Supports `BLOCK_NODE`, `GENERAL_SERVICE`,
+    `MIRROR_NODE`, and `RPC_RELAY`. Only supports the `eq` operator and only one occurrence is allowed
 
 - Update response of `/api/v1/network/nodes`
 

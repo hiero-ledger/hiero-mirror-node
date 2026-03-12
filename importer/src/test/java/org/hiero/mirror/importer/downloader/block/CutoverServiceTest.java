@@ -57,7 +57,7 @@ final class CutoverServiceTest {
         doReturn(Optional.empty()).when(recordFileRepository).findLatest();
 
         // when, then
-        assertThat(cutoverService.getLastRecordFile()).contains(RecordFile.EMPTY);
+        assertThat(cutoverService.getLastRecordFile()).isEmpty();
         verify(recordFileRepository).findLatest();
 
         // when a record file is verified
