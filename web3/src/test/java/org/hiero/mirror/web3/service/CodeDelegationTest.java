@@ -17,6 +17,7 @@ import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.web3j.generated.EthCall;
+import org.hiero.mirror.web3.web3j.generated.EvmCodes;
 import org.hyperledger.besu.datatypes.Address;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -74,7 +75,7 @@ final class CodeDelegationTest extends AbstractContractCallServiceTest {
     }
 
     @Test
-    void estimateGasForCallToAccountWithCodeDelegation() {
+    void callToAccountWithCodeDelegationAndStorageSlotsModification() {
         // Given
         final var contract = testWeb3jService.deploy(EthCall::deploy);
         final var contractAddress = Address.fromHexString(contract.getContractAddress());
@@ -82,11 +83,45 @@ final class CodeDelegationTest extends AbstractContractCallServiceTest {
         final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
         final var accountAddress = toAddress(account.toEntityId());
 
+        final var functionCall = contract.call_writeToStorageSlot("123");
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+
+        final var serviceParameters =
+                getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
+
         // When
-        final var functionCall = contract.send_multiplySimpleNumbers();
+        final var result = contractExecutionService.processCall(serviceParameters);
+        final var decodedResult =
+                TypeDecoder.decodeUtf8String(result, 66).getValue(); // offset 66 - 2 for "0x" prefix and 64 for offset
+        // Then
+        assertThat(decodedResult).isEqualTo("123");
+    }
+
+    @Test
+    void getAccountCodeDelegation() {
+        final var contract = testWeb3jService.deploy(EvmCodes::deploy);
+        final var contractAddress = Address.fromHexString(contract.getContractAddress());
+
+        final var account = accountEntityPersistWithCodeDelegation(contractAddress.toArrayUnsafe());
+        final var accountAddress = toAddress(account.toEntityId());
+
+        final var functionCall = contract.call_getExternalBytecode(accountAddress.toHexString());
+        final var callData = Bytes.fromHexString(functionCall.encodeFunctionCall());
+
+        final var serviceParameters =
+                getContractExecutionParameters(callData, accountAddress, Address.ZERO, 0L, ETH_CALL);
+
+        // When
+        final var result = contractExecutionService.processCall(serviceParameters);
 
         // Then
-        verifyEthCallAndEstimateGas(functionCall, contract);
+        final int prefixForOffsetAndLength = 128;
+        final var delegatePrefix = "ef0100";
+        final var contractAddressWithoutPrefix = contract.getContractAddress().substring(2);
+        final int prefix = HEX_PREFIX.length() + prefixForOffsetAndLength;
+        final var decodedResult =
+                result.substring(prefix, prefix + delegatePrefix.length() + contractAddressWithoutPrefix.length());
+        assertThat(decodedResult).isEqualTo(delegatePrefix + contractAddressWithoutPrefix);
     }
 
     @Test
