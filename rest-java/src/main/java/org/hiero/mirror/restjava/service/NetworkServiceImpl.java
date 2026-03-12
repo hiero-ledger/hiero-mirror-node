@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.restjava.service;
 
+import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.Instant;
@@ -110,16 +111,11 @@ final class NetworkServiceImpl implements NetworkService {
         final Long[] nodeIdArray;
         if (!nodeIds.isEmpty()) {
             if (lowerBound > 0L || upperBound < Long.MAX_VALUE) {
-                final var filteredNodeIds = new HashSet<Long>();
-                for (final var nodeId : nodeIds) {
-                    if (nodeId >= lowerBound && nodeId <= upperBound) {
-                        filteredNodeIds.add(nodeId);
-                    }
-                }
-                if (filteredNodeIds.isEmpty()) {
+                final var range = Range.closed(lowerBound, upperBound);
+                nodeIdArray = nodeIds.stream().filter(range::contains).toArray(Long[]::new);
+                if (nodeIdArray.length == 0) {
                     return List.of();
                 }
-                nodeIdArray = filteredNodeIds.toArray(Long[]::new);
             } else {
                 nodeIdArray = nodeIds.toArray(Long[]::new);
             }
