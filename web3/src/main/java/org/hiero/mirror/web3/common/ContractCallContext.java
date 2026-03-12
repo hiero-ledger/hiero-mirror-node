@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -138,7 +137,7 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, _ -> new ConcurrentHashMap<>());
+        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {
