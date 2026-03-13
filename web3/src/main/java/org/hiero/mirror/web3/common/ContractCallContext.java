@@ -40,7 +40,7 @@ public class ContractCallContext {
     private final Map<Integer, Map<Object, Object>> writeCache = new HashMap<>();
 
     @Setter
-    private OpcodeProperties opcodeProperties = new OpcodeProperties();
+    private OpcodeProperties opcodeProperties = null;
 
     @Setter
     private CallServiceParameters callServiceParameters;

@@ -49,7 +49,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var storage = captureStorage(frame, options, context);
 
         final var revertReasonBytes = frame.getRevertReason().orElse(null);
-        final String reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
+        final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
         context.addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
@@ -90,7 +90,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
         final var gasCost = context.getGasRemaining() - frame.getRemainingGas();
 
         final var frameRevertReason = frame.getRevertReason().orElse(null);
-        final String revertReason = isCallToSystemContracts(frame, systemContracts)
+        final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
                 : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 

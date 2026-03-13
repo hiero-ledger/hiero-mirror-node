@@ -14,13 +14,11 @@ public record EvmTransactionResult(ResponseCodeEnum responseCodeEnum, ContractFu
         if (functionResult == null) {
             return Optional.empty();
         }
-        String errorMessage = functionResult.errorMessage();
+        var errorMessage = functionResult.errorMessage();
         if (errorMessage.isEmpty()) {
             return Optional.empty();
         }
-        return errorMessage.startsWith(HEX_PREFIX)
-                ? Optional.of(errorMessage)
-                : Optional.empty(); // If it doesn't start with 0x, the message is already decoded and readable.
+        return errorMessage.startsWith(HEX_PREFIX) ? Optional.of(errorMessage) : Optional.empty();
     }
 
     public String contractCallResult() {
@@ -31,7 +29,7 @@ public record EvmTransactionResult(ResponseCodeEnum responseCodeEnum, ContractFu
         if (result.length() == 0) {
             return HEX_PREFIX;
         }
-        String hex = result.toHex();
+        var hex = result.toHex();
         if (hex == null || hex.isEmpty()) {
             return HEX_PREFIX;
         }

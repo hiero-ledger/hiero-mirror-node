@@ -54,4 +54,11 @@ public class OpcodeProperties {
         this.memory = memory;
         this.storage = storage;
     }
+
+    public List<Opcode> getOpcodes() {
+        if (opcodes == null) {
+            opcodes = new ArrayList<>();
+        }
+        return opcodes;
+    }
 }

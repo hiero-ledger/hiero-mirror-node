@@ -48,8 +48,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
 
-    private static final Address ADDRESS_ZERO = Address.ZERO;
-    private static final BigInteger BIG_INTEGER_ZERO = BigInteger.ZERO;
+    private static final Address EMPTY_ADDRESS = Address.ZERO;
+    private static final BigInteger ZERO = BigInteger.ZERO;
 
     private final RecordFileService recordFileService;
     private final ContractDebugService contractDebugService;
@@ -116,12 +116,12 @@ public class OpcodeServiceImpl implements OpcodeService {
     private OpcodesResponseDto buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
         final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
-        if (recipientAddress != null && !recipientAddress.equals(ADDRESS_ZERO)) {
+        if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
             recipientEntity =
                     commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
         }
 
-        var address = ADDRESS_ZERO.toHexString();
+        var address = EMPTY_ADDRESS.toHexString();
         String contractId = null;
         if (recipientEntity != null) {
             address = getEntityAddress(recipientEntity).toHexString();
@@ -172,14 +172,14 @@ public class OpcodeServiceImpl implements OpcodeService {
 
     private Address getSenderAddress(ContractResult contractResult) {
         final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
-        return address != null ? address : ADDRESS_ZERO;
+        return address != null ? address : EMPTY_ADDRESS;
     }
 
     private Address getReceiverAddress(
             EthereumTransaction ethereumTransaction, ContractResult contractResult, int transactionType) {
         if (ethereumTransaction != null) {
             if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
-                return ADDRESS_ZERO;
+                return EMPTY_ADDRESS;
             }
             final var address = Address.wrap(Bytes.wrap(ethereumTransaction.getToAddress()));
             if (ConversionUtils.isLongZero(address)) {
@@ -193,11 +193,11 @@ public class OpcodeServiceImpl implements OpcodeService {
         }
 
         if (transactionType == CONTRACTCREATEINSTANCE.getProtoId()) {
-            return ADDRESS_ZERO;
+            return EMPTY_ADDRESS;
         }
         final var contractId = EntityId.of(contractResult.getContractId());
         final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
-        return address != null ? address : ADDRESS_ZERO;
+        return address != null ? address : EMPTY_ADDRESS;
     }
 
     private Long getGasLimit(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
@@ -211,7 +211,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         if (contractResult.getAmount() != null) {
             return BigInteger.valueOf(contractResult.getAmount());
         }
-        return BIG_INTEGER_ZERO;
+        return ZERO;
     }
 
     private byte[] getCallDataBytes(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
@@ -236,6 +236,6 @@ public class OpcodeServiceImpl implements OpcodeService {
         if (entity.getAlias() != null && entity.getAlias().length == EVM_ADDRESS_LENGTH) {
             return Address.wrap(Bytes.wrap(entity.getAlias()));
         }
-        return EntityId.isEmpty(entity.toEntityId()) ? ADDRESS_ZERO : toAddress(entity.toEntityId());
+        return EntityId.isEmpty(entity.toEntityId()) ? EMPTY_ADDRESS : toAddress(entity.toEntityId());
     }
 }

@@ -7,8 +7,7 @@ import java.util.List;
 
 /**
  * Lightweight response DTO that directly holds internal {@link Opcode} records,
- * avoiding a per-element copy into the generated API model. Jackson serializes
- * this to the same JSON shape as the OpenAPI-generated OpcodesResponse.
+ * avoiding a per-element copy into the generated API model.
  */
 public record OpcodesResponseDto(
         String address,

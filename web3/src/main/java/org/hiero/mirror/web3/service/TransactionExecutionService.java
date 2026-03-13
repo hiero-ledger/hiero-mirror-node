@@ -331,7 +331,7 @@ public class TransactionExecutionService {
         if (hexString == null || hexString.isEmpty() || hexString.equals(HEX_PREFIX)) {
             return new byte[0];
         }
-        String hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
+        var hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
         try {
             return Hex.decodeHex(hex);
         } catch (DecoderException e) {

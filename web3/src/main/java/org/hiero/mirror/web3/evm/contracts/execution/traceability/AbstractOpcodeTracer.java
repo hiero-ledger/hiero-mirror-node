@@ -25,20 +25,23 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
+    // Value taken by analyzing a heavy call output
     private static final int HEX_CACHE_MAX_SIZE = 1600;
 
+    // Common cache that keeps hex string representation of different Bytes keys. We can have the same Bytes occurrence
+    // on multiple opcode data and this cache helps to avoid unnecessary string allocations.
     private final LoadingCache<Bytes, String> hexCache = Caffeine.newBuilder()
             .maximumSize(HEX_CACHE_MAX_SIZE)
-            .expireAfterAccess(Duration.ofMinutes(5))
+            .expireAfterAccess(Duration.ofMinutes(1))
             .build(Bytes::toHexString);
 
     protected final List<String> captureMemory(final MessageFrame frame, final OpcodeProperties options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
-        int size = frame.memoryWordSize();
+        var size = frame.memoryWordSize();
         var memory = new ArrayList<String>(size);
-        for (int i = 0; i < size; i++) {
+        for (var i = 0; i < size; i++) {
             var word = frame.readMemory(i * 32L, 32);
             memory.add(hexCache.get(word, Bytes::toHexString));
         }
@@ -51,9 +54,9 @@ public abstract class AbstractOpcodeTracer {
             return Collections.emptyList();
         }
 
-        int size = frame.stackSize();
+        var size = frame.stackSize();
         var stack = new ArrayList<String>(size);
-        for (int i = 0; i < size; ++i) {
+        for (var i = 0; i < size; ++i) {
             var item = frame.getStackItem(size - 1 - i);
             stack.add(hexCache.get(item, Bytes::toHexString));
         }
@@ -148,8 +151,8 @@ public abstract class AbstractOpcodeTracer {
             return HEX_PREFIX + Hex.toHexString(revertReason);
         }
 
-        final int firstNonZero = findFirstNonZero(revertReason);
-        final int trimmedLength = revertReason.length - firstNonZero;
+        final var firstNonZero = findFirstNonZero(revertReason);
+        final var trimmedLength = revertReason.length - firstNonZero;
         if (trimmedLength <= Integer.BYTES) {
             final var responseCode = ResponseCodeEnum.forNumber(toInt(revertReason, firstNonZero));
             if (responseCode != null) {
@@ -161,7 +164,7 @@ public abstract class AbstractOpcodeTracer {
     }
 
     private boolean isZero(final byte[] bytes) {
-        for (byte b : bytes) {
+        for (var b : bytes) {
             if (b != 0) {
                 return false;
             }
@@ -170,7 +173,7 @@ public abstract class AbstractOpcodeTracer {
     }
 
     private int findFirstNonZero(final byte[] bytes) {
-        int index = 0;
+        var index = 0;
         while (index < bytes.length && bytes[index] == 0) {
             index++;
         }
@@ -178,8 +181,8 @@ public abstract class AbstractOpcodeTracer {
     }
 
     private int toInt(final byte[] bytes, final int offset) {
-        int result = 0;
-        for (int i = offset; i < bytes.length; i++) {
+        var result = 0;
+        for (var i = offset; i < bytes.length; i++) {
             result = (result << 8) | (bytes[i] & 0xFF);
         }
         return result;

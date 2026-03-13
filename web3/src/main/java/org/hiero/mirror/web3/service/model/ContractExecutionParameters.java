@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
-
 import lombok.Builder;
 import lombok.Value;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
@@ -27,6 +25,6 @@ public class ContractExecutionParameters implements CallServiceParameters {
 
     @Override
     public String getEthereumData() {
-        return HEX_PREFIX;
+        throw new UnsupportedOperationException("getEthereumData");
     }
 }
