@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -46,11 +47,16 @@ final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNod
             final var endpointList = nodeUpdate.getServiceEndpointList();
             final int size = endpointList.size();
             final List<RegisteredServiceEndpoint> serviceEndpoints = new ArrayList<>(size);
+            final var types = new TreeSet<Short>();
             for (int i = 0; i < size; i++) {
-                serviceEndpoints.add(toRegisteredServiceEndpoint(endpointList.get(i)));
+                final var endpoint = toRegisteredServiceEndpoint(endpointList.get(i));
+                serviceEndpoints.add(endpoint);
+                for (final var type : endpoint.getTypes()) {
+                    types.add(type.getValue());
+                }
             }
             node.setServiceEndpoints(serviceEndpoints);
-            node.setType(RegisteredServiceEndpoint.deriveTypesFromEndpoints(serviceEndpoints));
+            node.setType(List.copyOf(types));
         }
 
         node.setDeleted(false);
