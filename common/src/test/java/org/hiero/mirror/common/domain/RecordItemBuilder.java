@@ -659,6 +659,7 @@ public final class RecordItemBuilder {
                 .setAutoRenewPeriod(duration(30))
                 .setAccountIDToUpdate(accountId)
                 .setDeclineReward(BoolValue.of(true))
+                .setDelegationAddress(bytes(20))
                 .setKey(key())
                 .setProxyAccountID(accountId())
                 .setReceiverSigRequired(false)
