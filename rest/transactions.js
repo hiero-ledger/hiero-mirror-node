@@ -514,29 +514,21 @@ const getTransactionTimestampsQuery = (
     transactionTypeQuery
   );
 
-  const entityQuery = accountQuery
-    ? `${accountQuery.replace(/ctl\.entity_id/g, `${EntityTransaction.ENTITY_ID}`)}`
-    : '';
-
-  const entityTimestampQuery = timestampQuery
-    ? timestampQuery.replace(
-        /t\.consensus_timestamp/g,
-        `${EntityTransaction.tableName}.${EntityTransaction.CONSENSUS_TIMESTAMP}`
-      )
+  const entityTransactionCondition = accountQuery
+    ? [accountQuery, resultTypeQuery, timestampQuery, transactionTypeQuery]
+        .filter((q) => !!q)
+        .map((q) => q.replace(/(ctl|t)\./g, ''))
+        .join(' and ')
     : '';
 
   const nftTransfersUnion = accountQuery
     ? `union all
-       (select ${Transaction.CONSENSUS_TIMESTAMP}, ${Transaction.PAYER_ACCOUNT_ID}
-        from ${Transaction.tableName} as ${Transaction.tableAlias}
-        where ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} in (
-          select ${EntityTransaction.CONSENSUS_TIMESTAMP}
-          from ${EntityTransaction.tableName}
-          where ${entityQuery} ${entityTimestampQuery ? ` and ${entityTimestampQuery}` : ''}
-        ) 
-        ${transactionTypeQuery ? ` and ${transactionTypeQuery}` : ''}
-        ${resultTypeQuery ? ` and ${resultTypeQuery}` : ''}
-        order by ${Transaction.getFullName(Transaction.CONSENSUS_TIMESTAMP)} ${order} ${limitQuery})`
+       (select ${EntityTransaction.CONSENSUS_TIMESTAMP}, ${EntityTransaction.PAYER_ACCOUNT_ID}
+        from ${EntityTransaction.tableName}
+        where ${entityTransactionCondition}
+        order by ${EntityTransaction.CONSENSUS_TIMESTAMP} ${order}
+        ${limitQuery}
+       )`
     : '';
 
   const transactionOnlyQuery = `
