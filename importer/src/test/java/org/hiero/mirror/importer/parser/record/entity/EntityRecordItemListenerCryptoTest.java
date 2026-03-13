@@ -100,6 +100,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
     private static final long[] additionalTransfers = {5000};
     private static final long[] additionalTransferAmounts = {1001, 1002};
     private static final ByteString ALIAS_KEY = DomainUtils.fromBytes(UtilityTest.ALIAS_ECDSA_SECP256K1);
+    private static final ByteString EVM_ADDRESS_KEY = DomainUtils.fromBytes(UtilityTest.EVM_ADDRESS);
 
     private final @Qualifier(CACHE_ALIAS) CacheManager cacheManager;
     private final CryptoAllowanceRepository cryptoAllowanceRepository;
@@ -2118,7 +2119,9 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
                 () -> assertEquals(
                         DomainUtils.getPublicKey(expected.getKey().toByteArray()), actualAccount.getPublicKey()),
                 () -> assertEquals(EntityId.of(expected.getProxyAccountID()), actualAccount.getProxyAccountId()),
-                () -> assertEquals(expected.getReceiverSigRequired(), actualAccount.getReceiverSigRequired()));
+                () -> assertEquals(expected.getReceiverSigRequired(), actualAccount.getReceiverSigRequired()),
+                () -> assertEquals(
+                        expected.getDelegationAddress(), ByteString.copyFrom(actualAccount.getDelegationAddress())));
     }
 
     protected IterableAssert<CryptoTransfer> assertCryptoTransfers(int expectedNumberOfCryptoTransfers) {
@@ -2231,6 +2234,7 @@ final class EntityRecordItemListenerCryptoTest extends AbstractEntityRecordItemL
         return CryptoCreateTransactionBody.newBuilder()
                 .setAutoRenewPeriod(Duration.newBuilder().setSeconds(1500L))
                 .setInitialBalance(INITIAL_BALANCE)
+                .setDelegationAddress(EVM_ADDRESS_KEY)
                 .setKey(keyFromString(KEY))
                 .setMemo("CryptoCreateAccount memo")
                 .setNewRealmAdminKey(keyFromString(KEY2))
