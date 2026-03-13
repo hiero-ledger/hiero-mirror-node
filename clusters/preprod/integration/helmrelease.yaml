@@ -63,7 +63,6 @@ spec:
       routes:
         network:
           nodes: true
-        supply: true
     rosetta:
       enabled: true
     test:
