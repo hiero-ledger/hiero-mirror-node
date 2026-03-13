@@ -44,6 +44,7 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
+import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
@@ -233,9 +234,6 @@ public class RecordItemBuilder {
     private final Set<EntityId> entityTransactionExclusion;
 
     @Setter
-    private boolean contractTransaction = true;
-
-    @Setter
     private boolean entityTransactions = false;
 
     @Setter
@@ -245,11 +243,7 @@ public class RecordItemBuilder {
     public RecordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         this.commonProperties = commonProperties;
         this.systemEntity = systemEntity;
-        this.entityTransactionExclusion = Set.of(
-                systemEntity.feeCollectionAccount(),
-                systemEntity.networkAdminFeeAccount(),
-                systemEntity.nodeRewardAccount(),
-                systemEntity.stakingRewardAccount());
+        this.entityTransactionExclusion = systemEntity.entityTransactionExclusionDefault();
         // Dynamically lookup method references for every transaction body builder in this class
         Collection<Supplier<Builder<?>>> suppliers = TestUtils.gettersByType(this, Builder.class);
         suppliers.forEach(s -> builders.put(s.get().type, s));
@@ -850,6 +844,9 @@ public class RecordItemBuilder {
                 .addGossipEndpoint(gossipEndpoint())
                 .setGrpcCertificateHash(BytesValue.of(bytes(48)))
                 .setNodeId(id())
+                .setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                        .addAssociatedRegisteredNode(id())
+                        .addAssociatedRegisteredNode(id()))
                 .addServiceEndpoint(serviceEndpoint());
         return new Builder<>(TransactionType.NODEUPDATE, builder);
     }
@@ -898,6 +895,10 @@ public class RecordItemBuilder {
                 r.setPrngNumber(random.nextInt());
             }
         });
+    }
+
+    public Builder<UtilPrngTransactionBody.Builder> utilPrng() {
+        return prng(0);
     }
 
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
@@ -1637,9 +1638,9 @@ public class RecordItemBuilder {
         private final AccountID payerAccountId;
         private final RecordItem.RecordItemBuilder recordItemBuilder;
 
+        private Predicate<EntityId> contractTransactionPredicate = e -> true;
         private Predicate<EntityId> entityTransactionPredicate = entityId ->
                 entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
-        private Predicate<EntityId> contractTransactionPredicate = e -> contractTransaction;
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = NOOP_INCREMENTER;
         private boolean useTransactionBodyBytesAndSigMap;
 
@@ -1733,13 +1734,13 @@ public class RecordItemBuilder {
             return this;
         }
 
-        public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
-            this.entityTransactionPredicate = entityTransactionPredicate;
+        public Builder<T> contractTransactionPredicate(Predicate<EntityId> contractTransactionPredicate) {
+            this.contractTransactionPredicate = contractTransactionPredicate;
             return this;
         }
 
-        public Builder<T> contractTransactionPredicate(Predicate<EntityId> contractTransactionPredicate) {
-            this.contractTransactionPredicate = contractTransactionPredicate;
+        public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
+            this.entityTransactionPredicate = entityTransactionPredicate;
             return this;
         }
 

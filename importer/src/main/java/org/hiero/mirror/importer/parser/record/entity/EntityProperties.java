@@ -115,11 +115,7 @@ public class EntityProperties {
         private Set<TransactionType> transactionSignatures = EnumSet.of(SCHEDULECREATE, SCHEDULESIGN);
 
         public PersistProperties(SystemEntity systemEntity) {
-            this.entityTransactionExclusion = Set.of(
-                    systemEntity.feeCollectionAccount(),
-                    systemEntity.networkAdminFeeAccount(),
-                    systemEntity.nodeRewardAccount(),
-                    systemEntity.stakingRewardAccount());
+            this.entityTransactionExclusion = systemEntity.entityTransactionExclusionDefault();
         }
 
         public boolean isTokenAirdrops() {
