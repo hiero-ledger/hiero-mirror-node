@@ -4,6 +4,7 @@ package org.hiero.mirror.restjava.service;
 
 import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.restjava.dto.SystemFile;
 
 public interface FileService {
@@ -11,4 +12,6 @@ public interface FileService {
     SystemFile<ExchangeRateSet> getExchangeRate(Bound timestamp);
 
     SystemFile<CurrentAndNextFeeSchedule> getFeeSchedule(Bound timestamp);
+
+    SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp);
 }

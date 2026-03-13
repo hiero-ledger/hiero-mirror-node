@@ -767,6 +767,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .accountId(entityId())
                 .adminKey(key())
+                .associatedRegisteredNodes(List.of(number(), number()))
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
