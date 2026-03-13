@@ -50,7 +50,6 @@ public abstract class AbstractRegisteredNode implements History {
 
     private Range<Long> timestampRange;
 
-    // @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
     private List<Short> type;
 }

@@ -4,8 +4,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.node.AbstractRegisteredNode;
@@ -83,19 +83,20 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         if (serviceEndpoints == null || serviceEndpoints.isEmpty()) {
             return List.of();
         }
-        final var types = new ArrayList<Short>();
+        final var types = new TreeSet<Short>();
         for (final var endpoint : serviceEndpoints) {
-            if (endpoint.getBlockNode() != null && !types.contains(AbstractRegisteredNode.TYPE_BLOCK_NODE)) {
+            if (endpoint.getBlockNode() != null) {
                 types.add(AbstractRegisteredNode.TYPE_BLOCK_NODE);
             }
-            if (endpoint.getMirrorNode() != null && !types.contains(AbstractRegisteredNode.TYPE_MIRROR_NODE)) {
+            if (endpoint.getMirrorNode() != null) {
                 types.add(AbstractRegisteredNode.TYPE_MIRROR_NODE);
             }
-            if (endpoint.getRpcRelay() != null && !types.contains(AbstractRegisteredNode.TYPE_RPC_RELAY)) {
+            if (endpoint.getRpcRelay() != null) {
                 types.add(AbstractRegisteredNode.TYPE_RPC_RELAY);
             }
         }
-        return types;
+
+        return List.copyOf(types);
     }
 
     private static BlockNodeApi toBlockNodeApi(

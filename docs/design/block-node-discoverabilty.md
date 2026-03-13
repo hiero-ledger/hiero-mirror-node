@@ -65,7 +65,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
   public abstract class AbstractNode implements History {
 
       @JsonSerialize(using = ListToStringSerializer.class)
-      private List<Long> associatedRegisteredNodes = Collections.emptyList();
+      private List<Long> associatedRegisteredNodes;
   }
   ```
 
@@ -103,7 +103,7 @@ relays. The Mirror Node ingests the corresponding transactions, persists the sta
       private Range<Long> timestampRange;
 
       @JsonSerialize(using = ListToStringSerializer.class)
-      private List<Short> type = Collections.emptyList();
+      private List<Short> type;
   }
   ```
 
