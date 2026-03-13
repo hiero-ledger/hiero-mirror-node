@@ -61,6 +61,7 @@ public abstract class AbstractEntity implements History {
 
     private Boolean deleted;
 
+    @ToString.Exclude
     private byte[] delegationAddress;
 
     @UpsertColumn(coalesce = """
