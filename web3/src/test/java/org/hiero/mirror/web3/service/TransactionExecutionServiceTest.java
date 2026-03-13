@@ -89,7 +89,7 @@ class TransactionExecutionServiceTest {
     private TransactionExecutionService transactionExecutionService;
 
     private static Stream<Arguments> provideCallData() {
-        return Stream.of(Arguments.of("0x"), Arguments.of(NestedCalls.BINARY));
+        return Stream.of(Arguments.of(HEX_PREFIX), Arguments.of(NestedCalls.BINARY));
     }
 
     @BeforeEach
