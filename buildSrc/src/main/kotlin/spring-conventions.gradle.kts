@@ -46,7 +46,7 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}16")
+        tags = listOf("${image}:${project.version}20    ")
     }
 
     val existingBuildArgs = env.getOrDefault("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "")
