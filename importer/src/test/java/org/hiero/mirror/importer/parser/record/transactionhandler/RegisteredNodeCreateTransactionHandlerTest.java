@@ -3,6 +3,8 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.MIRROR_NODE;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -11,7 +13,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.node.AbstractRegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
@@ -70,9 +71,7 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
                     .isEqualTo(nodeCreate.getAdminKey().toByteArray());
             assertThat(registeredNode.getDescription()).isEqualTo(nodeCreate.getDescription());
             assertThat(registeredNode.getServiceEndpoints()).hasSize(3).allMatch(e -> e.getPort() > 0);
-            assertThat(registeredNode.getType())
-                    .containsExactlyInAnyOrder(
-                            AbstractRegisteredNode.TYPE_BLOCK_NODE, AbstractRegisteredNode.TYPE_MIRROR_NODE);
+            assertThat(registeredNode.getType()).containsExactlyInAnyOrder(BLOCK_NODE.getId(), MIRROR_NODE.getId());
         }));
 
         assertThat(recordItem.getEntityTransactions())

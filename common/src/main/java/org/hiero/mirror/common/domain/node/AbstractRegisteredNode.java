@@ -26,11 +26,6 @@ import org.hiero.mirror.common.domain.Upsertable;
 @Upsertable(history = true)
 public abstract class AbstractRegisteredNode implements History {
 
-    public static final short TYPE_BLOCK_NODE = 0;
-    public static final short TYPE_GENERAL_SERVICE = 1;
-    public static final short TYPE_MIRROR_NODE = 2;
-    public static final short TYPE_RPC_RELAY = 3;
-
     @ToString.Exclude
     private byte[] adminKey;
 

@@ -5,7 +5,7 @@ package org.hiero.mirror.common.domain;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
-import static org.hiero.mirror.common.domain.node.AbstractRegisteredNode.TYPE_BLOCK_NODE;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
 import com.google.common.collect.Range;
@@ -817,7 +817,7 @@ public class DomainBuilder {
                         .requiresTls(true)
                         .build()))
                 .timestampRange(Range.atLeast(timestamp))
-                .type(List.of(TYPE_BLOCK_NODE));
+                .type(List.of(BLOCK_NODE.getId()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 

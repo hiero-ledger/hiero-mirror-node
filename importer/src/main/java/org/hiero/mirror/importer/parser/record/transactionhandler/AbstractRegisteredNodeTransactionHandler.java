@@ -4,11 +4,8 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
-import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
-import org.hiero.mirror.common.domain.node.AbstractRegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -77,26 +74,6 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
                 .requiresTls(proto.getRequiresTls())
                 .rpcRelay(rpcRelay)
                 .build();
-    }
-
-    protected static List<Short> deriveTypesFromEndpoints(List<RegisteredServiceEndpoint> serviceEndpoints) {
-        if (serviceEndpoints == null || serviceEndpoints.isEmpty()) {
-            return List.of();
-        }
-        final var types = new TreeSet<Short>();
-        for (final var endpoint : serviceEndpoints) {
-            if (endpoint.getBlockNode() != null) {
-                types.add(AbstractRegisteredNode.TYPE_BLOCK_NODE);
-            }
-            if (endpoint.getMirrorNode() != null) {
-                types.add(AbstractRegisteredNode.TYPE_MIRROR_NODE);
-            }
-            if (endpoint.getRpcRelay() != null) {
-                types.add(AbstractRegisteredNode.TYPE_RPC_RELAY);
-            }
-        }
-
-        return List.copyOf(types);
     }
 
     private static BlockNodeApi toBlockNodeApi(

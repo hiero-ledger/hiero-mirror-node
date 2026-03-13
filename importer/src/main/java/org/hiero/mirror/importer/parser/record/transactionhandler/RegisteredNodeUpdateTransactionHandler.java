@@ -50,7 +50,7 @@ final class RegisteredNodeUpdateTransactionHandler extends AbstractRegisteredNod
                 serviceEndpoints.add(toRegisteredServiceEndpoint(endpointList.get(i)));
             }
             node.setServiceEndpoints(serviceEndpoints);
-            node.setType(deriveTypesFromEndpoints(serviceEndpoints));
+            node.setType(RegisteredServiceEndpoint.deriveTypesFromEndpoints(serviceEndpoints));
         }
 
         node.setDeleted(false);

@@ -3,6 +3,8 @@
 package org.hiero.mirror.common.domain.node;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.List;
+import java.util.TreeSet;
 import lombok.Builder;
 import lombok.Data;
 
@@ -41,4 +43,26 @@ public class RegisteredServiceEndpoint {
     public static class MirrorNodeEndpoint {}
 
     public static class RpcRelayEndpoint {}
+
+    /**
+     * Returns sorted list of unique registered node type IDs derived from the service endpoints
+     */
+    public static List<Short> deriveTypesFromEndpoints(List<RegisteredServiceEndpoint> serviceEndpoints) {
+        if (serviceEndpoints == null || serviceEndpoints.isEmpty()) {
+            return List.of();
+        }
+        final var types = new TreeSet<Short>();
+        for (final var endpoint : serviceEndpoints) {
+            if (endpoint.getBlockNode() != null) {
+                types.add(RegisteredNodeType.BLOCK_NODE.getId());
+            }
+            if (endpoint.getMirrorNode() != null) {
+                types.add(RegisteredNodeType.MIRROR_NODE.getId());
+            }
+            if (endpoint.getRpcRelay() != null) {
+                types.add(RegisteredNodeType.RPC_RELAY.getId());
+            }
+        }
+        return List.copyOf(types);
+    }
 }

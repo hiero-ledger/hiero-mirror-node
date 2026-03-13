@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -11,7 +12,6 @@ import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
-import org.hiero.mirror.common.domain.node.AbstractRegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
@@ -77,7 +77,7 @@ final class RegisteredNodeUpdateTransactionHandlerTest extends AbstractTransacti
                 assertThat(registeredNode.getServiceEndpoints())
                         .hasSizeGreaterThan(0)
                         .allMatch(e -> e.getPort() > 0);
-                assertThat(registeredNode.getType()).containsExactly(AbstractRegisteredNode.TYPE_BLOCK_NODE);
+                assertThat(registeredNode.getType()).containsExactly(BLOCK_NODE.getId());
             }
         }));
 
