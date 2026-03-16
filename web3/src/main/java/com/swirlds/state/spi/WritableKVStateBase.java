@@ -2,17 +2,12 @@
 
 package com.swirlds.state.spi;
 
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A base class for implementations of {@link WritableKVState}.
@@ -22,10 +17,6 @@ import org.hiero.mirror.web3.common.ContractCallContext;
  */
 @SuppressWarnings("unchecked")
 public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V> implements WritableKVState<K, V> {
-    /**
-     * A list of listeners to be notified of changes to the state.
-     */
-    private final List<KVChangeListener<K, V>> listeners = new ArrayList<>();
 
     /**
      * Create a new StateBase.
@@ -33,7 +24,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
      * @param serviceName The name of the service that owns the state. Cannot be null.
      * @param stateId The state id.
      */
-    protected WritableKVStateBase(@Nonnull final String serviceName, final int stateId) {
+    protected WritableKVStateBase(@NonNull final String serviceName, final int stateId) {
         super(stateId, serviceName);
     }
 
@@ -72,7 +63,7 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     /** {@inheritDoc} */
     @Override
     @Nullable
-    public final V get(@Nonnull K key) {
+    public final V get(@NonNull K key) {
         // If there is a modification, then we've already done a "put" or "remove"
         // and should return based on the modification
         final var writeCache = getWriteCacheState();
@@ -86,13 +77,13 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     /** {@inheritDoc} */
     @Nullable
     @Override
-    public V getOriginalValue(@Nonnull K key) {
+    public V getOriginalValue(@NonNull K key) {
         return super.get(key);
     }
 
     /** {@inheritDoc} */
     @Override
-    public final void put(@Nonnull final K key, @Nonnull final V value) {
+    public final void put(@NonNull final K key, @NonNull final V value) {
         Objects.requireNonNull(key);
         Objects.requireNonNull(value);
         getWriteCacheState().put(key, value);
@@ -100,47 +91,13 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
 
     /** {@inheritDoc} */
     @Override
-    public final void remove(@Nonnull final K key) {
+    public final void remove(@NonNull final K key) {
         Objects.requireNonNull(key);
         getWriteCacheState().put(key, null);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>This is a bit of a pain, because we have to take into account modifications! If a key has
-     * been removed, then it must be omitted during iteration. If a key has been added, then it must
-     * be added into iteration.
-     *
-     * @return An iterator that iterates over all known keys.
-     */
-    @Nonnull
-    @Override
-    public Iterator<K> keys() {
-        // Capture the set of keys that have been removed, and the set of keys that have been added.
-        final var removedKeys = new HashSet<K>();
-        final var maybeAddedKeys = new HashSet<K>();
-        for (final var mod : getWriteCacheState().entrySet()) {
-            final var key = mod.getKey();
-            final var val = mod.getValue();
-            if (val == null) {
-                removedKeys.add((K) key);
-            } else {
-                maybeAddedKeys.add((K) key);
-            }
-        }
-
-        // Get the iterator from the backing store
-        final var backendItr = super.keys();
-
-        // Create and return a special iterator which will only include those keys that
-        // have NOT been removed, ARE in the backendItr, and includes keys that HAVE
-        // been added (i.e. are not in the backendItr).
-        return new KVStateKeyIterator<>(backendItr, removedKeys, maybeAddedKeys);
-    }
-
     /** {@inheritDoc} */
-    @Nonnull
+    @NonNull
     @Override
     public final Set<K> modifiedKeys() {
         return (Set<K>) getWriteCacheState().keySet();
@@ -180,28 +137,19 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
     }
 
     /**
-     * Reads from the underlying data source in such a way as to cause any fast-copyable data
-     * structures underneath to make a fast copy.
-     *
-     * @param key key to read from state
-     * @return The value read from the underlying data source. May be null.
-     */
-    protected abstract V getForModifyFromDataSource(@Nonnull K key);
-
-    /**
      * Puts the given key/value pair into the underlying data source.
      *
      * @param key key to update
      * @param value value to put
      */
-    protected abstract void putIntoDataSource(@Nonnull K key, @Nonnull V value);
+    protected abstract void putIntoDataSource(@NonNull K key, @NonNull V value);
 
     /**
      * Removes the given key and implicit value from the underlying data source.
      *
      * @param key key to remove from the underlying data source
      */
-    protected abstract void removeFromDataSource(@Nonnull K key);
+    protected abstract void removeFromDataSource(@NonNull K key);
 
     /**
      * Returns the size of the underlying data source. This can be a merkle map or a virtual map.
@@ -211,82 +159,5 @@ public abstract class WritableKVStateBase<K, V> extends ReadableKVStateBase<K, V
 
     private Map<Object, Object> getWriteCacheState() {
         return ContractCallContext.get().getWriteCacheState(getStateId());
-    }
-
-    /**
-     * A special iterator which includes all keys in the backend iterator, and all keys that have
-     * been added but are not part of the backend iterator, and excludes all keys that have been
-     * removed (even if they are in the backend iterator).
-     *
-     * <p>For each key it gets back from the backing store, it must inspect that key to see if it is
-     * in the removedKeys or maybeAddedKeys. If it is in the removedKeys, then we don't return it to
-     * the caller, and pump another key from the backing store iterator to check instead. If it is
-     * in maybeAddedKeys, then remove it from maybeAddedKeys (since it is clearly not added) and
-     * then return it to the caller. At the very end, when the backing store iterator tells us it is
-     * out of keys, we start going through everything in maybeAddedKeys.
-     *
-     * <p>This iterator is not fail-fast.
-     *
-     * @param <K> The type of key
-     */
-    private static final class KVStateKeyIterator<K> implements Iterator<K> {
-        private final Iterator<K> backendItr;
-        private final Set<K> removedKeys;
-        private final Set<K> maybeAddedKeys;
-        private Iterator<K> addedItr;
-        private K next;
-
-        private KVStateKeyIterator(
-                @Nonnull final Iterator<K> backendItr,
-                @Nonnull final Set<K> removedKeys,
-                @Nonnull final Set<K> maybeAddedKeys) {
-            this.backendItr = backendItr;
-            this.removedKeys = removedKeys;
-            this.maybeAddedKeys = maybeAddedKeys;
-        }
-
-        @Override
-        public boolean hasNext() {
-            prepareNext();
-            return next != null;
-        }
-
-        @Override
-        public K next() {
-            prepareNext();
-
-            if (next == null) {
-                throw new NoSuchElementException();
-            }
-
-            final var ret = next;
-            next = null;
-            return ret;
-        }
-
-        private void prepareNext() {
-            while (next == null) {
-                if (backendItr.hasNext()) {
-                    final var candidate = backendItr.next();
-                    maybeAddedKeys.remove(candidate);
-                    if (removedKeys.contains(candidate)) {
-                        continue;
-                    }
-                    next = candidate;
-                    return;
-                }
-
-                if (addedItr == null) {
-                    addedItr = maybeAddedKeys.iterator();
-                }
-
-                if (addedItr.hasNext()) {
-                    next = addedItr.next();
-                }
-
-                // If we get here, then there is nothing.
-                return;
-            }
-        }
     }
 }
