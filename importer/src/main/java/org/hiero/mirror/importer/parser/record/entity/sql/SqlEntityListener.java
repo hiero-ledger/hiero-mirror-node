@@ -757,6 +757,10 @@ public class SqlEntityListener implements EntityListener, RecordStreamFileListen
             current.setServiceEndpoints(previous.getServiceEndpoints());
         }
 
+        if (current.getType() == null) {
+            current.setType(previous.getType());
+        }
+
         return current;
     }
 

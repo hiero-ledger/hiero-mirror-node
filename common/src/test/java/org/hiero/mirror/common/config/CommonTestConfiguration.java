@@ -18,7 +18,7 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.flyway.autoconfigure.FlywayProperties;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
@@ -27,6 +27,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.lifecycle.TestcontainersStartup;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Scope;
 import org.springframework.transaction.support.TransactionOperations;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.output.OutputFrame;
@@ -34,26 +35,25 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+@RequiredArgsConstructor
 @TestConfiguration(proxyBeanMethods = false)
 public class CommonTestConfiguration {
 
     public static final String POSTGRESQL = "postgresql";
 
+    private final CommonProperties commonProperties;
+
     @Value("#{environment.matchesProfiles('v2')}")
     private boolean v2;
 
     @Bean
-    DomainBuilder domainBuilder(
-            CommonProperties commonProperties,
-            EntityManager entityManager,
-            TransactionOperations transactionOperations) {
+    DomainBuilder domainBuilder(EntityManager entityManager, TransactionOperations transactionOperations) {
         return new DomainBuilder(commonProperties, entityManager, transactionOperations);
     }
 
     @Bean
-    @ConditionalOnClass(name = "org.hyperledger.besu.evm.log.LogTopic")
-    // LogTopic is arbitrary we use it to load this bean only if besu is present in the classpath
-    RecordItemBuilder recordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    RecordItemBuilder recordItemBuilder(SystemEntity systemEntity) {
         return new RecordItemBuilder(commonProperties, systemEntity);
     }
 

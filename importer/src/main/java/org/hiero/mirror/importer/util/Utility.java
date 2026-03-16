@@ -2,9 +2,6 @@
 
 package org.hiero.mirror.importer.util;
 
-import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.CONTEXT;
-import static org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1.SECP256K1_EC_UNCOMPRESSED;
-
 import com.google.common.base.CaseFormat;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
@@ -15,7 +12,6 @@ import com.hederahashgraph.api.proto.java.ContractLoginfo;
 import com.hederahashgraph.api.proto.java.Key;
 import com.hederahashgraph.api.proto.java.Timestamp;
 import com.hederahashgraph.api.proto.java.TransactionID;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -28,10 +24,11 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.bouncycastle.jcajce.provider.digest.Keccak;
+import org.bouncycastle.crypto.digests.KeccakDigest;
+import org.bouncycastle.crypto.ec.CustomNamedCurves;
+import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.exception.ParserException;
-import org.hyperledger.besu.nativelib.secp256k1.LibSecp256k1;
 import org.slf4j.helpers.MessageFormatter;
 
 @CustomLog
@@ -43,9 +40,18 @@ public class Utility {
     public static final Instant MAX_INSTANT_LONG = Instant.ofEpochSecond(0, Long.MAX_VALUE);
     public static final String HALT_ON_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_PARSER_HALTONERROR";
     public static final String HALT_ON_DOWNLOADER_ERROR_PROPERTY = "HIERO_MIRROR_IMPORTER_DOWNLOADER_HALTONERROR";
+
     static final String RECOVERABLE_ERROR = "Recoverable error. ";
     static final String HALT_ON_ERROR_DEFAULT = "false";
+
     private static final int ECDSA_SECP256K1_COMPRESSED_KEY_LENGTH = 33;
+    private static final ECDomainParameters EC_DOMAIN_PARAMETERS;
+
+    static {
+        final var curveParams = CustomNamedCurves.getByName("secp256k1");
+        EC_DOMAIN_PARAMETERS = new ECDomainParameters(
+                curveParams.getCurve(), curveParams.getG(), curveParams.getN(), curveParams.getH());
+    }
 
     /**
      * Converts an ECDSA secp256k1 alias to a 20 byte EVM address by taking the keccak hash of it. Logic copied from
@@ -128,7 +134,9 @@ public class Utility {
             log.trace("Archived file to {}", destination);
         } catch (Exception e) {
             log.error("Error archiving file to {}", destination, e);
-            if (Boolean.parseBoolean(System.getProperty(HALT_ON_DOWNLOADER_ERROR_PROPERTY))) System.exit(-1);
+            if (Boolean.parseBoolean(System.getProperty(HALT_ON_DOWNLOADER_ERROR_PROPERTY))) {
+                System.exit(-1);
+            }
         }
     }
 
@@ -225,31 +233,22 @@ public class Utility {
     // This method is copied from consensus node's EthTxSigs::recoverAddressFromPubKey and should be kept in sync
     @SuppressWarnings("java:S1168")
     private static byte[] recoverAddressFromPubKey(byte[] pubKeyBytes) {
-        LibSecp256k1.secp256k1_pubkey pubKey = new LibSecp256k1.secp256k1_pubkey();
-        var parseResult = LibSecp256k1.secp256k1_ec_pubkey_parse(CONTEXT, pubKey, pubKeyBytes, pubKeyBytes.length);
-        if (parseResult == 1) {
-            return recoverAddressFromPubKey(pubKey);
-        } else {
-            return null;
+        final var point = EC_DOMAIN_PARAMETERS.getCurve().decodePoint(pubKeyBytes);
+
+        if (!point.isValid()) {
+            throw new IllegalArgumentException("Invalid public key: point is not on the secp256k1 curve");
         }
-    }
 
-    // This method is copied from consensus node's EthTxSigs::recoverAddressFromPubKey and should be kept in sync
-    @SuppressWarnings("java:S1191")
-    private static byte[] recoverAddressFromPubKey(LibSecp256k1.secp256k1_pubkey pubKey) {
-        final ByteBuffer recoveredFullKey = ByteBuffer.allocate(65);
-        int value = recoveredFullKey.limit();
-        final com.sun.jna.ptr.LongByReference fullKeySize = new com.sun.jna.ptr.LongByReference(value);
-        LibSecp256k1.secp256k1_ec_pubkey_serialize(
-                CONTEXT, recoveredFullKey, fullKeySize, pubKey, SECP256K1_EC_UNCOMPRESSED);
+        final var uncompressed = point.normalize().getEncoded(false);
+        final var raw64 = Arrays.copyOfRange(uncompressed, 1, 65);
 
-        recoveredFullKey.get(); // read and discard - recoveryId is not part of the account hash
-        var preHash = new byte[64];
-        recoveredFullKey.get(preHash, 0, 64);
-        var keyHash = new Keccak.Digest256().digest(preHash);
-        var address = new byte[20];
-        System.arraycopy(keyHash, 12, address, 0, 20);
-        return address;
+        final var digest = new KeccakDigest(256);
+        digest.update(raw64, 0, raw64.length);
+
+        final var hash = new byte[32];
+        digest.doFinal(hash, 0);
+
+        return Arrays.copyOfRange(hash, 12, 32);
     }
 
     private static byte[] stripHexPrefix(byte[] data) {

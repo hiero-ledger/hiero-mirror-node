@@ -3,18 +3,14 @@
 package org.hiero.mirror.importer.parser.contractlog;
 
 import jakarta.inject.Named;
-import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
 import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.domain.contract.ContractLog;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
-import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.log.Log;
-import org.hyperledger.besu.evm.log.LogTopic;
-import org.hyperledger.besu.evm.log.LogsBloomFilter;
 
 @Named
 @RequiredArgsConstructor
@@ -88,9 +84,9 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
     }
 
     /**
-     * Checks if the given TransferContractLog matches an existing contract log in the record itself or
-     * in the parent record item and consumes one occurrence of the matching log. This handles the case where the
-     * same contract log appears multiple times in the child records as being part of different operations.
+     * Checks if the given TransferContractLog matches an existing contract log in the record itself or in the parent
+     * record item and consumes one occurrence of the matching log. This handles the case where the same contract log
+     * appears multiple times in the child records as being part of different operations.
      *
      * @param transferLog the TransferContractLog to check
      * @return true if a matching log is found and it is already persisted, false otherwise
@@ -113,23 +109,13 @@ public class SyntheticContractLogServiceImpl implements SyntheticContractLogServ
      * @return the bloom filter as a byte array
      */
     private byte[] createBloom(SyntheticContractLog log) {
-        var logger = Address.wrap(Bytes.wrap(DomainUtils.toEvmAddress(log.getEntityId())));
-        var topics = new ArrayList<LogTopic>();
-
-        addTopicIfPresent(topics, log.getTopic0());
-        addTopicIfPresent(topics, log.getTopic1());
-        addTopicIfPresent(topics, log.getTopic2());
-        addTopicIfPresent(topics, log.getTopic3());
-
-        var data = log.getData() != null ? Bytes.wrap(log.getData()) : Bytes.EMPTY;
-        var besuLog = new Log(logger, data, topics);
-
-        return LogsBloomFilter.builder().insertLog(besuLog).build().toArray();
-    }
-
-    private void addTopicIfPresent(ArrayList<LogTopic> topics, byte[] topic) {
-        if (topic != null) {
-            topics.add(LogTopic.wrap(Bytes.wrap(DomainUtils.leftPadBytes(topic, TOPIC_SIZE_BYTES))));
-        }
+        final var evmAddress = DomainUtils.toEvmAddress(log.getEntityId());
+        final var logsBloomFilter = new LogsBloomFilter();
+        logsBloomFilter.insertAddress(evmAddress);
+        logsBloomFilter.insertTopic(log.getTopic0());
+        logsBloomFilter.insertTopic(log.getTopic1());
+        logsBloomFilter.insertTopic(log.getTopic2());
+        logsBloomFilter.insertTopic(log.getTopic3());
+        return logsBloomFilter.toArrayUnsafe();
     }
 }

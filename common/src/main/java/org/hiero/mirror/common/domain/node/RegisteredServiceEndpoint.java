@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.common.domain.node;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Data;
@@ -41,4 +42,16 @@ public class RegisteredServiceEndpoint {
     public static class MirrorNodeEndpoint {}
 
     public static class RpcRelayEndpoint {}
+
+    @JsonIgnore
+    public RegisteredNodeType getType() {
+        if (blockNode != null) {
+            return RegisteredNodeType.BLOCK_NODE;
+        } else if (mirrorNode != null) {
+            return RegisteredNodeType.MIRROR_NODE;
+        } else if (rpcRelay != null) {
+            return RegisteredNodeType.RPC_RELAY;
+        }
+        return RegisteredNodeType.GENERAL_SERVICE;
+    }
 }
