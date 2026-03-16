@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import crypto from 'crypto';
-import _ from 'lodash-es';
+import _ from 'lodash';
 
 import {ETH_HASH_LENGTH} from '../../constants';
 import {getTransactionHash} from '../../transactionHash';

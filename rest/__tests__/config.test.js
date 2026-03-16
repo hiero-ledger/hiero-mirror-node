@@ -5,7 +5,7 @@ import {jest} from '@jest/globals';
 import os from 'os';
 import path from 'path';
 import yaml from 'js-yaml';
-import _ from 'lodash-es';
+import _ from 'lodash';
 
 let tempDir;
 const custom = {

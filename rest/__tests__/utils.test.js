@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import {jest} from '@jest/globals';

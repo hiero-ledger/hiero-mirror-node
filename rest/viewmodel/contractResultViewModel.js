@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, toArray} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import toArray from 'lodash/toArray';
 import EntityId from '../entityId';
 import {nsToSecNs, toHexString} from '../utils';
 import {proto} from '@hiero-ledger/proto';
