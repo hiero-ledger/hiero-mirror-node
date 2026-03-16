@@ -14,12 +14,17 @@ import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
+import org.springframework.context.ApplicationEventPublisher;
 
 final class RegisteredNodeUpdateTransactionHandlerTest extends AbstractTransactionHandlerTest {
 
+    @Mock
+    private ApplicationEventPublisher applicationEventPublisher;
+
     @Override
     protected TransactionHandler getTransactionHandler() {
-        return new RegisteredNodeUpdateTransactionHandler(entityListener);
+        return new RegisteredNodeUpdateTransactionHandler(applicationEventPublisher, entityListener);
     }
 
     @Override

@@ -15,12 +15,15 @@ import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.RpcRelayEnd
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
+import org.springframework.context.ApplicationEventPublisher;
 
 @RequiredArgsConstructor
 abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransactionHandler {
 
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final EntityListener entityListener;
 
     protected abstract RegisteredNode parseRegisteredNode(RecordItem recordItem);
@@ -30,6 +33,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         final var registeredNode = parseRegisteredNode(recordItem);
         if (registeredNode != null) {
             entityListener.onRegisteredNode(registeredNode);
+            applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
         }
     }
 

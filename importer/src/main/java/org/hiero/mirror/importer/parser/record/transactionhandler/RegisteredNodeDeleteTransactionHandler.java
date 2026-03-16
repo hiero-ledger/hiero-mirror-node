@@ -8,12 +8,14 @@ import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
+import org.springframework.context.ApplicationEventPublisher;
 
 @Named
 final class RegisteredNodeDeleteTransactionHandler extends AbstractRegisteredNodeTransactionHandler {
 
-    RegisteredNodeDeleteTransactionHandler(EntityListener entityListener) {
-        super(entityListener);
+    RegisteredNodeDeleteTransactionHandler(
+            ApplicationEventPublisher applicationEventPublisher, EntityListener entityListener) {
+        super(applicationEventPublisher, entityListener);
     }
 
     @Override

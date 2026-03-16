@@ -16,13 +16,13 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
-            .thenComparing(BlockNodeProperties::getEffectiveStatusHost)
-            .thenComparing(BlockNodeProperties::getEffectiveStreamingHost)
+            .thenComparing(BlockNodeProperties::getStatusHost)
+            .thenComparing(BlockNodeProperties::getStreamingHost)
             .thenComparing(BlockNodeProperties::getStatusPort)
             .thenComparing(BlockNodeProperties::getStreamingPort);
 
     /**
-     * Primary host for status and streaming. Used when statusHost or streamingHost are not set.
+     * Used for status and streaming (when streamingHost is not set)
      */
     @NotBlank
     private String host;
@@ -33,6 +33,7 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     private boolean statusApiRequireTls;
 
     private boolean streamingApiRequireTls;
+
     private String statusHost;
 
     @Max(65535)
@@ -50,19 +51,19 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
         return COMPARATOR.compare(this, other);
     }
 
-    public String getEffectiveStatusHost() {
-        return StringUtils.isNotBlank(statusHost) ? statusHost : host;
+    public String getStatusHost() {
+        return host;
     }
 
-    public String getEffectiveStreamingHost() {
+    public String getStreamingHost() {
         return StringUtils.isNotBlank(streamingHost) ? streamingHost : host;
     }
 
     public String getStatusEndpoint() {
-        return getEffectiveStatusHost() + ":" + statusPort;
+        return host + ":" + statusPort;
     }
 
     public String getStreamingEndpoint() {
-        return getEffectiveStreamingHost() + ":" + streamingPort;
+        return getStreamingHost() + ":" + streamingPort;
     }
 }

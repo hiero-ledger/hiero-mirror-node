@@ -55,7 +55,6 @@ final class CompositeBlockSourceTest {
                 BlockSourceType.FILE,
                 blockFileSource);
         doReturn(true).when(cutoverService).isActive(StreamType.BLOCK);
-        doReturn(true).when(blockNodeSubscriber).hasBlockNodes();
     }
 
     @Test
@@ -113,7 +112,6 @@ final class CompositeBlockSourceTest {
         // given
         properties.setNodes(Collections.emptyList());
         properties.setAutoDiscoveryEnabled(false);
-        doReturn(false).when(blockNodeSubscriber).hasBlockNodes();
 
         // when
         source.get();

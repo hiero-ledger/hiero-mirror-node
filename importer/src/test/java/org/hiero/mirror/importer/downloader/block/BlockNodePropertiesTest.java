@@ -39,7 +39,6 @@ final class BlockNodePropertiesTest {
     void differentHostsForStatusAndStreaming() {
         final var properties = new BlockNodeProperties();
         properties.setHost("status.example.com");
-        properties.setStatusHost("status.example.com");
         properties.setStatusPort(40840);
         properties.setStreamingHost("stream.example.com");
         properties.setStreamingPort(40841);
@@ -48,20 +47,11 @@ final class BlockNodePropertiesTest {
     }
 
     @Test
-    void hostUsedForStatusWhenStatusHostNotSet() {
-        var properties = new BlockNodeProperties();
-        properties.setHost("default.example.com");
-        properties.setStatusPort(40840);
-        assertThat(properties.getEffectiveStatusHost()).isEqualTo("default.example.com");
-        assertThat(properties.getStatusEndpoint()).isEqualTo("default.example.com:40840");
-    }
-
-    @Test
     void hostUsedForStreamingWhenStreamingHostNotSet() {
         var properties = new BlockNodeProperties();
         properties.setHost("default.example.com");
         properties.setStreamingPort(40841);
-        assertThat(properties.getEffectiveStreamingHost()).isEqualTo("default.example.com");
+        assertThat(properties.getStreamingHost()).isEqualTo("default.example.com");
         assertThat(properties.getStreamingEndpoint()).isEqualTo("default.example.com:40841");
     }
 }

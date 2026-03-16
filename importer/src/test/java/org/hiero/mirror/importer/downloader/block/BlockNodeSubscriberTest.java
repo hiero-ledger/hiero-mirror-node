@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -81,11 +82,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         servers = new HashMap<>();
         statusCalls = new HashMap<>();
         streamCalls = new HashMap<>();
-        blockProperties.setNodes(List.of(
+        final var configNodes = List.of(
                 blockNodeProperties(0, SERVER_NAMES[0]),
                 blockNodeProperties(0, SERVER_NAMES[1]),
-                blockNodeProperties(1, SERVER_NAMES[2])));
-        doReturn(List.of()).when(blockNodeDiscoveryService).discover();
+                blockNodeProperties(1, SERVER_NAMES[2]));
+        blockProperties.setNodes(configNodes);
+        doReturn(configNodes).when(blockNodeDiscoveryService).getBlockNodesPropertiesList(any());
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,
@@ -142,17 +144,13 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @Test
     void getWithMergeAndDeduplication(Resources resources) {
-        // given: config has test1, discovery returns test1 (dup) and test2 (new) - merge, dedupe by streaming endpoint
+        // given: config has test1, merged result has config (test1) + test2 - config wins for test1
         final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
         final var configNode = blockNodeProperties(0, SERVER_NAMES[0]);
         blockProperties.setNodes(List.of(configNode));
-        final var discovered1 =
-                blockNodeProperties(1, SERVER_NAMES[0]); // same streaming endpoint test1:40840 as config
-        final var discovered2 = blockNodeProperties(2, SERVER_NAMES[1]); // different streaming endpoint test2:40840
-        doReturn(List.of(discovered1, discovered2))
-                .when(blockNodeDiscoveryService)
-                .discover();
+        final var discovered2 = blockNodeProperties(2, SERVER_NAMES[1]);
+        final var mergedNodes = List.of(configNode, discovered2);
+        doReturn(mergedNodes).when(blockNodeDiscoveryService).getBlockNodesPropertiesList(any());
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,
@@ -163,7 +161,6 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockProperties,
                 meterRegistry);
         // merged: config (test1:40840) wins over discovered1, discovered2 (test2:40840) added = 2 nodes
-        assertThat(blockNodeSubscriber.hasBlockNodes()).isTrue();
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
         doReturn(Optional.of(RecordFile.builder().index(5L).build()))
                 .when(cutoverService)
@@ -187,11 +184,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
     @Test
     void getWithAutoDiscovery(Resources resources) {
-        // given: auto-discovery enabled, discovery returns a node
+        // given: merged nodes from discovery service returns a node
+        clearInvocations(blockNodeDiscoveryService);
         final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
-        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
         var discoveredProps = blockNodeProperties(0, SERVER_NAMES[0]);
-        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).discover();
+        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).getBlockNodesPropertiesList(any());
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,
@@ -217,7 +215,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         // then: uses discovered node
         verify(blockStreamReader).read(any());
-        verify(blockNodeDiscoveryService).discover();
+        verify(blockNodeDiscoveryService).getBlockNodesPropertiesList(any());
     }
 
     @Test
