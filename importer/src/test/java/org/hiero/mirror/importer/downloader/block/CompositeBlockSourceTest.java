@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
@@ -37,6 +39,9 @@ final class CompositeBlockSourceTest {
     @Mock(strictness = LENIENT)
     private CutoverService cutoverService;
 
+    @Mock(strictness = LENIENT)
+    private BlockNodeDiscoveryService blockNodeDiscoveryService;
+
     private BlockProperties properties;
     private CompositeBlockSource source;
     private Map<BlockSourceType, BlockSource> sources;
@@ -46,7 +51,10 @@ final class CompositeBlockSourceTest {
         properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, cutoverService, properties);
+        when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any()))
+                .thenReturn(List.of(new BlockNodeProperties()));
+        source = new CompositeBlockSource(
+                blockFileSource, blockNodeSubscriber, blockNodeDiscoveryService, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,
@@ -109,9 +117,8 @@ final class CompositeBlockSourceTest {
 
     @Test
     void getAutoNoBlockNodes() {
-        // given
-        properties.setNodes(Collections.emptyList());
-        properties.setAutoDiscoveryEnabled(false);
+        // given - discovery service returns empty (no config nodes, no discovered nodes)
+        when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any())).thenReturn(Collections.emptyList());
 
         // when
         source.get();

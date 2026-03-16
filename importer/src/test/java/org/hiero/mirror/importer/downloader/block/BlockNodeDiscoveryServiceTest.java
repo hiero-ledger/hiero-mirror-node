@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyShort;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
@@ -29,7 +31,8 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverReturnsEmptyWhenNoNodes() {
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of());
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of());
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         assertThat(service.discover()).isEmpty();
     }
@@ -63,7 +66,8 @@ final class BlockNodeDiscoveryServiceTest {
                                 .build()))
                 .build();
 
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(registeredNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -111,7 +115,8 @@ final class BlockNodeDiscoveryServiceTest {
                                 .build()))
                 .build();
 
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(registeredNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -136,7 +141,8 @@ final class BlockNodeDiscoveryServiceTest {
                         .build()))
                 .build();
 
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(registeredNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -158,7 +164,8 @@ final class BlockNodeDiscoveryServiceTest {
                         .build()))
                 .build();
 
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(registeredNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -177,10 +184,10 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(configNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.getBlockNodesPropertiesList(blockProperties);
+        final var result = service.getBlockNodesConfigProperties(blockProperties);
 
         assertThat(result).containsExactly(configNode);
-        verify(registeredNodeRepository, never()).findAllByDeletedFalse();
+        verify(registeredNodeRepository, never()).findByDeletedFalseAndTypeContains(anyShort());
     }
 
     @Test
@@ -212,7 +219,8 @@ final class BlockNodeDiscoveryServiceTest {
                                 .build()))
                 .build();
 
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(registeredNode));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setAutoDiscoveryEnabled(true);
@@ -223,24 +231,26 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(configNode));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.getBlockNodesPropertiesList(blockProperties);
+        final var result = service.getBlockNodesConfigProperties(blockProperties);
 
         assertThat(result).hasSize(2);
         assertThat(result.getFirst().getStreamingEndpoint()).isEqualTo("config.example.com:40842");
-        verify(registeredNodeRepository).findAllByDeletedFalse();
+        verify(registeredNodeRepository).findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }
 
     @Test
     void onRegisteredNodeChangedInvalidatesCache() {
-        when(registeredNodeRepository.findAllByDeletedFalse()).thenReturn(List.of());
+        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of());
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
 
         service.discover();
         service.discover();
-        verify(registeredNodeRepository).findAllByDeletedFalse();
+        verify(registeredNodeRepository).findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
 
         service.onRegisteredNodeChanged(new RegisteredNodeChangedEvent(service));
         service.discover();
-        verify(registeredNodeRepository, times(2)).findAllByDeletedFalse();
+        verify(registeredNodeRepository, times(2))
+                .findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }
 }

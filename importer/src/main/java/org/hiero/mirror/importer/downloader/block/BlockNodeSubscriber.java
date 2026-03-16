@@ -22,12 +22,14 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockNodeSubscriber extends AbstractBlockSource implements AutoCloseable {
 
+    private static final List<BlockNode> EMPTY = Collections.unmodifiableList(new ArrayList<>());
+
     private final ManagedChannelBuilderProvider channelBuilderProvider;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
     private final MeterRegistry meterRegistry;
     private final ExecutorService executor;
 
-    private final AtomicReference<List<BlockNode>> nodes = new AtomicReference<>(Collections.emptyList());
+    private final AtomicReference<List<BlockNode>> nodes = new AtomicReference<>(EMPTY);
 
     BlockNodeSubscriber(
             final BlockStreamReader blockStreamReader,
@@ -85,7 +87,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
      * (e.g. due to config or discovery updates).
      */
     private synchronized List<BlockNode> getBlockNodes() {
-        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesPropertiesList(properties).stream()
+        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties(properties).stream()
                 .sorted()
                 .toList();
 

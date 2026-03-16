@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
@@ -36,23 +37,24 @@ public class BlockNodeDiscoveryService {
     private final AtomicReference<List<BlockNodeProperties>> blockNodesCache = new AtomicReference<>();
 
     /**
-     * Returns combined block node properties from config and auto-discovered nodes.
+     * Returns a list of block nodes properties. It starts with config file properties, followed
+     * by auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
+     * properties if there are conflicts (i.e. same streaming endpoint).
      */
-    public List<BlockNodeProperties> getBlockNodesPropertiesList(BlockProperties blockProperties) {
-        final Map<String, BlockNodeProperties> streamingEndpointPropertiesMap = new LinkedHashMap<>();
+    public List<BlockNodeProperties> getBlockNodesConfigProperties(BlockProperties blockProperties) {
+        final Map<String, BlockNodeProperties> configurationsMap = new LinkedHashMap<>();
 
-        for (final var blockNodeProperties : blockProperties.getNodes()) {
-            streamingEndpointPropertiesMap.put(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties);
+        for (final var configFileNodeProperties : blockProperties.getNodes()) {
+            configurationsMap.put(configFileNodeProperties.getStreamingEndpoint(), configFileNodeProperties);
         }
         if (blockProperties.isAutoDiscoveryEnabled()) {
             final var blockNodePropertiesList = discover();
             for (final var blockNodeProperties : blockNodePropertiesList) {
-                streamingEndpointPropertiesMap.putIfAbsent(
-                        blockNodeProperties.getStreamingEndpoint(), blockNodeProperties);
+                configurationsMap.put(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties);
             }
         }
 
-        return new ArrayList<>(streamingEndpointPropertiesMap.values());
+        return new ArrayList<>(configurationsMap.values());
     }
 
     /**
@@ -65,7 +67,8 @@ public class BlockNodeDiscoveryService {
         }
 
         try {
-            final var registeredNodes = registeredNodeRepository.findAllByDeletedFalse();
+            final var registeredNodes = registeredNodeRepository.findByDeletedFalseAndTypeContains(
+                    RegisteredNodeType.BLOCK_NODE.getValue());
 
             final List<BlockNodeProperties> propertiesList = new ArrayList<>(registeredNodes.size());
             for (final var node : registeredNodes) {
