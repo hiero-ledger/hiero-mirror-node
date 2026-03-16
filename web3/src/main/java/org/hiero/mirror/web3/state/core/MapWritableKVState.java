@@ -16,16 +16,17 @@ public class MapWritableKVState<K, V> extends WritableKVStateBase<K, V> {
             @NonNull final String serviceName,
             final int stateId,
             @NonNull final ReadableKVState<K, V> readableBackingStore) {
-        super(
-                stateId,
-                serviceName,
-                new ForwardingWritableKVStateBase<>(stateId),
-                new ForwardingReadableKVStateBase<>(stateId));
+        super(serviceName, stateId);
         this.readableBackingStore = Objects.requireNonNull(readableBackingStore);
     }
 
     @Override
     protected V readFromDataSource(@NonNull K key) {
+        return readableBackingStore.get(key);
+    }
+
+    @Override
+    protected V getForModifyFromDataSource(@NonNull K key) {
         return readableBackingStore.get(key);
     }
 
