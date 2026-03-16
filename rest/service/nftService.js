@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
 
 import BaseService from './baseService';
 import {filterKeys} from '../constants';

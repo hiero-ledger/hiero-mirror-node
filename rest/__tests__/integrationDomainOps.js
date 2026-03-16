@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
 import {proto} from '@hiero-ledger/proto';
@@ -695,7 +695,7 @@ const ethereumTransactionDefaults = {
   consensus_timestamp: '187654000123456',
   data: '0x000000000',
   gas_limit: 1000000,
-  gas_price: '0x4a817c80',
+  gas_price: '0xAD78EBC5AC620000',
   hash: '0x0000000000000000000000000000000000000000000000000000000000000123',
   max_fee_per_gas: null,
   max_gas_allowance: 10000,

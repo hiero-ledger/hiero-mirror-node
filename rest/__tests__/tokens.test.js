@@ -6,7 +6,7 @@ import * as utils from '../utils';
 import {opsMap} from '../utils';
 import {assertSqlQueryEqual} from './testutils';
 import tokens from '../tokens';
-import _ from 'lodash-es';
+import _ from 'lodash';
 import CustomFee from '../model/customFee.js';
 import Entity from '../model/entity.js';
 import Token from '../model/token.js';

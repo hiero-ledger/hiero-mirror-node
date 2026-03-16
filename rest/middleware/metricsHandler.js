@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import extend from 'extend';
-import {cloneDeep} from 'lodash-es';
+import cloneDeep from 'lodash/cloneDeep';
 import swStats from 'swagger-stats';
 import url from 'url';
 

@@ -7,9 +7,7 @@ import com.google.common.collect.Range;
 import jakarta.persistence.Column;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import java.util.Collections;
 import java.util.List;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -42,9 +40,8 @@ public abstract class AbstractNode implements History {
 
     private boolean deleted;
 
-    @Builder.Default
     @JsonSerialize(using = ListToStringSerializer.class)
-    private List<Long> associatedRegisteredNodes = Collections.emptyList();
+    private List<Long> associatedRegisteredNodes;
 
     @JsonSerialize(using = ObjectToStringSerializer.class)
     @JdbcTypeCode(SqlTypes.JSON)

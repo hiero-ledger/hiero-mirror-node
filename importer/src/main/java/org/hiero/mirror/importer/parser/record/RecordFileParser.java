@@ -18,11 +18,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.config.DateRangeCalculator;
 import org.hiero.mirror.importer.parser.AbstractStreamFileParser;
 import org.hiero.mirror.importer.parser.record.entity.ParserContext;
@@ -198,7 +198,7 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
 
     private class RecordItemAggregator implements Consumer<RecordItem> {
 
-        private final LogsBloomAggregator logsBloom = new LogsBloomAggregator();
+        private final LogsBloomFilter logsBloom = new LogsBloomFilter();
         private long gasUsed = 0L;
 
         @Override
@@ -215,13 +215,13 @@ public class RecordFileParser extends AbstractStreamFileParser<RecordFile> {
             }
 
             gasUsed += result.getGasUsed();
-            logsBloom.aggregate(DomainUtils.toBytes(result.getBloom()));
+            logsBloom.or(DomainUtils.toBytes(result.getBloom()));
         }
 
         public void update(RecordFile recordFile) {
             recordFile.setGasUsed(gasUsed);
             recordFile.setLoadEnd(System.currentTimeMillis());
-            recordFile.setLogsBloom(logsBloom.getBloom());
+            recordFile.setLogsBloom(logsBloom.toArrayUnsafe());
         }
     }
 }
