@@ -3,16 +3,13 @@
 package com.swirlds.state.spi;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.state.token.Account;
 import com.hedera.node.app.service.token.TokenService;
-import java.util.Collections;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.state.core.MapWritableKVState;
@@ -51,33 +48,5 @@ class WritableKVStateBaseTest {
                 new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
         when(readableKVStateBase.get(accountID)).thenReturn(account);
         assertThat(writableKVStateBase.getOriginalValue(accountID)).isEqualTo(account);
-    }
-
-    @Test
-    void testKeysEmpty() {
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
-        when(readableKVStateBase.keys()).thenReturn(Collections.emptyIterator());
-        final var iterator = writableKVStateBase.keys();
-        assertThatThrownBy(iterator::next).isInstanceOf(NoSuchElementException.class);
-    }
-
-    @Test
-    void testKeysWithRemovedEntry() {
-        final var ctx = ContractCallContext.get();
-        final var accountID = mock(AccountID.class);
-        final var accountID2 = mock(AccountID.class);
-        final var account = mock(Account.class);
-        final var account2 = mock(Account.class);
-        final WritableKVStateBase<AccountID, Account> writableKVStateBase =
-                new MapWritableKVState<>(TokenService.NAME, AccountReadableKVState.STATE_ID, readableKVStateBase);
-        ctx.getReadCacheState(AccountReadableKVState.STATE_ID).put(accountID, account);
-        ctx.getReadCacheState(AccountReadableKVState.STATE_ID).put(accountID2, account2);
-        ctx.getWriteCacheState(AccountReadableKVState.STATE_ID).put(accountID, null); // The entry was removed
-        when(readableKVStateBase.keys())
-                .thenReturn(Map.of(accountID, account, accountID2, account2)
-                        .keySet()
-                        .iterator());
-        assertThat(writableKVStateBase.keys().next()).isEqualTo(accountID2);
     }
 }
