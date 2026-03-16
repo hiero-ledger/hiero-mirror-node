@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, findLast, last} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import findLast from 'lodash/findLast';
+import last from 'lodash/last';
 
 import BaseController from './baseController';
 import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';

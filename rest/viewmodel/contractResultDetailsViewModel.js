@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, isNil} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
 
 import ContractLogResultsViewModel from './contractResultLogViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';

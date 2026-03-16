@@ -2,7 +2,9 @@
 
 import Redis from 'ioredis';
 import config from './config';
-import {isEmpty, isNil, map} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import map from 'lodash/map';
 import {JSONParse, JSONStringify} from './utils';
 
 export class Cache {

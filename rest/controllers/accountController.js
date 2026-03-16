@@ -9,7 +9,8 @@ import {StakingRewardTransfer} from '../model';
 import {EntityService, NftService, StakingRewardTransferService} from '../service';
 import {NftViewModel, StakingRewardTransferViewModel} from '../viewmodel';
 import * as utils from '../utils';
-import {isNil, last} from 'lodash-es';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
 
 const {default: defaultLimit} = getResponseLimit();
 
