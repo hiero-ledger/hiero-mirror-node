@@ -62,6 +62,8 @@ public class RecordItem implements StreamItem {
     static final String BAD_RECORD_BYTES_MESSAGE = "Failed to parse record bytes";
     static final String BAD_TRANSACTION_BODY_BYTES_MESSAGE = "Error parsing transactionBody from transaction";
 
+    private static final Predicate<EntityId> REJECT_ALL = _ -> false;
+
     // Final fields
     @Builder.Default
     private final Version hapiVersion = RecordFile.HAPI_VERSION_NOT_SET;
@@ -99,17 +101,17 @@ public class RecordItem implements StreamItem {
     @NonFinal
     private Map<Long, ContractTransaction> contractTransactions;
 
+    @Builder.Default
     @NonFinal
-    @Setter
-    private Predicate<EntityId> entityNftTransactionPredicate;
+    private Predicate<EntityId> entityNftTransactionPredicate = REJECT_ALL;
 
     @Getter(AccessLevel.NONE)
     @NonFinal
     private EntityTransaction.EntityTransactionBuilder entityTransactionBuilder;
 
+    @Builder.Default
     @NonFinal
-    @Setter
-    private Predicate<EntityId> entityTransactionPredicate;
+    private Predicate<EntityId> entityTransactionPredicate = REJECT_ALL;
 
     @NonFinal
     private Map<Long, EntityTransaction> entityTransactions;
@@ -195,25 +197,28 @@ public class RecordItem implements StreamItem {
                 .build());
     }
 
-    public void addEntityId(EntityId entityId) {
-        if (entityTransactionPredicate == null || !entityTransactionPredicate.test(entityId)) {
+    public void addEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityTransactionPredicate);
+    }
+
+    public void addNftTransactionEntityId(final EntityId entityId) {
+        doAddEntityId(entityId, entityNftTransactionPredicate);
+    }
+
+    public void setEntityNftTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityNftTransactionPredicate =
+                predicate != null ? predicate.and(entityId -> !payerAccountId.equals(entityId)) : REJECT_ALL;
+    }
+
+    public void setEntityTransactionPredicate(final Predicate<EntityId> predicate) {
+        entityTransactionPredicate = predicate != null ? predicate : REJECT_ALL;
+    }
+
+    private void doAddEntityId(final EntityId entityId, final Predicate<EntityId> predicate) {
+        if (!predicate.test(entityId)) {
             return;
         }
 
-        addEntityIdUnconditionally(entityId);
-    }
-
-    public void addNftTransactionEntityId(EntityId entityId) {
-        if (entityNftTransactionPredicate == null
-                || !entityNftTransactionPredicate.test(entityId)
-                || entityId.equals(payerAccountId)) {
-            return;
-        }
-
-        addEntityIdUnconditionally(entityId);
-    }
-
-    private void addEntityIdUnconditionally(EntityId entityId) {
         if (entityTransactionBuilder == null) {
             entityTransactionBuilder = EntityTransaction.builder()
                     .consensusTimestamp(consensusTimestamp)

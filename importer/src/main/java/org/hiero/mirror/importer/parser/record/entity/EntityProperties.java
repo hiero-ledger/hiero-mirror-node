@@ -124,17 +124,22 @@ public class EntityProperties {
             return tokenAirdrops && tokens;
         }
 
-        public boolean shouldPersistEntityTransaction(EntityId entityId) {
-            return entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
+        public boolean shouldPersistEntityTransaction(final EntityId entityId) {
+            return shouldPersistEntityTransaction(entityId, entityTransactions)
+                    && !entityTransactionExclusion.contains(entityId);
         }
 
-        public boolean shouldPersistEntityNftTransaction(EntityId entityId) {
-            return entityNftTransactions && !EntityId.isEmpty(entityId);
+        public boolean shouldPersistEntityNftTransaction(final EntityId entityId) {
+            return shouldPersistEntityTransaction(entityId, entityNftTransactions);
         }
 
         public boolean shouldPersistTransactionHash(TransactionType transactionType) {
             return transactionHash
                     && (transactionHashTypes.isEmpty() || transactionHashTypes.contains(transactionType));
+        }
+
+        private static boolean shouldPersistEntityTransaction(final EntityId entityId, final boolean enabled) {
+            return enabled && !EntityId.isEmpty(entityId);
         }
     }
 }

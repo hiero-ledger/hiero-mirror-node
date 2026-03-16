@@ -76,13 +76,11 @@ public class EntityRecordItemListener implements RecordItemListener {
     private final TransferEventsGenerator transferEventsGenerator;
 
     @Override
-    public void onItem(RecordItem recordItem) throws ImporterException {
-        recordItem.setEntityTransactionPredicate(
-                entityId -> entityProperties.getPersist().shouldPersistEntityTransaction(entityId));
-        recordItem.setEntityNftTransactionPredicate(
-                entityId -> entityProperties.getPersist().shouldPersistEntityNftTransaction(entityId));
-        recordItem.setContractTransactionPredicate(
-                _ -> entityProperties.getPersist().isContractTransaction());
+    public void onItem(final RecordItem recordItem) throws ImporterException {
+        final var persistProperties = entityProperties.getPersist();
+        recordItem.setEntityTransactionPredicate(persistProperties::shouldPersistEntityTransaction);
+        recordItem.setEntityNftTransactionPredicate(persistProperties::shouldPersistEntityNftTransaction);
+        recordItem.setContractTransactionPredicate(_ -> persistProperties.isContractTransaction());
 
         int transactionTypeValue = recordItem.getTransactionType();
         TransactionType transactionType = TransactionType.of(transactionTypeValue);
@@ -128,7 +126,7 @@ public class EntityRecordItemListener implements RecordItemListener {
         }
 
         if (recordItem.isSuccessful()) {
-            if (entityProperties.getPersist().getTransactionSignatures().contains(transactionType)) {
+            if (persistProperties.getTransactionSignatures().contains(transactionType)) {
                 insertTransactionSignatures(
                         transaction.getEntityId(),
                         recordItem.getConsensusTimestamp(),

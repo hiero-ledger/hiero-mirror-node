@@ -84,7 +84,6 @@ class EntityRecordItemListenerEntityTransactionTest extends AbstractEntityRecord
         entityProperties.getPersist().setEntityTransactions(false);
         entityProperties.getPersist().setEntityNftTransactions(true);
         parseRecordItemAndCommit(recordItem);
-        System.out.println("Expected: " + getExpectedEntityNftTransactions(recordItem));
         assertThat(entityTransactionRepository.findAll())
                 .containsExactlyInAnyOrderElementsOf(getExpectedEntityNftTransactions(recordItem));
     }
