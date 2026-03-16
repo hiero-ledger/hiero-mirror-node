@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain.balance;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -20,6 +21,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.StreamItem;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
@@ -65,6 +67,7 @@ public class AccountBalance implements Persistable<AccountBalance.Id>, StreamIte
 
         private long consensusTimestamp;
 
+        @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }
 }

@@ -6,6 +6,7 @@ description = "Mirror Node Importer"
 
 plugins {
     id("com.google.protobuf")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 

@@ -4,6 +4,7 @@ package org.hiero.mirror.common.domain.token;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
@@ -14,6 +15,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -32,6 +34,7 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
     private Boolean isApproval;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     public TokenTransfer(long consensusTimestamp, long amount, EntityId tokenId, EntityId accountId) {
@@ -57,8 +60,10 @@ public class TokenTransfer implements Persistable<TokenTransfer.Id> {
 
         private long consensusTimestamp;
 
+        @Convert(converter = EntityIdConverter.class)
         private EntityId tokenId;
 
+        @Convert(converter = EntityIdConverter.class)
         private EntityId accountId;
     }
 }

@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.addressbook;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
@@ -17,6 +18,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Builder(toBuilder = true)
@@ -44,6 +46,7 @@ public class AddressBook {
     @ToString.Exclude
     private byte[] fileData;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId fileId;
 
     private Integer nodeCount;

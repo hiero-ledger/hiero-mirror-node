@@ -46,18 +46,19 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}20    ")
+        tags = listOf("${image}:${project.version}48")
     }
 
     val existingBuildArgs = env.getOrDefault("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "")
-    val extraBuildArg =
-        "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider"
+    val extraBuildArgs =
+        listOf("-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider")
     val nativeImageBuildArgs =
-        listOf(existingBuildArgs, extraBuildArg).filter { it.isNotBlank() }.joinToString(" ")
+        (listOf(existingBuildArgs) + extraBuildArgs).filter { it.isNotBlank() }.joinToString(" ")
 
     environment =
         mapOf(
             "BP_HEALTH_CHECKER_ENABLED" to "true",
+            "BP_NATIVE_IMAGE" to "true",
             "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to nativeImageBuildArgs,
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",
             "BP_OCI_DESCRIPTION" to (project.description ?: ""),
@@ -82,7 +83,8 @@ tasks.register<BootRun>("bootRunWithNativeAgent") {
     jvmArgs =
         (bootRun.jvmArgs ?: emptyList()) +
             listOf(
-                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}"
+                "-Dspring.aot.enabled=true",
+                "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}",
             )
 
     systemProperties.putAll(bootRun.systemProperties)

@@ -3,6 +3,7 @@
 package org.hiero.mirror.common.domain.contract;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.IdClass;
 import java.io.Serial;
@@ -13,6 +14,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.data.domain.Persistable;
 
@@ -32,6 +34,7 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     private boolean migration;
 
+    @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
     @jakarta.persistence.Id

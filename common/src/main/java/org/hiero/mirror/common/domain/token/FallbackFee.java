@@ -2,9 +2,11 @@
 
 package org.hiero.mirror.common.domain.token;
 
+import jakarta.persistence.Convert;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
+import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 
 @Data
@@ -20,5 +22,6 @@ public class FallbackFee {
     /**
      * Fungible token the fee is paid in, if left unset - paid in HBAR.
      */
+    @Convert(converter = EntityIdConverter.class)
     private EntityId denominatingTokenId;
 }

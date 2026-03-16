@@ -29,7 +29,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
@@ -278,10 +278,11 @@ class FixAirdropTokenAssociationMigration extends ConfigurableJavaMigration {
               timestamp_range = excluded.timestamp_range;
             """;
     private static final RowMapper<ClaimedAirdrop> CLAIMED_AIRDROP_ROW_MAPPER =
-            new DataClassRowMapper<>(ClaimedAirdrop.class);
-    private static final RowMapper<NftTransfer> NFT_TRANSFER_ROW_MAPPER = new DataClassRowMapper<>(NftTransfer.class);
+            new BeanPropertyRowMapper<>(ClaimedAirdrop.class);
+    private static final RowMapper<NftTransfer> NFT_TRANSFER_ROW_MAPPER =
+            new BeanPropertyRowMapper<>(NftTransfer.class);
     private static final RowMapper<TokenBalanceChange> TOKEN_BALANCE_CHANGE_ROW_MAPPER =
-            new DataClassRowMapper<>(TokenBalanceChange.class);
+            new BeanPropertyRowMapper<>(TokenBalanceChange.class);
 
     private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
     private final ObjectProvider<TimePartitionService> timePartitionServiceProvider;

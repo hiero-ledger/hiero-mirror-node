@@ -29,6 +29,7 @@ class RuntimeHintsConfiguration {
                 Field factory = type.getDeclaredField("FACTORY");
                 hints.reflection().registerField(factory);
 
+                // TODO i think this field can be removed
                 hints.reflection()
                         .registerType(
                                 TypeReference.of("org.hiero.mirror.grpc.repository.CacheHelper"),
