@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {invert, isString} from 'lodash-es';
+import invert from 'lodash/invert';
+import isString from 'lodash/isString';
 import {InvalidArgumentError} from '../errors';
 
 const protoToName = {

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, isNil, last, range} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
+import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';

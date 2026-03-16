@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isNil, range} from 'lodash-es';
+import isNil from 'lodash/isNil';
+import range from 'lodash/range';
 
 import {Cache} from './cache';
 import config from './config';

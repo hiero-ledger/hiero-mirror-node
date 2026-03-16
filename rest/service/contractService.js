@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, range} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import range from 'lodash/range';
 
 import BaseService from './baseService';
 import {getResponseLimit} from '../config';

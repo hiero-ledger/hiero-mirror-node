@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {includes, isEmpty, isNil, join} from 'lodash-es';
+import includes from 'lodash/includes';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import join from 'lodash/join';
 import crypto from 'crypto';
 import httpContext from 'express-http-context';
 import JSONBigFactory from 'json-bigint';

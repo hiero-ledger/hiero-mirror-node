@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {invert} from 'lodash-es';
+import invert from 'lodash/invert';
 
 const protoToName = {
   0: 'OK',

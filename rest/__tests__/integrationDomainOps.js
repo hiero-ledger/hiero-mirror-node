@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
 import {proto} from '@hiero-ledger/proto';

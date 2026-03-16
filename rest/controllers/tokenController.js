@@ -8,7 +8,7 @@ import * as utils from '../utils';
 import {TokenRelationshipViewModel} from '../viewmodel';
 import {TokenAccount} from '../model';
 import {getResponseLimit} from '../config';
-import {last} from 'lodash-es';
+import last from 'lodash/last';
 
 const {default: defaultLimit} = getResponseLimit();
 
