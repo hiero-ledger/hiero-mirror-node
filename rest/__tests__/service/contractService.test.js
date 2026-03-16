@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 
 import {NotFoundError} from '../../errors';
 import {ContractService} from '../../service';
@@ -10,7 +10,6 @@ import {setupIntegrationTest} from '../integrationUtils';
 import {TransactionResult, TransactionType} from '../../model';
 import {orderFilterValues} from '../../constants';
 import EntityId from '../../entityId';
-import entityId from '../../entityId';
 
 setupIntegrationTest();
 

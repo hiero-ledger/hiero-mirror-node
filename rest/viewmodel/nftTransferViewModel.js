@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isNil} from 'lodash-es';
+import isNil from 'lodash/isNil';
 import EntityId from '../entityId';
 
 /**
