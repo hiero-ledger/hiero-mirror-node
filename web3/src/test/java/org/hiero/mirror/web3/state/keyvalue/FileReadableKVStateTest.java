@@ -94,7 +94,6 @@ class FileReadableKVStateTest {
         entity.setType(EntityType.FILE);
 
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
-        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
     }
 
     @Test
