@@ -63,7 +63,7 @@ func negateAmountValue(operations types.OperationSlice) types.OperationSlice {
 	return operations
 }
 
-func updateOperationMetadata(key string, value interface{}) updateOperationsFunc {
+func updateOperationMetadata(key string, value any) updateOperationsFunc {
 	return func(operations types.OperationSlice) types.OperationSlice {
 		for index := range operations {
 			operation := &operations[index]
@@ -342,7 +342,7 @@ func getCryptoCreateOperations() types.OperationSlice {
 		AccountId: accountIdA,
 		Amount:    &types.HbarAmount{Value: -initialBalance},
 		Type:      types.OperationTypeCryptoCreateAccount,
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			"auto_renew_period":                autoRenewPeriod,
 			"key":                              newAccountPublicKey.String(),
 			"max_automatic_token_associations": maxAutomaticTokenAssociations,

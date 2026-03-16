@@ -2,7 +2,7 @@
 
 import {getOpenApiMap} from './openapiHandler.js';
 import {filterKeys} from '../constants.js';
-import {isEmpty} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
 import * as querystring from 'node:querystring';
 
 const openApiMap = getOpenApiMap();

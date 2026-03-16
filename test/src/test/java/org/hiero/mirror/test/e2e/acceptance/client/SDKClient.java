@@ -197,13 +197,10 @@ public class SDKClient implements Cleanable {
         try {
             if (acceptanceTestProperties.isCreateOperatorAccount()) {
                 // Use the same operator key in case we need to later manually update/delete any created entities.
-                var privateKey = defaultOperator.getPrivateKey();
-                var publicKey = privateKey.getPublicKey();
-                var alias = privateKey.isECDSA() ? publicKey.toEvmAddress() : null;
-
-                var balance = convert(acceptanceTestProperties.getOperatorBalance());
-                var response = new AccountCreateTransaction()
-                        .setAlias(alias)
+                final var privateKey = defaultOperator.getPrivateKey();
+                final var publicKey = privateKey.getPublicKey();
+                final var balance = convert(acceptanceTestProperties.getOperatorBalance());
+                final var response = new AccountCreateTransaction()
                         .setInitialBalance(balance)
                         .setKeyWithoutAlias(publicKey)
                         .execute(client);
@@ -217,7 +214,7 @@ public class SDKClient implements Cleanable {
                             .execute(client));
                 }
 
-                var accountId = queryReceipt.accountId;
+                final var accountId = queryReceipt.accountId;
                 log.info(
                         "Created operator account {} with public key {} via {}",
                         accountId,

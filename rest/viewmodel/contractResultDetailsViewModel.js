@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, isNil} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
 
 import ContractLogResultsViewModel from './contractResultLogViewModel';
 import ContractResultStateChangeViewModel from './contractResultStateChangeViewModel';
@@ -8,6 +9,7 @@ import ContractResultViewModel from './contractResultViewModel';
 import EntityId from '../entityId';
 import {TransactionResult} from '../model';
 import * as utils from '../utils';
+import {WEIBARS_TO_TINYBARS} from '../constants';
 
 /**
  * Contract result details view model
@@ -27,6 +29,7 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
    * @param {ContractLog[]} contractLogs
    * @param {ContractStateChange[]} contractStateChanges
    * @param {FileData} fileData
+   * @param {boolean} convertToHbar - If true, convert weibar to tinybar; if false, return raw weibar
    */
   constructor(
     contractResult,
@@ -34,7 +37,8 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
     ethTransaction,
     contractLogs = null,
     contractStateChanges = null,
-    fileData = null
+    fileData = null,
+    convertToHbar = true
   ) {
     super(contractResult);
 
@@ -82,7 +86,6 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
 
     if (!isNil(ethTransaction)) {
       this.access_list = utils.toHexStringNonQuantity(ethTransaction.accessList);
-      this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
       this.chain_id = utils.toHexStringQuantity(ethTransaction.chainId);
 
       if (!isTransactionSuccessful && isEmpty(contractResult.errorMessage)) {
@@ -96,9 +99,25 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       if (!isNil(ethTransaction.gasLimit)) {
         this.gas_limit = ethTransaction.gasLimit;
       }
-      this.gas_price = utils.toHexStringQuantity(ethTransaction.gasPrice);
-      this.max_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxFeePerGas);
-      this.max_priority_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxPriorityFeePerGas);
+
+      // Handle all weibar/tinybar conversions based on convertToHbar parameter
+      // After migration, DB contains weibar values
+      if (convertToHbar) {
+        // Convert from weibar to tinybar for backward compatibility
+        this.amount = ContractResultDetailsViewModel._convertWeibarToTinybar(ethTransaction.value, true);
+        this.gas_price = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.gasPrice);
+        this.max_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(ethTransaction.maxFeePerGas);
+        this.max_priority_fee_per_gas = ContractResultDetailsViewModel._convertWeibarBytesToHex(
+          ethTransaction.maxPriorityFeePerGas
+        );
+      } else {
+        // Return raw weibar values from DB
+        this.amount = BigInt(utils.addHexPrefix(ethTransaction.value));
+        this.gas_price = utils.toHexStringQuantity(ethTransaction.gasPrice);
+        this.max_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxFeePerGas);
+        this.max_priority_fee_per_gas = utils.toHexStringQuantity(ethTransaction.maxPriorityFeePerGas);
+      }
+
       this.nonce = ethTransaction.nonce;
       this.r = utils.toHexStringNonQuantity(ethTransaction.signatureR);
       this.s = utils.toHexStringNonQuantity(ethTransaction.signatureS);
@@ -116,7 +135,70 @@ class ContractResultDetailsViewModel extends ContractResultViewModel {
       } else if (!contractResult.functionParameters.length && !isNil(fileData)) {
         this.function_parameters = utils.toHexStringNonQuantity(fileData.file_data);
       }
+    } else if (!convertToHbar && !isNil(contractResult.amount)) {
+      // ethTransaction is null but caller wants weibar; convert tinybar to weibar
+      this.amount = BigInt(contractResult.amount) * WEIBARS_TO_TINYBARS;
     }
+  }
+
+  /**
+   * Converts weibar value to tinybar BigInt
+   * Divides by 10,000,000,000 (WEIBARS_TO_TINYBARS)
+   * @param {Buffer|string|null} weibarValue - Buffer or hex string representation of weibar
+   * @param {boolean} signed - If true, interpret as signed (two's complement)
+   * @returns {BigInt|null}
+   */
+  static _convertWeibarToTinybar(weibarValue, signed = false) {
+    if (!weibarValue || weibarValue.length === 0) {
+      return null;
+    }
+
+    // ---- Step 1: Java BigInteger constructor behavior ----
+    let value;
+    if (signed) {
+      // Interpret as two's complement (like new BigInteger(bytes))
+      const weibarBytes = Buffer.isBuffer(weibarValue)
+        ? weibarValue
+        : Buffer.from(weibarValue.replace('0x', ''), 'hex');
+      value = this._bytesToSignedBigInt(weibarBytes);
+    } else {
+      // Interpret as unsigned (like new BigInteger(1, bytes))
+      const weibarHex = `0x${
+        Buffer.isBuffer(weibarValue) ? weibarValue.toString('hex') : weibarValue.replace('0x', '')
+      }`;
+      value = BigInt(weibarHex);
+    }
+
+    // ---- Step 2: divide (truncates toward zero like Java) ----
+    return value / WEIBARS_TO_TINYBARS;
+  }
+
+  static _bytesToSignedBigInt(buffer) {
+    if (buffer.length === 0) {
+      return 0n;
+    }
+
+    const value = BigInt(`0x${buffer.toString('hex')}`);
+    return buffer[0] & 0x80 ? value - (1n << BigInt(buffer.length * 8)) : value;
+  }
+
+  /**
+   * Converts weibar bytes to hex string, converting to tinybar in the process
+   * @param {Buffer|string|null} weibarValue - Buffer or hex string representation of weibar
+   * @returns {string|null} Hex string representation of tinybar value
+   */
+  static _convertWeibarBytesToHex(weibarValue) {
+    if (isNil(weibarValue) || weibarValue.length === 0) {
+      return '0x';
+    }
+
+    const tinybarBigInt = ContractResultDetailsViewModel._convertWeibarToTinybar(weibarValue, false);
+    if (tinybarBigInt === null) {
+      return '0x';
+    }
+
+    // Gas prices are always unsigned, so direct conversion to hex
+    return utils.toHexStringQuantity(tinybarBigInt);
   }
 }
 

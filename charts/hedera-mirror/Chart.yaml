@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 apiVersion: v2
-appVersion: 0.150.0-SNAPSHOT
+appVersion: 0.151.0-SNAPSHOT
 dependencies:
   - alias: grpc
     condition: grpc.enabled
@@ -27,6 +27,12 @@ dependencies:
     repository: file://../hedera-mirror-monitor
     tags: [java]
     version: ">=0.18.0-0"
+  - alias: pinger
+    condition: pinger.enabled
+    name: hedera-mirror-pinger
+    repository: file://../hedera-mirror-pinger
+    tags: [go]
+    version: ">=0.150.0-0"
   - alias: postgresql
     condition: postgresql.enabled
     name: postgresql-ha
@@ -74,4 +80,4 @@ maintainers:
   - name: Mirror Node Team
     email: mirrornode@hedera.com
 name: hedera-mirror
-version: 0.150.0-SNAPSHOT
+version: 0.151.0-SNAPSHOT

@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.hiero.block.api.protoc.BlockItemSet;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.importer.reader.block.hash.BlockRootHashDigest;
 
 public final class BlockGenerator {

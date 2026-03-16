@@ -56,7 +56,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
             default -> Utility.handleRecoverableError("Invalid addressCase: {}", proto.getAddressCase());
         }
 
-        RegisteredServiceEndpoint.BlockNodeEndpoint blockNode = null;
+        BlockNodeEndpoint blockNode = null;
         MirrorNodeEndpoint mirrorNode = null;
         RpcRelayEndpoint rpcRelay = null;
         switch (proto.getEndpointTypeCase()) {

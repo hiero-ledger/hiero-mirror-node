@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
 import {proto} from '@hiero-ledger/proto';
@@ -677,7 +677,7 @@ const ethereumTransactionDefaults = {
   consensus_timestamp: '187654000123456',
   data: '0x000000000',
   gas_limit: 1000000,
-  gas_price: '0x4a817c80',
+  gas_price: '0xAD78EBC5AC620000',
   hash: '0x0000000000000000000000000000000000000000000000000000000000000123',
   max_fee_per_gas: null,
   max_gas_allowance: 10000,
@@ -899,7 +899,7 @@ const addTransaction = async (transaction) => {
   transaction.payer_account_id = encodedIdFromSpecValue(transaction.payerAccountId);
 
   if ((transaction.max_custom_fees ?? []).length !== 0) {
-    const idDefaults = {shardNum: BigInt(config.common.shard), realmNum: BigInt(config.common.realm)};
+    const idDefaults = {shardNum: `${config.common.shard}`, realmNum: `${config.common.realm}`};
     transaction.max_custom_fees = transaction.max_custom_fees.map((fee) => {
       if (fee.fees) {
         fee.fees = fee.fees.map((f) => {
@@ -1363,8 +1363,8 @@ const addTopicMessage = async (message) => {
     const initialTransactionIdProto = proto.TransactionID.decode(valueToBuffer(message.initial_transaction_id));
     initialTransactionIdProto.accountID = proto.AccountID.create({
       accountNum: initialTransactionIdProto.accountID.accountNum,
-      shardNum: BigInt(config.common.shard),
-      realmNum: BigInt(config.common.realm),
+      shardNum: `${config.common.shard}`,
+      realmNum: `${config.common.realm}`,
     });
     message.initial_transaction_id = proto.TransactionID.encode(initialTransactionIdProto).finish();
   }

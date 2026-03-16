@@ -616,6 +616,7 @@ paths:
       operationId: getContractResultByIdAndTimestamp
       parameters:
         - $ref: "#/components/parameters/contractIdOrAddressPathParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/timestampPathParam"
       responses:
         200:
@@ -645,6 +646,7 @@ paths:
         - $ref: "#/components/parameters/fromQueryParam"
         - $ref: "#/components/parameters/blockHashQueryParam"
         - $ref: "#/components/parameters/contractsBlockNumberQueryParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/internalQueryParam"
         - $ref: "#/components/parameters/limitQueryParam"
         - $ref: "#/components/parameters/orderQueryParamDesc"
@@ -668,6 +670,7 @@ paths:
       operationId: getContractResultByTransactionIdOrHash
       parameters:
         - $ref: "#/components/parameters/transactionIdOrEthHashPathParam"
+        - $ref: "#/components/parameters/hbarQueryParam"
         - $ref: "#/components/parameters/nonceQueryParamWithDefault"
       responses:
         200:
@@ -1475,7 +1478,7 @@ tags:
     description: The tokens object represents the information associated with a token entity and returns a list of token information.The tokens list endpoint is cached and not updated as frequently as the token lookup by a specific ID.
 info:
   title: Mirror Node REST API
-  version: 0.150.0-SNAPSHOT
+  version: 0.151.0-SNAPSHOT
   license:
     name: Apache-2.0
     url: "https://www.apache.org/licenses/LICENSE-2.0.html"
@@ -2335,7 +2338,9 @@ components:
           example: "0x25fe26adc577cc89172e6156c9e24f7b9751b762"
           type: string
         amount:
-          description: The number of tinybars sent to the function
+          description: >-
+            The amount sent to the function. When `hbar=true` (default), the value is in tinybars.
+            When `hbar=false`, the value is in weibars.
           example: 10
           format: int64
           nullable: true
@@ -2407,7 +2412,10 @@ components:
           format: int64
           type: integer
         gas_price:
-          description: The hex encoded gas_price of the wrapped ethereum transaction
+          description: >-
+            The hex encoded gas_price of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x4a817c800"
@@ -2422,12 +2430,18 @@ components:
           example: "0xfebbaa29c513d124a6377246ea3506ad917d740c21a88f61a1c55ba338fc2bb1"
           type: string
         max_fee_per_gas:
-          description: The hex encoded max_fee_per_gas of the wrapped ethereum transaction
+          description: >-
+            The hex encoded max_fee_per_gas of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x5"
         max_priority_fee_per_gas:
-          description: The hex encoded max_priority_fee_per_gas of the wrapped ethereum transaction
+          description: >-
+            The hex encoded max_priority_fee_per_gas of the wrapped ethereum transaction.
+            When `hbar=true` (default), the value is converted to tinybars.
+            When `hbar=false`, the value is in weibars.
           nullable: true
           type: string
           example: "0x100"
@@ -3440,12 +3454,6 @@ components:
           allOf:
             - $ref: "#/components/schemas/FeeEstimate"
             - description: The node fee component which is to be paid to the node that submitted the transaction to the network. This fee exists to compensate the node for the work it performed to pre-check the transaction before submitting it, and incentivizes the node to accept new transactions from users.
-        notes:
-          description: An array of strings for any caveats.
-          example: ["Fallback to worst-case due to missing state"]
-          items:
-            type: string
-          type: array
         service:
           allOf:
             - $ref: "#/components/schemas/FeeEstimate"
@@ -3459,7 +3467,6 @@ components:
       required:
         - network
         - node
-        - notes
         - service
         - total
       type: object
@@ -3469,13 +3476,13 @@ components:
         charged:
           description: The charged count of items as calculated by `max(0, count - included)`.
           example: 1
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         count:
           description: The actual count of items received.
           example: 2
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         fee_per_unit:
@@ -3487,7 +3494,7 @@ components:
         included:
           description: The count of this "extra" that is included for free.
           example: 1
-          format: int32
+          format: int64
           minimum: 0
           type: integer
         name:
@@ -5601,6 +5608,17 @@ components:
         format: int32
         minimum: 0
         type: integer
+    hbarQueryParam:
+      name: hbar
+      in: query
+      description: >-
+        Controls the unit used for monetary fields (`amount`, `gas_price`, `max_fee_per_gas`, `max_priority_fee_per_gas`).
+        When `true` (default), values are returned in tinybars.
+        When `false`, values are returned in weibars (the native Ethereum unit, where 1 tinybar = 10,000,000,000 weibars).
+      example: false
+      schema:
+        type: boolean
+        default: true
     internalQueryParam:
       name: internal
       in: query

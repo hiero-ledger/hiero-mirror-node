@@ -223,7 +223,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         // given
         commonDownloaderProperties.getImporterProperties().setStartBlockNumber(-1L);
         doReturn(new BlockFile()).when(blockStreamReader).read(any());
-        doReturn(Optional.of(RecordFile.EMPTY)).when(cutoverService).getLastRecordFile();
+        doReturn(Optional.empty()).when(cutoverService).getLastRecordFile();
         doNothing().when(blockStreamVerifier).verify(any());
         startServer(
                 SERVER_NAMES[0],
@@ -251,7 +251,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         final var importerProperties = commonDownloaderProperties.getImporterProperties();
         importerProperties.setStartBlockNumber(-1L);
         importerProperties.setEndBlockNumber(5L);
-        doReturn(Optional.of(RecordFile.EMPTY)).when(cutoverService).getLastRecordFile();
+        doReturn(Optional.empty()).when(cutoverService).getLastRecordFile();
         startServer(
                 SERVER_NAMES[0],
                 resources,

@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.parser.record.transactionhandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -81,6 +82,7 @@ final class RegisteredNodeUpdateTransactionHandlerTest extends AbstractTransacti
                 assertThat(registeredNode.getServiceEndpoints())
                         .hasSizeGreaterThan(0)
                         .allMatch(e -> e.getPort() > 0);
+                assertThat(registeredNode.getType()).containsExactly(BLOCK_NODE.getId());
             }
         }));
 

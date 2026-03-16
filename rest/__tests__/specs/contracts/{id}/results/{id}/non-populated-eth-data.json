@@ -118,7 +118,7 @@
     ],
     "ethereumtransactions": [
       {
-        "_value_description": "2000000000 tinybars, in importer java BigInteger.toByteArray always adds extra 0x00",
+        "_value_description": "2000000000 tinybars = 20000000000000000000 weibars, in importer java BigInteger.toByteArray always adds extra 0x00",
         "access_list": "0xabcd",
         "call_data": "0x0505",
         "call_data_id": "5001",
@@ -126,12 +126,12 @@
         "consensus_timestamp": 167654000123456,
         "gas_limit": 15000,
         "hash": "4a563af33c4871b51a8b108aa2fe1dd5280a30dfb7236170ae5e5e7957eb6392",
-        "max_fee_per_gas": "0x5",
-        "max_priority_fee_per_gas": "0x100",
+        "max_fee_per_gas": "0xBA43B7400",
+        "max_priority_fee_per_gas": "0x2540BE4000",
         "payer_account_id": 8001,
         "signature_r": "0xd693b532a80fed6392b428604171fb32fdbf953728a3a7ecc7d4062b1652c043",
         "signature_s": "0x24e9c602ac800b983b035700a14b23f78a253ab762deab5dc27e3555a750b355",
-        "value": "0x0077359400"
+        "value": "0x0001158e460913d00000"
       }
     ],
     "filedata": [

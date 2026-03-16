@@ -3,7 +3,7 @@
 import {getMirrorConfig} from './config';
 import base32 from './base32';
 import {InvalidArgumentError} from './errors';
-import {isNil} from 'lodash-es';
+import isNil from 'lodash/isNil';
 
 // limit the alias to the base32 alphabet excluding padding, other checks will be done in base32.decode. We need
 // the check here because base32.decode allows lower case letters, padding, and auto corrects some typos.
