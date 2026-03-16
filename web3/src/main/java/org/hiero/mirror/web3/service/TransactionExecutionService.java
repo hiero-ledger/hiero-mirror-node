@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -146,7 +144,7 @@ public class TransactionExecutionService {
         } else {
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
-            if (ContractCallContext.get().getOpcodeProperties() == null) {
+            if (ContractCallContext.get().getOpcodeContext() == null) {
                 var processingResult = new EvmTransactionResult(status, result);
 
                 final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
@@ -291,7 +289,7 @@ public class TransactionExecutionService {
     }
 
     private ActionSidecarContentTracer[] getOperationTracers() {
-        return ContractCallContext.get().getOpcodeProperties() != null
+        return ContractCallContext.get().getOpcodeContext() != null
                 ? new ActionSidecarContentTracer[] {opcodeActionTracer}
                 : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }
@@ -324,18 +322,6 @@ public class TransactionExecutionService {
         if (params instanceof ContractDebugParameters debugParams && debugParams.getCallDataBytes() != null) {
             return debugParams.getCallDataBytes();
         }
-        return hexToBytes(params.getCallData());
-    }
-
-    private byte[] hexToBytes(String hexString) {
-        if (hexString == null || hexString.isEmpty() || hexString.equals(HEX_PREFIX)) {
-            return new byte[0];
-        }
-        var hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
-        try {
-            return Hex.decodeHex(hex);
-        } catch (DecoderException e) {
-            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
-        }
+        return params.getCallData();
     }
 }

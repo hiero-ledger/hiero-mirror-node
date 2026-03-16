@@ -8,6 +8,7 @@ import com.esaulpaugh.headlong.abi.ABIType;
 import com.esaulpaugh.headlong.abi.Tuple;
 import com.esaulpaugh.headlong.abi.TypeFactory;
 import lombok.experimental.UtilityClass;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -20,7 +21,7 @@ public class BytesDecoder {
     private static final ABIType<Tuple> STRING_DECODER = TypeFactory.create("(string)");
 
     public static String maybeDecodeSolidityErrorStringToReadableMessage(final String revertReason) {
-        boolean isNullOrEmpty = revertReason == null || revertReason.isEmpty();
+        final var isNullOrEmpty = revertReason == null || revertReason.isEmpty();
 
         if (isNullOrEmpty || revertReason.length() <= ERROR_FUNCTION_SELECTOR.length()) {
             return StringUtils.EMPTY;
@@ -62,7 +63,7 @@ public class BytesDecoder {
         if (bytes.length < ERROR_SELECTOR.length) {
             return false;
         }
-        for (int i = 0; i < ERROR_SELECTOR.length; i++) {
+        for (var i = 0; i < ERROR_SELECTOR.length; i++) {
             if (bytes[i] != ERROR_SELECTOR[i]) {
                 return false;
             }
@@ -85,22 +86,34 @@ public class BytesDecoder {
             return;
         }
 
-        String hex = hexString;
-        if (hex.length() >= 2 && hex.charAt(0) == '0' && hex.charAt(1) == 'x') {
-            hex = hex.substring(2);
-        }
-
-        int len = hex.length();
+        final var len = hexString.length();
         if ((len & 0x01) != 0) {
             throw new IllegalArgumentException("Invalid odd-length hex binary representation");
         }
 
-        for (int j = 0; j < len; j += 2) {
-            int high = Character.digit(hex.charAt(j), 16);
-            int low = Character.digit(hex.charAt(j + 1), 16);
+        var startIndex = 0;
+        if (hexString.length() >= 2 && hexString.charAt(0) == '0' && hexString.charAt(1) == 'x') {
+            startIndex += 2;
+        }
+
+        for (var j = startIndex; j < len; j += 2) {
+            var high = Character.digit(hexString.charAt(j), 16);
+            var low = Character.digit(hexString.charAt(j + 1), 16);
             if (high == -1 || low == -1) {
                 throw new IllegalArgumentException("Invalid hex character in: " + hexString);
             }
+        }
+    }
+
+    public static byte[] hexToBytes(final String hexString) {
+        if (hexString == null || hexString.isEmpty() || hexString.equals(HEX_PREFIX)) {
+            return new byte[0];
+        }
+        var hex = hexString.startsWith(HEX_PREFIX) ? hexString.substring(2) : hexString;
+        try {
+            return org.apache.commons.codec.binary.Hex.decodeHex(hex);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException("Invalid hex string: " + hexString, e);
         }
     }
 }

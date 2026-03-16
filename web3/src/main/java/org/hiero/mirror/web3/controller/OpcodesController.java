@@ -4,9 +4,9 @@ package org.hiero.mirror.web3.controller;
 
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.OpcodeService;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -47,10 +47,10 @@ class OpcodesController {
      * @param stack               Include stack information
      * @param memory              Include memory information
      * @param storage             Include storage information
-     * @return {@link OpcodesResponseDto} containing the result of the transaction execution
+     * @return {@link OpcodesResponse} containing the result of the transaction execution
      */
     @GetMapping(value = "/{transactionIdOrHash}/opcodes")
-    OpcodesResponseDto getContractOpcodes(
+    OpcodesResponse getContractOpcodes(
             @PathVariable TransactionIdOrHashParameter transactionIdOrHash,
             @RequestParam(required = false, defaultValue = "true") boolean stack,
             @RequestParam(required = false, defaultValue = "false") boolean memory,
@@ -59,8 +59,9 @@ class OpcodesController {
         validateAcceptEncodingHeader(acceptEncoding);
         throttleManager.throttleOpcodeRequest();
 
-        final var options = new OpcodeProperties(stack, memory, storage);
-        return opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(stack, memory, storage, (int) params.getGas() / 3);
+        return opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
     }
 
     /**

@@ -9,6 +9,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,7 +36,7 @@ public abstract class AbstractOpcodeTracer {
             .expireAfterAccess(Duration.ofMinutes(1))
             .build(Bytes::toHexString);
 
-    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeProperties options) {
+    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
@@ -49,7 +50,7 @@ public abstract class AbstractOpcodeTracer {
         return memory;
     }
 
-    protected final List<String> captureStack(final MessageFrame frame, final OpcodeProperties options) {
+    protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
@@ -65,13 +66,13 @@ public abstract class AbstractOpcodeTracer {
     }
 
     protected Map<String, String> captureStorage(
-            final MessageFrame frame, final OpcodeProperties options, final ContractCallContext context) {
+            final MessageFrame frame, final OpcodeContext options, final ContractCallContext context) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
-            if (context.getRootProxyWorldUpdater() == null) {
+            if (context.getOpcodeContext().getRootProxyWorldUpdater() == null) {
 
                 var worldUpdater = frame.getWorldUpdater();
                 var parent = worldUpdater.parentUpdater().orElse(null);
@@ -88,10 +89,10 @@ public abstract class AbstractOpcodeTracer {
                     return Collections.emptyMap();
                 }
 
-                context.setRootProxyWorldUpdater(rootProxyWorldUpdater);
+                context.getOpcodeContext().setRootProxyWorldUpdater(rootProxyWorldUpdater);
             }
 
-            final var rootProxyWorldUpdater = context.getRootProxyWorldUpdater();
+            final var rootProxyWorldUpdater = context.getOpcodeContext().getRootProxyWorldUpdater();
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
@@ -121,7 +122,7 @@ public abstract class AbstractOpcodeTracer {
     }
 
     protected final String getRevertReasonFromContractActions(final ContractCallContext context) {
-        final var contractActions = context.getContractActions();
+        final var contractActions = context.getOpcodeContext().getActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
             return null;
@@ -160,7 +161,7 @@ public abstract class AbstractOpcodeTracer {
             }
         }
 
-        return BytesDecoder.getAbiEncodedRevertReason(new String(revertReason));
+        return BytesDecoder.getAbiEncodedRevertReason(new String(revertReason, StandardCharsets.UTF_8));
     }
 
     private boolean isZero(final byte[] bytes) {

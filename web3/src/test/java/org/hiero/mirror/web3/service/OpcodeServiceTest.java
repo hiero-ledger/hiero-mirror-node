@@ -44,7 +44,7 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.service.utils.KeyValueType;
 import org.hiero.mirror.web3.utils.EvmEncodingFacade;
@@ -131,12 +131,13 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 
-        final var options = new OpcodeProperties();
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -194,12 +195,13 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var callData =
                 Bytes.fromHexString(functionCall.encodeFunctionCall()).toArray();
 
-        final var options = new OpcodeProperties(true, false, false);
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -236,10 +238,10 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final var options = new OpcodeProperties(true, false, false);
-
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -278,10 +280,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
-        final var options = new OpcodeProperties(true, false, false);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
                 opcodesResponse, options, expectedResult, Address.fromHexString(contract.getContractAddress()));
@@ -316,10 +319,10 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final var options = new OpcodeProperties(true, false, false);
-
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -355,10 +358,10 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final var options = new OpcodeProperties(true, false, false);
-
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -387,10 +390,10 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
         final var transactionIdOrHash =
                 setUpEthereumTransactionWithSenderBalance(contract, callData, ZERO_AMOUNT, expectedResultBytes);
 
-        final var options = new OpcodeProperties(true, false, false);
-
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -433,10 +436,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash = setUpEthereumTransactionWithSenderBalance(
                 contract, callData, DEFAULT_TRANSACTION_VALUE, expectedResultBytes);
-        final var options = new OpcodeProperties(true, false, false);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -478,10 +482,11 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
 
         final var transactionIdOrHash = setUpEthereumTransactionWithSenderBalance(
                 contract, callData, DEFAULT_TRANSACTION_VALUE, expectedResultBytes);
-        final var options = new OpcodeProperties(true, false, false);
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, false, false, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponseWithExpectedReturnValue(
@@ -496,7 +501,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void testGetUpdatedStorageCall(final boolean stack, final boolean memory) {
         final var senderEntity = accountPersistWithAccountBalances();
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var options = new OpcodeProperties(stack, memory, true);
         final var functionCall = contract.send_updateStorage(BigInteger.ONE, BigInteger.TEN);
 
         final var callData =
@@ -512,7 +516,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(stack, memory, true, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
@@ -523,7 +529,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void testComplexStorageUpdates(final boolean stack, final boolean memory) {
         final var senderEntity = accountPersistWithAccountBalances();
         final var contract = testWeb3jService.deploy(StorageContract::deploy);
-        final var options = new OpcodeProperties(stack, memory, true);
         final var functionCall = contract.send_complexUpdate(BigInteger.ONE, BigInteger.TWO);
 
         final var callData =
@@ -539,7 +544,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(stack, memory, true, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
@@ -549,7 +556,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
     void testNativePrecompileCall() {
         final var senderEntity = accountPersistWithAccountBalances();
         final var contract = testWeb3jService.deploy(EvmCodes::deploy);
-        final var options = new OpcodeProperties(true, true, true);
         final var functionCall = contract.send_calculateSHA256();
 
         final var callData =
@@ -565,11 +571,14 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(true, true, true, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
-        opcodesResponse.opcodes().forEach(opcode -> assertThat(opcode.gasCost()).isNotNull());
+        opcodesResponse.getOpcodes().forEach(opcode -> assertThat(opcode.getGasCost())
+                .isNotNull());
     }
 
     @ParameterizedTest
@@ -594,7 +603,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                         TokenTypeEnum.FUNGIBLE_COMMON, treasuryEntity)
                 .getLeft();
         final var tokenAddress = toAddress(tokenEntity.getId());
-        final var options = new OpcodeProperties(stack, memory, storage);
         final var contract = testWeb3jService.deploy(DynamicEthCalls::deploy);
 
         final var functionCall = contract.send_mintTokenGetTotalSupplyAndBalanceOfTreasury(
@@ -613,7 +621,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 domainBuilder.timestamp());
 
         // When
-        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options);
+        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
+        final var options = new OpcodeContext(stack, memory, storage, (int) params.getGas() / 3);
+        final var opcodesResponse = opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
 
         // Then
         verifyOpcodesResponse(opcodesResponse, options, Address.fromHexString(contract.getContractAddress()));
@@ -636,11 +646,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 senderEntity.toEntityId(),
                 DEFAULT_TRANSACTION_VALUE,
                 consensusTimestamp);
-        final var options = new OpcodeProperties(true, false, false);
-
-        // Then
+        // Then: building call service parameters should fail
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
+                .isThrownBy(() -> opcodeService.buildCallServiceParameters(transactionIdOrHash))
                 .withMessage("Contract result not found: " + consensusTimestamp);
     }
 
@@ -661,11 +669,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 senderEntity.toEntityId(),
                 DEFAULT_TRANSACTION_VALUE,
                 domainBuilder.timestamp());
-        final var options = new OpcodeProperties(true, false, false);
-
-        // Then
+        // Then: building call service parameters should fail
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
+                .isThrownBy(() -> opcodeService.buildCallServiceParameters(transactionIdOrHash))
                 .withMessage("Transaction not found: " + transactionIdOrHash);
     }
 
@@ -683,7 +689,6 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 treasuryEntity.toEntityId(),
                 tokenWithAutoRenewPair.getRight());
 
-        final var options = new OpcodeProperties(true, false, false);
         final var functionCall =
                 contract.call_createFungibleTokenAndGetIsTokenAndGetDefaultFreezeStatusAndGetDefaultKycStatus(
                         tokenInfo, BigInteger.ONE, BigInteger.ONE);
@@ -697,9 +702,9 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 DEFAULT_TRANSACTION_VALUE,
                 domainBuilder.timestamp());
 
-        // Then
+        // Then: building call service parameters should fail
         assertThatExceptionOfType(EntityNotFoundException.class)
-                .isThrownBy(() -> opcodeService.processOpcodeCall(transactionIdOrHash, options))
+                .isThrownBy(() -> opcodeService.buildCallServiceParameters(transactionIdOrHash))
                 .withMessage("Contract transaction hash not found: " + transactionIdOrHash);
     }
 

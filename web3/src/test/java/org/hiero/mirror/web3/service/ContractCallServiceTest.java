@@ -11,6 +11,7 @@ import static com.hederahashgraph.api.proto.java.ResponseCodeEnum.PAYER_ACCOUNT_
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.exception.BlockNumberNotFoundException.UNKNOWN_BLOCK_NUMBER;
 import static org.hiero.mirror.web3.service.ContractCallService.EVM_INVOCATION_METRIC;
@@ -1011,7 +1012,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final String dataHex, final Address receiverAddress, final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(dataHex)
+                .callData(hexToBytes(dataHex))
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
@@ -1030,7 +1031,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final long gasLimit) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(functionCall.encodeFunctionCall())
+                .callData(hexToBytes(functionCall.encodeFunctionCall()))
                 .callType(callType)
                 .gas(gasLimit)
                 .isEstimate(false)
@@ -1065,7 +1066,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final long value) {
         return ContractExecutionParameters.builder()
                 .block(blockType)
-                .callData(dataHex)
+                .callData(hexToBytes(dataHex))
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
@@ -1093,7 +1094,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
             final Address senderAddress, final Address receiverAddress, final long gasPrice, final long value) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(HEX_PREFIX)
+                .callData(hexToBytes(HEX_PREFIX))
                 .callType(ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(gasPrice)

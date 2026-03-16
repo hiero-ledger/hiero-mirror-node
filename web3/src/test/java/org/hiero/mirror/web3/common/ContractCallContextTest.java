@@ -34,6 +34,7 @@ class ContractCallContextTest {
         context.setTimestamp(Optional.of(123L));
         context.setCallServiceParameters(ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
+                .callData(new byte[0])
                 .gasPrice(0L)
                 .build());
 
@@ -47,6 +48,7 @@ class ContractCallContextTest {
         context.setTimestamp(Optional.of(timestamp));
         context.setCallServiceParameters(ContractExecutionParameters.builder()
                 .block(BlockType.EARLIEST)
+                .callData(new byte[0])
                 .gasPrice(0L)
                 .build());
 

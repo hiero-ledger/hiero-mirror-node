@@ -15,7 +15,6 @@ import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.gasComparator;
 import static org.hiero.mirror.web3.utils.OpcodeTracerUtil.toHumanReadableMessage;
 import static org.mockito.Mockito.doAnswer;
 
-import com.hedera.hapi.node.base.ResponseCodeEnum;
 import jakarta.annotation.Resource;
 import java.util.List;
 import java.util.Optional;
@@ -25,12 +24,12 @@ import org.hiero.mirror.common.domain.balance.AccountBalance;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.tableusage.EndpointContext;
+import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.repository.EntityRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
@@ -133,14 +132,16 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         actual.transactionProcessingResult().functionResult().errorMessage()))
                 .isEqualTo(function.expectedErrorMessage());
         assertThat(actual.opcodes().size()).isNotZero();
-        assertThat(toHumanReadableMessage(actual.opcodes().getLast().reason()))
+        assertThat(toHumanReadableMessage(actual.opcodes().getLast().getReason()))
                 .isEqualTo(function.expectedErrorMessage());
     }
 
     protected void verifySuccessfulOpcodeTracerCall(final ContractDebugParameters params) {
         final var actual = ContractCallContext.run(ctx -> contractDebugService.processOpcodeCall(params, OPTIONS));
-        final var expected =
-                new OpcodesProcessingResult(resultCaptor, params.getReceiver(), contextCaptor.getOpcodes());
+        final var expected = new OpcodesProcessingResult(
+                resultCaptor,
+                params.getReceiver(),
+                contextCaptor.getOpcodeContext().getOpcodes());
         // Compare transaction processing result
         assertThat(actual.transactionProcessingResult())
                 .usingRecursiveComparison()
@@ -154,53 +155,57 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
     }
 
     protected void verifyOpcodesResponse(
-            final OpcodesResponseDto opcodesResponse, final OpcodeProperties options, final Address recipient) {
+            final OpcodesResponse opcodesResponse, final OpcodeContext options, final Address recipient) {
         assertThat(opcodesResponse)
-                .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
+                .isEqualTo(expectedOpcodesResponse(
+                        resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeProperties()).isEqualTo(options);
+        assertThat(contextCaptor.getOpcodeContext()).isEqualTo(options);
     }
 
     protected void verifyOpcodesResponseWithExpectedReturnValue(
-            final OpcodesResponseDto opcodesResponse,
-            final OpcodeProperties options,
+            final OpcodesResponse opcodesResponse,
+            final OpcodeContext options,
             final String expectedReturnValue,
             final Address recipient) {
         assertThat(opcodesResponse)
-                .isEqualTo(expectedOpcodesResponse(resultCaptor, contextCaptor.getOpcodes(), recipient));
+                .isEqualTo(expectedOpcodesResponse(
+                        resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeProperties()).isEqualTo(options);
+        assertThat(contextCaptor.getOpcodeContext()).isEqualTo(options);
 
-        assertThat(opcodesResponse.failed()).isFalse();
-        assertThat(opcodesResponse.returnValue()).isEqualTo(expectedReturnValue);
+        assertThat(opcodesResponse.getFailed()).isFalse();
+        assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
         // This assures that nested transactions are also being tracked
-        assertThat(opcodesResponse.opcodes().stream()
-                        .filter(o -> o.op().equals(CALL_OPCODE_NAME))
+        assertThat(opcodesResponse.getOpcodes().stream()
+                        .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
                         .count())
                 .isGreaterThan(0);
     }
 
-    private OpcodesResponseDto expectedOpcodesResponse(
+    private OpcodesResponse expectedOpcodesResponse(
             final EvmTransactionResult result, final List<Opcode> opcodes, final Address recipient) {
-        return new OpcodesResponseDto(
-                recipient.equals(Address.ZERO)
-                        ? Address.ZERO.toHexString()
-                        : commonEntityAccessor
-                                .get(recipient, Optional.empty())
-                                .map(this::entityAddress)
-                                .map(Address::toHexString)
-                                .orElse(null),
-                recipient.equals(Address.ZERO)
-                        ? null
-                        : commonEntityAccessor
-                                .get(recipient, Optional.empty())
-                                .map(Entity::toEntityId)
-                                .map(EntityId::toString)
-                                .orElse(null),
-                !result.responseCodeEnum().equals(ResponseCodeEnum.SUCCESS),
-                result.gasUsed(),
-                opcodes,
-                result.contractCallResult());
+        return new OpcodesResponse()
+                .address(
+                        recipient.equals(Address.ZERO)
+                                ? Address.ZERO.toHexString()
+                                : commonEntityAccessor
+                                        .get(recipient, Optional.empty())
+                                        .map(this::entityAddress)
+                                        .map(Address::toHexString)
+                                        .orElse(null))
+                .contractId(
+                        recipient.equals(Address.ZERO)
+                                ? null
+                                : commonEntityAccessor
+                                        .get(recipient, Optional.empty())
+                                        .map(Entity::toEntityId)
+                                        .map(EntityId::toString)
+                                        .orElse(null))
+                .failed(!result.isSuccessful())
+                .gas(result.gasUsed())
+                .opcodes(opcodes)
+                .returnValue(result.contractCallResult());
     }
 
     private Address entityAddress(Entity entity) {

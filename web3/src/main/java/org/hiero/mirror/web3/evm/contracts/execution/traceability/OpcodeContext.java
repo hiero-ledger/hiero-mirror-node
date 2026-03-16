@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import org.hiero.mirror.common.domain.contract.ContractAction;
+import org.hiero.mirror.rest.model.Opcode;
 
 /**
  * Properties for tracing opcodes
@@ -16,13 +17,12 @@ import org.hiero.mirror.common.domain.contract.ContractAction;
 @Data
 @Builder(toBuilder = true)
 @AllArgsConstructor
-public class OpcodeProperties {
+public final class OpcodeContext {
 
     @Builder.Default
-    private List<ContractAction> contractActions = List.of();
+    private List<ContractAction> actions = List.of();
 
-    @Builder.Default
-    private List<Opcode> opcodes = new ArrayList<>();
+    private List<Opcode> opcodes;
 
     private long gasRemaining;
 
@@ -31,34 +31,26 @@ public class OpcodeProperties {
     /**
      * Include stack information
      */
-    boolean stack;
+    private final boolean stack;
 
     /**
      * Include memory information
      */
-    boolean memory;
+    private final boolean memory;
 
     /**
      * Include storage information
      */
-    boolean storage;
+    private final boolean storage;
 
-    public OpcodeProperties() {
-        this.stack = true;
-        this.memory = false;
-        this.storage = false;
-    }
-
-    public OpcodeProperties(boolean stack, boolean memory, boolean storage) {
+    public OpcodeContext(boolean stack, boolean memory, boolean storage, int opcodesSize) {
         this.stack = stack;
         this.memory = memory;
         this.storage = storage;
+        this.opcodes = new ArrayList<>(opcodesSize);
     }
 
-    public List<Opcode> getOpcodes() {
-        if (opcodes == null) {
-            opcodes = new ArrayList<>();
-        }
-        return opcodes;
+    public void addOpcodes(Opcode opcode) {
+        opcodes.add(opcode);
     }
 }

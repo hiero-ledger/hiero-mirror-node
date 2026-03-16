@@ -12,7 +12,7 @@ import org.hyperledger.besu.datatypes.Address;
 @Builder
 public class ContractExecutionParameters implements CallServiceParameters {
     private final BlockType block;
-    private final String callData;
+    private final byte[] callData;
     private final CallType callType;
     private final long gas;
     private final long gasPrice;
@@ -24,7 +24,7 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final long value;
 
     @Override
-    public String getEthereumData() {
+    public byte[] getEthereumData() {
         throw new UnsupportedOperationException("getEthereumData");
     }
 }

@@ -6,6 +6,7 @@ import static com.hedera.services.utils.EntityIdUtils.asTypedEvmAddress;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.utils.KeyValueType.CONTRACT_ID;
 import static org.hiero.mirror.web3.service.utils.KeyValueType.DELEGATABLE_CONTRACT_ID;
@@ -1032,7 +1033,7 @@ class ContractCallServicePrecompileReadonlyTest extends AbstractContractCallServ
             final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(functionCall.encodeFunctionCall())
+                .callData(hexToBytes(functionCall.encodeFunctionCall()))
                 .callType(CallServiceParameters.CallType.ETH_CALL)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)

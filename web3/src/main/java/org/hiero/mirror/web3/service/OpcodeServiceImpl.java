@@ -23,14 +23,14 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
@@ -60,16 +60,17 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
-    public OpcodesResponseDto processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeProperties options) {
-        final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter);
+    public OpcodesResponse processOpcodeCall(
+            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter,
+            @NonNull OpcodeContext opcodeContext,
+            @NonNull ContractDebugParameters params) {
         return ContractCallContext.run(ctx -> {
-            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
+            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
             return buildOpcodesResponse(result);
         });
     }
 
-    private ContractDebugParameters buildCallServiceParameters(
+    public ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Transaction transaction;
@@ -113,7 +114,7 @@ public class OpcodeServiceImpl implements OpcodeService {
         return buildCallServiceParameters(consensusTimestamp, transaction, ethereumTransaction);
     }
 
-    private OpcodesResponseDto buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
+    private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
         final var recipientAddress = result.recipient();
         Entity recipientEntity = null;
         if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
@@ -136,13 +137,13 @@ public class OpcodeServiceImpl implements OpcodeService {
 
         final var opcodes = result.opcodes() != null ? result.opcodes() : new ArrayList<Opcode>();
 
-        return new OpcodesResponseDto(
-                address,
-                contractId,
-                txnResult == null || !txnResult.isSuccessful(),
-                txnResult != null ? txnResult.gasUsed() : 0L,
-                opcodes,
-                returnValue);
+        return new OpcodesResponse()
+                .address(address)
+                .contractId(contractId)
+                .failed(txnResult == null || !txnResult.isSuccessful())
+                .gas(txnResult != null ? txnResult.gasUsed() : 0L)
+                .opcodes(opcodes)
+                .returnValue(returnValue);
     }
 
     private ContractDebugParameters buildCallServiceParameters(

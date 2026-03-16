@@ -9,9 +9,9 @@ import org.hyperledger.besu.datatypes.Address;
 public interface CallServiceParameters {
     BlockType getBlock();
 
-    String getCallData();
+    byte[] getCallData();
 
-    String getEthereumData();
+    byte[] getEthereumData();
 
     CallType getCallType();
 

@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.web3j;
 
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -285,7 +286,7 @@ public class TestWeb3jService implements Web3jService {
                 .sender(sender)
                 .value(value)
                 .receiver(contractAddress)
-                .callData(callDataHex)
+                .callData(hexToBytes(callDataHex))
                 .gas(gasLimit)
                 .gasPrice(0L)
                 .isStatic(false)
@@ -301,7 +302,7 @@ public class TestWeb3jService implements Web3jService {
                 .sender(sender)
                 .value(value)
                 .receiver(Address.fromHexString(transaction.getTo()))
-                .callData(transaction.getData())
+                .callData(hexToBytes(transaction.getData()))
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isStatic(false)
@@ -317,7 +318,7 @@ public class TestWeb3jService implements Web3jService {
         final var callDataHex = HEX_PREFIX + contractInitCode;
         return ContractExecutionParameters.builder()
                 .sender(senderAddress)
-                .callData(callDataHex)
+                .callData(hexToBytes(callDataHex))
                 .receiver(Address.ZERO)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)

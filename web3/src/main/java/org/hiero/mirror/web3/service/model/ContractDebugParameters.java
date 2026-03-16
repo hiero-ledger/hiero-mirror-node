@@ -2,8 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
-
 import jakarta.validation.constraints.AssertFalse;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -11,7 +9,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.apache.commons.codec.binary.Hex;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -59,16 +56,12 @@ public class ContractDebugParameters implements CallServiceParameters {
     long value;
 
     @Override
-    public String getCallData() {
-        return callDataBytes != null && callDataBytes.length > 0
-                ? HEX_PREFIX + Hex.encodeHexString(callDataBytes)
-                : HEX_PREFIX;
+    public byte[] getCallData() {
+        return callDataBytes;
     }
 
     @Override
-    public String getEthereumData() {
-        return ethereumDataBytes != null && ethereumDataBytes.length > 0
-                ? HEX_PREFIX + Hex.encodeHexString(ethereumDataBytes)
-                : HEX_PREFIX;
+    public byte[] getEthereumData() {
+        return ethereumDataBytes;
     }
 }

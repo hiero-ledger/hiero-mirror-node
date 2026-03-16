@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.controller;
 
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.convert.BytesDecoder.validateHexString;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
@@ -78,7 +79,7 @@ class ContractController {
 
         return ContractExecutionParameters.builder()
                 .block(block)
-                .callData(data)
+                .callData(hexToBytes(data))
                 .callType(callType)
                 .gas(request.getGas())
                 .gasPrice(request.getGasPrice())

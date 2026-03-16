@@ -7,6 +7,7 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +37,7 @@ import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
@@ -112,7 +113,7 @@ class TransactionExecutionServiceTest {
     @ValueSource(strings = "0x0000000000000000000000000000000000000000")
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
-        ContractCallContext.get().setOpcodeProperties(new OpcodeProperties());
+        ContractCallContext.get().setOpcodeContext(new OpcodeContext(true, false, false, 0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -312,7 +313,7 @@ class TransactionExecutionServiceTest {
     @MethodSource("provideCallData")
     void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
-        ContractCallContext.get().setOpcodeProperties(new OpcodeProperties());
+        ContractCallContext.get().setOpcodeContext(new OpcodeContext(true, false, false, 0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -357,7 +358,7 @@ class TransactionExecutionServiceTest {
             boolean isContractCreate, String callDataHex, final Address senderAddress, CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(callDataHex)
+                .callData(hexToBytes(callDataHex))
                 .callType(callType)
                 .gas(DEFAULT_GAS)
                 .gasPrice(0L)

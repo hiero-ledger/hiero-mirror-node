@@ -3,6 +3,7 @@
 package org.hiero.mirror.web3.service;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.service.ContractExecutionService.GAS_USED_METRIC;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -229,7 +230,7 @@ final class ContractCallNativePrecompileTest extends Web3IntegrationTest {
         return ContractExecutionParameters.builder()
                 .sender(Address.fromHexString(HEX_PREFIX + Hex.encodeHexString(account.getEvmAddress())))
                 .receiver(contractAddress)
-                .callData(callDataHex)
+                .callData(hexToBytes(callDataHex))
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
                 .isStatic(false)

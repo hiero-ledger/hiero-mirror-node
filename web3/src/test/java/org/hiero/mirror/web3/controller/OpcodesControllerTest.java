@@ -50,14 +50,14 @@ import org.hamcrest.core.StringContains;
 import org.hiero.mirror.common.domain.DomainBuilder;
 import org.hiero.mirror.common.domain.entity.Entity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.Web3Properties;
 import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.Opcode;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeProperties;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodesResponseDto;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.exception.ThrottleException;
@@ -148,18 +148,18 @@ class OpcodesControllerTest {
     private ArgumentCaptor<ContractDebugParameters> callServiceParametersCaptor;
 
     @Captor
-    private ArgumentCaptor<OpcodeProperties> tracerOptionsCaptor;
+    private ArgumentCaptor<OpcodeContext> tracerOptionsCaptor;
 
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
-        final List<OpcodeProperties> tracerOptions = List.of(
-                new OpcodeProperties(true, true, true),
-                new OpcodeProperties(false, true, true),
-                new OpcodeProperties(true, false, true),
-                new OpcodeProperties(true, true, false),
-                new OpcodeProperties(false, false, true),
-                new OpcodeProperties(false, true, false),
-                new OpcodeProperties(true, false, false),
-                new OpcodeProperties(false, false, false));
+        final List<OpcodeContext> tracerOptions = List.of(
+                new OpcodeContext(true, true, true, 0),
+                new OpcodeContext(false, true, true, 0),
+                new OpcodeContext(true, false, true, 0),
+                new OpcodeContext(true, true, false, 0),
+                new OpcodeContext(false, false, true, 0),
+                new OpcodeContext(false, true, false, 0),
+                new OpcodeContext(true, false, false, 0),
+                new OpcodeContext(false, false, false, 0));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -218,11 +218,11 @@ class OpcodesControllerTest {
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final TransactionIdOrHashParameter parameter) {
-        return opcodesRequest(parameter, new OpcodeProperties());
+        return opcodesRequest(parameter, new OpcodeContext(true, false, false, 0));
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(
-            final TransactionIdOrHashParameter parameter, final OpcodeProperties options) {
+            final TransactionIdOrHashParameter parameter, final OpcodeContext options) {
         final String transactionIdOrHash =
                 switch (parameter) {
                     case TransactionHashParameter hashParameter ->
@@ -255,7 +255,7 @@ class OpcodesControllerTest {
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(invocation -> {
                     final ContractDebugParameters params = invocation.getArgument(0);
-                    final OpcodeProperties options = invocation.getArgument(1);
+                    final OpcodeContext options = invocation.getArgument(1);
                     final var result = Builder.successfulOpcodesProcessingResult(params, options);
                     opcodesResultCaptor.set(result);
                     return result;
@@ -354,7 +354,7 @@ class OpcodesControllerTest {
         when(contractDebugService.processOpcodeCall(
                         callServiceParametersCaptor.capture(), tracerOptionsCaptor.capture()))
                 .thenAnswer(context -> {
-                    final OpcodeProperties options = context.getArgument(1);
+                    final OpcodeContext options = context.getArgument(1);
                     opcodesResultCaptor.set(Builder.unsuccessfulOpcodesProcessingResult(
                             options,
                             entityAddress(providerEnum.getContractEntity().get())));
@@ -373,8 +373,8 @@ class OpcodesControllerTest {
 
     @ParameterizedTest
     @MethodSource("transactionsWithDifferentTracerOptions")
-    void callWithDifferentCombinationsOfTracerOptions(
-            final TransactionProviderEnum providerEnum, OpcodeProperties options) throws Exception {
+    void callWithDifferentCombinationsOfTracerOptions(final TransactionProviderEnum providerEnum, OpcodeContext options)
+            throws Exception {
 
         final TransactionIdOrHashParameter transactionIdOrHash = setUp(providerEnum);
 
@@ -581,35 +581,39 @@ class OpcodesControllerTest {
             return "%s-%d-%d".formatted(payerAccountId, validStart.getEpochSecond(), validStart.getNano());
         }
 
-        private static OpcodesResponseDto opcodesResponse(
+        private static OpcodesResponse opcodesResponse(
                 final OpcodesProcessingResult result, final CommonEntityAccessor commonEntityAccessor) {
-            return new OpcodesResponseDto(
-                    result.recipient().equals(Address.ZERO)
-                            ? Address.ZERO.toHexString()
-                            : commonEntityAccessor
-                                    .get(result.recipient(), Optional.empty())
-                                    .map(TransactionProviderEnum::entityAddress)
-                                    .map(Address::toHexString)
-                                    .orElse(null),
-                    result.recipient().equals(Address.ZERO)
-                            ? null
-                            : commonEntityAccessor
-                                    .get(result.recipient(), Optional.empty())
-                                    .map(Entity::toEntityId)
-                                    .map(EntityId::toString)
-                                    .orElse(null),
-                    !result.transactionProcessingResult().isSuccessful(),
-                    result.transactionProcessingResult().gasUsed(),
-                    result.opcodes(),
-                    result.transactionProcessingResult().contractCallResult());
+            final var address = result.recipient().equals(Address.ZERO)
+                    ? Address.ZERO.toHexString()
+                    : commonEntityAccessor
+                            .get(result.recipient(), Optional.empty())
+                            .map(TransactionProviderEnum::entityAddress)
+                            .map(Address::toHexString)
+                            .orElse(null);
+            final var contractId = result.recipient().equals(Address.ZERO)
+                    ? null
+                    : commonEntityAccessor
+                            .get(result.recipient(), Optional.empty())
+                            .map(Entity::toEntityId)
+                            .map(EntityId::toString)
+                            .orElse(null);
+            final var opcodes = result.opcodes();
+
+            return new OpcodesResponse()
+                    .address(address)
+                    .contractId(contractId)
+                    .failed(!result.transactionProcessingResult().isSuccessful())
+                    .gas(result.transactionProcessingResult().gasUsed())
+                    .opcodes(opcodes)
+                    .returnValue(result.transactionProcessingResult().contractCallResult());
         }
 
         private static OpcodesProcessingResult successfulOpcodesProcessingResult(
-                final ContractDebugParameters params, final OpcodeProperties options) {
+                final ContractDebugParameters params, final OpcodeContext options) {
             final Address recipient = params != null ? params.getReceiver() : Address.ZERO;
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
-                    opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
+                    opcodes.stream().map(Opcode::getGas).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
                     new EvmTransactionResult(
                             ResponseCodeEnum.SUCCESS,
@@ -619,10 +623,10 @@ class OpcodesControllerTest {
         }
 
         private static OpcodesProcessingResult unsuccessfulOpcodesProcessingResult(
-                final OpcodeProperties options, final Address recipient) {
+                final OpcodeContext options, final Address recipient) {
             final List<Opcode> opcodes = opcodes(options);
             final long gasUsed =
-                    opcodes.stream().map(Opcode::gas).reduce(Long::sum).orElse(0L);
+                    opcodes.stream().map(Opcode::getGas).reduce(Long::sum).orElse(0L);
             return new OpcodesProcessingResult(
                     new EvmTransactionResult(
                             ResponseCodeEnum.CONTRACT_REVERT_EXECUTED,
@@ -631,66 +635,73 @@ class OpcodesControllerTest {
                     opcodes);
         }
 
-        private static List<Opcode> opcodes(final OpcodeProperties options) {
+        private static List<Opcode> opcodes(final OpcodeContext options) {
             return Arrays.asList(
-                    new Opcode(
-                            1273,
-                            "PUSH1",
-                            2731,
-                            3,
-                            2,
-                            options.isStack()
-                                    ? List.of(
-                                            "0x000000000000000000000000000000000000000000000000000000004700d305",
-                                            "0x00000000000000000000000000000000000000000000000000000000000000a7")
-                                    : Collections.emptyList(),
-                            options.isMemory()
-                                    ? List.of(
-                                            "0x4e487b7100000000000000000000000000000000000000000000000000000000",
-                                            "0x0000001200000000000000000000000000000000000000000000000000000000")
-                                    : Collections.emptyList(),
-                            Collections.emptySortedMap(),
-                            null),
-                    new Opcode(
-                            1275,
-                            "REVERT",
-                            2728,
-                            0,
-                            2,
-                            options.isStack()
-                                    ? List.of(
-                                            "0x000000000000000000000000000000000000000000000000000000004700d305",
-                                            "0x00000000000000000000000000000000000000000000000000000000000000a7")
-                                    : Collections.emptyList(),
-                            options.isMemory()
-                                    ? List.of(
-                                            "0x4e487b7100000000000000000000000000000000000000000000000000000000",
-                                            "0x0000001200000000000000000000000000000000000000000000000000000000")
-                                    : Collections.emptyList(),
-                            Collections.emptySortedMap(),
-                            "0x4e487b710000000000000000000000000000000000000000000000000000000000000012"),
-                    new Opcode(
-                            682,
-                            "SWAP2",
-                            2776,
-                            3,
-                            1,
-                            options.isStack()
-                                    ? List.of(
-                                            "0x000000000000000000000000000000000000000000000000000000000135b7d0",
-                                            "0x00000000000000000000000000000000000000000000000000000000000000a0")
-                                    : Collections.emptyList(),
-                            options.isMemory()
-                                    ? List.of(
-                                            "0x0000000000000000000000000000000000000000000000000000000000000000",
-                                            "0x0000000000000000000000000000000000000000000000000000000000000000")
-                                    : Collections.emptyList(),
-                            options.isStorage()
-                                    ? ImmutableSortedMap.of(
-                                            "0x0000000000000000000000000000000000000000000000000000000000000000",
-                                            "0x0000000000000000000000000000000000000000000000000000000000000014")
-                                    : Collections.emptySortedMap(),
-                            null));
+                    new Opcode()
+                            .pc(1273)
+                            .op("PUSH1")
+                            .gas(2731L)
+                            .gasCost(3L)
+                            .depth(2)
+                            .stack(
+                                    options.isStack()
+                                            ? List.of(
+                                                    "0x000000000000000000000000000000000000000000000000000000004700d305",
+                                                    "0x00000000000000000000000000000000000000000000000000000000000000a7")
+                                            : Collections.emptyList())
+                            .memory(
+                                    options.isMemory()
+                                            ? List.of(
+                                                    "0x4e487b7100000000000000000000000000000000000000000000000000000000",
+                                                    "0x0000001200000000000000000000000000000000000000000000000000000000")
+                                            : Collections.emptyList())
+                            .storage(Collections.emptyMap())
+                            .reason(null),
+                    new Opcode()
+                            .pc(1275)
+                            .op("REVERT")
+                            .gas(2728L)
+                            .gasCost(0L)
+                            .depth(2)
+                            .stack(
+                                    options.isStack()
+                                            ? List.of(
+                                                    "0x000000000000000000000000000000000000000000000000000000004700d305",
+                                                    "0x00000000000000000000000000000000000000000000000000000000000000a7")
+                                            : Collections.emptyList())
+                            .memory(
+                                    options.isMemory()
+                                            ? List.of(
+                                                    "0x4e487b7100000000000000000000000000000000000000000000000000000000",
+                                                    "0x0000001200000000000000000000000000000000000000000000000000000000")
+                                            : Collections.emptyList())
+                            .storage(Collections.emptyMap())
+                            .reason("0x4e487b710000000000000000000000000000000000000000000000000000000000000012"),
+                    new Opcode()
+                            .pc(682)
+                            .op("SWAP2")
+                            .gas(2776L)
+                            .gasCost(3L)
+                            .depth(1)
+                            .stack(
+                                    options.isStack()
+                                            ? List.of(
+                                                    "0x000000000000000000000000000000000000000000000000000000000135b7d0",
+                                                    "0x00000000000000000000000000000000000000000000000000000000000000a0")
+                                            : Collections.emptyList())
+                            .memory(
+                                    options.isMemory()
+                                            ? List.of(
+                                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
+                                                    "0x0000000000000000000000000000000000000000000000000000000000000000")
+                                            : Collections.emptyList())
+                            .storage(
+                                    options.isStorage()
+                                            ? ImmutableSortedMap.of(
+                                                    "0x0000000000000000000000000000000000000000000000000000000000000000",
+                                                    "0x0000000000000000000000000000000000000000000000000000000000000014")
+                                            : Collections.emptyMap())
+                            .reason(null));
         }
     }
 
