@@ -33,12 +33,14 @@ tasks.bootBuildImage {
     //    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
     val image = "docker.io/jesseswirldslabs/${project.name}"
 
-    buildpacks =
-        listOf(
-            "urn:cnb:builder:paketo-buildpacks/java",
-            "paketobuildpacks/health-checker",
-            "paketo-buildpacks/native-image",
-        )
+    builder.set("docker.io/jesseswirldslabs/web3-builder-libsodium:20260317-2")
+
+    //    buildpacks =
+    //        listOf(
+    //            "urn:cnb:builder:paketo-buildpacks/java",
+    //            "paketobuildpacks/health-checker",
+    //            "paketo-buildpacks/native-image",
+    //        )
     docker {
         imageName = image
         imagePlatform = platform
@@ -46,18 +48,35 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}48")
+        tags = listOf("${image}:${project.version}77")
     }
 
     val existingBuildArgs = env.getOrDefault("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "")
+    //    val extraBuildArgs =
+    //
+    // listOf("-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider")
+
     val extraBuildArgs =
-        listOf("-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider")
+        listOf(
+            "-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider",
+            "-H:+ReportExceptionStackTraces",
+            //            "--exact-reachability-metadata", // good for debugging and catching
+            // missing metadata early instead of at runtime
+            "--enable-native-access=ALL-UNNAMED", // This one needs to stay
+            "--trace-class-initialization=com.goterl.lazysodium.SodiumJava,com.goterl.lazysodium.Sodium,org.hiero.base.crypto.engine.Ed25519VerificationProvider,com.sun.jna.NativeLibrary,com.sun.jna.Native",
+        )
     val nativeImageBuildArgs =
         (listOf(existingBuildArgs) + extraBuildArgs).filter { it.isNotBlank() }.joinToString(" ")
 
+    // TODO libsodium move to web3
+    //    BP_JVM_VERSION investigate setting this to java 25
+    // TODO use java version from project
     environment =
         mapOf(
+            //            "BP_APT_PACKAGES" to "libsodium23",
             "BP_HEALTH_CHECKER_ENABLED" to "true",
+            "BP_JVM_VERSION" to "25",
+            "BP_LOG_LEVEL" to "DEBUG",
             "BP_NATIVE_IMAGE" to "true",
             "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to nativeImageBuildArgs,
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",

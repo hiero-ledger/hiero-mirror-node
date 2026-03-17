@@ -5,6 +5,7 @@ description = "Mirror Node REST Java"
 plugins {
     id("openapi-conventions")
     id("jooq-conventions")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 
@@ -39,3 +40,16 @@ tasks.compileJava {
         )
     )
 }
+
+// graalvmNative {
+//    metadataRepository {
+//        enabled.set(true)
+//
+//        // jOOQ 3.20.11 isn't listed in the metadata index, but 3.20.0 is.
+//        moduleToConfigVersion.put("org.jooq:jooq", "3.20.0")
+//    }
+// }
+//
+// tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+//    from(tasks.named("collectReachabilityMetadata"))
+// }

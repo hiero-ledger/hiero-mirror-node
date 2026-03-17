@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import org.springframework.boot.gradle.tasks.run.BootRun
 import org.web3j.gradle.plugin.GenerateContractWrappers
 import org.web3j.solidity.gradle.plugin.SolidityCompile
 
@@ -9,6 +10,7 @@ plugins {
     id("openapi-conventions")
     id("org.web3j")
     id("org.web3j.solidity")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 
@@ -114,3 +116,29 @@ val moveTestHistoricalFiles =
     }
 
 tasks.compileTestJava { dependsOn(moveTestHistoricalFiles) }
+
+tasks.register<BootRun>("bootRunWithNativeAgent2") {
+    group = "application"
+    description = "Run the Spring Boot app with the GraalVM Native Image tracing agent"
+
+    val bootRun = tasks.named<BootRun>("bootRun").get()
+
+    mainClass.set(bootRun.mainClass)
+    classpath = bootRun.classpath
+    args = bootRun.args
+
+    jvmArgs =
+        (bootRun.jvmArgs ?: emptyList()) +
+            listOf(
+                "-Dspring.aot.enabled=true",
+                "-agentlib:native-image-agent=" +
+                    "config-merge-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}",
+                //                    +
+                //                    ",config-write-period-secs=5," +
+                //                    "config-write-initial-delay-secs=1"
+            )
+
+    systemProperties.putAll(bootRun.systemProperties)
+    environment.putAll(bootRun.environment)
+    workingDir = bootRun.workingDir
+}

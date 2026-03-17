@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
@@ -19,10 +20,10 @@ import org.hiero.mirror.web3.state.MirrorNodeState;
 import org.hyperledger.besu.evm.operation.BlockHashOperation;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 
 @Named
 @RequiredArgsConstructor
+@CustomLog
 public class TransactionExecutorFactory {
 
     private final BlockHashOperation mirrorBlockHashOperation;
@@ -31,13 +32,17 @@ public class TransactionExecutorFactory {
     private final Map<SemanticVersion, TransactionExecutor> transactionExecutors = new ConcurrentHashMap<>();
     private final EntityIdFactory entityIdFactory;
 
-    @Async
+    //    @Async
     @EventListener(ApplicationReadyEvent.class)
-    public void init() {
+    public void init() throws InterruptedException {
+        //        Thread.sleep(100000);
+        //        NativeLibSodiumLoader.load();
         // Create transaction executor for each EVM version, on startup, before the k8s
         // readiness probe elapses, so we avoid slowing down the initial contract calls.
+        log.info("Running warmup");
         ContractCallContext.run(ctx -> {
             evmProperties.getEvmVersions().values().forEach(this::create);
+            log.info("Running warmaup lambda");
             return ctx;
         });
     }
@@ -49,6 +54,8 @@ public class TransactionExecutorFactory {
     }
 
     private synchronized TransactionExecutor create(SemanticVersion evmVersion) {
+        //        NativeLibSodiumLoader.load();
+
         var appProperties = new HashMap<>(evmProperties.getTransactionProperties());
         appProperties.put("contracts.evm.version", "v" + evmVersion.major() + "." + evmVersion.minor());
 
