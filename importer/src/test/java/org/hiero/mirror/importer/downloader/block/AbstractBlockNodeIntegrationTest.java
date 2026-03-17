@@ -3,6 +3,7 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
@@ -84,6 +85,10 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
         lenient().when(blockNodeDiscoveryService.discover()).thenReturn(List.of());
+        lenient()
+                .when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any()))
+                .thenAnswer(invocation ->
+                        invocation.getArgument(0, BlockProperties.class).getNodes());
         return new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,

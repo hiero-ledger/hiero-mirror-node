@@ -5,14 +5,13 @@ package org.hiero.mirror.importer.downloader.block;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -37,19 +36,19 @@ public class BlockNodeDiscoveryService {
     private final AtomicReference<List<BlockNodeProperties>> blockNodesCache = new AtomicReference<>();
 
     /**
-     * Returns a list of block nodes properties. It starts with config file properties, followed
-     * by auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
-     * properties if there are conflicts (i.e. same streaming endpoint).
+     * Returns a list of block nodes properties, combination of config file properties and
+     * auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
+     * properties if they have the same streaming endpoints.
      */
     public List<BlockNodeProperties> getBlockNodesConfigProperties(BlockProperties blockProperties) {
-        final Map<String, BlockNodeProperties> configurationsMap = new LinkedHashMap<>();
+        final Map<String, BlockNodeProperties> configurationsMap = new HashMap<>();
 
-        for (final var configFileNodeProperties : blockProperties.getNodes()) {
-            configurationsMap.put(configFileNodeProperties.getStreamingEndpoint(), configFileNodeProperties);
+        for (final var configFileNodesProperties : blockProperties.getNodes()) {
+            configurationsMap.put(configFileNodesProperties.getStreamingEndpoint(), configFileNodesProperties);
         }
         if (blockProperties.isAutoDiscoveryEnabled()) {
-            final var blockNodePropertiesList = discover();
-            for (final var blockNodeProperties : blockNodePropertiesList) {
+            final var autoDiscoveredNodesProperties = discover();
+            for (final var blockNodeProperties : autoDiscoveredNodesProperties) {
                 configurationsMap.put(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties);
             }
         }
@@ -58,7 +57,7 @@ public class BlockNodeDiscoveryService {
     }
 
     /**
-     * Returns cached block nodes if available, otherwise returns all tier 1 block nodes from db.
+     * Returns cached block nodes properties if available, otherwise returns all tier 1 block nodes properties from db.
      */
     public List<BlockNodeProperties> discover() {
         final var cached = blockNodesCache.get();
@@ -67,15 +66,16 @@ public class BlockNodeDiscoveryService {
         }
 
         try {
-            final var registeredNodes = registeredNodeRepository.findByDeletedFalseAndTypeContains(
+            final var serviceEndpointsList = registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
                     RegisteredNodeType.BLOCK_NODE.getValue());
 
-            final List<BlockNodeProperties> propertiesList = new ArrayList<>(registeredNodes.size());
-            for (final var node : registeredNodes) {
-                toBlockNodeProperties(node).ifPresent(props -> {
-                    props.setPriority(TIER_ONE_REGISTERED_NODE_PRIORITY);
-                    propertiesList.add(props);
-                });
+            final List<BlockNodeProperties> propertiesList = new ArrayList<>(serviceEndpointsList.size());
+            for (final var nodeServiceEndpoints : serviceEndpointsList) {
+                toBlockNodeProperties(nodeServiceEndpoints.getServiceEndpoints())
+                        .ifPresent(props -> {
+                            props.setPriority(TIER_ONE_REGISTERED_NODE_PRIORITY);
+                            propertiesList.add(props);
+                        });
             }
 
             final var result = Collections.unmodifiableList(propertiesList);
@@ -94,11 +94,10 @@ public class BlockNodeDiscoveryService {
     }
 
     /**
-     *  Returns the properties of tier 1 block nodes(block nodes that have
-     *  PUBLISH_API, STATUS_API, and SUBSCRIBE_STREAM_API endpoints)
+     * Returns the properties of tier 1 block nodes (block nodes that have
+     * PUBLISH_API, STATUS_API, and SUBSCRIBE_STREAM_API endpoints).
      */
-    private Optional<BlockNodeProperties> toBlockNodeProperties(RegisteredNode registeredNode) {
-        final var endpoints = registeredNode.getServiceEndpoints();
+    private Optional<BlockNodeProperties> toBlockNodeProperties(List<RegisteredServiceEndpoint> endpoints) {
         if (endpoints == null || endpoints.isEmpty()) {
             return Optional.empty();
         }

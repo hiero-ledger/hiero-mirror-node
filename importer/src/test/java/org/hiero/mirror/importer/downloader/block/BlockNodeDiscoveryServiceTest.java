@@ -10,7 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
-import org.hiero.mirror.common.domain.node.RegisteredNode;
+import org.hiero.mirror.common.domain.node.RegisteredNodeServiceEndpoints;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -29,9 +29,14 @@ final class BlockNodeDiscoveryServiceTest {
     @Mock
     private RegisteredNodeRepository registeredNodeRepository;
 
+    private static RegisteredNodeServiceEndpoints serviceEndpoints(List<RegisteredServiceEndpoint> endpoints) {
+        return () -> endpoints;
+    }
+
     @Test
     void discoverReturnsEmptyWhenNoNodes() {
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of());
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         assertThat(service.discover()).isEmpty();
@@ -39,35 +44,32 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverConvertsRegisteredNodeToBlockNodeProperties() {
-        final var registeredNode = RegisteredNode.builder()
-                .registeredNodeId(100L)
-                .deleted(false)
-                .serviceEndpoints(List.of(
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.STATUS)
-                                        .build())
-                                .domainName("status.example.com")
-                                .port(40840)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
-                                        .build())
-                                .ipAddress("192.168.1.10")
-                                .port(40841)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.PUBLISH)
-                                        .build())
-                                .domainName("publish.example.com")
-                                .port(40843)
-                                .build()))
-                .build();
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("status.example.com")
+                        .port(40840)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .ipAddress("192.168.1.10")
+                        .port(40841)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.PUBLISH)
+                                .build())
+                        .domainName("publish.example.com")
+                        .port(40843)
+                        .build());
 
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
-                .thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -86,37 +88,34 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverSetsRequireTlsFromStatusAndStreamingEndpoints() {
-        final var registeredNode = RegisteredNode.builder()
-                .registeredNodeId(100L)
-                .deleted(false)
-                .serviceEndpoints(List.of(
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.STATUS)
-                                        .build())
-                                .domainName("status.example.com")
-                                .port(40840)
-                                .requiresTls(true)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
-                                        .build())
-                                .ipAddress("192.168.1.10")
-                                .port(40841)
-                                .requiresTls(true)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.PUBLISH)
-                                        .build())
-                                .domainName("publish.example.com")
-                                .port(40843)
-                                .build()))
-                .build();
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("status.example.com")
+                        .port(40840)
+                        .requiresTls(true)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .ipAddress("192.168.1.10")
+                        .port(40841)
+                        .requiresTls(true)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.PUBLISH)
+                                .build())
+                        .domainName("publish.example.com")
+                        .port(40843)
+                        .build());
 
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
-                .thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -129,20 +128,17 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverExcludesNodeWithoutStatusApi() {
-        final var registeredNode = RegisteredNode.builder()
-                .registeredNodeId(100L)
-                .deleted(false)
-                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
-                                .build())
-                        .ipAddress("192.168.1.10")
-                        .port(40841)
-                        .build()))
-                .build();
+        final var endpoints = List.of(RegisteredServiceEndpoint.builder()
+                .blockNode(BlockNodeEndpoint.builder()
+                        .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                        .build())
+                .ipAddress("192.168.1.10")
+                .port(40841)
+                .build());
 
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
-                .thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -152,20 +148,17 @@ final class BlockNodeDiscoveryServiceTest {
 
     @Test
     void discoverExcludesNodeWithoutStreamApi() {
-        final var registeredNode = RegisteredNode.builder()
-                .registeredNodeId(100L)
-                .deleted(false)
-                .serviceEndpoints(List.of(RegisteredServiceEndpoint.builder()
-                        .blockNode(BlockNodeEndpoint.builder()
-                                .endpointApi(BlockNodeApi.STATUS)
-                                .build())
-                        .domainName("status.example.com")
-                        .port(40840)
-                        .build()))
-                .build();
+        final var endpoints = List.of(RegisteredServiceEndpoint.builder()
+                .blockNode(BlockNodeEndpoint.builder()
+                        .endpointApi(BlockNodeApi.STATUS)
+                        .build())
+                .domainName("status.example.com")
+                .port(40840)
+                .build());
 
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
-                .thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
 
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
         final var result = service.discover();
@@ -187,40 +180,37 @@ final class BlockNodeDiscoveryServiceTest {
         final var result = service.getBlockNodesConfigProperties(blockProperties);
 
         assertThat(result).containsExactly(configNode);
-        verify(registeredNodeRepository, never()).findByDeletedFalseAndTypeContains(anyShort());
+        verify(registeredNodeRepository, never()).findServiceEndpointsByDeletedFalseAndTypeContains(anyShort());
     }
 
     @Test
     void getBlockNodesPropertiesListMergesConfigWithDiscoveredWhenAutoDiscoveryEnabled() {
-        final var registeredNode = RegisteredNode.builder()
-                .registeredNodeId(100L)
-                .deleted(false)
-                .serviceEndpoints(List.of(
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.STATUS)
-                                        .build())
-                                .domainName("discovered.example.com")
-                                .port(40840)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
-                                        .build())
-                                .ipAddress("192.168.1.10")
-                                .port(40841)
-                                .build(),
-                        RegisteredServiceEndpoint.builder()
-                                .blockNode(BlockNodeEndpoint.builder()
-                                        .endpointApi(BlockNodeApi.PUBLISH)
-                                        .build())
-                                .domainName("publish.example.com")
-                                .port(40843)
-                                .build()))
-                .build();
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("discovered.example.com")
+                        .port(40840)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .ipAddress("192.168.1.10")
+                        .port(40841)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.PUBLISH)
+                                .build())
+                        .domainName("publish.example.com")
+                        .port(40843)
+                        .build());
 
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
-                .thenReturn(List.of(registeredNode));
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
 
         final var blockProperties = new BlockProperties(new ImporterProperties());
         blockProperties.setAutoDiscoveryEnabled(true);
@@ -234,23 +224,28 @@ final class BlockNodeDiscoveryServiceTest {
         final var result = service.getBlockNodesConfigProperties(blockProperties);
 
         assertThat(result).hasSize(2);
-        assertThat(result.getFirst().getStreamingEndpoint()).isEqualTo("config.example.com:40842");
-        verify(registeredNodeRepository).findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+        assertThat(result)
+                .extracting(BlockNodeProperties::getStreamingEndpoint)
+                .containsExactlyInAnyOrder("config.example.com:40842", "192.168.1.10:40841");
+        verify(registeredNodeRepository)
+                .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }
 
     @Test
     void onRegisteredNodeChangedInvalidatesCache() {
-        when(registeredNodeRepository.findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue()))
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of());
         final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
 
         service.discover();
         service.discover();
-        verify(registeredNodeRepository).findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+        verify(registeredNodeRepository)
+                .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
 
         service.onRegisteredNodeChanged(new RegisteredNodeChangedEvent(service));
         service.discover();
         verify(registeredNodeRepository, times(2))
-                .findByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
+                .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }
 }
