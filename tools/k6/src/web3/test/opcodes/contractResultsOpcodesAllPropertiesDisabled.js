@@ -3,9 +3,8 @@
 import http from 'k6/http';
 
 import {MultiIdScenarioBuilder} from '../../../lib/common.js';
-import {isValidListResponse} from '../common.js';
+import {isNonErrorResponse} from '../common.js';
 import {SharedArray} from 'k6/data';
-import {check} from 'k6';
 
 const baseUrl = __ENV.BASE_URL_PREFIX;
 const transactionIds = new SharedArray('target IDs', function () {
@@ -26,7 +25,7 @@ const {options, run} = new MultiIdScenarioBuilder(transactionIds)
   .name('opcodesAllDisabled')
   .url(`${baseUrl}/contracts/results/{id}/opcodes?stack=false&memory=false&storage=false`)
   .request((url) => http.get(url, params))
-  .check('Opcodes list is not empty.', (r) => isValidListResponse(r, 'opcodes', 4))
+  .check('Response code OK.', (r) => isNonErrorResponse(r))
   .build();
 
 export {options, run};

@@ -24,31 +24,20 @@ function isNonErrorResponse(response) {
   //lets just do the normal path and return false,
   //if an exception happens.
   try {
-    if (response.status !== 200) {
+    if (!isSuccess(response)) {
       return false;
     }
+
+    if (response.body == null) {
+      return;
+    }
+
     const body = JSON.parse(response.body);
     return body.hasOwnProperty(resultField);
   } catch (e) {
     return false;
   }
 }
-
-const isValidListResponse = (response, listName, minEntryCount) => {
-  if (!isSuccess(response)) {
-    return false;
-  }
-
-  const body = JSON.parse(response.body);
-  const list = body[listName];
-  if (!Array.isArray(list)) {
-    return false;
-  }
-
-  return list.length > minEntryCount;
-};
-
-const isSuccess = (response) => response.status >= 200 && response.status < 300;
 
 const jsonPost = (url, payload) =>
   http.post(url, payload, {
@@ -135,6 +124,8 @@ function ContractCallTestScenarioBuilder() {
         combinedOptions.scenarios[scenarioName] = options.scenarios[scenarioName];
       }
     }
+
+    combinedOptions.discardResponseBodies = true;
 
     const run = function () {
       const activeBlock = extractBlockFromScenarioName(k6Scenario.name);
@@ -255,11 +246,4 @@ function ContractCallTestScenarioBuilder() {
   return this;
 }
 
-export {
-  isNonErrorResponse,
-  isValidListResponse,
-  jsonPost,
-  loadVuDataOrDefault,
-  ContractCallTestScenarioBuilder,
-  getMixedBlocks,
-};
+export {isNonErrorResponse, jsonPost, loadVuDataOrDefault, ContractCallTestScenarioBuilder, getMixedBlocks};

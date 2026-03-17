@@ -166,7 +166,7 @@ export function setup() {
     if (res.status !== 200) {
       throw new Error(`Could not fetch input file. Status: ${res.status}`);
     }
-    const trafficReplayRequests = trafficReplay.parseRequests(res.body);
+    const trafficReplayRequests = trafficReplay.parseRequests(res.body, {requestType: 'text'});
     console.log(`Parsed ${trafficReplayRequests.length} traffic replay requests.`);
     return {trafficReplayRequests};
   }
@@ -174,5 +174,7 @@ export function setup() {
 }
 
 const {funcs, options, scenarioDurationGauge, scenarios} = getSequentialTestScenarios(tests, 'WEB3');
+
+options.discardResponseBodies = true;
 
 export {funcs, options, scenarioDurationGauge, scenarios};
