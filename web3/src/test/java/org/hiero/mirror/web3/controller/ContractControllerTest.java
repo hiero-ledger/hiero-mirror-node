@@ -472,7 +472,7 @@ class ContractControllerTest {
 
         contractCall(request)
                 .andExpect(status().isBadRequest())
-                .andExpect(content().string(new StringContains("contains invalid odd length characters")));
+                .andExpect(content().string(new StringContains("Odd number of characters")));
     }
 
     @Test
@@ -485,6 +485,16 @@ class ContractControllerTest {
         contractCall(request)
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(new StringContains("data field invalid hexadecimal string")));
+    }
+
+    @Test
+    void callOkWithMixedCharactersHexData() throws Exception {
+        var mixedCharactersData = "0xaBeCd0";
+
+        var request = request();
+        request.setData(mixedCharactersData);
+
+        contractCall(request).andExpect(status().isOk());
     }
 
     @Test

@@ -3,7 +3,6 @@
 package org.hiero.mirror.web3.controller;
 
 import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
-import static org.hiero.mirror.web3.convert.BytesDecoder.validateHexString;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_ESTIMATE_GAS;
 import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
@@ -66,7 +65,6 @@ class ContractController {
 
         String data;
         try {
-            validateHexString(request.getData());
             data = request.getData() != null ? request.getData() : HEX_PREFIX;
         } catch (final Exception e) {
             throw new InvalidParametersException(
