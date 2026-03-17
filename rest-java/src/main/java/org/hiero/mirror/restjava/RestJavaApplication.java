@@ -6,7 +6,9 @@ import org.hiero.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling
 @Import(CommonConfiguration.class)
 @SpringBootApplication
 public class RestJavaApplication {

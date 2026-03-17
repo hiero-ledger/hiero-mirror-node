@@ -9,22 +9,18 @@ import com.hederahashgraph.api.proto.java.CurrentAndNextFeeSchedule;
 import com.hederahashgraph.api.proto.java.ExchangeRateSet;
 import com.hederahashgraph.api.proto.java.FeeSchedule;
 import jakarta.persistence.EntityNotFoundException;
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.jooq.domain.tables.FileData;
 import org.hiero.mirror.restjava.parameter.TimestampParameter;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.springframework.cache.CacheManager;
 
 @RequiredArgsConstructor
 final class FileServiceTest extends RestJavaIntegrationTest {
 
-    private final CacheManager feeCacheManager;
     private final FileService service;
 
     @Test
@@ -136,12 +132,6 @@ final class FileServiceTest extends RestJavaIntegrationTest {
 
     @Nested
     class GetSimpleFeeSchedule {
-
-        @BeforeEach
-        void setup() {
-            Objects.requireNonNull(feeCacheManager.getCache("simpleFeeSchedule"))
-                    .clear();
-        }
 
         @Test
         void success() {

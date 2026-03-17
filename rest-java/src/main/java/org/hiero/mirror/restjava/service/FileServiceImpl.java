@@ -18,7 +18,6 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.restjava.dto.SystemFile;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
 import org.springframework.core.retry.RetryTemplate;
@@ -50,7 +49,6 @@ class FileServiceImpl implements FileService {
     }
 
     @Override
-    @Cacheable(cacheNames = "simpleFeeSchedule", cacheManager = "feeCacheManager", key = "'latest'")
     public SystemFile<FeeSchedule> getSimpleFeeSchedule(Bound timestamp) {
         return getSystemFile(
                 systemEntity.simpleFeeScheduleFile(),

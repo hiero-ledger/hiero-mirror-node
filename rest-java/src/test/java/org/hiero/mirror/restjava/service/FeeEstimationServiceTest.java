@@ -5,24 +5,23 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.google.protobuf.ByteString;
+import com.hedera.hapi.node.base.AccountAmount;
+import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
+import com.hedera.hapi.node.base.TokenID;
+import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
-import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.fees.StandaloneFeeCalculatorImpl;
-import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
-import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
+import java.util.List;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.hiero.hapi.support.fees.Extra;
@@ -32,6 +31,8 @@ import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.hiero.mirror.restjava.repository.FileDataRepository;
+import org.hiero.mirror.restjava.service.fee.FeeEstimationFeeContext;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,10 +44,10 @@ import org.springframework.core.io.ClassPathResource;
 @RequiredArgsConstructor
 final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
-    private static final Map<String, String> INTRINSIC_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
-
     private final FeeEstimationService service;
-    private final FileService fileService;
+    private final FeeEstimationFeeContext feeEstimationFeeContext;
+    private final FeeEstimationState feeEstimationState;
+    private final FileDataRepository fileDataRepository;
     private final RecordItemBuilder recordItemBuilder;
     private final SystemEntity systemEntity;
 
@@ -83,53 +84,89 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
                 .fileData()
                 .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile()).fileData(feeBytes))
                 .persist();
+        service.refreshStateCalculator();
     }
 
     @ParameterizedTest(name = "{0} [{1}]")
     @CsvSource(textBlock = """
             # consensus
             CONSENSUSCREATETOPIC,   INTRINSIC, 20300000000
+            CONSENSUSCREATETOPIC,   STATE,      20300000000
             CONSENSUSDELETETOPIC,   INTRINSIC,    50000000
+            CONSENSUSDELETETOPIC,   STATE,          50000000
             CONSENSUSSUBMITMESSAGE, INTRINSIC,     8000000
+            CONSENSUSSUBMITMESSAGE, STATE,           8000000
             CONSENSUSUPDATETOPIC,   INTRINSIC,   402200000
+            CONSENSUSUPDATETOPIC,   STATE,         402200000
             # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
             CONTRACTCALL,           INTRINSIC,           0
+            CONTRACTCALL,           STATE,               0
             CONTRACTCREATEINSTANCE, INTRINSIC, 20000000000
+            CONTRACTCREATEINSTANCE, STATE,     20000000000
             CONTRACTDELETEINSTANCE, INTRINSIC,    70000000
+            CONTRACTDELETEINSTANCE, STATE,          70000000
             CONTRACTUPDATEINSTANCE, INTRINSIC, 20260000000
+            CONTRACTUPDATEINSTANCE, STATE,     20260000000
             # crypto
             CRYPTOCREATEACCOUNT,    INTRINSIC, 10500000000
+            CRYPTOCREATEACCOUNT,    STATE,     10500000000
             CRYPTODELETE,           INTRINSIC,    50000000
+            CRYPTODELETE,           STATE,          50000000
             CRYPTOTRANSFER,         INTRINSIC,     1000000
+            CRYPTOTRANSFER,         STATE,           1000000
             CRYPTOUPDATEACCOUNT,    INTRINSIC, 20002200000
+            CRYPTOUPDATEACCOUNT,    STATE,     20002200000
             # ethereum
             ETHEREUMTRANSACTION,    INTRINSIC,     1000000
+            ETHEREUMTRANSACTION,    STATE,           1000000
             # file
             FILEAPPEND,             INTRINSIC,   500000000
+            FILEAPPEND,             STATE,         500000000
             FILECREATE,             INTRINSIC,   500000000
+            FILECREATE,             STATE,         500000000
             FILEDELETE,             INTRINSIC,    70000000
+            FILEDELETE,             STATE,          70000000
             FILEUPDATE,             INTRINSIC,   500000000
+            FILEUPDATE,             STATE,         500000000
             # schedule
             SCHEDULECREATE,         INTRINSIC,   100000000
+            SCHEDULECREATE,         STATE,         100000000
             SCHEDULEDELETE,         INTRINSIC,    10000000
+            SCHEDULEDELETE,         STATE,          10000000
             SCHEDULESIGN,           INTRINSIC,    10000000
+            SCHEDULESIGN,           STATE,          10000000
             # token
             TOKENASSOCIATE,         INTRINSIC,   500000000
+            TOKENASSOCIATE,         STATE,         500000000
             TOKENBURN,              INTRINSIC,    10000000
+            TOKENBURN,              STATE,          10000000
             TOKENCREATION,          INTRINSIC, 20700000000
+            TOKENCREATION,          STATE,     20700000000
             TOKENDELETION,          INTRINSIC,    10000000
+            TOKENDELETION,          STATE,          10000000
             TOKENDISSOCIATE,        INTRINSIC,   500000000
+            TOKENDISSOCIATE,        STATE,         500000000
             TOKENFREEZE,            INTRINSIC,    10000000
+            TOKENFREEZE,            STATE,          10000000
             TOKENGRANTKYC,          INTRINSIC,    10000000
+            TOKENGRANTKYC,          STATE,          10000000
             TOKENMINT,              INTRINSIC,   400000000
+            TOKENMINT,              STATE,         400000000
             TOKENPAUSE,             INTRINSIC,    10000000
+            TOKENPAUSE,             STATE,          10000000
             TOKENREVOKEKYC,         INTRINSIC,    10000000
+            TOKENREVOKEKYC,         STATE,          10000000
             TOKENUNFREEZE,          INTRINSIC,    10000000
+            TOKENUNFREEZE,          STATE,          10000000
             TOKENUNPAUSE,           INTRINSIC,    10000000
+            TOKENUNPAUSE,           STATE,          10000000
             TOKENUPDATE,            INTRINSIC,   710000000
+            TOKENUPDATE,            STATE,         710000000
             TOKENWIPE,              INTRINSIC,    10000000
+            TOKENWIPE,              STATE,          10000000
             # util
             UTILPRNG,               INTRINSIC,    10000000
+            UTILPRNG,               STATE,          10000000
             """)
     void estimatesFeeByTransactionType(TransactionType type, FeeEstimateMode mode, long expected) {
         final var pbjTransaction =
@@ -191,15 +228,9 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     @Test
     void loadsSimpleFeeScheduleFromDatabase() {
-        // given
-        final var state = new FeeEstimationState(systemEntity, fileService);
-        final var properties = TransactionExecutors.Properties.newBuilder()
-                .state(state)
-                .appProperties(INTRINSIC_PROPERTIES)
-                .build();
-        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
-        final var calculator = new StandaloneFeeCalculatorImpl(state, properties, new AppEntityIdFactory(config));
-        final var freshService = new FeeEstimationService(calculator);
+        // given — construct a fresh service so that it loads from the DB (seeded in @BeforeEach)
+        final var freshService =
+                new FeeEstimationService(feeEstimationState, fileDataRepository, systemEntity, feeEstimationFeeContext);
 
         // when
         final var result = freshService.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC);
@@ -212,9 +243,159 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     @Test
     void stateMode() {
-        assertThatThrownBy(() -> service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("State-based fee estimation is not supported");
+        final var result = service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE);
+
+        assertThat(result.getNodeBaseFeeTinycents()).isEqualTo(NODE_BASE_FEE);
+        assertThat(result.totalTinycents()).isGreaterThan(0);
+    }
+
+    @Test
+    void feeScheduleChangesAffectBothModes() {
+        // Seed a modified schedule with a 10× higher CONSENSUS_SUBMIT_MESSAGE base fee.
+        final long customBaseFee = CONSENSUS_SUBMIT_MESSAGE_FEE * 10;
+        domainBuilder
+                .fileData()
+                .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile())
+                        .fileData(buildModifiedFeeSchedule(HederaFunctionality.CONSENSUS_SUBMIT_MESSAGE, customBaseFee))
+                        .transactionType(TransactionType.FILECREATE.getProtoId()))
+                .persist();
+        service.refreshStateCalculator();
+
+        final var txn = toPbj(recordItemBuilder.consensusSubmitMessage().build().getTransaction());
+
+        // Both modes reflect the updated fee schedule after refresh.
+        assertThat(service.estimateFees(txn, FeeEstimateMode.INTRINSIC).getServiceBaseFeeTinycents())
+                .isEqualTo(customBaseFee);
+        assertThat(service.estimateFees(txn, FeeEstimateMode.STATE).getServiceBaseFeeTinycents())
+                .isEqualTo(customBaseFee);
+    }
+
+    @Test
+    void refreshStateCalculatorChangesCalculation() {
+        final var txn = toPbj(recordItemBuilder.consensusSubmitMessage().build().getTransaction());
+
+        // Seed schedule with 5× base fee.
+        final long baseFee5x = CONSENSUS_SUBMIT_MESSAGE_FEE * 5;
+        domainBuilder
+                .fileData()
+                .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile())
+                        .fileData(buildModifiedFeeSchedule(HederaFunctionality.CONSENSUS_SUBMIT_MESSAGE, baseFee5x))
+                        .transactionType(TransactionType.FILECREATE.getProtoId()))
+                .persist();
+        service.refreshStateCalculator();
+
+        final var first = service.estimateFees(txn, FeeEstimateMode.STATE);
+        assertThat(first.getServiceBaseFeeTinycents()).isEqualTo(baseFee5x);
+
+        // Now seed a different schedule with 20× base fee.
+        final long baseFee20x = CONSENSUS_SUBMIT_MESSAGE_FEE * 20;
+        domainBuilder
+                .fileData()
+                .customize(f -> f.entityId(systemEntity.simpleFeeScheduleFile())
+                        .fileData(buildModifiedFeeSchedule(HederaFunctionality.CONSENSUS_SUBMIT_MESSAGE, baseFee20x))
+                        .transactionType(TransactionType.FILECREATE.getProtoId()))
+                .persist();
+        service.refreshStateCalculator();
+
+        final var second = service.estimateFees(txn, FeeEstimateMode.STATE);
+        assertThat(second.getServiceBaseFeeTinycents()).isEqualTo(baseFee20x);
+        assertThat(second.totalTinycents()).isGreaterThan(first.totalTinycents());
+    }
+
+    @Test
+    void refreshStateCalculatorIsNoOpWhenTimestampUnchanged() {
+        // Capture the current STATE result (genesis fee schedule from @BeforeEach).
+        final var before = service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE);
+
+        // Refresh with no new DB data — timestamps are equal, so the calculator is not rebuilt.
+        service.refreshStateCalculator();
+
+        final var after = service.estimateFees(cryptoTransfer(0), FeeEstimateMode.STATE);
+        assertThat(after.totalTinycents()).isEqualTo(before.totalTinycents());
+    }
+
+    @Test
+    void stateModeConsensusSubmitMessageWithTopicCustomFees() {
+        // Persist a topic and seed its custom fees in the DB.
+        final var topic = domainBuilder.topic().persist();
+        domainBuilder.customFee().customize(cf -> cf.entityId(topic.getId())).persist();
+
+        // Build a ConsensusSubmitMessage transaction targeting that topic.
+        final var txn = toPbj(recordItemBuilder
+                .consensusSubmitMessage()
+                .transactionBody(b -> b.setTopicID(com.hederahashgraph.api.proto.java.TopicID.newBuilder()
+                        .setTopicNum(topic.getId())
+                        .build()))
+                .build()
+                .getTransaction());
+
+        final var intrinsic = service.estimateFees(txn, FeeEstimateMode.INTRINSIC);
+        final var state = service.estimateFees(txn, FeeEstimateMode.STATE);
+
+        // STATE reads the DB-backed topic store and detects custom fees;
+        // INTRINSIC has no feeContext so the custom-fee branch is skipped.
+        final long customFeeExtra = extraFee(Extra.CONSENSUS_SUBMIT_MESSAGE_WITH_CUSTOM_FEE);
+        assertThat(state.totalTinycents()).isEqualTo(intrinsic.totalTinycents() + customFeeExtra);
+    }
+
+    @Test
+    void stateModeTokenTransferWithCustomFees() {
+        // Token without custom fees.
+        final var plainToken = domainBuilder.token().persist();
+        // Token with custom fees.
+        final var customFeeToken = domainBuilder.token().persist();
+        domainBuilder
+                .customFee()
+                .customize(cf -> cf.entityId(customFeeToken.getTokenId()))
+                .persist();
+
+        final var txnPlain = buildFungibleTokenTransfer(plainToken.getTokenId());
+        final var txnCustom = buildFungibleTokenTransfer(customFeeToken.getTokenId());
+
+        final var statePlain = service.estimateFees(txnPlain, FeeEstimateMode.STATE);
+        final var stateCustom = service.estimateFees(txnCustom, FeeEstimateMode.STATE);
+
+        // STATE with a custom-fee token uses TOKEN_TRANSFER_BASE_CUSTOM_FEES instead of TOKEN_TRANSFER_BASE.
+        final long base = extraFee(Extra.TOKEN_TRANSFER_BASE);
+        final long baseCustom = extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES);
+        assertThat(stateCustom.totalTinycents() - statePlain.totalTinycents()).isEqualTo(baseCustom - base);
+    }
+
+    @Test
+    void stateModeTopicCustomFeesLive() {
+        final var topic = domainBuilder.topic().persist();
+        final var txn = toPbj(recordItemBuilder
+                .consensusSubmitMessage()
+                .transactionBody(b -> b.setTopicID(com.hederahashgraph.api.proto.java.TopicID.newBuilder()
+                        .setTopicNum(topic.getId())
+                        .build()))
+                .build()
+                .getTransaction());
+
+        final var before = service.estimateFees(txn, FeeEstimateMode.STATE);
+        // Custom fees added after the first estimate — store reads live from DB, no refresh needed.
+        domainBuilder.customFee().customize(cf -> cf.entityId(topic.getId())).persist();
+
+        final var after = service.estimateFees(txn, FeeEstimateMode.STATE);
+        assertThat(after.totalTinycents())
+                .isEqualTo(before.totalTinycents() + extraFee(Extra.CONSENSUS_SUBMIT_MESSAGE_WITH_CUSTOM_FEE));
+    }
+
+    @Test
+    void stateModeTokenCustomFeesLive() {
+        final var token = domainBuilder.token().persist();
+        final var txn = buildFungibleTokenTransfer(token.getTokenId());
+
+        final var before = service.estimateFees(txn, FeeEstimateMode.STATE);
+        // Custom fees added after the first estimate — store reads live from DB, no refresh needed.
+        domainBuilder
+                .customFee()
+                .customize(cf -> cf.entityId(token.getTokenId()))
+                .persist();
+
+        final var after = service.estimateFees(txn, FeeEstimateMode.STATE);
+        assertThat(after.totalTinycents() - before.totalTinycents())
+                .isEqualTo(extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES) - extraFee(Extra.TOKEN_TRANSFER_BASE));
     }
 
     @Test
@@ -300,7 +481,8 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         // given
         final var pbjTransaction = toPbj(recordItemBuilder
                 .consensusSubmitMessage()
-                .transactionBody(b -> b.setMessage(ByteString.copyFrom(new byte[LONG_MESSAGE_BYTES])))
+                .transactionBody(
+                        b -> b.setMessage(com.google.protobuf.ByteString.copyFrom(new byte[LONG_MESSAGE_BYTES])))
                 .build()
                 .getTransaction());
 
@@ -322,6 +504,24 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load simpleFeesSchedules.json", e);
         }
+    }
+
+    private static byte[] buildModifiedFeeSchedule(HederaFunctionality func, long baseFee) {
+        final var modified = FEE_SCHEDULE
+                .copyBuilder()
+                .services(FEE_SCHEDULE.services().stream()
+                        .map(svc -> svc.copyBuilder()
+                                .schedule(svc.schedule().stream()
+                                        .map(def -> def.name() == func
+                                                ? def.copyBuilder()
+                                                        .baseFee(baseFee)
+                                                        .build()
+                                                : def)
+                                        .toList())
+                                .build())
+                        .toList())
+                .build();
+        return FeeSchedule.PROTOBUF.toBytes(modified).toByteArray();
     }
 
     private static long extraFee(Extra extra) {
@@ -347,6 +547,40 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         } catch (ParseException e) {
             throw new IllegalStateException("Failed to convert protoc Transaction to PBJ", e);
         }
+    }
+
+    /**
+     * Builds a simple fungible-token CryptoTransfer that moves 100 units of the given token
+     * from account 1 to account 2. Used to exercise the STATE-mode token-store custom-fee lookup.
+     */
+    private Transaction buildFungibleTokenTransfer(long tokenId) {
+        final var body = TransactionBody.newBuilder()
+                .memo("fee-test")
+                .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
+                        .tokenTransfers(List.of(TokenTransferList.newBuilder()
+                                .token(TokenID.newBuilder().tokenNum(tokenId).build())
+                                .transfers(List.of(
+                                        AccountAmount.newBuilder()
+                                                .accountID(AccountID.newBuilder()
+                                                        .accountNum(1)
+                                                        .build())
+                                                .amount(-100)
+                                                .build(),
+                                        AccountAmount.newBuilder()
+                                                .accountID(AccountID.newBuilder()
+                                                        .accountNum(2)
+                                                        .build())
+                                                .amount(100)
+                                                .build()))
+                                .build()))
+                        .build())
+                .build();
+        final var signedTxn = SignedTransaction.newBuilder()
+                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
+                .build();
+        return Transaction.newBuilder()
+                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTxn))
+                .build();
     }
 
     private Transaction cryptoTransfer(int signatureCount) {

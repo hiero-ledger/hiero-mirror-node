@@ -4,26 +4,14 @@ package org.hiero.mirror.restjava.config;
 
 import com.google.protobuf.ExtensionRegistry;
 import com.google.protobuf.Message;
-import com.hedera.node.app.config.ConfigProviderImpl;
-import com.hedera.node.app.fees.StandaloneFeeCalculator;
-import com.hedera.node.app.fees.StandaloneFeeCalculatorImpl;
-import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
-import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.restjava.jooq.DomainRecordMapperProvider;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
-import org.hiero.mirror.restjava.service.fee.FeeProperties;
 import org.springframework.boot.convert.ApplicationConversionService;
 import org.springframework.boot.jooq.autoconfigure.DefaultConfigurationCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.support.FormattingConversionService;
@@ -34,11 +22,8 @@ import org.springframework.http.converter.protobuf.ProtobufHttpMessageConverter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 
 @Configuration
-@EnableCaching
 @RequiredArgsConstructor
 class RestJavaConfiguration {
-
-    private static final Map<String, String> INTRINSIC_PROPERTIES = Map.of("fees.simpleFeesEnabled", "true");
 
     private final FormattingConversionService mvcConversionService;
 
@@ -46,24 +31,6 @@ class RestJavaConfiguration {
     void initialize() {
         // Register application converters to use case-insensitive string to enum converter.
         ApplicationConversionService.addApplicationConverters(mvcConversionService);
-    }
-
-    @Bean
-    StandaloneFeeCalculator standaloneFeeCalculator(FeeEstimationState feeEstimationState) {
-        final var properties = TransactionExecutors.Properties.newBuilder()
-                .state(feeEstimationState)
-                .appProperties(INTRINSIC_PROPERTIES)
-                .build();
-        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
-        return new StandaloneFeeCalculatorImpl(feeEstimationState, properties, new AppEntityIdFactory(config));
-    }
-
-    @Bean
-    CacheManager feeCacheManager(FeeProperties feeProperties) {
-        final var cacheManager = new CaffeineCacheManager();
-        cacheManager.setCacheNames(Set.of("simpleFeeSchedule"));
-        cacheManager.setCacheSpecification(feeProperties.getCacheSpec());
-        return cacheManager;
     }
 
     @Bean
