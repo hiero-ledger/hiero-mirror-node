@@ -29,7 +29,7 @@ function isNonErrorResponse(response) {
     }
 
     if (response.body == null) {
-      return;
+      return true;
     }
 
     const body = JSON.parse(response.body);
@@ -38,6 +38,8 @@ function isNonErrorResponse(response) {
     return false;
   }
 }
+
+const isSuccess = (response) => response.status >= 200 && response.status < 300;
 
 const jsonPost = (url, payload) =>
   http.post(url, payload, {
