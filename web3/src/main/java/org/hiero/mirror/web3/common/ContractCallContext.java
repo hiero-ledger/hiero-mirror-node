@@ -6,8 +6,6 @@ import com.hedera.hapi.node.state.common.EntityNumber;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.AccessLevel;
@@ -27,7 +25,7 @@ public class ContractCallContext {
     private static final ScopedValue<ContractCallContext> SCOPED_VALUE = ScopedValue.newInstance();
 
     @Getter(AccessLevel.NONE)
-    private final Map<Integer, ConcurrentMap<Object, Object>> readCache = new HashMap<>();
+    private final Map<Integer, Map<Object, Object>> readCache = new HashMap<>();
 
     @Getter
     private final long startTime = System.currentTimeMillis();
@@ -122,7 +120,7 @@ public class ContractCallContext {
     }
 
     public Map<Object, Object> getReadCacheState(final int stateId) {
-        return readCache.computeIfAbsent(stateId, _ -> new ConcurrentHashMap<>());
+        return readCache.computeIfAbsent(stateId, _ -> new HashMap<>());
     }
 
     public Map<Object, Object> getWriteCacheState(final int stateId) {

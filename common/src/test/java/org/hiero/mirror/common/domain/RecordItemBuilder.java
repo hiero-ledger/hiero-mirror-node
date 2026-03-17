@@ -1416,6 +1416,11 @@ public final class RecordItemBuilder {
                 .build();
     }
 
+    public RecordItemBuilder withEntityTransactions(final boolean enabled) {
+        entityTransactions = enabled;
+        return this;
+    }
+
     private ByteString bloomFor(ContractID contractId, List<ByteString> topics) {
         boolean hasAddress =
                 contractId != null && !ContractID.getDefaultInstance().equals(contractId);
@@ -1624,9 +1629,9 @@ public final class RecordItemBuilder {
         private final AccountID payerAccountId;
         private final RecordItem.RecordItemBuilder recordItemBuilder;
 
-        private Predicate<EntityId> contractTransactionPredicate = e -> true;
-        private Predicate<EntityId> entityTransactionPredicate = entityId ->
-                entityTransactions && !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId);
+        private Predicate<EntityId> contractTransactionPredicate = _ -> true;
+        private Predicate<EntityId> entityTransactionPredicate;
+        private Predicate<EntityId> entityNftTransactionPredicate;
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = NOOP_INCREMENTER;
         private boolean useTransactionBodyBytesAndSigMap;
 
@@ -1688,9 +1693,18 @@ public final class RecordItemBuilder {
 
             var contractLogs = parseContractLogs(transactionRecordInstance);
 
+            if (contractTransactionPredicate != null) {
+                recordItemBuilder.contractTransactionPredicate(contractTransactionPredicate);
+            }
+
+            if (entityTransactionPredicate != null) {
+                recordItemBuilder.entityTransactionPredicate(entityTransactionPredicate);
+            } else if (entityTransactions) {
+                recordItemBuilder.entityTransactionPredicate(
+                        entityId -> !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId));
+            }
+
             return recordItemBuilder
-                    .contractTransactionPredicate(contractTransactionPredicate)
-                    .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
