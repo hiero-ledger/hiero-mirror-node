@@ -73,6 +73,7 @@ import org.hiero.mirror.web3.service.RecordFileService;
 import org.hiero.mirror.web3.service.RecordFileServiceImpl;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
 import org.hiero.mirror.web3.service.model.EvmTransactionResult;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.hiero.mirror.web3.utils.TransactionProviderEnum;
@@ -150,16 +151,19 @@ class OpcodesControllerTest {
     @Captor
     private ArgumentCaptor<OpcodeContext> tracerOptionsCaptor;
 
+    private static final TransactionIdOrHashParameter DUMMY_TRANSACTION_ID =
+            new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH);
+
     static Stream<Arguments> transactionsWithDifferentTracerOptions() {
         final List<OpcodeContext> tracerOptions = List.of(
-                new OpcodeContext(true, true, true, 0),
-                new OpcodeContext(false, true, true, 0),
-                new OpcodeContext(true, false, true, 0),
-                new OpcodeContext(true, true, false, 0),
-                new OpcodeContext(false, false, true, 0),
-                new OpcodeContext(false, true, false, 0),
-                new OpcodeContext(true, false, false, 0),
-                new OpcodeContext(false, false, false, 0));
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, true), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, true), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, true), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, true, false), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, true), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, true, false), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, true, false, false), 0),
+                new OpcodeContext(new OpcodeRequest(DUMMY_TRANSACTION_ID, false, false, false), 0));
         return Arrays.stream(TransactionProviderEnum.values())
                 .flatMap(providerEnum -> tracerOptions.stream().map(options -> Arguments.of(providerEnum, options)));
     }
@@ -218,7 +222,7 @@ class OpcodesControllerTest {
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(final TransactionIdOrHashParameter parameter) {
-        return opcodesRequest(parameter, new OpcodeContext(true, false, false, 0));
+        return opcodesRequest(parameter, new OpcodeContext(new OpcodeRequest(parameter, true, false, false), 0));
     }
 
     private MockHttpServletRequestBuilder opcodesRequest(
@@ -292,11 +296,11 @@ class OpcodesControllerTest {
                         provider.hasEthTransaction()
                                 ? new BigInteger(ethTransaction.getValue()).longValue()
                                 : contractResult.getAmount())
-                .callDataBytes(
+                .callData(
                         provider.hasEthTransaction()
                                 ? ethTransaction.getCallData()
                                 : contractResult.getFunctionParameters())
-                .ethereumDataBytes(provider.hasEthTransaction() ? ethTransaction.getData() : new byte[0])
+                .ethereumData(provider.hasEthTransaction() ? ethTransaction.getData() : new byte[0])
                 .block(BlockType.of(recordFile.getIndex().toString()))
                 .build());
 

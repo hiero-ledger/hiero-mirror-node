@@ -43,6 +43,7 @@ import com.hedera.services.stream.proto.ContractActionType;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,8 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.TransactionIdParameter;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.datatypes.Hash;
 import org.hyperledger.besu.datatypes.Wei;
@@ -177,7 +180,8 @@ class OpcodeActionTracerTest {
         REMAINING_GAS.set(INITIAL_GAS);
         tracer = new OpcodeActionTracer();
         tracer.setSystemContracts(Map.of(HTS_PRECOMPILE_ADDRESS, mock(HederaSystemContract.class)));
-        opcodeContext = new OpcodeContext(false, false, false, 0);
+        opcodeContext = new OpcodeContext(
+                new OpcodeRequest(new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), false, false, false), 0);
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
         lenient().when(contractCallContext.getOpcodeContext()).thenReturn(opcodeContext);
     }

@@ -6,8 +6,8 @@ import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.hiero.mirror.rest.model.OpcodesResponse;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.service.OpcodeService;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.throttle.ThrottleManager;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
@@ -59,9 +59,8 @@ class OpcodesController {
         validateAcceptEncodingHeader(acceptEncoding);
         throttleManager.throttleOpcodeRequest();
 
-        final var params = opcodeService.buildCallServiceParameters(transactionIdOrHash);
-        final var options = new OpcodeContext(stack, memory, storage, (int) params.getGas() / 3);
-        return opcodeService.processOpcodeCall(transactionIdOrHash, options, params);
+        final var request = new OpcodeRequest(transactionIdOrHash, stack, memory, storage);
+        return opcodeService.processOpcodeCall(request);
     }
 
     /**

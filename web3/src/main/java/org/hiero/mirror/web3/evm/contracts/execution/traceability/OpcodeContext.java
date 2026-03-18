@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.hiero.mirror.common.domain.contract.ContractAction;
 import org.hiero.mirror.rest.model.Opcode;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 
 /**
  * Properties for tracing opcodes
@@ -43,10 +44,10 @@ public final class OpcodeContext {
      */
     private final boolean storage;
 
-    public OpcodeContext(boolean stack, boolean memory, boolean storage, int opcodesSize) {
-        this.stack = stack;
-        this.memory = memory;
-        this.storage = storage;
+    public OpcodeContext(final OpcodeRequest opcodeRequest, final int opcodesSize) {
+        this.stack = opcodeRequest.isStack();
+        this.memory = opcodeRequest.isMemory();
+        this.storage = opcodeRequest.isStorage();
         this.opcodes = new ArrayList<>(opcodesSize);
     }
 

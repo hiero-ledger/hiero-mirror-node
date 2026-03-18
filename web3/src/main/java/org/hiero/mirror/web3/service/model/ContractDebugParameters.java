@@ -21,9 +21,9 @@ public class ContractDebugParameters implements CallServiceParameters {
     BlockType block;
 
     @NotNull
-    byte[] callDataBytes;
+    byte[] callData;
 
-    byte[] ethereumDataBytes;
+    byte[] ethereumData;
 
     @NotNull
     CallType callType = CallType.ETH_DEBUG_TRACE_TRANSACTION;
@@ -54,14 +54,4 @@ public class ContractDebugParameters implements CallServiceParameters {
 
     @PositiveOrZero
     long value;
-
-    @Override
-    public byte[] getCallData() {
-        return callDataBytes;
-    }
-
-    @Override
-    public byte[] getEthereumData() {
-        return ethereumDataBytes;
-    }
 }

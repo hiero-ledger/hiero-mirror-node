@@ -33,8 +33,10 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
@@ -43,6 +45,7 @@ import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -113,7 +116,11 @@ class TransactionExecutionServiceTest {
     @ValueSource(strings = "0x0000000000000000000000000000000000000000")
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
-        ContractCallContext.get().setOpcodeContext(new OpcodeContext(true, false, false, 0));
+        ContractCallContext.get()
+                .setOpcodeContext(new OpcodeContext(
+                        new OpcodeRequest(
+                                new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
+                        0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -313,7 +320,11 @@ class TransactionExecutionServiceTest {
     @MethodSource("provideCallData")
     void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
-        ContractCallContext.get().setOpcodeContext(new OpcodeContext(true, false, false, 0));
+        ContractCallContext.get()
+                .setOpcodeContext(new OpcodeContext(
+                        new OpcodeRequest(
+                                new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
+                        0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);

@@ -762,7 +762,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
         final var hexWithoutPrefix = callDataHex.startsWith(HEX_PREFIX) ? callDataHex.substring(2) : callDataHex;
         return ContractDebugParameters.builder()
                 .block(functionProvider.block())
-                .callDataBytes(Hex.decode(hexWithoutPrefix))
+                .callData(Hex.decode(hexWithoutPrefix))
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(functionProvider.contractAddress())

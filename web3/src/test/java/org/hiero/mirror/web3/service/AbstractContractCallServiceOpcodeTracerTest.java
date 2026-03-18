@@ -160,7 +160,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                 .isEqualTo(expectedOpcodesResponse(
                         resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeContext()).isEqualTo(options);
+        verifyOpcodeOptionsMatch(options);
     }
 
     protected void verifyOpcodesResponseWithExpectedReturnValue(
@@ -172,7 +172,7 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                 .isEqualTo(expectedOpcodesResponse(
                         resultCaptor, contextCaptor.getOpcodeContext().getOpcodes(), recipient));
         assertThat(gasCaptor.getValue()).isEqualTo(TRANSACTION_GAS_LIMIT);
-        assertThat(contextCaptor.getOpcodeContext()).isEqualTo(options);
+        verifyOpcodeOptionsMatch(options);
 
         assertThat(opcodesResponse.getFailed()).isFalse();
         assertThat(opcodesResponse.getReturnValue()).isEqualTo(expectedReturnValue);
@@ -181,6 +181,13 @@ abstract class AbstractContractCallServiceOpcodeTracerTest extends AbstractContr
                         .filter(o -> o.getOp().equals(CALL_OPCODE_NAME))
                         .count())
                 .isGreaterThan(0);
+    }
+
+    private void verifyOpcodeOptionsMatch(final OpcodeContext options) {
+        final var actual = contextCaptor.getOpcodeContext();
+        assertThat(actual.isStack()).isEqualTo(options.isStack());
+        assertThat(actual.isMemory()).isEqualTo(options.isMemory());
+        assertThat(actual.isStorage()).isEqualTo(options.isStorage());
     }
 
     private OpcodesResponse expectedOpcodesResponse(

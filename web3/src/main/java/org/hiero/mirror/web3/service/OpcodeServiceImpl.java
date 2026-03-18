@@ -37,6 +37,7 @@ import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -60,17 +61,19 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
-    public OpcodesResponse processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter,
-            @NonNull OpcodeContext opcodeContext,
-            @NonNull ContractDebugParameters params) {
+    public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
+            final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
+            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
+
+            ctx.setOpcodeContext(opcodeContext);
+
             final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
             return buildOpcodesResponse(result);
         });
     }
 
-    public ContractDebugParameters buildCallServiceParameters(
+    private ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
         final Transaction transaction;
@@ -161,8 +164,8 @@ public class OpcodeServiceImpl implements OpcodeService {
 
         return ContractDebugParameters.builder()
                 .block(blockType)
-                .callDataBytes(getCallDataBytes(ethTransaction, contractResult))
-                .ethereumDataBytes(getEthereumDataBytes(ethTransaction))
+                .callData(getCallDataBytes(ethTransaction, contractResult))
+                .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))

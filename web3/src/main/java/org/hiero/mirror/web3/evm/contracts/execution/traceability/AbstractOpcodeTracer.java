@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -41,13 +42,19 @@ public abstract class AbstractOpcodeTracer {
             return Collections.emptyList();
         }
         var size = frame.memoryWordSize();
-        var memory = new ArrayList<String>(size);
+        var hexMemoryEntries = new ArrayList<String>(size);
+
+        final var wordSize = 32;
+        final var memory = frame.readMutableMemory(0L, (long) wordSize * size).toArrayUnsafe();
+        final var hex = HexFormat.of();
+
         for (var i = 0; i < size; i++) {
-            var word = frame.readMemory(i * 32L, 32);
-            memory.add(hexCache.get(word, Bytes::toHexString));
+            var startIndex = i * wordSize;
+            final var result = HEX_PREFIX + hex.formatHex(memory, startIndex, startIndex + wordSize);
+            hexMemoryEntries.add(result);
         }
 
-        return memory;
+        return hexMemoryEntries;
     }
 
     protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
