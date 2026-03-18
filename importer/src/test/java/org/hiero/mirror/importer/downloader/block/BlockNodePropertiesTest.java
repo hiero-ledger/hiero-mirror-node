@@ -54,4 +54,16 @@ final class BlockNodePropertiesTest {
         assertThat(properties.getStreamingHost()).isEqualTo("default.example.com");
         assertThat(properties.getStreamingEndpoint()).isEqualTo("default.example.com:40841");
     }
+
+    @Test
+    void getMergeKeyIncludesStatusAndStreamingEndpointsWithTls() {
+        var properties = new BlockNodeProperties();
+        properties.setHost("blocknode.example.com");
+        properties.setStatusPort(40840);
+        properties.setStreamingPort(40841);
+        properties.setStatusApiRequireTls(false);
+        properties.setStreamingApiRequireTls(true);
+        assertThat(properties.getMergeKey())
+                .isEqualTo("blocknode.example.com:40840|false|blocknode.example.com:40841|true");
+    }
 }

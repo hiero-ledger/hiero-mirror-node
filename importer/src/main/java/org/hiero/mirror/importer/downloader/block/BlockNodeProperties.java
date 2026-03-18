@@ -62,4 +62,16 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     public String getStreamingEndpoint() {
         return getStreamingHost() + ":" + streamingPort;
     }
+
+    /**
+     * Returns a key that uniquely identifies this block node configuration for merge purposes.
+     * Two configurations are considered the same when both status endpoint (host+port) and
+     * requiresTls match, and both streaming endpoint (host+port) and requiresTls match.
+     */
+    public String getMergeKey() {
+        return getStatusEndpoint()
+                + "|" + statusApiRequireTls
+                + "|" + getStreamingEndpoint()
+                + "|" + streamingApiRequireTls;
+    }
 }

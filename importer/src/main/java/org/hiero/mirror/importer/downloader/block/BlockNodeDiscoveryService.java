@@ -38,18 +38,19 @@ public class BlockNodeDiscoveryService {
     /**
      * Returns a list of block nodes properties, combination of config file properties and
      * auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
-     * properties if they have the same streaming endpoints.
+     * properties when they represent the same block node (same status endpoint (host+port) and requiresTls, and
+     * same streaming endpoint (host+port) and requiresTls).
      */
     public List<BlockNodeProperties> getBlockNodesConfigProperties() {
         final Map<String, BlockNodeProperties> configurationsMap = new HashMap<>();
 
         for (final var configFileNodesProperties : blockProperties.getNodes()) {
-            configurationsMap.put(configFileNodesProperties.getStreamingEndpoint(), configFileNodesProperties);
+            configurationsMap.put(configFileNodesProperties.getMergeKey(), configFileNodesProperties);
         }
         if (blockProperties.isAutoDiscoveryEnabled()) {
             final var autoDiscoveredNodesProperties = discover();
             for (final var blockNodeProperties : autoDiscoveredNodesProperties) {
-                configurationsMap.put(blockNodeProperties.getStreamingEndpoint(), blockNodeProperties);
+                configurationsMap.put(blockNodeProperties.getMergeKey(), blockNodeProperties);
             }
         }
 

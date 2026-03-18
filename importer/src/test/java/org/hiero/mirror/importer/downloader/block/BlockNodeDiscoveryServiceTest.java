@@ -305,6 +305,117 @@ final class BlockNodeDiscoveryServiceTest {
     }
 
     @Test
+    void blockNodeConfigPropertiesAreReplacedWithDiscoveredOnesIfMergeKeyMatches() {
+        // given
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40840)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40841)
+                        .requiresTls(false)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.PUBLISH)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40843)
+                        .build());
+
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
+
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        final var configNode = new BlockNodeProperties();
+        configNode.setHost("blocknode.example.com");
+        configNode.setStatusPort(40840);
+        configNode.setStreamingPort(40841);
+        configNode.setStatusApiRequireTls(false);
+        configNode.setStreamingApiRequireTls(false);
+        blockProperties.setNodes(List.of(configNode));
+
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+
+        // when
+        final var result = service.getBlockNodesConfigProperties();
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getHost()).isEqualTo("blocknode.example.com");
+        assertThat(result.getFirst().getStreamingEndpoint()).isEqualTo("blocknode.example.com:40841");
+        assertThat(result.getFirst().isStatusApiRequireTls()).isFalse();
+        assertThat(result.getFirst().isStreamingApiRequireTls()).isFalse();
+    }
+
+    @Test
+    void blockNodeConfigPropertiesAreNotReplacedWithDiscoveredOnesIfMergeKeyDoesNotMatches() {
+        // given
+        final var endpoints = List.of(
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.STATUS)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40840)
+                        .requiresTls(true)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.SUBSCRIBE_STREAM)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40841)
+                        .requiresTls(true)
+                        .build(),
+                RegisteredServiceEndpoint.builder()
+                        .blockNode(BlockNodeEndpoint.builder()
+                                .endpointApi(BlockNodeApi.PUBLISH)
+                                .build())
+                        .domainName("blocknode.example.com")
+                        .port(40843)
+                        .build());
+
+        when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+                        RegisteredNodeType.BLOCK_NODE.getValue()))
+                .thenReturn(List.of(serviceEndpoints(endpoints)));
+
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        final var configNode = new BlockNodeProperties();
+        configNode.setHost("blocknode.example.com");
+        configNode.setStatusPort(40840);
+        configNode.setStreamingPort(40841);
+        configNode.setStatusApiRequireTls(false);
+        configNode.setStreamingApiRequireTls(false);
+        blockProperties.setNodes(List.of(configNode));
+
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+
+        // when
+        final var result = service.getBlockNodesConfigProperties();
+
+        // then
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .extracting(BlockNodeProperties::getMergeKey)
+                .containsExactlyInAnyOrder(
+                        "blocknode.example.com:40840|false|blocknode.example.com:40841|false",
+                        "blocknode.example.com:40840|true|blocknode.example.com:40841|true");
+    }
+
+    @Test
     void onRegisteredNodeChangedInvalidatesCache() {
         when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
                         RegisteredNodeType.BLOCK_NODE.getValue()))
