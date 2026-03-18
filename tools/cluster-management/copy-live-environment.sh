@@ -345,7 +345,6 @@ function restoreTarget() {
   resumeCommonChart
   patchBackupPaths
   replaceDisks
-  runAcceptanceTest
 }
 
 function deleteSnapshots() {
@@ -702,5 +701,6 @@ function waitForHelmReleaseReady() {
 
 ensureContext K8S_TARGET_CLUSTER_CONTEXT
 restoreEnvironment
+runAcceptanceTest
 runK6Test
 teardownResources

@@ -9,13 +9,15 @@ import org.hiero.mirror.common.CommonConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.util.FileSystemUtils;
 
+@EnableAsync
 @Import(CommonConfiguration.class)
 @SpringBootApplication
 public class Web3Application {
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         cleanup();
         SpringApplication.run(Web3Application.class, args);
     }
@@ -27,7 +29,7 @@ public class Web3Application {
             FileSystemUtils.deleteRecursively(tmpDir);
             Files.createDirectories(tmpDir);
         } catch (IOException ex) {
-            System.err.println("Could not delete tmp directory %s: %s".formatted(tmpDir, ex.getMessage()));
+            System.err.printf("Could not delete tmp directory %s: %s%n", tmpDir, ex.getMessage());
         }
     }
 }

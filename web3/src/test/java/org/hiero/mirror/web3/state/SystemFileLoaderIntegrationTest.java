@@ -152,7 +152,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(EXCHANGE_RATES_SET.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         // First load - should get from DB
@@ -172,19 +172,21 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         final var secondLoad = systemFileLoader.load(fileId, 350L);
         assertThat(secondLoad).isNotNull();
         assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET.toByteArray()));
+        assertThat(systemFileLoader.load(fileId, 351L)).isEqualTo(secondLoad);
     }
 
     @Test
     void loadExchangeRatesWithDifferentTimestampsReturnsDifferentCachedResults() {
         final var fileId = toFileID(systemEntity.exchangeRateFile());
         final var entityId = toEntityId(fileId);
+        final var timestamp = 1773810000000000000L;
 
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(EXCHANGE_RATES_SET.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(100L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         domainBuilder
@@ -192,11 +194,11 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(EXCHANGE_RATES_SET_2.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(timestamp))
                 .persist();
 
         final var resultAtTimestamp1 = systemFileLoader.load(exchangeRateFileId, 150L);
-        final var resultAtTimestamp2 = systemFileLoader.load(exchangeRateFileId, 350L);
+        final var resultAtTimestamp2 = systemFileLoader.load(exchangeRateFileId, timestamp + 100L);
 
         assertThat(resultAtTimestamp1).isNotNull();
         assertThat(resultAtTimestamp1.contents()).isEqualTo(Bytes.wrap(EXCHANGE_RATES_SET.toByteArray()));
@@ -206,7 +208,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
 
         // Verify the cache returns the same distinct results on subsequent calls
         final var cachedResult1 = systemFileLoader.load(exchangeRateFileId, 150L);
-        final var cachedResult2 = systemFileLoader.load(exchangeRateFileId, 350L);
+        final var cachedResult2 = systemFileLoader.load(exchangeRateFileId, timestamp);
 
         assertThat(cachedResult1.contents()).isEqualTo(resultAtTimestamp1.contents());
         assertThat(cachedResult2.contents()).isEqualTo(resultAtTimestamp2.contents());
@@ -217,13 +219,14 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     void loadFeeScheduleCachingBehavior() {
         final var fileId = toFileID(systemEntity.feeScheduleFile());
         final var entityId = toEntityId(fileId);
+        final var timestamp = 1773810000000000000L;
 
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(FEE_SCHEDULE.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         final var firstLoad = systemFileLoader.load(fileId, 350L);
@@ -235,25 +238,27 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(FEE_SCHEDULE_2.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(300L))
+                        .consensusTimestamp(timestamp))
                 .persist();
 
         final var secondLoad = systemFileLoader.load(fileId, 350L);
         assertThat(secondLoad).isNotNull();
         assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE.toByteArray()));
+        assertThat(systemFileLoader.load(fileId, 351L)).isEqualTo(secondLoad);
     }
 
     @Test
     void loadFeeScheduleWithDifferentTimestampsReturnsDifferentCachedResults() {
         final var fileId = toFileID(systemEntity.feeScheduleFile());
         final var entityId = toEntityId(fileId);
+        final var timestamp = 1773810000000000000L;
 
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(FEE_SCHEDULE.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(100L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         domainBuilder
@@ -261,11 +266,11 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(FEE_SCHEDULE_2.toByteArray())
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(timestamp))
                 .persist();
 
         final var resultAt150 = systemFileLoader.load(feeScheduleFileId, 150L);
-        final var resultAt350 = systemFileLoader.load(feeScheduleFileId, 350L);
+        final var resultAt350 = systemFileLoader.load(feeScheduleFileId, timestamp + 350L);
 
         assertThat(resultAt150).isNotNull();
         assertThat(resultAt150.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE.toByteArray()));
@@ -273,7 +278,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(resultAt350.contents()).isEqualTo(Bytes.wrap(FEE_SCHEDULE_2.toByteArray()));
 
         final var cachedResult1 = systemFileLoader.load(feeScheduleFileId, 150L);
-        final var cachedResult2 = systemFileLoader.load(feeScheduleFileId, 350L);
+        final var cachedResult2 = systemFileLoader.load(feeScheduleFileId, timestamp + 350L);
 
         assertThat(cachedResult1.contents()).isEqualTo(resultAt150.contents());
         assertThat(cachedResult2.contents()).isEqualTo(resultAt350.contents());
@@ -305,13 +310,14 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
     void loadFileReturnsCorrectWithEmptyAndValidFile(EntityId entityId, byte[] fileData) {
         // Setup
         final var fileId = toFileID(entityId);
+        final var timestamp = 1773810000000000000L;
 
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(EMPTY_BYTES)
                         .entityId(entityId)
-                        .consensusTimestamp(100L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         domainBuilder
@@ -319,10 +325,10 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(fileData)
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(timestamp))
                 .persist();
 
-        final var actualFile = systemFileLoader.load(fileId, 350L);
+        final var actualFile = systemFileLoader.load(fileId, timestamp);
         assertThat(actualFile).isNotNull();
         assertThat(actualFile.contents()).isEqualTo(Bytes.wrap(fileData));
     }
