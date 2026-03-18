@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.importer.downloader.block;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -51,8 +50,7 @@ final class CompositeBlockSourceTest {
         properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any()))
-                .thenReturn(List.of(new BlockNodeProperties()));
+        when(blockNodeDiscoveryService.getBlockNodesConfigProperties()).thenReturn(List.of(new BlockNodeProperties()));
         source = new CompositeBlockSource(
                 blockFileSource, blockNodeSubscriber, blockNodeDiscoveryService, cutoverService, properties);
         sources = Map.of(
@@ -118,7 +116,7 @@ final class CompositeBlockSourceTest {
     @Test
     void getAutoNoBlockNodes() {
         // given - discovery service returns empty (no config nodes, no discovered nodes)
-        when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any())).thenReturn(Collections.emptyList());
+        when(blockNodeDiscoveryService.getBlockNodesConfigProperties()).thenReturn(Collections.emptyList());
 
         // when
         source.get();

@@ -25,6 +25,8 @@ public class BlockProperties {
 
     private final ImporterProperties importerProperties;
 
+    private boolean autoDiscoveryEnabled = true;
+
     private String bucketName;
 
     private Boolean cutover;
@@ -32,8 +34,6 @@ public class BlockProperties {
     @DurationMin(seconds = 8)
     @NotNull
     private Duration cutoverThreshold = Duration.ofSeconds(8);
-
-    private boolean autoDiscoveryEnabled = true;
 
     private boolean enabled = false;
 

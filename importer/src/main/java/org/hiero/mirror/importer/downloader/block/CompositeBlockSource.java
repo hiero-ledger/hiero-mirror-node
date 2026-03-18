@@ -59,9 +59,7 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
-                if (blockNodeDiscoveryService
-                        .getBlockNodesConfigProperties(properties)
-                        .isEmpty()) {
+                if (blockNodeDiscoveryService.getBlockNodesConfigProperties().isEmpty()) {
                     yield blockFileSourceHealth;
                 }
 

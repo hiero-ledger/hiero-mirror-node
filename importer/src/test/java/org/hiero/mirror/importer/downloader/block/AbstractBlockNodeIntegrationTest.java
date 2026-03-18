@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
@@ -11,6 +10,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -84,11 +84,13 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
-        lenient().when(blockNodeDiscoveryService.discover()).thenReturn(List.of());
         lenient()
-                .when(blockNodeDiscoveryService.getBlockNodesConfigProperties(any()))
-                .thenAnswer(invocation ->
-                        invocation.getArgument(0, BlockProperties.class).getNodes());
+                .when(blockNodeDiscoveryService.getBlockNodesConfigProperties())
+                .thenAnswer(invocation -> {
+                    final var nodeList = new ArrayList<>(blockProperties.getNodes());
+                    Collections.sort(nodeList);
+                    return nodeList;
+                });
         return new BlockNodeSubscriber(
                 blockStreamReader,
                 blockStreamVerifier,

@@ -74,13 +74,16 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry) {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
-        final var statusHost = properties.getStatusHost();
-        final var streamingHost = properties.getStreamingHost();
+        final var host = properties.getHost();
+        final var streamingHost = properties.getStreamingHost() != null
+                        && !properties.getStreamingHost().isEmpty()
+                ? properties.getStreamingHost()
+                : properties.getHost();
         final boolean sameEndpoint =
-                statusHost.equals(streamingHost) && properties.getStatusPort() == properties.getStreamingPort();
+                host.equals(streamingHost) && properties.getStatusPort() == properties.getStreamingPort();
 
         this.statusChannel = channelBuilderProvider
-                .get(statusHost, properties.getStatusPort())
+                .get(host, properties.getStatusPort())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
 

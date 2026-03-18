@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
@@ -30,9 +31,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class BlockNodeDiscoveryService {
 
-    public static final int TIER_ONE_REGISTERED_NODE_PRIORITY = 0;
+    private final BlockProperties blockProperties;
     private final RegisteredNodeRepository registeredNodeRepository;
-
     private final AtomicReference<List<BlockNodeProperties>> blockNodesCache = new AtomicReference<>();
 
     /**
@@ -40,7 +40,7 @@ public class BlockNodeDiscoveryService {
      * auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
      * properties if they have the same streaming endpoints.
      */
-    public List<BlockNodeProperties> getBlockNodesConfigProperties(BlockProperties blockProperties) {
+    public List<BlockNodeProperties> getBlockNodesConfigProperties() {
         final Map<String, BlockNodeProperties> configurationsMap = new HashMap<>();
 
         for (final var configFileNodesProperties : blockProperties.getNodes()) {
@@ -53,13 +53,15 @@ public class BlockNodeDiscoveryService {
             }
         }
 
-        return new ArrayList<>(configurationsMap.values());
+        final var result = new ArrayList<>(configurationsMap.values());
+        Collections.sort(result);
+        return result;
     }
 
     /**
      * Returns cached block nodes properties if available, otherwise returns all tier 1 block nodes properties from db.
      */
-    public List<BlockNodeProperties> discover() {
+    private List<BlockNodeProperties> discover() {
         final var cached = blockNodesCache.get();
         if (cached != null) {
             return cached;
@@ -72,10 +74,7 @@ public class BlockNodeDiscoveryService {
             final List<BlockNodeProperties> propertiesList = new ArrayList<>(serviceEndpointsList.size());
             for (final var nodeServiceEndpoints : serviceEndpointsList) {
                 toBlockNodeProperties(nodeServiceEndpoints.getServiceEndpoints())
-                        .ifPresent(props -> {
-                            props.setPriority(TIER_ONE_REGISTERED_NODE_PRIORITY);
-                            propertiesList.add(props);
-                        });
+                        .ifPresent(propertiesList::add);
             }
 
             final var result = Collections.unmodifiableList(propertiesList);
@@ -123,16 +122,15 @@ public class BlockNodeDiscoveryService {
             return Optional.empty();
         }
 
-        final var statusHost = extractHost(statusEndpoint);
+        final var host = extractHost(statusEndpoint);
         final var streamHost = extractHost(streamEndpoint);
-        if (statusHost == null || streamHost == null || extractHost(publishEndpoint) == null) {
+        if (host == null || streamHost == null || extractHost(publishEndpoint) == null) {
             return Optional.empty();
         }
 
         final var props = new BlockNodeProperties();
-        props.setHost(statusHost);
+        props.setHost(host);
         props.setStatusApiRequireTls(statusEndpoint.isRequiresTls());
-        props.setStatusHost(statusHost);
         props.setStatusPort(statusEndpoint.getPort());
         props.setStreamingApiRequireTls(streamEndpoint.isRequiresTls());
         props.setStreamingHost(streamHost);
@@ -143,12 +141,12 @@ public class BlockNodeDiscoveryService {
 
     private static String extractHost(RegisteredServiceEndpoint endpoint) {
         final var domainName = endpoint.getDomainName();
-        if (domainName != null && !domainName.isBlank()) {
+        if (!StringUtils.isBlank(domainName)) {
             return domainName.trim();
         }
 
         final var ipAddress = endpoint.getIpAddress();
-        if (ipAddress != null && !ipAddress.isBlank()) {
+        if (!StringUtils.isBlank(ipAddress)) {
             return ipAddress.trim();
         }
         return null;

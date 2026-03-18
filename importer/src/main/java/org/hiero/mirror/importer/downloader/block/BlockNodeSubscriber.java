@@ -22,7 +22,7 @@ import org.jspecify.annotations.NullMarked;
 @NullMarked
 final class BlockNodeSubscriber extends AbstractBlockSource implements AutoCloseable {
 
-    private static final List<BlockNode> EMPTY = Collections.unmodifiableList(new ArrayList<>());
+    private static final List<BlockNode> EMPTY = Collections.emptyList();
 
     private final ManagedChannelBuilderProvider channelBuilderProvider;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
@@ -87,9 +87,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
      * (e.g. due to config or discovery updates).
      */
     private synchronized List<BlockNode> getBlockNodes() {
-        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties(properties).stream()
-                .sorted()
-                .toList();
+        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties();
 
         final List<BlockNode> currentNodes = Objects.requireNonNullElse(nodes.get(), Collections.emptyList());
         if (!nodesChanged(currentNodes, latestPropertiesList)) {
@@ -97,11 +95,11 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         }
 
         currentNodes.forEach(BlockNode::close);
-        final var newNodes = latestPropertiesList.stream()
-                .map(props -> new BlockNode(
-                        channelBuilderProvider, this::drainGrpcBuffer, props, properties.getStream(), meterRegistry))
-                .sorted()
-                .toList();
+        final List<BlockNode> newNodes = new ArrayList<>(latestPropertiesList.size());
+        for (final var props : latestPropertiesList) {
+            newNodes.add(new BlockNode(
+                    channelBuilderProvider, this::drainGrpcBuffer, props, properties.getStream(), meterRegistry));
+        }
         nodes.set(newNodes);
         return newNodes;
     }

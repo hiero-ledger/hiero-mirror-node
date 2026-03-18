@@ -16,7 +16,7 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private static final Comparator<BlockNodeProperties> COMPARATOR = Comparator.comparing(
                     BlockNodeProperties::getPriority)
-            .thenComparing(BlockNodeProperties::getStatusHost)
+            .thenComparing(BlockNodeProperties::getHost)
             .thenComparing(BlockNodeProperties::getStreamingHost)
             .thenComparing(BlockNodeProperties::getStatusPort)
             .thenComparing(BlockNodeProperties::getStreamingPort);
@@ -34,8 +34,6 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private boolean streamingApiRequireTls;
 
-    private String statusHost;
-
     @Max(65535)
     @Min(0)
     private int statusPort = 40840;
@@ -49,10 +47,6 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
     @Override
     public int compareTo(BlockNodeProperties other) {
         return COMPARATOR.compare(this, other);
-    }
-
-    public String getStatusHost() {
-        return host;
     }
 
     public String getStreamingHost() {

@@ -38,8 +38,11 @@ final class BlockNodeDiscoveryServiceTest {
         when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of());
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        assertThat(service.discover()).isEmpty();
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        assertThat(service.getBlockNodesConfigProperties()).isEmpty();
     }
 
     @Test
@@ -71,14 +74,16 @@ final class BlockNodeDiscoveryServiceTest {
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of(serviceEndpoints(endpoints)));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.discover();
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).hasSize(1);
         final var props = result.getFirst();
         assertThat(props.getPriority()).isZero();
         assertThat(props.getHost()).isEqualTo("status.example.com");
-        assertThat(props.getStatusHost()).isEqualTo("status.example.com");
         assertThat(props.getStatusPort()).isEqualTo(40840);
         assertThat(props.getStreamingHost()).isEqualTo("192.168.1.10");
         assertThat(props.getStreamingPort()).isEqualTo(40841);
@@ -117,8 +122,11 @@ final class BlockNodeDiscoveryServiceTest {
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of(serviceEndpoints(endpoints)));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.discover();
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).hasSize(1);
         final var props = result.getFirst();
@@ -140,8 +148,11 @@ final class BlockNodeDiscoveryServiceTest {
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of(serviceEndpoints(endpoints)));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.discover();
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).isEmpty();
     }
@@ -160,10 +171,73 @@ final class BlockNodeDiscoveryServiceTest {
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of(serviceEndpoints(endpoints)));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.discover();
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getBlockNodesConfigPropertiesReturnsSortedResult() {
+        final var nodeB = new BlockNodeProperties();
+        nodeB.setHost("b.example.com");
+        nodeB.setPriority(1);
+        nodeB.setStatusPort(40840);
+        nodeB.setStreamingPort(40841);
+
+        final var nodeA = new BlockNodeProperties();
+        nodeA.setHost("a.example.com");
+        nodeA.setPriority(0);
+        nodeA.setStatusPort(40840);
+        nodeA.setStreamingPort(40841);
+
+        final var nodeC = new BlockNodeProperties();
+        nodeC.setHost("c.example.com");
+        nodeC.setPriority(2);
+        nodeC.setStatusPort(40840);
+        nodeC.setStreamingPort(40841);
+
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(false);
+        blockProperties.setNodes(List.of(nodeB, nodeA, nodeC));
+
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
+
+        assertThat(result).containsExactly(nodeA, nodeB, nodeC);
+    }
+
+    @Test
+    void getBlockNodesConfigPropertiesSortsByHostWhenPrioritiesEqual() {
+        final var nodeB = new BlockNodeProperties();
+        nodeB.setHost("b.example.com");
+        nodeB.setPriority(0);
+        nodeB.setStatusPort(40840);
+        nodeB.setStreamingPort(40841);
+
+        final var nodeA = new BlockNodeProperties();
+        nodeA.setHost("a.example.com");
+        nodeA.setPriority(0);
+        nodeA.setStatusPort(40840);
+        nodeA.setStreamingPort(40841);
+
+        final var nodeC = new BlockNodeProperties();
+        nodeC.setHost("c.example.com");
+        nodeC.setPriority(0);
+        nodeC.setStatusPort(40840);
+        nodeC.setStreamingPort(40841);
+
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(false);
+        blockProperties.setNodes(List.of(nodeC, nodeA, nodeB));
+
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
+
+        assertThat(result).containsExactly(nodeA, nodeB, nodeC);
     }
 
     @Test
@@ -176,8 +250,8 @@ final class BlockNodeDiscoveryServiceTest {
         configNode.setStreamingPort(40841);
         blockProperties.setNodes(List.of(configNode));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties(blockProperties);
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).containsExactly(configNode);
         verify(registeredNodeRepository, never()).findServiceEndpointsByDeletedFalseAndTypeContains(anyShort());
@@ -220,8 +294,8 @@ final class BlockNodeDiscoveryServiceTest {
         configNode.setStreamingPort(40842);
         blockProperties.setNodes(List.of(configNode));
 
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties(blockProperties);
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
+        final var result = service.getBlockNodesConfigProperties();
 
         assertThat(result).hasSize(2);
         assertThat(result)
@@ -236,15 +310,18 @@ final class BlockNodeDiscoveryServiceTest {
         when(registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
                         RegisteredNodeType.BLOCK_NODE.getValue()))
                 .thenReturn(List.of());
-        final var service = new BlockNodeDiscoveryService(registeredNodeRepository);
+        final var blockProperties = new BlockProperties(new ImporterProperties());
+        blockProperties.setAutoDiscoveryEnabled(true);
+        blockProperties.setNodes(List.of());
+        final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
-        service.discover();
-        service.discover();
+        service.getBlockNodesConfigProperties();
+        service.getBlockNodesConfigProperties();
         verify(registeredNodeRepository)
                 .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
 
         service.onRegisteredNodeChanged(new RegisteredNodeChangedEvent(service));
-        service.discover();
+        service.getBlockNodesConfigProperties();
         verify(registeredNodeRepository, times(2))
                 .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }
