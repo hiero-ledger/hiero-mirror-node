@@ -19,7 +19,9 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
             .thenComparing(BlockNodeProperties::getHost)
             .thenComparing(BlockNodeProperties::getStreamingHost)
             .thenComparing(BlockNodeProperties::getStatusPort)
-            .thenComparing(BlockNodeProperties::getStreamingPort);
+            .thenComparing(BlockNodeProperties::getStreamingPort)
+            .thenComparing(BlockNodeProperties::isStatusApiRequireTls)
+            .thenComparing(BlockNodeProperties::isStreamingApiRequireTls);
 
     /**
      * Used for status and streaming (when streamingHost is not set)

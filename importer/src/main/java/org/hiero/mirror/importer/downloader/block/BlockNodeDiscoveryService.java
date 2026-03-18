@@ -87,7 +87,7 @@ public class BlockNodeDiscoveryService {
     }
 
     @TransactionalEventListener(RegisteredNodeChangedEvent.class)
-    public void onRegisteredNodeChanged(@SuppressWarnings("unused") RegisteredNodeChangedEvent event) {
+    public void onRegisteredNodeChanged() {
         blockNodesCache.set(null);
         log.debug("Invalidated block node discovery cache");
     }

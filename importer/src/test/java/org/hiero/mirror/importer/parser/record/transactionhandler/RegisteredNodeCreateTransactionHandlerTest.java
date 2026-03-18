@@ -5,16 +5,19 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.hiero.mirror.common.domain.node.RegisteredNodeType.MIRROR_NODE;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.hederahashgraph.api.proto.java.RegisteredNodeCreateTransactionBody.Builder;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
 import com.hederahashgraph.api.proto.java.TransactionBody;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.entity.EntityType;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.context.ApplicationEventPublisher;
@@ -78,6 +81,7 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
             assertThat(registeredNode.getServiceEndpoints()).hasSize(3).allMatch(e -> e.getPort() > 0);
             assertThat(registeredNode.getType()).containsExactlyInAnyOrder(BLOCK_NODE.getId(), MIRROR_NODE.getId());
         }));
+        verify(applicationEventPublisher, times(1)).publishEvent(any(RegisteredNodeChangedEvent.class));
 
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
@@ -97,6 +101,30 @@ final class RegisteredNodeCreateTransactionHandlerTest extends AbstractTransacti
 
         // then
         verifyNoInteractions(entityListener);
+        verifyNoInteractions(applicationEventPublisher);
+        assertThat(recordItem.getEntityTransactions())
+                .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
+    }
+
+    @Test
+    void updateTransactionWithNoServiceEndpointsDoesNotPublishEvent() {
+        // given
+        final var recordItem = recordItemBuilder
+                .registeredNodeCreate()
+                .transactionBody(Builder::clearServiceEndpoint)
+                .build();
+        final long consensusTimestamp = recordItem.getConsensusTimestamp();
+        final var transaction = domainBuilder
+                .transaction()
+                .customize(t -> t.consensusTimestamp(consensusTimestamp).entityId(EntityId.EMPTY))
+                .get();
+
+        // when
+        transactionHandler.updateTransaction(transaction, recordItem);
+
+        // then
+        verify(entityListener, times(1)).onRegisteredNode(any());
+        verifyNoInteractions(applicationEventPublisher);
         assertThat(recordItem.getEntityTransactions())
                 .containsExactlyInAnyOrderEntriesOf(getExpectedEntityTransactions(recordItem, transaction));
     }

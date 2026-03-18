@@ -16,7 +16,6 @@ import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeApi;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.BlockNodeEndpoint;
 import org.hiero.mirror.importer.ImporterProperties;
-import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -320,7 +319,7 @@ final class BlockNodeDiscoveryServiceTest {
         verify(registeredNodeRepository)
                 .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
 
-        service.onRegisteredNodeChanged(new RegisteredNodeChangedEvent(service));
+        service.onRegisteredNodeChanged();
         service.getBlockNodesConfigProperties();
         verify(registeredNodeRepository, times(2))
                 .findServiceEndpointsByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());

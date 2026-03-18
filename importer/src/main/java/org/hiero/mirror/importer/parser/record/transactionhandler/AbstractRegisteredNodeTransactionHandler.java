@@ -33,7 +33,11 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         final var registeredNode = parseRegisteredNode(recordItem);
         if (registeredNode != null) {
             entityListener.onRegisteredNode(registeredNode);
-            applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
+            if (registeredNode.isDeleted()
+                    || (registeredNode.getServiceEndpoints() != null
+                            && !registeredNode.getServiceEndpoints().isEmpty())) {
+                applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
+            }
         }
     }
 

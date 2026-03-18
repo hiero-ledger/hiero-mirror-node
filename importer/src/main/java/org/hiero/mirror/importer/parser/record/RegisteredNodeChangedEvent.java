@@ -14,7 +14,7 @@ import org.springframework.context.ApplicationEvent;
 public class RegisteredNodeChangedEvent extends ApplicationEvent {
 
     @Serial
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 622648523232406901L;
 
     public RegisteredNodeChangedEvent(Object source) {
         super(source);

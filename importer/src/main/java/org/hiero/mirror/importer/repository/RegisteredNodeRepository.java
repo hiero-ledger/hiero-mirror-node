@@ -11,7 +11,8 @@ import org.springframework.data.repository.CrudRepository;
 public interface RegisteredNodeRepository extends CrudRepository<RegisteredNode, Long> {
 
     @Query(
-            value = "SELECT service_endpoints FROM registered_node WHERE deleted = false AND :typeId = ANY(type)",
+            value =
+                    "select service_endpoints from registered_node where deleted = false and type @> array[:typeId]::smallint[]",
             nativeQuery = true)
     List<RegisteredNodeServiceEndpoints> findServiceEndpointsByDeletedFalseAndTypeContains(short typeId);
 }
