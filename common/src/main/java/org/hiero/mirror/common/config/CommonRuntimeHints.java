@@ -4,7 +4,6 @@ package org.hiero.mirror.common.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.METHODS_ONLY;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.UNSAFE_ALLOCATED;
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionField;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionType;
 
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
@@ -43,9 +42,7 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         hints.reflection()
                 .registerType(
                         TypeReference.of("com.github.benmanes.caffeine.cache." + className),
-                        b -> b.withConstructor(types, ExecutableMode.INVOKE));
-
-        registerReflectionField(hints, classLoader, className, "FACTORY");
+                        b -> b.withConstructor(types, ExecutableMode.INVOKE).withField("FACTORY"));
     }
 
     private void registerNode(RuntimeHints hints, String className) {
