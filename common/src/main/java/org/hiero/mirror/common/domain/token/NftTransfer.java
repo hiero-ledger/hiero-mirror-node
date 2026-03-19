@@ -21,14 +21,17 @@ public class NftTransfer {
 
     private Boolean isApproval;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId receiverAccountId;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId senderAccountId;
 
     private Long serialNumber;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId tokenId;
 }

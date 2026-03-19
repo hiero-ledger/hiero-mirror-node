@@ -36,15 +36,3 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
-
-// tasks.register<BootRun>("bootRunWithNativeAgent") {
-//    group = "application"
-//    description = "Run grpc with the GraalVM tracing agent"
-//
-//    mainClass.set("org.hiero.mirror.grpc.GrpcApplication")
-//    classpath = sourceSets["main"].runtimeClasspath
-//
-//    val outDir =
-// "${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/grpc"
-//    jvmArgs("-agentlib:native-image-agent=config-output-dir=$outDir")
-// }

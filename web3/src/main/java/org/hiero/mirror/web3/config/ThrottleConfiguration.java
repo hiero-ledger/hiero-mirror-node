@@ -11,7 +11,7 @@ import org.hiero.mirror.web3.throttle.ThrottleProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 public class ThrottleConfiguration {
 

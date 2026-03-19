@@ -34,6 +34,7 @@ public class EntityTransaction implements Persistable<Id> {
     @jakarta.persistence.Id
     private Long entityId;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     @Column(updatable = false)
     private EntityId payerAccountId;

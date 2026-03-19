@@ -30,6 +30,7 @@ public class FileData implements Persistable<Long> {
     @SuppressWarnings("java:S1700")
     private byte[] fileData;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId entityId;
 

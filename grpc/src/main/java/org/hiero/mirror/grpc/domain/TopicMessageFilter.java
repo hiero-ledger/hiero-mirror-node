@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.grpc.domain;
 
-import jakarta.persistence.Convert;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -10,7 +9,6 @@ import java.security.SecureRandom;
 import lombok.Builder;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.hiero.mirror.common.converter.EntityIdConverter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.springframework.validation.annotation.Validated;
@@ -36,11 +34,6 @@ public class TopicMessageFilter {
     private String subscriberId = RandomStringUtils.random(8, 0, 0, true, true, null, RANDOM);
 
     @NotNull
-    @Convert(
-            converter =
-                    EntityIdConverter
-                            .class) // Todo Test if this is needed might just need to have on topic message for input
-    // binding to work
     private EntityId topicId;
 
     public boolean hasLimit() {

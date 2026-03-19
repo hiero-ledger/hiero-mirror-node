@@ -32,6 +32,7 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Upsertable(history = true)
 public abstract class AbstractNode implements History {
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId accountId;
 

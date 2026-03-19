@@ -21,7 +21,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.protobuf.ProtobufHttpMessageConverter;
 import org.springframework.web.filter.ShallowEtagHeaderFilter;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 class RestJavaConfiguration {
 

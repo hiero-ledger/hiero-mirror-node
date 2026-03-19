@@ -21,7 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.resilience.annotation.EnableResilientMethods;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableResilientMethods
 @RequiredArgsConstructor
 class ClientConfiguration {

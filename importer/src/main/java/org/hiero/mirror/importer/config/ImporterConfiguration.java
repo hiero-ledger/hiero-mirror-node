@@ -24,7 +24,7 @@ import org.springframework.resilience.annotation.EnableResilientMethods;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @EnableAsync
 @EnableResilientMethods
 @EntityScan("org.hiero.mirror.importer.repository.upsert")
@@ -74,7 +74,7 @@ class ImporterConfiguration {
         }
     }
 
-    @Configuration
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnProperty(
             prefix = "spring.task.scheduling",
             name = "enabled",

@@ -160,12 +160,11 @@ public final class EntityMetadataRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Function<Object, Object> getter(Field field) {
         try {
-            String prefix = field.getType().equals(boolean.class) ? "is" : "get";
-            String methodName = prefix + StringUtils.capitalize(field.getName());
-            var method = field.getDeclaringClass().getMethod(methodName);
+            final var prefix = field.getType().equals(boolean.class) ? "is" : "get";
+            final var methodName = prefix + StringUtils.capitalize(field.getName());
+            final var method = field.getDeclaringClass().getMethod(methodName);
             method.setAccessible(true);
             return value -> {
                 try {
@@ -179,11 +178,10 @@ public final class EntityMetadataRegistry {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private BiConsumer<Object, Object> setter(Field field) {
         try {
-            String methodName = "set" + StringUtils.capitalize(field.getName());
-            var method = field.getDeclaringClass().getMethod(methodName, field.getType());
+            final var methodName = "set" + StringUtils.capitalize(field.getName());
+            final var method = field.getDeclaringClass().getMethod(methodName, field.getType());
             method.setAccessible(true);
             return (target, value) -> {
                 try {

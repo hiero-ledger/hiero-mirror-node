@@ -48,10 +48,12 @@ public class TokenBalance implements Persistable<TokenBalance.Id> {
         @Column(nullable = false, updatable = false) // set updatable = false to prevent additional hibernate query
         private long consensusTimestamp;
 
+        // Specify converter explicitly so translation works with native image
         @Convert(converter = EntityIdConverter.class)
         @Column(nullable = false, updatable = false) // set updatable = false to prevent additional hibernate query
         private EntityId accountId;
 
+        // Specify converter explicitly so translation works with native image
         @Convert(converter = EntityIdConverter.class)
         private EntityId tokenId;
     }

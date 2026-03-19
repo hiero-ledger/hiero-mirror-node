@@ -34,6 +34,7 @@ public class ContractStateChange implements Persistable<ContractStateChange.Id> 
 
     private boolean migration;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

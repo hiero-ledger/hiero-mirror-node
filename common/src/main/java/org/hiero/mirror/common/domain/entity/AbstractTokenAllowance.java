@@ -32,6 +32,7 @@ public abstract class AbstractTokenAllowance implements FungibleAllowance {
     @jakarta.persistence.Id
     private long owner;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

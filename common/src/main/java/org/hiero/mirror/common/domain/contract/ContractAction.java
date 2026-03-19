@@ -34,6 +34,7 @@ public class ContractAction implements Persistable<ContractAction.Id> {
 
     private int callDepth;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId caller;
 
@@ -58,15 +59,18 @@ public class ContractAction implements Persistable<ContractAction.Id> {
     @ToString.Exclude
     private byte[] input;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId recipientAccount;
 
     @ToString.Exclude
     private byte[] recipientAddress;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId recipientContract;
 

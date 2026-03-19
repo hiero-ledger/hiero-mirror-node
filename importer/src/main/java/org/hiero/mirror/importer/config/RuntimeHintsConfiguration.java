@@ -2,191 +2,77 @@
 
 package org.hiero.mirror.importer.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionField;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerSerialization;
+
+import java.time.Duration;
 import lombok.CustomLog;
+import org.apache.velocity.runtime.ParserPoolImpl;
+import org.apache.velocity.runtime.directive.Foreach;
+import org.apache.velocity.runtime.parser.StandardParser;
+import org.apache.velocity.runtime.resource.ResourceCacheImpl;
+import org.apache.velocity.runtime.resource.ResourceManagerImpl;
+import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
+import org.apache.velocity.util.introspection.TypeConversionHandlerImpl;
+import org.apache.velocity.util.introspection.UberspectImpl;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.importer.parser.record.entity.EntityProperties;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
-import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
-import org.springframework.aot.hint.TypeReference;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @CustomLog
 @ImportRuntimeHints(RuntimeHintsConfiguration.CustomRuntimeHints.class)
+@NullMarked
 class RuntimeHintsConfiguration {
 
     static final class CustomRuntimeHints implements RuntimeHintsRegistrar {
         @Override
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
-            // TODO make this change elsewhere
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("com.github.benmanes.caffeine.cache.SSSMSA"),
-                            builder -> builder.withField("FACTORY"));
+            final var loader = classLoader != null ? classLoader : getClass().getClassLoader();
 
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("com.github.benmanes.caffeine.cache.SSR"),
-                            builder -> builder.withField("FACTORY"));
+            registerReflectionField(hints, loader, "com.github.benmanes.caffeine.cache.SSSMSA", "FACTORY");
+            registerReflectionField(hints, loader, "com.github.benmanes.caffeine.cache.SSR", "FACTORY");
 
-            hints.reflection()
-                    .registerType(
-                            EntityProperties.PersistProperties.class,
-                            MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS);
+            registerReflectionTypes(
+                    hints,
+                    EntityProperties.PersistProperties.class.getName(),
+                    "org.hiero.mirror.importer.migration.ContractLogIndexMigration$RecordFileSlice",
+                    "org.hiero.mirror.importer.migration.AbstractTimestampInfoMigration$TimestampInfo",
+                    "org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics",
+                    "org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes");
 
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of(
-                                    "org.hiero.mirror.importer.migration.ContractLogIndexMigration$RecordFileSlice"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS);
+            registerPackage(hints, loader, Foreach.class.getPackageName(), CONSTRUCTORS_AND_METHODS);
 
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of(
-                                    "org.hiero.mirror.importer.migration.AbstractTimestampInfoMigration$TimestampInfo"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS);
+            registerReflectionTypes(
+                    hints,
+                    CONSTRUCTORS_AND_METHODS,
+                    ResourceManagerImpl.class.getName(),
+                    ResourceCacheImpl.class.getName(),
+                    ClasspathResourceLoader.class.getName(),
+                    StandardParser.class.getName(),
+                    ParserPoolImpl.class.getName(),
+                    UberspectImpl.class.getName(),
+                    TypeConversionHandlerImpl.class.getName(),
+                    Duration.class.getName());
 
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS);
+            registerSerialization(hints, EntityId.class.getName());
 
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS);
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.resource.ResourceManagerImpl"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.resource.ResourceCacheImpl"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.log.JdkLogChute"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Stop"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Define"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Break"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Evaluate"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Parse"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Include"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Foreach"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.If"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Macro"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.directive.Literal"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.parser.StandardParser"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.runtime.ParserPoolImpl"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.util.introspection.UberspectImpl"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection()
-                    .registerType(
-                            TypeReference.of("org.apache.velocity.util.introspection.TypeConversionHandlerImpl"),
-                            MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.reflection().registerType(java.time.Duration.class, MemberCategory.INVOKE_PUBLIC_METHODS);
-
-            hints.serialization().registerType(EntityId.class);
-
-            hints.resources().registerPattern("org/apache/velocity/runtime/defaults/*");
-            hints.resources().registerPattern("db/template/**");
-
-            // TODO verify these are necessary
-            hints.resources().registerPattern("db/migration/common/**");
-            hints.resources().registerPattern("db/migration/v1/**");
-            hints.resources().registerPattern("db/migration/v2/**");
+            registerResourcePatterns(
+                    hints,
+                    "org/apache/velocity/runtime/defaults/*",
+                    "db/template/**",
+                    "db/migration/common/**",
+                    "db/migration/v1/**",
+                    "db/migration/v2/**");
         }
     }
 }

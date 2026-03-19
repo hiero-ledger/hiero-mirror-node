@@ -21,6 +21,8 @@ public class FixedFee extends AbstractFee {
 
     /**
      * Fungible token the fee is paid in, if left unset - paid in HBAR.
+     *
+     * Specify converter explicitly so translation works with native image
      */
     @Convert(converter = EntityIdConverter.class)
     private EntityId denominatingTokenId;

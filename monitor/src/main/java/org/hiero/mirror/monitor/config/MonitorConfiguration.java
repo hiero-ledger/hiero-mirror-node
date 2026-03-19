@@ -28,7 +28,7 @@ import reactor.core.publisher.Hooks;
 import reactor.core.scheduler.Schedulers;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @RequiredArgsConstructor
 class MonitorConfiguration {
 

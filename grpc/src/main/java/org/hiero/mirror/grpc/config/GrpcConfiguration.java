@@ -13,7 +13,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class GrpcConfiguration {
 
     @Bean

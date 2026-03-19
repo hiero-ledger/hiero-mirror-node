@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AssignableTypeFilter;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @CustomLog
 @ImportRuntimeHints(CustomRuntimeHints.class)
 class RuntimeHintsConfiguration {

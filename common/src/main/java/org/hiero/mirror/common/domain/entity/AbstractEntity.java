@@ -91,11 +91,13 @@ public abstract class AbstractEntity implements History {
     @Column(updatable = false)
     private Long num;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId obtainerId;
 
     private Boolean permanentRemoval;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId proxyAccountId;
 

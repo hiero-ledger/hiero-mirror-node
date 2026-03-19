@@ -22,6 +22,8 @@ public abstract class AbstractFee {
 
     /**
      * The id of the account collecting the fee.
+     *
+     * Specify converter explicitly so translation works with native image
      */
     @Convert(converter = EntityIdConverter.class)
     private EntityId collectorAccountId;

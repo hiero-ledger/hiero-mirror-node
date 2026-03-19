@@ -17,13 +17,13 @@ uri = "docker://docker.io/paketobuildpacks/health-checker:latest"
     optional = true
 
 [build]
-image = "docker.io/jesseswirldslabs/web3-build-noble-libsodium:20260317-2"
+image = "docker.io/jesseswirldslabs/web3-build-noble-libsodium:20260317-3"
 
 [run]
   [[run.images]]
-    image = "docker.io/jesseswirldslabs/web3-run-noble-libsodium:20260317-2"
+    image = "docker.io/jesseswirldslabs/web3-run-noble-libsodium:20260317-3"
 
 [stack]
 id = "io.buildpacks.stacks.noble"
-build-image = "docker.io/jesseswirldslabs/web3-build-noble-libsodium:20260317-2"
-run-image = "docker.io/jesseswirldslabs/web3-run-noble-libsodium:20260317-2"
+build-image = "docker.io/jesseswirldslabs/web3-build-noble-libsodium:20260317-3"
+run-image = "docker.io/jesseswirldslabs/web3-run-noble-libsodium:20260317-3"

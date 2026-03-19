@@ -28,6 +28,7 @@ public abstract class AbstractNftAllowance implements History {
     @jakarta.persistence.Id
     private long owner;
 
+    // Specify converter explicitly so translation works with native image
     @Convert(converter = EntityIdConverter.class)
     private EntityId payerAccountId;
 

@@ -17,7 +17,6 @@ COPY --chown=1000:1000 --from=builder /app/spring-boot-loader/ ./
 COPY --chown=1000:1000 --from=builder /app/application/ ./
 RUN apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y --no-install-recommends \
-    && apt-get  install -y --no-install-recommends libsodium23 \
     && rm -rf /var/lib/apt/lists/*    # install OS updates
 USER 1000:1000
 
