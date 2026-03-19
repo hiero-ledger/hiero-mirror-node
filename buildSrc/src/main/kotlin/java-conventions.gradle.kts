@@ -46,6 +46,8 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
+    val isAotTask = name == "compileAotJava" || name == "compileTestAotJava"
+
     // Disable deprecation due to OpenAPI using deprecated Jackson2 in generated code
     // Disable serial and this-escape warnings due to errors in generated code
     // Disable rawtypes and unchecked due to Spring AOT generated configuration
@@ -57,6 +59,12 @@ tasks.withType<JavaCompile>().configureEach {
             "-Xlint:-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
+    if (isAotTask) {
+        options.compilerArgs =
+            options.compilerArgs
+                .filter { it != "-Werror" }
+                .map { arg -> if (arg == "-Xlint:all") "-Xlint:all,-cast" else arg }
+    }
     options.encoding = "UTF-8"
     options.errorprone {
         disableAllChecks = true

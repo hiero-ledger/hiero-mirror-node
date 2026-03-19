@@ -28,7 +28,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 
 @AutoConfigureBefore(DataRedisAutoConfiguration.class)
 @AutoConfigureAfter({MetricsAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class})
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @SuppressWarnings("removal")
 class RedisConfiguration {
 
@@ -45,17 +45,19 @@ class RedisConfiguration {
     }
 
     @Bean
-    RedisOperations<String, StreamMessage> redisOperations(RedisConnectionFactory redisConnectionFactory) {
+    RedisOperations<String, StreamMessage> redisOperations(
+            RedisConnectionFactory redisConnectionFactory, RedisSerializer<StreamMessage> redisSerializer) {
         RedisTemplate<String, StreamMessage> redisTemplate = new RedisTemplate<>();
         redisTemplate.setConnectionFactory(redisConnectionFactory);
-        redisTemplate.setValueSerializer(redisSerializer());
+        redisTemplate.setValueSerializer(redisSerializer);
         return redisTemplate;
     }
 
     @Bean
-    ReactiveRedisOperations<String, StreamMessage> reactiveRedisOperations(ReactiveRedisConnectionFactory factory) {
+    ReactiveRedisOperations<String, StreamMessage> reactiveRedisOperations(
+            ReactiveRedisConnectionFactory factory, RedisSerializer<StreamMessage> redisSerializer) {
         var serializationContext = RedisSerializationContext.<String, StreamMessage>newSerializationContext(
-                        redisSerializer())
+                        redisSerializer)
                 .build();
         return new ReactiveRedisTemplate<>(factory, serializationContext);
     }

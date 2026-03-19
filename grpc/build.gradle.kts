@@ -2,7 +2,10 @@
 
 description = "Hiero Mirror Node gRPC API"
 
-plugins { id("spring-conventions") }
+plugins {
+    id("org.graalvm.buildtools.native")
+    id("spring-conventions")
+}
 
 dependencies {
     implementation(project(":common"))
@@ -10,8 +13,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-core")
     implementation("com.ongres.scram:client")
     implementation("io.github.mweirauch:micrometer-jvm-extras")
-    implementation("io.grpc:grpc-core")
-    implementation("io.grpc:grpc-netty-shaded")
     implementation("io.grpc:grpc-services")
     implementation("io.micrometer:micrometer-registry-prometheus")
     implementation("io.projectreactor.addons:reactor-extra")

@@ -39,7 +39,7 @@ import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 
 @CustomLog
-@Configuration
+@Configuration(proxyBeanMethods = false)
 class MetricsConfiguration {
     /**
      * We use string formatting on these statements to be compatible with both v2 and v1.

@@ -1,0 +1,157 @@
+// SPDX-License-Identifier: Apache-2.0
+
+package org.hiero.mirror.common.util;
+
+import java.lang.annotation.Annotation;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.TypeReference;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
+import org.springframework.core.type.filter.TypeFilter;
+
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+@NullMarked
+public final class RuntimeHintsHelper {
+
+    private static final MemberCategory[] DEFAULT_CATEGORIES = new MemberCategory[] {
+        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+        MemberCategory.INVOKE_DECLARED_METHODS,
+        MemberCategory.ACCESS_DECLARED_FIELDS
+    };
+
+    public static final MemberCategory[] NONE = new MemberCategory[0];
+
+    public static final MemberCategory[] CONSTRUCTORS_AND_METHODS =
+            new MemberCategory[] {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS};
+
+    public static final MemberCategory[] FIELDS_AND_METHODS =
+            new MemberCategory[] {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS};
+
+    public static void registerReflectionField(
+            RuntimeHints hints, ClassLoader loader, String className, String fieldName) {
+        try {
+            Class<?> type = Class.forName(className, false, loader);
+            final var field = type.getDeclaredField(fieldName);
+            hints.reflection().registerField(field);
+        } catch (ClassNotFoundException | NoSuchFieldException ignored) {
+            // no-op
+        }
+    }
+
+    public static void registerJnaAndReflectionTypes(RuntimeHints hints, String... classNames) {
+        registerJnaAndReflectionTypes(hints, DEFAULT_CATEGORIES, classNames);
+    }
+
+    public static void registerJnaAndReflectionTypes(
+            RuntimeHints hints, MemberCategory[] memberCategories, String... classNames) {
+        for (String className : classNames) {
+            registerType(hints, className, true, memberCategories);
+        }
+    }
+
+    public static void registerJnaAndReflectionType(
+            RuntimeHints hints, String className, MemberCategory... memberCategories) {
+        registerType(hints, className, true, memberCategories);
+    }
+
+    public static void registerReflectionTypes(RuntimeHints hints, String... classNames) {
+        registerReflectionTypes(hints, DEFAULT_CATEGORIES, classNames);
+    }
+
+    public static void registerReflectionTypes(
+            RuntimeHints hints, MemberCategory[] memberCategories, String... classNames) {
+        for (String className : classNames) {
+            registerReflectionType(hints, className, memberCategories);
+        }
+    }
+
+    public static void registerReflectionType(
+            RuntimeHints hints, String className, MemberCategory... memberCategories) {
+        registerType(hints, className, false, memberCategories);
+    }
+
+    public static void registerAnnotatedPackage(
+            RuntimeHints hints, ClassLoader loader, String basePackage, Class<? extends Annotation> annotationType) {
+        registerAnnotatedPackage(hints, loader, basePackage, annotationType, DEFAULT_CATEGORIES);
+    }
+
+    public static void registerAnnotatedPackage(
+            RuntimeHints hints,
+            ClassLoader loader,
+            String basePackage,
+            Class<? extends Annotation> annotationType,
+            MemberCategory... memberCategories) {
+        registerPackageMatching(hints, loader, basePackage, new AnnotationTypeFilter(annotationType), memberCategories);
+    }
+
+    public static void registerPackage(RuntimeHints hints, ClassLoader loader, String basePackage) {
+        registerPackage(hints, loader, basePackage, DEFAULT_CATEGORIES);
+    }
+
+    public static void registerPackage(
+            RuntimeHints hints, ClassLoader loader, String basePackage, MemberCategory... memberCategories) {
+        registerPackageMatching(
+                hints,
+                loader,
+                basePackage,
+                (metadataReader, metadataReaderFactory) ->
+                        metadataReader.getClassMetadata().getClassName().startsWith(basePackage),
+                memberCategories);
+    }
+
+    public static void registerResourcePatterns(RuntimeHints hints, String... patterns) {
+        for (final var pattern : patterns) {
+            hints.resources().registerPattern(pattern);
+        }
+    }
+
+    public static void registerSerialization(RuntimeHints hints, String... classNames) {
+        for (final var className : classNames) {
+            hints.serialization().registerType(TypeReference.of(className));
+        }
+    }
+
+    private static void registerType(
+            RuntimeHints hints, String className, boolean registerJni, MemberCategory... memberCategories) {
+        TypeReference type = TypeReference.of(className);
+
+        if (registerJni) {
+            hints.jni().registerType(type, builder -> builder.withMembers(memberCategories));
+        }
+
+        hints.reflection().registerType(type, memberCategories);
+    }
+
+    private static void registerPackageMatching(
+            RuntimeHints hints,
+            ClassLoader loader,
+            String basePackage,
+            TypeFilter includeFilter,
+            MemberCategory... memberCategories) {
+        final var scanner = new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter(includeFilter);
+
+        for (var candidate : scanner.findCandidateComponents(basePackage)) {
+            final var className = candidate.getBeanClassName();
+            if (className == null) {
+                continue;
+            }
+
+            registerLoadedClass(hints, loader, className, memberCategories);
+        }
+    }
+
+    private static void registerLoadedClass(
+            RuntimeHints hints, ClassLoader loader, String className, MemberCategory... memberCategories) {
+        try {
+            Class<?> type = Class.forName(className, false, loader);
+            hints.reflection().registerType(type, memberCategories);
+        } catch (ClassNotFoundException e) {
+            throw new IllegalStateException("Failed to register runtime hints for " + className, e);
+        }
+    }
+}
