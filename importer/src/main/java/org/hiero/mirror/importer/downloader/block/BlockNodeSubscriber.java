@@ -49,7 +49,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
     @Override
     public void close() {
-        getBlockNodes().forEach(BlockNode::close);
+        Objects.requireNonNullElse(nodes.get(), EMPTY).forEach(BlockNode::close);
         executor.shutdown();
     }
 

@@ -33,15 +33,21 @@ public class BlockNodeDiscoveryService {
 
     private final BlockProperties blockProperties;
     private final RegisteredNodeRepository registeredNodeRepository;
-    private final AtomicReference<List<BlockNodeProperties>> blockNodesCache = new AtomicReference<>();
+    private final AtomicReference<List<BlockNodeProperties>> blockNodesConfigCache = new AtomicReference<>();
 
     /**
-     * Returns a list of block nodes properties, combination of config file properties and
+     * Returns a sorted and deduplicated list of block nodes properties, combination of config file properties and
      * auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
      * properties when they represent the same block node (same status endpoint (host+port) and requiresTls, and
      * same streaming endpoint (host+port) and requiresTls).
+     * Results is cached. Cache is invalidated when registered nodes are created, updated, or deleted.
      */
     public List<BlockNodeProperties> getBlockNodesConfigProperties() {
+        final var cached = blockNodesConfigCache.get();
+        if (cached != null) {
+            return cached;
+        }
+
         final Map<String, BlockNodeProperties> configurationsMap = new HashMap<>();
 
         for (final var configFileNodesProperties : blockProperties.getNodes()) {
@@ -56,18 +62,14 @@ public class BlockNodeDiscoveryService {
 
         final var result = new ArrayList<>(configurationsMap.values());
         Collections.sort(result);
+        blockNodesConfigCache.set(Collections.unmodifiableList(result));
         return result;
     }
 
     /**
-     * Returns cached block nodes properties if available, otherwise returns all tier 1 block nodes properties from db.
+     * Returns tier 1 block nodes properties from the database.
      */
     private List<BlockNodeProperties> discover() {
-        final var cached = blockNodesCache.get();
-        if (cached != null) {
-            return cached;
-        }
-
         try {
             final var serviceEndpointsList = registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
                     RegisteredNodeType.BLOCK_NODE.getValue());
@@ -78,9 +80,7 @@ public class BlockNodeDiscoveryService {
                         .ifPresent(propertiesList::add);
             }
 
-            final var result = Collections.unmodifiableList(propertiesList);
-            blockNodesCache.set(result);
-            return result;
+            return Collections.unmodifiableList(propertiesList);
         } catch (Exception ex) {
             log.error("Error during block nodes discovery: ", ex);
             return Collections.emptyList();
@@ -89,7 +89,7 @@ public class BlockNodeDiscoveryService {
 
     @TransactionalEventListener(RegisteredNodeChangedEvent.class)
     public void onRegisteredNodeChanged() {
-        blockNodesCache.set(null);
+        blockNodesConfigCache.set(null);
         log.debug("Invalidated block node discovery cache");
     }
 

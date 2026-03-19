@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
@@ -33,9 +34,7 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
         final var registeredNode = parseRegisteredNode(recordItem);
         if (registeredNode != null) {
             entityListener.onRegisteredNode(registeredNode);
-            if (registeredNode.isDeleted()
-                    || (registeredNode.getServiceEndpoints() != null
-                            && !registeredNode.getServiceEndpoints().isEmpty())) {
+            if (registeredNode.isDeleted() || !CollectionUtils.isEmpty(registeredNode.getServiceEndpoints())) {
                 applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
             }
         }
