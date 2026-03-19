@@ -92,7 +92,7 @@ public class EvmProperties {
     private final VersionedConfiguration versionedConfiguration =
             new ConfigProviderImpl(false, null, getTransactionProperties()).getConfiguration();
 
-    private boolean simpleFeesEnabled = false;
+    private boolean simpleFeesEnabled = true;
 
     private boolean validatePayerBalance = false;
 
