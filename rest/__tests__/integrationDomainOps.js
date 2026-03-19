@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import _ from 'lodash-es';
+import _ from 'lodash';
 import pgformat from 'pg-format';
 import {Range} from 'pg-range';
 import {proto} from '@hiero-ledger/proto';
@@ -46,6 +46,7 @@ const setup = async (testDataJson) => {
   await loadCustomFees(testDataJson.customfees);
   await loadEntities(testDataJson.entities);
   await loadEntityStakes(testDataJson.entityStakes);
+  await loadEntityTransactions(testDataJson.entityTransactions);
   await loadEthereumTransactions(testDataJson.ethereumtransactions);
   await loadFileData(testDataJson.filedata);
   await loadNfts(testDataJson.nfts);
@@ -322,6 +323,16 @@ const loadEntities = async (entities) => {
 
   for (const entity of entities) {
     await addEntity({}, entity);
+  }
+};
+
+const loadEntityTransactions = async (entityTransactions) => {
+  if (entityTransactions == null) {
+    return;
+  }
+
+  for (const entityTransaction of entityTransactions) {
+    await addEntityTransaction(entityTransaction);
   }
 };
 
@@ -639,6 +650,13 @@ const addEntity = async (defaults, custom) => {
   return entity;
 };
 
+const addEntityTransaction = async (entityTransaction) => {
+  entityTransaction.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
+  entityTransaction.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
+
+  await insertDomainObject('entity_transaction', Object.keys(entityTransaction), entityTransaction);
+};
+
 const SECONDS_PER_DAY = 86400;
 
 const defaultEntityStake = {
@@ -677,7 +695,7 @@ const ethereumTransactionDefaults = {
   consensus_timestamp: '187654000123456',
   data: '0x000000000',
   gas_limit: 1000000,
-  gas_price: '0x4a817c80',
+  gas_price: '0xAD78EBC5AC620000',
   hash: '0x0000000000000000000000000000000000000000000000000000000000000123',
   max_fee_per_gas: null,
   max_gas_allowance: 10000,
@@ -1754,6 +1772,7 @@ export default {
   loadCryptoAllowances,
   loadCryptoTransfers,
   loadEntities,
+  loadEntityTransactions,
   loadEthereumTransactions,
   loadFileData,
   loadNodes,

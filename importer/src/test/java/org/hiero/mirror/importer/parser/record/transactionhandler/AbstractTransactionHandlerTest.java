@@ -101,7 +101,7 @@ abstract class AbstractTransactionHandlerTest {
     private static final Long MODIFIED_TIMESTAMP_NS = DomainUtils.timestampInNanosMax(MODIFIED_TIMESTAMP);
 
     protected final DomainBuilder domainBuilder = new DomainBuilder();
-    protected final RecordItemBuilder recordItemBuilder = new RecordItemBuilder();
+    protected final RecordItemBuilder recordItemBuilder = new RecordItemBuilder().withEntityTransactions(true);
     protected final Logger log = LoggerFactory.getLogger(getClass());
 
     protected final EntityId defaultEntityId = domainBuilder.entityNum(DEFAULT_ENTITY_NUM);

@@ -137,9 +137,13 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
     }
 
     private void readEvents(final ReaderContext context) {
-        while (context.readBlockItemFor(EVENT_HEADER) != null) {
+        boolean advanced;
+        do {
+            final int lastIndex = context.getIndex();
+            context.readBlockItemFor(EVENT_HEADER);
             readSignedTransactions(context);
-        }
+            advanced = context.getIndex() != lastIndex;
+        } while (advanced);
     }
 
     private void readSignedTransactions(final ReaderContext context) {

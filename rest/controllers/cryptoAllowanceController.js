@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {last} from 'lodash-es';
+import last from 'lodash/last';
 
 import {getResponseLimit} from '../config';
 import {filterKeys, orderFilterValues, responseDataLabel} from '../constants';

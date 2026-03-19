@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {camelCase, mapKeys} from 'lodash-es';
+import camelCase from 'lodash/camelCase';
+import mapKeys from 'lodash/mapKeys';
 
 class RecordFile {
   /**

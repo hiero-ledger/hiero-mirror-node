@@ -6,11 +6,12 @@ import static org.hiero.mirror.common.domain.transaction.TransactionType.CONTRAC
 import static org.hiero.mirror.common.util.DomainUtils.EVM_ADDRESS_LENGTH;
 import static org.hiero.mirror.common.util.DomainUtils.convertToNanosMax;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
@@ -29,13 +30,14 @@ import org.hiero.mirror.web3.common.TransactionHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdOrHashParameter;
 import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.OpcodesProcessingResult;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.exception.EntityNotFoundException;
 import org.hiero.mirror.web3.repository.ContractResultRepository;
 import org.hiero.mirror.web3.repository.ContractTransactionHashRepository;
 import org.hiero.mirror.web3.repository.EthereumTransactionRepository;
 import org.hiero.mirror.web3.repository.TransactionRepository;
 import org.hiero.mirror.web3.service.model.ContractDebugParameters;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.CommonEntityAccessor;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -47,6 +49,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OpcodeServiceImpl implements OpcodeService {
 
+    private static final Address EMPTY_ADDRESS = Address.ZERO;
+    private static final BigInteger ZERO = BigInteger.ZERO;
+
     private final RecordFileService recordFileService;
     private final ContractDebugService contractDebugService;
     private final ContractTransactionHashRepository contractTransactionHashRepository;
@@ -56,11 +61,14 @@ public class OpcodeServiceImpl implements OpcodeService {
     private final CommonEntityAccessor commonEntityAccessor;
 
     @Override
-    public OpcodesResponse processOpcodeCall(
-            @NonNull TransactionIdOrHashParameter transactionIdOrHashParameter, @NonNull OpcodeTracerOptions options) {
-        final ContractDebugParameters params = buildCallServiceParameters(transactionIdOrHashParameter);
+    public OpcodesResponse processOpcodeCall(@NonNull OpcodeRequest opcodeRequest) {
         return ContractCallContext.run(ctx -> {
-            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, options);
+            final var params = buildCallServiceParameters(opcodeRequest.getTransactionIdOrHashParameter());
+            final var opcodeContext = new OpcodeContext(opcodeRequest, (int) params.getGas() / 3);
+
+            ctx.setOpcodeContext(opcodeContext);
+
+            final OpcodesProcessingResult result = contractDebugService.processOpcodeCall(params, opcodeContext);
             return buildOpcodesResponse(result);
         });
     }
@@ -68,8 +76,8 @@ public class OpcodeServiceImpl implements OpcodeService {
     private ContractDebugParameters buildCallServiceParameters(
             @NonNull TransactionIdOrHashParameter transactionIdOrHash) {
         final Long consensusTimestamp;
-        final Optional<Transaction> transaction;
-        final Optional<EthereumTransaction> ethereumTransaction;
+        final Transaction transaction;
+        final EthereumTransaction ethereumTransaction;
 
         switch (transactionIdOrHash) {
             case TransactionHashParameter transactionHash -> {
@@ -78,10 +86,12 @@ public class OpcodeServiceImpl implements OpcodeService {
                         .orElseThrow(() ->
                                 new EntityNotFoundException("Contract transaction hash not found: " + transactionHash));
 
-                transaction = Optional.empty();
+                transaction = null;
                 consensusTimestamp = contractTransactionHash.getConsensusTimestamp();
-                ethereumTransaction = ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
-                        consensusTimestamp, EntityId.of(contractTransactionHash.getPayerAccountId()));
+                ethereumTransaction = ethereumTransactionRepository
+                        .findByConsensusTimestampAndPayerAccountId(
+                                consensusTimestamp, EntityId.of(contractTransactionHash.getPayerAccountId()))
+                        .orElse(null);
             }
             case TransactionIdParameter transactionId -> {
                 final var validStartNs = convertToNanosMax(transactionId.validStart());
@@ -95,10 +105,12 @@ public class OpcodeServiceImpl implements OpcodeService {
                 }
 
                 final var parentTransaction = transactionList.getFirst();
-                transaction = Optional.of(parentTransaction);
+                transaction = parentTransaction;
                 consensusTimestamp = parentTransaction.getConsensusTimestamp();
-                ethereumTransaction = ethereumTransactionRepository.findByConsensusTimestampAndPayerAccountId(
-                        consensusTimestamp, parentTransaction.getPayerAccountId());
+                ethereumTransaction = ethereumTransactionRepository
+                        .findByConsensusTimestampAndPayerAccountId(
+                                consensusTimestamp, parentTransaction.getPayerAccountId())
+                        .orElse(null);
             }
         }
 
@@ -106,66 +118,54 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private OpcodesResponse buildOpcodesResponse(@NonNull OpcodesProcessingResult result) {
-        final Optional<Address> recipientAddress =
-                result.recipient() != Address.ZERO ? Optional.of(result.recipient()) : Optional.empty();
+        final var recipientAddress = result.recipient();
+        Entity recipientEntity = null;
+        if (recipientAddress != null && !recipientAddress.equals(EMPTY_ADDRESS)) {
+            recipientEntity =
+                    commonEntityAccessor.get(recipientAddress, Optional.empty()).orElse(null);
+        }
 
-        final Optional<Entity> recipientEntity =
-                recipientAddress.flatMap(address -> commonEntityAccessor.get(address, Optional.empty()));
+        var address = EMPTY_ADDRESS.toHexString();
+        String contractId = null;
+        if (recipientEntity != null) {
+            address = getEntityAddress(recipientEntity).toHexString();
+            contractId = recipientEntity.toEntityId().toString();
+        }
+
+        final var txnResult = result.transactionProcessingResult();
+        var returnValue = txnResult != null ? txnResult.contractCallResult() : HEX_PREFIX;
+        if (returnValue == null || returnValue.isEmpty()) {
+            returnValue = HEX_PREFIX;
+        }
+
+        final var opcodes = result.opcodes() != null ? result.opcodes() : new ArrayList<Opcode>();
 
         return new OpcodesResponse()
-                .address(recipientEntity
-                        .map(this::getEntityAddress)
-                        .map(Address::toHexString)
-                        .orElse(Address.ZERO.toHexString()))
-                .contractId(recipientEntity
-                        .map(Entity::toEntityId)
-                        .map(EntityId::toString)
-                        .orElse(null))
-                .failed(!result.transactionProcessingResult().isSuccessful())
-                .gas(result.transactionProcessingResult().gasUsed())
-                .opcodes(result.opcodes().stream()
-                        .map(opcode -> new Opcode()
-                                .depth(opcode.depth())
-                                .gas(opcode.gas())
-                                .gasCost(opcode.gasCost())
-                                .op(opcode.op())
-                                .pc(opcode.pc())
-                                .reason(opcode.reason())
-                                .stack(opcode.stack().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .memory(opcode.memory().stream()
-                                        .map(Bytes::toHexString)
-                                        .toList())
-                                .storage(opcode.storage().entrySet().stream()
-                                        .collect(Collectors.toMap(
-                                                entry -> entry.getKey().toHexString(),
-                                                entry -> entry.getValue().toHexString()))))
-                        .toList())
-                .returnValue(Optional.ofNullable(Bytes.fromHexString(
-                                result.transactionProcessingResult().contractCallResult()))
-                        .map(Bytes::toHexString)
-                        .orElse(Bytes.EMPTY.toHexString()));
+                .address(address)
+                .contractId(contractId)
+                .failed(txnResult == null || !txnResult.isSuccessful())
+                .gas(txnResult != null ? txnResult.gasUsed() : 0L)
+                .opcodes(opcodes)
+                .returnValue(returnValue);
     }
 
     private ContractDebugParameters buildCallServiceParameters(
-            Long consensusTimestamp, Optional<Transaction> transaction, Optional<EthereumTransaction> ethTransaction) {
-        final ContractResult contractResult = contractResultRepository
+            Long consensusTimestamp, Transaction transaction, EthereumTransaction ethTransaction) {
+        final var contractResult = contractResultRepository
                 .findById(consensusTimestamp)
                 .orElseThrow(() -> new EntityNotFoundException("Contract result not found: " + consensusTimestamp));
 
-        final BlockType blockType = recordFileService
+        final var blockType = recordFileService
                 .findByTimestamp(consensusTimestamp)
                 .map(recordFile -> BlockType.of(recordFile.getIndex().toString()))
                 .orElse(BlockType.LATEST);
 
-        final Integer transactionType =
-                transaction.map(Transaction::getType).orElse(TransactionType.UNKNOWN.getProtoId());
+        final var transactionType = transaction != null ? transaction.getType() : TransactionType.UNKNOWN.getProtoId();
 
         return ContractDebugParameters.builder()
                 .block(blockType)
-                .callData(getCallData(ethTransaction, contractResult))
-                .ethereumData(getEthereumData(ethTransaction))
+                .callData(getCallDataBytes(ethTransaction, contractResult))
+                .ethereumData(getEthereumDataBytes(ethTransaction))
                 .consensusTimestamp(consensusTimestamp)
                 .gas(getGasLimit(ethTransaction, contractResult))
                 .receiver(getReceiverAddress(ethTransaction, contractResult, transactionType))
@@ -175,59 +175,62 @@ public class OpcodeServiceImpl implements OpcodeService {
     }
 
     private Address getSenderAddress(ContractResult contractResult) {
-        return commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+        final var address = commonEntityAccessor.evmAddressFromId(contractResult.getSenderId(), Optional.empty());
+        return address != null ? address : EMPTY_ADDRESS;
     }
 
     private Address getReceiverAddress(
-            Optional<EthereumTransaction> ethereumTransaction, ContractResult contractResult, Integer transactionType) {
-        return ethereumTransaction
-                .flatMap(transaction -> {
-                    if (ArrayUtils.isEmpty(transaction.getToAddress())) {
-                        return Optional.of(Address.ZERO);
-                    }
-                    Address address = Address.wrap(Bytes.wrap(transaction.getToAddress()));
-                    if (ConversionUtils.isLongZero(address)) {
-                        return commonEntityAccessor
-                                .get(address, Optional.empty())
-                                .map(this::getEntityAddress);
-                    }
-                    return Optional.of(address);
-                })
-                .orElseGet(() -> {
-                    if (transactionType.equals(CONTRACTCREATEINSTANCE.getProtoId())) {
-                        return Address.ZERO;
-                    }
-                    final var contractId = EntityId.of(contractResult.getContractId());
-                    return commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
-                });
+            EthereumTransaction ethereumTransaction, ContractResult contractResult, int transactionType) {
+        if (ethereumTransaction != null) {
+            if (ArrayUtils.isEmpty(ethereumTransaction.getToAddress())) {
+                return EMPTY_ADDRESS;
+            }
+            final var address = Address.wrap(Bytes.wrap(ethereumTransaction.getToAddress()));
+            if (ConversionUtils.isLongZero(address)) {
+                final var entity =
+                        commonEntityAccessor.get(address, Optional.empty()).orElse(null);
+                if (entity != null) {
+                    return getEntityAddress(entity);
+                }
+            }
+            return address;
+        }
+
+        if (transactionType == CONTRACTCREATEINSTANCE.getProtoId()) {
+            return EMPTY_ADDRESS;
+        }
+        final var contractId = EntityId.of(contractResult.getContractId());
+        final var address = commonEntityAccessor.evmAddressFromId(contractId, Optional.empty());
+        return address != null ? address : EMPTY_ADDRESS;
     }
 
-    private Long getGasLimit(Optional<EthereumTransaction> ethereumTransaction, ContractResult contractResult) {
-        return ethereumTransaction.map(EthereumTransaction::getGasLimit).orElse(contractResult.getGasLimit());
+    private Long getGasLimit(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
+        return ethereumTransaction != null ? ethereumTransaction.getGasLimit() : contractResult.getGasLimit();
     }
 
-    private BigInteger getValue(Optional<EthereumTransaction> ethereumTransaction, ContractResult contractResult) {
-        return ethereumTransaction
-                .map(transaction -> new BigInteger(transaction.getValue()))
-                .or(() -> Optional.ofNullable(contractResult.getAmount()).map(BigInteger::valueOf))
-                .orElse(BigInteger.ZERO);
+    private BigInteger getValue(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
+        if (ethereumTransaction != null) {
+            return new BigInteger(ethereumTransaction.getValue());
+        }
+        if (contractResult.getAmount() != null) {
+            return BigInteger.valueOf(contractResult.getAmount());
+        }
+        return ZERO;
     }
 
-    private Bytes getCallData(Optional<EthereumTransaction> ethereumTransaction, ContractResult contractResult) {
-        final byte[] callData = ethereumTransaction
-                .map(EthereumTransaction::getCallData)
-                .orElse(contractResult.getFunctionParameters());
-
-        return Optional.ofNullable(callData).map(Bytes::of).orElse(Bytes.EMPTY);
+    private byte[] getCallDataBytes(EthereumTransaction ethereumTransaction, ContractResult contractResult) {
+        final var callData = ethereumTransaction != null
+                ? ethereumTransaction.getCallData()
+                : contractResult.getFunctionParameters();
+        return callData != null ? callData : new byte[0];
     }
 
-    private Bytes getEthereumData(Optional<EthereumTransaction> transaction) {
-        return transaction
-                .map(ethereumTransaction -> {
-                    final var data = ethereumTransaction.getData();
-                    return data != null ? Bytes.wrap(data) : null;
-                })
-                .orElse(null);
+    private byte[] getEthereumDataBytes(EthereumTransaction ethereumTransaction) {
+        if (ethereumTransaction == null) {
+            return new byte[0];
+        }
+        final var data = ethereumTransaction.getData();
+        return data != null ? data : new byte[0];
     }
 
     private Address getEntityAddress(Entity entity) {
@@ -237,6 +240,6 @@ public class OpcodeServiceImpl implements OpcodeService {
         if (entity.getAlias() != null && entity.getAlias().length == EVM_ADDRESS_LENGTH) {
             return Address.wrap(Bytes.wrap(entity.getAlias()));
         }
-        return EntityId.isEmpty(entity.toEntityId()) ? Address.ZERO : toAddress(entity.toEntityId());
+        return EntityId.isEmpty(entity.toEntityId()) ? EMPTY_ADDRESS : toAddress(entity.toEntityId());
     }
 }

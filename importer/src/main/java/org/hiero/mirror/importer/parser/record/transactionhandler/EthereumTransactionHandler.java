@@ -7,7 +7,6 @@ import jakarta.inject.Named;
 import java.math.BigInteger;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.ArrayUtils;
-import org.hiero.mirror.common.converter.WeiBarTinyBarConverter;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.transaction.EthereumTransaction;
@@ -127,9 +126,7 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
                 ethereumTransaction.setHash(hash);
             }
 
-            // EVM logic uses weibar for gas values, convert transaction body gas values to tinybars
-            convertGasWeiToTinyBars(ethereumTransaction);
-
+            // Store raw weibar values from RLP-decoded ethereum transaction
             entityListener.onEthereumTransaction(ethereumTransaction);
             updateAccountNonce(recordItem, ethereumTransaction);
             recordItem.setEthereumTransaction(ethereumTransaction);
@@ -181,13 +178,5 @@ final class EthereumTransactionHandler extends AbstractTransactionHandler {
             entityListener.onEntity(entity);
             recordItem.addEntityId(senderId);
         }
-    }
-
-    private void convertGasWeiToTinyBars(EthereumTransaction transaction) {
-        var converter = WeiBarTinyBarConverter.INSTANCE;
-        transaction.setGasPrice(converter.convert(transaction.getGasPrice(), false));
-        transaction.setMaxFeePerGas(converter.convert(transaction.getMaxFeePerGas(), false));
-        transaction.setMaxPriorityFeePerGas(converter.convert(transaction.getMaxPriorityFeePerGas(), false));
-        transaction.setValue(converter.convert(transaction.getValue(), true));
     }
 }

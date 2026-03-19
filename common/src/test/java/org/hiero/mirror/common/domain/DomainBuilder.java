@@ -5,6 +5,7 @@ package org.hiero.mirror.common.domain;
 import static org.hiero.mirror.common.domain.entity.EntityType.ACCOUNT;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.domain.entity.EntityType.TOPIC;
+import static org.hiero.mirror.common.domain.node.RegisteredNodeType.BLOCK_NODE;
 import static org.hiero.mirror.common.util.DomainUtils.TINYBARS_IN_ONE_HBAR;
 
 import com.google.common.collect.Range;
@@ -45,7 +46,6 @@ import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.addressbook.AddressBook;
 import org.hiero.mirror.common.domain.addressbook.AddressBookEntry;
 import org.hiero.mirror.common.domain.addressbook.AddressBookServiceEndpoint;
@@ -133,6 +133,7 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.domain.tss.Ledger;
 import org.hiero.mirror.common.domain.tss.LedgerNodeContribution;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -209,7 +210,7 @@ public class DomainBuilder {
                 .memo(text(10))
                 .nodeId(nodeId)
                 .nodeAccountId(entityNum(nodeId + 3))
-                .nodeCertHash(bytes(96))
+                .nodeCertHash(hexBytes(96))
                 .publicKey(text(64))
                 .stake(0L);
 
@@ -767,6 +768,7 @@ public class DomainBuilder {
         var builder = Node.builder()
                 .accountId(entityId())
                 .adminKey(key())
+                .associatedRegisteredNodes(List.of(number(), number()))
                 .createdTimestamp(timestamp)
                 .declineReward(false)
                 .deleted(false)
@@ -814,7 +816,8 @@ public class DomainBuilder {
                         .port(443)
                         .requiresTls(true)
                         .build()))
-                .timestampRange(Range.atLeast(timestamp));
+                .timestampRange(Range.atLeast(timestamp))
+                .type(List.of(BLOCK_NODE.getId()));
         return new DomainWrapperImpl<>(builder, builder::build);
     }
 
@@ -1234,7 +1237,7 @@ public class DomainBuilder {
     }
 
     public byte[] bloomFilter() {
-        return bytes(LogsBloomAggregator.BYTE_SIZE);
+        return bytes(LogsBloomFilter.BYTE_SIZE);
     }
 
     // Helper methods
@@ -1242,6 +1245,15 @@ public class DomainBuilder {
         byte[] bytes = new byte[length];
         random.nextBytes(bytes);
         return bytes;
+    }
+
+    public byte[] hexBytes(int length) {
+        var hexChars = "0123456789abcdef";
+        var result = new byte[length];
+        for (int i = 0; i < length; i++) {
+            result[i] = (byte) hexChars.charAt(random.nextInt(hexChars.length()));
+        }
+        return result;
     }
 
     public EntityId entityId() {
@@ -1337,9 +1349,10 @@ public class DomainBuilder {
 
     public Timestamp protoTimestamp() {
         long timestamp = timestamp();
+        int nanos = Math.toIntExact(timestamp % DomainUtils.NANOS_PER_SECOND);
         return Timestamp.newBuilder()
                 .setSeconds(timestamp / DomainUtils.NANOS_PER_SECOND)
-                .setNanos((int) (timestamp % DomainUtils.NANOS_PER_SECOND))
+                .setNanos(nanos)
                 .build();
     }
 

@@ -5,6 +5,7 @@ package org.hiero.mirror.web3.service;
 import static java.time.ZoneOffset.UTC;
 import static org.apache.logging.log4j.util.Strings.EMPTY;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.hedera.hapi.node.base.ResponseCodeEnum;
@@ -16,7 +17,6 @@ import jakarta.inject.Named;
 import java.time.Instant;
 import java.time.YearMonth;
 import lombok.CustomLog;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.BlockNumberNotFoundException;
@@ -153,10 +153,10 @@ public abstract class ContractCallService {
 
     protected void validateResult(final EvmTransactionResult txnResult, final CallServiceParameters params) {
         if (!txnResult.isSuccessful()) {
-            var revertReason = txnResult.getErrorMessage().orElse(Bytes.EMPTY);
-            var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReason);
+            var revertReasonHex = txnResult.getErrorMessage().orElse(HEX_PREFIX);
+            var detail = maybeDecodeSolidityErrorStringToReadableMessage(revertReasonHex);
             throw new MirrorEvmTransactionException(
-                    txnResult.responseCodeEnum().protoName(), detail, revertReason.toHexString(), txnResult);
+                    txnResult.responseCodeEnum().protoName(), detail, revertReasonHex, txnResult);
         }
     }
 

@@ -19,9 +19,9 @@ public class StreamProperties {
     @Min(1000)
     private int maxBlockItems = 800_000;
 
-    @DataSizeUnit(DataUnit.KILOBYTES)
+    @DataSizeUnit(DataUnit.MEGABYTES)
     @NotNull
-    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(8);
+    private DataSize maxStreamResponseSize = DataSize.ofMegabytes(36);
 
     @Min(1)
     private int maxSubscribeAttempts = 3;

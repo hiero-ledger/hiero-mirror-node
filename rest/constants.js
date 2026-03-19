@@ -10,6 +10,7 @@ const MAX_LONG = 2n ** 63n - 1n;
 const ONE_DAY_IN_NS = 86_400_000_000_000n;
 const ZERO_UINT256 = '0x0000000000000000000000000000000000000000000000000000000000000000';
 const AUTO_RENEW_PERIOD_MULTIPLE = BigInt(1e9);
+const WEIBARS_TO_TINYBARS = 10_000_000_000n;
 const EMPTY_STRING = '';
 const EVM_ADDRESS_LENGTH = 20;
 const ETH_HASH_LENGTH = 32;
@@ -31,6 +32,7 @@ const filterKeys = {
   ENTITY_PUBLICKEY: 'publickey',
   FILE_ID: 'file.id',
   FROM: 'from',
+  HBAR: 'hbar',
   ID_OR_ALIAS_OR_EVM_ADDRESS: 'idOrAliasOrEvmAddress',
   INDEX: 'index',
   INTERNAL: 'internal',
@@ -180,6 +182,7 @@ export {
   MAX_INT32,
   MAX_LONG,
   ONE_DAY_IN_NS,
+  WEIBARS_TO_TINYBARS,
   ZERO_UINT256,
   apiPrefix,
   characterEncoding,

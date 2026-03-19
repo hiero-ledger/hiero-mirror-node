@@ -18,6 +18,7 @@ import CryptoTransfer from './cryptoTransfer';
 import CustomFee from './customFee';
 import CustomFeeLimits from './customFeeLimits';
 import Entity from './entity';
+import EntityTransaction from './entityTransaction.js';
 import EthereumTransaction from './ethereumTransaction';
 import ExchangeRate from './exchangeRate';
 import FileData from './fileData';
@@ -68,6 +69,7 @@ export {
   CustomFee,
   CustomFeeLimits,
   Entity,
+  EntityTransaction,
   EthereumTransaction,
   ExchangeRate,
   FileData,

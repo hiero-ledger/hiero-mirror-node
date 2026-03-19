@@ -35,25 +35,25 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+@RequiredArgsConstructor
 @TestConfiguration(proxyBeanMethods = false)
 public class CommonTestConfiguration {
 
     public static final String POSTGRESQL = "postgresql";
 
+    private final CommonProperties commonProperties;
+
     @Value("#{environment.matchesProfiles('v2')}")
     private boolean v2;
 
     @Bean
-    DomainBuilder domainBuilder(
-            CommonProperties commonProperties,
-            EntityManager entityManager,
-            TransactionOperations transactionOperations) {
+    DomainBuilder domainBuilder(EntityManager entityManager, TransactionOperations transactionOperations) {
         return new DomainBuilder(commonProperties, entityManager, transactionOperations);
     }
 
     @Bean
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-    RecordItemBuilder recordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
+    RecordItemBuilder recordItemBuilder(SystemEntity systemEntity) {
         return new RecordItemBuilder(commonProperties, systemEntity);
     }
 

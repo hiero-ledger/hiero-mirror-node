@@ -8,11 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
 import org.hiero.mirror.common.domain.contract.ContractResult;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
+import org.hiero.mirror.common.util.LogsBloomFilter;
 import org.hiero.mirror.importer.EnabledIfV1;
 import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.repository.RecordFileRepository;
@@ -106,10 +106,10 @@ class BackfillBlockMigrationTest extends ImporterIntegrationTest {
                 .persist();
         transaction.setIndex(transactionIndex++);
         expectedTransactions.add(transaction);
-        var bloom1 = new byte[LogsBloomAggregator.BYTE_SIZE];
+        var bloom1 = new byte[LogsBloomFilter.BYTE_SIZE];
         bloom1[0] = (byte) 0xf0;
         bloom1[1] = (byte) 0x07;
-        System.arraycopy(logsBloom, 2, bloom1, 2, LogsBloomAggregator.BYTE_SIZE / 2);
+        System.arraycopy(logsBloom, 2, bloom1, 2, LogsBloomFilter.BYTE_SIZE / 2);
         domainBuilder
                 .contractResult()
                 .customize(customizeContractResult(timestamp, bloom1, 10L))
@@ -141,11 +141,11 @@ class BackfillBlockMigrationTest extends ImporterIntegrationTest {
                 .persist();
         transaction.setIndex(transactionIndex++);
         expectedTransactions.add(transaction);
-        var bloom2 = new byte[LogsBloomAggregator.BYTE_SIZE];
+        var bloom2 = new byte[LogsBloomFilter.BYTE_SIZE];
         bloom2[0] = (byte) 0x08;
         bloom2[1] = (byte) 0x80;
-        var offset = LogsBloomAggregator.BYTE_SIZE / 2;
-        var length = LogsBloomAggregator.BYTE_SIZE - offset;
+        var offset = LogsBloomFilter.BYTE_SIZE / 2;
+        var length = LogsBloomFilter.BYTE_SIZE - offset;
         System.arraycopy(logsBloom, offset, bloom2, offset, length);
         domainBuilder
                 .contractResult()

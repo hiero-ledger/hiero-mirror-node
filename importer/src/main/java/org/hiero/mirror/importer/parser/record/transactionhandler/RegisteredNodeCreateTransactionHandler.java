@@ -6,6 +6,7 @@ import com.google.common.collect.Range;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.TreeSet;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -45,8 +46,11 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
         final var endpointList = nodeCreate.getServiceEndpointList();
         final int size = endpointList.size();
         final List<RegisteredServiceEndpoint> serviceEndpoints = new ArrayList<>(size);
+        final var types = new TreeSet<Short>();
         for (int i = 0; i < size; i++) {
-            serviceEndpoints.add(toRegisteredServiceEndpoint(endpointList.get(i)));
+            final var endpoint = toRegisteredServiceEndpoint(endpointList.get(i));
+            serviceEndpoints.add(endpoint);
+            types.add(endpoint.getType().getValue());
         }
 
         return RegisteredNode.builder()
@@ -57,6 +61,7 @@ final class RegisteredNodeCreateTransactionHandler extends AbstractRegisteredNod
                 .registeredNodeId(receipt.getRegisteredNodeId())
                 .serviceEndpoints(serviceEndpoints)
                 .timestampRange(Range.atLeast(consensusTimestamp))
+                .type(List.copyOf(types))
                 .build();
     }
 }

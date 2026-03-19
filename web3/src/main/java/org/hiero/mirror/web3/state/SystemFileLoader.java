@@ -38,13 +38,13 @@ import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
+import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.InvalidFileException;
 import org.hiero.mirror.web3.repository.FileDataRepository;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryPolicy;
@@ -53,7 +53,9 @@ import org.springframework.core.retry.RetryTemplate;
 @Named
 @NullMarked
 @CustomLog
-public class SystemFileLoader {
+public final class SystemFileLoader {
+
+    private static final long NANOS_PER_HOUR = 3600L * DomainUtils.NANOS_PER_SECOND;
 
     private final EvmProperties properties;
     private final FileDataRepository fileDataRepository;
@@ -73,7 +75,7 @@ public class SystemFileLoader {
     @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final byte[] mockAddressBook = createMockAddressBook();
 
-    @Getter(lazy = true)
+    @Getter(lazy = true, value = AccessLevel.PRIVATE)
     private final Map<FileID, SystemFile> systemFiles = loadAll();
 
     public SystemFileLoader(
@@ -96,19 +98,27 @@ public class SystemFileLoader {
     }
 
     /**
-     * Load system file by id and consensus timestamp. Uses a cache manager chosen by file id: exchange rate file uses
-     * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_EXCHANGE_RATES_SYSTEM_FILE} (e.g. longer
-     * TTL); other system files use
-     * {@value org.hiero.mirror.web3.evm.config.EvmConfiguration#CACHE_MANAGER_SYSTEM_FILE}.
+     * Load system file by id and consensus timestamp.
      */
     public @Nullable File load(FileID fileId, long consensusTimestamp) {
-        // Skip database for network properties so that CN props can't override MN props and cause it to break.
+        // Skip database for network properties so that CN props can't override MN props and cause us to break.
         if (genesisNetworkProperties.fileId().equals(fileId)) {
             return genesisNetworkProperties;
         }
 
+        var cacheManager = defaultSystemFileCacheManager;
+
+        if (fileId.equals(exchangeRateFileId)
+                || fileId.equals(feeSchedulesFileId)
+                || fileId.equals(simpleFeeSchedulesFileId)) {
+            cacheManager = exchangeRatesCacheManager;
+            consensusTimestamp = roundDownToHour(consensusTimestamp);
+        }
+
         final var cacheKey = new CacheKey(fileId, consensusTimestamp);
-        final var cache = getCacheForFileId(fileId);
+        log.debug("Looking up {}", cacheKey);
+        final var cache = cacheManager.getCache(CACHE_NAME);
+
         if (cache == null) {
             return loadFromDB(fileId, consensusTimestamp);
         }
@@ -122,8 +132,10 @@ public class SystemFileLoader {
         // The value was not in cache -> try to load from DB
         var result = loadFromDB(fileId, consensusTimestamp);
         if (result != null) {
+            log.info("Updating cache for key {}", cacheKey);
             cache.put(cacheKey, result);
         }
+
         return result;
     }
 
@@ -233,10 +245,9 @@ public class SystemFileLoader {
     }
 
     private byte[] createMockAddressBook() {
-        com.hederahashgraph.api.proto.java.NodeAddressBook.Builder builder =
-                com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
+        final var builder = com.hederahashgraph.api.proto.java.NodeAddressBook.newBuilder();
         long nodeId = 3;
-        NodeAddress.Builder nodeAddressBuilder = NodeAddress.newBuilder()
+        final var nodeAddressBuilder = NodeAddress.newBuilder()
                 .addServiceEndpoint(ServiceEndpoint.newBuilder()
                         .setIpAddressV4(ByteString.copyFromUtf8("127.0.0." + nodeId))
                         .setPort((int) nodeId)
@@ -252,22 +263,20 @@ public class SystemFileLoader {
     }
 
     /**
-     * Returns the cache for the given file id: exchange rate file and fee schedule file use the exchange-rates cache
-     * manager (longer TTL). Other system files use the default manager.
-     *
-     * @param fileId the file id
-     * @return the cache for this file id, or null if the manager has no such cache
+     * Rounds the given consensus timestamp (nanoseconds) down to the start of the hour (e.g. 00:00, 01:00, 02:00).
      */
-    private @Nullable Cache getCacheForFileId(FileID fileId) {
-        final var isExchangeRate = fileId.equals(exchangeRateFileId);
-        final var isFeeSchedule = fileId.equals(feeSchedulesFileId);
-        final var isSimpleFeeSchedule = fileId.equals(simpleFeeSchedulesFileId);
-        final var useExchangeRatesManager = isExchangeRate || isFeeSchedule || isSimpleFeeSchedule;
-        final var manager = useExchangeRatesManager ? exchangeRatesCacheManager : defaultSystemFileCacheManager;
-        return manager.getCache(CACHE_NAME);
+    private long roundDownToHour(long consensusTimestampNanos) {
+        return (consensusTimestampNanos / NANOS_PER_HOUR) * NANOS_PER_HOUR;
     }
 
     private record SystemFile(File genesisFile, @Nullable Codec<?> codec) {}
 
-    private record CacheKey(FileID fileId, long timestamp) {}
+    private record CacheKey(FileID fileId, long timestamp) {
+
+        @Override
+        public String toString() {
+            final var entityId = EntityId.of(fileId.shardNum(), fileId.realmNum(), fileId.fileNum());
+            return "FileId=" + entityId + ", timestamp=" + Instant.ofEpochSecond(0L, timestamp);
+        }
+    }
 }

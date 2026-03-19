@@ -9,7 +9,6 @@ import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -22,9 +21,9 @@ public class ContractDebugParameters implements CallServiceParameters {
     BlockType block;
 
     @NotNull
-    Bytes callData;
+    byte[] callData;
 
-    Bytes ethereumData;
+    byte[] ethereumData;
 
     @NotNull
     CallType callType = CallType.ETH_DEBUG_TRACE_TRANSACTION;
