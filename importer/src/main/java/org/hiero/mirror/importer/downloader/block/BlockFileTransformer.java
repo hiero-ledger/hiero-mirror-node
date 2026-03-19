@@ -18,19 +18,19 @@ import org.springframework.data.util.Version;
 
 @Named
 @RequiredArgsConstructor
-public class BlockFileTransformer implements StreamFileTransformer<RecordFile, BlockFile> {
+public final class BlockFileTransformer implements StreamFileTransformer<RecordFile, BlockFile> {
 
     private final BlockTransactionTransformerFactory blockTransactionTransformerFactory;
 
     @Override
-    public RecordFile transform(BlockFile blockFile) {
-        var blockHeader = blockFile.getBlockHeader();
-        var hapiProtoVersion = blockHeader.getHapiProtoVersion();
-        int major = hapiProtoVersion.getMajor();
-        int minor = hapiProtoVersion.getMinor();
-        int patch = hapiProtoVersion.getPatch();
-        var hapiVersion = new Version(major, minor, patch);
-        var softwareVersion = blockHeader.getSoftwareVersion();
+    public RecordFile transform(final BlockFile blockFile) {
+        final var blockHeader = blockFile.getBlockHeader();
+        final var hapiProtoVersion = blockHeader.getHapiProtoVersion();
+        final int major = hapiProtoVersion.getMajor();
+        final int minor = hapiProtoVersion.getMinor();
+        final int patch = hapiProtoVersion.getPatch();
+        final var hapiVersion = new Version(major, minor, patch);
+        final var softwareVersion = blockHeader.getSoftwareVersion();
         return RecordFile.builder()
                 .bytes(blockFile.getBytes())
                 .consensusEnd(blockFile.getConsensusEnd())
@@ -48,6 +48,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                 .loadStart(blockFile.getLoadStart())
                 .name(blockFile.getName())
                 .previousHash(blockFile.getPreviousHash())
+                .previousWrappedRecordBlockHash(blockFile.getPreviousWrappedRecordBlockHash())
                 .roundEnd(blockFile.getRoundEnd())
                 .roundStart(blockFile.getRoundStart())
                 .size(blockFile.getSize())
@@ -58,7 +59,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
                 .build();
     }
 
-    private List<RecordItem> getRecordItems(List<BlockTransaction> blockTransactions, Version hapiVersion) {
+    private List<RecordItem> getRecordItems(final List<BlockTransaction> blockTransactions, final Version hapiVersion) {
         if (blockTransactions.isEmpty()) {
             return Collections.emptyList();
         }
@@ -79,7 +80,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
         //   transaction reaching consensus later should always get a larger topic id, when processing child consensus
         //   create topic transactions in reverse order, the topic created by such a transaction is always the largest
         //   unclaimed one
-        var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockTransactions.size());
+        final var builders = new ArrayList<RecordItem.RecordItemBuilder>(blockTransactions.size());
         for (int index = blockTransactions.size() - 1; index >= 0; index--) {
             var blockTransaction = blockTransactions.get(index);
             var builder = RecordItem.builder()
@@ -95,7 +96,7 @@ public class BlockFileTransformer implements StreamFileTransformer<RecordFile, B
 
         // An unpleasant performance degradation of reverse order is the second pass to build the record items, just to
         // set the previous link
-        var recordItems = new ArrayList<RecordItem>(blockTransactions.size());
+        final var recordItems = new ArrayList<RecordItem>(blockTransactions.size());
         RecordItem previousItem = null;
         for (int index = builders.size() - 1; index >= 0; index--) {
             var builder = builders.get(index);

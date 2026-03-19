@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {isEmpty, isNil, last, range} from 'lodash-es';
+import isEmpty from 'lodash/isEmpty';
+import isNil from 'lodash/isNil';
+import last from 'lodash/last';
+import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
@@ -319,6 +322,8 @@ const getLastNonceParamValue = (query) => {
   return nonce;
 };
 
+const acceptedContractResultsByTimestampParameters = new Set([filterKeys.HBAR]);
+
 /**
  * Verify contractId meets entity id format
  */
@@ -360,7 +365,7 @@ const validateContractIdAndConsensusTimestampParam = (consensusTimestamp, contra
 const getAndValidateContractIdAndConsensusTimestampPathParams = async (req) => {
   const {consensusTimestamp, contractId} = req.params;
   validateContractIdAndConsensusTimestampParam(consensusTimestamp, contractId);
-  utils.validateReq(req);
+  utils.validateReq(req, acceptedContractResultsByTimestampParameters);
   const encodedContractId = await ContractService.computeContractIdFromString(contractId);
   return {contractId: encodedContractId, timestamp: utils.parseTimestampParam(consensusTimestamp)};
 };
@@ -999,6 +1004,9 @@ class ContractController extends BaseController {
       return;
     }
 
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
+
     const {contractId, timestamp} = await getAndValidateContractIdAndConsensusTimestampPathParams(req);
     const contractDetails = await ContractService.getInvolvedContractsByTimestampAndContractId(timestamp, contractId);
     if (!contractDetails) {
@@ -1028,7 +1036,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
   };
 
@@ -1044,6 +1053,9 @@ class ContractController extends BaseController {
       acceptedContractResultsParameters,
       contractResultsFilterValidityChecks
     );
+
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     const response = {
       results: [],
@@ -1078,7 +1090,11 @@ class ContractController extends BaseController {
         new ContractResultDetailsViewModel(
           row,
           recordFileMap.get(row.consensusTimestamp),
-          ethereumTransactionMap.get(row.consensusTimestamp)
+          ethereumTransactionMap.get(row.consensusTimestamp),
+          null,
+          null,
+          null,
+          convertToHbar
         )
     );
 
@@ -1107,6 +1123,9 @@ class ContractController extends BaseController {
     }
 
     utils.validateReq(req, acceptedSingleContractResultsParameters);
+
+    // Extract hbar parameter (default: true)
+    const convertToHbar = utils.parseHbarParam(req.query.hbar);
 
     let transactionDetails;
 
@@ -1172,7 +1191,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
 
     if (isNil(contractResult.callResult)) {
@@ -1277,7 +1297,8 @@ class ContractController extends BaseController {
     ethTransaction,
     contractLogs,
     contractStateChanges,
-    fileData
+    fileData,
+    convertToHbar = true
   ) => {
     res.locals[responseDataLabel] = new ContractResultDetailsViewModel(
       contractResult,
@@ -1285,7 +1306,8 @@ class ContractController extends BaseController {
       ethTransaction,
       contractLogs,
       contractStateChanges,
-      fileData
+      fileData,
+      convertToHbar
     );
   };
 }
@@ -1315,6 +1337,7 @@ const acceptedContractResultsParameters = new Set([
   filterKeys.FROM,
   filterKeys.BLOCK_HASH,
   filterKeys.BLOCK_NUMBER,
+  filterKeys.HBAR,
   filterKeys.INTERNAL,
   filterKeys.LIMIT,
   filterKeys.ORDER,
@@ -1322,7 +1345,7 @@ const acceptedContractResultsParameters = new Set([
   filterKeys.TRANSACTION_INDEX,
 ]);
 
-const acceptedSingleContractResultsParameters = new Set([filterKeys.NONCE]);
+const acceptedSingleContractResultsParameters = new Set([filterKeys.HBAR, filterKeys.NONCE]);
 
 const acceptedContractStateParameters = new Set([
   filterKeys.LIMIT,

@@ -4,7 +4,6 @@ package org.hiero.mirror.web3.service.model;
 
 import lombok.Builder;
 import lombok.Value;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -13,7 +12,7 @@ import org.hyperledger.besu.datatypes.Address;
 @Builder
 public class ContractExecutionParameters implements CallServiceParameters {
     private final BlockType block;
-    private final Bytes callData;
+    private final byte[] callData;
     private final CallType callType;
     private final long gas;
     private final long gasPrice;
@@ -25,7 +24,7 @@ public class ContractExecutionParameters implements CallServiceParameters {
     private final long value;
 
     @Override
-    public Bytes getEthereumData() {
+    public byte[] getEthereumData() {
         throw new UnsupportedOperationException("getEthereumData");
     }
 }

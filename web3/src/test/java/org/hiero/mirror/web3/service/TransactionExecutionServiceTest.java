@@ -7,7 +7,9 @@ import static com.hedera.hapi.node.base.ResponseCodeEnum.SUCCESS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.collection;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,16 +33,19 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.web3.ContextExtension;
 import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.common.TransactionIdParameter;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.MirrorOperationActionTracer;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeActionTracer;
-import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeTracerOptions;
+import org.hiero.mirror.web3.evm.contracts.execution.traceability.OpcodeContext;
 import org.hiero.mirror.web3.evm.properties.EvmProperties;
 import org.hiero.mirror.web3.exception.MirrorEvmTransactionException;
 import org.hiero.mirror.web3.service.model.CallServiceParameters;
 import org.hiero.mirror.web3.service.model.CallServiceParameters.CallType;
 import org.hiero.mirror.web3.service.model.ContractExecutionParameters;
+import org.hiero.mirror.web3.service.model.OpcodeRequest;
 import org.hiero.mirror.web3.state.keyvalue.AccountReadableKVState;
 import org.hiero.mirror.web3.state.keyvalue.AliasesReadableKVState;
 import org.hiero.mirror.web3.viewmodel.BlockType;
@@ -88,9 +93,7 @@ class TransactionExecutionServiceTest {
     private TransactionExecutionService transactionExecutionService;
 
     private static Stream<Arguments> provideCallData() {
-        return Stream.of(
-                Arguments.of(org.apache.tuweni.bytes.Bytes.EMPTY),
-                Arguments.of(org.apache.tuweni.bytes.Bytes.fromHexString(NestedCalls.BINARY)));
+        return Stream.of(Arguments.of(HEX_PREFIX), Arguments.of(NestedCalls.BINARY));
     }
 
     @BeforeEach
@@ -113,7 +116,11 @@ class TransactionExecutionServiceTest {
     @ValueSource(strings = "0x0000000000000000000000000000000000000000")
     void testExecuteContractCallSuccess(String senderAddressHex) {
         // Given
-        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+        ContractCallContext.get()
+                .setOpcodeContext(new OpcodeContext(
+                        new OpcodeRequest(
+                                new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
+                        0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -140,7 +147,7 @@ class TransactionExecutionServiceTest {
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(SUCCESS);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, senderAddress);
 
         // When
         var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
@@ -196,7 +203,7 @@ class TransactionExecutionServiceTest {
         when(childTransactionReceipt.status()).thenReturn(childResponseCode);
         when(childSingleTransactionRecord.transactionRecord()).thenReturn(childTransactionRecord);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -250,7 +257,7 @@ class TransactionExecutionServiceTest {
         when(singleTransactionRecord.transactionRecord()).thenReturn(transactionRecord);
         when(transactionReceipt.status()).thenReturn(responseCode);
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         if (responseCode != SUCCESS) {
@@ -301,7 +308,7 @@ class TransactionExecutionServiceTest {
                         any(TransactionBody.class), any(Instant.class), any(ActionSidecarContentTracer[].class)))
                 .thenReturn(List.of(singleTransactionRecord));
 
-        var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, Address.ZERO);
+        var callServiceParameters = buildServiceParams(false, HEX_PREFIX, Address.ZERO);
 
         // Then
         assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -309,12 +316,15 @@ class TransactionExecutionServiceTest {
                 .hasMessageContaining(ResponseCodeEnum.INVALID_ACCOUNT_ID.name());
     }
 
-    // NestedCalls.BINARY
     @ParameterizedTest
     @MethodSource("provideCallData")
-    void testExecuteContractCreateSuccess(org.apache.tuweni.bytes.Bytes callData) {
+    void testExecuteContractCreateSuccess(String callDataHex) {
         // Given
-        ContractCallContext.get().setOpcodeTracerOptions(new OpcodeTracerOptions());
+        ContractCallContext.get()
+                .setOpcodeContext(new OpcodeContext(
+                        new OpcodeRequest(
+                                new TransactionIdParameter(EntityId.EMPTY, Instant.EPOCH), true, false, false),
+                        0));
 
         // Mock the SingleTransactionRecord and TransactionRecord
         var singleTransactionRecord = mock(SingleTransactionRecord.class);
@@ -339,7 +349,7 @@ class TransactionExecutionServiceTest {
         when(transactionRecord.receipt()).thenReturn(transactionReceipt);
         when(transactionReceipt.status()).thenReturn(SUCCESS);
 
-        var callServiceParameters = buildServiceParams(true, callData, Address.ZERO);
+        var callServiceParameters = buildServiceParams(true, callDataHex, Address.ZERO);
 
         // When
         var result = transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS);
@@ -351,18 +361,15 @@ class TransactionExecutionServiceTest {
     }
 
     private CallServiceParameters buildServiceParams(
-            boolean isContractCreate, org.apache.tuweni.bytes.Bytes callData, final Address senderAddress) {
-        return buildServiceParams(isContractCreate, callData, senderAddress, CallType.ETH_CALL);
+            boolean isContractCreate, String callDataHex, final Address senderAddress) {
+        return buildServiceParams(isContractCreate, callDataHex, senderAddress, CallType.ETH_CALL);
     }
 
     private CallServiceParameters buildServiceParams(
-            boolean isContractCreate,
-            org.apache.tuweni.bytes.Bytes callData,
-            final Address senderAddress,
-            CallType callType) {
+            boolean isContractCreate, String callDataHex, final Address senderAddress, CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(callData)
+                .callData(hexToBytes(callDataHex))
                 .callType(callType)
                 .gas(DEFAULT_GAS)
                 .gasPrice(0L)
@@ -420,7 +427,7 @@ class TransactionExecutionServiceTest {
                 when(accountReadableKVState.get(any())).thenReturn(mock(Account.class));
             }
 
-            var callServiceParameters = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, senderAddress);
+            var callServiceParameters = buildServiceParams(false, HEX_PREFIX, senderAddress);
 
             // Then
             assertThatThrownBy(() -> transactionExecutionService.execute(callServiceParameters, DEFAULT_GAS))
@@ -461,7 +468,7 @@ class TransactionExecutionServiceTest {
 
             when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
-            final var params = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, sender, callType);
+            final var params = buildServiceParams(false, HEX_PREFIX, sender, callType);
             final var result = transactionExecutionService.execute(params, DEFAULT_GAS);
             // Then
             assertThat(result).isNotNull();
@@ -500,7 +507,7 @@ class TransactionExecutionServiceTest {
 
             when(transactionExecutor.execute(any(), any(), any())).thenReturn(List.of(singleRecord));
 
-            final var params = buildServiceParams(false, org.apache.tuweni.bytes.Bytes.EMPTY, sender);
+            final var params = buildServiceParams(false, HEX_PREFIX, sender);
             // Then
             assertThatThrownBy(() -> transactionExecutionService.execute(params, DEFAULT_GAS))
                     .isInstanceOf(MirrorEvmTransactionException.class)

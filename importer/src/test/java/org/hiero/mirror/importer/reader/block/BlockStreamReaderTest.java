@@ -33,6 +33,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.util.Lists;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.domain.DigestAlgorithm;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.StreamType;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.BlockTransaction;
@@ -40,7 +41,6 @@ import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.importer.TestUtils;
 import org.hiero.mirror.importer.domain.StreamFileData;
 import org.hiero.mirror.importer.exception.InvalidStreamFileException;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -486,6 +486,41 @@ public final class BlockStreamReaderTest {
                         items -> assertThat(items.getLast())
                                 .returns(lastTransactionTimestamp, BlockTransaction::getConsensusTimestamp)
                                 .returns(null, BlockTransaction::getParentConsensusTimestamp));
+    }
+
+    @Test
+    void readSignedTransactionsWithoutEventHeader() {
+        // given
+        final var firstTimestamp = recordItemBuilder.timestamp();
+        final var secondTimestamp = recordItemBuilder.timestamp();
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(0, true));
+
+        // when
+        final var actual = reader.read(blockStream);
+
+        // then
+        assertThat(actual)
+                .extracting(BlockFile::getItems, InstanceOfAssertFactories.list(BlockTransaction.class))
+                .extracting(BlockTransaction::getConsensusTimestamp)
+                .containsExactly(
+                        DomainUtils.timestampInNanosMax(firstTimestamp),
+                        DomainUtils.timestampInNanosMax(secondTimestamp));
     }
 
     @Test

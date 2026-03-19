@@ -6,6 +6,7 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.hiero.mirror.common.domain.entity.EntityType.CONTRACT;
 import static org.hiero.mirror.common.util.DomainUtils.toEvmAddress;
+import static org.hiero.mirror.web3.convert.BytesDecoder.hexToBytes;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.entityIdFromEvmAddress;
 import static org.hiero.mirror.web3.evm.utils.EvmTokenUtils.toAddress;
 import static org.hiero.mirror.web3.service.model.CallServiceParameters.CallType.ETH_CALL;
@@ -279,19 +280,19 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data, final Address receiver, final Address payerAddress, final long value) {
-        return getContractExecutionParameters(data, receiver, payerAddress, value, ETH_CALL);
+            final String dataHex, final Address receiver, final Address payerAddress, final long value) {
+        return getContractExecutionParameters(dataHex, receiver, payerAddress, value, ETH_CALL);
     }
 
     protected ContractExecutionParameters getContractExecutionParameters(
-            final Bytes data,
+            final String dataHex,
             final Address receiverAddress,
             final Address senderAddress,
             final long value,
             final CallType callType) {
         return ContractExecutionParameters.builder()
                 .block(BlockType.LATEST)
-                .callData(data)
+                .callData(hexToBytes(dataHex))
                 .callType(callType)
                 .gas(TRANSACTION_GAS_LIMIT)
                 .gasPrice(0L)
@@ -309,7 +310,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
             final Address payerAddress,
             final long value) {
         return getContractExecutionParameters(
-                Bytes.fromHexString(functionCall.encodeFunctionCall()),
+                functionCall.encodeFunctionCall(),
                 Address.fromHexString(contract.getContractAddress()),
                 payerAddress,
                 value);
@@ -757,10 +758,11 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     }
 
     protected ContractDebugParameters getDebugParameters(
-            final ContractFunctionProviderRecord functionProvider, final Bytes callDataBytes) {
+            final ContractFunctionProviderRecord functionProvider, final String callDataHex) {
+        final var hexWithoutPrefix = callDataHex.startsWith(HEX_PREFIX) ? callDataHex.substring(2) : callDataHex;
         return ContractDebugParameters.builder()
                 .block(functionProvider.block())
-                .callData(callDataBytes)
+                .callData(Hex.decode(hexWithoutPrefix))
                 .consensusTimestamp(domainBuilder.timestamp())
                 .gas(TRANSACTION_GAS_LIMIT)
                 .receiver(functionProvider.contractAddress())
@@ -782,7 +784,7 @@ public abstract class AbstractContractCallServiceTest extends Web3IntegrationTes
     protected ContractExecutionParameters getContractExecutionParameters(
             final RemoteFunctionCall<?> functionCall, final Contract contract, final Long value) {
         return getContractExecutionParameters(
-                Bytes.fromHexString(functionCall.encodeFunctionCall()),
+                functionCall.encodeFunctionCall(),
                 Address.fromHexString(contract.getContractAddress()),
                 testWeb3jService.getSender(),
                 value);

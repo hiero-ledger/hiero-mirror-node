@@ -34,9 +34,6 @@ dependencies {
     implementation("org.apache.commons:commons-collections4")
     implementation("org.apache.velocity:velocity-engine-core")
     implementation("org.flywaydb:flyway-database-postgresql")
-    implementation("org.hyperledger.besu:besu-datatypes")
-    implementation("org.hyperledger.besu:evm")
-    implementation("org.hyperledger.besu:secp256k1")
     implementation("org.msgpack:jackson-dataformat-msgpack")
     implementation("org.postgresql:postgresql")
     implementation("org.springframework.boot:spring-boot-configuration-processor")
@@ -48,16 +45,7 @@ dependencies {
     implementation("software.amazon.awssdk:netty-nio-client")
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:sts")
-    protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion") {
-        sourceSets {
-            main {
-                proto {
-                    // remove when block node releases compatible protobuf sources artifact
-                    exclude("block-node/api/proof_service.proto")
-                }
-            }
-        }
-    }
+    protobuf("org.hiero.block-node:protobuf-sources:$blockNodeVersion")
     runtimeOnly("com.github.luben:zstd-jni")
     runtimeOnly("io.grpc:grpc-netty")
     testImplementation(project(path = ":common", configuration = "testClasses"))

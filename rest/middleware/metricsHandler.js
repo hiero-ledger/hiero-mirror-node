@@ -1,18 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
-// ext libraries
 import extend from 'extend';
-
-import client from 'prom-client';
+import cloneDeep from 'lodash/cloneDeep';
 import swStats from 'swagger-stats';
 import url from 'url';
 
-// files
 import config from '../config';
-
 import {getV1OpenApiObject} from './openapiHandler';
-import {ipMask} from '../utils';
-import {cloneDeep} from 'lodash-es';
 
 const onMetricsAuthenticate = async (req, username, password) => {
   return new Promise(function (resolve, reject) {
@@ -22,18 +16,6 @@ const onMetricsAuthenticate = async (req, username, password) => {
     logger.debug(`Auth error: ${err}`);
     throw err;
   });
-};
-
-const ipEndpointHistogram = new client.Counter({
-  name: 'hiero_mirror_rest_request_count',
-  help: 'a counter mapping ip addresses to the endpoints they hit',
-  labelNames: ['endpoint', 'ip'],
-});
-
-const recordIpAndEndpoint = (req) => {
-  if (req.route !== undefined) {
-    ipEndpointHistogram.labels(req.route.path, ipMask(req.ip)).inc();
-  }
 };
 
 const metricsHandler = () => {
@@ -66,4 +48,4 @@ const metricsHandler = () => {
   };
 };
 
-export {metricsHandler, recordIpAndEndpoint};
+export {metricsHandler};

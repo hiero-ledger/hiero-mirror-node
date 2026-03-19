@@ -94,40 +94,40 @@
         "consensus_timestamp": "1676540001234390005",
         "hash": "0x160502030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
         "chain_id": "0x012a",
-        "max_fee_per_gas": "0x59",
-        "max_priority_fee_per_gas": "0x33",
+        "max_fee_per_gas": "0xCF38224400",
+        "max_priority_fee_per_gas": "0x76BE5E6C00",
         "payer_account_id": 5001,
         "signature_r": "0xb5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9",
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x14"]
+        "value": ["0x2E90EDD000"]
       },
       {
         "consensus_timestamp": "1676540001234390006",
         "hash": "0xc6a2902a66d4c919a59fad466de4063bad35263a24c10144446bccead8cef0c8",
         "chain_id": "0x012a",
-        "max_fee_per_gas": "0x59",
-        "max_priority_fee_per_gas": "0x33",
+        "max_fee_per_gas": "0xCF38224400",
+        "max_priority_fee_per_gas": "0x76BE5E6C00",
         "payer_account_id": 5001,
         "signature_r": "0xb5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9",
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x14"]
+        "value": ["0x2E90EDD000"]
       },
       {
         "consensus_timestamp": "1676540001234390007",
         "hash": "0x1a8770893d8a39b87abc7f13ecb34796fe1623a13590322b2b06e7cba252c263",
         "chain_id": "0x012a",
-        "max_fee_per_gas": "0x59",
-        "max_priority_fee_per_gas": "0x33",
+        "max_fee_per_gas": "0xCF38224400",
+        "max_priority_fee_per_gas": "0x76BE5E6C00",
         "payer_account_id": 5001,
         "signature_r": "0xb5c21ab4dfd336e30ac2106cad4aa8888b1873a99bce35d50f64d2ec2cc5f6d9",
         "signature_s": "0x1092806a99727a20c31836959133301b65a2bfa980f9795522d21a254e629110",
         "recovery_id": 1,
         "nonce": 5,
-        "value": ["0x14"]
+        "value": ["0x2E90EDD000"]
       }
     ]
   },

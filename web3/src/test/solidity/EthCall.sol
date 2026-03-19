@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-import "./HederaTokenService.sol";
-import "./IHederaTokenService.sol";
+import {HederaTokenService} from "./HederaTokenService.sol";
+import {IHederaTokenService} from "./IHederaTokenService.sol";
 
 contract EthCall is HederaTokenService {
 

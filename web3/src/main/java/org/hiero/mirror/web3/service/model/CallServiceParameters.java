@@ -2,7 +2,6 @@
 
 package org.hiero.mirror.web3.service.model;
 
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.web3.evm.contracts.execution.traceability.TracerType;
 import org.hiero.mirror.web3.viewmodel.BlockType;
 import org.hyperledger.besu.datatypes.Address;
@@ -10,9 +9,9 @@ import org.hyperledger.besu.datatypes.Address;
 public interface CallServiceParameters {
     BlockType getBlock();
 
-    Bytes getCallData();
+    byte[] getCallData();
 
-    Bytes getEthereumData();
+    byte[] getEthereumData();
 
     CallType getCallType();
 

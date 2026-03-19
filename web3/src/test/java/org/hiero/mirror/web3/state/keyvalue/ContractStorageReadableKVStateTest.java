@@ -15,7 +15,6 @@ import com.hedera.hapi.node.state.contract.SlotKey;
 import com.hedera.hapi.node.state.contract.SlotValue;
 import com.hedera.pbj.runtime.OneOf;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import java.util.Collections;
 import java.util.Optional;
 import org.apache.tuweni.bytes.Bytes32;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -69,7 +68,6 @@ class ContractStorageReadableKVStateTest {
     @BeforeEach
     void setup() {
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
-        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
     }
 
     @Test
@@ -116,11 +114,6 @@ class ContractStorageReadableKVStateTest {
     void whenSlotKeyIsNullReturnNull() {
         assertThat(contractStorageReadableKVState.get(new SlotKey(null, BYTES)))
                 .satisfies(slotValue -> assertThat(slotValue).isNull());
-    }
-
-    @Test
-    void testIterateFromDataSource() {
-        assertThat(contractStorageReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

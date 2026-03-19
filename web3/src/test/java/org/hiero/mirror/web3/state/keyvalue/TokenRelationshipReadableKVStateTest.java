@@ -13,7 +13,6 @@ import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.state.common.EntityIDPair;
 import com.hedera.hapi.node.state.token.TokenRelation;
-import java.util.Collections;
 import java.util.Optional;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.DomainBuilder;
@@ -92,7 +91,6 @@ class TokenRelationshipReadableKVStateTest {
     void setup() {
         domainBuilder = new DomainBuilder();
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
-        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
         when(this.systemEntity.treasuryAccount())
                 .thenReturn(new SystemEntity(CommonProperties.getInstance()).treasuryAccount());
     }
@@ -100,11 +98,6 @@ class TokenRelationshipReadableKVStateTest {
     @Test
     void sizeIsAlwaysZero() {
         assertThat(tokenRelationshipReadableKVState.size()).isZero();
-    }
-
-    @Test
-    void iterateReturnsEmptyIterator() {
-        assertThat(tokenRelationshipReadableKVState.iterateFromDataSource()).isEqualTo(Collections.emptyIterator());
     }
 
     @Test

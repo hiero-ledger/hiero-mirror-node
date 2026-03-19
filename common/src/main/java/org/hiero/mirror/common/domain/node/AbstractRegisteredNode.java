@@ -14,6 +14,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.hiero.mirror.common.converter.ListToStringSerializer;
 import org.hiero.mirror.common.converter.ObjectToStringSerializer;
 import org.hiero.mirror.common.domain.History;
 import org.hiero.mirror.common.domain.Upsertable;
@@ -43,4 +44,7 @@ public abstract class AbstractRegisteredNode implements History {
     private List<RegisteredServiceEndpoint> serviceEndpoints;
 
     private Range<Long> timestampRange;
+
+    @JsonSerialize(using = ListToStringSerializer.class)
+    private List<Short> type;
 }

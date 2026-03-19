@@ -345,7 +345,6 @@ function restoreTarget() {
   resumeCommonChart
   patchBackupPaths
   replaceDisks
-  runAcceptanceTest
 }
 
 function deleteSnapshots() {
@@ -385,7 +384,8 @@ function runAcceptanceTest() {
   suspendKustomization
   kubectl patch helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" --type merge \
     -p '{"spec": {"values": {"test": {"enabled": true }}}}'
-  flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}"
+  flux reconcile helmrelease "${HELM_RELEASE_NAME}" -n "${TEST_KUBE_TARGET_NAMESPACE}" \
+    --timeout "${FLUX_RECONCILE_HR_TIMEOUT}"
 }
 
 function scaleDownNodePools() {
@@ -701,5 +701,6 @@ function waitForHelmReleaseReady() {
 
 ensureContext K8S_TARGET_CLUSTER_CONTEXT
 restoreEnvironment
+runAcceptanceTest
 runK6Test
 teardownResources

@@ -65,9 +65,9 @@ var (
 	validSignedTransaction      = "0x0aaa012aa7010a3d0a140a0c08feafcb840610ae86c0db03120418d8c307120218041880c2d72f2202087872180a160a090a0418d8c30710cf0f0a090a0418fec40710d00f12660a640a20eba8cc093a83a4ca5e813e30d8c503babb35c22d57d34b6ec5ac0303a6aaba771a40793de745bc19dd8fe8e817891f51b8fe1e259c2e6428bd7fa075b181585a2d40e3666a7c9a1873abb5433ffe1414502836d8d37082eaf94a648b530e9fa78108"
 )
 
-type metadata map[string]interface{}
+type metadata map[string]any
 
-func (m metadata) addIfAbsent(key string, value interface{}) metadata {
+func (m metadata) addIfAbsent(key string, value any) metadata {
 	if _, ok := m[key]; !ok {
 		m[key] = value
 	}
@@ -100,7 +100,7 @@ func getConstructionCombineRequest() *rTypes.ConstructionCombineRequest {
 	)
 }
 
-func getConstructionPreprocessRequest(valid bool, metadata map[string]interface{}) *rTypes.ConstructionPreprocessRequest {
+func getConstructionPreprocessRequest(valid bool, metadata map[string]any) *rTypes.ConstructionPreprocessRequest {
 	operations := types.OperationSlice{
 		getOperation(0, types.OperationTypeCryptoTransfer, defaultCryptoAccountId1, defaultSendAmount),
 		getOperation(1, types.OperationTypeCryptoTransfer, defaultCryptoAccountId2, defaultReceiveAmount),
@@ -199,7 +199,7 @@ func getPayloadsRequest(
 	return request
 }
 
-func payloadsRequestMetadata(metadata map[string]interface{}) func(*rTypes.ConstructionPayloadsRequest) {
+func payloadsRequestMetadata(metadata map[string]any) func(*rTypes.ConstructionPayloadsRequest) {
 	return func(request *rTypes.ConstructionPayloadsRequest) {
 		request.Metadata = metadata
 	}
@@ -451,14 +451,14 @@ func TestConstructionMetadataOnline(t *testing.T) {
 	}}
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
-		Options: map[string]interface{}{
+		Options: map[string]any{
 			types.MetadataKeyMemo:   "tx memo",
 			optionKeyAccountAliases: aliasStr,
 			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 		},
 	}
 	expectedResponse := &rTypes.ConstructionMetadataResponse{
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			types.MetadataKeyMemo:    "tx memo",
 			metadataKeyAccountMap:    fmt.Sprintf("%s:%s", aliasStr, accountId),
 			metadataKeyNodeAccountId: randomNodeAccountId.String(),
@@ -516,10 +516,10 @@ func TestConstructionMetadataOffline(t *testing.T) {
 		Return(types.HbarAmount{Value: 100}, mocks.NilError)
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
-		Options:           map[string]interface{}{optionKeyOperationType: types.OperationTypeCryptoTransfer},
+		Options:           map[string]any{optionKeyOperationType: types.OperationTypeCryptoTransfer},
 	}
 	expectedResponse := &rTypes.ConstructionMetadataResponse{
-		Metadata: map[string]interface{}{
+		Metadata: map[string]any{
 			metadataKeyNodeAccountId: "0.0.3",
 			optionKeyOperationType:   types.OperationTypeCryptoTransfer,
 		},
@@ -553,7 +553,7 @@ func TestConstructionMetadataOfflineAccountAliasesFail(t *testing.T) {
 		Return(types.HbarAmount{Value: 100}, mocks.NilError)
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
-		Options: map[string]interface{}{
+		Options: map[string]any{
 			optionKeyAccountAliases: aliasStr,
 			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 		},
@@ -582,14 +582,14 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 			name: "empty options",
 			request: &rTypes.ConstructionMetadataRequest{
 				NetworkIdentifier: networkIdentifier(),
-				Options:           map[string]interface{}{},
+				Options:           map[string]any{},
 			},
 		},
 		{
 			name: "incorrect operation type value type",
 			request: &rTypes.ConstructionMetadataRequest{
 				NetworkIdentifier: networkIdentifier(),
-				Options: map[string]interface{}{
+				Options: map[string]any{
 					optionKeyOperationType: 1,
 				},
 			},
@@ -598,7 +598,7 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 			name: "incorrect account aliases",
 			request: &rTypes.ConstructionMetadataRequest{
 				NetworkIdentifier: networkIdentifier(),
-				Options: map[string]interface{}{
+				Options: map[string]any{
 					optionKeyAccountAliases: "foobar",
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 				},
@@ -608,7 +608,7 @@ func TestConstructionMetadataFailsWhenInvalidOptions(t *testing.T) {
 			name: "incorrect account aliases value type",
 			request: &rTypes.ConstructionMetadataRequest{
 				NetworkIdentifier: networkIdentifier(),
-				Options: map[string]interface{}{
+				Options: map[string]any{
 					optionKeyAccountAliases: 1,
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 				},
@@ -653,7 +653,7 @@ func TestConstructionMetadataFailsWhenAccountRepoFails(t *testing.T) {
 		Return(types.HbarAmount{Value: 100}, mocks.NilError)
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
-		Options: map[string]interface{}{
+		Options: map[string]any{
 			optionKeyAccountAliases: aliasStr,
 			optionKeyOperationType:  types.OperationTypeCryptoTransfer,
 		},
@@ -684,7 +684,7 @@ func TestConstructionMetadataFailsWhenTransactionConstructorFails(t *testing.T) 
 		Return(types.HbarAmount{}, errors.ErrInvalidOperationType)
 	request := &rTypes.ConstructionMetadataRequest{
 		NetworkIdentifier: networkIdentifier(),
-		Options:           map[string]interface{}{optionKeyOperationType: types.OperationTypeCryptoTransfer},
+		Options:           map[string]any{optionKeyOperationType: types.OperationTypeCryptoTransfer},
 	}
 	service, _ := NewConstructionAPIService(
 		mockAccountRepo,
@@ -705,25 +705,25 @@ func TestConstructionMetadataFailsWhenTransactionConstructorFails(t *testing.T) 
 func TestConstructionParse(t *testing.T) {
 	var tests = []struct {
 		name     string
-		metadata map[string]interface{}
+		metadata map[string]any
 		request  *rTypes.ConstructionParseRequest
 		signers  []*rTypes.AccountIdentifier
 	}{
 		{
 			name:     "NotSigned",
-			metadata: map[string]interface{}{},
+			metadata: map[string]any{},
 			request:  getConstructionParseRequest(validSignedTransaction, false),
 			signers:  []*rTypes.AccountIdentifier{},
 		},
 		{
 			name:     "Signed",
-			metadata: map[string]interface{}{},
+			metadata: map[string]any{},
 			request:  getConstructionParseRequest(validSignedTransaction, true),
 			signers:  []*rTypes.AccountIdentifier{defaultCryptoAccountId1.ToRosetta()},
 		},
 		{
 			name:     "memo",
-			metadata: map[string]interface{}{"memo": "transfer"},
+			metadata: map[string]any{"memo": "transfer"},
 			request:  getConstructionParseRequest(unsignedTransactionWithMemo, false),
 			signers:  []*rTypes.AccountIdentifier{},
 		},
@@ -813,7 +813,7 @@ func TestConstructionParseThrowsWhenUnmarshallFails(t *testing.T) {
 func TestConstructionPayloads(t *testing.T) {
 	tests := []struct {
 		name           string
-		metadata       map[string]interface{}
+		metadata       map[string]any
 		payerAccountId types.AccountId
 		expected       *rTypes.ConstructionPayloadsResponse
 	}{
@@ -833,7 +833,7 @@ func TestConstructionPayloads(t *testing.T) {
 		},
 		{
 			name:           "alias account payer",
-			metadata:       map[string]interface{}{metadataKeyAccountMap: fmt.Sprintf("%s:0.0.100", aliasStr)},
+			metadata:       map[string]any{metadataKeyAccountMap: fmt.Sprintf("%s:0.0.100", aliasStr)},
 			payerAccountId: aliasAccount,
 			expected: &rTypes.ConstructionPayloadsResponse{
 				UnsignedTransaction: "0x0a272a250a210a0d0a0708959aef3a107b12021864120218031880c2d72f220308b40172020a001200",
@@ -848,7 +848,7 @@ func TestConstructionPayloads(t *testing.T) {
 		},
 		{
 			name:           "transaction memo",
-			metadata:       map[string]interface{}{types.MetadataKeyMemo: "transfer"},
+			metadata:       map[string]any{types.MetadataKeyMemo: "transfer"},
 			payerAccountId: defaultCryptoAccountId1,
 			expected: &rTypes.ConstructionPayloadsResponse{
 				UnsignedTransaction: "0x0a332a310a2d0a0f0a0708959aef3a107b120418d8c307120218031880c2d72f220308b40132087472616e7366657272020a001200",
@@ -863,7 +863,7 @@ func TestConstructionPayloads(t *testing.T) {
 		},
 		{
 			name: "valid until",
-			metadata: map[string]interface{}{
+			metadata: map[string]any{
 				// valid start nanos and valid duration are ignored
 				metadataKeyValidDurationSeconds: "100",
 				metadataKeyValidStartNanos:      "123499999000000123",
@@ -932,7 +932,7 @@ func TestConstructionPayloadValidDuration(t *testing.T) {
 	mockConstructor.
 		On("Construct", defaultContext, mock.IsType(types.OperationSlice{})).
 		Return(hiero.NewTransferTransaction(), []types.AccountId{defaultCryptoAccountId1}, mocks.NilError)
-	metadata := addDefaultConstructionPayloadsMetadata(map[string]interface{}{
+	metadata := addDefaultConstructionPayloadsMetadata(map[string]any{
 		metadataKeyValidDurationSeconds: "60",
 	})
 	request := getPayloadsRequest(operations, payloadsRequestMetadata(metadata))
@@ -950,7 +950,7 @@ func TestConstructionPayloadValidDuration(t *testing.T) {
 func TestConstructionPayloadsAliasError(t *testing.T) {
 	tests := []struct {
 		name     string
-		metadata map[string]interface{}
+		metadata map[string]any
 	}{
 		{
 			name:     "no account_map metadata",
@@ -1246,7 +1246,7 @@ func TestConstructionSubmitOffline(t *testing.T) {
 func TestConstructionPreprocess(t *testing.T) {
 	tests := []struct {
 		name     string
-		metadata map[string]interface{}
+		metadata map[string]any
 		signers  []types.AccountId
 		expected *rTypes.ConstructionPreprocessResponse
 	}{
@@ -1254,16 +1254,16 @@ func TestConstructionPreprocess(t *testing.T) {
 			name:    "shard.realm.num signer",
 			signers: []types.AccountId{defaultCryptoAccountId1},
 			expected: &rTypes.ConstructionPreprocessResponse{
-				Options:            map[string]interface{}{optionKeyOperationType: types.OperationTypeCryptoTransfer},
+				Options:            map[string]any{optionKeyOperationType: types.OperationTypeCryptoTransfer},
 				RequiredPublicKeys: []*rTypes.AccountIdentifier{defaultCryptoAccountId1.ToRosetta()},
 			},
 		},
 		{
 			name:     "alias account signer",
-			metadata: map[string]interface{}{"memo": "tx memo"},
+			metadata: map[string]any{"memo": "tx memo"},
 			signers:  []types.AccountId{aliasAccount},
 			expected: &rTypes.ConstructionPreprocessResponse{
-				Options: map[string]interface{}{
+				Options: map[string]any{
 					"memo":                  "tx memo",
 					optionKeyAccountAliases: aliasStr,
 					optionKeyOperationType:  types.OperationTypeCryptoTransfer,
@@ -1414,7 +1414,7 @@ func TestUnmarshallTransactionFromHexString(t *testing.T) {
 			if signed {
 				suffix = "Signed"
 			}
-			name := fmt.Sprintf("%s%s", reflect.TypeOf(&transaction).Elem().String(), suffix)
+			name := fmt.Sprintf("%s%s", reflect.TypeFor[hiero.TransactionInterface]().String(), suffix)
 
 			t.Run(name, func(t *testing.T) {
 				// given
@@ -1469,7 +1469,7 @@ func TestUnmarshallTransactionFromHexStringThrowsWithUnsupportedTransactionType(
 func TestTransactionSetMemo(t *testing.T) {
 	tests := []struct {
 		name     string
-		memo     interface{}
+		memo     any
 		expected string
 	}{
 		{

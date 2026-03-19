@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.mirror.importer.parser.domain;
+package org.hiero.mirror.common.domain;
 
 import static com.hederahashgraph.api.proto.java.CustomFee.FeeCase.FIXED_FEE;
 import static com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi.STATUS;
@@ -44,6 +44,7 @@ import com.hedera.services.stream.proto.TransactionSidecarRecord;
 import com.hederahashgraph.api.proto.java.AccountAmount;
 import com.hederahashgraph.api.proto.java.AccountID;
 import com.hederahashgraph.api.proto.java.AssessedCustomFee;
+import com.hederahashgraph.api.proto.java.AssociatedRegisteredNodeList;
 import com.hederahashgraph.api.proto.java.AtomicBatchTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusCreateTopicTransactionBody;
 import com.hederahashgraph.api.proto.java.ConsensusDeleteTopicTransactionBody;
@@ -159,7 +160,6 @@ import com.hederahashgraph.api.proto.java.TransactionRecord;
 import com.hederahashgraph.api.proto.java.TransferList;
 import com.hederahashgraph.api.proto.java.UncheckedSubmitBody;
 import com.hederahashgraph.api.proto.java.UtilPrngTransactionBody;
-import jakarta.inject.Named;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -171,6 +171,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -179,41 +180,26 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.Value;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.common.CommonProperties;
-import org.hiero.mirror.common.aggregator.LogsBloomAggregator;
-import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.hiero.mirror.common.domain.token.TokenTypeEnum;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.common.util.DomainUtils;
-import org.hiero.mirror.importer.TestUtils;
-import org.hiero.mirror.importer.parser.record.entity.EntityProperties.PersistProperties;
-import org.hiero.mirror.importer.util.Utility;
-import org.hyperledger.besu.datatypes.Address;
-import org.hyperledger.besu.evm.log.Log;
-import org.hyperledger.besu.evm.log.LogTopic;
-import org.hyperledger.besu.evm.log.LogsBloomFilter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.ConfigurableBeanFactory;
-import org.springframework.context.annotation.Scope;
+import org.hiero.mirror.common.util.LogsBloomFilter;
+import org.hiero.mirror.common.util.TestUtils;
 import org.springframework.data.util.Version;
 
 /**
  * Generates typical protobuf request and response objects with all fields populated.
  */
-@Named
-@Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
-public class RecordItemBuilder {
+public final class RecordItemBuilder {
 
     public static final ByteString EVM_ADDRESS = ByteString.fromHex("ebb9a1be370150759408cd7af48e9eda2b8ead57");
     public static final byte[] LONDON_RAW_TX = Hex.decode(
@@ -231,20 +217,20 @@ public class RecordItemBuilder {
     private final SecureRandom random = new SecureRandom();
     private final Map<GeneratedMessage, EntityState> state = new ConcurrentHashMap<>();
 
-    @Getter
-    private final PersistProperties persistProperties =
-            new PersistProperties(new SystemEntity(CommonProperties.getInstance()));
-
     private final CommonProperties commonProperties;
     private final SystemEntity systemEntity;
+    private final Set<EntityId> entityTransactionExclusion;
+
+    @Setter
+    private boolean entityTransactions = false;
 
     @Setter
     private Instant now = Instant.now();
 
-    @Autowired
     public RecordItemBuilder(CommonProperties commonProperties, SystemEntity systemEntity) {
         this.commonProperties = commonProperties;
         this.systemEntity = systemEntity;
+        this.entityTransactionExclusion = systemEntity.entityTransactionExclusionDefault();
         // Dynamically lookup method references for every transaction body builder in this class
         Collection<Supplier<Builder<?>>> suppliers = TestUtils.gettersByType(this, Builder.class);
         suppliers.forEach(s -> builders.put(s.get().type, s));
@@ -254,6 +240,17 @@ public class RecordItemBuilder {
     // Intended for use only in unit tests
     public RecordItemBuilder() {
         this(CommonProperties.getInstance(), new SystemEntity(CommonProperties.getInstance()));
+    }
+
+    private static Instant convertToInstant(Timestamp timestamp) {
+        return Instant.ofEpochSecond(timestamp.getSeconds(), timestamp.getNanos());
+    }
+
+    private static Timestamp instantToTimestamp(Instant instant) {
+        return Timestamp.newBuilder()
+                .setSeconds(instant.getEpochSecond())
+                .setNanos(instant.getNano())
+                .build();
     }
 
     public Supplier<Builder<?>> lookup(TransactionType type) {
@@ -428,13 +425,13 @@ public class RecordItemBuilder {
 
     @SuppressWarnings("deprecation")
     public ContractFunctionResult.Builder contractFunctionResult(ContractID contractId) {
-        var logsBloomAggregator = new LogsBloomAggregator();
+        var logsBloomFilter = new LogsBloomFilter();
         var contractLogInfos = List.of(contractLoginfo(contractId), contractLoginfo(contractId()));
-        contractLogInfos.forEach(loginfo -> logsBloomAggregator.aggregate(DomainUtils.toBytes(loginfo.getBloom())));
+        contractLogInfos.forEach(loginfo -> logsBloomFilter.or(DomainUtils.toBytes(loginfo.getBloom())));
 
         return ContractFunctionResult.newBuilder()
                 .setAmount(5_000L)
-                .setBloom(DomainUtils.fromBytes(logsBloomAggregator.getBloom()))
+                .setBloom(DomainUtils.fromBytes(logsBloomFilter.toArrayUnsafe()))
                 .setContractCallResult(bytes(16))
                 .setContractID(contractId)
                 .addContractNonces(ContractNonceInfo.newBuilder()
@@ -845,6 +842,9 @@ public class RecordItemBuilder {
                 .addGossipEndpoint(gossipEndpoint())
                 .setGrpcCertificateHash(BytesValue.of(bytes(48)))
                 .setNodeId(id())
+                .setAssociatedRegisteredNodeList(AssociatedRegisteredNodeList.newBuilder()
+                        .addAssociatedRegisteredNode(id())
+                        .addAssociatedRegisteredNode(id()))
                 .addServiceEndpoint(serviceEndpoint());
         return new Builder<>(TransactionType.NODEUPDATE, builder);
     }
@@ -893,6 +893,10 @@ public class RecordItemBuilder {
                 r.setPrngNumber(random.nextInt());
             }
         });
+    }
+
+    public Builder<UtilPrngTransactionBody.Builder> utilPrng() {
+        return prng(0);
     }
 
     public Builder<RegisteredNodeCreateTransactionBody.Builder> registeredNodeCreate() {
@@ -1412,15 +1416,19 @@ public class RecordItemBuilder {
                 .build();
     }
 
+    public RecordItemBuilder withEntityTransactions(final boolean enabled) {
+        entityTransactions = enabled;
+        return this;
+    }
+
     private ByteString bloomFor(ContractID contractId, List<ByteString> topics) {
-        var address = Address.wrap(
-                Bytes.wrap(Hex.decode(StringUtils.leftPad(Long.toHexString(contractId.getContractNum()), 40, '0'))));
-        var logTopics = topics.stream()
-                .map(topic -> LogTopic.wrap(Bytes.wrap(DomainUtils.toBytes(topic))))
-                .toList();
-        var log = new Log(address, Bytes.EMPTY, logTopics);
-        return DomainUtils.fromBytes(
-                LogsBloomFilter.builder().insertLog(log).build().toArray());
+        boolean hasAddress =
+                contractId != null && !ContractID.getDefaultInstance().equals(contractId);
+        final var evmAddress = hasAddress ? DomainUtils.toEvmAddress(contractId) : null;
+        final var logsBloomFilter = new LogsBloomFilter();
+        logsBloomFilter.insertAddress(evmAddress);
+        topics.forEach(logsBloomFilter::insertTopic);
+        return logsBloomFilter.toByteString();
     }
 
     private TransactionSidecarRecord.Builder contractActions() {
@@ -1565,7 +1573,7 @@ public class RecordItemBuilder {
     }
 
     public Timestamp timestamp(TemporalUnit unit) {
-        return Utility.instantToTimestamp(now.plus(id(), unit));
+        return instantToTimestamp(now.plus(id(), unit));
     }
 
     public TokenID tokenId() {
@@ -1621,8 +1629,9 @@ public class RecordItemBuilder {
         private final AccountID payerAccountId;
         private final RecordItem.RecordItemBuilder recordItemBuilder;
 
-        private Predicate<EntityId> entityTransactionPredicate = persistProperties::shouldPersistEntityTransaction;
-        private Predicate<EntityId> contractTransactionPredicate = e -> persistProperties.isContractTransaction();
+        private Predicate<EntityId> contractTransactionPredicate = _ -> true;
+        private Predicate<EntityId> entityTransactionPredicate;
+        private Predicate<EntityId> entityNftTransactionPredicate;
         private BiConsumer<TransactionBody.Builder, TransactionRecord.Builder> incrementer = NOOP_INCREMENTER;
         private boolean useTransactionBodyBytesAndSigMap;
 
@@ -1684,9 +1693,18 @@ public class RecordItemBuilder {
 
             var contractLogs = parseContractLogs(transactionRecordInstance);
 
+            if (contractTransactionPredicate != null) {
+                recordItemBuilder.contractTransactionPredicate(contractTransactionPredicate);
+            }
+
+            if (entityTransactionPredicate != null) {
+                recordItemBuilder.entityTransactionPredicate(entityTransactionPredicate);
+            } else if (entityTransactions) {
+                recordItemBuilder.entityTransactionPredicate(
+                        entityId -> !EntityId.isEmpty(entityId) && !entityTransactionExclusion.contains(entityId));
+            }
+
             return recordItemBuilder
-                    .contractTransactionPredicate(contractTransactionPredicate)
-                    .entityTransactionPredicate(entityTransactionPredicate)
                     .transactionRecord(transactionRecordInstance)
                     .transaction(transaction)
                     .sidecarRecords(sidecars)
@@ -1716,13 +1734,13 @@ public class RecordItemBuilder {
             return this;
         }
 
-        public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
-            this.entityTransactionPredicate = entityTransactionPredicate;
+        public Builder<T> contractTransactionPredicate(Predicate<EntityId> contractTransactionPredicate) {
+            this.contractTransactionPredicate = contractTransactionPredicate;
             return this;
         }
 
-        public Builder<T> contractTransactionPredicate(Predicate<EntityId> contractTransactionPredicate) {
-            this.contractTransactionPredicate = contractTransactionPredicate;
+        public Builder<T> entityTransactionPredicate(Predicate<EntityId> entityTransactionPredicate) {
+            this.entityTransactionPredicate = entityTransactionPredicate;
             return this;
         }
 
@@ -1814,8 +1832,8 @@ public class RecordItemBuilder {
                 return transactionBodyWrapper.getTransactionID();
             }
 
-            var instant = Utility.convertToInstant(transactionRecord.getConsensusTimestamp());
-            var validStart = Utility.instantToTimestamp(instant.minusNanos(10));
+            var instant = convertToInstant(transactionRecord.getConsensusTimestamp());
+            var validStart = instantToTimestamp(instant.minusNanos(10));
             return TransactionID.newBuilder()
                     .setAccountID(payerAccountId)
                     .setTransactionValidStart(validStart)

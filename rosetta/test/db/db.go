@@ -45,7 +45,7 @@ type DbResource struct {
 	network  *dockertest.Network
 }
 
-func CreateDbRecords(dbClient interfaces.DbClient, records ...interface{}) {
+func CreateDbRecords(dbClient interfaces.DbClient, records ...any) {
 	for _, record := range records {
 		dbClient.GetDb().Create(record)
 	}

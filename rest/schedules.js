@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
-import {omit, range} from 'lodash-es';
+import omit from 'lodash/omit';
+import range from 'lodash/range';
 
 import {getResponseLimit} from './config';
 import * as constants from './constants';

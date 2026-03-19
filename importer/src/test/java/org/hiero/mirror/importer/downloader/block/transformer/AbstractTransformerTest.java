@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import org.apache.commons.lang3.StringUtils;
 import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
+import org.hiero.mirror.common.domain.RecordItemBuilder;
 import org.hiero.mirror.common.domain.transaction.BlockFile;
 import org.hiero.mirror.common.domain.transaction.RecordFile;
 import org.hiero.mirror.common.domain.transaction.RecordItem;
@@ -19,7 +20,6 @@ import org.hiero.mirror.importer.ImporterIntegrationTest;
 import org.hiero.mirror.importer.downloader.block.BlockFileTransformer;
 import org.hiero.mirror.importer.parser.domain.BlockFileBuilder;
 import org.hiero.mirror.importer.parser.domain.BlockTransactionBuilder;
-import org.hiero.mirror.importer.parser.domain.RecordItemBuilder;
 import org.springframework.data.util.Version;
 
 abstract class AbstractTransformerTest extends ImporterIntegrationTest {
@@ -65,6 +65,7 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
                 .returns(null, RecordFile::getMetadataHash)
                 .returns(blockFile.getName(), RecordFile::getName)
                 .returns(blockFile.getPreviousHash(), RecordFile::getPreviousHash)
+                .returns(blockFile.getPreviousWrappedRecordBlockHash(), RecordFile::getPreviousWrappedRecordBlockHash)
                 .returns(blockFile.getRoundEnd(), RecordFile::getRoundEnd)
                 .returns(blockFile.getRoundStart(), RecordFile::getRoundStart)
                 .returns(0, RecordFile::getSidecarCount)
@@ -89,11 +90,9 @@ abstract class AbstractTransformerTest extends ImporterIntegrationTest {
     }
 
     protected void finalize(RecordItemBuilder.Builder<?> builder) {
-        builder.contractTransactionPredicate(null)
-                .entityTransactionPredicate(null)
-                .recordItem(r -> r.congestionPricingMultiplier(
-                                recordItemBuilder.accountId().getAccountNum())
-                        .blockstream(true)
-                        .hapiVersion(HAPI_VERSION));
+        builder.contractTransactionPredicate(null).recordItem(r -> r.congestionPricingMultiplier(
+                        recordItemBuilder.accountId().getAccountNum())
+                .blockstream(true)
+                .hapiVersion(HAPI_VERSION));
     }
 }
