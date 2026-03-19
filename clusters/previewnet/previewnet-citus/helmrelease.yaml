@@ -64,7 +64,7 @@ spec:
           enabled: false
     restjava:
       routes:
-        supply: true
+        nodes: true
     stackgres:
       coordinator:
         persistentVolume:
