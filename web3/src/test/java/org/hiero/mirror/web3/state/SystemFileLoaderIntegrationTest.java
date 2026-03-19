@@ -320,7 +320,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(SIMPLE_FEE_SCHEDULE)
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         final var firstLoad = systemFileLoader.load(fileId, 350L);
@@ -338,19 +338,21 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         final var secondLoad = systemFileLoader.load(fileId, 350L);
         assertThat(secondLoad).isNotNull();
         assertThat(secondLoad.contents()).isEqualTo(Bytes.wrap(SIMPLE_FEE_SCHEDULE));
+        assertThat(systemFileLoader.load(fileId, 351L)).isEqualTo(secondLoad);
     }
 
     @Test
     void loadSimpleFeeScheduleWithDifferentTimestampsReturnsDifferentCachedResults() {
         final var fileId = toFileID(systemEntity.simpleFeeScheduleFile());
         final var entityId = toEntityId(fileId);
+        final var timestamp = 1773810000000000000L;
 
         domainBuilder
                 .fileData()
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(SIMPLE_FEE_SCHEDULE)
                         .entityId(entityId)
-                        .consensusTimestamp(100L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         domainBuilder
@@ -358,11 +360,11 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILEUPDATE.getProtoId())
                         .fileData(SIMPLE_FEE_SCHEDULE_2)
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(timestamp))
                 .persist();
 
         final var resultAt150 = systemFileLoader.load(simpleFeeScheduleFileId, 150L);
-        final var resultAt350 = systemFileLoader.load(simpleFeeScheduleFileId, 350L);
+        final var resultAt350 = systemFileLoader.load(simpleFeeScheduleFileId, timestamp + 350L);
 
         assertThat(resultAt150).isNotNull();
         assertThat(resultAt150.contents()).isEqualTo(Bytes.wrap(SIMPLE_FEE_SCHEDULE));
@@ -370,7 +372,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
         assertThat(resultAt350.contents()).isEqualTo(Bytes.wrap(SIMPLE_FEE_SCHEDULE_2));
 
         final var cachedResult1 = systemFileLoader.load(simpleFeeScheduleFileId, 150L);
-        final var cachedResult2 = systemFileLoader.load(simpleFeeScheduleFileId, 350L);
+        final var cachedResult2 = systemFileLoader.load(simpleFeeScheduleFileId, timestamp + 350L);
 
         assertThat(cachedResult1.contents()).isEqualTo(resultAt150.contents());
         assertThat(cachedResult2.contents()).isEqualTo(resultAt350.contents());
@@ -387,7 +389,7 @@ class SystemFileLoaderIntegrationTest extends Web3IntegrationTest {
                 .customize(f -> f.transactionType(FILECREATE.getProtoId())
                         .fileData(SIMPLE_FEE_SCHEDULE)
                         .entityId(entityId)
-                        .consensusTimestamp(200L))
+                        .consensusTimestamp(0L))
                 .persist();
 
         assertThat(systemFileLoader.isSystemFile(fileId)).isTrue();
