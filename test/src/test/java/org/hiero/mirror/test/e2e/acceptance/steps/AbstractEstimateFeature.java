@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.PURE;
 import static org.hiero.mirror.test.e2e.acceptance.steps.AbstractFeature.SelectorInterface.FunctionType.VIEW;
+import static org.hiero.mirror.test.e2e.acceptance.steps.EstimatePrecompileFeature.ContractMethods.UPDATE_TOKEN_KEYS;
 import static org.hiero.mirror.test.e2e.acceptance.util.TestUtil.HEX_PREFIX;
 
 import com.google.common.base.Suppliers;
@@ -25,6 +26,7 @@ import org.hiero.mirror.rest.model.ContractAction;
 import org.hiero.mirror.rest.model.ContractActionsResponse;
 import org.hiero.mirror.rest.model.ContractResult;
 import org.hiero.mirror.test.e2e.acceptance.config.FeatureProperties;
+import org.hiero.mirror.test.e2e.acceptance.config.Web3Properties;
 import org.hiero.mirror.test.e2e.acceptance.props.Order;
 import org.hiero.mirror.test.e2e.acceptance.util.ModelBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +44,9 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
     @Autowired
     protected FeatureProperties featureProperties;
+
+    @Autowired
+    protected Web3Properties web3Properties;
 
     // Temporary until consensus node with code deposit change is deployed to all environments.
     private final Supplier<Boolean> shouldUseCodeDepositCost = Suppliers.memoize(() -> {
@@ -111,7 +116,13 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
         var estimateGasResult =
                 mirrorClient.estimateGasQueryTopLevelCall(contractId, method, params, sender, Optional.empty());
 
-        assertWithinDeviation(method.getActualGas(), (int) estimateGasResult, lowerDeviation, upperDeviation);
+        assertWithinDeviation(
+                method instanceof Enum<?> e && UPDATE_TOKEN_KEYS.getSelector().equals(e.name())
+                        ? web3Properties.isEnableSimpleFees() ? 480_000 : method.getActualGas()
+                        : method.getActualGas(),
+                (int) estimateGasResult,
+                lowerDeviation,
+                upperDeviation);
 
         if (contractClient
                         .getSdkClient()

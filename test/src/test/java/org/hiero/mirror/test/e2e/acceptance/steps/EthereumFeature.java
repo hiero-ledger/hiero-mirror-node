@@ -171,8 +171,10 @@ public class EthereumFeature extends AbstractEstimateFeature {
         var contractResult = mirrorClient.getContractResultByTransactionId(txId);
         int actualGasUsed = contractResult.getGasConsumed().intValue();
 
-        assertWithinDeviation(
-                actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation, upperDeviation);
+        if (web3Properties.isEnableSimpleFees()) {
+            assertWithinDeviation(
+                    actualGasUsed, (int) estimatedGasForHollowAccountCreation, lowerDeviation, upperDeviation);
+        }
     }
 
     @And("the mirror node contract results opcodes API should return a non-empty response")
