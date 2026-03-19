@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import base32 from './base32';
-import {getResponseLimit} from './config';
+import config, {getResponseLimit} from './config';
 import * as constants from './constants';
 import {filterKeys} from './constants';
 import EntityId from './entityId';
@@ -69,7 +69,7 @@ const processRow = (row) => {
     balance,
     created_timestamp: utils.nsToSecNs(row.created_timestamp),
     decline_reward: row.decline_reward,
-    delegation_address: delegationAddress,
+    ...(config.response.enableDelegationAddress && {delegation_address: delegationAddress}),
     deleted: row.deleted,
     ethereum_nonce: row.ethereum_nonce,
     evm_address: evmAddress,
