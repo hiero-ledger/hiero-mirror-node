@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.150.0-rc3'
+      version: '0.151.0-rc1'
   dependsOn:
     - name: mirror
       namespace: common
@@ -67,8 +67,6 @@ spec:
           enabled: false
     rest:
       env:
-        HIERO_MIRROR_REST_STATEPROOF_ENABLED: "true"
-        HIERO_MIRROR_REST_STATEPROOF_STREAMS_NETWORK: MAINNET
         HIERO_MIRROR_REST_CACHE_RESPONSE_ENABLED: "false"
       hpa:
         metrics:
