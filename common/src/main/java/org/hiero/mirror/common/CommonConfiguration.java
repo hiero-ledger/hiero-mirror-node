@@ -6,21 +6,22 @@ import org.hibernate.cfg.AvailableSettings;
 import org.hiero.mirror.common.config.CommonRuntimeHints;
 import org.hiero.mirror.common.converter.CustomJsonFormatMapper;
 import org.hiero.mirror.common.domain.SystemEntity;
+import org.hiero.mirror.common.util.SpelHelper;
 import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
-@ComponentScan("org.hiero.mirror.common")
 @Configuration
 @ConfigurationPropertiesScan("org.hiero.mirror")
 @EnableConfigurationProperties(CommonProperties.class)
 @EntityScan("org.hiero.mirror.common.domain")
 @ImportRuntimeHints(CommonRuntimeHints.class)
+@Import(SpelHelper.class)
 public class CommonConfiguration {
     @Bean
     SystemEntity systemEntity(CommonProperties commonProperties) {
