@@ -4,7 +4,6 @@ package org.hiero.mirror.importer.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.CONSTRUCTORS_AND_METHODS;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionField;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerSerialization;
@@ -39,9 +38,6 @@ class RuntimeHintsConfiguration {
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
             final var loader = classLoader != null ? classLoader : getClass().getClassLoader();
 
-            registerReflectionField(hints, loader, "com.github.benmanes.caffeine.cache.SSSMSA", "FACTORY");
-            registerReflectionField(hints, loader, "com.github.benmanes.caffeine.cache.SSR", "FACTORY");
-
             registerReflectionTypes(
                     hints,
                     EntityProperties.PersistProperties.class.getName(),
@@ -55,14 +51,14 @@ class RuntimeHintsConfiguration {
             registerReflectionTypes(
                     hints,
                     CONSTRUCTORS_AND_METHODS,
-                    ResourceManagerImpl.class.getName(),
-                    ResourceCacheImpl.class.getName(),
-                    ClasspathResourceLoader.class.getName(),
-                    StandardParser.class.getName(),
-                    ParserPoolImpl.class.getName(),
-                    UberspectImpl.class.getName(),
-                    TypeConversionHandlerImpl.class.getName(),
-                    Duration.class.getName());
+                    ResourceManagerImpl.class,
+                    ResourceCacheImpl.class,
+                    ClasspathResourceLoader.class,
+                    StandardParser.class,
+                    ParserPoolImpl.class,
+                    UberspectImpl.class,
+                    TypeConversionHandlerImpl.class,
+                    Duration.class);
 
             registerSerialization(hints, EntityId.class.getName());
 

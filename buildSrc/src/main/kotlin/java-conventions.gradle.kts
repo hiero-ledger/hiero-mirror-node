@@ -46,7 +46,7 @@ dependencies {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    val isAotTask = name == "compileAotJava" || name == "compileTestAotJava"
+    val isAotTask = name == "compileAotJava" || name == "compileAotTestJava"
 
     // Disable deprecation due to OpenAPI using deprecated Jackson2 in generated code
     // Disable serial and this-escape warnings due to errors in generated code

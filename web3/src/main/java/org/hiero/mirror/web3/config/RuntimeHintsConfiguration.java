@@ -7,7 +7,6 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerJnaAndReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
-import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionField;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
 
@@ -48,8 +47,6 @@ class RuntimeHintsConfiguration {
         @Override
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
             ClassLoader loader = classLoader != null ? classLoader : getClass().getClassLoader();
-
-            registerReflectionField(hints, loader, "com.github.benmanes.caffeine.cache.SSSMSA", "FACTORY");
 
             registerAnnotatedPackage(hints, loader, "com.hedera.node.config.data", ConfigData.class);
 

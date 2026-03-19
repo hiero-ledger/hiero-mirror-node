@@ -24,17 +24,17 @@ public final class RuntimeHintsHelper {
     };
 
     public static final MemberCategory[] NONE = new MemberCategory[0];
-
+    public static final MemberCategory[] UNSAFE_ALLOCATED = new MemberCategory[] {MemberCategory.UNSAFE_ALLOCATED};
+    public static final MemberCategory[] METHODS_ONLY = new MemberCategory[] {MemberCategory.INVOKE_DECLARED_METHODS};
     public static final MemberCategory[] CONSTRUCTORS_AND_METHODS =
             new MemberCategory[] {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS};
-
     public static final MemberCategory[] FIELDS_AND_METHODS =
-            new MemberCategory[] {MemberCategory.INVOKE_DECLARED_CONSTRUCTORS, MemberCategory.INVOKE_DECLARED_METHODS};
+            new MemberCategory[] {MemberCategory.ACCESS_DECLARED_FIELDS, MemberCategory.INVOKE_DECLARED_METHODS};
 
     public static void registerReflectionField(
             RuntimeHints hints, ClassLoader loader, String className, String fieldName) {
         try {
-            Class<?> type = Class.forName(className, false, loader);
+            final var type = Class.forName(className, false, loader);
             final var field = type.getDeclaredField(fieldName);
             hints.reflection().registerField(field);
         } catch (ClassNotFoundException | NoSuchFieldException ignored) {
@@ -48,7 +48,7 @@ public final class RuntimeHintsHelper {
 
     public static void registerJnaAndReflectionTypes(
             RuntimeHints hints, MemberCategory[] memberCategories, String... classNames) {
-        for (String className : classNames) {
+        for (final var className : classNames) {
             registerType(hints, className, true, memberCategories);
         }
     }
@@ -64,9 +64,24 @@ public final class RuntimeHintsHelper {
 
     public static void registerReflectionTypes(
             RuntimeHints hints, MemberCategory[] memberCategories, String... classNames) {
-        for (String className : classNames) {
+        for (final var className : classNames) {
             registerReflectionType(hints, className, memberCategories);
         }
+    }
+
+    public static void registerReflectionTypes(
+            RuntimeHints hints, MemberCategory[] memberCategories, Class<?>... types) {
+        for (final var type : types) {
+            registerReflectionType(hints, type, memberCategories);
+        }
+    }
+
+    public static void registerReflectionType(RuntimeHints hints, Class<?> type, MemberCategory... memberCategories) {
+        hints.reflection().registerType(TypeReference.of(type), memberCategories);
+    }
+
+    public static void registerReflectionType(RuntimeHints hints, String className) {
+        registerType(hints, className, false, DEFAULT_CATEGORIES);
     }
 
     public static void registerReflectionType(
@@ -117,7 +132,7 @@ public final class RuntimeHintsHelper {
 
     private static void registerType(
             RuntimeHints hints, String className, boolean registerJni, MemberCategory... memberCategories) {
-        TypeReference type = TypeReference.of(className);
+        final var type = TypeReference.of(className);
 
         if (registerJni) {
             hints.jni().registerType(type, builder -> builder.withMembers(memberCategories));
@@ -135,7 +150,7 @@ public final class RuntimeHintsHelper {
         final var scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(includeFilter);
 
-        for (var candidate : scanner.findCandidateComponents(basePackage)) {
+        for (final var candidate : scanner.findCandidateComponents(basePackage)) {
             final var className = candidate.getBeanClassName();
             if (className == null) {
                 continue;
@@ -148,7 +163,7 @@ public final class RuntimeHintsHelper {
     private static void registerLoadedClass(
             RuntimeHints hints, ClassLoader loader, String className, MemberCategory... memberCategories) {
         try {
-            Class<?> type = Class.forName(className, false, loader);
+            final var type = Class.forName(className, false, loader);
             hints.reflection().registerType(type, memberCategories);
         } catch (ClassNotFoundException e) {
             throw new IllegalStateException("Failed to register runtime hints for " + className, e);
