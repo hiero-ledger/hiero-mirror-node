@@ -71,13 +71,12 @@ public class BlockNodeDiscoveryService {
      */
     private List<BlockNodeProperties> discover() {
         try {
-            final var serviceEndpointsList = registeredNodeRepository.findServiceEndpointsByDeletedFalseAndTypeContains(
+            final var nodes = registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(
                     RegisteredNodeType.BLOCK_NODE.getValue());
 
-            final List<BlockNodeProperties> propertiesList = new ArrayList<>(serviceEndpointsList.size());
-            for (final var nodeServiceEndpoints : serviceEndpointsList) {
-                toBlockNodeProperties(nodeServiceEndpoints.getServiceEndpoints())
-                        .ifPresent(propertiesList::add);
+            final List<BlockNodeProperties> propertiesList = new ArrayList<>(nodes.size());
+            for (final var node : nodes) {
+                toBlockNodeProperties(node.getServiceEndpoints()).ifPresent(propertiesList::add);
             }
 
             return Collections.unmodifiableList(propertiesList);
