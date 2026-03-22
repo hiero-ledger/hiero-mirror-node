@@ -34,7 +34,7 @@ dependencies {
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.20.0")
     implementation("org.owasp:dependency-check-gradle:12.2.0")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.3")
-    implementation("org.testcontainers:testcontainers-postgresql:2.0.3")
+    implementation("org.testcontainers:testcontainers-postgresql:2.0.4")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
 
