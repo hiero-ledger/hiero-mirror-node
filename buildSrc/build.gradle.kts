@@ -5,7 +5,7 @@ plugins { `kotlin-dsl` }
 repositories { gradlePluginPortal() }
 
 dependencies {
-    val dockerJavaVersion = "3.7.0"
+    val dockerJavaVersion = "3.7.1"
     val jooqVersion = "3.20.11" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
