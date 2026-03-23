@@ -9,17 +9,34 @@ import java.util.Map;
 import java.util.Optional;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.config.Owner;
 import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.transaction.support.TransactionOperations;
 
 @Named
 final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigration<Long> {
+
+    private static final String CREATE_PROGRESS_TABLE_SQL = """
+            create table if not exists convert_ethereum_transaction_weibar_progress (
+              last_consensus_timestamp bigint not null
+            )
+            """;
+
+    private static final String DROP_PROGRESS_TABLE_SQL =
+            "drop table if exists convert_ethereum_transaction_weibar_progress";
+
+    private static final String INSERT_PROGRESS_SQL =
+            "insert into convert_ethereum_transaction_weibar_progress (last_consensus_timestamp) values (?)";
+
+    private static final String SELECT_PROGRESS_SQL =
+            "select min(last_consensus_timestamp) from convert_ethereum_transaction_weibar_progress";
 
     private static final String SELECT_TRANSACTIONS_SQL = """
             select consensus_timestamp, data, payer_account_id
@@ -29,16 +46,22 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             limit 5000
             """;
 
+    private static final DataClassRowMapper<TransactionRow> TRANSACTION_ROW_MAPPER =
+            new DataClassRowMapper<>(TransactionRow.class);
+
     private static final String UPDATE_SQL = "update ethereum_transaction set gas_price = ?, "
             + "max_fee_per_gas = ?, max_priority_fee_per_gas = ?, "
-            + "value = ? where consensus_timestamp = ?";
-
-    private static final String UPDATE_V2_SQL = "update ethereum_transaction set gas_price = ?, "
             + "value = ? where consensus_timestamp = ? and payer_account_id = ?";
 
+    private static final Map<Boolean, MigrationVersion> MINIMUM_VERSION = Map.of(
+            Boolean.FALSE, MigrationVersion.fromVersion("1.119.0"),
+            Boolean.TRUE, MigrationVersion.fromVersion("2.24.0"));
+
     private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
+    private final ObjectProvider<JdbcOperations> ownerJdbcOperationsProvider;
     private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final boolean v2;
+    private volatile long initialConsensusTimestamp = Long.MAX_VALUE;
 
     ConvertEthereumTransactionToWeiBarMigration(
             DBProperties dbProperties,
@@ -46,10 +69,12 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             ImporterProperties importerProperties,
             ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider,
+            @Owner ObjectProvider<JdbcOperations> ownerJdbcOperationsProvider,
             ObjectProvider<TransactionOperations> transactionOperationsProvider) {
         super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
         this.ethereumTransactionParserProvider = ethereumTransactionParserProvider;
+        this.ownerJdbcOperationsProvider = ownerJdbcOperationsProvider;
         this.transactionOperationsProvider = transactionOperationsProvider;
     }
 
@@ -61,12 +86,8 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
     @NonNull
     @Override
     protected Long getInitial() {
-        return Long.MAX_VALUE;
+        return initialConsensusTimestamp;
     }
-
-    private static final Map<Boolean, MigrationVersion> MINIMUM_VERSION = Map.of(
-            Boolean.FALSE, MigrationVersion.fromVersion("1.119.0"),
-            Boolean.TRUE, MigrationVersion.fromVersion("2.24.0"));
 
     @Override
     protected MigrationVersion getMinimumVersion() {
@@ -78,20 +99,24 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
         return transactionOperationsProvider.getObject();
     }
 
+    @Override
+    protected boolean performSynchronousSteps() {
+        var ownerJdbc = ownerJdbcOperationsProvider.getObject();
+        ownerJdbc.execute(CREATE_PROGRESS_TABLE_SQL);
+        var lastTimestamp = ownerJdbc.queryForObject(SELECT_PROGRESS_SQL, Long.class);
+        initialConsensusTimestamp = lastTimestamp != null ? lastTimestamp : Long.MAX_VALUE;
+        return true;
+    }
+
     @NonNull
     @Override
     protected Optional<Long> migratePartial(Long lastConsensusTimestamp) {
         var params = Map.of("consensusTimestamp", lastConsensusTimestamp);
-        var transactions = getNamedParameterJdbcOperations()
-                .query(
-                        SELECT_TRANSACTIONS_SQL,
-                        params,
-                        (rs, _) -> new TransactionRow(
-                                rs.getLong("consensus_timestamp"),
-                                rs.getBytes("data"),
-                                rs.getLong("payer_account_id")));
+        var transactions =
+                getNamedParameterJdbcOperations().query(SELECT_TRANSACTIONS_SQL, params, TRANSACTION_ROW_MAPPER);
 
         if (transactions.isEmpty()) {
+            ownerJdbcOperationsProvider.getObject().execute(DROP_PROGRESS_TABLE_SQL);
             return Optional.empty();
         }
 
@@ -126,20 +151,19 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             log.warn("Failed to decode {} ethereum transactions due to invalid RLP data", failedCount);
         }
 
-        return Optional.of(transactions.getLast().consensusTimestamp());
+        var lastTimestamp = transactions.getLast().consensusTimestamp();
+        ownerJdbcOperationsProvider.getObject().update(INSERT_PROGRESS_SQL, lastTimestamp);
+        return Optional.of(lastTimestamp);
     }
 
     private void batchUpdate(List<TransactionUpdate> updates) {
-        var updateSql = v2 ? UPDATE_V2_SQL : UPDATE_SQL;
-        getJdbcOperations().batchUpdate(updateSql, updates, updates.size(), (ps, update) -> {
+        getJdbcOperations().batchUpdate(UPDATE_SQL, updates, updates.size(), (ps, update) -> {
             ps.setBytes(1, update.gasPrice());
             ps.setBytes(2, update.maxFeePerGas());
             ps.setBytes(3, update.maxPriorityFeePerGas());
             ps.setBytes(4, update.value());
             ps.setLong(5, update.consensusTimestamp());
-            if (v2) {
-                ps.setLong(6, update.payerAccountId());
-            }
+            ps.setLong(6, update.payerAccountId());
         });
     }
 
