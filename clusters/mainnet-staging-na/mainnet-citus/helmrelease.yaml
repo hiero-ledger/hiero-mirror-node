@@ -44,9 +44,6 @@ spec:
     - kind: Secret
       name: mirror
   values:
-    global:
-      image:
-        tag: 0.150.0-rc4
     importer:
       env:
         HIERO_MIRROR_IMPORTER_MIGRATION_BACKFILLTRANSACTIONHASHMIGRATION_PARAMS_STARTTIMESTAMP: "0"
