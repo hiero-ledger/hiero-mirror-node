@@ -38,7 +38,7 @@ class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegratio
 
     @Test
     void empty() {
-        migration.doMigrate();
+        migration.migrateAsync();
         assertThat(findAllEthereumTransactions()).isEmpty();
     }
 
@@ -60,7 +60,7 @@ class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegratio
         persistEthereumTransaction(consensusTimestamp3, payerAccountId, londonRawTx);
 
         // when
-        migration.doMigrate();
+        migration.migrateAsync();
 
         // then - verify only valid transactions were updated
         var transactions = findAllEthereumTransactions();
@@ -100,7 +100,7 @@ class ConvertEthereumTransactionToWeiBarMigrationTest extends ImporterIntegratio
         persistEthereumTransaction(consensusTimestamp2, payerAccountId, londonRawTx);
 
         // when
-        migration.doMigrate();
+        migration.migrateAsync();
 
         // then - verify fields were populated from RLP data
         var transactions = findAllEthereumTransactions();
