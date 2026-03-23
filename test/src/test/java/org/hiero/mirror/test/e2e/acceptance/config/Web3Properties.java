@@ -21,7 +21,7 @@ public class Web3Properties implements ApiProperties {
 
     private boolean enabled = false;
 
-    private boolean enableSimpleFees = true;
+    private boolean enableSimpleFees = false;
 
     private OpcodeTracerProperties opcodeTracer = new OpcodeTracerProperties();
 
