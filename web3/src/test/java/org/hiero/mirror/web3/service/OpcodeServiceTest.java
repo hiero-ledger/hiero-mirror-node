@@ -965,6 +965,8 @@ class OpcodeServiceTest extends AbstractContractCallServiceOpcodeTracerTest {
                 callData,
                 new byte[] {},
                 new Object[0],
+                new byte[] {},
+                new Object[0],
                 recoveryId,
                 null,
                 signatureR,
