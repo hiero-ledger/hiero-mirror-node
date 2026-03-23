@@ -124,6 +124,9 @@ local.properties
 # generated spec based integration test modules
 rest/__tests__/integration/*.spec.test.js
 
+# esbuild bundle output
+rest/dist/
+
 # Rosetta
 rosetta-cli
 coverage.txt
