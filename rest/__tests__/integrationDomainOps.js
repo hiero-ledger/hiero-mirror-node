@@ -653,10 +653,11 @@ const addEntity = async (defaults, custom) => {
 };
 
 const addEntityTransaction = async (entityTransaction) => {
-  entityTransaction.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
-  entityTransaction.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
+  const clone = {...entityTransaction};
+  clone.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
+  clone.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
 
-  await insertDomainObject('entity_transaction', Object.keys(entityTransaction), entityTransaction);
+  await insertDomainObject('entity_transaction', Object.keys(clone), clone);
 };
 
 const SECONDS_PER_DAY = 86400;

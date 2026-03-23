@@ -22,6 +22,7 @@ import com.hedera.pbj.runtime.ParseException;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
@@ -193,11 +194,14 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     void loadsSimpleFeeScheduleFromDatabase() {
         // given
         final var state = new FeeEstimationState(systemEntity, fileService);
+        final var overrideValues = new HashMap<>(INTRINSIC_PROPERTIES);
+        overrideValues.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
+        overrideValues.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         final var properties = TransactionExecutors.Properties.newBuilder()
                 .state(state)
-                .appProperties(INTRINSIC_PROPERTIES)
+                .appProperties(overrideValues)
                 .build();
-        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
+        final var config = new ConfigProviderImpl(false, null, overrideValues).getConfiguration();
         final var calculator = new StandaloneFeeCalculatorImpl(state, properties, new AppEntityIdFactory(config));
         final var freshService = new FeeEstimationService(calculator);
 
