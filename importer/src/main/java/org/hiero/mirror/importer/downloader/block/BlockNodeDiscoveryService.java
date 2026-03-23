@@ -17,6 +17,7 @@ import org.hiero.mirror.common.domain.node.RegisteredNodeType;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
 import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.hiero.mirror.importer.repository.RegisteredNodeRepository;
+import org.identityconnectors.common.CollectionUtil;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -33,8 +34,10 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public final class BlockNodeDiscoveryService {
 
-    private final AtomicReference<@Nullable List<BlockNodeProperties>> blockNodesConfigCache = new AtomicReference<>();
+    private static final List<BlockNodeProperties> CLEARED = Collections.emptyList();
+
     private final BlockProperties blockProperties;
+    private final AtomicReference<List<BlockNodeProperties>> cache = new AtomicReference<>(CLEARED);
     private final RegisteredNodeRepository registeredNodeRepository;
 
     /**
@@ -42,23 +45,23 @@ public final class BlockNodeDiscoveryService {
      * auto-discovered ones (read from cache or database). Auto-discovered properties will override config file
      * properties when they represent the same block node (same status endpoint (host+port) and requiresTls, and
      * same streaming endpoint (host+port) and requiresTls).
-     * Results is cached. Cache is invalidated when registered nodes are created, updated, or deleted.
+     * The result is cached. Cache is invalidated when registered nodes are created, updated, or deleted.
      */
     public List<BlockNodeProperties> getBlockNodesConfigProperties() {
-        final var cached = blockNodesConfigCache.get();
-        if (cached != null) {
-            return cached;
-        }
+        return cache.updateAndGet(propertiesList -> {
+            if (propertiesList != CLEARED) {
+                return propertiesList;
+            }
 
-        final var configurationsMap = new HashMap<String, BlockNodeProperties>();
-        for (final var properties : Iterables.concat(blockProperties.getNodes(), discover())) {
-            configurationsMap.put(properties.getMergeKey(), properties);
-        }
+            final var configurationsMap = new HashMap<String, BlockNodeProperties>();
+            for (final var properties : Iterables.concat(blockProperties.getNodes(), discover())) {
+                configurationsMap.put(properties.getMergeKey(), properties);
+            }
 
-        final var result = new ArrayList<>(configurationsMap.values());
-        Collections.sort(result);
-        blockNodesConfigCache.set(Collections.unmodifiableList(result));
-        return result;
+            final var result = new ArrayList<>(configurationsMap.values());
+            Collections.sort(result);
+            return Collections.unmodifiableList(result);
+        });
     }
 
     /**
@@ -87,12 +90,12 @@ public final class BlockNodeDiscoveryService {
 
     @TransactionalEventListener(RegisteredNodeChangedEvent.class)
     public void onRegisteredNodeChanged() {
-        blockNodesConfigCache.set(null);
+        cache.set(CLEARED);
         log.debug("Invalidated block node discovery cache");
     }
 
     @Nullable
-    private static String extractHost(RegisteredServiceEndpoint endpoint) {
+    private static String extractHost(final RegisteredServiceEndpoint endpoint) {
         final var domainName = endpoint.getDomainName();
         if (!StringUtils.isBlank(domainName)) {
             return domainName.trim();
@@ -112,6 +115,10 @@ public final class BlockNodeDiscoveryService {
      */
     private static Optional<BlockNodeProperties> toBlockNodeProperties(
             final List<RegisteredServiceEndpoint> endpoints) {
+        if (CollectionUtil.isEmpty(endpoints)) {
+            return Optional.empty();
+        }
+
         boolean hasPublishEndpoint = false;
         RegisteredServiceEndpoint statusEndpoint = null;
         RegisteredServiceEndpoint streamEndpoint = null;
@@ -120,6 +127,7 @@ public final class BlockNodeDiscoveryService {
                 continue;
             }
 
+            // Always pick the first of each required endpoint type
             switch (endpoint.getBlockNode().getEndpointApi()) {
                 case PUBLISH -> hasPublishEndpoint = true;
                 case STATUS -> statusEndpoint = statusEndpoint == null ? endpoint : statusEndpoint;

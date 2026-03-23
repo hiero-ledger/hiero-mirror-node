@@ -49,7 +49,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
     @Override
     public void close() {
-        Objects.requireNonNullElse(nodes.get(), EMPTY).forEach(BlockNode::close);
+        Objects.requireNonNull(nodes.get()).forEach(BlockNode::close);
         executor.shutdown();
     }
 
@@ -89,7 +89,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
     private synchronized List<BlockNode> getBlockNodes() {
         final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties();
 
-        final List<BlockNode> currentNodes = Objects.requireNonNullElse(nodes.get(), EMPTY);
+        final List<BlockNode> currentNodes = Objects.requireNonNull(nodes.get());
         if (!nodesChanged(currentNodes, latestPropertiesList)) {
             return currentNodes;
         }
