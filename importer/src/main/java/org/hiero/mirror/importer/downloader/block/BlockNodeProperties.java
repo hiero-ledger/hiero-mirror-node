@@ -34,11 +34,11 @@ public class BlockNodeProperties implements Comparable<BlockNodeProperties> {
 
     private boolean statusApiRequireTls;
 
-    private boolean streamingApiRequireTls;
-
     @Max(65535)
     @Min(0)
     private int statusPort = 40840;
+
+    private boolean streamingApiRequireTls;
 
     private String streamingHost;
 

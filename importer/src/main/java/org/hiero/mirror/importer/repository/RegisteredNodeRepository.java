@@ -10,7 +10,7 @@ import org.springframework.data.repository.CrudRepository;
 public interface RegisteredNodeRepository extends CrudRepository<RegisteredNode, Long> {
 
     @Query(
-            value = "select * from registered_node where deleted = false and type @> array[:typeId]::smallint[]",
+            value = "select * from registered_node where deleted is false and type @> array[:typeId]::smallint[]",
             nativeQuery = true)
-    List<RegisteredNode> findRegisteredNodesByDeletedFalseAndTypeContains(short typeId);
+    List<RegisteredNode> findAllByDeletedFalseAndTypeContains(short typeId);
 }

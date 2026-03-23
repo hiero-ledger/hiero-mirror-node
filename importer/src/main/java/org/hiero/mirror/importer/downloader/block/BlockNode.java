@@ -40,6 +40,7 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @NullMarked
@@ -135,7 +136,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final CommonDownloaderProperties commonDownloaderProperties,
             final Consumer<BlockStream> onBlockStream) {
         final var callHolder =
-                new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
+                new AtomicReference<@Nullable BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
             final long endBlockNumber = Objects.requireNonNullElse(

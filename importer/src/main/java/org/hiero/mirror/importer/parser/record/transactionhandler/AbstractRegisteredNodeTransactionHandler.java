@@ -32,11 +32,13 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
         final var registeredNode = parseRegisteredNode(recordItem);
-        if (registeredNode != null) {
-            entityListener.onRegisteredNode(registeredNode);
-            if (registeredNode.isDeleted() || !CollectionUtils.isEmpty(registeredNode.getServiceEndpoints())) {
-                applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
-            }
+        if (registeredNode == null) {
+            return;
+        }
+
+        entityListener.onRegisteredNode(registeredNode);
+        if (registeredNode.isDeleted() || !CollectionUtils.isEmpty(registeredNode.getServiceEndpoints())) {
+            applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
         }
     }
 
@@ -84,17 +86,16 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
     }
 
     private static BlockNodeApi toBlockNodeApi(
-            com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi proto) {
+            final com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi proto) {
         return switch (proto) {
-            case STATUS -> BlockNodeApi.STATUS;
-            case PUBLISH -> BlockNodeApi.PUBLISH;
-            case SUBSCRIBE_STREAM -> BlockNodeApi.SUBSCRIBE_STREAM;
-            case STATE_PROOF -> BlockNodeApi.STATE_PROOF;
             case OTHER -> BlockNodeApi.OTHER;
-            case UNRECOGNIZED -> BlockNodeApi.UNRECOGNIZED;
-            default -> {
-                Utility.handleRecoverableError("Unsupported BlockNodeApi: {}", proto.name());
-                yield BlockNodeApi.OTHER;
+            case PUBLISH -> BlockNodeApi.PUBLISH;
+            case STATE_PROOF -> BlockNodeApi.STATE_PROOF;
+            case STATUS -> BlockNodeApi.STATUS;
+            case SUBSCRIBE_STREAM -> BlockNodeApi.SUBSCRIBE_STREAM;
+            case UNRECOGNIZED -> {
+                Utility.handleRecoverableError("Unrecognized BlockNodeApi enum value");
+                yield BlockNodeApi.UNRECOGNIZED;
             }
         };
     }

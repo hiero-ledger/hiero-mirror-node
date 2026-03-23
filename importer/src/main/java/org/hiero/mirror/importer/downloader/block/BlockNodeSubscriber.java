@@ -24,25 +24,25 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
 
     private static final List<BlockNode> EMPTY = Collections.emptyList();
 
-    private final ManagedChannelBuilderProvider channelBuilderProvider;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
+    private final ManagedChannelBuilderProvider channelBuilderProvider;
     private final MeterRegistry meterRegistry;
     private final ExecutorService executor;
 
     private final AtomicReference<List<BlockNode>> nodes = new AtomicReference<>(EMPTY);
 
     BlockNodeSubscriber(
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockStreamReader blockStreamReader,
             final BlockStreamVerifier blockStreamVerifier,
             final CommonDownloaderProperties commonDownloaderProperties,
             final CutoverService cutoverService,
             final ManagedChannelBuilderProvider channelBuilderProvider,
-            final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockProperties properties,
             final MeterRegistry meterRegistry) {
         super(blockStreamReader, blockStreamVerifier, commonDownloaderProperties, cutoverService, properties);
-        this.channelBuilderProvider = channelBuilderProvider;
         this.blockNodeDiscoveryService = blockNodeDiscoveryService;
+        this.channelBuilderProvider = channelBuilderProvider;
         this.meterRegistry = meterRegistry;
         this.executor = Executors.newSingleThreadExecutor();
     }
@@ -89,32 +89,19 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
     private synchronized List<BlockNode> getBlockNodes() {
         final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties();
 
-        final List<BlockNode> currentNodes = Objects.requireNonNullElse(nodes.get(), Collections.emptyList());
+        final List<BlockNode> currentNodes = Objects.requireNonNullElse(nodes.get(), EMPTY);
         if (!nodesChanged(currentNodes, latestPropertiesList)) {
             return currentNodes;
         }
 
         currentNodes.forEach(BlockNode::close);
-        final List<BlockNode> newNodes = new ArrayList<>(latestPropertiesList.size());
+        final var newNodes = new ArrayList<BlockNode>(latestPropertiesList.size());
         for (final var props : latestPropertiesList) {
             newNodes.add(new BlockNode(
                     channelBuilderProvider, this::drainGrpcBuffer, props, properties.getStream(), meterRegistry));
         }
         nodes.set(newNodes);
         return newNodes;
-    }
-
-    private static boolean nodesChanged(List<BlockNode> current, List<BlockNodeProperties> newProperties) {
-        if (current.size() != newProperties.size()) {
-            return true; // Node was added or removed
-        }
-        for (int i = 0; i < current.size(); i++) {
-            if (!Objects.equals(current.get(i).getProperties(), newProperties.get(i))) {
-                return true; // A host, port, or TLS setting changed
-            }
-        }
-
-        return false;
     }
 
     private BlockNode getNode(final AtomicLong nextBlockNumber) {
@@ -154,5 +141,18 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
         } else {
             return blockRange.contains(nextBlockNumber.get());
         }
+    }
+
+    private static boolean nodesChanged(final List<BlockNode> current, final List<BlockNodeProperties> newProperties) {
+        if (current.size() != newProperties.size()) {
+            return true; // Node was added or removed
+        }
+        for (int i = 0; i < current.size(); i++) {
+            if (!Objects.equals(current.get(i).getProperties(), newProperties.get(i))) {
+                return true; // A host, port, or TLS setting changed
+            }
+        }
+
+        return false;
     }
 }

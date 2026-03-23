@@ -19,21 +19,21 @@ import org.springframework.scheduling.annotation.Scheduled;
 final class CompositeBlockSource implements BlockSource {
 
     private final SourceHealth blockFileSourceHealth;
-    private final SourceHealth blockNodeSubscriberSourceHealth;
     private final BlockNodeDiscoveryService blockNodeDiscoveryService;
+    private final SourceHealth blockNodeSubscriberSourceHealth;
     private final AtomicReference<SourceHealth> current;
     private final CutoverService cutoverService;
     private final BlockProperties properties;
 
     CompositeBlockSource(
             final BlockFileSource blockFileSource,
-            final BlockNodeSubscriber blockNodeSubscriber,
             final BlockNodeDiscoveryService blockNodeDiscoveryService,
+            final BlockNodeSubscriber blockNodeSubscriber,
             final CutoverService cutoverService,
             final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
-        this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.blockNodeDiscoveryService = blockNodeDiscoveryService;
+        this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
         this.properties = properties;

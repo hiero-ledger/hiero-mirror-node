@@ -35,8 +35,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
                         b.deleted(false).type(List.of(BLOCK_NODE.getId())).serviceEndpoints(List.of(blockNodeEndpoint)))
                 .persist();
 
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         assertThat(result).hasSize(1).first().satisfies(endpoints -> {
             assertThat(endpoints.getServiceEndpoints()).hasSize(1);
@@ -58,8 +57,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
         domainBuilder.registeredNode().customize(r -> r.deleted(true)).persist();
 
         // when
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         // then
         assertThat(result).hasSize(2);
@@ -73,8 +71,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
 
     @Test
     void findRegisteredNodesNoMatchingNodes() {
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         assertThat(result).isEmpty();
     }
@@ -86,8 +83,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
         domainBuilder.registeredNode().customize(r -> r.deleted(true)).persist();
 
         // when
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         // then
         assertThat(result).isEmpty();
@@ -102,8 +98,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         // then
         assertThat(result).hasSize(1);
@@ -119,8 +114,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(BLOCK_NODE.getValue());
 
         // then
         assertThat(result).isEmpty();
@@ -141,8 +135,7 @@ final class RegisteredNodeRepositoryTest extends ImporterIntegrationTest {
                 .persist();
 
         // when
-        final var result =
-                registeredNodeRepository.findRegisteredNodesByDeletedFalseAndTypeContains(MIRROR_NODE.getValue());
+        final var result = registeredNodeRepository.findAllByDeletedFalseAndTypeContains(MIRROR_NODE.getValue());
 
         // then
         assertThat(result).hasSize(1);

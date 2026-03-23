@@ -52,7 +52,7 @@ final class CompositeBlockSourceTest {
         properties.setNodes(List.of(new BlockNodeProperties()));
         when(blockNodeDiscoveryService.getBlockNodesConfigProperties()).thenReturn(List.of(new BlockNodeProperties()));
         source = new CompositeBlockSource(
-                blockFileSource, blockNodeSubscriber, blockNodeDiscoveryService, cutoverService, properties);
+                blockFileSource, blockNodeDiscoveryService, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,

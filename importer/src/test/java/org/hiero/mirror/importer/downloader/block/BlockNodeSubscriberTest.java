@@ -90,12 +90,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         blockProperties.setNodes(configNodes);
         doReturn(configNodes).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
         blockNodeSubscriber = new BlockNodeSubscriber(
+                blockNodeDiscoveryService,
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
     }
@@ -160,12 +160,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         final var mergedNodes = List.of(configNode, discovered2);
         doReturn(mergedNodes).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
         blockNodeSubscriber = new BlockNodeSubscriber(
+                blockNodeDiscoveryService,
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
         // merged: config (test1:40840) wins over discovered1, discovered2 (test2:40840) added = 2 nodes
@@ -199,12 +199,12 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         var discoveredProps = blockNodeProperties(0, SERVER_NAMES[0]);
         doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
         blockNodeSubscriber = new BlockNodeSubscriber(
+                blockNodeDiscoveryService,
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 InProcessManagedChannelBuilderProvider.INSTANCE,
-                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
         doReturn(new BlockFile()).when(blockStreamReader).read(any());

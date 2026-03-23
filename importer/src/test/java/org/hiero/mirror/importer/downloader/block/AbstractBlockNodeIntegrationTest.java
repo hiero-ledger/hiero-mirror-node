@@ -92,12 +92,12 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                     return nodeList;
                 });
         return new BlockNodeSubscriber(
+                blockNodeDiscoveryService,
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,
                 cutoverService,
                 channelBuilderProvider,
-                blockNodeDiscoveryService,
                 blockProperties,
                 meterRegistry);
     }

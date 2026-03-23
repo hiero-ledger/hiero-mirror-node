@@ -9,8 +9,8 @@ import jakarta.inject.Named;
 final class ManagedChannelBuilderProviderImpl implements ManagedChannelBuilderProvider {
 
     @Override
-    public ManagedChannelBuilder<?> get(String host, int port, boolean useTls) {
-        var builder = ManagedChannelBuilder.forAddress(host, port);
+    public ManagedChannelBuilder<?> get(final String host, final int port, final boolean useTls) {
+        final var builder = ManagedChannelBuilder.forAddress(host, port);
         if (useTls) {
             builder.useTransportSecurity();
         } else {
