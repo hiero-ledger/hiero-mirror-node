@@ -57,8 +57,8 @@ const processRow = (row) => {
   }
 
   let delegationAddress = row.delegation_address && utils.toHexString(row.delegation_address, true);
-  if (!delegationAddress || delegationAddress === '0x0000000000000000000000000000000000000000') {
-    delegationAddress = '0x';
+  if (!delegationAddress || delegationAddress === constants.ZERO_EVM_ADDRESS) {
+    delegationAddress = constants.HEX_PREFIX;
   }
 
   const stakedToNode = row.staked_node_id !== null && row.staked_node_id !== -1;

@@ -213,7 +213,7 @@ describe('processRow', () => {
       config.response.enableDelegationAddress = true;
       const result = subject.processRow({...inputAccount, delegation_address: null});
       expect(result).toHaveProperty('delegation_address');
-      expect(result.delegation_address).toEqual('0x');
+      expect(result.delegation_address).toEqual(constants.HEX_PREFIX);
     });
 
     test('handles zero address delegation_address with feature flag enabled', () => {
@@ -221,7 +221,7 @@ describe('processRow', () => {
       const zeroAddress = Buffer.from('0000000000000000000000000000000000000000', 'hex');
       const result = subject.processRow({...inputAccount, delegation_address: zeroAddress});
       expect(result).toHaveProperty('delegation_address');
-      expect(result.delegation_address).toEqual('0x');
+      expect(result.delegation_address).toEqual(constants.HEX_PREFIX);
     });
   });
 });
