@@ -90,6 +90,7 @@ class AccountTest {
         final var numberHooksInUseList = UNSIGNED_LONG_TESTS_LIST;
         final var firstHookIdList = UNSIGNED_LONG_TESTS_LIST;
         final var numberLambdaStorageSlotsList = UNSIGNED_LONG_TESTS_LIST;
+        final var delegationAddressList = BYTES_TESTS_LIST;
 
         // work out the longest of all the lists of args as that is how many test cases we need
         final int maxValues = IntStream.of(
@@ -172,7 +173,8 @@ class AccountTest {
                         numberPendingAirdropsList.get(Math.min(i, numberPendingAirdropsList.size() - 1)),
                         numberHooksInUseList.get(Math.min(i, numberHooksInUseList.size() - 1)),
                         firstHookIdList.get(Math.min(i, firstHookIdList.size() - 1)),
-                        numberLambdaStorageSlotsList.get(Math.min(i, numberLambdaStorageSlotsList.size() - 1))))
+                        numberLambdaStorageSlotsList.get(Math.min(i, numberLambdaStorageSlotsList.size() - 1)),
+                        delegationAddressList.get(Math.min(i, delegationAddressList.size() - 1))))
                 .toList();
     }
 
