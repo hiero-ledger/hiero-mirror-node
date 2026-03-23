@@ -6,7 +6,9 @@ import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
 import org.hiero.mirror.importer.config.Owner;
@@ -18,7 +20,10 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Named
 final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigration<Long> {
@@ -58,24 +63,21 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             Boolean.TRUE, MigrationVersion.fromVersion("2.24.0"));
 
     private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
-    private final ObjectProvider<JdbcOperations> ownerJdbcOperationsProvider;
-    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final boolean v2;
     private volatile long initialConsensusTimestamp = Long.MAX_VALUE;
+
+    @Getter(lazy = true)
+    private final TransactionOperations transactionOperations = transactionOperations();
 
     ConvertEthereumTransactionToWeiBarMigration(
             DBProperties dbProperties,
             Environment environment,
             ImporterProperties importerProperties,
-            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
             ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider,
-            @Owner ObjectProvider<JdbcOperations> ownerJdbcOperationsProvider,
-            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
-        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
+            @Owner ObjectProvider<JdbcOperations> ownerJdbcOperationsProvider) {
+        super(importerProperties.getMigration(), ownerJdbcOperationsProvider, dbProperties.getSchema());
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
         this.ethereumTransactionParserProvider = ethereumTransactionParserProvider;
-        this.ownerJdbcOperationsProvider = ownerJdbcOperationsProvider;
-        this.transactionOperationsProvider = transactionOperationsProvider;
     }
 
     @Override
@@ -94,14 +96,15 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
         return MINIMUM_VERSION.get(v2);
     }
 
-    @Override
-    public TransactionOperations getTransactionOperations() {
-        return transactionOperationsProvider.getObject();
+    private TransactionOperations transactionOperations() {
+        var jdbcTemplate = (JdbcTemplate) getJdbcOperations();
+        var transactionManager = new DataSourceTransactionManager(Objects.requireNonNull(jdbcTemplate.getDataSource()));
+        return new TransactionTemplate(transactionManager);
     }
 
     @Override
     protected boolean performSynchronousSteps() {
-        var ownerJdbc = ownerJdbcOperationsProvider.getObject();
+        var ownerJdbc = getJdbcOperations();
         ownerJdbc.execute(CREATE_PROGRESS_TABLE_SQL);
         var lastTimestamp = ownerJdbc.queryForObject(SELECT_PROGRESS_SQL, Long.class);
         initialConsensusTimestamp = lastTimestamp != null ? lastTimestamp : Long.MAX_VALUE;
@@ -116,7 +119,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
                 getNamedParameterJdbcOperations().query(SELECT_TRANSACTIONS_SQL, params, TRANSACTION_ROW_MAPPER);
 
         if (transactions.isEmpty()) {
-            ownerJdbcOperationsProvider.getObject().execute(DROP_PROGRESS_TABLE_SQL);
+            getJdbcOperations().execute(DROP_PROGRESS_TABLE_SQL);
             return Optional.empty();
         }
 
@@ -152,7 +155,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
         }
 
         var lastTimestamp = transactions.getLast().consensusTimestamp();
-        ownerJdbcOperationsProvider.getObject().update(INSERT_PROGRESS_SQL, lastTimestamp);
+        getJdbcOperations().update(INSERT_PROGRESS_SQL, lastTimestamp);
         return Optional.of(lastTimestamp);
     }
 
