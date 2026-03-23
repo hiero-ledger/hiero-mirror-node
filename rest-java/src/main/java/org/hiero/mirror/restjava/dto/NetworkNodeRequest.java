@@ -13,8 +13,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
+import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RestJavaQueryParam;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -31,12 +31,11 @@ public class NetworkNodeRequest {
     public static final int MAX_LIMIT = 25;
 
     @RestJavaQueryParam(name = FILE_ID, required = false)
-    @Builder.Default
-    private EntityIdRangeParameter fileId = new EntityIdRangeParameter(RangeOperator.EQ, 102L);
+    private EntityIdRangeParameter fileId;
 
     @RestJavaQueryParam(name = NODE_ID, required = false)
     @Builder.Default
-    private List<EntityIdRangeParameter> nodeIds = List.of();
+    private List<NumberRangeParameter> nodeIds = List.of();
 
     @RestJavaQueryParam(name = LIMIT, required = false)
     @Builder.Default

@@ -15,7 +15,6 @@
  */
 
 // external libraries
-import crypto from 'crypto';
 import fs from 'fs';
 import {jest} from '@jest/globals';
 import _ from 'lodash';
@@ -129,7 +128,7 @@ const getSpecs = async () => {
 const readAndTransformSpec = (filepath) => {
   const text = fs.readFileSync(filepath, 'utf8');
   const spec = JSONParse(text);
-  const transformed = filepath.indexOf('stateproof') > -1 ? spec : transformShardRealmValues(spec);
+  const transformed = transformShardRealmValues(spec);
   transformed.name = path.basename(filepath);
   return transformed;
 };

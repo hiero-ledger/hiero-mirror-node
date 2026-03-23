@@ -191,7 +191,6 @@ class AccountReadableKVStateTest {
         token.setType(EntityType.TOKEN);
 
         contextMockedStatic.when(ContractCallContext::get).thenReturn(contractCallContext);
-        contextMockedStatic.when(ContractCallContext::isInitialized).thenReturn(true);
     }
 
     @Test

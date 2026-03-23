@@ -12,9 +12,11 @@ import com.hedera.node.app.workflows.standalone.TransactionExecutors;
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.restjava.jooq.DomainRecordMapperProvider;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
 import org.hiero.mirror.restjava.service.fee.FeeProperties;
@@ -49,12 +51,16 @@ class RestJavaConfiguration {
     }
 
     @Bean
-    StandaloneFeeCalculator standaloneFeeCalculator(FeeEstimationState feeEstimationState) {
+    StandaloneFeeCalculator standaloneFeeCalculator(
+            CommonProperties commonProperties, FeeEstimationState feeEstimationState) {
+        final var overrideValues = new HashMap<>(INTRINSIC_PROPERTIES);
+        overrideValues.put("hedera.realm", String.valueOf(commonProperties.getRealm()));
+        overrideValues.put("hedera.shard", String.valueOf(commonProperties.getShard()));
         final var properties = TransactionExecutors.Properties.newBuilder()
                 .state(feeEstimationState)
-                .appProperties(INTRINSIC_PROPERTIES)
+                .appProperties(overrideValues)
                 .build();
-        final var config = new ConfigProviderImpl(false, null, INTRINSIC_PROPERTIES).getConfiguration();
+        final var config = new ConfigProviderImpl(false, null, overrideValues).getConfiguration();
         return new StandaloneFeeCalculatorImpl(feeEstimationState, properties, new AppEntityIdFactory(config));
     }
 

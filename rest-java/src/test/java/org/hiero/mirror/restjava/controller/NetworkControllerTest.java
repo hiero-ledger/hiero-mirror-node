@@ -1114,7 +1114,6 @@ final class NetworkControllerTest extends ControllerTest {
                     .addressBook()
                     .customize(ab -> ab.startConsensusTimestamp(timestamp))
                     .persist();
-            var fileId = addressBook.getFileId().getId();
 
             // Create 3 network nodes linked to this address book
             domainBuilder
@@ -1133,7 +1132,7 @@ final class NetworkControllerTest extends ControllerTest {
             // when
             final var actual = restClient
                     .get()
-                    .uri("?file.id=" + fileId)
+                    .uri("?file.id=" + addressBook.getFileId())
                     .retrieve()
                     .body(org.hiero.mirror.rest.model.NetworkNodesResponse.class);
 

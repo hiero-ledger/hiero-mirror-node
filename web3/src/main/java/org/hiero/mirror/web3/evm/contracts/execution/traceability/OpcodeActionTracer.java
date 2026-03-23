@@ -12,12 +12,12 @@ import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.tuweni.bytes.Bytes;
+import org.hiero.mirror.rest.model.Opcode;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hyperledger.besu.datatypes.Address;
 import org.hyperledger.besu.evm.frame.MessageFrame;
@@ -44,13 +44,15 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     public void tracePostExecution(@NonNull final MessageFrame frame, @NonNull final OperationResult operationResult) {
         final var context = ContractCallContext.get();
 
-        final var options = context.getOpcodeTracerOptions();
+        final var options = context.getOpcodeContext();
         final var memory = captureMemory(frame, options);
         final var stack = captureStack(frame, options);
-        final var storage = captureStorage(frame, options);
+        final var storage = captureStorage(frame, options, context);
 
-        context.addOpcodes(
-                createOpcode(frame, operationResult.getGasCost(), frame.getRevertReason(), stack, memory, storage));
+        final var revertReasonBytes = frame.getRevertReason().orElse(null);
+        final var reason = revertReasonBytes != null ? revertReasonBytes.toHexString() : null;
+        context.getOpcodeContext()
+                .addOpcodes(createOpcode(frame, operationResult.getGasCost(), reason, stack, memory, storage));
     }
 
     @Override
@@ -63,20 +65,20 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     public void traceContextEnter(@NonNull final MessageFrame frame) {
         // Starting processing a newly created nested MessageFrame, we should set the remainingGas to match the newly
         // allocated gas for the new frame
-        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
+        ContractCallContext.get().getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
     public void traceContextReEnter(@NonNull final MessageFrame frame) {
         // Returning to the parent MessageFrame, we should reset the gas to reflect the existing remaining gas of
         // the parent frame
-        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
+        ContractCallContext.get().getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
     public void traceOriginAction(@NonNull MessageFrame frame) {
         // Setting the initial remaining gas on the start of the initial parent frame
-        ContractCallContext.get().setGasRemaining(frame.getRemainingGas());
+        ContractCallContext.get().getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
 
     @Override
@@ -87,31 +89,33 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
     @Override
     public void tracePrecompileResult(@NonNull MessageFrame frame, @NonNull ContractActionType type) {
         final var context = ContractCallContext.get();
-        final var gasCost = context.getGasRemaining() - frame.getRemainingGas();
+        final var gasCost = context.getOpcodeContext().getGasRemaining() - frame.getRemainingGas();
 
+        final var frameRevertReason = frame.getRevertReason().orElse(null);
         final var revertReason = isCallToSystemContracts(frame, systemContracts)
                 ? getRevertReasonFromContractActions(context)
-                : frame.getRevertReason();
+                : (frameRevertReason != null ? frameRevertReason.toHexString() : null);
 
-        context.addOpcodes(createOpcode(
-                frame,
-                gasCost,
-                revertReason,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                Collections.emptyMap()));
+        context.getOpcodeContext()
+                .addOpcodes(createOpcode(
+                        frame,
+                        gasCost,
+                        revertReason,
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        Collections.emptyMap()));
 
-        context.setGasRemaining(frame.getRemainingGas());
+        context.getOpcodeContext().setGasRemaining(frame.getRemainingGas());
     }
 
     private Opcode createOpcode(
             final MessageFrame frame,
             final long gasCost,
-            final Optional<Bytes> revertReason,
-            final List<Bytes> stack,
-            final List<Bytes> memory,
-            final Map<Bytes, Bytes> storage) {
-        return Opcode.builder()
+            final String revertReason,
+            final List<String> stack,
+            final List<String> memory,
+            final Map<String, String> storage) {
+        return new Opcode()
                 .pc(frame.getPC())
                 .op(
                         frame.getCurrentOperation() != null
@@ -123,8 +127,7 @@ public class OpcodeActionTracer extends AbstractOpcodeTracer implements ActionSi
                 .stack(stack)
                 .memory(memory)
                 .storage(storage)
-                .reason(revertReason.map(Bytes::toString).orElse(null))
-                .build();
+                .reason(revertReason);
     }
 
     public void setSystemContracts(final Map<Address, HederaSystemContract> systemContracts) {

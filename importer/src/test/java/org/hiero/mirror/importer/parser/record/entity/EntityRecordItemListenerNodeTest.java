@@ -184,6 +184,7 @@ final class EntityRecordItemListenerNodeTest extends AbstractEntityRecordItemLis
                 .nodeUpdate()
                 .transactionBody(b -> b.clearAccountId()
                         .clearAdminKey()
+                        .clearAssociatedRegisteredNodeList()
                         .setGrpcProxyEndpoint(com.hederahashgraph.api.proto.java.ServiceEndpoint.getDefaultInstance()))
                 .build();
         var nodeUpdate = recordItem.getTransactionBody().getNodeUpdate();
