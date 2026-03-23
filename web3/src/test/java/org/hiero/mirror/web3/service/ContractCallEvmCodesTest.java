@@ -218,7 +218,9 @@ class ContractCallEvmCodesTest extends AbstractContractCallServiceTest {
         final var address = toAddress(autoRenewEntityId);
         domainBuilder
                 .entity(autoRenewEntityId)
-                .customize(e -> e.evmAddress(null).alias(toEvmAddress(autoRenewEntityId)))
+                .customize(e -> e.evmAddress(null)
+                        .alias(toEvmAddress(autoRenewEntityId))
+                        .delegationAddress(null))
                 .persist();
 
         final var result = contract.call_getCodeHash(address.toString()).send();
