@@ -19,6 +19,8 @@ hiero:
         tempSchema: temporary
         username: mirror_importer
       migration:
+        convertEthereumTransactionToWeiBarMigration:
+          checksum: 1
         backfillTransactionHashMigration:
           checksum: 2
         blockNumberMigration:

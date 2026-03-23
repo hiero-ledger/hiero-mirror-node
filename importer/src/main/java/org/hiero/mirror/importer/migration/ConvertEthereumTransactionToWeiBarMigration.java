@@ -2,43 +2,55 @@
 
 package org.hiero.mirror.importer.migration;
 
-import com.google.common.base.Stopwatch;
 import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.Map;
+import java.util.Optional;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
+import org.hiero.mirror.importer.db.DBProperties;
 import org.hiero.mirror.importer.parser.record.ethereum.EthereumTransactionParser;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.transaction.support.TransactionOperations;
 
 @Named
-final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJavaMigration {
+final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigration<Long> {
 
-    private static final int BATCH_SIZE = 1000;
-    private static final String SELECT_TRANSACTIONS_SQL =
-            "select consensus_timestamp, data from ethereum_transaction order by consensus_timestamp";
+    private static final String SELECT_TRANSACTIONS_SQL = """
+            select consensus_timestamp, data, payer_account_id
+            from ethereum_transaction
+            where consensus_timestamp < :consensusTimestamp
+            order by consensus_timestamp desc
+            limit 5000
+            """;
 
     private static final String UPDATE_SQL = "update ethereum_transaction set gas_price = ?, "
             + "max_fee_per_gas = ?, max_priority_fee_per_gas = ?, "
             + "value = ? where consensus_timestamp = ?";
 
-    private final ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider;
+    private static final String UPDATE_V2_SQL = "update ethereum_transaction set gas_price = ?, "
+            + "value = ? where consensus_timestamp = ? and payer_account_id = ?";
+
     private final ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider;
+    private final ObjectProvider<TransactionOperations> transactionOperationsProvider;
     private final boolean v2;
 
     ConvertEthereumTransactionToWeiBarMigration(
+            DBProperties dbProperties,
             Environment environment,
             ImporterProperties importerProperties,
-            ObjectProvider<NamedParameterJdbcOperations> jdbcOperationsProvider,
-            ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider) {
-        super(importerProperties.getMigration());
+            ObjectProvider<JdbcOperations> jdbcOperationsProvider,
+            ObjectProvider<EthereumTransactionParser> ethereumTransactionParserProvider,
+            ObjectProvider<TransactionOperations> transactionOperationsProvider) {
+        super(importerProperties.getMigration(), jdbcOperationsProvider, dbProperties.getSchema());
         this.v2 = environment.acceptsProfiles(Profiles.of("v2"));
-        this.jdbcOperationsProvider = jdbcOperationsProvider;
         this.ethereumTransactionParserProvider = ethereumTransactionParserProvider;
+        this.transactionOperationsProvider = transactionOperationsProvider;
     }
 
     @Override
@@ -46,81 +58,94 @@ final class ConvertEthereumTransactionToWeiBarMigration extends ConfigurableJava
         return "Convert ethereum transaction gas and value fields from tinybar to weibar by re-parsing RLP data";
     }
 
+    @NonNull
     @Override
-    public MigrationVersion getVersion() {
-        return v2 ? MigrationVersion.fromVersion("2.24.1") : MigrationVersion.fromVersion("1.119.1");
+    protected Long getInitial() {
+        return Long.MAX_VALUE;
     }
 
     @Override
-    protected void doMigrate() {
-        var stopwatch = Stopwatch.createStarted();
-        final var jdbcOperations = jdbcOperationsProvider.getObject();
-        final var parser = ethereumTransactionParserProvider.getObject();
+    protected MigrationVersion getMinimumVersion() {
+        return MigrationVersion.fromVersion("1.119.0");
+    }
 
-        // Track total count and failed count across batches
-        var totalCount = new AtomicLong(0);
-        var failedCount = new AtomicLong(0);
+    @Override
+    public TransactionOperations getTransactionOperations() {
+        return transactionOperationsProvider.getObject();
+    }
 
-        // Process transactions in batches to avoid memory issues
-        var updates = new ArrayList<TransactionUpdate>(BATCH_SIZE);
-        jdbcOperations.query(SELECT_TRANSACTIONS_SQL, rs -> {
-            var consensusTimestamp = rs.getLong(1);
-            var data = rs.getBytes(2);
+    @NonNull
+    @Override
+    protected Optional<Long> migratePartial(Long lastConsensusTimestamp) {
+        var params = Map.of("consensusTimestamp", lastConsensusTimestamp);
+        var transactions = getNamedParameterJdbcOperations()
+                .query(
+                        SELECT_TRANSACTIONS_SQL,
+                        params,
+                        (rs, _) -> new TransactionRow(
+                                rs.getLong("consensus_timestamp"),
+                                rs.getBytes("data"),
+                                rs.getLong("payer_account_id")));
 
+        if (transactions.isEmpty()) {
+            return Optional.empty();
+        }
+
+        var updates = new ArrayList<TransactionUpdate>(transactions.size());
+        var failedCount = 0;
+        var parser = ethereumTransactionParserProvider.getObject();
+
+        for (var tx : transactions) {
             try {
-                var parsed = parser.decode(data);
-
+                var parsed = parser.decode(tx.data());
                 updates.add(new TransactionUpdate(
-                        consensusTimestamp,
+                        tx.consensusTimestamp(),
+                        tx.payerAccountId(),
                         parsed.getGasPrice(),
                         parsed.getMaxFeePerGas(),
                         parsed.getMaxPriorityFeePerGas(),
                         parsed.getValue()));
-
-                // Flush batch when it reaches BATCH_SIZE
-                if (updates.size() >= BATCH_SIZE) {
-                    totalCount.addAndGet(batchUpdate(jdbcOperations, updates));
-                    updates.clear();
-                }
             } catch (Exception e) {
-                failedCount.incrementAndGet();
+                failedCount++;
                 log.warn(
                         "Failed to decode ethereum transaction at consensus timestamp {}: {}",
-                        consensusTimestamp,
+                        tx.consensusTimestamp(),
                         e.getMessage());
             }
-        });
+        }
 
-        // Flush any remaining updates
         if (!updates.isEmpty()) {
-            totalCount.addAndGet(batchUpdate(jdbcOperations, updates));
+            batchUpdate(updates);
         }
 
-        log.info(
-                "Successfully converted gas and value fields from tinybar to weibar for {} ethereum transactions in {}",
-                totalCount.get(),
-                stopwatch);
-        if (failedCount.get() > 0) {
-            log.warn("Failed to decode {} ethereum transactions due to invalid RLP data", failedCount.get());
+        if (failedCount > 0) {
+            log.warn("Failed to decode {} ethereum transactions due to invalid RLP data", failedCount);
         }
+
+        return Optional.of(transactions.getLast().consensusTimestamp());
     }
 
-    private int batchUpdate(NamedParameterJdbcOperations namedJdbcOperations, List<TransactionUpdate> updates) {
-        // Get underlying JdbcOperations for more efficient batch update
-        var jdbcOperations = namedJdbcOperations.getJdbcOperations();
-
-        jdbcOperations.batchUpdate(UPDATE_SQL, updates, updates.size(), (ps, update) -> {
-            ps.setBytes(1, update.gasPrice);
-            ps.setBytes(2, update.maxFeePerGas);
-            ps.setBytes(3, update.maxPriorityFeePerGas);
-            ps.setBytes(4, update.value);
-            ps.setLong(5, update.consensusTimestamp);
+    private void batchUpdate(List<TransactionUpdate> updates) {
+        var updateSql = v2 ? UPDATE_V2_SQL : UPDATE_SQL;
+        getJdbcOperations().batchUpdate(updateSql, updates, updates.size(), (ps, update) -> {
+            ps.setBytes(1, update.gasPrice());
+            ps.setBytes(2, update.maxFeePerGas());
+            ps.setBytes(3, update.maxPriorityFeePerGas());
+            ps.setBytes(4, update.value());
+            ps.setLong(5, update.consensusTimestamp());
+            if (v2) {
+                ps.setLong(6, update.payerAccountId());
+            }
         });
-
-        log.debug("Batch updated {} ethereum transactions", updates.size());
-        return updates.size();
     }
+
+    private record TransactionRow(long consensusTimestamp, byte[] data, long payerAccountId) {}
 
     private record TransactionUpdate(
-            long consensusTimestamp, byte[] gasPrice, byte[] maxFeePerGas, byte[] maxPriorityFeePerGas, byte[] value) {}
+            long consensusTimestamp,
+            long payerAccountId,
+            byte[] gasPrice,
+            byte[] maxFeePerGas,
+            byte[] maxPriorityFeePerGas,
+            byte[] value) {}
 }
