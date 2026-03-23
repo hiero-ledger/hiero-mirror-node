@@ -64,9 +64,13 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
         return Long.MAX_VALUE;
     }
 
+    private static final Map<Boolean, MigrationVersion> MINIMUM_VERSION = Map.of(
+            Boolean.FALSE, MigrationVersion.fromVersion("1.119.0"),
+            Boolean.TRUE, MigrationVersion.fromVersion("2.24.0"));
+
     @Override
     protected MigrationVersion getMinimumVersion() {
-        return MigrationVersion.fromVersion("1.119.0");
+        return MINIMUM_VERSION.get(v2);
     }
 
     @Override
