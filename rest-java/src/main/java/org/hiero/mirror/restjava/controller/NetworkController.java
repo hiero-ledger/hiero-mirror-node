@@ -135,7 +135,8 @@ final class NetworkController {
 
     @GetMapping("/nodes")
     ResponseEntity<NetworkNodesResponse> getNodes(@RequestParameter NetworkNodeRequest request) {
-        if (request.getFileId().operator() != RangeOperator.EQ) {
+        final var fileId = request.getFileId();
+        if (fileId != null && fileId.operator() != RangeOperator.EQ) {
             throw new IllegalArgumentException("Only equality operator is supported for file.id");
         }
         final var networkNodeRows = networkService.getNetworkNodes(request);

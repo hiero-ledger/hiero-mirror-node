@@ -5,7 +5,7 @@ plugins { `kotlin-dsl` }
 repositories { gradlePluginPortal() }
 
 dependencies {
-    val dockerJavaVersion = "3.7.0"
+    val dockerJavaVersion = "3.7.1"
     val jooqVersion = "3.20.11" // Always make the version in project root build.gradle.kts match
 
     // Add docker-java dependencies before gradle-docker-plugin to avoid the docker-java jars
@@ -25,7 +25,7 @@ dependencies {
     implementation("net.ltgt.gradle:gradle-errorprone-plugin:5.1.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
     implementation("org.cyclonedx:cyclonedx-gradle-plugin:3.2.2")
-    implementation("org.flywaydb:flyway-database-postgresql:12.1.0")
+    implementation("org.flywaydb:flyway-database-postgresql:12.1.1")
     implementation("org.graalvm.buildtools:native-gradle-plugin:0.11.5")
     implementation("org.gradle:test-retry-gradle-plugin:1.6.4")
     implementation("org.jooq:jooq-codegen-gradle:$jooqVersion")
@@ -34,7 +34,7 @@ dependencies {
     implementation("org.openapitools:openapi-generator-gradle-plugin:7.20.0")
     implementation("org.owasp:dependency-check-gradle:12.2.0")
     implementation("org.springframework.boot:spring-boot-gradle-plugin:4.0.3")
-    implementation("org.testcontainers:testcontainers-postgresql:2.0.3")
+    implementation("org.testcontainers:testcontainers-postgresql:2.0.4")
     implementation("org.web3j:web3j-gradle-plugin:5.0.2")
 }
 

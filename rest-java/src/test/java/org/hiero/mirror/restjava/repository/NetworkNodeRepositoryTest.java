@@ -5,13 +5,23 @@ package org.hiero.mirror.restjava.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 @RequiredArgsConstructor
 final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
 
     private final NetworkNodeRepository networkNodeRepository;
+    private final SystemEntity systemEntity;
+
+    private long fileId102;
+
+    @BeforeEach
+    void setup() {
+        fileId102 = systemEntity.addressBookFile102().getId();
+    }
 
     @Test
     void findNetworkNodesWithNoFilters() {
@@ -19,7 +29,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(3);
@@ -69,7 +79,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[] {1L}, 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[] {1L}, 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -82,7 +92,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[] {1L, 3L}, 0L, Long.MAX_VALUE, "ASC", 25);
+        var results =
+                networkNodeRepository.findNetworkNodes(fileId102, new Long[] {1L, 3L}, 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(2);
@@ -96,7 +107,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 2L, 3L, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 2L, 3L, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(2);
@@ -110,7 +121,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when - combining equality (1L, 3L) and range (>=2L)
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[] {1L, 3L}, 2L, Long.MAX_VALUE, "ASC", 25);
+        var results =
+                networkNodeRepository.findNetworkNodes(fileId102, new Long[] {1L, 3L}, 2L, Long.MAX_VALUE, "ASC", 25);
 
         // then - should return nodes matching equality AND range (node 3 matches both conditions)
         assertThat(results).isNotNull().hasSize(1);
@@ -123,7 +135,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(3);
@@ -138,7 +150,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "DESC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "DESC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(3);
@@ -153,7 +165,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 2);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 2);
 
         // then
         assertThat(results).isNotNull().hasSize(2);
@@ -167,7 +179,8 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[] {99999L}, 0L, Long.MAX_VALUE, "ASC", 25);
+        var results =
+                networkNodeRepository.findNetworkNodes(fileId102, new Long[] {99999L}, 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().isEmpty();
@@ -188,7 +201,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         domainBuilder.nodeStake().customize(ns -> ns.nodeId(1L)).persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -215,7 +228,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -239,7 +252,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -263,7 +276,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         domainBuilder.node().customize(n -> n.nodeId(1L)).persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -299,7 +312,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);
@@ -339,7 +352,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // when - no fileId filter, should return latest address book
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then - should only return nodes from latest address book
         assertThat(results).isNotNull().hasSize(1);
@@ -373,7 +386,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
                 .persist();
 
         // when
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, Long.MAX_VALUE, "ASC", 25);
 
         // then - should use latest node stake
         assertThat(results).isNotNull().hasSize(1);
@@ -421,7 +434,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when - min range equals a node id
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 1L, Long.MAX_VALUE, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 1L, Long.MAX_VALUE, "ASC", 25);
 
         // then - should include the min value
         assertThat(results).isNotNull().hasSize(3);
@@ -434,7 +447,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when - max range equals a node id
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 0L, 2L, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 0L, 2L, "ASC", 25);
 
         // then - should include the max value
         assertThat(results).isNotNull().hasSize(2);
@@ -447,7 +460,7 @@ final class NetworkNodeRepositoryTest extends RestJavaIntegrationTest {
         setupNetworkNodeData();
 
         // when - range that includes only one node
-        var results = networkNodeRepository.findNetworkNodes(102L, new Long[0], 2L, 2L, "ASC", 25);
+        var results = networkNodeRepository.findNetworkNodes(fileId102, new Long[0], 2L, 2L, "ASC", 25);
 
         // then
         assertThat(results).isNotNull().hasSize(1);

@@ -12,6 +12,7 @@ import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.common.RangeOperator;
 import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
 import org.hiero.mirror.restjava.parameter.EntityIdRangeParameter;
+import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Sort;
 
@@ -96,7 +97,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var fileId = setupNetworkNodeData();
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
-                .nodeIds(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 1L)))
+                .nodeIds(List.of(new NumberRangeParameter(RangeOperator.EQ, 1L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -117,8 +118,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.GTE, 1L),
-                        new EntityIdRangeParameter(RangeOperator.LTE, 2L)))
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.LTE, 2L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -140,9 +141,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.EQ, 2L),
-                        new EntityIdRangeParameter(RangeOperator.EQ, 3L),
-                        new EntityIdRangeParameter(RangeOperator.GTE, 2L)))
+                        new NumberRangeParameter(RangeOperator.EQ, 2L),
+                        new NumberRangeParameter(RangeOperator.EQ, 3L),
+                        new NumberRangeParameter(RangeOperator.GTE, 2L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -208,7 +209,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var fileId = setupNetworkNodeData();
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
-                .nodeIds(List.of(new EntityIdRangeParameter(RangeOperator.EQ, 99999L)))
+                .nodeIds(List.of(new NumberRangeParameter(RangeOperator.EQ, 99999L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -262,8 +263,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.GTE, 1L),
-                        new EntityIdRangeParameter(RangeOperator.GTE, 2L)))
+                        new NumberRangeParameter(RangeOperator.GTE, 1L),
+                        new NumberRangeParameter(RangeOperator.GTE, 2L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -285,8 +286,8 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.LTE, 3L),
-                        new EntityIdRangeParameter(RangeOperator.LTE, 2L)))
+                        new NumberRangeParameter(RangeOperator.LTE, 3L),
+                        new NumberRangeParameter(RangeOperator.LTE, 2L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -308,8 +309,7 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.GT, 4L),
-                        new EntityIdRangeParameter(RangeOperator.LT, 5L)))
+                        new NumberRangeParameter(RangeOperator.GT, 4L), new NumberRangeParameter(RangeOperator.LT, 5L)))
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
@@ -327,9 +327,9 @@ final class NetworkServiceTest extends RestJavaIntegrationTest {
         var request = NetworkNodeRequest.builder()
                 .fileId(new EntityIdRangeParameter(RangeOperator.EQ, fileId.getId()))
                 .nodeIds(List.of(
-                        new EntityIdRangeParameter(RangeOperator.EQ, 1L), // Node 1 exists
-                        new EntityIdRangeParameter(RangeOperator.EQ, 2L), // Node 2 exists
-                        new EntityIdRangeParameter(RangeOperator.GT, 10L))) // Range gt:10 excludes nodes 1, 2
+                        new NumberRangeParameter(RangeOperator.EQ, 1L), // Node 1 exists
+                        new NumberRangeParameter(RangeOperator.EQ, 2L), // Node 2 exists
+                        new NumberRangeParameter(RangeOperator.GT, 10L))) // Range gt:10 excludes nodes 1, 2
                 .limit(25)
                 .order(Sort.Direction.ASC)
                 .build();
