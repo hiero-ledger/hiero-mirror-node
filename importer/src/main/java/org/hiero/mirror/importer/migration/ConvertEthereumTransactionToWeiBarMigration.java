@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import lombok.Data;
 import lombok.Getter;
 import org.flywaydb.core.api.MigrationVersion;
 import org.hiero.mirror.importer.ImporterProperties;
@@ -18,7 +19,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
-import org.springframework.jdbc.core.DataClassRowMapper;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -51,8 +52,8 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             limit 5000
             """;
 
-    private static final DataClassRowMapper<TransactionRow> TRANSACTION_ROW_MAPPER =
-            new DataClassRowMapper<>(TransactionRow.class);
+    private static final BeanPropertyRowMapper<TransactionRow> TRANSACTION_ROW_MAPPER =
+            BeanPropertyRowMapper.newInstance(TransactionRow.class);
 
     private static final String UPDATE_SQL = "update ethereum_transaction set gas_price = ?, "
             + "max_fee_per_gas = ?, max_priority_fee_per_gas = ?, "
@@ -129,10 +130,10 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
 
         for (var tx : transactions) {
             try {
-                var parsed = parser.decode(tx.data());
+                var parsed = parser.decode(tx.getData());
                 updates.add(new TransactionUpdate(
-                        tx.consensusTimestamp(),
-                        tx.payerAccountId(),
+                        tx.getConsensusTimestamp(),
+                        tx.getPayerAccountId(),
                         parsed.getGasPrice(),
                         parsed.getMaxFeePerGas(),
                         parsed.getMaxPriorityFeePerGas(),
@@ -141,7 +142,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
                 failedCount++;
                 log.warn(
                         "Failed to decode ethereum transaction at consensus timestamp {}: {}",
-                        tx.consensusTimestamp(),
+                        tx.getConsensusTimestamp(),
                         e.getMessage());
             }
         }
@@ -154,7 +155,7 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
             log.warn("Failed to decode {} ethereum transactions due to invalid RLP data", failedCount);
         }
 
-        var lastTimestamp = transactions.getLast().consensusTimestamp();
+        var lastTimestamp = transactions.getLast().getConsensusTimestamp();
         getJdbcOperations().update(INSERT_PROGRESS_SQL, lastTimestamp);
         return Optional.of(lastTimestamp);
     }
@@ -170,7 +171,12 @@ final class ConvertEthereumTransactionToWeiBarMigration extends AsyncJavaMigrati
         });
     }
 
-    private record TransactionRow(long consensusTimestamp, byte[] data, long payerAccountId) {}
+    @Data
+    private static class TransactionRow {
+        private long consensusTimestamp;
+        private byte[] data;
+        private long payerAccountId;
+    }
 
     private record TransactionUpdate(
             long consensusTimestamp,
