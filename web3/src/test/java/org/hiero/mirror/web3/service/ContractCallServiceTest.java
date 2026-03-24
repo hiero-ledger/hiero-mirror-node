@@ -1249,10 +1249,7 @@ final class ContractCallServiceTest extends ContractCallServicePrecompileHistori
 
     @Nested
     @org.springframework.test.context.TestPropertySource(
-            properties = {
-                "hiero.mirror.web3.evm.simpleFeesEnabled=true",
-                "hiero.mirror.web3.evm.createSimpleFeeSchedule=true"
-            })
+            properties = {"hiero.mirror.web3.evm.properties.fees.simpleFeesEnabled=true"})
     class WithSimpleFeesEnabled {
 
         @Test

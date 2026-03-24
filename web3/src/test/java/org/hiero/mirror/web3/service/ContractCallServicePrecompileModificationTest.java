@@ -855,11 +855,7 @@ class ContractCallServicePrecompileModificationTest extends AbstractContractCall
     }
 
     @Nested
-    @TestPropertySource(
-            properties = {
-                "hiero.mirror.web3.evm.simpleFeesEnabled=true",
-                "hiero.mirror.web3.evm.createSimpleFeeSchedule=true"
-            })
+    @TestPropertySource(properties = {"hiero.mirror.web3.evm.properties.fees.simpleFeesEnabled=true"})
     class WithSimpleFeesEnabled {
 
         @Test

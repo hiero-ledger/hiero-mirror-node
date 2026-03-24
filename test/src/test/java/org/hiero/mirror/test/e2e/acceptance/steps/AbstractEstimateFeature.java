@@ -119,7 +119,7 @@ abstract class AbstractEstimateFeature extends BaseContractFeature {
 
         assertWithinDeviation(
                 UPDATE_TOKEN_KEYS.getSelector().equals(method.getSelector())
-                        ? web3Properties.isEnableSimpleFees()
+                        ? web3Properties.isSimpleFees()
                                 ? UPDATE_TOKEN_KEYS_SIMPLE_FEES.getActualGas()
                                 : method.getActualGas()
                         : method.getActualGas(),
