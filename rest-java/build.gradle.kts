@@ -5,6 +5,7 @@ description = "Mirror Node REST Java"
 plugins {
     id("openapi-conventions")
     id("jooq-conventions")
+    id("org.graalvm.buildtools.native")
     id("spring-conventions")
 }
 
