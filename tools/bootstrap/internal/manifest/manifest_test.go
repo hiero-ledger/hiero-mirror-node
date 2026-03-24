@@ -140,8 +140,7 @@ subdir/myfile.csv.gz,100,200,abc
 		t.Fatalf("Load failed: %v", err)
 	}
 
-	// GetByBasename should work
-	entry, ok := m.GetByBasename("myfile.csv.gz")
+	entry, ok := m.GetByBasename("myfile")
 	if !ok {
 		t.Error("GetByBasename should find entry")
 	}
@@ -150,7 +149,7 @@ subdir/myfile.csv.gz,100,200,abc
 	}
 
 	// Non-existent should return false
-	_, ok = m.GetByBasename("nonexistent.csv.gz")
+	_, ok = m.GetByBasename("nonexistent")
 	if ok {
 		t.Error("GetByBasename should not find nonexistent entry")
 	}
@@ -212,10 +211,10 @@ file2.csv.gz,200,300,def
 	// Check both files are present (order may vary)
 	found1, found2 := false, false
 	for _, name := range basenames {
-		if name == "file1.csv.gz" {
+		if name == "file1" {
 			found1 = true
 		}
-		if name == "file2.csv.gz" {
+		if name == "file2" {
 			found2 = true
 		}
 	}
@@ -409,10 +408,11 @@ func TestNormalizeFilename(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{"file.csv.gz", "file.csv.gz"},
-		{"subdir/file.csv.gz", "file.csv.gz"},
-		{"a/b/c/file.csv.gz", "file.csv.gz"},
-		{"./file.csv.gz", "file.csv.gz"},
+		{"file.csv.gz", "file"},
+		{"subdir/file.csv.gz", "file"},
+		{"a/b/c/file.csv.gz", "file"},
+		{"./file.csv.gz", "file"},
+		{"bare_name", "bare_name"},
 	}
 
 	for _, tc := range tests {

@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.addressbook.NetworkStake;
 import org.hiero.mirror.common.util.DomainUtils;
 import org.hiero.mirror.restjava.common.RangeOperator;
@@ -34,6 +35,7 @@ final class NetworkServiceImpl implements NetworkService {
     private final NetworkStakeRepository networkStakeRepository;
     private final NetworkProperties networkProperties;
     private final NetworkNodeRepository networkNodeRepository;
+    private final SystemEntity systemEntity;
 
     @Override
     public NetworkStake getLatestNetworkStake() {
@@ -85,7 +87,7 @@ final class NetworkServiceImpl implements NetworkService {
 
     @Override
     public List<NetworkNodeDto> getNetworkNodes(NetworkNodeRequest request) {
-        final var fileId = request.getFileId().value();
+        final long fileId = getAddressBookFileId(request);
         final var limit = request.getEffectiveLimit();
         final var nodeIdParams = request.getNodeIds();
         final var orderDirection = request.getOrder().name();
@@ -121,5 +123,11 @@ final class NetworkServiceImpl implements NetworkService {
 
         return networkNodeRepository.findNetworkNodes(
                 fileId, nodeIdArray, lowerBound, upperBound, orderDirection, limit);
+    }
+
+    private long getAddressBookFileId(final NetworkNodeRequest request) {
+        return request.getFileId() != null
+                ? request.getFileId().value()
+                : systemEntity.addressBookFile102().getId();
     }
 }

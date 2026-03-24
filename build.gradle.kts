@@ -19,13 +19,11 @@ extra.apply {
     set("besuVersion", "25.2.2")
     set("blockNodeVersion", "0.29.0")
     set("consensusNodeVersion", "0.72.0-rc.2")
-    set("grpcVersion", "1.79.0")
-    set("jackson-2-bom.version", "2.21.1") // Temporary until next Spring Boot
-    set("jackson-bom.version", "3.1.0") // Temporary until next Spring Boot
+    set("grpcVersion", "1.80.0")
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")
-    set("protobufVersion", "4.34.0")
+    set("protobufVersion", "4.34.1")
     set("springGrpcVersion", "1.0.1")
     set("tuweniVersion", "2.3.1")
 }
@@ -86,7 +84,7 @@ dependencies {
         api("org.springframework.grpc:spring-grpc-spring-boot-starter:$springGrpcVersion")
         api("org.springframework.grpc:spring-grpc-test:$springGrpcVersion")
         api("org.web3j:core:5.0.2")
-        api("software.amazon.awssdk:bom:2.42.13")
+        api("software.amazon.awssdk:bom:2.42.18")
         api("tech.pegasys:jc-kzg-4844:1.0.0")
         api("uk.org.webcompere:system-stubs-jupiter:2.1.8")
     }

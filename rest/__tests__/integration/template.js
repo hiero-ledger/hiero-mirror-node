@@ -15,7 +15,6 @@
  */
 
 // external libraries
-import crypto from 'crypto';
 import fs from 'fs';
 import {jest} from '@jest/globals';
 import _ from 'lodash';
@@ -129,7 +128,7 @@ const getSpecs = async () => {
 const readAndTransformSpec = (filepath) => {
   const text = fs.readFileSync(filepath, 'utf8');
   const spec = JSONParse(text);
-  const transformed = filepath.indexOf('stateproof') > -1 ? spec : transformShardRealmValues(spec);
+  const transformed = transformShardRealmValues(spec);
   transformed.name = path.basename(filepath);
   return transformed;
 };
@@ -149,14 +148,24 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseJsonMatrix, responseStatus, requestHeaders, responseHeaders} = test;
-        return urls.map((url) => ({
-          url,
+        const {
+          config: testConfig,
           responseJson,
           responseJsonMatrix,
           responseStatus,
           requestHeaders,
           responseHeaders,
+          testCaseName,
+        } = test;
+        return urls.map((url) => ({
+          url,
+          config: testConfig,
+          responseJson,
+          responseJsonMatrix,
+          responseStatus,
+          requestHeaders,
+          responseHeaders,
+          testCaseName,
         }));
       })
     );
@@ -258,8 +267,9 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
       specs.forEach((spec) => {
         describe(`${spec.name}`, () => {
           getTests(spec).forEach((tt) => {
-            test(`${tt.url}`, async () => {
+            test(`${tt.testCaseName ?? tt.url}`, async () => {
               await specSetupSteps(spec);
+              overrideConfig(tt.config);
               if (spec.postSetup) {
                 await spec.postSetup();
               }
