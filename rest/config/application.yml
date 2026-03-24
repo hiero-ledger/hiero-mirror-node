@@ -43,7 +43,6 @@ hiero:
           password: password
           requestSizeBuckets: []
           responseSizeBuckets: [100, 250, 500, 1000]
-          swaggerOnly: true,
           username: metrics
           uriPath: "/swagger"
       openapi:
