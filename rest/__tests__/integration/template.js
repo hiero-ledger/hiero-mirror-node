@@ -148,14 +148,24 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
     return _.flatten(
       tests.map((test) => {
         const urls = test.urls || [test.url];
-        const {responseJson, responseJsonMatrix, responseStatus, requestHeaders, responseHeaders} = test;
-        return urls.map((url) => ({
-          url,
+        const {
+          config: testConfig,
           responseJson,
           responseJsonMatrix,
           responseStatus,
           requestHeaders,
           responseHeaders,
+          testCaseName,
+        } = test;
+        return urls.map((url) => ({
+          url,
+          config: testConfig,
+          responseJson,
+          responseJsonMatrix,
+          responseStatus,
+          requestHeaders,
+          responseHeaders,
+          testCaseName,
         }));
       })
     );
@@ -257,8 +267,9 @@ describe(`API specification tests - ${groupSpecPath}`, () => {
       specs.forEach((spec) => {
         describe(`${spec.name}`, () => {
           getTests(spec).forEach((tt) => {
-            test(`${tt.url}`, async () => {
+            test(`${tt.testCaseName ?? tt.url}`, async () => {
               await specSetupSteps(spec);
+              overrideConfig(tt.config);
               if (spec.postSetup) {
                 await spec.postSetup();
               }
