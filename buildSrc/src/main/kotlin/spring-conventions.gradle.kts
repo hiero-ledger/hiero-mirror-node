@@ -31,16 +31,12 @@ tasks.bootBuildImage {
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
     val image = "ghcr.io/${repo}/${project.name}"
 
-    if (project.name == "web3") {
-        builder.set("ghcr.io/${repo}/web3-builder-libsodium")
-    } else {
-        buildpacks =
-            listOf(
-                "urn:cnb:builder:paketo-buildpacks/java",
-                "paketobuildpacks/health-checker",
-                "paketo-buildpacks/native-image",
-            )
-    }
+    buildpacks =
+        listOf(
+            "urn:cnb:builder:paketo-buildpacks/java",
+            "paketobuildpacks/health-checker",
+            "paketo-buildpacks/native-image",
+        )
 
     docker {
         imageName = image
