@@ -25,8 +25,6 @@ val imagePlatform: String by project
 val platform = imagePlatform.ifBlank { null }
 
 tasks.bootBuildImage {
-    cleanCache = true
-
     val env = System.getenv()
     val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
     val image = "ghcr.io/${repo}/${project.name}"
@@ -48,17 +46,13 @@ tasks.bootBuildImage {
         tags = listOf("${image}:${project.version}")
     }
 
-    val existingBuildArgs = env.getOrDefault("BP_NATIVE_IMAGE_BUILD_ARGUMENTS", "")
     val extraBuildArgs =
         listOf("-H:ServiceLoaderFeatureExcludeServices=org.hibernate.bytecode.spi.BytecodeProvider")
-    val nativeImageBuildArgs =
-        (listOf(existingBuildArgs) + extraBuildArgs).filter { it.isNotBlank() }.joinToString(" ")
+    val nativeImageBuildArgs = extraBuildArgs.filter { it.isNotBlank() }.joinToString(" ")
 
     environment =
         mapOf(
             "BP_HEALTH_CHECKER_ENABLED" to "true",
-            "BP_JVM_VERSION" to "25",
-            "BP_NATIVE_IMAGE" to "true",
             "BP_NATIVE_IMAGE_BUILD_ARGUMENTS" to nativeImageBuildArgs,
             "BP_OCI_AUTHORS" to "mirrornode@hedera.com",
             "BP_OCI_DESCRIPTION" to (project.description ?: ""),
@@ -81,7 +75,7 @@ tasks.register<BootRun>("bootRunWithNativeAgent") {
     classpath = bootRun.classpath
     args = bootRun.args
     jvmArgs =
-        (bootRun.jvmArgs ?: emptyList()) +
+        bootRun.jvmArgs +
             listOf(
                 "-Dspring.aot.enabled=true",
                 "-agentlib:native-image-agent=config-output-dir=${project.projectDir}/src/main/resources/META-INF/native-image/org.hiero.mirror/${project.name}",

@@ -20,11 +20,11 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
         // Caffeine loads generated cache implementations via reflection
-        registerCache(hints, "SSMSA", classLoader);
-        registerCache(hints, "SSR", classLoader);
-        registerCache(hints, "SSSMA", classLoader);
-        registerCache(hints, "SSSMSA", classLoader);
-        registerCache(hints, "SSSW", classLoader);
+        registerCache(hints, "SSMSA");
+        registerCache(hints, "SSR");
+        registerCache(hints, "SSSMA");
+        registerCache(hints, "SSSMSA");
+        registerCache(hints, "SSSW");
         registerNode(hints, "PSAMS");
         registerNode(hints, "PSR");
 
@@ -33,7 +33,7 @@ public class CommonRuntimeHints implements RuntimeHintsRegistrar {
         registerReflectionType(hints, SpelHelper.class.getName(), METHODS_ONLY);
     }
 
-    private void registerCache(RuntimeHints hints, String className, ClassLoader classLoader) {
+    private void registerCache(RuntimeHints hints, String className) {
         final var types = List.of(
                 TypeReference.of(Caffeine.class),
                 TypeReference.of(AsyncCacheLoader.class),

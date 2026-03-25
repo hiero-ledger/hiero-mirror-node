@@ -59,12 +59,6 @@ tasks.withType<JavaCompile>().configureEach {
             "-Xlint:-deprecation,-preview,-rawtypes,-this-escape,-unchecked",
         )
     )
-    if (isAotTask) {
-        options.compilerArgs =
-            options.compilerArgs
-                .filter { it != "-Werror" }
-                .map { arg -> if (arg == "-Xlint:all") "-Xlint:all,-cast" else arg }
-    }
     options.encoding = "UTF-8"
     options.errorprone {
         disableAllChecks = true
@@ -78,6 +72,16 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.compileJava { options.compilerArgs.add("-Xlint:-serial") }
+
+tasks
+    .withType<JavaCompile>()
+    .matching { it.name == "compileAotJava" || it.name == "compileAotTestJava" }
+    .configureEach {
+        options.compilerArgs.remove("-Werror")
+        options.compilerArgs.replaceAll { arg ->
+            if (arg == "-Xlint:all") "-Xlint:all,-cast" else arg
+        }
+    }
 
 tasks.javadoc { options.encoding = "UTF-8" }
 

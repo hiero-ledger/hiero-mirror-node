@@ -9,7 +9,6 @@ import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePa
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerSerialization;
 
 import java.time.Duration;
-import lombok.CustomLog;
 import org.apache.velocity.runtime.ParserPoolImpl;
 import org.apache.velocity.runtime.directive.Foreach;
 import org.apache.velocity.runtime.parser.StandardParser;
@@ -28,24 +27,38 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 
 @Configuration(proxyBeanMethods = false)
-@CustomLog
 @ImportRuntimeHints(RuntimeHintsConfiguration.CustomRuntimeHints.class)
 @NullMarked
-class RuntimeHintsConfiguration {
+final class RuntimeHintsConfiguration {
 
     static final class CustomRuntimeHints implements RuntimeHintsRegistrar {
         @Override
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
             final var loader = classLoader != null ? classLoader : getClass().getClassLoader();
 
+            registerReflectionTypes(hints, EntityProperties.PersistProperties.class.getName());
+
             registerReflectionTypes(
                     hints,
-                    EntityProperties.PersistProperties.class.getName(),
-                    "org.hiero.mirror.importer.migration.ContractLogIndexMigration$RecordFileSlice",
+                    CONSTRUCTORS_AND_METHODS,
                     "org.hiero.mirror.importer.migration.AbstractTimestampInfoMigration$TimestampInfo",
+                    "org.hiero.mirror.importer.migration.ContractLogIndexMigration$RecordFileSlice",
+                    "org.hiero.mirror.importer.migration.BackfillEthereumTransactionHashMigration$MigrationEthereumTransaction",
+                    "org.hiero.mirror.importer.migration.ContractResultMigration$MigrationContractResult",
+                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$ClaimedAirdrop",
+                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$NftTransfer",
+                    "org.hiero.mirror.importer.migration.FixAirdropTokenAssociationMigration$TokenBalanceChange",
+                    "org.hiero.mirror.importer.migration.FixNodeTransactionsMigration$NodeTransaction",
+                    "org.hiero.mirror.importer.migration.SyntheticCryptoTransferApprovalMigration$TokenBalanceChange",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableMetrics",
                     "org.hiero.mirror.importer.config.MetricsConfiguration$TableAttributes");
 
+            registerVelocityHints(hints, loader);
+
+            registerResourcePatterns(hints, "db/migration/common/**", "db/migration/v1/**", "db/migration/v2/**");
+        }
+
+        private void registerVelocityHints(RuntimeHints hints, ClassLoader loader) {
             registerPackage(hints, loader, Foreach.class.getPackageName(), CONSTRUCTORS_AND_METHODS);
 
             registerReflectionTypes(
@@ -60,15 +73,9 @@ class RuntimeHintsConfiguration {
                     TypeConversionHandlerImpl.class,
                     Duration.class);
 
-            registerSerialization(hints, EntityId.class.getName());
+            registerSerialization(hints, loader, EntityId.class.getName());
 
-            registerResourcePatterns(
-                    hints,
-                    "org/apache/velocity/runtime/defaults/*",
-                    "db/template/**",
-                    "db/migration/common/**",
-                    "db/migration/v1/**",
-                    "db/migration/v2/**");
+            registerResourcePatterns(hints, "org/apache/velocity/runtime/defaults/*", "db/template/**");
         }
     }
 }

@@ -20,7 +20,7 @@ import org.springframework.context.annotation.ImportRuntimeHints;
 @CustomLog
 @ImportRuntimeHints(RuntimeHintsConfiguration.CustomRuntimeHints.class)
 @NullMarked
-class RuntimeHintsConfiguration {
+final class RuntimeHintsConfiguration {
 
     static final class CustomRuntimeHints implements RuntimeHintsRegistrar {
 

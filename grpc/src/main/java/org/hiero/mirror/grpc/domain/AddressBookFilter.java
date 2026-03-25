@@ -12,7 +12,6 @@ import org.hiero.mirror.common.domain.entity.EntityId;
 @Value
 public class AddressBookFilter {
     @NotNull
-    // TODO converter?
     private final EntityId fileId;
 
     @Min(0)

@@ -124,9 +124,14 @@ public final class RuntimeHintsHelper {
         }
     }
 
-    public static void registerSerialization(RuntimeHints hints, String... classNames) {
+    public static void registerSerialization(RuntimeHints hints, ClassLoader loader, String... classNames) {
         for (final var className : classNames) {
-            hints.serialization().registerType(TypeReference.of(className));
+            try {
+                final var clazz = Class.forName(className, false, loader);
+                hints.reflection().registerJavaSerialization(clazz);
+            } catch (ClassNotFoundException e) {
+                // no-op
+            }
         }
     }
 

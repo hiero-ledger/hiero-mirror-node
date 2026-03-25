@@ -7,7 +7,7 @@ import jakarta.persistence.Converter;
 import org.hiero.mirror.common.domain.entity.EntityId;
 import org.springframework.boot.context.properties.ConfigurationPropertiesBinding;
 
-@Converter
+@Converter(autoApply = true)
 @ConfigurationPropertiesBinding
 @SuppressWarnings("java:S6548")
 public class EntityIdConverter implements AttributeConverter<EntityId, Long> {
