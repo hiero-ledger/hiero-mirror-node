@@ -14,7 +14,6 @@ import com.hedera.hapi.util.UnknownHederaFunctionality;
 import com.hedera.node.app.fees.FeeManager;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import com.hedera.node.app.spi.fees.FeeContext;
-import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
 import com.hedera.node.app.spi.fees.SimpleFeeContext;
 import com.hedera.node.app.spi.workflows.QueryContext;
 import com.hedera.node.config.types.StreamMode;
@@ -26,7 +25,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.hiero.hapi.fees.FeeResult;
 import org.hiero.mirror.common.domain.SystemEntity;
@@ -42,9 +41,7 @@ public final class FeeEstimationService {
     private final SystemEntity systemEntity;
     private final FeeEstimationFeeContext feeEstimationFeeContext;
     private final FeeManager feeManager;
-    private final SimpleFeeCalculator genesisCalculator;
-    private final AtomicReference<SimpleFeeCalculator> feeCalculator;
-    private long lastFeeScheduleTimestamp;
+    private final AtomicLong lastFeeScheduleTimestamp;
 
     @SuppressWarnings("NullAway")
     public FeeEstimationService(
@@ -66,27 +63,21 @@ public final class FeeEstimationService {
         executor.stateNetworkInfo().initFrom(feeEstimationState);
         executor.initializer().initialize(feeEstimationState, StreamMode.BOTH);
         this.feeManager = executor.feeManager();
-        this.genesisCalculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
-
-        this.lastFeeScheduleTimestamp = Long.MIN_VALUE;
-        this.feeCalculator = new AtomicReference<>(genesisCalculator);
+        this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
         refreshStateCalculator();
     }
 
     @Scheduled(fixedDelayString = "${hiero.mirror.rest-java.fee.refresh-interval:PT10M}")
     public void refreshStateCalculator() {
-        final var latestTimestamp = fileDataRepository
-                .getLatestTimestamp(systemEntity.simpleFeeScheduleFile().getId())
-                .orElse(Long.MIN_VALUE);
-        if (latestTimestamp != lastFeeScheduleTimestamp) {
+        final var feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
+        final var latestTimestamp =
+                fileDataRepository.getLatestTimestamp(feeScheduleFileId).orElse(Long.MIN_VALUE);
+        if (latestTimestamp > lastFeeScheduleTimestamp.get()) {
             log.info("Fee schedule changed (timestamp={}), rebuilding fee calculator", latestTimestamp);
-            lastFeeScheduleTimestamp = latestTimestamp;
+            lastFeeScheduleTimestamp.set(latestTimestamp);
             fileDataRepository
-                    .getFileAtTimestamp(systemEntity.simpleFeeScheduleFile().getId(), 0L, Long.MAX_VALUE)
-                    .ifPresent(fileData -> {
-                        feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData()));
-                        feeCalculator.set(Objects.requireNonNull(feeManager.getSimpleFeeCalculator()));
-                    });
+                    .getFileAtTimestamp(feeScheduleFileId, 0L, Long.MAX_VALUE)
+                    .ifPresent(fileData -> feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData())));
         }
     }
 
@@ -94,11 +85,16 @@ public final class FeeEstimationService {
         try {
             final var context = new TransactionFeeContext(
                     transaction, mode == FeeEstimateMode.STATE ? feeEstimationFeeContext : null);
-            return Objects.requireNonNull(feeCalculator.get()).calculateTxFee(context.body(), context);
+            if (mode == FeeEstimateMode.STATE) {
+                feeEstimationFeeContext.setBody(context.body());
+            }
+            return Objects.requireNonNull(feeManager.getSimpleFeeCalculator()).calculateTxFee(context.body(), context);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Unknown transaction type", e);
+        } finally {
+            feeEstimationFeeContext.clearBody();
         }
     }
 

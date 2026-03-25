@@ -14,6 +14,7 @@ import com.hedera.hapi.node.base.TokenID;
 import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
+import com.hedera.hapi.node.token.TokenAirdropTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
@@ -399,6 +400,29 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void stateModeTokenAirdropWithCustomFees() {
+        // Plain token (no custom fees) and custom-fee token.
+        final var plainToken = domainBuilder.token().persist();
+        final var customFeeToken = domainBuilder.token().persist();
+        domainBuilder
+                .customFee()
+                .customize(cf -> cf.entityId(customFeeToken.getTokenId()))
+                .persist();
+
+        final var txnPlain = buildTokenAirdrop(plainToken.getTokenId());
+        final var txnCustom = buildTokenAirdrop(customFeeToken.getTokenId());
+
+        final var statePlain = service.estimateFees(txnPlain, FeeEstimateMode.STATE);
+        final var stateCustom = service.estimateFees(txnCustom, FeeEstimateMode.STATE);
+
+        // STATE reads the DB-backed token store: custom-fee token selects TOKEN_TRANSFER_BASE_CUSTOM_FEES
+        // instead of TOKEN_TRANSFER_BASE. The fee difference is exactly that extra.
+        final long base = extraFee(Extra.TOKEN_TRANSFER_BASE);
+        final long baseCustom = extraFee(Extra.TOKEN_TRANSFER_BASE_CUSTOM_FEES);
+        assertThat(stateCustom.totalTinycents() - statePlain.totalTinycents()).isEqualTo(baseCustom - base);
+    }
+
+    @Test
     void invalidTransaction() {
         // given
         final var transaction = Transaction.newBuilder()
@@ -557,6 +581,40 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
         final var body = TransactionBody.newBuilder()
                 .memo("fee-test")
                 .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
+                        .tokenTransfers(List.of(TokenTransferList.newBuilder()
+                                .token(TokenID.newBuilder().tokenNum(tokenId).build())
+                                .transfers(List.of(
+                                        AccountAmount.newBuilder()
+                                                .accountID(AccountID.newBuilder()
+                                                        .accountNum(1)
+                                                        .build())
+                                                .amount(-100)
+                                                .build(),
+                                        AccountAmount.newBuilder()
+                                                .accountID(AccountID.newBuilder()
+                                                        .accountNum(2)
+                                                        .build())
+                                                .amount(100)
+                                                .build()))
+                                .build()))
+                        .build())
+                .build();
+        final var signedTxn = SignedTransaction.newBuilder()
+                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
+                .build();
+        return Transaction.newBuilder()
+                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTxn))
+                .build();
+    }
+
+    /**
+     * Builds a fungible TokenAirdrop that sends 100 units of the given token from account 1 to account 2.
+     * Used to exercise the STATE-mode token-store custom-fee lookup via TokenAirdropFeeCalculator.
+     */
+    private Transaction buildTokenAirdrop(long tokenId) {
+        final var body = TransactionBody.newBuilder()
+                .memo("fee-test")
+                .tokenAirdrop(TokenAirdropTransactionBody.newBuilder()
                         .tokenTransfers(List.of(TokenTransferList.newBuilder()
                                 .token(TokenID.newBuilder().tokenNum(tokenId).build())
                                 .transfers(List.of(
