@@ -87,7 +87,7 @@ final class BlockNodeSubscriber extends AbstractBlockSource implements AutoClose
      * (e.g. due to config or discovery updates).
      */
     private synchronized List<BlockNode> getBlockNodes() {
-        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodesConfigProperties();
+        final var latestPropertiesList = blockNodeDiscoveryService.getBlockNodes();
 
         final List<BlockNode> currentNodes = Objects.requireNonNull(nodes.get());
         if (!nodesChanged(currentNodes, latestPropertiesList)) {

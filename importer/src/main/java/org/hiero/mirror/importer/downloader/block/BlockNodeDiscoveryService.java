@@ -47,7 +47,7 @@ public final class BlockNodeDiscoveryService {
      * same streaming endpoint (host+port) and requiresTls).
      * The result is cached. Cache is invalidated when registered nodes are created, updated, or deleted.
      */
-    public List<BlockNodeProperties> getBlockNodesConfigProperties() {
+    public List<BlockNodeProperties> getBlockNodes() {
         return cache.updateAndGet(propertiesList -> {
             if (propertiesList != CLEARED) {
                 return propertiesList;

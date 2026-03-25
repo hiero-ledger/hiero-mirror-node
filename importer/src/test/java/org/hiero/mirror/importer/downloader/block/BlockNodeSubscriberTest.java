@@ -88,7 +88,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
                 blockNodeProperties(0, SERVER_NAMES[1]),
                 blockNodeProperties(1, SERVER_NAMES[2]));
         blockProperties.setNodes(configNodes);
-        doReturn(configNodes).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
+        doReturn(configNodes).when(blockNodeDiscoveryService).getBlockNodes();
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockNodeDiscoveryService,
                 blockStreamReader,
@@ -158,7 +158,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         blockProperties.setNodes(List.of(configNode));
         final var discovered2 = blockNodeProperties(2, SERVER_NAMES[1]);
         final var mergedNodes = List.of(configNode, discovered2);
-        doReturn(mergedNodes).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
+        doReturn(mergedNodes).when(blockNodeDiscoveryService).getBlockNodes();
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockNodeDiscoveryService,
                 blockStreamReader,
@@ -197,7 +197,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
         final var blockProperties = new BlockProperties(commonDownloaderProperties.getImporterProperties());
         blockProperties.setNodes(List.of());
         var discoveredProps = blockNodeProperties(0, SERVER_NAMES[0]);
-        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).getBlockNodesConfigProperties();
+        doReturn(List.of(discoveredProps)).when(blockNodeDiscoveryService).getBlockNodes();
         blockNodeSubscriber = new BlockNodeSubscriber(
                 blockNodeDiscoveryService,
                 blockStreamReader,
@@ -223,7 +223,7 @@ final class BlockNodeSubscriberTest extends BlockNodeTestBase {
 
         // then: uses discovered node
         verify(blockStreamReader).read(any());
-        verify(blockNodeDiscoveryService).getBlockNodesConfigProperties();
+        verify(blockNodeDiscoveryService).getBlockNodes();
     }
 
     @Test

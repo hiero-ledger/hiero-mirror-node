@@ -40,7 +40,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setAutoDiscoveryEnabled(true);
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        assertThat(service.getBlockNodesConfigProperties()).isEmpty();
+        assertThat(service.getBlockNodes()).isEmpty();
     }
 
     @Test
@@ -75,7 +75,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setAutoDiscoveryEnabled(true);
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).hasSize(1);
         final var props = result.getFirst();
@@ -122,7 +122,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setAutoDiscoveryEnabled(true);
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).hasSize(1);
         final var props = result.getFirst();
@@ -147,7 +147,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setAutoDiscoveryEnabled(true);
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).isEmpty();
     }
@@ -169,13 +169,13 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setAutoDiscoveryEnabled(true);
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).isEmpty();
     }
 
     @Test
-    void getBlockNodesConfigPropertiesReturnsSortedResult() {
+    void getBlockNodesReturnsSortedResult() {
         final var nodeB = new BlockNodeProperties();
         nodeB.setHost("b.example.com");
         nodeB.setPriority(1);
@@ -199,13 +199,13 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(nodeB, nodeA, nodeC));
 
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).containsExactly(nodeA, nodeB, nodeC);
     }
 
     @Test
-    void getBlockNodesConfigPropertiesSortsByHostWhenPrioritiesEqual() {
+    void getBlockNodesSortsByHostWhenPrioritiesEqual() {
         final var nodeB = new BlockNodeProperties();
         nodeB.setHost("b.example.com");
         nodeB.setPriority(0);
@@ -229,7 +229,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(nodeC, nodeA, nodeB));
 
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).containsExactly(nodeA, nodeB, nodeC);
     }
@@ -245,7 +245,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(configNode));
 
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).containsExactly(configNode);
         verify(registeredNodeRepository, never()).findAllByDeletedFalseAndTypeContains(anyShort());
@@ -288,7 +288,7 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of(configNode));
 
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         assertThat(result).hasSize(2);
         assertThat(result)
@@ -341,7 +341,7 @@ final class BlockNodeDiscoveryServiceTest {
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
         // when
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         // then
         assertThat(result).hasSize(1);
@@ -395,7 +395,7 @@ final class BlockNodeDiscoveryServiceTest {
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
         // when
-        final var result = service.getBlockNodesConfigProperties();
+        final var result = service.getBlockNodes();
 
         // then
         assertThat(result).hasSize(2);
@@ -415,12 +415,12 @@ final class BlockNodeDiscoveryServiceTest {
         blockProperties.setNodes(List.of());
         final var service = new BlockNodeDiscoveryService(blockProperties, registeredNodeRepository);
 
-        service.getBlockNodesConfigProperties();
-        service.getBlockNodesConfigProperties();
+        service.getBlockNodes();
+        service.getBlockNodes();
         verify(registeredNodeRepository).findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
 
         service.onRegisteredNodeChanged();
-        service.getBlockNodesConfigProperties();
+        service.getBlockNodes();
         verify(registeredNodeRepository, times(2))
                 .findAllByDeletedFalseAndTypeContains(RegisteredNodeType.BLOCK_NODE.getValue());
     }

@@ -50,7 +50,7 @@ final class CompositeBlockSourceTest {
         properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        when(blockNodeDiscoveryService.getBlockNodesConfigProperties()).thenReturn(List.of(new BlockNodeProperties()));
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(List.of(new BlockNodeProperties()));
         source = new CompositeBlockSource(
                 blockFileSource, blockNodeDiscoveryService, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
@@ -116,7 +116,7 @@ final class CompositeBlockSourceTest {
     @Test
     void getAutoNoBlockNodes() {
         // given - discovery service returns empty (no config nodes, no discovered nodes)
-        when(blockNodeDiscoveryService.getBlockNodesConfigProperties()).thenReturn(Collections.emptyList());
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(Collections.emptyList());
 
         // when
         source.get();

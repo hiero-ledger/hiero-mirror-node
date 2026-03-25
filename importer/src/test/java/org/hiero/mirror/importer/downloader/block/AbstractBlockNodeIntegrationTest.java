@@ -84,13 +84,11 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         final var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
         final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
-        lenient()
-                .when(blockNodeDiscoveryService.getBlockNodesConfigProperties())
-                .thenAnswer(invocation -> {
-                    final var nodeList = new ArrayList<>(blockProperties.getNodes());
-                    Collections.sort(nodeList);
-                    return nodeList;
-                });
+        lenient().when(blockNodeDiscoveryService.getBlockNodes()).thenAnswer(invocation -> {
+            final var nodeList = new ArrayList<>(blockProperties.getNodes());
+            Collections.sort(nodeList);
+            return nodeList;
+        });
         return new BlockNodeSubscriber(
                 blockNodeDiscoveryService,
                 blockStreamReader,
