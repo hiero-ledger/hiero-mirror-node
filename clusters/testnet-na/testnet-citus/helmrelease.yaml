@@ -82,7 +82,7 @@ spec:
             contractId: "0.0.2664875"
     restjava:
       routes:
-        supply: true
+        nodes: true
     stackgres:
       coordinator:
         persistentVolume:
