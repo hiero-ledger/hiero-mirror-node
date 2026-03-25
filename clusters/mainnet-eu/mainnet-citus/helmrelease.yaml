@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.149.0'
+      version: '0.150.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -116,8 +116,8 @@ spec:
         pgbouncer:
           users:
             mirror_web3:
-              max_user_client_connections: 1000
-              max_user_connections: 250
+              max_user_client_connections: 1800
+              max_user_connections: 275
         resources:
           cpu: 15750m
           memory: 82Gi
