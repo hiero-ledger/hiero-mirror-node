@@ -14,7 +14,7 @@ spec:
         - values.yaml
         - values-prod.yaml
         - values-v2.yml
-      version: '0.150.0'
+      version: '0.151.0'
   dependsOn:
     - name: mirror
       namespace: common
@@ -82,7 +82,7 @@ spec:
             contractId: "0.0.2664875"
     restjava:
       routes:
-        supply: true
+        nodes: true
     rosetta:
       env:
         HIERO_MIRROR_ROSETTA_NETWORK: "testnet"
