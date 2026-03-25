@@ -228,6 +228,35 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void estimateFeesLegacyFormatWithSignatures() {
+        // given
+        final var body = TransactionBody.newBuilder()
+                .memo("legacy")
+                .cryptoTransfer(CryptoTransferTransactionBody.DEFAULT)
+                .build();
+        final var sigPairs = List.of(
+                SignaturePair.newBuilder()
+                        .pubKeyPrefix(Bytes.wrap(new byte[] {0}))
+                        .ed25519(Bytes.wrap(new byte[ED25519_SIGNATURE_SIZE]))
+                        .build(),
+                SignaturePair.newBuilder()
+                        .pubKeyPrefix(Bytes.wrap(new byte[] {1}))
+                        .ed25519(Bytes.wrap(new byte[ED25519_SIGNATURE_SIZE]))
+                        .build());
+        final var transaction = Transaction.newBuilder()
+                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
+                .sigMap(SignatureMap.newBuilder().sigPair(sigPairs).build())
+                .build();
+
+        // when
+        final var result = service.estimateFees(transaction, FeeEstimateMode.INTRINSIC);
+
+        // then — 2 signatures, SIGNATURES_INCLUDED=1 free, 1 extra billed
+        final var expectedNodeTotal = NODE_BASE_FEE + (2 - SIGNATURES_INCLUDED) * SIGNATURES_FEE;
+        assertThat(result.totalTinycents()).isEqualTo(expectedNodeTotal * (1L + NETWORK_MULTIPLIER));
+    }
+
+    @Test
     void loadsSimpleFeeScheduleFromDatabase() {
         // given — construct a fresh service so that it loads from the DB (seeded in @BeforeEach)
         final var freshService =

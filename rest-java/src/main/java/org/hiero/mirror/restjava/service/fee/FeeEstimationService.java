@@ -121,7 +121,8 @@ public final class FeeEstimationService {
                         .size();
             } else if (transaction.bodyBytes().length() > 0) {
                 this.body = TransactionBody.PROTOBUF.parse(transaction.bodyBytes());
-                this.numTxnSignatures = 0;
+                this.numTxnSignatures =
+                        transaction.sigMapOrElse(SignatureMap.DEFAULT).sigPair().size();
             } else {
                 throw new IllegalArgumentException("Transaction must contain body bytes or signed transaction bytes");
             }
