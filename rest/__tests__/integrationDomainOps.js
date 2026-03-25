@@ -597,6 +597,7 @@ const entityDefaults = {
   balance_timestamp: null,
   created_timestamp: null,
   decline_reward: false,
+  delegation_address: null,
   deleted: false,
   ethereum_nonce: null,
   evm_address: null,
@@ -634,6 +635,7 @@ const addEntity = async (defaults, custom) => {
   ).getEncodedId();
   entity.alias = base32.decode(entity.alias);
   entity.evm_address = valueToBuffer(entity.evm_address);
+  entity.delegation_address = valueToBuffer(entity.delegation_address);
   entity.staked_account_id = encodedIdFromSpecValue(entity.staked_account_id);
   entity.obtainer_id = encodedIdFromSpecValue(entity.obtainer_id);
   entity.proxy_account_id = encodedIdFromSpecValue(entity.proxy_account_id);
@@ -651,10 +653,11 @@ const addEntity = async (defaults, custom) => {
 };
 
 const addEntityTransaction = async (entityTransaction) => {
-  entityTransaction.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
-  entityTransaction.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
+  const clone = {...entityTransaction};
+  clone.entity_id = encodedIdFromSpecValue(entityTransaction.entity_id);
+  clone.payer_account_id = encodedIdFromSpecValue(entityTransaction.payer_account_id);
 
-  await insertDomainObject('entity_transaction', Object.keys(entityTransaction), entityTransaction);
+  await insertDomainObject('entity_transaction', Object.keys(clone), clone);
 };
 
 const SECONDS_PER_DAY = 86400;

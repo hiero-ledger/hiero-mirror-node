@@ -2,17 +2,23 @@
 
 package org.hiero.mirror.web3.evm.contracts.execution.traceability;
 
+import static org.hiero.mirror.web3.convert.BytesDecoder.startsWithErrorSelector;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
+
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.hedera.node.app.service.contract.impl.state.RootProxyWorldUpdater;
 import com.hederahashgraph.api.proto.java.ResponseCodeEnum;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 import org.apache.tuweni.bytes.Bytes;
-import org.hiero.mirror.common.domain.contract.ContractAction;
+import org.bouncycastle.util.encoders.Hex;
 import org.hiero.mirror.web3.common.ContractCallContext;
 import org.hiero.mirror.web3.convert.BytesDecoder;
 import org.hyperledger.besu.evm.ModificationNotAllowedException;
@@ -21,110 +27,172 @@ import org.springframework.util.CollectionUtils;
 
 public abstract class AbstractOpcodeTracer {
 
-    protected final List<Bytes> captureMemory(final MessageFrame frame, final OpcodeTracerOptions options) {
+    // Value taken by analyzing a heavy call output
+    private static final int HEX_CACHE_MAX_SIZE = 1600;
+
+    // Common cache that keeps hex string representation of different Bytes keys. We can have the same Bytes occurrence
+    // on multiple opcode data and this cache helps to avoid unnecessary string allocations.
+    private final LoadingCache<Bytes, String> hexCache = Caffeine.newBuilder()
+            .maximumSize(HEX_CACHE_MAX_SIZE)
+            .expireAfterAccess(Duration.ofMinutes(1))
+            .build(Bytes::toHexString);
+
+    protected final List<String> captureMemory(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isMemory()) {
             return Collections.emptyList();
         }
+        var size = frame.memoryWordSize();
+        var hexMemoryEntries = new ArrayList<String>(size);
 
-        int size = frame.memoryWordSize();
-        var memory = new ArrayList<Bytes>(size);
-        for (int i = 0; i < size; i++) {
-            memory.add(frame.readMemory(i * 32L, 32));
+        final var wordSize = 32;
+        final var memory = frame.readMutableMemory(0L, (long) wordSize * size).toArrayUnsafe();
+        final var hex = HexFormat.of();
+
+        for (var i = 0; i < size; i++) {
+            var startIndex = i * wordSize;
+            final var result = HEX_PREFIX + hex.formatHex(memory, startIndex, startIndex + wordSize);
+            hexMemoryEntries.add(result);
         }
 
-        return memory;
+        return hexMemoryEntries;
     }
 
-    protected final List<Bytes> captureStack(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected final List<String> captureStack(final MessageFrame frame, final OpcodeContext options) {
         if (!options.isStack()) {
             return Collections.emptyList();
         }
 
-        int size = frame.stackSize();
-        var stack = new ArrayList<Bytes>(size);
-        for (int i = 0; i < size; ++i) {
-            stack.add(frame.getStackItem(size - 1 - i));
+        var size = frame.stackSize();
+        var stack = new ArrayList<String>(size);
+        for (var i = 0; i < size; ++i) {
+            var item = frame.getStackItem(size - 1 - i);
+            stack.add(hexCache.get(item, Bytes::toHexString));
         }
 
         return stack;
     }
 
-    protected Map<Bytes, Bytes> captureStorage(final MessageFrame frame, final OpcodeTracerOptions options) {
+    protected Map<String, String> captureStorage(
+            final MessageFrame frame, final OpcodeContext options, final ContractCallContext context) {
         if (!options.isStorage()) {
             return Collections.emptyMap();
         }
 
         try {
-            var worldUpdater = frame.getWorldUpdater();
-            while (worldUpdater.parentUpdater().isPresent()) {
-                worldUpdater = worldUpdater.parentUpdater().get();
+            if (context.getOpcodeContext().getRootProxyWorldUpdater() == null) {
+
+                var worldUpdater = frame.getWorldUpdater();
+                var parent = worldUpdater.parentUpdater().orElse(null);
+                while (parent != null) {
+                    worldUpdater = parent;
+                    parent = worldUpdater.parentUpdater().orElse(null);
+                }
+
+                if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
+                    // The storage updates are kept only in the RootProxyWorldUpdater.
+                    // If we don't have one -> something unexpected happened and an attempt to
+                    // get the storage changes from a ProxyWorldUpdater would result in a
+                    // NullPointerException, so in this case just return an empty map.
+                    return Collections.emptyMap();
+                }
+
+                context.getOpcodeContext().setRootProxyWorldUpdater(rootProxyWorldUpdater);
             }
 
-            if (!(worldUpdater instanceof RootProxyWorldUpdater rootProxyWorldUpdater)) {
-                // The storage updates are kept only in the RootProxyWorldUpdater.
-                // If we don't have one -> something unexpected happened and an attempt to
-                // get the storage changes from a ProxyWorldUpdater would result in a
-                // NullPointerException, so in this case just return an empty map.
-                return Collections.emptyMap();
-            }
+            final var rootProxyWorldUpdater = context.getOpcodeContext().getRootProxyWorldUpdater();
             final var updates = rootProxyWorldUpdater
                     .getEvmFrameState()
                     .getTxStorageUsage(true)
                     .accesses();
-            return updates.stream()
-                    .flatMap(storageAccesses ->
-                            storageAccesses.accesses().stream()) // Properly flatten the nested structure
-                    .collect(Collectors.toMap(
-                            e -> Bytes.wrap(e.key().toArray()),
-                            e -> Bytes.wrap(
-                                    e.writtenValue() != null
-                                            ? e.writtenValue().toArray()
-                                            : e.value().toArray()),
-                            (v1, v2) -> v1, // in case of duplicates, keep the first value
-                            TreeMap::new));
+
+            if (updates.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
+            final var result = new TreeMap<String, String>();
+            for (final var storageAccesses : updates) {
+                for (final var access : storageAccesses.accesses()) {
+                    final var key = hexCache.get(access.key(), Bytes::toHexString);
+                    if (!result.containsKey(key)) {
+                        final var value = access.writtenValue() != null
+                                ? hexCache.get(access.writtenValue(), Bytes::toHexString)
+                                : hexCache.get(access.value(), Bytes::toHexString);
+                        result.put(key, value);
+                    }
+                }
+            }
+            return result;
 
         } catch (final ModificationNotAllowedException e) {
             return Collections.emptyMap();
         }
     }
 
-    protected final Optional<Bytes> getRevertReasonFromContractActions(final ContractCallContext context) {
-        final var contractActions = context.getContractActions();
+    protected final String getRevertReasonFromContractActions(final ContractCallContext context) {
+        final var contractActions = context.getOpcodeContext().getActions();
 
         if (CollectionUtils.isEmpty(contractActions)) {
-            return Optional.empty();
+            return null;
         }
 
-        return contractActions.stream()
-                .filter(ContractAction::hasRevertReason)
-                .map(action -> Bytes.of(action.getResultData()))
-                .map(this::formatRevertReason)
-                .findFirst();
+        for (var action : contractActions) {
+            if (action.hasRevertReason()) {
+                return formatRevertReason(action.getResultData());
+            }
+        }
+        return null;
     }
 
     /**
      * Formats the revert reason to be consistent with the revert reason format in the EVM. <a
      * href="https://besu.hyperledger.org/23.10.2/private-networks/how-to/send-transactions/revert-reason#revert-reason-format">...</a>
      *
-     * @param revertReason the revert reason
-     * @return the formatted revert reason
+     * @param revertReason the revert reason as byte array
+     * @return the formatted revert reason as hex string
      */
-    protected final Bytes formatRevertReason(final Bytes revertReason) {
-        if (revertReason == null || revertReason.isZero()) {
-            return Bytes.EMPTY;
+    protected final String formatRevertReason(final byte[] revertReason) {
+        if (revertReason == null || revertReason.length == 0 || isZero(revertReason)) {
+            return HEX_PREFIX;
         }
 
-        // covers an edge case where the reason in the contract actions is a response code number (as a plain string)
-        // so we convert this number to an ABI-encoded string of the corresponding response code name,
-        // to at least give some relevant information to the user in the valid EVM format
-        final var trimmedReason = revertReason.trimLeadingZeros();
-        if (trimmedReason.size() <= Integer.BYTES) {
-            final var responseCode = ResponseCodeEnum.forNumber(trimmedReason.toInt());
+        if (startsWithErrorSelector(revertReason)) {
+            return HEX_PREFIX + Hex.toHexString(revertReason);
+        }
+
+        final var firstNonZero = findFirstNonZero(revertReason);
+        final var trimmedLength = revertReason.length - firstNonZero;
+        if (trimmedLength <= Integer.BYTES) {
+            final var responseCode = ResponseCodeEnum.forNumber(toInt(revertReason, firstNonZero));
             if (responseCode != null) {
                 return BytesDecoder.getAbiEncodedRevertReason(responseCode.name());
             }
         }
 
-        return BytesDecoder.getAbiEncodedRevertReason(revertReason);
+        return BytesDecoder.getAbiEncodedRevertReason(new String(revertReason, StandardCharsets.UTF_8));
+    }
+
+    private boolean isZero(final byte[] bytes) {
+        for (var b : bytes) {
+            if (b != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int findFirstNonZero(final byte[] bytes) {
+        var index = 0;
+        while (index < bytes.length && bytes[index] == 0) {
+            index++;
+        }
+        return index;
+    }
+
+    private int toInt(final byte[] bytes, final int offset) {
+        var result = 0;
+        for (var i = offset; i < bytes.length; i++) {
+            result = (result << 8) | (bytes[i] & 0xFF);
+        }
+        return result;
     }
 }

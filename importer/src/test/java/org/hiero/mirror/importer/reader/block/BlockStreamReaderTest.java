@@ -489,6 +489,41 @@ public final class BlockStreamReaderTest {
     }
 
     @Test
+    void readSignedTransactionsWithoutEventHeader() {
+        // given
+        final var firstTimestamp = recordItemBuilder.timestamp();
+        final var secondTimestamp = recordItemBuilder.timestamp();
+        final var block = Block.newBuilder()
+                .addItems(blockHeader())
+                .addItems(roundHeader())
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(firstTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(signedTransaction())
+                .addItems(transactionResult(TransactionResult.newBuilder()
+                        .setConsensusTimestamp(secondTimestamp)
+                        .setStatus(ResponseCodeEnum.SUCCESS)
+                        .build()))
+                .addItems(blockFooter())
+                .addItems(blockProof())
+                .build();
+        final var blockStream = createBlockStream(block, null, BlockFile.getFilename(0, true));
+
+        // when
+        final var actual = reader.read(blockStream);
+
+        // then
+        assertThat(actual)
+                .extracting(BlockFile::getItems, InstanceOfAssertFactories.list(BlockTransaction.class))
+                .extracting(BlockTransaction::getConsensusTimestamp)
+                .containsExactly(
+                        DomainUtils.timestampInNanosMax(firstTimestamp),
+                        DomainUtils.timestampInNanosMax(secondTimestamp));
+    }
+
+    @Test
     void noSignedTransactions() {
         // A standalone state changes block item, with consensus timestamp
         var stateChanges = stateChanges();

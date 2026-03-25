@@ -10,6 +10,7 @@ import static com.hedera.node.app.hapi.utils.keys.KeyUtils.IMMUTABILITY_SENTINEL
 import static com.hedera.services.utils.EntityIdUtils.accountIdFromEvmAddress;
 import static org.hiero.mirror.web3.convert.BytesDecoder.maybeDecodeSolidityErrorStringToReadableMessage;
 import static org.hiero.mirror.web3.state.Utils.DEFAULT_KEY;
+import static org.hiero.mirror.web3.validation.HexValidator.HEX_PREFIX;
 
 import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.ContractID;
@@ -27,6 +28,7 @@ import com.hedera.node.app.service.contract.impl.exec.ActionSidecarContentTracer
 import com.hedera.node.app.service.contract.impl.utils.ConversionUtils;
 import com.hedera.node.app.state.SingleTransactionRecord;
 import com.hedera.node.config.data.EntitiesConfig;
+import com.hedera.pbj.runtime.io.buffer.Bytes;
 import com.hedera.services.utils.EntityIdUtils;
 import jakarta.inject.Named;
 import java.time.Instant;
@@ -36,7 +38,6 @@ import java.util.SequencedCollection;
 import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.tuweni.bytes.Bytes;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.web3.common.ContractCallContext;
@@ -57,7 +58,7 @@ import org.hyperledger.besu.datatypes.Address;
 public class TransactionExecutionService {
 
     private static final Duration TRANSACTION_DURATION = new Duration(15);
-    private static final long CONTRACT_CREATE_TX_FEE = 100_000_000L;
+    private static final long CONTRACT_CREATE_TX_FEES = 1_000_000_000L;
     private static final String SENDER_NOT_FOUND = "Sender account not found.";
 
     private final AccountReadableKVState accountReadableKVState;
@@ -79,8 +80,8 @@ public class TransactionExecutionService {
         final TransactionBody transactionBody;
         final EvmTransactionResult result;
         if (params instanceof ContractDebugParameters debugParams
-                && params.getEthereumData() != null
-                && !params.getEthereumData().isEmpty()) {
+                && debugParams.getEthereumData() != null
+                && debugParams.getEthereumData().length > 0) {
             transactionBody = buildEthereumTransactionBody(debugParams);
         } else if (isContractCreate) {
             transactionBody = buildContractCreateTransactionBody(params, estimatedGas, maxLifetime);
@@ -143,13 +144,13 @@ public class TransactionExecutionService {
         } else {
             final var childTransactionErrors = populateChildTransactionErrors(transactionRecords);
 
-            if (ContractCallContext.get().getOpcodeTracerOptions() == null) {
+            if (ContractCallContext.get().getOpcodeContext() == null) {
                 var processingResult = new EvmTransactionResult(status, result);
 
-                final var errorMessage = processingResult.getErrorMessage().orElse(Bytes.EMPTY);
-                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessage);
+                final var errorMessageHex = processingResult.getErrorMessage().orElse(HEX_PREFIX);
+                final var detail = maybeDecodeSolidityErrorStringToReadableMessage(errorMessageHex);
                 throw new MirrorEvmTransactionException(
-                        status, detail, errorMessage.toHexString(), processingResult, childTransactionErrors);
+                        status, detail, errorMessageHex, processingResult, childTransactionErrors);
             } else {
                 // If we are in an opcode trace scenario, we need to return a failed result in order to get the
                 // opcode list from the ContractCallContext. If we throw an exception instead of returning a result,
@@ -173,12 +174,11 @@ public class TransactionExecutionService {
             final CallServiceParameters params, final long estimatedGas, final long maxLifetime) {
         return defaultTransactionBodyBuilder(params)
                 .contractCreateInstance(ContractCreateTransactionBody.newBuilder()
-                        .initcode(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getCallData().toArrayUnsafe()))
+                        .initcode(Bytes.wrap(params.getCallData()))
                         .gas(estimatedGas)
                         .autoRenewPeriod(new Duration(maxLifetime))
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEE)
+                .transactionFee(CONTRACT_CREATE_TX_FEES)
                 .build();
     }
 
@@ -189,11 +189,9 @@ public class TransactionExecutionService {
                         .contractID(ContractID.newBuilder()
                                 .shardNum(commonProperties.getShard())
                                 .realmNum(commonProperties.getRealm())
-                                .evmAddress(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                        params.getReceiver().toArrayUnsafe()))
+                                .evmAddress(Bytes.wrap(params.getReceiver().toArrayUnsafe()))
                                 .build())
-                        .functionParameters(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getCallData().toArrayUnsafe()))
+                        .functionParameters(Bytes.wrap(params.getCallData()))
                         .amount(params.getValue()) // tinybars sent to contract
                         .gas(estimatedGas)
                         .build())
@@ -203,11 +201,10 @@ public class TransactionExecutionService {
     private TransactionBody buildEthereumTransactionBody(final ContractDebugParameters params) {
         final var txnBody = defaultTransactionBodyBuilder(params)
                 .ethereumTransaction(EthereumTransactionBody.newBuilder()
-                        .ethereumData(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(
-                                params.getEthereumData().toArrayUnsafe()))
+                        .ethereumData(Bytes.wrap(params.getEthereumData()))
                         .maxGasAllowance(Long.MAX_VALUE)
                         .build())
-                .transactionFee(CONTRACT_CREATE_TX_FEE)
+                .transactionFee(CONTRACT_CREATE_TX_FEES)
                 .build();
 
         patchSenderNonce(params);
@@ -222,7 +219,7 @@ public class TransactionExecutionService {
         if (params.getSender().isZero() && params.getValue() == 0L || !ContractCallContext.isInitialized()) {
             return;
         }
-        final long nonce = populateEthTxData(params.getEthereumData().toArray()).nonce();
+        final long nonce = populateEthTxData(params.getEthereumData()).nonce();
         final var senderId = getSenderAccountIDAsNum(params.getSender());
         final var account = accountReadableKVState.get(senderId);
         if (account != null && account.ethereumNonce() != nonce) {
@@ -235,7 +232,7 @@ public class TransactionExecutionService {
 
     private ProtoBytes convertAddressToProtoBytes(final Address address) {
         return ProtoBytes.newBuilder()
-                .value(com.hedera.pbj.runtime.io.buffer.Bytes.wrap(address.toArrayUnsafe()))
+                .value(Bytes.wrap(address.toArrayUnsafe()))
                 .build();
     }
 
@@ -292,7 +289,7 @@ public class TransactionExecutionService {
     }
 
     private ActionSidecarContentTracer[] getOperationTracers() {
-        return ContractCallContext.get().getOpcodeTracerOptions() != null
+        return ContractCallContext.get().getOpcodeContext() != null
                 ? new ActionSidecarContentTracer[] {opcodeActionTracer}
                 : new ActionSidecarContentTracer[] {mirrorOperationActionTracer};
     }

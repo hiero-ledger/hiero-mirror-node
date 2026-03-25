@@ -112,6 +112,7 @@
         },
         "created_timestamp": "9999.123456789",
         "decline_reward": false,
+        "delegation_address": "0x",
         "deleted": false,
         "ethereum_nonce": null,
         "evm_address": "0x0000000000000000000000000000000000000013",
