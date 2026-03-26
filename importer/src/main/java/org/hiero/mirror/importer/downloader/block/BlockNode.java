@@ -40,6 +40,7 @@ import org.hiero.mirror.importer.exception.BlockStreamException;
 import org.hiero.mirror.importer.reader.block.BlockStream;
 import org.hiero.mirror.importer.util.Utility;
 import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 @CustomLog
 @NullMarked
@@ -74,16 +75,22 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final MeterRegistry meterRegistry) {
         final int maxInboundMessageSize =
                 (int) streamProperties.getMaxStreamResponseSize().toBytes();
+        final var host = properties.getHost();
+        final var streamingHost = properties.getStreamingHost();
+        final boolean sameEndpoint = host.equals(streamingHost)
+                && properties.getStatusPort() == properties.getStreamingPort()
+                && properties.isStatusApiRequireTls() == properties.isStreamingApiRequireTls();
+
         this.statusChannel = channelBuilderProvider
-                .get(properties.getHost(), properties.getStatusPort())
+                .get(host, properties.getStatusPort(), properties.isStatusApiRequireTls())
                 .maxInboundMessageSize(maxInboundMessageSize)
                 .build();
 
-        if (properties.getStatusPort() == properties.getStreamingPort()) {
+        if (sameEndpoint) {
             this.streamingChannel = this.statusChannel;
         } else {
             this.streamingChannel = channelBuilderProvider
-                    .get(properties.getHost(), properties.getStreamingPort())
+                    .get(streamingHost, properties.getStreamingPort(), properties.isStreamingApiRequireTls())
                     .maxInboundMessageSize(maxInboundMessageSize)
                     .build();
         }
@@ -129,7 +136,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final CommonDownloaderProperties commonDownloaderProperties,
             final Consumer<BlockStream> onBlockStream) {
         final var callHolder =
-                new AtomicReference<BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
+                new AtomicReference<@Nullable BlockingClientCall<SubscribeStreamRequest, SubscribeStreamResponse>>();
 
         try {
             final long endBlockNumber = Objects.requireNonNullElse(
@@ -202,6 +209,10 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         return this;
     }
 
+    /**
+     * If number of failed connections surpass maxAttempts a readmit time(cooldown period)
+     * is enforced before the specific node can be called again
+     */
     private void onError() {
         errorsMetric.increment();
         if (errors.incrementAndGet() >= streamProperties.getMaxSubscribeAttempts()) {

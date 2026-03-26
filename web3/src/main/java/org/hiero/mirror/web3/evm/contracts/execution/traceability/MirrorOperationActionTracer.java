@@ -42,6 +42,12 @@ public class MirrorOperationActionTracer implements ActionSidecarContentTracer {
     @Override
     public void tracePostExecution(
             final @NonNull MessageFrame frame, final Operation.@NonNull OperationResult operationResult) {
+        // Reset the balance call flag after BALANCE opcode completes
+        if (frame.getCurrentOperation() != null
+                && BALANCE_OPERATION_NAME.equals(frame.getCurrentOperation().getName())) {
+            ContractCallContext.get().setBalanceCall(false);
+        }
+
         if (!traceProperties.isEnabled()) {
             return;
         }

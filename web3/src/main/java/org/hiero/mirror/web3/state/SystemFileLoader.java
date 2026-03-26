@@ -34,6 +34,7 @@ import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.ArrayUtils;
+import org.hiero.hapi.support.fees.FeeSchedule;
 import org.hiero.mirror.common.CommonProperties;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.common.domain.entity.EntityId;
@@ -61,6 +62,7 @@ public final class SystemFileLoader {
     private final SystemEntity systemEntity;
     private final FileID exchangeRateFileId;
     private final FileID feeSchedulesFileId;
+    private final FileID simpleFeeSchedulesFileId;
     private final CacheManager exchangeRatesCacheManager;
     private final CacheManager defaultSystemFileCacheManager;
     private final V0490FileSchema fileSchema = new V0490FileSchema();
@@ -87,6 +89,7 @@ public final class SystemFileLoader {
         this.systemEntity = systemEntity;
         this.exchangeRateFileId = Utils.toFileID(systemEntity.exchangeRateFile());
         this.feeSchedulesFileId = Utils.toFileID(systemEntity.feeScheduleFile());
+        this.simpleFeeSchedulesFileId = Utils.toFileID(systemEntity.simpleFeeScheduleFile());
         this.exchangeRatesCacheManager = exchangeRatesCacheManager;
         this.defaultSystemFileCacheManager = defaultSystemFileCacheManager;
         this.genesisNetworkProperties = load(
@@ -105,7 +108,9 @@ public final class SystemFileLoader {
 
         var cacheManager = defaultSystemFileCacheManager;
 
-        if (fileId.equals(exchangeRateFileId) || fileId.equals(feeSchedulesFileId)) {
+        if (fileId.equals(exchangeRateFileId)
+                || fileId.equals(feeSchedulesFileId)
+                || fileId.equals(simpleFeeSchedulesFileId)) {
             cacheManager = exchangeRatesCacheManager;
             consensusTimestamp = roundDownToHour(consensusTimestamp);
         }
@@ -199,6 +204,11 @@ public final class SystemFileLoader {
                 new SystemFile(
                         load(systemEntity.feeScheduleFile(), fileSchema.genesisFeeSchedules(configuration)),
                         CurrentAndNextFeeSchedule.PROTOBUF),
+                new SystemFile(
+                        load(
+                                systemEntity.simpleFeeScheduleFile(),
+                                fileSchema.genesisSimpleFeesSchedules(configuration)),
+                        FeeSchedule.PROTOBUF),
                 new SystemFile(
                         load(systemEntity.exchangeRateFile(), fileSchema.genesisExchangeRatesBytes(configuration)),
                         ExchangeRateSet.PROTOBUF),

@@ -43,7 +43,6 @@ hiero:
           password: password
           requestSizeBuckets: []
           responseSizeBuckets: [100, 250, 500, 1000]
-          swaggerOnly: true,
           username: metrics
           uriPath: "/swagger"
       openapi:
@@ -84,6 +83,7 @@ hiero:
         uri: redis://127.0.0.1:6379
       response:
         compression: true
+        enableDelegationAddress: false
         headers:
           default:
             {

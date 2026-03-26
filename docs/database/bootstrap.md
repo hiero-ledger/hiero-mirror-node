@@ -16,7 +16,7 @@ This guide provides step-by-step instructions for setting up a fresh PostgreSQL 
     - [3.2. List Available Versions](#32-list-available-versions)
     - [3.3. Select a Version](#33-select-a-version)
     - [3.4. Download the Data](#34-download-the-data)
-      - [Download Minimal DB Data Files](#download-minimal-db-data-files)
+      - [Download Minimal DB Data Files (Mainnet only)](#download-minimal-db-data-files-mainnet-only)
       - [Download Full DB Data Files](#download-full-db-data-files)
   - [4. Check Version Compatibility](#4-check-version-compatibility)
   - [5. Initialize the Database](#5-initialize-the-database)
@@ -229,6 +229,17 @@ The Mirror Node database export data is available in a Google Cloud Storage (GCS
 
 - **Bucket URL:** [mirrornode-db-export](https://console.cloud.google.com/storage/browser/mirrornode-db-export)
 
+The bucket is organized by network and version:
+
+```
+gs://mirrornode-db-export/
+├── MAINNET/
+│   ├── 0.142.0/
+│   └── 0.146.0/
+└── TESTNET/
+    └── 0.149.0/
+```
+
 **Important Notes:**
 
 - The bucket is **read-only** to the public.
@@ -245,10 +256,14 @@ gcloud config set project YOUR_GCP_PROJECT_ID
 
 #### 3.2. List Available Versions
 
-To see the available versions of the database export, list the contents of the bucket:
+The bucket root contains `MAINNET/` and `TESTNET/` directories. To see the available versions of the database export, list the corresponding directory:
 
 ```bash
-gcloud storage ls gs://mirrornode-db-export/
+gcloud storage ls gs://mirrornode-db-export/MAINNET/
+
+# Or
+
+gcloud storage ls gs://mirrornode-db-export/TESTNET/
 ```
 
 This will display the available version directories.
@@ -268,7 +283,7 @@ This will display the available version directories.
 
 Choose one of the following download options based on your needs:
 
-##### Download Minimal DB Data Files
+##### Download Minimal DB Data Files (Mainnet only)
 
 Create a directory and download only the minimal database files:
 
@@ -277,7 +292,7 @@ VERSION="<VERSION_NUMBER>"
 DOWNLOAD_DIR="</path/to/db_export>"
 mkdir -p "$DOWNLOAD_DIR"
 export CLOUDSDK_STORAGE_SLICED_OBJECT_DOWNLOAD_MAX_COMPONENTS=1 && \
-gcloud storage rsync -r -x ".*_atma\.csv\.gz$" "gs://mirrornode-db-export/$VERSION/" "$DOWNLOAD_DIR/"
+gcloud storage rsync -r -x ".*_atma\.csv\.gz$" "gs://mirrornode-db-export/MAINNET/$VERSION/" "$DOWNLOAD_DIR/"
 ```
 
 ##### Download Full DB Data Files
@@ -285,17 +300,19 @@ gcloud storage rsync -r -x ".*_atma\.csv\.gz$" "gs://mirrornode-db-export/$VERSI
 Create a directory and download all files and subdirectories for the selected version:
 
 ```bash
+NETWORK="<NETWORK>"       # MAINNET or TESTNET
 VERSION="<VERSION_NUMBER>"
 DOWNLOAD_DIR="</path/to/db_export>"
 mkdir -p "$DOWNLOAD_DIR"
 export CLOUDSDK_STORAGE_SLICED_OBJECT_DOWNLOAD_MAX_COMPONENTS=1 && \
-gcloud storage rsync -r "gs://mirrornode-db-export/$VERSION/" "$DOWNLOAD_DIR/"
+gcloud storage rsync -r "gs://mirrornode-db-export/$NETWORK/$VERSION/" "$DOWNLOAD_DIR/"
 ```
 
 For both options:
 
 - Replace `</path/to/db_export>` with your actual download path.
 - Replace `<VERSION_NUMBER>` with the version you selected (e.g., `0.111.0`).
+- For the full download, set `<NETWORK>` with your target network (`MAINNET` or `TESTNET`).
 - Ensure all files and subdirectories are downloaded into this single parent directory.
 
 ### 4. Check Version Compatibility

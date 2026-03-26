@@ -10,7 +10,7 @@ class InProcessManagedChannelBuilderProvider implements ManagedChannelBuilderPro
     public static final InProcessManagedChannelBuilderProvider INSTANCE = new InProcessManagedChannelBuilderProvider();
 
     @Override
-    public ManagedChannelBuilder<?> get(String host, int port) {
+    public ManagedChannelBuilder<?> get(String host, int port, boolean useTls) {
         return InProcessChannelBuilder.forName(host).usePlaintext();
     }
 }

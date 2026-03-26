@@ -25,6 +25,7 @@ type Entry struct {
 type Manifest struct {
 	entries map[string]Entry // keyed by normalized filename
 	dataDir string           // base directory for files
+	subdirs bool             // true when data files are nested in table subdirectories
 }
 
 // Load parses a manifest CSV file and returns a Manifest.
@@ -88,13 +89,43 @@ func Load(manifestPath, dataDir string) (*Manifest, error) {
 		}
 	}
 
+	m.subdirs = detectSubdirs(dataDir, m.entries)
+
 	return m, nil
 }
 
+// detectSubdirs checks whether data files are nested in table subdirectories
+// (e.g., account_balance/account_balance_p2024_01.csv.gz) as opposed to flat
+// (e.g., account_balance_p2024_01.csv.gz). Probes a single non-special entry.
+func detectSubdirs(dataDir string, entries map[string]Entry) bool {
+	for _, e := range entries {
+		// Skip special files (not table data)
+		if e.Filename == "schema.sql.gz" || e.Filename == "MIRRORNODE_VERSION.gz" ||
+			strings.HasPrefix(e.Filename, "flyway_") {
+			continue
+		}
+		// If the manifest filename already contains a path separator or .csv.gz,
+		// the manifest itself has full paths — no subdirectory reconstruction needed.
+		if strings.Contains(e.Filename, "/") || strings.HasSuffix(e.Filename, ".csv.gz") {
+			return false
+		}
+		// Check if the file exists in a table subdirectory
+		table := extractTableName(e.Filename)
+		candidate := filepath.Join(dataDir, table, e.Filename+".csv.gz")
+		if _, err := os.Stat(candidate); err == nil {
+			return true
+		}
+		return false
+	}
+	return false
+}
+
 // normalizeFilename extracts the base filename for consistent lookups.
-// Handles both "subdir/file.csv.gz" and "file.csv.gz" formats.
+// Strips path components and .csv.gz extension.
 func normalizeFilename(filename string) string {
-	return filepath.Base(filename)
+	base := filepath.Base(filename)
+	base = strings.TrimSuffix(base, ".csv.gz")
+	return base
 }
 
 // Get returns the entry for a given filename.
@@ -140,7 +171,16 @@ func (m *Manifest) DataDir() string {
 }
 
 // FullPath returns the full path to a file given its entry.
+// When subdirs mode is detected, reconstructs the path as table/filename.csv.gz.
 func (m *Manifest) FullPath(e Entry) string {
+	if m.subdirs && !strings.Contains(e.Filename, "/") {
+		table := extractTableName(e.Filename)
+		name := e.Filename
+		if !strings.HasSuffix(name, ".csv.gz") {
+			name += ".csv.gz"
+		}
+		return filepath.Join(m.dataDir, table, name)
+	}
 	return filepath.Join(m.dataDir, e.Filename)
 }
 

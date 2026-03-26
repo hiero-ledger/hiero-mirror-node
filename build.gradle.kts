@@ -20,8 +20,6 @@ extra.apply {
     set("blockNodeVersion", "0.29.0")
     set("consensusNodeVersion", "0.72.0-rc.2")
     set("grpcVersion", "1.80.0")
-    set("jackson-2-bom.version", "2.21.1") // Temporary until next Spring Boot
-    set("jackson-bom.version", "3.1.0") // Temporary until next Spring Boot
     set("jooq.version", "3.20.11") // Must match buildSrc/build.gradle.kts
     set("mapStructVersion", "1.6.3")
     set("nodeJsVersion", "24.13.0")

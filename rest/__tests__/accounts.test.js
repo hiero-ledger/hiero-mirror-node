@@ -2,6 +2,7 @@
 
 import subject from '../accounts';
 import base32 from '../base32';
+import config from '../config';
 import * as constants from '../constants';
 
 describe('processRow', () => {
@@ -12,6 +13,7 @@ describe('processRow', () => {
     balance_timestamp: 9876500123456789n,
     created_timestamp: 10123456789n,
     decline_reward: false,
+    delegation_address: Buffer.from('0000000000000000000000000000000000000c26', 'hex'),
     ethereum_nonce: 1,
     evm_address: Buffer.from('ac384c53f03855fa1b3616052f8ba32c6c2a2fec', 'hex'),
     deleted: false,
@@ -56,6 +58,7 @@ describe('processRow', () => {
     },
     created_timestamp: '10.123456789',
     decline_reward: false,
+    delegation_address: '0x0000000000000000000000000000000000000c26',
     deleted: false,
     ethereum_nonce: 1,
     evm_address: '0xac384c53f03855fa1b3616052f8ba32c6c2a2fec',
@@ -183,6 +186,42 @@ describe('processRow', () => {
     expect(subject.processRow({...inputAccount, created_timestamp: null})).toEqual({
       ...expectedAccount,
       created_timestamp: null,
+    });
+  });
+
+  describe('delegation_address feature flag', () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+
+    afterEach(() => {
+      config.response.enableDelegationAddress = originalFlagValue;
+    });
+
+    test('includes delegation_address when feature flag is enabled', () => {
+      config.response.enableDelegationAddress = true;
+      const result = subject.processRow(inputAccount);
+      expect(result).toHaveProperty('delegation_address');
+      expect(result.delegation_address).toEqual('0x0000000000000000000000000000000000000c26');
+    });
+
+    test('excludes delegation_address when feature flag is disabled', () => {
+      config.response.enableDelegationAddress = false;
+      const result = subject.processRow(inputAccount);
+      expect(result).not.toHaveProperty('delegation_address');
+    });
+
+    test('handles null delegation_address with feature flag enabled', () => {
+      config.response.enableDelegationAddress = true;
+      const result = subject.processRow({...inputAccount, delegation_address: null});
+      expect(result).toHaveProperty('delegation_address');
+      expect(result.delegation_address).toEqual(constants.HEX_PREFIX);
+    });
+
+    test('handles zero address delegation_address with feature flag enabled', () => {
+      config.response.enableDelegationAddress = true;
+      const zeroAddress = Buffer.from('0000000000000000000000000000000000000000', 'hex');
+      const result = subject.processRow({...inputAccount, delegation_address: zeroAddress});
+      expect(result).toHaveProperty('delegation_address');
+      expect(result.delegation_address).toEqual(constants.HEX_PREFIX);
     });
   });
 });
