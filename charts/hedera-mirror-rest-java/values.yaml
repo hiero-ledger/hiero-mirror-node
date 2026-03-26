@@ -84,11 +84,9 @@ gateway:
         - path:
             type: RegularExpression
             value: '/api/v1/network/fees$'
-        {{- if .Values.routes.network.nodes }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/nodes$'
-        {{- end }}
         - path:
             type: RegularExpression
             value: '/api/v1/network/stake$'
@@ -147,7 +145,6 @@ ingress:
         - path: '/api/v1/network/exchangerate'
         - path: '/api/v1/network/fees$'
         - path: '/api/v1/network/nodes$'
-          condition: '{{ .Values.routes.network.nodes }}'
         - path: '/api/v1/network/stake$'
         - path: '/api/v1/network/supply$'
         - path: '/api/v1/topics/(\d+\.){0,2}\d+$'
@@ -329,10 +326,6 @@ resources:
     memory: 1024Mi
 
 revisionHistoryLimit: 3
-
-routes:
-  network:
-    nodes: false
 
 securityContext:
   allowPrivilegeEscalation: false
