@@ -31,8 +31,8 @@ HEALTHCHECK --interval=10s --retries=3 --start-period=25s --timeout=2s \
 WORKDIR /home/node/app/
 
 # Copy the bundled application output and static assets needed at runtime.
-# dist/package.json is a minimal manifest listing only the 3 externalized packages;
-# combined with the lock file it gives a reproducible, much smaller npm ci install.
+# dist/package.json is a minimal manifest listing only the 2 externalized packages
+# (log4js, swagger-ui-express); npm install uses it to avoid installing all production deps.
 COPY --from=builder --chown=node:node /home/node/app/dist ./dist
 RUN npm config set update-notifier false && \
     cp dist/package.json package.json && \

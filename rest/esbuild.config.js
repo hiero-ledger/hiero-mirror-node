@@ -15,7 +15,6 @@ await build({
   external: [
     './__tests__/*', // test-only dynamic import in utils.js
     'log4js', // uses dynamic require(moduleName) for appender loading
-    'swagger-stats', // serves static files from its own node_modules directory
     'swagger-ui-express', // serves static files from its own node_modules directory
   ],
   banner: {
@@ -34,11 +33,11 @@ cpSync('config', 'dist/config', {recursive: true});
 
 // Generate a minimal package.json for the runtime Docker image that only lists
 // the packages kept external from the bundle. This allows the Dockerfile runtime
-// stage to run `npm ci` with a much smaller dependency tree instead of installing
-// all 48 production dependencies.
+// stage to run `npm install` with a much smaller dependency tree instead of installing
+// all production dependencies.
 import {readFileSync, writeFileSync} from 'fs';
 const {name, version, dependencies} = JSON.parse(readFileSync('package.json', 'utf8'));
-const externalPackages = ['log4js', 'swagger-stats', 'swagger-ui-express'];
+const externalPackages = ['log4js', 'swagger-ui-express'];
 const runtimePackage = {
   name,
   version,
