@@ -11,6 +11,7 @@ await build({
   format: 'esm',
   outdir: 'dist',
   splitting: true, // preserves dynamic imports as separate chunks
+  minify: true, // reduces bundle size ~50%, lowering V8 parse/JIT memory at startup
   external: [
     './__tests__/*', // test-only dynamic import in utils.js
     'log4js', // uses dynamic require(moduleName) for appender loading
@@ -23,7 +24,6 @@ await build({
     // (e.g. express-http-context requires 'async_hooks') inside an ESM bundle.
     js: "// SPDX-License-Identifier: Apache-2.0\nimport {createRequire} from 'module';\nconst require = createRequire(import.meta.url);",
   },
-  sourcemap: true, // maps bundle stack traces back to original source files
   logLevel: 'info',
 });
 
