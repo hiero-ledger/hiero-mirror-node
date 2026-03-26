@@ -82,7 +82,8 @@ spec:
             contractId: "0.0.2664875"
     restjava:
       routes:
-        nodes: true
+        network:
+          nodes: true
     rosetta:
       env:
         HIERO_MIRROR_ROSETTA_NETWORK: "testnet"
