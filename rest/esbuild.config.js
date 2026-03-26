@@ -30,6 +30,9 @@ await build({
 // config.js uses import.meta.url to resolve the default config directory, which
 // points to dist/ after bundling, so config/ must live at dist/config/.
 cpSync('config', 'dist/config', {recursive: true});
+// openapiHandler.js resolves api/v1/openapi.yml via process.cwd(), so api/ must
+// be at the app root at runtime. Copying it into dist/ keeps all static assets together.
+cpSync('api', 'dist/api', {recursive: true});
 
 // Generate a minimal package.json for the runtime Docker image that only lists
 // the packages kept external from the bundle. This allows the Dockerfile runtime
