@@ -4,9 +4,7 @@ package org.hiero.mirror.importer.reader.block.hash;
 
 import com.hedera.hapi.block.stream.protoc.MerklePath;
 import java.util.List;
-import org.jspecify.annotations.NullMarked;
 
-@NullMarked
 public interface BlockStateProofHasher {
 
     /**

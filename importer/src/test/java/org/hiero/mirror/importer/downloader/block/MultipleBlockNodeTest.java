@@ -22,7 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith({OutputCaptureExtension.class})
+@ExtendWith(OutputCaptureExtension.class)
 final class MultipleBlockNodeTest extends AbstractBlockNodeIntegrationTest {
 
     @AutoClose

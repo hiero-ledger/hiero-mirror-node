@@ -27,8 +27,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.SneakyThrows;
-import org.assertj.core.api.InstanceOfAssertFactories;
-import org.assertj.core.api.ObjectAssert;
 import org.hiero.block.api.protoc.BlockNodeServiceGrpc;
 import org.hiero.block.api.protoc.BlockStreamSubscribeServiceGrpc;
 import org.hiero.block.api.protoc.ServerStatusRequest;
@@ -44,16 +42,16 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
+import org.mockito.ThrowingConsumer;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
-@ExtendWith(GrpcCleanupExtension.class)
+@ExtendWith({GrpcCleanupExtension.class, OutputCaptureExtension.class})
 final class BlockNodeTest extends BlockNodeTestBase {
 
     private static final Consumer<BlockStream> IGNORE = b -> {};
-    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = grpcCall -> {};
+    private static final Consumer<BlockingClientCall<?, ?>> NOOP_GRPC_BUFFER_DISPOSER = _ -> {};
     private static final String SERVER = "test1";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
@@ -61,12 +59,6 @@ final class BlockNodeTest extends BlockNodeTestBase {
     private BlockNodeProperties blockNodeProperties;
     private BlockNode node;
     private StreamProperties streamProperties;
-
-    private static Stream<Arguments> provideUnexpectedNewBlockItem() {
-        return Stream.of(
-                Arguments.of(BlockItem.ItemCase.BLOCK_HEADER, blockHead(1)),
-                Arguments.of(BlockItem.ItemCase.RECORD_FILE, recordFileItem()));
-    }
 
     @BeforeEach
     void setup() {
@@ -243,6 +235,34 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     @Test
+    void streamBlockEndNothing(final CapturedOutput capturedOutput, final Resources resources) {
+        // given
+        final var responses = List.of(subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, commonDownloaderProperties, IGNORE);
+
+        // then
+        assertThat(capturedOutput.getAll())
+                .contains("Received end-of-block message for block 1 while there's no pending block items");
+    }
+
+    @Test
+    void streamBlockNumberMismatch(final CapturedOutput capturedOutput, final Resources resources) {
+        // given
+        final var responses =
+                List.of(subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader())), subscribeStreamResponse(1));
+        runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
+
+        // when
+        node.streamBlocks(0, commonDownloaderProperties, IGNORE);
+
+        // then
+        assertThat(capturedOutput.getAll()).contains("Block number mismatch in BlockHeader(0) and EndOfBlock(1)");
+    }
+
+    @Test
     void streamIncorrectFirstBlockItem(Resources resources) {
         // given
         var responses = List.of(subscribeStreamResponse(blockItemSet(eventHeader(), blockProof())));
@@ -254,13 +274,12 @@ final class BlockNodeTest extends BlockNodeTestBase {
                 .hasMessage("Incorrect first block item case EVENT_HEADER");
     }
 
-    @ParameterizedTest(name = "Unexpected {0}")
-    @MethodSource("provideUnexpectedNewBlockItem")
-    void streamMissingBlockProof(BlockItem.ItemCase itemCase, BlockItem blockItem, Resources resources) {
+    @Test
+    void streamWhenPreviousBlockPending(final Resources resources) {
         // given
         var responses = List.of(
                 subscribeStreamResponse(blockItemSet(blockHead(0), eventHeader())),
-                subscribeStreamResponse(blockItemSet(blockItem)));
+                subscribeStreamResponse(blockItemSet(blockHead(1))));
         runBlockStreamSubscribeService(resources, ResponsesOrError.fromResponses(responses));
 
         // when, then
@@ -278,7 +297,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         // when, then
         assertThatThrownBy(() -> node.streamBlocks(0, commonDownloaderProperties, IGNORE))
                 .isInstanceOf(BlockStreamException.class)
-                .hasMessage("The first block item is record file and there are more than one block items");
+                .hasMessage("Incorrect first block item case RECORD_FILE");
     }
 
     @Test
@@ -296,7 +315,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
     void streamRecordFileItemThenBlockItems(Resources resources) {
         // given
         var responses = List.of(
-                subscribeStreamResponse(blockItemSet(recordFileItem())),
+                subscribeStreamResponse(blockItemSet(blockHead(1), recordFileItem(), blockProof())),
                 subscribeStreamResponse(1),
                 subscribeStreamResponse(blockItemSet(blockHead(2), eventHeader(), blockProof())),
                 subscribeStreamResponse(2),
@@ -311,7 +330,7 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(streamed)
                 .hasSize(2)
                 .satisfies(
-                        blocks -> assertRecordItem(blocks.getFirst()),
+                        blocks -> assertRecordItem(blocks.getFirst(), 1),
                         blocks -> assertBlockStream(blocks.getLast(), 2));
     }
 
@@ -466,13 +485,10 @@ final class BlockNodeTest extends BlockNodeTestBase {
         assertThat(meterRegistry.find(ERROR_METRIC_NAME).counter().count()).isEqualTo(2);
     }
 
-    private void assertRecordItem(BlockStream blockStream) {
-        assertBlockStreamCommon(blockStream)
-                .returns(null, BlockStream::filename)
-                .extracting(BlockStream::blockItems, InstanceOfAssertFactories.collection(BlockItem.class))
-                .hasSize(1)
-                .first()
-                .returns(BlockItem.ItemCase.RECORD_FILE, BlockItem::getItemCase);
+    private void assertRecordItem(BlockStream blockStream, long number) {
+        assertBlockStream(
+                blockStream, number, blockItems -> assertThat(blockItems.get(1).getItemCase())
+                        .isEqualTo(BlockItem.ItemCase.RECORD_FILE));
     }
 
     private BlockNodeProperties blockNodeProperties(String host, int port, int priority) {
@@ -485,7 +501,14 @@ final class BlockNodeTest extends BlockNodeTestBase {
     }
 
     private void assertBlockStream(BlockStream blockStream, long number) {
-        assertBlockStreamCommon(blockStream)
+        assertBlockStream(blockStream, number, _ -> {});
+    }
+
+    private void assertBlockStream(
+            BlockStream blockStream, long number, ThrowingConsumer<List<BlockItem>> extraBlockItemAssert) {
+        assertThat(blockStream)
+                .satisfies(b -> assertThat(b.loadStart())
+                        .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()))
                 .returns(BlockFile.getFilename(number, false), BlockStream::filename)
                 .extracting(BlockStream::blockItems)
                 .satisfies(
@@ -493,12 +516,8 @@ final class BlockNodeTest extends BlockNodeTestBase {
                                 .returns(BlockItem.ItemCase.BLOCK_HEADER, BlockItem::getItemCase)
                                 .extracting(BlockItem::getBlockHeader)
                                 .returns(number, BlockHeader::getNumber),
-                        x -> assertThat(x.getLast()).returns(BlockItem.ItemCase.BLOCK_PROOF, BlockItem::getItemCase));
-    }
-
-    private ObjectAssert<BlockStream> assertBlockStreamCommon(BlockStream blockStream) {
-        return assertThat(blockStream).satisfies(b -> assertThat(b.loadStart())
-                .isGreaterThan(Instant.now().minusSeconds(10).toEpochMilli()));
+                        x -> assertThat(x.getLast()).returns(BlockItem.ItemCase.BLOCK_PROOF, BlockItem::getItemCase),
+                        extraBlockItemAssert);
     }
 
     private void runBlockNodeService(Resources resources, Supplier<ServerStatusResponse> responseProvider) {

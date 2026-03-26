@@ -3,7 +3,6 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.BLOCK_HEADER;
-import static com.hedera.hapi.block.stream.protoc.BlockItem.ItemCase.RECORD_FILE;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Range;
@@ -215,7 +214,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
     }
 
-    private class BlockAssembler {
+    private final class BlockAssembler {
 
         private final Consumer<BlockStream> blockStreamConsumer;
         private final List<List<BlockItem>> pending = new ArrayList<>();
@@ -240,7 +239,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             final var firstItemCase = blockItems.getFirst().getItemCase();
             append(blockItems, firstItemCase);
 
-            if (firstItemCase == BLOCK_HEADER || firstItemCase == RECORD_FILE) {
+            if (firstItemCase == BLOCK_HEADER) {
                 loadStart = System.currentTimeMillis();
             }
         }
@@ -253,16 +252,15 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
                 return;
             }
 
-            final var firstBlockItem = pending.getFirst().getFirst();
-            if (firstBlockItem.getItemCase() == BLOCK_HEADER
-                    && firstBlockItem.getBlockHeader().getNumber() != blockNumber) {
+            final var blockHeader = pending.getFirst().getFirst().getBlockHeader();
+            if (blockHeader.getNumber() != blockNumber) {
                 Utility.handleRecoverableError(
                         "Block number mismatch in BlockHeader({}) and EndOfBlock({})",
-                        firstBlockItem.getBlockHeader().getNumber(),
+                        blockHeader.getNumber(),
                         blockNumber);
             }
 
-            List<BlockItem> block;
+            final List<BlockItem> block;
             if (pending.size() == 1) {
                 block = pending.getFirst();
             } else {
@@ -277,9 +275,7 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
             pendingCount = 0;
             stopwatch.reset();
 
-            final var filename = firstBlockItem.getItemCase() == BLOCK_HEADER
-                    ? BlockFile.getFilename(block.getFirst().getBlockHeader().getNumber(), false)
-                    : null;
+            final var filename = BlockFile.getFilename(blockNumber, false);
             blockStreamConsumer.accept(new BlockStream(block, null, filename, loadStart));
         }
 
@@ -293,14 +289,11 @@ final class BlockNode implements AutoCloseable, Comparable<BlockNode> {
         }
 
         private void append(final List<BlockItem> blockItems, final BlockItem.ItemCase firstItemCase) {
-            if ((firstItemCase == BLOCK_HEADER || firstItemCase == RECORD_FILE) && !pending.isEmpty()) {
+            if (firstItemCase == BLOCK_HEADER && !pending.isEmpty()) {
                 throw new BlockStreamException(
                         "Received block items of a new block while the previous block is still pending");
-            } else if (firstItemCase != BLOCK_HEADER && firstItemCase != RECORD_FILE && pending.isEmpty()) {
+            } else if (firstItemCase != BLOCK_HEADER && pending.isEmpty()) {
                 throw new BlockStreamException("Incorrect first block item case " + firstItemCase);
-            } else if (firstItemCase == RECORD_FILE && blockItems.size() > 1) {
-                throw new BlockStreamException(
-                        "The first block item is record file and there are more than one block items");
             }
 
             pending.add(blockItems);

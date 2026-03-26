@@ -8,7 +8,6 @@ import static org.hiero.mirror.importer.reader.block.hash.HashUtils.hashLeaf;
 import java.security.MessageDigest;
 import java.util.LinkedList;
 import java.util.List;
-import org.jspecify.annotations.NullMarked;
 
 /**
  * A memory-efficient Merkle tree hasher that computes root hashes in a streaming fashion.
@@ -20,7 +19,6 @@ import org.jspecify.annotations.NullMarked;
  * <a href="https://github.com/hiero-ledger/hiero-consensus-node/blob/main/hedera-node/hedera-app/src/main/java/com/hedera/node/app/blocks/impl/IncrementalStreamingHasher.java">this link</a>.
  *
  */
-@NullMarked
 final class IncrementalStreamingHasher {
 
     private static final byte[] HASH_OF_ZERO_BYTES = createSha384Digest().digest(new byte[] {0x0});

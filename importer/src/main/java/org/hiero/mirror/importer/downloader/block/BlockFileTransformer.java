@@ -24,6 +24,10 @@ public final class BlockFileTransformer implements StreamFileTransformer<RecordF
 
     @Override
     public RecordFile transform(final BlockFile blockFile) {
+        if (blockFile.getRecordFile() != null) {
+            return blockFile.getRecordFile();
+        }
+
         final var blockHeader = blockFile.getBlockHeader();
         final var hapiProtoVersion = blockHeader.getHapiProtoVersion();
         final int major = hapiProtoVersion.getMajor();
