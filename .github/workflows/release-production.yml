@@ -207,7 +207,6 @@ jobs:
       - name: Build images
         run: ./release.sh "${TAG}"
         working-directory: charts/marketplace/gcp
-
 # Disable since this fails due to out-of-date dependencies in the marketplace-k8s-app-tools repo
 #      - name: Install marketplace app
 #        run: ${MPDEV} verify --deployer=gcr.io/mirror-node-public/hedera-mirror-node/deployer:${TAG}
