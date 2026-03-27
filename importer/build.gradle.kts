@@ -14,6 +14,9 @@ configurations.all {
     exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
 }
 
+// This slows down tests too much to keep enabled
+tasks.named("processTestAot") { enabled = false }
+
 dependencies {
     val blockNodeVersion: String by rootProject.extra
     val protobufVersion: String by rootProject.extra

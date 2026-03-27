@@ -17,9 +17,15 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.Year;
+import java.util.Objects;
 import lombok.CustomLog;
 import org.hiero.mirror.rest.model.Error;
 import org.hiero.mirror.restjava.config.RuntimeHintsConfiguration.CustomRuntimeHints;
+import org.hiero.mirror.restjava.dto.NetworkNodeRequest;
+import org.hiero.mirror.restjava.jooq.domain.Indexes;
+import org.hiero.mirror.restjava.jooq.domain.enums.AirdropState;
+import org.hiero.mirror.restjava.jooq.domain.tables.AccountBalance;
+import org.hiero.mirror.restjava.jooq.domain.tables.records.NftAllowanceRecord;
 import org.hiero.mirror.restjava.parameter.NumberRangeParameter;
 import org.hiero.mirror.restjava.parameter.RequestParameter;
 import org.jooq.Decfloat;
@@ -73,6 +79,42 @@ final class RuntimeHintsConfiguration {
                     "semantic-version.properties",
                     "genesis/**");
 
+            registerJooqClasses(hints, loader);
+        }
+
+        /**
+         * Jackson uses reflection to instantiate the OpenAPI generated response models.
+         *
+         * @param hints The RuntimeHints to modify
+         */
+        private void registerOpenApiModels(RuntimeHints hints) {
+            final var scanner = new ClassPathScanningCandidateComponentProvider(false);
+            scanner.addIncludeFilter(new AssignableTypeFilter(Object.class));
+            scanner.findCandidateComponents(Error.class.getPackageName()).forEach(b -> hints.reflection()
+                    .registerType(
+                            TypeReference.of(Objects.requireNonNull(b.getBeanClassName())),
+                            MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                            MemberCategory.ACCESS_DECLARED_FIELDS,
+                            MemberCategory.INVOKE_PUBLIC_METHODS));
+        }
+
+        /**
+         * RequestParameterArgumentResolver uses reflection to access fields and annotations on DTOs annotated with
+         * {@link RequestParameter}.
+         *
+         * @param hints The RuntimeHints to modify
+         */
+        private void registerRequestParameters(RuntimeHints hints, ClassLoader loader) {
+            registerPackage(
+                    hints,
+                    loader,
+                    NetworkNodeRequest.class.getPackageName(),
+                    MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
+                    MemberCategory.ACCESS_DECLARED_FIELDS,
+                    MemberCategory.INVOKE_PUBLIC_METHODS);
+        }
+
+        private void registerJooqClasses(RuntimeHints hints, ClassLoader loader) {
             registerReflectionTypes(
                     hints,
                     NONE,
@@ -123,39 +165,14 @@ final class RuntimeHintsConfiguration {
                     JSONB[].class,
                     org.jooq.Record.class,
                     org.jooq.Record[].class);
-        }
 
-        /**
-         * Jackson uses reflection to instantiate the OpenAPI generated response models.
-         *
-         * @param hints The RuntimeHints to modify
-         */
-        private void registerOpenApiModels(RuntimeHints hints) {
-            final var scanner = new ClassPathScanningCandidateComponentProvider(false);
-            scanner.addIncludeFilter(new AssignableTypeFilter(Object.class));
-            scanner.findCandidateComponents(Error.class.getPackageName()).forEach(b -> hints.reflection()
-                    .registerType(
-                            TypeReference.of(b.getBeanClassName()),
-                            MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                            MemberCategory.ACCESS_DECLARED_FIELDS,
-                            MemberCategory.INVOKE_PUBLIC_METHODS));
-        }
-
-        /**
-         * RequestParameterArgumentResolver uses reflection to access fields and annotations on DTOs annotated with
-         * {@link RequestParameter}.
-         *
-         * @param hints The RuntimeHints to modify
-         */
-        private void registerRequestParameters(RuntimeHints hints, ClassLoader loader) {
-            registerAnnotatedPackage(
+            registerPackage(hints, loader, AirdropState.class.getPackageName()); // TODO check
+            registerPackage(hints, loader, Indexes.class.getPackageName()); // TODO check
+            registerPackage(hints, loader, AccountBalance.class.getPackageName()); // TODO check
+            registerPackage(
                     hints,
                     loader,
-                    "org.hiero.mirror.restjava.dto",
-                    RequestParameter.class,
-                    MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS,
-                    MemberCategory.ACCESS_DECLARED_FIELDS,
-                    MemberCategory.INVOKE_PUBLIC_METHODS);
+                    NftAllowanceRecord.class.getPackageName()); // TODO probably just need methods and constructors
         }
     }
 }

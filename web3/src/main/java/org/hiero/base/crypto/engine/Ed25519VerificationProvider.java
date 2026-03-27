@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-package org.hiero.base.crypto.engine.engine;
+package org.hiero.base.crypto.engine;
 
 import static com.swirlds.logging.legacy.LogMarker.TESTING_EXCEPTIONS;
 import static org.hiero.base.utility.CommonUtils.hex;
@@ -17,7 +17,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.hiero.base.crypto.SignatureType;
 import org.hiero.base.crypto.TransactionSignature;
-import org.hiero.base.crypto.engine.OperationProvider;
 
 /**
  * Implementation of an Ed25519 signature verification provider. This implementation only supports Ed25519 signatures

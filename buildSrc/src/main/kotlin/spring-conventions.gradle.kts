@@ -22,20 +22,13 @@ tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 tasks.register("run") { dependsOn(tasks.bootRun) }
 
 val imagePlatform: String by project
-val platform = imagePlatform.ifBlank { null }
+val platform = "linux/amd64"
 
 tasks.bootBuildImage {
     val env = System.getenv()
-    val repo = env.getOrDefault("GITHUB_REPOSITORY", "hiero-ledger/hiero-mirror-node")
-    val image = "ghcr.io/${repo}/${project.name}"
+    val image = "docker.io/jesseswirldslabs/${project.name}"
 
-    buildpacks =
-        listOf(
-            "urn:cnb:builder:paketo-buildpacks/java",
-            "paketobuildpacks/health-checker",
-            "paketo-buildpacks/native-image",
-        )
-
+    buildpacks = listOf("urn:cnb:builder:paketo-buildpacks/java", "paketo-buildpacks/native-image")
     docker {
         imageName = image
         imagePlatform = platform
@@ -43,7 +36,7 @@ tasks.bootBuildImage {
             password = env.getOrDefault("GITHUB_TOKEN", "")
             username = env.getOrDefault("GITHUB_ACTOR", "")
         }
-        tags = listOf("${image}:${project.version}")
+        tags = listOf("${image}:${project.version}166")
     }
 
     val extraBuildArgs =
@@ -59,7 +52,7 @@ tasks.bootBuildImage {
             "BP_OCI_LICENSES" to "Apache-2.0",
             "BP_OCI_REF_NAME" to env.getOrDefault("GITHUB_REF_NAME", "main"),
             "BP_OCI_REVISION" to env.getOrDefault("GITHUB_SHA", ""),
-            "BP_OCI_SOURCE" to "https://github.com/${repo}",
+            "BP_OCI_SOURCE" to "https://github.com/hiero-ledger/hiero-mirror-node",
             "BP_OCI_VENDOR" to "Hiero",
         )
 }

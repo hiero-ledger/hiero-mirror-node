@@ -4,11 +4,15 @@ package org.hiero.mirror.web3.config;
 
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerResourcePatterns;
 
 import com.hedera.node.app.hapi.utils.sysfiles.domain.throttling.ThrottleGroup;
 import com.swirlds.config.api.ConfigData;
 import lombok.CustomLog;
+import org.hiero.mirror.web3.common.ContractCallContext;
+import org.hiero.mirror.web3.viewmodel.ContractCallRequest;
+import org.hiero.mirror.web3.viewmodel.GenericErrorResponse;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.aot.hint.RuntimeHints;
@@ -26,11 +30,18 @@ final class RuntimeHintsConfiguration {
 
         @Override
         public void registerHints(RuntimeHints hints, @Nullable ClassLoader classLoader) {
-            ClassLoader loader = classLoader != null ? classLoader : getClass().getClassLoader();
+            final var loader = classLoader != null ? classLoader : getClass().getClassLoader();
 
             registerAnnotatedPackage(hints, loader, "com.hedera.node.config.data", ConfigData.class);
 
             registerPackage(hints, loader, ThrottleGroup.class.getPackageName());
+
+            registerReflectionTypes(
+                    hints,
+                    ContractCallContext.class.getName(),
+                    ContractCallRequest.class.getName(),
+                    GenericErrorResponse.class.getName(),
+                    GenericErrorResponse.ErrorMessage.class.getName());
 
             registerResourcePatterns(
                     hints,

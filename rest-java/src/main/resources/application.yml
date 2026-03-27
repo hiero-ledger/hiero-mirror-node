@@ -72,6 +72,10 @@ server:
     max-http-form-post-size: 1KB
     max-swallow-size: 1KB
 spring:
+  aot:
+    repositories:
+      # Disabling due to issues with aot repositories https://github.com/spring-projects/spring-data-jpa/issues/4223
+      enabled: false
   application:
     name: rest-java
   datasource:

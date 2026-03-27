@@ -17,6 +17,8 @@ configurations.all {
     exclude(group = "io.vertx") // Unused and frequently has vulnerabilities
 }
 
+tasks.named("processTestAot") { enabled = false }
+
 dependencies {
     implementation(project(":common"))
     implementation("com.bucket4j:bucket4j-core")
