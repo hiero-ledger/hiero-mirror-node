@@ -3,6 +3,8 @@
 import {build} from 'esbuild';
 import {cpSync} from 'fs';
 
+const externalPackages = ['log4js', 'swagger-ui-express'];
+
 await build({
   entryPoints: ['server.js'],
   bundle: true,
@@ -14,8 +16,7 @@ await build({
   minify: true, // reduces bundle size ~50%, lowering V8 parse/JIT memory at startup
   external: [
     './__tests__/*', // test-only dynamic import in utils.js
-    'log4js', // uses dynamic require(moduleName) for appender loading
-    'swagger-ui-express', // serves static files from its own node_modules directory
+    ...externalPackages,
   ],
   banner: {
     // The SPDX header is required by license policy.
@@ -40,7 +41,6 @@ cpSync('api', 'dist/api', {recursive: true});
 // all production dependencies.
 import {readFileSync, writeFileSync} from 'fs';
 const {name, version, dependencies} = JSON.parse(readFileSync('package.json', 'utf8'));
-const externalPackages = ['log4js', 'swagger-ui-express'];
 const runtimePackage = {
   name,
   version,
