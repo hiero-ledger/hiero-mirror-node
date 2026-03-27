@@ -22,7 +22,7 @@ tasks.named("dockerBuild") { dependsOn(tasks.bootJar) }
 tasks.register("run") { dependsOn(tasks.bootRun) }
 
 val imagePlatform: String by project
-val platform = "linux/amd64"
+val platform = imagePlatform.ifBlank { null }
 
 tasks.bootBuildImage {
     val env = System.getenv()

@@ -2,6 +2,7 @@
 
 package org.hiero.mirror.web3.config;
 
+import static org.hiero.mirror.common.util.RuntimeHintsHelper.NONE;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerAnnotatedPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerPackage;
 import static org.hiero.mirror.common.util.RuntimeHintsHelper.registerReflectionTypes;
@@ -38,6 +39,15 @@ final class RuntimeHintsConfiguration {
 
             registerReflectionTypes(
                     hints,
+                    NONE,
+                    "com.esaulpaugh.headlong.abi.Pair[]",
+                    "com.esaulpaugh.headlong.abi.Quadruple[]",
+                    "com.esaulpaugh.headlong.abi.Quintuple[]",
+                    "com.esaulpaugh.headlong.abi.Sextuple[]",
+                    "com.esaulpaugh.headlong.abi.Triple[]");
+
+            registerReflectionTypes(
+                    hints,
                     ContractCallContext.class.getName(),
                     ContractCallRequest.class.getName(),
                     GenericErrorResponse.class.getName(),
@@ -47,6 +57,14 @@ final class RuntimeHintsConfiguration {
                     hints,
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/wraps/**",
+                    "com/hedera/nativelib/wraps/**",
+                    "darwin-aarch64/**", // besu
+                    "darwin-x86-64/**", // besu
+                    "linux-aarch64/**", // besu
+                    "linux-x86-64/**", // besu
+                    "lib/aarch64/**", // pegasys
+                    "lib/amd64/**", // pegasys
+                    "lib/x86_64/**", // pegasys
                     "genesis/**",
                     "canonical-prices.json",
                     "capacities.json",
