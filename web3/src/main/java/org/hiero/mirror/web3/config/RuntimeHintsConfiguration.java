@@ -48,6 +48,9 @@ final class RuntimeHintsConfiguration {
                     "com/hedera/nativelib/hints/**",
                     "com/hedera/nativelib/wraps/**",
                     "genesis/**",
+                    "canonical-prices.json",
+                    "capacities.json",
+                    "constant-weights.json",
                     "semantic-version.properties");
         }
     }
