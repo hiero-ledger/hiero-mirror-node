@@ -6,5 +6,5 @@ import io.grpc.ManagedChannelBuilder;
 
 interface ManagedChannelBuilderProvider {
 
-    ManagedChannelBuilder<?> get(String host, int port);
+    ManagedChannelBuilder<?> get(String host, int port, boolean useTls);
 }

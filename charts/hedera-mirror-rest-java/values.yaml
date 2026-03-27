@@ -332,7 +332,7 @@ revisionHistoryLimit: 3
 
 routes:
   network:
-    nodes: false
+    nodes: true
 
 securityContext:
   allowPrivilegeEscalation: false

@@ -3,12 +3,14 @@
 package org.hiero.mirror.importer.downloader.block;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.annotation.Resource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -67,11 +69,11 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
         var blockProperties = new BlockProperties(importerProperties);
         blockProperties.setEnabled(true);
         blockProperties.setNodes(nodes);
-        boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
+        final boolean isInProcess = nodes.getFirst().getStatusPort() == -1;
         final var cutoverService =
                 new CutoverServiceImpl(blockProperties, recordDownloaderProperties, recordFileRepository);
         streamFileNotifier = new PassThroughStreamFileNotifier(cutoverService);
-        var blockStreamVerifier = new BlockStreamVerifier(
+        final var blockStreamVerifier = new BlockStreamVerifier(
                 blockFileTransformer,
                 mock(BlockStateProofHasher.class),
                 cutoverService,
@@ -79,9 +81,16 @@ abstract class AbstractBlockNodeIntegrationTest extends ImporterIntegrationTest 
                 meterRegistry,
                 streamFileNotifier,
                 mock(TssVerifier.class));
-        var channelBuilderProvider =
+        final var channelBuilderProvider =
                 isInProcess ? inProcessManagedChannelBuilderProvider : managedChannelBuilderProvider;
+        final var blockNodeDiscoveryService = mock(BlockNodeDiscoveryService.class);
+        lenient().when(blockNodeDiscoveryService.getBlockNodes()).thenAnswer(invocation -> {
+            final var nodeList = new ArrayList<>(blockProperties.getNodes());
+            Collections.sort(nodeList);
+            return nodeList;
+        });
         return new BlockNodeSubscriber(
+                blockNodeDiscoveryService,
                 blockStreamReader,
                 blockStreamVerifier,
                 commonDownloaderProperties,

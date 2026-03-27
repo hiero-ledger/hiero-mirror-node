@@ -25,6 +25,8 @@ public class BlockProperties {
 
     private final ImporterProperties importerProperties;
 
+    private boolean autoDiscoveryEnabled = true;
+
     private String bucketName;
 
     private Boolean cutover;
