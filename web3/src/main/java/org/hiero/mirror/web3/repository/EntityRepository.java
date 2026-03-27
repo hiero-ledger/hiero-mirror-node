@@ -32,14 +32,14 @@ public interface EntityRepository extends CrudRepository<Entity, Long> {
     @Cacheable(
             cacheNames = CACHE_NAME_EVM_ADDRESS,
             cacheManager = CACHE_MANAGER_ENTITY,
-            key = "T(java.util.Arrays).hashCode(#alias)",
+            key = "@spelHelper.hashCode(#alias)",
             unless = "#result == null")
     Optional<Entity> findByEvmAddressAndDeletedIsFalse(byte[] alias);
 
     @Cacheable(
             cacheNames = CACHE_NAME_ALIAS,
             cacheManager = CACHE_MANAGER_ENTITY,
-            key = "T(java.util.Arrays).hashCode(#alias)",
+            key = "@spelHelper.hashCode(#alias)",
             unless = "#result == null")
     @Query(value = """
             select *
