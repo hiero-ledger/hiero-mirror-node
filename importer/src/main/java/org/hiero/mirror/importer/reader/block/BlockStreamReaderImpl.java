@@ -92,8 +92,10 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
                 blockFile.setConsensusEnd(context.getLastMetaTimestamp());
             }
         } else {
-            final var recordFile = recordFileItemParser.parse(
-                    blockNumber, recordFileItem.getRecordFile(), context.getRecordFileVersion());
+            final int recordFileVersion =
+                    blockFile.getBlockProof().getSignedRecordFileProof().getVersion();
+            final var recordFile =
+                    recordFileItemParser.parse(blockNumber, recordFileItem.getRecordFile(), recordFileVersion);
             blockFile.setRecordFile(recordFile);
             recordFile.setLoadStart(blockStream.loadStart());
             recordFile.setPreviousWrappedRecordBlockHash(blockFile.getRawPreviousHash());
@@ -144,10 +146,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
 
         final var blockProof = blockItem.getBlockProof();
         context.getBlockFile().blockProof(blockProof);
-
-        if (blockProof.hasSignedRecordFileProof()) {
-            context.setRecordFileVersion(blockProof.getSignedRecordFileProof().getVersion());
-        }
 
         // Read remaining blockProof block items. In a later release, implement support of multiple blockProof items,
         // primarily for wrapped record files which come with both SignedRecordFileProof and StateProof
@@ -275,10 +273,6 @@ public final class BlockStreamReaderImpl implements BlockStreamReader {
         @Nullable
         @Setter
         private Long lastMetaTimestamp; // The last consensus timestamp from metadata
-
-        @NonFinal
-        @Setter
-        private int recordFileVersion;
 
         ReaderContext(final List<BlockItem> blockItems, final String filename) {
             this.blockFile = BlockFile.builder();
