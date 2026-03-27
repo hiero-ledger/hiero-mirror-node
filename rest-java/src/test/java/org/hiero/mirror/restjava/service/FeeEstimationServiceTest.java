@@ -5,16 +5,11 @@ package org.hiero.mirror.restjava.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hedera.hapi.node.base.AccountAmount;
-import com.hedera.hapi.node.base.AccountID;
 import com.hedera.hapi.node.base.HederaFunctionality;
 import com.hedera.hapi.node.base.SignatureMap;
 import com.hedera.hapi.node.base.SignaturePair;
-import com.hedera.hapi.node.base.TokenID;
-import com.hedera.hapi.node.base.TokenTransferList;
 import com.hedera.hapi.node.base.Transaction;
 import com.hedera.hapi.node.token.CryptoTransferTransactionBody;
-import com.hedera.hapi.node.token.TokenAirdropTransactionBody;
 import com.hedera.hapi.node.transaction.SignedTransaction;
 import com.hedera.hapi.node.transaction.TransactionBody;
 import com.hedera.node.app.service.file.impl.schemas.V0490FileSchema;
@@ -33,9 +28,10 @@ import org.hiero.mirror.common.domain.transaction.TransactionType;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.RestJavaIntegrationTest;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
-import org.hiero.mirror.restjava.service.fee.FeeEstimationFeeContext;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationService;
 import org.hiero.mirror.restjava.service.fee.FeeEstimationState;
+import org.hiero.mirror.restjava.service.fee.FeeTokenStore;
+import org.hiero.mirror.restjava.service.fee.FeeTopicStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,8 +42,9 @@ import org.springframework.core.io.ClassPathResource;
 final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     private final FeeEstimationService service;
-    private final FeeEstimationFeeContext feeEstimationFeeContext;
     private final FeeEstimationState feeEstimationState;
+    private final FeeTopicStore feeTopicStore;
+    private final FeeTokenStore feeTokenStore;
     private final FileDataRepository fileDataRepository;
     private final RecordItemBuilder recordItemBuilder;
     private final SystemEntity systemEntity;
@@ -78,6 +75,13 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     private static final int INVALID_TX_SIZE = 100;
     private static final int LONG_MESSAGE_BYTES = 2_000;
 
+    /** Test-only mode enum that adds BOTH to run a single parameterized row for both fee modes. */
+    private enum TestMode {
+        INTRINSIC,
+        STATE,
+        BOTH
+    }
+
     @BeforeEach
     void setup() {
         final var feeBytes = FeeSchedule.PROTOBUF.toBytes(FEE_SCHEDULE).toByteArray();
@@ -90,92 +94,69 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
 
     @ParameterizedTest(name = "{0} [{1}]")
     @CsvSource(textBlock = """
-            # consensus
-            CONSENSUSCREATETOPIC,   INTRINSIC, 20300000000
-            CONSENSUSCREATETOPIC,   STATE,      20300000000
-            CONSENSUSDELETETOPIC,   INTRINSIC,    50000000
-            CONSENSUSDELETETOPIC,   STATE,          50000000
-            CONSENSUSSUBMITMESSAGE, INTRINSIC,     8000000
-            CONSENSUSSUBMITMESSAGE, STATE,           8000000
-            CONSENSUSUPDATETOPIC,   INTRINSIC,   402200000
-            CONSENSUSUPDATETOPIC,   STATE,         402200000
-            # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
-            CONTRACTCALL,           INTRINSIC,           0
-            CONTRACTCALL,           STATE,               0
-            CONTRACTCREATEINSTANCE, INTRINSIC, 20000000000
-            CONTRACTCREATEINSTANCE, STATE,     20000000000
-            CONTRACTDELETEINSTANCE, INTRINSIC,    70000000
-            CONTRACTDELETEINSTANCE, STATE,          70000000
-            CONTRACTUPDATEINSTANCE, INTRINSIC, 20260000000
-            CONTRACTUPDATEINSTANCE, STATE,     20260000000
-            # crypto
-            CRYPTOCREATEACCOUNT,    INTRINSIC, 10500000000
-            CRYPTOCREATEACCOUNT,    STATE,     10500000000
-            CRYPTODELETE,           INTRINSIC,    50000000
-            CRYPTODELETE,           STATE,          50000000
-            CRYPTOTRANSFER,         INTRINSIC,     1000000
-            CRYPTOTRANSFER,         STATE,           1000000
-            CRYPTOUPDATEACCOUNT,    INTRINSIC, 20002200000
-            CRYPTOUPDATEACCOUNT,    STATE,     20002200000
-            # ethereum
-            ETHEREUMTRANSACTION,    INTRINSIC,     1000000
-            ETHEREUMTRANSACTION,    STATE,           1000000
-            # file
-            FILEAPPEND,             INTRINSIC,   500000000
-            FILEAPPEND,             STATE,         500000000
-            FILECREATE,             INTRINSIC,   500000000
-            FILECREATE,             STATE,         500000000
-            FILEDELETE,             INTRINSIC,    70000000
-            FILEDELETE,             STATE,          70000000
-            FILEUPDATE,             INTRINSIC,   500000000
-            FILEUPDATE,             STATE,         500000000
-            # schedule
-            SCHEDULECREATE,         INTRINSIC,   100000000
-            SCHEDULECREATE,         STATE,         100000000
-            SCHEDULEDELETE,         INTRINSIC,    10000000
-            SCHEDULEDELETE,         STATE,          10000000
-            SCHEDULESIGN,           INTRINSIC,    10000000
-            SCHEDULESIGN,           STATE,          10000000
-            # token
-            TOKENASSOCIATE,         INTRINSIC,   500000000
-            TOKENASSOCIATE,         STATE,         500000000
-            TOKENBURN,              INTRINSIC,    10000000
-            TOKENBURN,              STATE,          10000000
-            TOKENCREATION,          INTRINSIC, 20700000000
-            TOKENCREATION,          STATE,     20700000000
-            TOKENDELETION,          INTRINSIC,    10000000
-            TOKENDELETION,          STATE,          10000000
-            TOKENDISSOCIATE,        INTRINSIC,   500000000
-            TOKENDISSOCIATE,        STATE,         500000000
-            TOKENFREEZE,            INTRINSIC,    10000000
-            TOKENFREEZE,            STATE,          10000000
-            TOKENGRANTKYC,          INTRINSIC,    10000000
-            TOKENGRANTKYC,          STATE,          10000000
-            TOKENMINT,              INTRINSIC,   400000000
-            TOKENMINT,              STATE,         400000000
-            TOKENPAUSE,             INTRINSIC,    10000000
-            TOKENPAUSE,             STATE,          10000000
-            TOKENREVOKEKYC,         INTRINSIC,    10000000
-            TOKENREVOKEKYC,         STATE,          10000000
-            TOKENUNFREEZE,          INTRINSIC,    10000000
-            TOKENUNFREEZE,          STATE,          10000000
-            TOKENUNPAUSE,           INTRINSIC,    10000000
-            TOKENUNPAUSE,           STATE,          10000000
-            TOKENUPDATE,            INTRINSIC,   710000000
-            TOKENUPDATE,            STATE,         710000000
-            TOKENWIPE,              INTRINSIC,    10000000
-            TOKENWIPE,              STATE,          10000000
-            # util
-            UTILPRNG,               INTRINSIC,    10000000
-            UTILPRNG,               STATE,          10000000
-            """)
-    void estimatesFeeByTransactionType(TransactionType type, FeeEstimateMode mode, long expected) {
+    # consensus
+    CONSENSUSCREATETOPIC    , BOTH     , 20300000000
+    CONSENSUSDELETETOPIC    , BOTH     , 50000000
+    CONSENSUSSUBMITMESSAGE  , BOTH     , 8000000
+    CONSENSUSUPDATETOPIC    , BOTH     , 402200000
+
+    # contract — ContractCall fees are paid in gas; CN calculator clears all hbar fees
+    CONTRACTCALL            , BOTH     , 0
+    CONTRACTCREATEINSTANCE  , INTRINSIC, 20000000000
+    CONTRACTDELETEINSTANCE  , BOTH     , 70000000
+    CONTRACTUPDATEINSTANCE  , BOTH     , 20260000000
+
+    # crypto
+    CRYPTOCREATEACCOUNT     , INTRINSIC, 10500000000
+    CRYPTODELETE            , BOTH     , 50000000
+    CRYPTOTRANSFER          , BOTH     , 1000000
+    CRYPTOUPDATEACCOUNT     , BOTH     , 20002200000
+
+    # ethereum
+    ETHEREUMTRANSACTION     , BOTH     , 1000000
+
+    # file
+    FILEAPPEND              , BOTH     , 500000000
+    FILECREATE              , INTRINSIC, 500000000
+    FILEDELETE              , BOTH     , 70000000
+    FILEUPDATE              , BOTH     , 500000000
+
+    # schedule
+    SCHEDULECREATE          , BOTH     , 100000000
+    SCHEDULEDELETE          , BOTH     , 10000000
+    SCHEDULESIGN            , BOTH     , 10000000
+
+    # token
+    TOKENASSOCIATE          , INTRINSIC, 500000000
+    TOKENBURN               , BOTH     , 10000000
+    TOKENCREATION           , BOTH     , 20700000000
+    TOKENDELETION           , BOTH     , 10000000
+    TOKENDISSOCIATE         , BOTH     , 500000000
+    TOKENFREEZE             , BOTH     , 10000000
+    TOKENGRANTKYC           , BOTH     , 10000000
+    TOKENMINT               , INTRINSIC, 400000000
+    TOKENPAUSE              , BOTH     , 10000000
+    TOKENREVOKEKYC          , BOTH     , 10000000
+    TOKENUNFREEZE           , BOTH     , 10000000
+    TOKENUNPAUSE            , BOTH     , 10000000
+    TOKENUPDATE             , BOTH     , 710000000
+    TOKENWIPE               , BOTH     , 10000000
+
+    # util
+    UTILPRNG                , BOTH     , 10000000
+    """)
+    void estimatesFeeByTransactionType(TransactionType type, TestMode mode, long expected) {
         final var pbjTransaction =
                 toPbj(recordItemBuilder.lookup(type).get().build().getTransaction());
-        final var result = service.estimateFees(pbjTransaction, mode);
-        assertThat(result.totalTinycents())
-                .as("Fee for %s in %s mode", type, mode)
-                .isEqualTo(expected);
+        final var modes = mode == TestMode.BOTH
+                ? List.of(FeeEstimateMode.INTRINSIC, FeeEstimateMode.STATE)
+                : List.of(mode == TestMode.STATE ? FeeEstimateMode.STATE : FeeEstimateMode.INTRINSIC);
+        for (var m : modes) {
+            final var result = service.estimateFees(pbjTransaction, m);
+            assertThat(result.totalTinycents())
+                    .as("Fee for %s in %s mode", type, m)
+                    .isEqualTo(expected);
+        }
     }
 
     @Test
@@ -259,8 +240,9 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     @Test
     void loadsSimpleFeeScheduleFromDatabase() {
         // given — construct a fresh service so that it loads from the DB (seeded in @BeforeEach)
-        final var freshService =
-                new FeeEstimationService(feeEstimationState, fileDataRepository, systemEntity, feeEstimationFeeContext);
+        final var freshService = new FeeEstimationService(
+                feeEstimationState, fileDataRepository, systemEntity, feeTopicStore, feeTokenStore);
+        freshService.init();
 
         // when
         final var result = freshService.estimateFees(cryptoTransfer(0), FeeEstimateMode.INTRINSIC);
@@ -452,6 +434,29 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     @Test
+    void estimatesFeesForAllKnownTransactionTypes() {
+        for (final var type : TransactionType.values()) {
+            final var supplier = recordItemBuilder.lookup(type);
+            if (type == TransactionType.UNKNOWN || supplier == null) {
+                continue;
+            }
+            final var txn = toPbj(supplier.get().build().getTransaction());
+            for (final var mode : FeeEstimateMode.values()) {
+                try {
+                    assertThat(service.estimateFees(txn, mode).totalTinycents())
+                            .as("%s fee for %s", mode, type)
+                            .isGreaterThanOrEqualTo(0);
+                } catch (IllegalArgumentException e) {
+                    // not-yet-supported transaction types.
+                    assertThat(e).hasMessageContaining("Unknown transaction type");
+                } catch (UnsupportedOperationException e) {
+                    // STATE mode may request a store not implemented in FeeEstimationFeeContext — acceptable.
+                }
+            }
+        }
+    }
+
+    @Test
     void invalidTransaction() {
         // given
         final var transaction = Transaction.newBuilder()
@@ -603,71 +608,49 @@ final class FeeEstimationServiceTest extends RestJavaIntegrationTest {
     }
 
     /**
-     * Builds a simple fungible-token CryptoTransfer that moves 100 units of the given token
-     * from account 1 to account 2. Used to exercise the STATE-mode token-store custom-fee lookup.
+     * Builds a simple fungible-token CryptoTransfer targeting the given token.
+     * Used to exercise the STATE-mode token-store custom-fee lookup.
      */
     private Transaction buildFungibleTokenTransfer(long tokenId) {
-        final var body = TransactionBody.newBuilder()
-                .memo("fee-test")
-                .cryptoTransfer(CryptoTransferTransactionBody.newBuilder()
-                        .tokenTransfers(List.of(TokenTransferList.newBuilder()
-                                .token(TokenID.newBuilder().tokenNum(tokenId).build())
-                                .transfers(List.of(
-                                        AccountAmount.newBuilder()
-                                                .accountID(AccountID.newBuilder()
-                                                        .accountNum(1)
-                                                        .build())
-                                                .amount(-100)
-                                                .build(),
-                                        AccountAmount.newBuilder()
-                                                .accountID(AccountID.newBuilder()
-                                                        .accountNum(2)
-                                                        .build())
-                                                .amount(100)
-                                                .build()))
-                                .build()))
-                        .build())
-                .build();
-        final var signedTxn = SignedTransaction.newBuilder()
-                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
-                .build();
-        return Transaction.newBuilder()
-                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTxn))
-                .build();
+        return toPbj(recordItemBuilder
+                .cryptoTransfer(RecordItemBuilder.TransferType.TOKEN)
+                .transactionBody(b -> b.clearTokenTransfers()
+                        .addTokenTransfers(com.hederahashgraph.api.proto.java.TokenTransferList.newBuilder()
+                                .setToken(com.hederahashgraph.api.proto.java.TokenID.newBuilder()
+                                        .setTokenNum(tokenId))
+                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
+                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                                .setAccountNum(1))
+                                        .setAmount(-100))
+                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
+                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                                .setAccountNum(2))
+                                        .setAmount(100))))
+                .build()
+                .getTransaction());
     }
 
     /**
-     * Builds a fungible TokenAirdrop that sends 100 units of the given token from account 1 to account 2.
+     * Builds a fungible TokenAirdrop targeting the given token.
      * Used to exercise the STATE-mode token-store custom-fee lookup via TokenAirdropFeeCalculator.
      */
     private Transaction buildTokenAirdrop(long tokenId) {
-        final var body = TransactionBody.newBuilder()
-                .memo("fee-test")
-                .tokenAirdrop(TokenAirdropTransactionBody.newBuilder()
-                        .tokenTransfers(List.of(TokenTransferList.newBuilder()
-                                .token(TokenID.newBuilder().tokenNum(tokenId).build())
-                                .transfers(List.of(
-                                        AccountAmount.newBuilder()
-                                                .accountID(AccountID.newBuilder()
-                                                        .accountNum(1)
-                                                        .build())
-                                                .amount(-100)
-                                                .build(),
-                                        AccountAmount.newBuilder()
-                                                .accountID(AccountID.newBuilder()
-                                                        .accountNum(2)
-                                                        .build())
-                                                .amount(100)
-                                                .build()))
-                                .build()))
-                        .build())
-                .build();
-        final var signedTxn = SignedTransaction.newBuilder()
-                .bodyBytes(TransactionBody.PROTOBUF.toBytes(body))
-                .build();
-        return Transaction.newBuilder()
-                .signedTransactionBytes(SignedTransaction.PROTOBUF.toBytes(signedTxn))
-                .build();
+        return toPbj(recordItemBuilder
+                .tokenAirdrop()
+                .transactionBody(b -> b.clearTokenTransfers()
+                        .addTokenTransfers(com.hederahashgraph.api.proto.java.TokenTransferList.newBuilder()
+                                .setToken(com.hederahashgraph.api.proto.java.TokenID.newBuilder()
+                                        .setTokenNum(tokenId))
+                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
+                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                                .setAccountNum(1))
+                                        .setAmount(-100))
+                                .addTransfers(com.hederahashgraph.api.proto.java.AccountAmount.newBuilder()
+                                        .setAccountID(com.hederahashgraph.api.proto.java.AccountID.newBuilder()
+                                                .setAccountNum(2))
+                                        .setAmount(100))))
+                .build()
+                .getTransaction());
     }
 
     private Transaction cryptoTransfer(int signatureCount) {

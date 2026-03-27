@@ -14,14 +14,14 @@ import com.hedera.hapi.util.UnknownHederaFunctionality;
 import com.hedera.node.app.fees.FeeManager;
 import com.hedera.node.app.service.entityid.impl.AppEntityIdFactory;
 import com.hedera.node.app.spi.fees.FeeContext;
+import com.hedera.node.app.spi.fees.SimpleFeeCalculator;
 import com.hedera.node.app.spi.fees.SimpleFeeContext;
 import com.hedera.node.app.spi.workflows.QueryContext;
+import com.hedera.node.app.workflows.standalone.ExecutorComponent;
 import com.hedera.node.config.types.StreamMode;
 import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.BufferedData;
 import com.hedera.pbj.runtime.io.buffer.Bytes;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
+import jakarta.annotation.PostConstruct;
 import jakarta.inject.Named;
 import java.util.Objects;
 import java.util.Set;
@@ -31,70 +31,90 @@ import org.hiero.hapi.fees.FeeResult;
 import org.hiero.mirror.common.domain.SystemEntity;
 import org.hiero.mirror.rest.model.FeeEstimateMode;
 import org.hiero.mirror.restjava.repository.FileDataRepository;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
 
 @CustomLog
 @Named
 public final class FeeEstimationService {
 
+    private final ExecutorComponent executor;
+    private final FeeEstimationState feeEstimationState;
     private final FileDataRepository fileDataRepository;
-    private final SystemEntity systemEntity;
-    private final FeeEstimationFeeContext feeEstimationFeeContext;
-    private final FeeManager feeManager;
+    private final long feeScheduleFileId;
+    private final FeeTopicStore feeTopicStore;
+    private final FeeTokenStore feeTokenStore;
     private final AtomicLong lastFeeScheduleTimestamp;
 
     @SuppressWarnings("NullAway")
+    private FeeManager feeManager;
+
     public FeeEstimationService(
             FeeEstimationState feeEstimationState,
             FileDataRepository fileDataRepository,
             SystemEntity systemEntity,
-            FeeEstimationFeeContext feeEstimationFeeContext) {
+            FeeTopicStore feeTopicStore,
+            FeeTokenStore feeTokenStore) {
+        this.feeEstimationState = feeEstimationState;
         this.fileDataRepository = fileDataRepository;
-        this.systemEntity = systemEntity;
-        this.feeEstimationFeeContext = feeEstimationFeeContext;
+        this.feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
+        this.feeTopicStore = feeTopicStore;
+        this.feeTokenStore = feeTokenStore;
+        this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
 
-        final var config = feeEstimationFeeContext.configuration();
-        final var executor = TRANSACTION_EXECUTORS.newExecutorComponent(
+        final var config =
+                new FeeEstimationFeeContext(TransactionBody.DEFAULT, feeTopicStore, feeTokenStore).configuration();
+        this.executor = TRANSACTION_EXECUTORS.newExecutorComponent(
                 feeEstimationState,
                 FeeEstimationFeeContext.FEE_PROPERTIES,
                 null,
                 Set.of(),
                 new AppEntityIdFactory(config));
         executor.stateNetworkInfo().initFrom(feeEstimationState);
+    }
+
+    @PostConstruct
+    public void init() {
         executor.initializer().initialize(feeEstimationState, StreamMode.BOTH);
         this.feeManager = executor.feeManager();
-        this.lastFeeScheduleTimestamp = new AtomicLong(Long.MIN_VALUE);
-        refreshStateCalculator();
     }
 
     @Scheduled(fixedDelayString = "${hiero.mirror.rest-java.fee.refresh-interval:PT10M}")
     public void refreshStateCalculator() {
-        final var feeScheduleFileId = systemEntity.simpleFeeScheduleFile().getId();
         final var latestTimestamp =
                 fileDataRepository.getLatestTimestamp(feeScheduleFileId).orElse(Long.MIN_VALUE);
         if (latestTimestamp > lastFeeScheduleTimestamp.get()) {
-            log.info("Fee schedule changed (timestamp={}), rebuilding fee calculator", latestTimestamp);
+            log.info(
+                    "Rebuilding the fee calculator after detecting a simple fee schedule change at {}",
+                    latestTimestamp);
             lastFeeScheduleTimestamp.set(latestTimestamp);
             fileDataRepository
                     .getFileAtTimestamp(feeScheduleFileId, 0L, Long.MAX_VALUE)
-                    .ifPresent(fileData -> feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData())));
+                    .ifPresent(fileData -> {
+                        synchronized (feeManager) {
+                            feeManager.updateSimpleFees(Bytes.wrap(fileData.getFileData()));
+                        }
+                    });
         }
     }
 
     public FeeResult estimateFees(Transaction transaction, FeeEstimateMode mode) {
         try {
-            final var context = new TransactionFeeContext(
-                    transaction, mode == FeeEstimateMode.STATE ? feeEstimationFeeContext : null);
-            if (mode == FeeEstimateMode.STATE) {
-                feeEstimationFeeContext.setBody(context.body());
+            final var txContext = new TransactionFeeContext(transaction);
+            final var context = mode == FeeEstimateMode.STATE
+                    ? txContext.withFeeContext(
+                            new FeeEstimationFeeContext(txContext.body(), feeTopicStore, feeTokenStore))
+                    : txContext;
+            final SimpleFeeCalculator calculator;
+            synchronized (feeManager) {
+                calculator = Objects.requireNonNull(feeManager.getSimpleFeeCalculator());
             }
-            return Objects.requireNonNull(feeManager.getSimpleFeeCalculator()).calculateTxFee(context.body(), context);
+            return calculator.calculateTxFee(context.body(), context);
         } catch (ParseException e) {
             throw new IllegalArgumentException("Unable to parse transaction", e);
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Unknown transaction type", e);
-        } finally {
-            feeEstimationFeeContext.clearBody();
         }
     }
 
@@ -108,12 +128,15 @@ public final class FeeEstimationService {
         @Nullable
         private final FeeContext feeContext;
 
+        TransactionFeeContext(Transaction transaction) throws ParseException {
+            this(transaction, null);
+        }
+
         TransactionFeeContext(Transaction transaction, @Nullable FeeContext feeContext) throws ParseException {
             this.transaction = transaction;
             this.feeContext = feeContext;
             if (transaction.signedTransactionBytes().length() > 0) {
-                final var signedTransaction = SignedTransaction.PROTOBUF.parse(
-                        BufferedData.wrap(transaction.signedTransactionBytes().toByteArray()));
+                final var signedTransaction = SignedTransaction.PROTOBUF.parse(transaction.signedTransactionBytes());
                 this.body = TransactionBody.PROTOBUF.parse(signedTransaction.bodyBytes());
                 this.numTxnSignatures = signedTransaction
                         .sigMapOrElse(SignatureMap.DEFAULT)
@@ -126,6 +149,18 @@ public final class FeeEstimationService {
             } else {
                 throw new IllegalArgumentException("Transaction must contain body bytes or signed transaction bytes");
             }
+        }
+
+        private TransactionFeeContext(
+                Transaction transaction, int numTxnSignatures, TransactionBody body, @Nullable FeeContext feeContext) {
+            this.transaction = transaction;
+            this.numTxnSignatures = numTxnSignatures;
+            this.body = body;
+            this.feeContext = feeContext;
+        }
+
+        TransactionFeeContext withFeeContext(@Nullable FeeContext feeContext) {
+            return new TransactionFeeContext(transaction, numTxnSignatures, body, feeContext);
         }
 
         @Override

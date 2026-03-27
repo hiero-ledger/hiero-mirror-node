@@ -135,9 +135,7 @@ public final class FeeEstimationState implements State {
             for (var entry : serviceStates.entrySet()) {
                 final var stateId = entry.getKey();
                 final var state = entry.getValue();
-                if (state instanceof Map map) {
-                    wrapped.put(stateId, new InMemoryReadableKVState<>(stateId, map));
-                } else if (state instanceof AtomicReference ref) {
+                if (state instanceof AtomicReference ref) {
                     wrapped.put(stateId, new InMemoryReadableSingletonState<>(stateId, ref));
                 }
             }

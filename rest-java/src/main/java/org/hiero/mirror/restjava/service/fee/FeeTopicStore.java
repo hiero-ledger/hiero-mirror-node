@@ -2,13 +2,10 @@
 
 package org.hiero.mirror.restjava.service.fee;
 
-import com.hedera.hapi.node.base.Key;
 import com.hedera.hapi.node.base.TopicID;
 import com.hedera.hapi.node.state.consensus.Topic;
 import com.hedera.hapi.node.transaction.FixedCustomFee;
 import com.hedera.node.app.service.consensus.ReadableTopicStore;
-import com.hedera.pbj.runtime.ParseException;
-import com.hedera.pbj.runtime.io.buffer.Bytes;
 import jakarta.inject.Named;
 import java.util.Collections;
 import java.util.List;
@@ -46,9 +43,6 @@ public final class FeeTopicStore implements ReadableTopicStore {
             final CustomFeeRepository customFeeRepository) {
         return Topic.newBuilder()
                 .topicId(id)
-                .adminKey(parseKey(topic.getAdminKey()))
-                .submitKey(parseKey(topic.getSubmitKey()))
-                .feeScheduleKey(parseKey(topic.getFeeScheduleKey()))
                 .customFees(getCustomFees(topic.getId(), customFeeRepository))
                 .build();
     }
@@ -60,17 +54,5 @@ public final class FeeTopicStore implements ReadableTopicStore {
                 .filter(customFee -> !CollectionUtils.isEmpty(customFee.getFixedFees()))
                 .map(customFee -> Collections.nCopies(customFee.getFixedFees().size(), FixedCustomFee.DEFAULT))
                 .orElseGet(List::of);
-    }
-
-    @Nullable
-    private static Key parseKey(final byte[] keyBytes) {
-        if (keyBytes == null || keyBytes.length == 0) {
-            return null;
-        }
-        try {
-            return Key.PROTOBUF.parse(Bytes.wrap(keyBytes));
-        } catch (ParseException e) {
-            return null;
-        }
     }
 }
