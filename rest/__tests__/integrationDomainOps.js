@@ -692,6 +692,7 @@ const addEntityStake = async (entityStake) => {
 
 const ethereumTransactionDefaults = {
   access_list: null,
+  authorization_list: null,
   call_data_id: null,
   call_data: null,
   chain_id: null,
@@ -740,6 +741,10 @@ const addEthereumTransaction = async (ethereumTransaction) => {
     ],
     ethTx
   );
+
+  if (ethTx.authorization_list != null) {
+    ethTx.authorization_list = JSON.stringify(ethTx.authorization_list);
+  }
 
   ethTx.payer_account_id = encodedIdFromSpecValue(ethTx.payer_account_id);
   ethTx.call_data_id = encodedIdFromSpecValue(ethTx.call_data_id);

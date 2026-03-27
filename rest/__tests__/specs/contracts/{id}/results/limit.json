@@ -72,6 +72,7 @@
           {
             "address": "0x0000000000000000000000000000000000001389",
             "amount": 60,
+            "authorization_list": null,
             "bloom": "0x0606",
             "call_result": "0x0707",
             "contract_id": "0.0.5001",
@@ -103,6 +104,7 @@
           {
             "address": "0x0000000000000000000000000000000000001389",
             "amount": 60,
+            "authorization_list": null,
             "bloom": "0x0606",
             "call_result": "0x0707",
             "contract_id": "0.0.5001",
@@ -120,6 +122,7 @@
           {
             "address": "0x0000000000000000000000000000000000001389",
             "amount": 50,
+            "authorization_list": null,
             "bloom": "0x0505",
             "call_result": "0x0606",
             "contract_id": "0.0.5001",
@@ -137,6 +140,7 @@
           {
             "address": "0x0000000000000000000000000000000000001389",
             "amount": 40,
+            "authorization_list": null,
             "bloom": "0x0404",
             "call_result": "0x0505",
             "contract_id": "0.0.5001",
@@ -154,6 +158,7 @@
           {
             "address": "0x0000000000000000000000000000000000001389",
             "amount": 30,
+            "authorization_list": null,
             "bloom": "0x0303",
             "call_result": "0x0404",
             "contract_id": "0.0.5001",

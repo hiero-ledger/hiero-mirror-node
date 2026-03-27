@@ -10,6 +10,7 @@ import {setupIntegrationTest} from '../integrationUtils';
 import {TransactionResult, TransactionType} from '../../model';
 import {orderFilterValues} from '../../constants';
 import EntityId from '../../entityId';
+import config from '../../config';
 
 setupIntegrationTest();
 
@@ -68,9 +69,11 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
             cr.transaction_index,
             cr.transaction_nonce,
             cr.transaction_result,
-            coalesce(e.evm_address,'') as evm_address
+            coalesce(e.evm_address,'') as evm_address,
+            etht.authorization_list
         from contract_result cr
         left join entity e on e.id = cr.contract_id
+        left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
         where cr.contract_id = $1
         order by cr.consensus_timestamp asc
         limit $2`;
@@ -107,9 +110,11 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.transaction_index,
         cr.transaction_nonce,
         cr.transaction_result,
-        coalesce(e.evm_address,'') as evm_address
+        coalesce(e.evm_address,'') as evm_address,
+        etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
     where cr.contract_id = $1 and cr.consensus_timestamp > $2 and cr.payer_account_id = $3
     order by cr.consensus_timestamp asc
     limit $4`;
@@ -146,9 +151,11 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.transaction_index,
         cr.transaction_nonce,
         cr.transaction_result,
-        coalesce(e.evm_address,'') as evm_address
+        coalesce(e.evm_address,'') as evm_address,
+        etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
     where cr.contract_id = $1 and cr.transaction_nonce = $2
     order by cr.consensus_timestamp asc
     limit $3
@@ -186,9 +193,11 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         cr.transaction_index,
         cr.transaction_nonce,
         cr.transaction_result,
-        coalesce(e.evm_address,'') as evm_address
+        coalesce(e.evm_address,'') as evm_address,
+        etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
     where cr.contract_id = $1 and cr.transaction_index = $2
     order by cr.consensus_timestamp asc
     limit $3
@@ -1322,6 +1331,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222333n,
         {
           accessList: null,
+          authorizationList: null,
           chainId: '012a',
           consensusTimestamp: 1690086061111222333n,
           gasPrice: 'ad78ebc5ac620000',
@@ -1341,6 +1351,7 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
         1690086061111222555n,
         {
           accessList: null,
+          authorizationList: null,
           chainId: '012a',
           consensusTimestamp: 1690086061111222555n,
           gasPrice: 'ad78ebc5ac620000',
@@ -1361,6 +1372,55 @@ describe('ContractService.getEthereumTransactionsByPayerAndTimestampArray', () =
     await expect(ContractService.getEthereumTransactionsByPayerAndTimestampArray(payers, timestamps)).resolves.toEqual(
       expected
     );
+  });
+
+  test('Excludes authorization_list when feature flag is disabled', async () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = false;
+    await integrationDomainOps.loadEthereumTransactions([
+      {
+        consensus_timestamp: 1690086061111222333n,
+        chain_id: [0x1, 0x2a],
+        hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
+        max_fee_per_gas: '0xc83bfe9800', // 86 * 10^10 = 860000000000
+        nonce: 10,
+        payer_account_id: entityId500.num,
+        value: [0xa0],
+      },
+    ]);
+    const payer = [entityId500.getEncodedId()];
+    const timestamp = [1690086061111222333n];
+
+    const result = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(payer, timestamp);
+    const ethTx = result.get(1690086061111222333n);
+    expect(ethTx).not.toHaveProperty('authorizationList');
+
+    config.response.enableDelegationAddress = originalFlagValue;
+  });
+
+  test('Includes authorization_list when feature flag is enabled', async () => {
+    const originalFlagValue = config.response.enableDelegationAddress;
+    config.response.enableDelegationAddress = true;
+    await integrationDomainOps.loadEthereumTransactions([
+      {
+        consensus_timestamp: 1690086061111222333n,
+        chain_id: [0x1, 0x2a],
+        hash: '0x3df8d8a9891a3f94dc07c70509c4a25f0069795365ba9de8c43e214d80f48fa8',
+        max_fee_per_gas: '0xc83bfe9800',
+        nonce: 10,
+        payer_account_id: entityId500.num,
+        value: [0xa0],
+      },
+    ]);
+    const payer = [entityId500.getEncodedId()];
+    const timestamp = [1690086061111222333n];
+
+    const result = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(payer, timestamp);
+    const ethTx = result.get(1690086061111222333n);
+    expect(ethTx).toHaveProperty('authorizationList');
+    expect(ethTx.authorizationList).toBeNull();
+
+    config.response.enableDelegationAddress = originalFlagValue;
   });
 });
 

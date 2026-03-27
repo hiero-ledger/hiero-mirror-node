@@ -20,6 +20,7 @@ describe('ContractResultViewModel', () => {
   const defaultExpected = {
     address: '0x00000000000000000000000000000000000005dc',
     amount: 10,
+    authorization_list: null,
     bloom: '0x01020304',
     call_result: '0x0a0b0c0d',
     contract_id: '0.0.1500',

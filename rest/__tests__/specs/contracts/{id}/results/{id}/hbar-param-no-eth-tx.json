@@ -113,6 +113,7 @@
       "responseJson": {
         "access_list": null,
         "amount": 30,
+        "authorization_list": null,
         "block_gas_used": 0,
         "block_hash": "0x6ceecd8bb224da491",
         "block_number": 17,
@@ -200,6 +201,7 @@
       "responseJson": {
         "access_list": null,
         "amount": 300000000000,
+        "authorization_list": null,
         "block_gas_used": 0,
         "block_hash": "0x6ceecd8bb224da491",
         "block_number": 17,

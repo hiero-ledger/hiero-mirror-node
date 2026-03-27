@@ -23,7 +23,6 @@ import {
 } from '../model';
 import ContractTransaction from '../model/contractTransaction';
 import {RecordFileService} from './index';
-
 const {default: defaultLimit} = getResponseLimit();
 const contractLogsFields = `${ContractLog.getFullName(ContractLog.BLOOM)},
 ${ContractLog.getFullName(ContractLog.CONTRACT_ID)},
@@ -74,13 +73,21 @@ class ContractService extends BaseService {
   static contractResultsWithEvmAddressQuery = `
     select
       ${contractResultsFields},
-      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS}
+      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS},
+      ${EthereumTransaction.getFullName(EthereumTransaction.AUTHORIZATION_LIST)}
     from ${ContractResult.tableName} ${ContractResult.tableAlias}
     `;
 
   static joinContractResultWithEvmAddress = `
       left join ${Entity.tableName} ${Entity.tableAlias}
       on ${Entity.getFullName(Entity.ID)} = ${ContractResult.getFullName(ContractResult.CONTRACT_ID)}
+      left join ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
+      on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} = ${ContractResult.getFullName(
+    ContractResult.CONSENSUS_TIMESTAMP
+  )}
+      and ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)} = ${ContractResult.getFullName(
+    ContractResult.PAYER_ACCOUNT_ID
+  )}
    `;
 
   static contractStateChangesQuery = `
@@ -179,6 +186,7 @@ class ContractService extends BaseService {
 
   static ethereumTransactionByPayerAndTimestampArrayQuery = `select
         encode(${EthereumTransaction.ACCESS_LIST}, 'hex') ${EthereumTransaction.ACCESS_LIST},
+        ${EthereumTransaction.AUTHORIZATION_LIST},
         encode(${EthereumTransaction.CHAIN_ID}, 'hex') ${EthereumTransaction.CHAIN_ID},
         ${EthereumTransaction.CONSENSUS_TIMESTAMP},
         encode(${EthereumTransaction.GAS_PRICE}, 'hex') ${EthereumTransaction.GAS_PRICE},
@@ -274,9 +282,11 @@ class ContractService extends BaseService {
       const positions = range(1, timestamps.length + 1).map((i) => `$${i}`);
       timestampsOpAndValue = `in (${positions})`;
     }
-    const conditions = [`${ContractResult.CONSENSUS_TIMESTAMP} ${timestampsOpAndValue}`];
+    const conditions = [`${ContractResult.getFullName(ContractResult.CONSENSUS_TIMESTAMP)} ${timestampsOpAndValue}`];
     if (involvedContractIds.length) {
-      conditions.push(`${ContractResult.CONTRACT_ID} in (${involvedContractIds.join(',')})`);
+      conditions.push(
+        `${ContractResult.getFullName(ContractResult.CONTRACT_ID)} in (${involvedContractIds.join(',')})`
+      );
     }
     const whereClause = ` where ${conditions.join(' and ')} `;
     const query = [

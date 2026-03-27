@@ -169,6 +169,7 @@
   "responseJson": {
     "access_list": "0xabcd",
     "amount": 2000000000,
+    "authorization_list": null,
     "block_gas_used": 50000000,
     "block_hash": "0x6ceecd8bb224da491",
     "block_number": 17,
