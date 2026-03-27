@@ -5,6 +5,7 @@ package org.hiero.mirror.importer.parser.record.transactionhandler;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.hiero.mirror.common.domain.node.RegisteredNode;
 import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint;
@@ -15,12 +16,15 @@ import org.hiero.mirror.common.domain.node.RegisteredServiceEndpoint.RpcRelayEnd
 import org.hiero.mirror.common.domain.transaction.RecordItem;
 import org.hiero.mirror.common.domain.transaction.Transaction;
 import org.hiero.mirror.common.util.DomainUtils;
+import org.hiero.mirror.importer.parser.record.RegisteredNodeChangedEvent;
 import org.hiero.mirror.importer.parser.record.entity.EntityListener;
 import org.hiero.mirror.importer.util.Utility;
+import org.springframework.context.ApplicationEventPublisher;
 
 @RequiredArgsConstructor
 abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransactionHandler {
 
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final EntityListener entityListener;
 
     protected abstract RegisteredNode parseRegisteredNode(RecordItem recordItem);
@@ -28,8 +32,13 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
     @Override
     protected void doUpdateTransaction(Transaction transaction, RecordItem recordItem) {
         final var registeredNode = parseRegisteredNode(recordItem);
-        if (registeredNode != null) {
-            entityListener.onRegisteredNode(registeredNode);
+        if (registeredNode == null) {
+            return;
+        }
+
+        entityListener.onRegisteredNode(registeredNode);
+        if (registeredNode.isDeleted() || !CollectionUtils.isEmpty(registeredNode.getServiceEndpoints())) {
+            applicationEventPublisher.publishEvent(new RegisteredNodeChangedEvent(this));
         }
     }
 
@@ -77,17 +86,16 @@ abstract class AbstractRegisteredNodeTransactionHandler extends AbstractTransact
     }
 
     private static BlockNodeApi toBlockNodeApi(
-            com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi proto) {
+            final com.hederahashgraph.api.proto.java.RegisteredServiceEndpoint.BlockNodeEndpoint.BlockNodeApi proto) {
         return switch (proto) {
-            case STATUS -> BlockNodeApi.STATUS;
-            case PUBLISH -> BlockNodeApi.PUBLISH;
-            case SUBSCRIBE_STREAM -> BlockNodeApi.SUBSCRIBE_STREAM;
-            case STATE_PROOF -> BlockNodeApi.STATE_PROOF;
             case OTHER -> BlockNodeApi.OTHER;
-            case UNRECOGNIZED -> BlockNodeApi.UNRECOGNIZED;
-            default -> {
-                Utility.handleRecoverableError("Unsupported BlockNodeApi: {}", proto.name());
-                yield BlockNodeApi.OTHER;
+            case PUBLISH -> BlockNodeApi.PUBLISH;
+            case STATE_PROOF -> BlockNodeApi.STATE_PROOF;
+            case STATUS -> BlockNodeApi.STATUS;
+            case SUBSCRIBE_STREAM -> BlockNodeApi.SUBSCRIBE_STREAM;
+            case UNRECOGNIZED -> {
+                Utility.handleRecoverableError("Unrecognized BlockNodeApi enum value");
+                yield BlockNodeApi.UNRECOGNIZED;
             }
         };
     }

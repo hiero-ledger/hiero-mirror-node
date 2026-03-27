@@ -6,9 +6,11 @@ import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,11 +32,14 @@ final class CompositeBlockSourceTest {
     @Mock
     private BlockFileSource blockFileSource;
 
-    @Mock
+    @Mock(strictness = LENIENT)
     private BlockNodeSubscriber blockNodeSubscriber;
 
     @Mock(strictness = LENIENT)
     private CutoverService cutoverService;
+
+    @Mock(strictness = LENIENT)
+    private BlockNodeDiscoveryService blockNodeDiscoveryService;
 
     private BlockProperties properties;
     private CompositeBlockSource source;
@@ -45,7 +50,9 @@ final class CompositeBlockSourceTest {
         properties = new BlockProperties(new ImporterProperties());
         properties.setEnabled(true);
         properties.setNodes(List.of(new BlockNodeProperties()));
-        source = new CompositeBlockSource(blockFileSource, blockNodeSubscriber, cutoverService, properties);
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(List.of(new BlockNodeProperties()));
+        source = new CompositeBlockSource(
+                blockFileSource, blockNodeDiscoveryService, blockNodeSubscriber, cutoverService, properties);
         sources = Map.of(
                 BlockSourceType.AUTO,
                 blockNodeSubscriber,
@@ -108,15 +115,15 @@ final class CompositeBlockSourceTest {
 
     @Test
     void getAutoNoBlockNodes() {
-        // given
-        properties.setNodes(Collections.emptyList());
+        // given - discovery service returns empty (no config nodes, no discovered nodes)
+        when(blockNodeDiscoveryService.getBlockNodes()).thenReturn(Collections.emptyList());
 
         // when
         source.get();
 
         // then
         verify(blockFileSource).get();
-        verifyNoInteractions(blockNodeSubscriber);
+        verify(blockNodeSubscriber, never()).get();
     }
 
     @Test

@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 final class CompositeBlockSource implements BlockSource {
 
     private final SourceHealth blockFileSourceHealth;
+    private final BlockNodeDiscoveryService blockNodeDiscoveryService;
     private final SourceHealth blockNodeSubscriberSourceHealth;
     private final AtomicReference<SourceHealth> current;
     private final CutoverService cutoverService;
@@ -26,10 +27,12 @@ final class CompositeBlockSource implements BlockSource {
 
     CompositeBlockSource(
             final BlockFileSource blockFileSource,
+            final BlockNodeDiscoveryService blockNodeDiscoveryService,
             final BlockNodeSubscriber blockNodeSubscriber,
             final CutoverService cutoverService,
             final BlockProperties properties) {
         this.blockFileSourceHealth = new SourceHealth(blockFileSource, BlockSourceType.FILE);
+        this.blockNodeDiscoveryService = blockNodeDiscoveryService;
         this.blockNodeSubscriberSourceHealth = new SourceHealth(blockNodeSubscriber, BlockSourceType.BLOCK_NODE);
         this.current = new AtomicReference<>(blockNodeSubscriberSourceHealth);
         this.cutoverService = cutoverService;
@@ -56,7 +59,7 @@ final class CompositeBlockSource implements BlockSource {
     private SourceHealth getSourceHealth() {
         return switch (properties.getSourceType()) {
             case AUTO -> {
-                if (properties.getNodes().isEmpty()) {
+                if (blockNodeDiscoveryService.getBlockNodes().isEmpty()) {
                     yield blockFileSourceHealth;
                 }
 

@@ -19,6 +19,9 @@
   "dependencies": {
     "@godaddy/terminus": "4.12.1",
     "@hiero-ledger/proto": "2.25.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-prometheus": "^0.57.0",
+    "@opentelemetry/sdk-metrics": "^1.30.0",
     "asn1js": "3.0.7",
     "basic-auth": "2.0.1",
     "compression": "1.8.1",
@@ -37,12 +40,10 @@
     "parse-duration": "2.1.5",
     "pg": "8.20.0",
     "pg-range": "1.1.2",
-    "prom-client": "14.2.0",
     "qs": "6.15.0",
     "quick-lru": "7.3.0",
     "rfc4648": "1.5.4",
     "sql-formatter": "15.7.2",
-    "swagger-stats": "0.99.7",
     "swagger-ui-express": "5.0.1",
     "tsscmp": "1.0.6",
     "word-wrap": "npm:@aashutoshrathi/word-wrap@1.2.6"
@@ -82,10 +83,6 @@
       "js-yaml": "3.14.2"
     },
     "multer": "2.1.1",
-    "swagger-stats": {
-      "path-to-regexp": "6.3.0",
-      "send": "0.19.2"
-    },
     "test-exclude": "7.0.1"
   },
   "bundleDependencies": true
