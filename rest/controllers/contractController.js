@@ -7,7 +7,7 @@ import range from 'lodash/range';
 
 import BaseController from './baseController';
 import Bound from './bound';
-import {getResponseLimit} from '../config';
+import config, {getResponseLimit} from '../config';
 import {
   filterKeys,
   httpStatusCodes,
@@ -878,7 +878,23 @@ class ContractController extends BaseController {
       return;
     }
 
-    response.results = rows.map((row) => new ContractResultViewModel(row));
+    if (config.response.enableDelegationAddress) {
+      const payers = rows.map((r) => r.payerAccountId);
+      const timestamps = rows.map((r) => r.consensusTimestamp);
+      const ethereumTransactionMap = await ContractService.getEthereumTransactionsByPayerAndTimestampArray(
+        payers,
+        timestamps
+      );
+      response.results = rows.map((row) => {
+        const ethTx = ethereumTransactionMap.get(row.consensusTimestamp);
+        return new ContractResultViewModel({
+          ...row,
+          authorizationList: ethTx?.authorizationList ?? null,
+        });
+      });
+    } else {
+      response.results = rows.map((row) => new ContractResultViewModel(row));
+    }
     const lastRow = last(response.results);
     const lastContractResultTimestamp = lastRow.timestamp;
     response.links.next = utils.getPaginationLink(

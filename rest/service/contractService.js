@@ -73,18 +73,14 @@ class ContractService extends BaseService {
   static contractResultsWithEvmAddressQuery = `
     select
       ${contractResultsFields},
-      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS},
-      ${EthereumTransaction.getFullName(EthereumTransaction.AUTHORIZATION_LIST)}
+      coalesce(${Entity.getFullName(Entity.EVM_ADDRESS)},'') as ${Entity.EVM_ADDRESS}
     from ${ContractResult.tableName} ${ContractResult.tableAlias}
     `;
 
   static joinContractResultWithEvmAddress = `
       left join ${Entity.tableName} ${Entity.tableAlias}
       on ${Entity.getFullName(Entity.ID)} = ${ContractResult.getFullName(ContractResult.CONTRACT_ID)}
-      left join ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
-      on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} = ${ContractResult.getFullName(
-    ContractResult.CONSENSUS_TIMESTAMP
-  )}`;
+   `;
 
   static contractStateChangesQuery = `
     with ${ContractService.entityCTE}
