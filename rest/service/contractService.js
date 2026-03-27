@@ -84,11 +84,7 @@ class ContractService extends BaseService {
       left join ${EthereumTransaction.tableName} ${EthereumTransaction.tableAlias}
       on ${EthereumTransaction.getFullName(EthereumTransaction.CONSENSUS_TIMESTAMP)} = ${ContractResult.getFullName(
     ContractResult.CONSENSUS_TIMESTAMP
-  )}
-      and ${EthereumTransaction.getFullName(EthereumTransaction.PAYER_ACCOUNT_ID)} = ${ContractResult.getFullName(
-    ContractResult.PAYER_ACCOUNT_ID
-  )}
-   `;
+  )}`;
 
   static contractStateChangesQuery = `
     with ${ContractService.entityCTE}

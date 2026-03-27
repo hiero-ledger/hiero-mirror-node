@@ -73,7 +73,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
             etht.authorization_list
         from contract_result cr
         left join entity e on e.id = cr.contract_id
-        left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
+        left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp
         where cr.contract_id = $1
         order by cr.consensus_timestamp asc
         limit $2`;
@@ -114,7 +114,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
-    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp
     where cr.contract_id = $1 and cr.consensus_timestamp > $2 and cr.payer_account_id = $3
     order by cr.consensus_timestamp asc
     limit $4`;
@@ -155,7 +155,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
-    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp
     where cr.contract_id = $1 and cr.transaction_nonce = $2
     order by cr.consensus_timestamp asc
     limit $3
@@ -197,7 +197,7 @@ describe('ContractService.getContractResultsByIdAndFiltersQuery tests', () => {
         etht.authorization_list
     from contract_result cr
     left join entity e on e.id = cr.contract_id
-    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp and etht.payer_account_id = cr.payer_account_id
+    left join ethereum_transaction etht on etht.consensus_timestamp = cr.consensus_timestamp
     where cr.contract_id = $1 and cr.transaction_index = $2
     order by cr.consensus_timestamp asc
     limit $3
